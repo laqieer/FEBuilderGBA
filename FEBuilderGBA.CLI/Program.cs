@@ -4305,6 +4305,11 @@ namespace FEBuilderGBA.CLI
 
             MigrationReport report = DecompDiffMigrationCore.Analyze(builtRom, editedBytes, map, resolver, maxGap);
 
+            // A requested --out write that fails is a FAILURE, not a warning:
+            // automation that asked for a TSV must not be told "success" with no
+            // report (Copilot PR #1139 finding 4). Print the summary first so the
+            // analysis result is still visible, then exit non-zero.
+            int exitCode = 0;
             if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
             {
                 try
@@ -4314,12 +4319,13 @@ namespace FEBuilderGBA.CLI
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"Warning: could not write report: {ex.Message}");
+                    Console.Error.WriteLine($"Error: could not write report to '{argsDic["--out"]}': {ex.Message}");
+                    exitCode = 1;
                 }
             }
 
             Console.WriteLine(DecompDiffMigrationCore.FormatSummary(report));
-            return 0;
+            return exitCode;
         }
 
         static int RunListTables(Dictionary<string, string> argsDic)

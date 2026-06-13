@@ -144,6 +144,81 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
+        // Build a DETERMINISTIC project that needs NO local real ROM: a 16 MB dummy
+        // ROM + a manifest forceVersion="FE8U" so LoadProject -> LoadForceVersion ->
+        // InitFull succeeds (LoadLow only requires data.Length >= 0x1000000). The
+        // .map places a covering symbol at a known offset (Copilot PR #1139 finding 3 —
+        // the positive command path runs in CI without a real ROM). Returns
+        // (dir, builtRom, knownOffset, symbol).
+        private static (string Dir, string BuiltRom, int Offset, string Symbol) MakeDummyProject()
+        {
+            string dir = NewTempDir("dummy");
+            File.WriteAllText(Path.Combine(dir, "febuilder.project.json"),
+                "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"forceVersion\": \"FE8U\" }");
+            string built = Path.Combine(dir, "synth.gba");
+            File.WriteAllBytes(built, new byte[0x1000000]);   // 16 MB zero ROM
+            // gMigrateData @ 0x08010000 (file off 0x10000) covering a 0x40 span.
+            File.WriteAllText(Path.Combine(dir, "synth.map"), string.Join("\n", new[]
+            {
+                " .rodata        0x08010000       0x40 build/src/migrate.o",
+                "                0x08010000                gMigrateData",
+            }));
+            return (dir, built, 0x10000, "gMigrateData");
+        }
+
+        [Fact]
+        public void MigrateDiff_DummyForceVersionProject_ClassifiesRange_NoRealRomNeeded()
+        {
+            var (dir, built, off, sym) = MakeDummyProject();
+            string edited = MakeEditedCopy(built, off, 4);
+            string outTsv = Path.Combine(dir, "report.tsv");
+            try
+            {
+                var (code, stdout, stderr) = RunWithRetry(
+                    $"--migrate-diff --project=\"{dir}\" --rom2=\"{edited}\" --out=\"{outTsv}\"");
+                string combined = stdout + stderr;
+
+                Assert.True(code == 0,
+                    $"--migrate-diff dummy exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                // The real load/analyze/TSV path executed: range attributed to the symbol.
+                Assert.Contains(sym, stdout);
+                Assert.True(File.Exists(outTsv), "TSV report was not written");
+                Assert.Contains(sym, File.ReadAllText(outTsv));
+                Assert.DoesNotContain("Unhandled exception", combined);
+            }
+            finally
+            {
+                try { File.Delete(edited); } catch { }
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MigrateDiff_DummyProject_OutWriteFails_ReturnsNonZero()
+        {
+            // Requesting --out to an unwritable path (a directory) must fail with a
+            // non-zero exit (Copilot PR #1139 finding 4), not a silent success.
+            var (dir, built, off, _) = MakeDummyProject();
+            string edited = MakeEditedCopy(built, off, 4);
+            try
+            {
+                // --out points at the project DIRECTORY itself → write throws.
+                var (code, stdout, stderr) = RunWithRetry(
+                    $"--migrate-diff --project=\"{dir}\" --rom2=\"{edited}\" --out=\"{dir}\"");
+                string combined = stdout + stderr;
+
+                Assert.True(code != 0,
+                    $"expected non-zero exit on unwritable --out, got {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("could not write report", combined);
+                Assert.DoesNotContain("Unhandled exception", combined);
+            }
+            finally
+            {
+                try { File.Delete(edited); } catch { }
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
         [Fact]
         public void MigrateDiff_NoProject_FailsGracefully()
         {

@@ -96,7 +96,7 @@ namespace FEBuilderGBA
             get
             {
                 int n = 0;
-                foreach (var r in Ranges) if (r.Manual) n++;
+                foreach (var r in Ranges) if (r != null && r.Manual) n++;
                 return n;
             }
         }
@@ -276,9 +276,13 @@ namespace FEBuilderGBA
             MigrationCategory cat = kr?.Category ?? HeuristicCategory(r.Section, r.Symbol);
             r.Category = cat;
 
-            if (covering)
+            // High requires a KNOWN category (not Unknown). A covering project
+            // symbol whose category we cannot determine — e.g. a neutral .text /
+            // .rodata symbol with no data keyword — is still raw-bytes work, so it
+            // must stay Low + manual (Copilot PR #1139 finding 1): never claim High
+            // for unknown/raw content even when the symbol name is known.
+            if (covering && cat != MigrationCategory.Unknown)
             {
-                // Covering project symbol → High; we know the exact symbol + source.
                 r.Confidence = MigrationConfidence.High;
                 r.Suggestion = kr != null
                     ? $"edit the {kr.Label} source for symbol '{r.Symbol}'"
@@ -289,7 +293,8 @@ namespace FEBuilderGBA
 
             if (kr != null)
             {
-                // Known range but no covering project symbol → Medium (row inferred).
+                // Known range but no covering project symbol (or covering+unknown
+                // shouldn't reach here since kr implies a category) → Medium.
                 r.Confidence = MigrationConfidence.Medium;
                 r.Suggestion = $"likely the {kr.Label} (entry inferred — verify against source)";
                 FinalizeSourceFile(r);
@@ -298,7 +303,7 @@ namespace FEBuilderGBA
 
             if (cat != MigrationCategory.Unknown)
             {
-                // Section/name heuristic only → Low (advisory hint, verify).
+                // Section/name heuristic only (no covering symbol) → Low (verify).
                 r.Confidence = MigrationConfidence.Low;
                 r.Suggestion = string.IsNullOrEmpty(r.Symbol)
                     ? $"likely {CategoryWord(cat)} (heuristic — verify against source)"
@@ -307,12 +312,15 @@ namespace FEBuilderGBA
                 return r;
             }
 
-            // 3. Unknown / raw — explicit manual.
+            // 3. Unknown / raw — explicit manual. A covering project symbol still
+            // names WHERE the change is, so surface it, but the content is raw.
             r.Category = MigrationCategory.Unknown;
             r.Confidence = MigrationConfidence.Low;
             r.Suggestion = string.IsNullOrEmpty(r.Symbol)
                 ? "manual migration required (unknown/raw bytes — no symbol)"
-                : $"manual migration required (raw bytes near '{r.Symbol}')";
+                : (covering
+                    ? $"manual migration required (raw bytes in symbol '{r.Symbol}' — unknown data type)"
+                    : $"manual migration required (raw bytes near '{r.Symbol}')");
             FinalizeSourceFile(r);
             return r;
         }
@@ -427,7 +435,10 @@ namespace FEBuilderGBA
         }
 
         // Match the range to a conservative, reliable known region. Only ranges we
-        // can bound with confidence are included (Copilot finding 5). NEVER throws.
+        // can bound with confidence are included (Copilot findings 5 + #1139.2):
+        // each struct table uses the SAME stop rule as its WinForms reader, NOT a
+        // generic "first u32 != 0xFFFFFFFF" guess that could over-claim 2048 rows of
+        // unrelated ROM data. NEVER throws.
         static KnownRange MatchKnownRange(ROM rom, uint start, uint endExclusive)
         {
             try
@@ -444,25 +455,52 @@ namespace FEBuilderGBA
                     if (kr.Covers(start, endExclusive)) return kr;
                 }
 
-                // Struct tables — base = p32(pointer), bounded by a capped, sentinel-
-                // terminated row count. A hit only reaches High when a covering symbol
-                // also names it; otherwise Medium (range inferred).
                 KnownRange t;
-                t = TableRange(rom, info.unit_pointer, info.unit_datasize, MigrationCategory.StructTable, "unit table");
+
+                // Unit table — stop at RomInfo.unit_maxcount (mirrors UnitForm).
+                uint unitMax = info.unit_maxcount;
+                if (unitMax > 0)
+                {
+                    t = TableRange(rom, info.unit_pointer, info.unit_datasize, MigrationCategory.StructTable,
+                        "unit table", (int i, uint addr) => i < unitMax);
+                    if (t != null && t.Covers(start, endExclusive)) return t;
+                }
+
+                // Class table — i==0 ok; stop at i>0xff OR u8(addr+4)==0 (mirrors ClassForm).
+                t = TableRange(rom, info.class_pointer, info.class_datasize, MigrationCategory.StructTable,
+                    "class table", (int i, uint addr) =>
+                    {
+                        if (i == 0) return true;
+                        if (i > 0xff) return false;
+                        if ((ulong)addr + 5 > (ulong)rom.Data.Length) return false;
+                        return rom.u8(addr + 4) != 0;
+                    });
                 if (t != null && t.Covers(start, endExclusive)) return t;
-                t = TableRange(rom, info.class_pointer, info.class_datasize, MigrationCategory.StructTable, "class table");
-                if (t != null && t.Covers(start, endExclusive)) return t;
-                t = TableRange(rom, info.item_pointer, info.item_datasize, MigrationCategory.StructTable, "item table");
+
+                // Item table — stop at i>0xff; row valid while +12 (and +16 for
+                // non-FE8U) is a pointer-or-NULL (mirrors ItemForm).
+                bool fe8u = info.version == 8 && info.is_multibyte == false;
+                t = TableRange(rom, info.item_pointer, info.item_datasize, MigrationCategory.StructTable,
+                    "item table", (int i, uint addr) =>
+                    {
+                        if (i > 0xff) return false;
+                        if ((ulong)addr + 20 > (ulong)rom.Data.Length) return false;
+                        bool ok = U.isPointerOrNULL(rom.u32(addr + 12));
+                        if (!fe8u) ok = ok && U.isPointerOrNULL(rom.u32(addr + 16));
+                        return ok;
+                    });
                 if (t != null && t.Covers(start, endExclusive)) return t;
             }
             catch { }
             return null;
         }
 
-        // Build a conservative struct-table file-offset range. datasize must be a
-        // sane non-zero; the count is capped + sentinel-terminated so we never
-        // over-claim a span from the pointer alone. Returns null on any fault.
-        static KnownRange TableRange(ROM rom, uint pointerLoc, uint dataSize, MigrationCategory cat, string label)
+        // Build a conservative struct-table file-offset range using the supplied
+        // table-specific stop predicate (the SAME rule as the WF reader). datasize
+        // must be sane non-zero; count is hard-capped so a corrupt table can't run
+        // away. Returns null on any fault. NEVER throws.
+        static KnownRange TableRange(ROM rom, uint pointerLoc, uint dataSize,
+            MigrationCategory cat, string label, Func<int, uint, bool> isDataExists)
         {
             try
             {
@@ -470,14 +508,11 @@ namespace FEBuilderGBA
                 uint baseAddr = rom.p32(pointerLoc);     // already toOffset'd
                 if (baseAddr == 0 || baseAddr >= (uint)rom.Data.Length) return null;
 
-                // Count rows until a 0xFFFFFFFF terminator (first u32), capped to a
-                // safe bound so a corrupt/unterminated table can't run away.
-                const int CAP = 2048;
+                const int CAP = 0x1000;   // hard ceiling regardless of the predicate
                 uint count = rom.getBlockDataCount(baseAddr, dataSize, (int i, uint addr) =>
                 {
                     if (i >= CAP) return false;
-                    if ((ulong)addr + 4 > (ulong)rom.Data.Length) return false;
-                    return rom.u32(addr) != 0xFFFFFFFF;
+                    return isDataExists(i, addr);
                 });
                 if (count == 0) return null;
                 ulong end = (ulong)baseAddr + (ulong)count * dataSize;
@@ -546,9 +581,10 @@ namespace FEBuilderGBA
         {
             var sb = new StringBuilder();
             sb.Append("StartAddr\tSpanLength\tChangedBytes\tSymbol\t+Offset\tCovers\tCategory\tSection\tSourceFile\tConfidence\tSymbolSource\tSuggestion\n");
-            if (report == null) return sb.ToString().TrimEnd('\n');
+            if (report?.Ranges == null) return sb.ToString().TrimEnd('\n');
             foreach (MigrationRange r in report.Ranges)
             {
+                if (r == null) continue;   // list is publicly mutable — stay non-throwing
                 sb.Append("0x").Append(r.Offset.ToString("X06")).Append('\t');
                 sb.Append(r.SpanLength).Append('\t');
                 sb.Append(r.ChangedBytes).Append('\t');
@@ -575,6 +611,7 @@ namespace FEBuilderGBA
             var sb = new StringBuilder();
             foreach (MigrationRange r in report.Ranges)
             {
+                if (r == null) continue;   // list is publicly mutable — stay non-throwing
                 uint end = r.Offset + (r.SpanLength > 0 ? r.SpanLength - 1 : 0);
                 string sym = string.IsNullOrEmpty(r.Symbol) ? "(no symbol)" : r.Symbol + "+0x" + r.SymbolOffset.ToString("X");
                 sb.Append("0x").Append(r.Offset.ToString("X06")).Append("-0x").Append(end.ToString("X06"))

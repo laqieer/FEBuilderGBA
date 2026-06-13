@@ -152,6 +152,32 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotEqual(MigrationConfidence.High, r.Confidence);
         }
 
+        [Fact]
+        public void Analyze_CoveringSymbol_UnknownCategory_StaysLowManual_NotHigh()
+        {
+            // A covering project symbol whose name/section carry NO data-category
+            // keyword (a neutral code-like symbol) must stay Low + manual — High is
+            // gated on a KNOWN category (Copilot PR #1139 finding 1).
+            uint off = 0x250000;
+            var (built, edited) = MakePair(0x1000000, off, 4);
+            var rom = MakeFe8uRom(built);
+
+            var (map, resolver) = BuildMap(string.Join("\n", new[]
+            {
+                " .text          0x08250000      0x100 build/src/proc.o",
+                "                0x08250000                SomeNeutralProc",   // no data keyword
+            }));
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, map, resolver);
+            Assert.Single(report.Ranges);
+            var r = report.Ranges[0];
+            Assert.Equal("SomeNeutralProc", r.Symbol);
+            Assert.True(r.SymbolCovers);
+            Assert.Equal(MigrationCategory.Unknown, r.Category);
+            Assert.Equal(MigrationConfidence.Low, r.Confidence);
+            Assert.True(r.Manual);
+        }
+
         // ---------------------------------------------------------------- compressed
 
         [Fact]
@@ -204,6 +230,37 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(MigrationCategory.Unknown, r.Category);
             Assert.Equal(MigrationConfidence.Low, r.Confidence);
             Assert.True(r.Manual);
+        }
+
+        [Fact]
+        public void Analyze_JustPastTextRegion_NotClassifiedAsText()
+        {
+            // FE8U text_data_end_address = 0x15AB80. A diff at/after the end must NOT
+            // be claimed as the text region (boundary correctness; conservative
+            // bounds, Copilot PR #1139 finding 2 family).
+            uint off = 0x160000;   // > 0x15AB80
+            var (built, edited) = MakePair(0x1000000, off, 4);
+            var rom = MakeFe8uRom(built);
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            Assert.Single(report.Ranges);
+            Assert.NotEqual(MigrationCategory.Text, report.Ranges[0].Category);
+        }
+
+        [Fact]
+        public void Analyze_ZeroRom_StructTablesNotOverClaimed()
+        {
+            // On a zero ROM the unit/class/item table pointers don't dereference to a
+            // valid populated table, so a diff in a low region must NOT be falsely
+            // classified as a struct table (the table scan must decline, not grab a
+            // generic 2048-row span). Conservative bounds (Copilot PR #1139 finding 2).
+            uint off = 0x5000;
+            var (built, edited) = MakePair(0x1000000, off, 4);
+            var rom = MakeFe8uRom(built);
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
+            Assert.Single(report.Ranges);
+            Assert.NotEqual(MigrationCategory.StructTable, report.Ranges[0].Category);
         }
 
         // ---------------------------------------------------------------- robustness
@@ -284,6 +341,21 @@ namespace FEBuilderGBA.Core.Tests
             // Null-safety.
             Assert.NotNull(DecompDiffMigrationCore.FormatTSV(null));
             Assert.NotNull(DecompDiffMigrationCore.FormatSummary(null));
+        }
+
+        [Fact]
+        public void Format_NullRangeElement_DoesNotThrow()
+        {
+            // The Ranges list is publicly mutable; a null element must not crash
+            // either formatter (Copilot PR #1139 review).
+            var report = new MigrationReport();
+            report.Ranges.Add(null);
+            report.Ranges.Add(new MigrationRange { Offset = 0x10, SpanLength = 2, ChangedBytes = 2, Symbol = "Sym" });
+
+            string tsv = DecompDiffMigrationCore.FormatTSV(report);
+            Assert.Contains("Sym", tsv);                 // the real row survives
+            string summary = DecompDiffMigrationCore.FormatSummary(report);
+            Assert.Contains("Sym", summary);
         }
     }
 }

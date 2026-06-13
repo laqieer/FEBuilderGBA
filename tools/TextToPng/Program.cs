@@ -4,7 +4,16 @@ using System.Drawing.Imaging;
 // Render a terminal-text capture file to a PNG (dark theme, monospace).
 // Args: <inputTextFile> <outputPng> [title]
 if (args.Length < 2) { Console.Error.WriteLine("usage: TextToPng <in.txt> <out.png> [title]"); return 1; }
-string[] lines = File.ReadAllLines(args[0]);
+string[] lines;
+try
+{
+    lines = File.ReadAllLines(args[0]);
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"error: could not read input '{args[0]}': {ex.Message}");
+    return 1;
+}
 string title = args.Length >= 3 ? args[2] : "FEBuilderGBA.CLI --migrate-diff (#1131)";
 
 // Expand tabs to spaces for stable column rendering.
@@ -39,12 +48,12 @@ using (var tb = new SolidBrush(Color.FromArgb(38, 42, 54)))
 using (var tt = new SolidBrush(Color.FromArgb(220, 223, 228)))
     g.DrawString(title, titleFont, tt, padX, 8);
 
-var colDefault = new SolidBrush(Color.FromArgb(208, 212, 220));
-var colPrompt  = new SolidBrush(Color.FromArgb(120, 200, 130));
-var colHigh    = new SolidBrush(Color.FromArgb(120, 200, 130));
-var colMedium  = new SolidBrush(Color.FromArgb(230, 200, 120));
-var colLow     = new SolidBrush(Color.FromArgb(230, 130, 120));
-var colHeader  = new SolidBrush(Color.FromArgb(130, 180, 240));
+using var colDefault = new SolidBrush(Color.FromArgb(208, 212, 220));
+using var colPrompt  = new SolidBrush(Color.FromArgb(120, 200, 130));
+using var colHigh    = new SolidBrush(Color.FromArgb(120, 200, 130));
+using var colMedium  = new SolidBrush(Color.FromArgb(230, 200, 120));
+using var colLow     = new SolidBrush(Color.FromArgb(230, 130, 120));
+using var colHeader  = new SolidBrush(Color.FromArgb(130, 180, 240));
 
 float y = padTop;
 foreach (var l in lines)
