@@ -517,12 +517,18 @@ namespace FEBuilderGBA
                 string combined = Path.GetFullPath(Path.Combine(root, relative));
                 string normRoot = Path.GetFullPath(root);
 
-                // Ensure the resolved path stays under the project root.
+                // Ensure the resolved path stays under the project root. Use the
+                // filesystem's own case sensitivity: ignore-case on Windows, but
+                // case-SENSITIVE on Linux/macOS so a different-cased sibling dir can't
+                // be mistaken for "inside" the project root (Copilot PR #1136 finding).
+                StringComparison cmp = OperatingSystem.IsWindows()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal;
                 string withSep = normRoot.EndsWith(Path.DirectorySeparatorChar.ToString())
                     ? normRoot
                     : normRoot + Path.DirectorySeparatorChar;
-                if (!combined.StartsWith(withSep, StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(combined, normRoot, StringComparison.OrdinalIgnoreCase))
+                if (!combined.StartsWith(withSep, cmp)
+                    && !string.Equals(combined, normRoot, cmp))
                 {
                     return null;   // escapes root via ..
                 }

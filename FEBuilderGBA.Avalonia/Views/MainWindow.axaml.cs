@@ -220,6 +220,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // File sub-items
             if (OpenRomMenuItem != null) OpenRomMenuItem.Header = R._("_Open ROM...");
             if (OpenLastRomMenuItem != null) OpenLastRomMenuItem.Header = R._("Open _Last ROM");
+            if (OpenDecompProjectMenuItem != null) OpenDecompProjectMenuItem.Header = R._("Open _Decomp Project...");
             if (RecentFilesMenuItem != null) RecentFilesMenuItem.Header = R._("_Recent Files");
             if (SaveMenuItem != null) SaveMenuItem.Header = R._("_Save ROM");
             if (SaveAsMenuItem != null) SaveAsMenuItem.Header = R._("Save _As...");
