@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #895 — SkillConfig Jump-button wiring parity tests.
 //
-// #996 UPDATE: the 5 SkillConfig views' JumpToEditor_Click no longer opens the
-// Animation Creator blank/with-garbage. Skill-animation Creator seeding is NOT
-// yet supported (no populated/verifiable skill-animation editor context with the
-// available ROMs), so the handler now shows an HONEST "not yet supported" message
-// (#996 follow-up) instead of an empty/garbage Creator. JumpToCombatArt_Click
-// (FE8NVer3 only) → PatchManagerView is unchanged.
+// #1115 UPDATE: the skill carve-out of #996 is now implemented. The 4 anime-
+// capable SkillConfig views (SkillSystem, FE8N Ver2/Ver3, CSkillSys09x) SEED the
+// Animation Creator from the selected skill's animation via the shared
+// SkillConfigAnimeJumpHelper (probe-before-open — a 0/empty pointer shows an honest
+// message, never a blank Creator). FE8N Ver1 has NO per-skill animation pointer in
+// either WinForms or Avalonia (render-only), so its jump shows an honest render-only
+// message and wires NO helper. JumpToCombatArt_Click (FE8NVer3 only) → PatchManagerView
+// is unchanged.
 //
 // These are Roslyn-static source-text assertions (no Avalonia head, no ROM):
-// each view's `.axaml.cs` JumpToEditor_Click body must show the honest message
-// and must NOT open ToolAnimationCreatorView, and must NO LONGER contain a
-// `Log.Debug` no-op for that handler.
+// each anime view's JumpToEditor_Click must route through SkillConfigAnimeJumpHelper;
+// FE8N Ver1's must show the render-only message; none may keep the old #996 carve-out
+// string or a Log.Debug no-op.
 //
 // NOTE: the NavigationTargets manifest / IssueRef KnownGap / button-wired
 // AutomationId tests already exist in the per-view parity files — this file
@@ -27,28 +29,53 @@ namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
 public class SkillConfigJumpWiringParityTests
 {
     // -----------------------------------------------------------------
-    // JumpToEditor_Click → honest "not yet supported" message (#996).
+    // JumpToEditor_Click → seed the Animation Creator via the shared helper
+    // (#1115). The 4 anime-capable views route through SkillConfigAnimeJumpHelper.
     // -----------------------------------------------------------------
 
     [Theory]
-    [InlineData("SkillConfigFE8NSkillView.axaml.cs")]
     [InlineData("SkillConfigFE8NVer2SkillView.axaml.cs")]
     [InlineData("SkillConfigFE8NVer3SkillView.axaml.cs")]
     [InlineData("SkillConfigFE8UCSkillSys09xView.axaml.cs")]
     [InlineData("SkillConfigSkillSystemView.axaml.cs")]
-    public void JumpToEditor_ShowsNotSupportedMessage_NotBlankCreatorOpen(string viewFile)
+    public void JumpToEditor_AnimeVariants_SeedViaSharedHelper(string viewFile)
     {
         string body = ExtractHandlerBody(ReadViewSource(viewFile), "JumpToEditor_Click");
 
-        // #996: skill-animation Creator seeding is not supported — the handler must
-        // surface an honest ShowInfo message instead of opening a blank Creator.
+        // #1115: the handler routes through the shared probe-before-open helper,
+        // passing the selected skill id + its resolved animation pointer.
+        Assert.Contains("SkillConfigAnimeJumpHelper.JumpToCreator", body);
+        Assert.Contains("_vm.SelectedId", body);
+        Assert.Contains("_vm.AnimationPointer", body);
+
+        // The stale #996 carve-out string and the stub Log.Debug no-op must be gone.
+        Assert.DoesNotContain("not yet supported for Skill animations", body);
+        Assert.DoesNotContain("Log.Debug", body);
+    }
+
+    // -----------------------------------------------------------------
+    // FE8N Ver1 → honest render-only message (no animation pointer; #1115).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void JumpToEditor_FE8NVer1_ShowsRenderOnlyMessage_NoCreatorOpen()
+    {
+        string body = ExtractHandlerBody(
+            ReadViewSource("SkillConfigFE8NSkillView.axaml.cs"), "JumpToEditor_Click");
+
+        // FE8N Ver1 has NO per-skill animation pointer (render-only) — the handler
+        // shows an honest message and does NOT seed the Creator.
         Assert.Contains("ShowInfo", body);
-        Assert.Contains("not yet supported for Skill animations", body);
+        Assert.Contains("render-only", body);
 
-        // It must NOT open the Animation Creator (would be blank/garbage).
+        // It must NOT actually seed the Creator: no helper CALL, no direct open.
+        // (The explanatory comment may NAME the helper, so assert on the CALL.)
+        Assert.DoesNotContain("SkillConfigAnimeJumpHelper.JumpToCreator", body);
         Assert.DoesNotContain("Open<ToolAnimationCreatorView>", body);
-
-        // The stub Log.Debug no-op must be gone from THIS handler.
+        // The stale #996 carve-out message string must be gone (the message shown
+        // is the new render-only one). Match the message-text fragment only — the
+        // comment legitimately references the old behaviour by issue context.
+        Assert.DoesNotContain("not yet supported for Skill animations.\"", body);
         Assert.DoesNotContain("Log.Debug", body);
     }
 
