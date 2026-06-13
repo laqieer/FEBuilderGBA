@@ -162,25 +162,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int CurrentItemIndex => (int)_currentItemIndex;
 
         /// <summary>
-        /// Build the candidate C-field → value map for the decomp source-backed
-        /// writer (#1132). Keys use the conventional decomp C field names; the View
-        /// intersects this with the manifest owner's declared <c>fields</c> before
-        /// calling the writer, so a field the manifest does not declare is silently
-        /// dropped (never an UnsupportedField error). Only plain integer item-stat
-        /// fields are included — pointers and text-id fields are intentionally
-        /// omitted (they are not safe to rewrite as integer literals here).
-        ///
-        /// NOTE: the range byte is intentionally omitted. <see cref="Range"/> is a
-        /// single encoded min-max byte; mapping it to a manifest <c>minRange</c>/
-        /// <c>maxRange</c> pair would write the same encoded byte into both real
-        /// components — wrong. Until the encoded byte can be split safely, range edits
-        /// stay ROM-only (omitted here, like pointers and text-id fields).
-        /// </summary>
-        /// <summary>
         /// The current candidate C-field → value map (all source-writable integer item
-        /// fields), keyed by conventional decomp C field names. Pointers, text-id, and
-        /// the encoded min-max range byte are intentionally omitted (not safe to rewrite
-        /// as plain integer literals here).
+        /// fields), keyed by conventional decomp C field names. The View intersects this
+        /// with the manifest owner's declared <c>fields</c> before calling the writer, so
+        /// a field the manifest does not declare is silently dropped. Pointers and text-id
+        /// fields are omitted (not safe to rewrite as plain integer literals).
+        ///
+        /// NOTE: the range byte is intentionally omitted. <see cref="Range"/> is a single
+        /// encoded min-max byte; mapping it to a manifest <c>minRange</c>/<c>maxRange</c>
+        /// pair would write the same encoded byte into both real components — wrong. Until
+        /// the encoded byte can be split safely, range edits stay ROM-only.
         /// </summary>
         Dictionary<string, uint> CurrentSourceFieldMap()
         {
