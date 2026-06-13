@@ -148,6 +148,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool ShowAllocStatBonuses { get => _showAllocStatBonuses; private set => SetField(ref _showAllocStatBonuses, value); }
         public bool ShowAllocEffectiveness { get => _showAllocEffectiveness; private set => SetField(ref _showAllocEffectiveness, value); }
 
+        /// <summary>
+        /// Current entry index (0 = the null/unused item 0). Exposed for the
+        /// source-backed writer save-gate (#1132) which keys the edit by entry id.
+        /// </summary>
+        public int CurrentItemIndex => (int)_currentItemIndex;
+
+        /// <summary>
+        /// Build the candidate C-field → value map for the decomp source-backed
+        /// writer (#1132). Keys use the conventional decomp C field names; the View
+        /// intersects this with the manifest owner's declared <c>fields</c> before
+        /// calling the writer, so a field the manifest does not declare is silently
+        /// dropped (never an UnsupportedField error). Only plain integer item-stat
+        /// fields are included — pointers and text-id fields are intentionally
+        /// omitted (they are not safe to rewrite as integer literals here).
+        ///
+        /// NOTE: the range byte is intentionally omitted. <see cref="Range"/> is a
+        /// single encoded min-max byte; mapping it to a manifest <c>minRange</c>/
+        /// <c>maxRange</c> pair would write the same encoded byte into both real
+        /// components — wrong. Until the encoded byte can be split safely, range edits
+        /// stay ROM-only (omitted here, like pointers and text-id fields).
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "maxUses",       Uses },
+                { "might",         Might },
+                { "hitRate",       Hit },
+                { "weight",        Weight },
+                { "critRate",      Crit },
+                { "cost",          Price },
+                { "price",         Price },
+                { "weaponLevel",   WeaponRank },
+                { "iconId",        Icon },
+                { "weaponType",    WeaponType },
+            };
+        }
+
         /// <summary>Recalculate all computed fields. Call after loading or UI changes.</summary>
         public void RecalcComputed()
         {

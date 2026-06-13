@@ -120,6 +120,16 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --projec
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 
+# Decomp source-backed table writer: rewrite the owning C array element of a
+# structured table entry instead of mutating the preview ROM (the source is the
+# source of truth). The table must declare a source owner in the manifest tables[].
+# Only plain integer-literal value tokens are rewritten (macros/expressions are
+# reported, not normalized); every other byte of the file (comments, whitespace,
+# line endings) is preserved. On success the project is flagged "needs rebuild".
+# Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned; 1 = usage/parse error.
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=10 --out-diff=change.diff
+
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
 
@@ -263,10 +273,29 @@ sibling.
   for compressed / unknown / ambiguous spans. It tracks `ChangedBytes` separately
   from the coalesced span and NEVER writes the ROM or source — the edited ROM is read
   but never treated as canonical final output.
+- **CLI:** `--write-source --project=<dir> --table=<name> --id=<n> --field=<f> --value=<v>`
+  is the **source-backed table writer** (#1132). When a structured table (e.g. `items`)
+  declares a source owner in the manifest `tables[]` section (with `writePolicy: source`
+  + `format: cstruct`), this rewrites the owning C array element IN-PLACE — changing only
+  the integer-literal token(s) for the requested field and leaving every other byte of the
+  file identical (comments, whitespace, line endings preserved). Hex tokens stay hex,
+  decimal stays decimal; macro/identifier/expression values are reported (never normalized).
+  Both designated-initializer (`.field = N`) and positional (manifest field order) elements
+  are supported. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
+  optionally writes a before/after diff of the changed element. Exit codes: `0` = source
+  rewritten; `2` = ROM-only / manual / not owned / unsupported field / path rejected;
+  `1` = usage / parse error / source not found.
+- **Avalonia GUI:** in decomp mode the **Items editor** Write button routes to the
+  source writer when the `items` table is source-owned (and shows *"Item source updated.
+  Project needs rebuild."*) instead of mutating the preview ROM; an owned-but-unsupported
+  / ROM-only item shows a ROM-only notice instead of a silent ROM write. The toolbar badge
+  gains a *" · needs rebuild"* suffix after a source write. The classic (non-decomp) ROM
+  write path is byte-for-byte unchanged.
 
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
-symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant.
-Source writers, asset exporters and in-app build/reload are tracked under #1132–#1134.
+symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant;
+the source-backed table writer is #1132. Asset exporters (#1133) and in-app
+build/reload (#1134) round out the suite.
 
 ### Running on Android (experimental)
 

@@ -298,6 +298,15 @@ namespace FEBuilderGBA.CLI
                 return RunExportAsset(argsDic);
             }
 
+            // --write-source --project=<dir> --table=<name> --id=<n> --field=<f> --value=<v>:
+            // source-backed writer (#1132) — rewrite the owning C array element of a
+            // structured table entry instead of mutating the preview ROM. Must precede
+            // the bare --project rom-info fallthrough or it is swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--write-source"))
+            {
+                return RunWriteSource(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -473,6 +482,13 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --height=<int>         Image height in pixels (required for --kind=graphics)");
             Console.WriteLine("    --palette-addr=<hex>   ROM address of the palette data (required for --kind=graphics)");
             Console.WriteLine("    --compressed           (graphics only) the source tile data at --addr is LZ77-compressed (flag)");
+            Console.WriteLine("  --write-source           Rewrite an owning C source array element for a structured table entry (requires --project, --table, --id, --field, --value)");
+            Console.WriteLine("    --project=<dir>        Decomp project directory (the table must declare a source owner in tables[])");
+            Console.WriteLine("    --table=<name>         Structured table name (e.g. items)");
+            Console.WriteLine("    --id=<n>               Entry index (respecting the array order)");
+            Console.WriteLine("    --field=<name>         C field name to change (must be declared on the owner)");
+            Console.WriteLine("    --value=<int>          New value (0x hex or decimal; integer-literal tokens only)");
+            Console.WriteLine("    --out-diff=<path>      Optional: write a unified-diff-ish before/after of the changed element");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -503,6 +519,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
@@ -4517,6 +4534,144 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine($"Error: {result.Message}");
                 return result.Status == DecompAssetStatus.PathRejected ? 2 : 1;
             }
+        }
+
+        /// <summary>
+        /// --write-source: source-backed table-entry writer (#1132). Opens a decomp
+        /// project, then rewrites the owning C array element for a structured table
+        /// entry's field instead of mutating the preview ROM. READ-ONLY w.r.t. the ROM;
+        /// the only mutation is to the project's declared source file.
+        ///
+        /// Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned /
+        /// unsupported field / rejected / malformed manifest (advisory, no write);
+        /// 1 = usage fault / parse failure / source-not-found / unexpected error.
+        /// </summary>
+        static int RunWriteSource(Dictionary<string, string> argsDic)
+        {
+            // ---- Required args ----
+            string projectDir = argsDic.ContainsKey("--project") ? argsDic["--project"] : "";
+            if (string.IsNullOrEmpty(projectDir))
+            { Console.Error.WriteLine("Error: --write-source requires --project=<dir>"); return 1; }
+
+            string table = argsDic.ContainsKey("--table") ? argsDic["--table"] : "";
+            if (string.IsNullOrEmpty(table))
+            { Console.Error.WriteLine("Error: --write-source requires --table=<name>"); return 1; }
+
+            if (!argsDic.ContainsKey("--id") || string.IsNullOrEmpty(argsDic["--id"]))
+            { Console.Error.WriteLine("Error: --write-source requires --id=<n>"); return 1; }
+            if (!TryParseIntArg(argsDic["--id"], out int entryId) || entryId < 0)
+            { Console.Error.WriteLine($"Error: Invalid --id: {argsDic["--id"]}"); return 1; }
+
+            string field = argsDic.ContainsKey("--field") ? argsDic["--field"] : "";
+            if (string.IsNullOrEmpty(field))
+            { Console.Error.WriteLine("Error: --write-source requires --field=<name>"); return 1; }
+
+            if (!argsDic.ContainsKey("--value") || string.IsNullOrEmpty(argsDic["--value"]))
+            { Console.Error.WriteLine("Error: --write-source requires --value=<int>"); return 1; }
+            if (!TryParseUIntArg(argsDic["--value"], out uint value))
+            { Console.Error.WriteLine($"Error: Invalid --value: {argsDic["--value"]}"); return 1; }
+
+            // ---- Open the project (sets CoreState.DecompProject + loads built ROM) ----
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadProject(projectDir))
+                return 1;
+
+            DecompProject project = CoreState.DecompProject;
+            var changedFields = new Dictionary<string, uint>(StringComparer.Ordinal) { { field, value } };
+
+            DecompSourceWriteResult res = DecompSourceWriterCore.WriteTableEntry(
+                project, table, entryId, changedFields);
+
+            if (res.Ok)
+            {
+                Console.WriteLine($"Source file: {res.SourceFile}");
+
+                // A no-op (empty ChangedFields) means the source already matched the
+                // requested value(s): nothing was written, no rebuild is needed
+                // (#1132 review finding 2). Report it honestly and skip the diff/rebuild.
+                bool anyChanged = res.ChangedFields != null && res.ChangedFields.Count > 0;
+                if (!anyChanged)
+                {
+                    Console.WriteLine("No change needed (source already matches the requested value).");
+                    Console.WriteLine("NeedsRebuild=false");
+                    return 0;
+                }
+
+                Console.WriteLine($"Entry {res.EntryId}, fields changed: {string.Join(", ", res.ChangedFields)}");
+                Console.WriteLine($"Lines {res.ChangedLineStart}-{res.ChangedLineEnd}");
+                Console.WriteLine("--- BEFORE ---");
+                Console.WriteLine(res.BeforeText);
+                Console.WriteLine("--- AFTER ---");
+                Console.WriteLine(res.AfterText);
+
+                // Optional --out-diff: a simple unified-diff-ish artifact of the element.
+                if (argsDic.ContainsKey("--out-diff") && !string.IsNullOrEmpty(argsDic["--out-diff"]))
+                {
+                    try
+                    {
+                        string diff = BuildElementDiff(res);
+                        File.WriteAllText(argsDic["--out-diff"], diff);
+                        Console.WriteLine($"Diff written to: {argsDic["--out-diff"]}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"Error: could not write --out-diff '{argsDic["--out-diff"]}': {ex.Message}");
+                        return 1;
+                    }
+                }
+
+                Console.WriteLine("NeedsRebuild=true");
+                return 0;
+            }
+
+            // Failure: route to advisory (2) vs error (1) exit codes.
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.NotOwned:
+                case DecompSourceWriteStatus.RomOnly:
+                case DecompSourceWriteStatus.Manual:
+                case DecompSourceWriteStatus.UnsupportedField:
+                case DecompSourceWriteStatus.Rejected:
+                case DecompSourceWriteStatus.MalformedManifest:
+                case DecompSourceWriteStatus.NotDecompMode:
+                    Console.Error.WriteLine($"ROM-only / manual / not owned: {res.Message}");
+                    return 2;
+                default:
+                    Console.Error.WriteLine($"Error: {res.Message}");
+                    return 1;
+            }
+        }
+
+        // ---- --write-source helpers ----
+
+        static bool TryParseIntArg(string s, out int result)
+        {
+            result = 0;
+            if (string.IsNullOrEmpty(s)) return false;
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return int.TryParse(s.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out result);
+            return int.TryParse(s, out result);
+        }
+
+        static bool TryParseUIntArg(string s, out uint result)
+        {
+            result = 0;
+            if (string.IsNullOrEmpty(s)) return false;
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                return uint.TryParse(s.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out result);
+            return uint.TryParse(s, out result);
+        }
+
+        static string BuildElementDiff(DecompSourceWriteResult res)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"--- {res.SourceFile} (before) entry {res.EntryId}");
+            sb.AppendLine($"+++ {res.SourceFile} (after)  entry {res.EntryId}");
+            foreach (string line in (res.BeforeText ?? "").Replace("\r\n", "\n").Split('\n'))
+                sb.AppendLine("-" + line);
+            foreach (string line in (res.AfterText ?? "").Replace("\r\n", "\n").Split('\n'))
+                sb.AppendLine("+" + line);
+            return sb.ToString();
         }
 
         static int RunExportPalette(Dictionary<string, string> argsDic)

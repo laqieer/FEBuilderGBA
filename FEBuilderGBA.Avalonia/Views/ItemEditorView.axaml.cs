@@ -457,6 +457,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.RecalcComputed();
             UpdateComputedUI();
 
+            // #1132: in decomp mode, structured-table edits are source-backed. Route
+            // the "items" table to the C-source writer instead of the preview ROM.
+            // The classic (!IsDecompMode) ROM-write path below is byte-for-byte unchanged.
+            if (CoreState.IsDecompMode)
+            {
+                if (TryWriteItemSource())
+                    return;
+                // No owner at all for the items table → genuinely ROM-only. Do NOT
+                // silently write the preview ROM; tell the user, then stop.
+                CoreState.Services.ShowInfo(R._("This item is ROM-only in decomp mode. Edit the source manually and rebuild."));
+                return;
+            }
+
             _undoService.Begin(R._("Edit Item"));
             try
             {
@@ -471,6 +484,66 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("Write failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// #1132: attempt a source-backed write of the current item. Returns true when
+        /// the items table HAS a source owner (so the write was attempted and an
+        /// accurate, status-specific message was shown — success, no-change, romOnly,
+        /// manual, json, or an error). Returns false ONLY when there is no owner at all,
+        /// so the caller shows the generic ROM-only notice (never a silent ROM write).
+        /// </summary>
+        bool TryWriteItemSource()
+        {
+            var project = CoreState.DecompProject;
+            var owner = project?.TryGetTableOwner("items");
+            if (owner == null)
+                return false;   // genuinely no owner → caller shows generic ROM-only
+
+            // Intersect the candidate field dict with the owner's declared fields so a
+            // field the manifest doesn't declare is dropped (no UnsupportedField error).
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            if (owner.Fields != null)
+                foreach (var f in owner.Fields)
+                    if (f != null && !string.IsNullOrEmpty(f.Name))
+                        declared.Add(f.Name);
+
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in _vm.BuildSourceFieldDict())
+                if (declared.Contains(kv.Key))
+                    changed[kv.Key] = kv.Value;
+
+            // Always call the writer and branch on its typed status so the user sees an
+            // ACCURATE message (the writer returns the right message for romOnly /
+            // manual / json / not-owned, rather than a generic "ROM-only" string).
+            var res = DecompSourceWriterCore.WriteTableEntry(
+                project, "items", _vm.CurrentItemIndex, changed);
+
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.Ok:
+                    _vm.MarkClean();
+                    UpdateWarnings();
+                    // ChangedFields empty ⇒ a no-op (value already matched) — don't
+                    // claim a rebuild is needed.
+                    if (res.ChangedFields != null && res.ChangedFields.Count > 0)
+                        CoreState.Services.ShowInfo(R._("Item source updated. Project needs rebuild."));
+                    else
+                        CoreState.Services.ShowInfo(R._("No change needed — the source already matches."));
+                    break;
+                case DecompSourceWriteStatus.RomOnly:
+                    CoreState.Services.ShowInfo(R._("This item table is ROM-only in decomp mode."));
+                    break;
+                case DecompSourceWriteStatus.Manual:
+                    // Covers writePolicy=manual AND format=json (the writer returns the
+                    // accurate per-case message — use it verbatim).
+                    CoreState.Services.ShowInfo(res.Message);
+                    break;
+                default:
+                    CoreState.Services.ShowError(res.Message);
+                    break;
+            }
+            return true;
         }
 
         // #831: new-alloc the StatBooster (P12) block — mirrors WF

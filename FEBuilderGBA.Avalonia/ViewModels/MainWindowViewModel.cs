@@ -84,13 +84,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set { SetField(ref _isDecompMode, value); OnPropertyChanged(nameof(DecompBadgeText)); }
         }
 
-        /// <summary>Toolbar badge text shown while a decomp project is open.</summary>
-        public string DecompBadgeText => R._("Source-backed project · ROM is a build preview");
+        /// <summary>
+        /// True when a source-backed write (#1132) flagged the project for rebuild.
+        /// Reads <see cref="CoreState"/> directly so it cannot go stale; the setter
+        /// only nudges the badge to re-evaluate.
+        /// </summary>
+        public bool DecompNeedsRebuild
+        {
+            get => CoreState.DecompProject?.NeedsRebuild == true;
+            set { OnPropertyChanged(nameof(DecompNeedsRebuild)); OnPropertyChanged(nameof(DecompBadgeText)); }
+        }
+
+        /// <summary>
+        /// Toolbar badge text shown while a decomp project is open. Appends a
+        /// "needs rebuild" hint after a source-backed write (#1132).
+        /// </summary>
+        public string DecompBadgeText =>
+            CoreState.DecompProject?.NeedsRebuild == true
+                ? R._("Source-backed project · ROM is a build preview") + R._(" · needs rebuild")
+                : R._("Source-backed project · ROM is a build preview");
 
         /// <summary>Re-read decomp mode from CoreState. Call after ROM/project loads.</summary>
         public void RefreshDecompMode()
         {
             IsDecompMode = CoreState.IsDecompMode;
+            OnPropertyChanged(nameof(DecompNeedsRebuild));
+            OnPropertyChanged(nameof(DecompBadgeText));
         }
 
         /// <summary>
