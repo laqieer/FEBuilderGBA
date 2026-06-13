@@ -172,17 +172,21 @@ namespace FEBuilderGBA
                 if (resolved.Status != DecompResolveStatus.Ok)
                     return resolved.Status;
 
-                project.BuiltRomPath = resolved.Path;
+                // Try the load seam BEFORE mutating project state. Only when the
+                // seam succeeds do we commit BuiltRomPath + clear NeedsRebuild;
+                // on failure the project is left exactly as it was so a stale
+                // built ROM is never advertised as the current preview.
                 bool ok = loadSeam(resolved.Path, project.ForceVersion);
                 if (ok)
                 {
+                    project.BuiltRomPath = resolved.Path;
                     CoreState.DecompProject = project;
                     project.NeedsRebuild = false;
                     return DecompResolveStatus.Ok;
                 }
                 else
                 {
-                    // Load failed — leave NeedsRebuild intact
+                    // Load failed — leave BuiltRomPath and NeedsRebuild intact
                     return DecompResolveStatus.NotBuilt;
                 }
             }

@@ -55,7 +55,7 @@ namespace FEBuilderGBA
         /// </summary>
         /// <param name="command">Executable name or path. Empty/whitespace → NotStarted, no launch.</param>
         /// <param name="args">Arguments passed structurally (no shell quoting/injection).</param>
-        /// <param name="workingDir">Working directory; null/empty/non-existent → use current directory.</param>
+        /// <param name="workingDir">Working directory; null/empty → use current directory. A non-null/non-empty value that does NOT exist → NotStarted, no launch (security: never run elsewhere than promised).</param>
         /// <param name="timeoutMs">Timeout in milliseconds; ≤ 0 → DefaultTimeoutMs.</param>
         public static ProcessRunResult Run(
             string command,
@@ -70,6 +70,18 @@ namespace FEBuilderGBA
 
                 int timeout = timeoutMs > 0 ? timeoutMs : DefaultTimeoutMs;
 
+                // Security: when a working directory is explicitly supplied but
+                // does NOT exist, REFUSE to run rather than silently falling
+                // back to the host process current directory. The opt-in
+                // confirmation tells the user the command runs in the project
+                // root, so running it elsewhere would violate that contract.
+                if (!string.IsNullOrEmpty(workingDir)
+                    && !System.IO.Directory.Exists(workingDir))
+                {
+                    return ProcessRunResult.NotStarted(
+                        $"Working directory does not exist: {workingDir}");
+                }
+
                 var psi = new ProcessStartInfo
                 {
                     FileName = command,
@@ -79,8 +91,7 @@ namespace FEBuilderGBA
                     CreateNoWindow = true,
                 };
 
-                if (!string.IsNullOrEmpty(workingDir)
-                    && System.IO.Directory.Exists(workingDir))
+                if (!string.IsNullOrEmpty(workingDir))
                 {
                     psi.WorkingDirectory = workingDir;
                 }

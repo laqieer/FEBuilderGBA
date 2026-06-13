@@ -92,6 +92,32 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Run_MissingWorkingDir_ReturnsNotStarted_DoesNotRun()
+        {
+            // Security: when a non-empty working dir is supplied but does not
+            // exist, the command must NOT run (no silent fallback to the host
+            // process current directory). #1134 review finding 3.
+            var (shell, argPrefix) = GetShell();
+            string script = OperatingSystem.IsWindows() ? "echo hello" : "echo hello";
+            string missingDir = Path.Combine(
+                Path.GetTempPath(),
+                $"febuildergba_missing_wd_{Guid.NewGuid():N}");
+            Assert.False(Directory.Exists(missingDir));
+
+            var result = ProcessRunnerCore.Run(
+                shell, new[] { argPrefix, script }, missingDir, 30_000);
+
+            // Process did NOT start...
+            Assert.False(result.Started);
+            Assert.False(result.TimedOut);
+            // ...exit code is the not-started sentinel, and no stdout was produced.
+            Assert.Equal(-1, result.ExitCode);
+            Assert.Equal("", result.Stdout);
+            Assert.DoesNotContain("hello", result.Stdout);
+            Assert.Contains(missingDir, result.ErrorMessage);
+        }
+
+        [Fact]
         public void Run_LargeOutput_NoDeadlock()
         {
             var (shell, argPrefix) = GetShell();

@@ -95,7 +95,7 @@
                      Foreground="OrangeRed" VerticalAlignment="Center" Margin="4,0" DockPanel.Dock="Left" />
           <Panel />
         </DockPanel>
-        <TextBox AutomationProperties.AutomationId="Main_DecompBuildOutput_Text"
+        <TextBox AutomationProperties.AutomationId="Main_DecompBuildOutput_Control"
                  Text="{Binding DecompBuildOutput}" IsReadOnly="True" AcceptsReturn="True"
                  MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto"
                  FontFamily="Courier New,monospace" FontSize="11"

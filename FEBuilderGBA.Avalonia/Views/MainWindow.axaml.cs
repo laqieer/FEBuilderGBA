@@ -707,9 +707,29 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Returns true on success.
         /// </summary>
         public bool LoadRomFile(string path)
+            => LoadRomFile(path, null);
+
+        /// <summary>
+        /// Load a ROM file, optionally forcing the version detection (#1134).
+        /// When <paramref name="forceVersion"/> is non-empty the ROM is loaded
+        /// via <see cref="ROM.LoadForceVersion"/> (mirrors the CLI seam in
+        /// <c>RomLoader.LoadRom(path, forceVersion)</c>); a null/empty value
+        /// keeps the existing autodetect behaviour.
+        /// </summary>
+        public bool LoadRomFile(string path, string forceVersion)
         {
             ROM rom = new ROM();
-            bool ok = rom.Load(path, out string version);
+            bool ok;
+            if (!string.IsNullOrEmpty(forceVersion))
+            {
+                // Mirror CLI RomLoader: map the manifest forceVersion string to
+                // the internal game code instead of trusting the ROM header.
+                ok = rom.LoadForceVersion(path, forceVersion);
+            }
+            else
+            {
+                ok = rom.Load(path, out string version);
+            }
             if (!ok) return false;
 
             CoreState.ROM = rom;
@@ -2587,11 +2607,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var status = DecompBuildCore.ReloadBuiltRom(
                     project,
-                    (p, fv) => LoadRomFile(p));
+                    (p, fv) => LoadRomFile(p, fv));
 
                 if (status != DecompResolveStatus.Ok)
                 {
-                    _vm.DecompBuildOutput += R._("\nFailed to reload built ROM after build.");
+                    _vm.DecompBuildOutput += "\n" + R._("Failed to reload built ROM after build.");
                 }
                 else
                 {

@@ -326,7 +326,9 @@ namespace FEBuilderGBA.Core.Tests
                 CopyTinyGba(dir); // create out.gba
                 var project = DecompProjectDetector.Detect(dir);
                 Assert.NotNull(project);
-                project!.BuiltRomPath = Path.Combine(dir, "out.gba");
+                // Start with NO built ROM path so we can prove the success
+                // path SETS it (only after the load seam returns true).
+                project!.BuiltRomPath = null;
                 project.NeedsRebuild = true;
 
                 // Stub loadSeam that always returns true
@@ -334,12 +336,15 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Equal(DecompResolveStatus.Ok, status);
                 Assert.False(project.NeedsRebuild);
+                // BuiltRomPath is set to the resolved built ROM after success.
+                Assert.False(string.IsNullOrEmpty(project.BuiltRomPath));
+                Assert.Equal(Path.Combine(dir, "out.gba"), project.BuiltRomPath);
             }
             finally { Directory.Delete(dir, true); }
         }
 
         [Fact]
-        public void ReloadBuiltRom_LoadSeamFails_KeepsNeedsRebuild()
+        public void ReloadBuiltRom_LoadSeamFails_KeepsNeedsRebuild_AndBuiltRomPath()
         {
             string dir = NewTempDir();
             try
@@ -348,7 +353,10 @@ namespace FEBuilderGBA.Core.Tests
                 CopyTinyGba(dir); // create out.gba
                 var project = DecompProjectDetector.Detect(dir);
                 Assert.NotNull(project);
-                project!.BuiltRomPath = Path.Combine(dir, "out.gba");
+                // Seed a DISTINCT stale BuiltRomPath; on load-seam failure it
+                // must stay EXACTLY as-is (finding 4: no premature mutation).
+                const string staleBuiltRom = "/some/stale/previous.gba";
+                project!.BuiltRomPath = staleBuiltRom;
                 project.NeedsRebuild = true;
 
                 // Stub loadSeam that always returns false
@@ -356,6 +364,37 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.NotEqual(DecompResolveStatus.Ok, status);
                 Assert.True(project.NeedsRebuild); // NOT cleared on failure
+                // BuiltRomPath is UNCHANGED on failure — never advertise a
+                // freshly-resolved built ROM that did not actually load.
+                Assert.Equal(staleBuiltRom, project.BuiltRomPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ReloadBuiltRom_PassesForceVersionToLoadSeam()
+        {
+            // Finding 2 parity: the seam receives project.ForceVersion so the
+            // Avalonia/CLI loaders can honour a manifest-forced version.
+            string dir = NewTempDir();
+            try
+            {
+                WriteManifest(dir,
+                    "{\"schemaVersion\":1,\"builtRom\":\"out.gba\",\"forceVersion\":\"FE8U\"}");
+                CopyTinyGba(dir); // create out.gba
+                var project = DecompProjectDetector.Detect(dir);
+                Assert.NotNull(project);
+                project!.NeedsRebuild = true;
+
+                string seenForceVersion = null;
+                var status = DecompBuildCore.ReloadBuiltRom(project, (p, fv) =>
+                {
+                    seenForceVersion = fv;
+                    return true;
+                });
+
+                Assert.Equal(DecompResolveStatus.Ok, status);
+                Assert.Equal(project.ForceVersion, seenForceVersion);
             }
             finally { Directory.Delete(dir, true); }
         }
