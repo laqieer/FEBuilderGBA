@@ -144,19 +144,24 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        // Build a DETERMINISTIC project that needs NO local real ROM: a 16 MB dummy
-        // ROM + a manifest forceVersion="FE8U" so LoadProject -> LoadForceVersion ->
-        // InitFull succeeds (LoadLow only requires data.Length >= 0x1000000). The
-        // .map places a covering symbol at a known offset (Copilot PR #1139 finding 3 —
-        // the positive command path runs in CI without a real ROM). Returns
-        // (dir, builtRom, knownOffset, symbol).
-        private static (string Dir, string BuiltRom, int Offset, string Symbol) MakeDummyProject()
+        // The closest first-class ROM available (FE8U preferred, else FE6), or null.
+        private static string? AnyRom => RomLocator.FE8U ?? RomLocator.FE6;
+
+        // Build a project whose built ROM is a COPY of a real FE ROM (so
+        // LoadProject -> InitFull, incl. the Huffman-tree build, succeeds even in a
+        // Debug CI build) driven through the manifest `forceVersion` path. CI
+        // provides the ROMs via ROMS_DIR, so this positive --migrate-diff path runs
+        // in CI (Copilot PR #1139 finding 3). The .map places a covering symbol at a
+        // known offset. Returns (dir, builtRom, knownOffset, symbol).
+        private static (string Dir, string BuiltRom, int Offset, string Symbol) MakeForceVersionProject(string romPath)
         {
-            string dir = NewTempDir("dummy");
+            bool isFe8u = string.Equals(romPath, RomLocator.FE8U, StringComparison.OrdinalIgnoreCase);
+            string force = isFe8u ? "FE8U" : "FE6";
+            string dir = NewTempDir("forcever");
             File.WriteAllText(Path.Combine(dir, "febuilder.project.json"),
-                "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"forceVersion\": \"FE8U\" }");
+                $"{{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"forceVersion\": \"{force}\" }}");
             string built = Path.Combine(dir, "synth.gba");
-            File.WriteAllBytes(built, new byte[0x1000000]);   // 16 MB zero ROM
+            File.Copy(romPath, built, overwrite: true);
             // gMigrateData @ 0x08010000 (file off 0x10000) covering a 0x40 span.
             File.WriteAllText(Path.Combine(dir, "synth.map"), string.Join("\n", new[]
             {
@@ -166,10 +171,12 @@ namespace FEBuilderGBA.E2ETests.Tests
             return (dir, built, 0x10000, "gMigrateData");
         }
 
-        [Fact]
-        public void MigrateDiff_DummyForceVersionProject_ClassifiesRange_NoRealRomNeeded()
+        [SkippableFact]
+        public void MigrateDiff_ForceVersionProject_ClassifiesRange()
         {
-            var (dir, built, off, sym) = MakeDummyProject();
+            Skip.If(AnyRom == null, "No FE ROM available");
+
+            var (dir, built, off, sym) = MakeForceVersionProject(AnyRom!);
             string edited = MakeEditedCopy(built, off, 4);
             string outTsv = Path.Combine(dir, "report.tsv");
             try
@@ -179,8 +186,8 @@ namespace FEBuilderGBA.E2ETests.Tests
                 string combined = stdout + stderr;
 
                 Assert.True(code == 0,
-                    $"--migrate-diff dummy exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
-                // The real load/analyze/TSV path executed: range attributed to the symbol.
+                    $"--migrate-diff forceVersion exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                // The real load/analyze/TSV path executed via the forceVersion manifest.
                 Assert.Contains(sym, stdout);
                 Assert.True(File.Exists(outTsv), "TSV report was not written");
                 Assert.Contains(sym, File.ReadAllText(outTsv));
@@ -193,12 +200,14 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        [Fact]
-        public void MigrateDiff_DummyProject_OutWriteFails_ReturnsNonZero()
+        [SkippableFact]
+        public void MigrateDiff_OutWriteFails_ReturnsNonZero()
         {
+            Skip.If(AnyRom == null, "No FE ROM available");
+
             // Requesting --out to an unwritable path (a directory) must fail with a
             // non-zero exit (Copilot PR #1139 finding 4), not a silent success.
-            var (dir, built, off, _) = MakeDummyProject();
+            var (dir, built, off, _) = MakeForceVersionProject(AnyRom!);
             string edited = MakeEditedCopy(built, off, 4);
             try
             {
