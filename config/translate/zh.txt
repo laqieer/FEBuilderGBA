@@ -24558,6 +24558,15 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Decomp Project
 反编译工程
 
+:Decomp Build
+反编译构建
+
+:Build
+构建
+
+:Build & Reload
+构建并重新加载
+
 :Source-backed project · ROM is a build preview
 基于源码的工程·ROM 为构建预览
 

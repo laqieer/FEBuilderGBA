@@ -14002,6 +14002,15 @@ Version-Specific
 :Easy Mode
 Easy Mode
 
+:Decomp Build
+Decomp Build
+
+:Build
+Build
+
+:Build & Reload
+Build & Reload
+
 :No ROM loaded
 No ROM loaded
 
