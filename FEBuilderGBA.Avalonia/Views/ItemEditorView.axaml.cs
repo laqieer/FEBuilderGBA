@@ -523,6 +523,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 case DecompSourceWriteStatus.Ok:
                     _vm.MarkClean();
+                    // Re-baseline the dirty snapshot to the just-written values so an
+                    // immediate re-Save is a no-op (and never re-clobbers from stale ROM).
+                    _vm.RefreshSourceFieldSnapshot();
                     UpdateWarnings();
                     // ChangedFields empty ⇒ a no-op (value already matched) — don't
                     // claim a rebuild is needed.
