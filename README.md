@@ -108,6 +108,18 @@ dotnet run --project FEBuilderGBA.CLI -- --list-tables
 dotnet run --project FEBuilderGBA.CLI -- --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
 dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
 
+# Decomp asset export: export assets to a decomp source-tree (never inserts into ROM)
+# --kind=palette  → JASC .pal (faithful lossless round-trip via gbagfx)
+# --kind=graphics → indexed PNG (color type 3, palette indices preserved) + sidecar .pal
+# --kind=map      → .mar tilemap (raw u16<<3 entries, WF SaveAsMAR parity) + sidecar JSON
+# --kind=text     → texts.txt + textdefs.txt (migration aid; not a lossless macro round-trip)
+# Note: MIDI/portrait/battle-animation exports use existing commands:
+#   --export-midi, --export-portrait-all, --export-battle-anime
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --colors=16 --out=gfx/palette.pal
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
+
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
 
