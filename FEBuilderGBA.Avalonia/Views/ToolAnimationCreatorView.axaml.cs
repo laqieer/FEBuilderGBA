@@ -442,10 +442,11 @@ namespace FEBuilderGBA.Avalonia.Views
             rom.write_u32(cfg + 12, U.toPointer(palListTab));
             rom.write_u32(cfg + 16, 0x0000003C); // soundId (cosmetic)
 
-            // frames stream: (id=0,wait=4) (id=1,wait=8) terminator 0xFFFF.
+            // frames stream: (id=0,wait=4) (id=1,wait=8) + full 4-byte terminator
+            // (u16 id=0xFFFF, u16 wait=0xFFFF) — matches the documented frame layout.
             rom.write_u16(framesStream + 0, 0); rom.write_u16(framesStream + 2, 4);
             rom.write_u16(framesStream + 4, 1); rom.write_u16(framesStream + 6, 8);
-            rom.write_u16(framesStream + 8, 0xFFFF);
+            rom.write_u16(framesStream + 8, 0xFFFF); rom.write_u16(framesStream + 10, 0xFFFF);
 
             // per-id list tables (ids 0 and 1 -> same image/tsa/pal).
             rom.write_u32(tsaListTab + 0, U.toPointer(tsaOff));

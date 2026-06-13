@@ -92,6 +92,15 @@ namespace FEBuilderGBA.Avalonia.Tests
                 File.WriteAllBytes(previewPath, png);
                 _output.WriteLine($"Saved skill-frame preview ({frame.Width}x{frame.Height}) to: {previewPath} ({png.Length} bytes)");
 
+                // ExportSkillAnimation transfers IImage ownership to the caller; dispose
+                // each UNIQUE decoded frame (one cached per OBJ id) so the test does not
+                // leak native Skia memory across the suite (Copilot PR #1137 review).
+                var seen = new System.Collections.Generic.HashSet<IImage>(
+                    System.Collections.Generic.ReferenceEqualityComparer.Instance);
+                foreach (var f in export.Frames)
+                    if (f.Image != null && seen.Add(f.Image))
+                        try { f.Image.Dispose(); } catch { /* best-effort */ }
+
                 var previewControl = view.FindControl<GbaImageControl>("MapActionPreview");
                 Assert.NotNull(previewControl);
 
@@ -172,10 +181,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(data, PAL_LIST + 0, U.toPointer(PAL_OFF));
             WriteU32(data, PAL_LIST + 4, U.toPointer(PAL_OFF));
 
-            // frames stream: (id=0,wait=4) (id=1,wait=8) terminator.
+            // frames stream: (id=0,wait=4) (id=1,wait=8) + full 4-byte terminator
+            // (u16 id=0xFFFF, u16 wait=0xFFFF) — matches the documented layout.
             WriteU16(data, FRAMES + 0, 0); WriteU16(data, FRAMES + 2, 4);
             WriteU16(data, FRAMES + 4, 1); WriteU16(data, FRAMES + 6, 8);
-            WriteU16(data, FRAMES + 8, 0xFFFF);
+            WriteU16(data, FRAMES + 8, 0xFFFF); WriteU16(data, FRAMES + 10, 0xFFFF);
 
             var rom = new ROM();
             rom.LoadLow("synthetic_fe8j_skillanime.gba", data, "BE8J01");
