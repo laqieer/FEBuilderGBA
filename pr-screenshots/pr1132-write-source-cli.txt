@@ -1,0 +1,23 @@
+$ FEBuilderGBA.CLI --write-source --project=<dir> --table=items --id=1 --field=might --value=0x0A
+
+--- src/item.c BEFORE ---
+const struct Item gItemData[] = {
+    [0] = { .nameId = 1, .might = 5, .hitRate = 90 },
+    [1] = { .nameId = 2, .might = 8, .hitRate = 75 },
+};
+
+--- CLI output ---
+Source file: C:\Users\zhiwenzhu\AppData\Local\Temp\tmp.IwnLFd79ee\src\item.c
+Entry 1, fields changed: might
+Lines 3-3
+--- BEFORE ---
+{ .nameId = 2, .might = 8, .hitRate = 75 }
+--- AFTER ---
+{ .nameId = 2, .might = 10, .hitRate = 75 }
+NeedsRebuild=true
+
+--- src/item.c AFTER (entry 1 .might 8 -> 10; entry 0 byte-identical) ---
+const struct Item gItemData[] = {
+    [0] = { .nameId = 1, .might = 5, .hitRate = 90 },
+    [1] = { .nameId = 2, .might = 10, .hitRate = 75 },
+};

@@ -457,6 +457,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.RecalcComputed();
             UpdateComputedUI();
 
+            // #1132: in decomp mode, structured-table edits are source-backed. Route
+            // the "items" table to the C-source writer instead of the preview ROM when
+            // the project declares a source owner with writePolicy=source/cstruct.
+            // The classic (!IsDecompMode) ROM-write path below is byte-for-byte unchanged.
+            if (CoreState.IsDecompMode)
+            {
+                if (TryWriteItemSource())
+                    return;
+                // Owned-but-unsupported / ROM-only / manual: do NOT silently write the
+                // preview ROM — inform the user to edit source + rebuild, then stop.
+                CoreState.Services.ShowInfo(R._("This item is ROM-only in decomp mode. Edit the source manually and rebuild."));
+                return;
+            }
+
             _undoService.Begin(R._("Edit Item"));
             try
             {
@@ -471,6 +485,53 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("Write failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// #1132: attempt a source-backed write of the current item. Returns true when
+        /// the items table is source-owned AND the write was attempted (success or a
+        /// handled error shown to the user); false when the table is not source-owned
+        /// (caller falls back to the ROM-only notice — never the silent ROM write).
+        /// </summary>
+        bool TryWriteItemSource()
+        {
+            var project = CoreState.DecompProject;
+            var owner = project?.TryGetTableOwner("items");
+            if (owner == null)
+                return false;
+
+            bool isSource = string.Equals(owner.WritePolicy ?? "source", "source", StringComparison.OrdinalIgnoreCase);
+            bool isCstruct = string.Equals(owner.Format ?? "cstruct", "cstruct", StringComparison.OrdinalIgnoreCase);
+            if (!isSource || !isCstruct)
+                return false;
+
+            // Intersect the candidate field dict with the owner's declared fields so a
+            // field the manifest doesn't declare is dropped (no UnsupportedField error).
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            if (owner.Fields != null)
+                foreach (var f in owner.Fields)
+                    if (f != null && !string.IsNullOrEmpty(f.Name))
+                        declared.Add(f.Name);
+
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in _vm.BuildSourceFieldDict())
+                if (declared.Contains(kv.Key))
+                    changed[kv.Key] = kv.Value;
+
+            var res = DecompSourceWriterCore.WriteTableEntry(
+                project, "items", _vm.CurrentItemIndex, changed);
+
+            if (res.Ok)
+            {
+                _vm.MarkClean();
+                UpdateWarnings();
+                CoreState.Services.ShowInfo(R._("Item source updated. Project needs rebuild."));
+            }
+            else
+            {
+                CoreState.Services.ShowError(res.Message);
+            }
+            return true;
         }
 
         // #831: new-alloc the StatBooster (P12) block — mirrors WF

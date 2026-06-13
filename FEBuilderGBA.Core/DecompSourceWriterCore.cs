@@ -1,0 +1,994 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
+
+namespace FEBuilderGBA
+{
+    /// <summary>
+    /// Outcome of a source-backed table-entry write (#1132).
+    /// </summary>
+    public enum DecompSourceWriteStatus
+    {
+        /// <summary>The source file was rewritten successfully.</summary>
+        Ok,
+        /// <summary>Not in decomp mode (no active project), so no source write happened.</summary>
+        NotDecompMode,
+        /// <summary>The table has no owner declaration in the manifest.</summary>
+        NotOwned,
+        /// <summary>A changed field could not be rewritten (macro/expression value, or unknown field).</summary>
+        UnsupportedField,
+        /// <summary>The owner's writePolicy is "romOnly".</summary>
+        RomOnly,
+        /// <summary>The owner's writePolicy is "manual" (or JSON-backed, deferred).</summary>
+        Manual,
+        /// <summary>The owner's sourceFile path was rejected (absolute / ..-escape / out of root).</summary>
+        Rejected,
+        /// <summary>The manifest tables section is malformed / unusable.</summary>
+        MalformedManifest,
+        /// <summary>The owner's sourceFile does not exist on disk.</summary>
+        SourceNotFound,
+        /// <summary>The C array / element could not be located or parsed.</summary>
+        ParseFailed,
+        /// <summary>An unexpected fault occurred (the source file is left untouched).</summary>
+        Error,
+    }
+
+    /// <summary>
+    /// Typed result of a source-backed write. <see cref="Ok"/> only when
+    /// <see cref="Status"/> is <see cref="DecompSourceWriteStatus.Ok"/>.
+    /// </summary>
+    public sealed class DecompSourceWriteResult
+    {
+        /// <summary>Outcome status.</summary>
+        public DecompSourceWriteStatus Status;
+        /// <summary>Human-readable message (success summary or rejection reason).</summary>
+        public string Message = "";
+        /// <summary>Absolute path of the source file (when resolved).</summary>
+        public string SourceFile = "";
+        /// <summary>The entry id that was targeted.</summary>
+        public int EntryId;
+        /// <summary>C field names that were actually changed.</summary>
+        public List<string> ChangedFields = new List<string>();
+        /// <summary>Text of the targeted element BEFORE the rewrite.</summary>
+        public string BeforeText = "";
+        /// <summary>Text of the targeted element AFTER the rewrite.</summary>
+        public string AfterText = "";
+        /// <summary>1-based line number where the changed element begins.</summary>
+        public int ChangedLineStart;
+        /// <summary>1-based line number where the changed element ends.</summary>
+        public int ChangedLineEnd;
+        /// <summary>True when the write succeeded.</summary>
+        public bool Ok => Status == DecompSourceWriteStatus.Ok;
+    }
+
+    /// <summary>
+    /// Source-backed writer for structured table editors (#1132).
+    ///
+    /// In decomp "open mode", a structured table (e.g. <c>items</c>) may be owned by
+    /// a C source file (the source of truth). Instead of mutating the preview ROM,
+    /// this writer rewrites the owning C array element IN-PLACE — changing only the
+    /// integer-literal token(s) for the requested field(s) and leaving every other
+    /// byte of the file identical (comments, whitespace, line endings preserved).
+    ///
+    /// The class is ROM-NEUTRAL (it never touches the ROM) and NEVER throws: every
+    /// public entry point is fully guarded and returns a typed
+    /// <see cref="DecompSourceWriteResult"/> on any fault. On a write fault the source
+    /// file is left untouched (no half-write).
+    ///
+    /// Supported source format: C struct array (<c>format=="cstruct"</c> or unset).
+    /// JSON-backed sources return <see cref="DecompSourceWriteStatus.Manual"/> for the
+    /// MVP (tracked follow-up). Only plain integer-literal value tokens are rewritten;
+    /// macros / identifiers / expressions are reported as
+    /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> with no write.
+    /// </summary>
+    public static class DecompSourceWriterCore
+    {
+        /// <summary>
+        /// Rewrite one table entry's field(s) in the owning C source file.
+        ///
+        /// Gates (in order): decomp mode → owner declared → writePolicy is "source" →
+        /// format is "cstruct" → sourceFile resolves under the project root and exists
+        /// → all changed-field names are declared → the array element parses → every
+        /// changed field's value token is a plain integer literal. On success, sets
+        /// <c>project.NeedsRebuild = true</c> and writes the file atomically.
+        /// </summary>
+        public static DecompSourceWriteResult WriteTableEntry(
+            DecompProject project,
+            string tableName,
+            int entryId,
+            IReadOnlyDictionary<string, uint> changedFields)
+        {
+            var result = new DecompSourceWriteResult { EntryId = entryId };
+            try
+            {
+                // Gate 1: decomp mode. The active project MUST be this project.
+                if (project == null || !CoreState.IsDecompMode
+                    || !ReferenceEquals(CoreState.DecompProject, project))
+                {
+                    result.Status = DecompSourceWriteStatus.NotDecompMode;
+                    result.Message = "Not in decomp mode (no active project) — source write skipped.";
+                    return result;
+                }
+
+                // Gate 2: owner.
+                DecompTableEntry owner = project.TryGetTableOwner(tableName);
+                if (owner == null)
+                {
+                    result.Status = DecompSourceWriteStatus.NotOwned;
+                    result.Message = $"Table '{tableName}' has no source owner in the manifest — ROM-only.";
+                    return result;
+                }
+
+                // Gate 3: write policy.
+                string policy = (owner.WritePolicy ?? "").Trim();
+                if (string.Equals(policy, "romOnly", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.RomOnly;
+                    result.Message = $"Table '{tableName}' is romOnly — edit the ROM directly or change writePolicy.";
+                    return result;
+                }
+                if (string.Equals(policy, "manual", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"Table '{tableName}' is manual — edit the source by hand and rebuild.";
+                    return result;
+                }
+                // Only "source" (or unset, defaulting to source for cstruct) proceeds.
+                if (!string.IsNullOrEmpty(policy)
+                    && !string.Equals(policy, "source", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"Unknown writePolicy '{owner.WritePolicy}' — treated as manual.";
+                    return result;
+                }
+
+                // Gate 4: format. Only "cstruct" (or unset) is implemented.
+                string format = (owner.Format ?? "").Trim();
+                if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = "JSON-backed source write is a tracked follow-up — edit the JSON by hand and rebuild.";
+                    return result;
+                }
+                if (!string.IsNullOrEmpty(format)
+                    && !string.Equals(format, "cstruct", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"Unsupported source format '{owner.Format}' — only cstruct is implemented.";
+                    return result;
+                }
+
+                // Gate 5: resolve sourceFile under the project root.
+                if (string.IsNullOrEmpty(owner.SourceFile))
+                {
+                    result.Status = DecompSourceWriteStatus.MalformedManifest;
+                    result.Message = $"Table '{tableName}' owner declares no sourceFile.";
+                    return result;
+                }
+                string absPath = DecompProjectDetector.ResolveArtifact(project.ProjectRoot, owner.SourceFile);
+                if (absPath == null)
+                {
+                    result.Status = DecompSourceWriteStatus.Rejected;
+                    result.Message = $"sourceFile '{owner.SourceFile}' is rejected (absolute / escapes project root).";
+                    return result;
+                }
+                result.SourceFile = absPath;
+
+                // Gate 6: file exists.
+                if (!File.Exists(absPath))
+                {
+                    result.Status = DecompSourceWriteStatus.SourceNotFound;
+                    result.Message = $"sourceFile not found: {absPath}";
+                    return result;
+                }
+
+                // Read raw bytes, decode (UTF-8, no BOM strip needed for content match).
+                byte[] rawBytes;
+                try { rawBytes = File.ReadAllBytes(absPath); }
+                catch (Exception ex)
+                {
+                    result.Status = DecompSourceWriteStatus.Error;
+                    result.Message = $"Could not read sourceFile: {ex.Message}";
+                    return result;
+                }
+
+                // Detect a UTF-8 BOM and preserve it.
+                bool hasBom = rawBytes.Length >= 3
+                    && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
+                string sourceText = new UTF8Encoding(false).GetString(
+                    rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+
+                // Pure rewrite (validates all gates 7-9 before producing new text).
+                DecompSourceWriteResult rewrite = RewriteEntryText(
+                    sourceText, owner, entryId, changedFields, out string newSourceText);
+                // Carry over diagnostics.
+                rewrite.SourceFile = absPath;
+                rewrite.EntryId = entryId;
+                if (!rewrite.Ok)
+                    return rewrite;
+
+                // Re-encode with the SAME BOM-state and write atomically.
+                try
+                {
+                    byte[] outBytes = new UTF8Encoding(false).GetBytes(newSourceText);
+                    if (hasBom)
+                    {
+                        var withBom = new byte[outBytes.Length + 3];
+                        withBom[0] = 0xEF; withBom[1] = 0xBB; withBom[2] = 0xBF;
+                        Array.Copy(outBytes, 0, withBom, 3, outBytes.Length);
+                        outBytes = withBom;
+                    }
+                    AtomicWrite(absPath, outBytes);
+                }
+                catch (Exception ex)
+                {
+                    rewrite.Status = DecompSourceWriteStatus.Error;
+                    rewrite.Message = $"Write failed (source left untouched): {ex.Message}";
+                    return rewrite;
+                }
+
+                // Success: mark the project for rebuild.
+                project.NeedsRebuild = true;
+                return rewrite;
+            }
+            catch (Exception ex)
+            {
+                result.Status = DecompSourceWriteStatus.Error;
+                result.Message = $"Unexpected fault: {ex.Message}";
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// PURE preview: rewrite the targeted element's integer-literal field token(s)
+        /// in <paramref name="sourceText"/> and return the new text via
+        /// <paramref name="newSourceText"/> WITHOUT touching disk. Used by the full
+        /// writer and by unit tests / dry-runs. NEVER throws.
+        ///
+        /// Validation order: every changed-field name must be declared on the owner
+        /// (else <see cref="DecompSourceWriteStatus.UnsupportedField"/>, no change);
+        /// the array + element must parse (else <see cref="DecompSourceWriteStatus.ParseFailed"/>);
+        /// each value token must be a plain integer literal
+        /// (else <see cref="DecompSourceWriteStatus.UnsupportedField"/>, no change).
+        /// </summary>
+        public static DecompSourceWriteResult RewriteEntryText(
+            string sourceText,
+            DecompTableEntry owner,
+            int entryId,
+            IReadOnlyDictionary<string, uint> changedFields,
+            out string newSourceText)
+        {
+            newSourceText = sourceText;
+            var result = new DecompSourceWriteResult { EntryId = entryId };
+            try
+            {
+                if (owner == null)
+                {
+                    result.Status = DecompSourceWriteStatus.NotOwned;
+                    result.Message = "Owner is null.";
+                    return result;
+                }
+                if (sourceText == null)
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = "Source text is null.";
+                    return result;
+                }
+                if (changedFields == null || changedFields.Count == 0)
+                {
+                    // Nothing to change is a successful no-op.
+                    result.Status = DecompSourceWriteStatus.Ok;
+                    result.Message = "No fields to change.";
+                    return result;
+                }
+
+                // Build the declared-field name set + ordered list.
+                var fieldOrder = new List<string>();
+                var fieldSet = new HashSet<string>(StringComparer.Ordinal);
+                if (owner.Fields != null)
+                {
+                    foreach (DecompTableField f in owner.Fields)
+                    {
+                        if (f != null && !string.IsNullOrEmpty(f.Name))
+                        {
+                            fieldOrder.Add(f.Name);
+                            fieldSet.Add(f.Name);
+                        }
+                    }
+                }
+
+                // Validate-all: every changed field must be declared.
+                foreach (var kv in changedFields)
+                {
+                    if (!fieldSet.Contains(kv.Key))
+                    {
+                        result.Status = DecompSourceWriteStatus.UnsupportedField;
+                        result.Message = $"Field '{kv.Key}' is not declared in the manifest owner — no change.";
+                        return result;
+                    }
+                }
+
+                string symbol = owner.EffectiveSymbol;
+                if (string.IsNullOrEmpty(symbol))
+                {
+                    result.Status = DecompSourceWriteStatus.MalformedManifest;
+                    result.Message = "Owner declares no arrayName/symbol.";
+                    return result;
+                }
+
+                // Locate the array body { ... }.
+                if (!TryFindArrayBody(sourceText, symbol, out int bodyOpen, out int bodyClose))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Could not locate the array initializer for '{symbol}'.";
+                    return result;
+                }
+
+                // Find element [entryId] inside the body.
+                if (!TryFindElementSpan(sourceText, bodyOpen, bodyClose, entryId,
+                        out int elemOpen, out int elemClose))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Entry index {entryId} is out of range in array '{symbol}'.";
+                    return result;
+                }
+
+                // elemOpen points at the '{' of the element, elemClose at its '}'.
+                string elementText = sourceText.Substring(elemOpen, elemClose - elemOpen + 1);
+                string innerBody = sourceText.Substring(elemOpen + 1, elemClose - elemOpen - 1);
+
+                // Determine designated vs positional. An element is "designated" if it
+                // contains at least one top-level `.field` designator.
+                bool hasDesignators = ElementHasDesignators(innerBody);
+
+                // Apply each changed field to the element text. We accumulate edits
+                // into a fresh copy of elementText so all-or-nothing per element.
+                string editedElement = elementText;
+                var changed = new List<string>();
+
+                foreach (var kv in changedFields)
+                {
+                    string field = kv.Key;
+                    uint newVal = kv.Value;
+
+                    bool applied;
+                    DecompSourceWriteStatus failStatus;
+                    string failMsg;
+                    string next = ApplyFieldToElement(
+                        editedElement, field, newVal, hasDesignators, fieldOrder,
+                        out applied, out failStatus, out failMsg);
+
+                    if (!applied)
+                    {
+                        result.Status = failStatus;
+                        result.Message = failMsg;
+                        return result;   // no write — validate-all-before-mutate
+                    }
+                    editedElement = next;
+                    changed.Add(field);
+                }
+
+                // Reassemble: prefix + edited element + suffix. Bytes outside the
+                // element span are byte-identical.
+                string prefix = sourceText.Substring(0, elemOpen);
+                string suffix = sourceText.Substring(elemClose + 1);
+                newSourceText = prefix + editedElement + suffix;
+
+                result.Status = DecompSourceWriteStatus.Ok;
+                result.Message = $"Rewrote {changed.Count} field(s) in entry {entryId}.";
+                result.ChangedFields = changed;
+                result.BeforeText = elementText;
+                result.AfterText = editedElement;
+                // 1-based line span of the element (in the original text).
+                result.ChangedLineStart = LineOf(sourceText, elemOpen);
+                result.ChangedLineEnd = LineOf(sourceText, elemClose);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                newSourceText = sourceText;
+                result.Status = DecompSourceWriteStatus.Error;
+                result.Message = $"Unexpected fault: {ex.Message}";
+                return result;
+            }
+        }
+
+        // ----------------------------------------------------------------- parsing
+
+        /// <summary>
+        /// Locate the top-level array initializer body for <paramref name="symbol"/>:
+        /// the identifier, optionally followed by <c>[...]</c> and qualifiers, then
+        /// <c>= {</c>. Returns the index of the opening <c>{</c> and the matching
+        /// closing <c>}</c> (comment/string aware brace counting). NEVER throws.
+        /// </summary>
+        static bool TryFindArrayBody(string text, string symbol, out int bodyOpen, out int bodyClose)
+        {
+            bodyOpen = -1; bodyClose = -1;
+            int searchFrom = 0;
+            while (true)
+            {
+                int idx = IndexOfIdentifier(text, symbol, searchFrom);
+                if (idx < 0)
+                    return false;
+
+                // Advance past identifier.
+                int p = idx + symbol.Length;
+                // Skip whitespace/comments, optional [ ... ] (possibly repeated), more
+                // whitespace, then require '='.
+                p = SkipTrivia(text, p);
+                // Optional array subscript(s): [ ... ]
+                while (p < text.Length && text[p] == '[')
+                {
+                    int close = MatchBracket(text, p, '[', ']');
+                    if (close < 0) { p = -1; break; }
+                    p = SkipTrivia(text, close + 1);
+                }
+                if (p < 0)
+                {
+                    searchFrom = idx + symbol.Length;
+                    continue;
+                }
+                // Require '='.
+                if (p < text.Length && text[p] == '=')
+                {
+                    p = SkipTrivia(text, p + 1);
+                    if (p < text.Length && text[p] == '{')
+                    {
+                        int close = MatchBrace(text, p);
+                        if (close > p)
+                        {
+                            bodyOpen = p;
+                            bodyClose = close;
+                            return true;
+                        }
+                    }
+                }
+                // Not a match here; keep searching after this occurrence.
+                searchFrom = idx + symbol.Length;
+            }
+        }
+
+        /// <summary>
+        /// Within the array body (exclusive of its own braces), find the span of the
+        /// element at zero-based <paramref name="elementIndex"/>: each top-level
+        /// <c>{ ... }</c> is one element. Returns the element's opening/closing brace
+        /// indices in the full text. NEVER throws.
+        /// </summary>
+        static bool TryFindElementSpan(
+            string text, int bodyOpen, int bodyClose, int elementIndex,
+            out int elemOpen, out int elemClose)
+        {
+            elemOpen = -1; elemClose = -1;
+            if (elementIndex < 0)
+                return false;
+
+            int i = bodyOpen + 1;
+            int count = 0;
+            while (i < bodyClose)
+            {
+                char c = text[i];
+                // Skip comments/strings at the body level.
+                int skipTo = SkipTriviaAndLiterals(text, i, bodyClose);
+                if (skipTo != i)
+                {
+                    i = skipTo;
+                    continue;
+                }
+                if (c == '{')
+                {
+                    int close = MatchBrace(text, i);
+                    if (close < 0 || close > bodyClose)
+                        return false;
+                    if (count == elementIndex)
+                    {
+                        elemOpen = i;
+                        elemClose = close;
+                        return true;
+                    }
+                    count++;
+                    i = close + 1;
+                    continue;
+                }
+                i++;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// True when the element inner body has at least one top-level <c>.field</c>
+        /// designator (i.e. a '.' that begins a designator at depth 0, preceded by
+        /// '{' / ',' / whitespace and followed by an identifier-start char).
+        /// </summary>
+        static bool ElementHasDesignators(string innerBody)
+        {
+            int depth = 0;
+            int i = 0;
+            int n = innerBody.Length;
+            while (i < n)
+            {
+                int skip = SkipTriviaAndLiterals(innerBody, i, n);
+                if (skip != i) { i = skip; continue; }
+                char c = innerBody[i];
+                if (c == '{' || c == '[' || c == '(') { depth++; i++; continue; }
+                if (c == '}' || c == ']' || c == ')') { depth--; i++; continue; }
+                if (depth == 0 && c == '.')
+                {
+                    // Look ahead for an identifier start.
+                    int j = i + 1;
+                    if (j < n && (char.IsLetter(innerBody[j]) || innerBody[j] == '_'))
+                        return true;
+                }
+                i++;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Apply a single field change to one element's text. Returns the new element
+        /// text. On a fault, sets <paramref name="applied"/> false + a status/message
+        /// and returns the input unchanged. NEVER throws.
+        /// </summary>
+        static string ApplyFieldToElement(
+            string elementText, string field, uint newVal,
+            bool hasDesignators, List<string> fieldOrder,
+            out bool applied, out DecompSourceWriteStatus failStatus, out string failMsg)
+        {
+            applied = false;
+            failStatus = DecompSourceWriteStatus.UnsupportedField;
+            failMsg = "";
+
+            // elementText is "{ ... }". Work over the inner body.
+            int innerStart = 1;                       // just after '{'
+            int innerEnd = elementText.Length - 1;    // index of '}'
+
+            if (hasDesignators)
+            {
+                // Designated path: find ".field" at top level, then '=', then value token.
+                int desigPos = FindDesignator(elementText, innerStart, innerEnd, field);
+                if (desigPos < 0)
+                {
+                    failStatus = DecompSourceWriteStatus.Manual;
+                    failMsg = $"Field '{field}' designator not found in a designated element — edit manually.";
+                    return elementText;
+                }
+                // Move past ".field" and whitespace to '='.
+                int p = desigPos + 1 + field.Length;
+                p = SkipTrivia(elementText, p);
+                if (p >= innerEnd || elementText[p] != '=')
+                {
+                    failStatus = DecompSourceWriteStatus.ParseFailed;
+                    failMsg = $"Field '{field}' designator is malformed (no '=').";
+                    return elementText;
+                }
+                p = SkipTrivia(elementText, p + 1);
+                // value token runs until next top-level ',' or the closing '}'.
+                int valEnd = FindTopLevelValueEnd(elementText, p, innerEnd);
+                return ReplaceValueToken(elementText, p, valEnd, newVal,
+                    out applied, out failStatus, out failMsg);
+            }
+            else
+            {
+                // Positional path: split top-level comma-separated tokens.
+                int fieldIndex = fieldOrder.IndexOf(field);
+                if (fieldIndex < 0)
+                {
+                    failStatus = DecompSourceWriteStatus.UnsupportedField;
+                    failMsg = $"Field '{field}' has no positional index (not in declared field order).";
+                    return elementText;
+                }
+                List<(int start, int end)> tokens = SplitTopLevelTokens(elementText, innerStart, innerEnd);
+                if (fieldIndex >= tokens.Count)
+                {
+                    failStatus = DecompSourceWriteStatus.ParseFailed;
+                    failMsg = $"Positional field index {fieldIndex} exceeds element token count {tokens.Count}.";
+                    return elementText;
+                }
+                var (ts, te) = tokens[fieldIndex];
+                // Trim leading/trailing whitespace inside the token span.
+                int s = ts, e = te;
+                while (s < e && char.IsWhiteSpace(elementText[s])) s++;
+                while (e > s && char.IsWhiteSpace(elementText[e - 1])) e--;
+                return ReplaceValueToken(elementText, s, e, newVal,
+                    out applied, out failStatus, out failMsg);
+            }
+        }
+
+        /// <summary>
+        /// Replace the [start,end) span (a value token) with the new value IF the
+        /// existing token is a plain integer literal. Hex literals are re-emitted in
+        /// hex, decimal in decimal; an integer suffix (u/U/l/L) is preserved. Sets
+        /// <paramref name="applied"/> false (no change) for macro/identifier/expression
+        /// tokens. NEVER throws.
+        /// </summary>
+        static string ReplaceValueToken(
+            string text, int start, int end, uint newVal,
+            out bool applied, out DecompSourceWriteStatus failStatus, out string failMsg)
+        {
+            applied = false;
+            failStatus = DecompSourceWriteStatus.UnsupportedField;
+            failMsg = "";
+
+            if (start < 0 || end <= start || end > text.Length)
+            {
+                failStatus = DecompSourceWriteStatus.ParseFailed;
+                failMsg = "Empty or invalid value token span.";
+                return text;
+            }
+            string token = text.Substring(start, end - start);
+            string trimmed = token.Trim();
+
+            if (!TryParseIntLiteral(trimmed, out bool isHex, out string suffix))
+            {
+                failStatus = DecompSourceWriteStatus.UnsupportedField;
+                failMsg = $"Value '{trimmed}' is a macro/identifier/expression, not an integer literal — edit manually.";
+                return text;
+            }
+
+            string newToken = isHex
+                ? "0x" + newVal.ToString("X", CultureInfo.InvariantCulture) + suffix
+                : newVal.ToString(CultureInfo.InvariantCulture) + suffix;
+
+            applied = true;
+            return text.Substring(0, start) + newToken + text.Substring(end);
+        }
+
+        /// <summary>
+        /// Parse a plain integer literal: decimal (<c>123</c>) or hex (<c>0x1F</c>),
+        /// optionally with a single trailing run of u/U/l/L suffix chars. Returns
+        /// false for anything else (identifier, macro, expression, float, etc.).
+        /// </summary>
+        static bool TryParseIntLiteral(string s, out bool isHex, out string suffix)
+        {
+            isHex = false; suffix = "";
+            if (string.IsNullOrEmpty(s))
+                return false;
+
+            int i = 0;
+            // Optional leading sign is NOT supported (decomp tables are unsigned/enum);
+            // a leading '-' or '+' makes it an expression → reject.
+            if (s[0] == '-' || s[0] == '+')
+                return false;
+
+            int n = s.Length;
+            int digitsStart;
+            if (n >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+            {
+                isHex = true;
+                i = 2;
+                digitsStart = i;
+                while (i < n && Uri.IsHexDigit(s[i])) i++;
+                if (i == digitsStart) return false;   // "0x" with no digits
+            }
+            else
+            {
+                digitsStart = i;
+                while (i < n && s[i] >= '0' && s[i] <= '9') i++;
+                if (i == digitsStart) return false;   // no leading digit
+            }
+
+            // Remaining must be only suffix chars u/U/l/L.
+            int suffixStart = i;
+            while (i < n)
+            {
+                char c = s[i];
+                if (c == 'u' || c == 'U' || c == 'l' || c == 'L') { i++; continue; }
+                return false;   // trailing non-suffix char → not a plain literal
+            }
+            suffix = s.Substring(suffixStart);
+            return true;
+        }
+
+        // -------------------------------------------------- token / span scanners
+
+        /// <summary>
+        /// Find a top-level <c>.field</c> designator within [innerStart, innerEnd) of
+        /// the element text. Returns the index of the '.', or -1. Comment/string aware,
+        /// depth aware (only depth-0 designators match).
+        /// </summary>
+        static int FindDesignator(string text, int innerStart, int innerEnd, string field)
+        {
+            int depth = 0;
+            int i = innerStart;
+            while (i < innerEnd)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, innerEnd);
+                if (skip != i) { i = skip; continue; }
+                char c = text[i];
+                if (c == '{' || c == '[' || c == '(') { depth++; i++; continue; }
+                if (c == '}' || c == ']' || c == ')') { depth--; i++; continue; }
+                if (depth == 0 && c == '.')
+                {
+                    int j = i + 1;
+                    // Match the exact field identifier followed by a non-identifier char.
+                    if (j + field.Length <= innerEnd
+                        && string.CompareOrdinal(text, j, field, 0, field.Length) == 0)
+                    {
+                        int after = j + field.Length;
+                        bool boundary = after >= innerEnd || !IsIdentChar(text[after]);
+                        if (boundary)
+                            return i;
+                    }
+                }
+                i++;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// From <paramref name="valStart"/>, return the exclusive end of a value token:
+        /// the position of the next top-level ',' or the element's closing brace
+        /// (innerEnd). Trailing whitespace is excluded. Comment/string/nesting aware.
+        /// </summary>
+        static int FindTopLevelValueEnd(string text, int valStart, int innerEnd)
+        {
+            int depth = 0;
+            int i = valStart;
+            int lastNonWs = valStart;
+            while (i < innerEnd)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, innerEnd);
+                if (skip != i)
+                {
+                    // The trivia/literal counts as part of the token's extent only if
+                    // it's a string/char literal (rare for ints); comments/whitespace
+                    // do not extend lastNonWs.
+                    i = skip;
+                    continue;
+                }
+                char c = text[i];
+                if (c == '{' || c == '[' || c == '(') { depth++; i++; lastNonWs = i; continue; }
+                if (c == '}' || c == ']' || c == ')') { depth--; i++; lastNonWs = i; continue; }
+                if (depth == 0 && c == ',')
+                    break;
+                if (!char.IsWhiteSpace(c)) lastNonWs = i + 1;
+                i++;
+            }
+            return lastNonWs;
+        }
+
+        /// <summary>
+        /// Split [innerStart, innerEnd) into top-level comma-separated token spans.
+        /// Each span is [start, end) of the raw token (untrimmed). Comment/string/
+        /// nesting aware. A trailing comma yields no empty final token.
+        /// </summary>
+        static List<(int start, int end)> SplitTopLevelTokens(string text, int innerStart, int innerEnd)
+        {
+            var spans = new List<(int, int)>();
+            int depth = 0;
+            int tokenStart = innerStart;
+            int i = innerStart;
+            while (i < innerEnd)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, innerEnd);
+                if (skip != i) { i = skip; continue; }
+                char c = text[i];
+                if (c == '{' || c == '[' || c == '(') { depth++; i++; continue; }
+                if (c == '}' || c == ']' || c == ')') { depth--; i++; continue; }
+                if (depth == 0 && c == ',')
+                {
+                    spans.Add((tokenStart, i));
+                    tokenStart = i + 1;
+                    i++;
+                    continue;
+                }
+                i++;
+            }
+            // Final token (only if non-whitespace remains).
+            int s = tokenStart, e = innerEnd;
+            int ss = s;
+            while (ss < e && char.IsWhiteSpace(text[ss])) ss++;
+            if (ss < e)
+                spans.Add((tokenStart, innerEnd));
+            return spans;
+        }
+
+        // --------------------------------------------------- low-level scanners
+
+        /// <summary>Find a whole-identifier occurrence of <paramref name="ident"/> from <paramref name="from"/>.</summary>
+        static int IndexOfIdentifier(string text, string ident, int from)
+        {
+            if (string.IsNullOrEmpty(ident)) return -1;
+            int i = from;
+            while (true)
+            {
+                int idx = text.IndexOf(ident, i, StringComparison.Ordinal);
+                if (idx < 0) return -1;
+                bool leftOk = idx == 0 || !IsIdentChar(text[idx - 1]);
+                int after = idx + ident.Length;
+                bool rightOk = after >= text.Length || !IsIdentChar(text[after]);
+                // Reject occurrences inside a comment or string literal: scan from the
+                // start of the line is expensive; instead use the global skip walker to
+                // verify this index is at "code" level.
+                if (leftOk && rightOk && IsCodePosition(text, idx))
+                    return idx;
+                i = idx + ident.Length;
+                if (i >= text.Length) return -1;
+            }
+        }
+
+        /// <summary>
+        /// True when <paramref name="pos"/> is NOT inside a // or /* */ comment or a
+        /// string/char literal — i.e. it is a real code position. Walks from 0.
+        /// </summary>
+        static bool IsCodePosition(string text, int pos)
+        {
+            int i = 0;
+            while (i < pos)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, text.Length);
+                if (skip > i)
+                {
+                    if (pos < skip) return false;  // pos fell inside the skipped region
+                    i = skip;
+                    continue;
+                }
+                i++;
+            }
+            return true;
+        }
+
+        static bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+        /// <summary>
+        /// Skip whitespace and comments starting at <paramref name="i"/>; returns the
+        /// next non-trivia index. Does NOT skip string/char literals.
+        /// </summary>
+        static int SkipTrivia(string text, int i)
+        {
+            int n = text.Length;
+            while (i < n)
+            {
+                char c = text[i];
+                if (char.IsWhiteSpace(c)) { i++; continue; }
+                if (c == '/' && i + 1 < n && text[i + 1] == '/')
+                {
+                    i += 2;
+                    while (i < n && text[i] != '\n') i++;
+                    continue;
+                }
+                if (c == '/' && i + 1 < n && text[i + 1] == '*')
+                {
+                    i += 2;
+                    while (i + 1 < n && !(text[i] == '*' && text[i + 1] == '/')) i++;
+                    i = Math.Min(n, i + 2);
+                    continue;
+                }
+                break;
+            }
+            return i;
+        }
+
+        /// <summary>
+        /// If <paramref name="i"/> begins a comment, string literal, or char literal,
+        /// return the index just past it; otherwise return <paramref name="i"/>
+        /// unchanged. Whitespace is also skipped (so callers can advance over it).
+        /// Bounded by <paramref name="limit"/>. NEVER throws.
+        /// </summary>
+        static int SkipTriviaAndLiterals(string text, int i, int limit)
+        {
+            int n = Math.Min(limit, text.Length);
+            if (i >= n) return i;
+            char c = text[i];
+
+            // Whitespace.
+            if (char.IsWhiteSpace(c))
+            {
+                int j = i;
+                while (j < n && char.IsWhiteSpace(text[j])) j++;
+                return j;
+            }
+            // Line comment.
+            if (c == '/' && i + 1 < n && text[i + 1] == '/')
+            {
+                int j = i + 2;
+                while (j < n && text[j] != '\n') j++;
+                return j;
+            }
+            // Block comment.
+            if (c == '/' && i + 1 < n && text[i + 1] == '*')
+            {
+                int j = i + 2;
+                while (j + 1 < n && !(text[j] == '*' && text[j + 1] == '/')) j++;
+                return Math.Min(n, j + 2);
+            }
+            // String literal.
+            if (c == '"')
+            {
+                int j = i + 1;
+                while (j < n)
+                {
+                    if (text[j] == '\\') { j += 2; continue; }
+                    if (text[j] == '"') { j++; break; }
+                    j++;
+                }
+                return j;
+            }
+            // Char literal.
+            if (c == '\'')
+            {
+                int j = i + 1;
+                while (j < n)
+                {
+                    if (text[j] == '\\') { j += 2; continue; }
+                    if (text[j] == '\'') { j++; break; }
+                    j++;
+                }
+                return j;
+            }
+            return i;
+        }
+
+        /// <summary>Match a brace at <paramref name="open"/> ('{'), comment/string aware. Returns the '}' index or -1.</summary>
+        static int MatchBrace(string text, int open) => MatchBracket(text, open, '{', '}');
+
+        /// <summary>
+        /// Match a bracket pair from <paramref name="open"/> (which must be the open
+        /// char). Comment/string aware. Returns the matching close index, or -1.
+        /// </summary>
+        static int MatchBracket(string text, int open, char openCh, char closeCh)
+        {
+            if (open < 0 || open >= text.Length || text[open] != openCh)
+                return -1;
+            int depth = 0;
+            int i = open;
+            int n = text.Length;
+            while (i < n)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, n);
+                if (skip != i) { i = skip; continue; }
+                char c = text[i];
+                if (c == openCh) { depth++; i++; continue; }
+                if (c == closeCh)
+                {
+                    depth--;
+                    if (depth == 0) return i;
+                    i++;
+                    continue;
+                }
+                i++;
+            }
+            return -1;
+        }
+
+        /// <summary>1-based line number of <paramref name="index"/> in <paramref name="text"/>.</summary>
+        static int LineOf(string text, int index)
+        {
+            if (index < 0) index = 0;
+            if (index > text.Length) index = text.Length;
+            int line = 1;
+            for (int i = 0; i < index; i++)
+                if (text[i] == '\n') line++;
+            return line;
+        }
+
+        /// <summary>
+        /// Write <paramref name="bytes"/> to <paramref name="path"/> atomically: write
+        /// to a sibling temp file then replace. Falls back to a direct write if the
+        /// replace fails (e.g. cross-volume). Throws only the underlying IO exception
+        /// (the caller wraps it).
+        /// </summary>
+        static void AtomicWrite(string path, byte[] bytes)
+        {
+            string dir = Path.GetDirectoryName(path);
+            string tmp = Path.Combine(
+                string.IsNullOrEmpty(dir) ? "." : dir,
+                "." + Path.GetFileName(path) + ".febtmp");
+            File.WriteAllBytes(tmp, bytes);
+            try
+            {
+                if (File.Exists(path))
+                    File.Replace(tmp, path, null);
+                else
+                    File.Move(tmp, path);
+            }
+            catch
+            {
+                // Fallback: direct overwrite, then clean up temp.
+                File.WriteAllBytes(path, bytes);
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best effort */ }
+            }
+        }
+    }
+}

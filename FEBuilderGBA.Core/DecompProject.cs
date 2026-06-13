@@ -69,6 +69,141 @@ namespace FEBuilderGBA
 
         /// <summary>True when a non-empty built ROM path is set and the file exists.</summary>
         public bool IsBuilt => !string.IsNullOrEmpty(BuiltRomPath) && File.Exists(BuiltRomPath);
+
+        /// <summary>
+        /// Set to true by a source-backed writer (#1132) after it rewrites a
+        /// declared table-owner source file. Surfaces a "needs rebuild" hint in the
+        /// host badge so the user re-runs the build to refresh the preview ROM.
+        /// Default false; never throws to read/write (plain property).
+        /// </summary>
+        public bool NeedsRebuild { get; set; }
+
+        /// <summary>
+        /// Case-insensitive table-owner lookup over the manifest's <c>tables</c>
+        /// section (#1132). Returns the matching <see cref="DecompTableEntry"/> whose
+        /// <c>table</c> equals <paramref name="tableName"/>, or null when there is no
+        /// owner declaration, no manifest, or the section is malformed. NEVER throws.
+        /// </summary>
+        public DecompTableEntry TryGetTableOwner(string tableName)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(tableName) || Manifest == null)
+                    return null;
+                foreach (DecompTableEntry e in Manifest.TablesList)
+                {
+                    if (e != null
+                        && !string.IsNullOrEmpty(e.Table)
+                        && string.Equals(e.Table, tableName, StringComparison.OrdinalIgnoreCase))
+                        return e;
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
+    /// <summary>
+    /// One table-owner declaration in the manifest's <c>tables</c> section (#1132).
+    /// Declares which structured ROM table is source-backed, the source file that
+    /// owns it, and (optionally) the C array symbol + field layout used by the
+    /// source-backed writer. All fields tolerant/optional; the
+    /// <see cref="Extra"/> bag keeps parse lossless for forward-compat.
+    /// </summary>
+    public sealed class DecompTableEntry
+    {
+        /// <summary>FEBuilder table name (e.g. "items"). Case-insensitive match key.</summary>
+        [JsonPropertyName("table")]
+        public string Table { get; set; }
+
+        /// <summary>Source format: "cstruct" (C array) or "json". Default treated as "cstruct".</summary>
+        [JsonPropertyName("format")]
+        public string Format { get; set; }
+
+        /// <summary>Write policy: "source" (rewrite source), "romOnly", or "manual".</summary>
+        [JsonPropertyName("writePolicy")]
+        public string WritePolicy { get; set; }
+
+        /// <summary>Owner kind hint (free-form; not consumed by the MVP writer).</summary>
+        [JsonPropertyName("ownerKind")]
+        public string OwnerKind { get; set; }
+
+        /// <summary>C array identifier holding the entries (alias of <see cref="Symbol"/>).</summary>
+        [JsonPropertyName("arrayName")]
+        public string ArrayName { get; set; }
+
+        /// <summary>C symbol for the array (alias of <see cref="ArrayName"/>).</summary>
+        [JsonPropertyName("symbol")]
+        public string Symbol { get; set; }
+
+        /// <summary>Project-relative path to the source file that owns this table.</summary>
+        [JsonPropertyName("sourceFile")]
+        public string SourceFile { get; set; }
+
+        /// <summary>C element type name (informational).</summary>
+        [JsonPropertyName("ctype")]
+        public string CType { get; set; }
+
+        /// <summary>JSON schema id when <see cref="Format"/> is "json" (informational).</summary>
+        [JsonPropertyName("jsonSchema")]
+        public string JsonSchema { get; set; }
+
+        /// <summary>Declared entry count (informational; null when unspecified).</summary>
+        [JsonPropertyName("count")]
+        public int? Count { get; set; }
+
+        /// <summary>Declared entry byte size (informational; null when unspecified).</summary>
+        [JsonPropertyName("entrySize")]
+        public int? EntrySize { get; set; }
+
+        /// <summary>Index base for entry ids (0 or 1; null defaults to 0 at the writer).</summary>
+        [JsonPropertyName("indexBase")]
+        public int? IndexBase { get; set; }
+
+        /// <summary>Declared C fields, in struct order (drives positional initializers).</summary>
+        [JsonPropertyName("fields")]
+        public List<DecompTableField> Fields { get; set; }
+
+        /// <summary>Effective array symbol: <see cref="ArrayName"/> when set, else <see cref="Symbol"/>.</summary>
+        [JsonIgnore]
+        public string EffectiveSymbol =>
+            !string.IsNullOrEmpty(ArrayName) ? ArrayName : Symbol;
+
+        /// <summary>Catch-all so unknown table keys never break parse.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> Extra { get; set; }
+    }
+
+    /// <summary>
+    /// One C field declaration inside a <see cref="DecompTableEntry"/> (#1132).
+    /// <see cref="Name"/> matches the FEBuilder/manifest field key the writer is
+    /// asked to change; the optional offset/width/signed hints + the
+    /// <see cref="Extra"/> bag (enum/constant maps) are tolerant and forward-compat.
+    /// </summary>
+    public sealed class DecompTableField
+    {
+        /// <summary>C struct field name (and the change-set key the writer matches).</summary>
+        [JsonPropertyName("name")]
+        public string Name { get; set; }
+
+        /// <summary>Byte offset of the field (informational; null when unspecified).</summary>
+        [JsonPropertyName("offset")]
+        public int? Offset { get; set; }
+
+        /// <summary>Field byte width (informational; null when unspecified).</summary>
+        [JsonPropertyName("width")]
+        public int? Width { get; set; }
+
+        /// <summary>True when the field is signed (informational; null when unspecified).</summary>
+        [JsonPropertyName("signed")]
+        public bool? Signed { get; set; }
+
+        /// <summary>Catch-all (e.g. enum/constants maps) so unknown keys never break parse.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> Extra { get; set; }
     }
 
     /// <summary>Status of a built-ROM resolution attempt.</summary>
@@ -192,6 +327,101 @@ namespace FEBuilderGBA
         /// <summary>Catch-all for any future top-level key — keeps parse lossless.</summary>
         [JsonExtensionData]
         public Dictionary<string, JsonElement> Extra { get; set; }
+
+        // Cached parse of the tolerant Tables JsonElement (#1132). Lazily built on
+        // first access; null until parsed, then a (possibly empty) list.
+        [JsonIgnore]
+        List<DecompTableEntry> _tablesList;
+
+        /// <summary>
+        /// Parsed view of the tolerant <see cref="Tables"/> JsonElement (#1132).
+        /// Accepts BOTH a JSON array (<c>[ { "table": ... }, ... ]</c>) AND an
+        /// object-map (<c>{ "items": { ... } }</c> — the key is injected as
+        /// <c>table</c> when the entry object lacks one). Malformed / absent →
+        /// an empty list. NEVER throws. The parse is cached on first access.
+        /// </summary>
+        [JsonIgnore]
+        public List<DecompTableEntry> TablesList
+        {
+            get
+            {
+                if (_tablesList != null)
+                    return _tablesList;
+                _tablesList = ParseTables(Tables);
+                return _tablesList;
+            }
+        }
+
+        static readonly JsonSerializerOptions TablesJsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+
+        /// <summary>
+        /// Tolerant parse of the <c>tables</c> element into a list of owners.
+        /// Array → each element deserialized. Object-map → each value
+        /// deserialized with its key injected as <c>table</c> when the value
+        /// object omits one. Any per-entry fault is skipped (not fatal). NEVER throws.
+        /// </summary>
+        static List<DecompTableEntry> ParseTables(JsonElement? tables)
+        {
+            var list = new List<DecompTableEntry>();
+            try
+            {
+                if (!(tables is JsonElement el))
+                    return list;
+
+                if (el.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement item in el.EnumerateArray())
+                    {
+                        DecompTableEntry entry = TryDeserializeEntry(item, null);
+                        if (entry != null)
+                            list.Add(entry);
+                    }
+                }
+                else if (el.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (JsonProperty prop in el.EnumerateObject())
+                    {
+                        DecompTableEntry entry = TryDeserializeEntry(prop.Value, prop.Name);
+                        if (entry != null)
+                            list.Add(entry);
+                    }
+                }
+            }
+            catch
+            {
+                // tolerant: return whatever was accumulated (never throw)
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// Deserialize one table-owner object. When <paramref name="injectKey"/> is
+        /// non-null (object-map form) and the deserialized entry has no
+        /// <c>table</c>, the map key is injected. Returns null on any per-entry fault.
+        /// </summary>
+        static DecompTableEntry TryDeserializeEntry(JsonElement item, string injectKey)
+        {
+            try
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                    return null;
+                DecompTableEntry entry = item.Deserialize<DecompTableEntry>(TablesJsonOptions);
+                if (entry == null)
+                    return null;
+                if (string.IsNullOrEmpty(entry.Table) && !string.IsNullOrEmpty(injectKey))
+                    entry.Table = injectKey;
+                return entry;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         /// <summary>
         /// True when at least one slice-1 "known" field is set, used by the
