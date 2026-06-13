@@ -53,13 +53,33 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
 
                 // PROBE FIRST — do NOT open a blank Creator on an empty / unresolvable
-                // skill-anime stream (#1115, mirrors the magic #1116 probe).
-                int frameCount = ToolAnimationCreatorViewViewModel.CountSkillFrames(animationPointer);
-                if (frameCount <= 0)
+                // / unrenderable skill-anime stream (#1115; Copilot PR #1137 review).
+                // Use the SAME success condition the seed requires: a FULL
+                // ExportSkillAnimation decode with no error AND >= 1 frame. The cheap
+                // CountSkillFrames probe only validates the list pointers, not each
+                // frame's resolved OBJ/TSA/palette offset — a config with a valid frame
+                // stream but a bad per-frame resource would pass it yet seed empty. The
+                // probe images are disposed here (the Creator's preview cache re-decodes
+                // the single selected frame lazily), so this never leaks.
+                var probe = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animationPointer);
+                try
                 {
-                    CoreState.Services?.ShowInfo(
-                        R._("No animation frames found for this skill at 0x{0:X}.", animationPointer));
-                    return;
+                    if (!string.IsNullOrEmpty(probe.Error) || probe.Frames.Count == 0)
+                    {
+                        CoreState.Services?.ShowInfo(
+                            R._("No renderable animation frames found for this skill at 0x{0:X}.", animationPointer));
+                        return;
+                    }
+                }
+                finally
+                {
+                    // Dispose the probe-decoded IImages (the export caches one per OBJ
+                    // id, so dedup by reference before disposing).
+                    var seen = new System.Collections.Generic.HashSet<IImage>(
+                        System.Collections.Generic.ReferenceEqualityComparer.Instance);
+                    foreach (var f in probe.Frames)
+                        if (f.Image != null && seen.Add(f.Image))
+                            try { f.Image.Dispose(); } catch { /* best-effort */ }
                 }
 
                 string hint = R._("Skill Animation #{0:X2}", selectedId);

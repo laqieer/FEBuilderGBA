@@ -178,6 +178,40 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ReadFrameMetas_NonEmpty_ButExportErrors_OnBadPerFrameResource()
+        {
+            // Documents WHY the jump helper probes with the FULL ExportSkillAnimation
+            // (Copilot PR #1137 review): ReadFrameMetas validates the four LIST base
+            // pointers but NOT each frame's resolved OBJ/TSA/pal offset. A config whose
+            // graphiclist[0] dereferences to an UNSAFE obj offset passes the meta read
+            // (frames non-empty) yet ExportSkillAnimation reports an error — so the
+            // helper must gate the window-open on the full export, not the count.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                uint animeOffset = BuildSyntheticAnime(rom.Data,
+                    waits: new uint[] { 1 }, soundId: 0);
+
+                // The list pointers stay valid (so ReadFrameMetas succeeds), but
+                // graphiclist[0] now points to an UNSAFE obj offset (below the 0x200
+                // safety floor) so RenderFrame -> ExportSkillAnimation errors.
+                // graphiclist is at config + 8 -> deref -> [id 0] u32.
+                uint graphiclist = U.toOffset(rom.p32(animeOffset + 8));
+                WriteU32(rom.Data, graphiclist + 0, 0x08000010); // -> offset 0x10 (unsafe)
+
+                Assert.NotEmpty(SkillSystemsAnimeExportCore.ReadFrameMetas(rom, animeOffset));
+                var export = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeOffset);
+                Assert.NotEqual("", export.Error);
+                Assert.Empty(export.Frames);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
         public void CountSkillFrames_DoesNotRequireImageService()
         {
             // CountSkillFrames must work even with NO image service — it renders
