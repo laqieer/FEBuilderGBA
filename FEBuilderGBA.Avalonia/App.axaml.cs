@@ -24,6 +24,9 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>ROM path passed via --rom command line argument.</summary>
         public static string? StartupRomPath { get; set; }
 
+        /// <summary>Decomp project directory passed via --project command line argument (#1129).</summary>
+        public static string? StartupProjectDir { get; set; }
+
         /// <summary>When true, run editor smoke test and exit.</summary>
         public static bool SmokeTestMode { get; set; }
 
@@ -948,6 +951,7 @@ namespace FEBuilderGBA.Avalonia
                 SetBrush("CharCodeCellBrush", "#3A3A3A");
                 SetBrush("WelcomeBannerBrush", "#2A2A3A");
                 SetBrush("WelcomeBannerBorderBrush", "#3A3A5A");
+                SetBrush("DecompBadgeBrush", "#FF9A3C");
             }
             else
             {
@@ -978,6 +982,7 @@ namespace FEBuilderGBA.Avalonia
                 SetBrush("CharCodeCellBrush", "#FFE0E0E0");
                 SetBrush("WelcomeBannerBrush", "#E8EAF6");
                 SetBrush("WelcomeBannerBorderBrush", "#C5CAE9");
+                SetBrush("DecompBadgeBrush", "#B85C00");
             }
         }
 
@@ -1141,6 +1146,14 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--rom="))
                 {
                     StartupRomPath = args[i].Substring("--rom=".Length);
+                }
+                else if (args[i].StartsWith("--project="))
+                {
+                    StartupProjectDir = args[i].Substring("--project=".Length);
+                }
+                else if (args[i] == "--project" && i + 1 < args.Length)
+                {
+                    StartupProjectDir = args[++i];
                 }
             }
         }

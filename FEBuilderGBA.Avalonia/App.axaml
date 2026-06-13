@@ -81,6 +81,9 @@
             <!-- Subtitle overlay (intentionally dark for video overlay) -->
             <SolidColorBrush x:Key="SubtitleOverlayBackgroundBrush" Color="Black" />
             <SolidColorBrush x:Key="SubtitleOverlayForegroundBrush" Color="White" />
+
+            <!-- Decomp project "build preview" toolbar badge (#1129) -->
+            <SolidColorBrush x:Key="DecompBadgeBrush" Color="#B85C00" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

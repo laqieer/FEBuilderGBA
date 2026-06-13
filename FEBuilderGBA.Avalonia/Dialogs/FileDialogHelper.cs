@@ -65,6 +65,21 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return file?.TryGetLocalPath();
         }
 
+        /// <summary>
+        /// Open a decomp project folder (#1129 slice 1). Returns the chosen
+        /// directory's local path, or null when cancelled / unavailable.
+        /// </summary>
+        public static async Task<string?> OpenProjectFolder(Window owner)
+        {
+            var folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = R._("Open Decomp Project"),
+                AllowMultiple = false,
+            });
+
+            return folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+        }
+
         /// <summary>Open a UPS patch file.</summary>
         public static async Task<string?> OpenPatchFile(Window owner)
         {

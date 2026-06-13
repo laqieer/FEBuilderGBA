@@ -96,6 +96,8 @@ dotnet run --project FEBuilderGBA.CLI -- --translate_batch --rom=rom.gba --out=t
 dotnet run --project FEBuilderGBA.CLI -- --test --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --testonly --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --rom-info --rom=rom.gba
+# Open a decomp project directory and report its mode + resolved preview ROM
+dotnet run --project FEBuilderGBA.CLI -- --project=path/to/decomp --rom-info
 dotnet run --project FEBuilderGBA.CLI -- --list-tables
 dotnet run --project FEBuilderGBA.CLI -- --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
 dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
@@ -108,6 +110,9 @@ dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
 
 # Run Avalonia GUI with a ROM
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba
+
+# Open a decomp project directory (loads its built ROM as a read-only preview)
+dotnet run --project FEBuilderGBA.Avalonia -- --project path/to/decomp
 
 # Run Avalonia smoke test (loads ROM, opens editors, selects items, verifies no crash)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --smoke-test
@@ -204,6 +209,27 @@ dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --dry-run --ou
 # Run cross-platform tests
 dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ```
+
+### Decomp Project Support (preview)
+
+FEBuilderGBA can open a **decompilation project** directory (a source tree that
+builds a `.gba` ROM, e.g. a `fireemblem8u` / `fe6` decomp). The built ROM is
+loaded as a **read-only preview** — the source is the source of truth, so saving
+over the built ROM is intentionally blocked (edit the source and rebuild instead).
+A project is detected by a `febuilder.project.json` manifest or by heuristics
+(`ROM :=` / `BUILD_NAME :=` in the root `Makefile`, `*.sha1`, `ldscript.txt`,
+`src/`+`asm/`, `tools/agbcc/`). The built ROM is resolved from the manifest
+`builtRom`, the Makefile ROM stem, or a `*.gba` that has a same-stem `*.elf`
+sibling.
+
+- **Avalonia GUI:** File → *Open Decomp Project...* (or `--project path/to/decomp`
+  at launch). When a project is open, a *"Source-backed project · ROM is a build
+  preview"* badge appears in the toolbar.
+- **CLI:** `--project=<dir> --rom-info` reports the resolved preview ROM plus a
+  `Mode: Decomp (preview ROM <path>)` line.
+
+This is slice 1 (open + preview). Symbol resolution, diff-to-source, source
+writers, asset exporters and in-app build/reload are tracked under #1130–#1134.
 
 ### Running on Android (experimental)
 

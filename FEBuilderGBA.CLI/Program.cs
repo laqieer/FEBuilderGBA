@@ -273,6 +273,14 @@ namespace FEBuilderGBA.CLI
                 return RunRomInfo(argsDic);
             }
 
+            // --project=<dir> [--rom-info]: open a decomp project and report its
+            // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
+            // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
+            if (argsDic.ContainsKey("--project"))
+            {
+                return RunRomInfo(argsDic);
+            }
+
             if (argsDic.ContainsKey("--list-tables"))
             {
                 return RunListTables(argsDic);
@@ -423,6 +431,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum (requires --rom)");
+            Console.WriteLine("  --project=<dir>          Open a decomp project directory and load its built ROM for preview; combine with --rom-info");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
@@ -4024,19 +4033,42 @@ namespace FEBuilderGBA.CLI
 
         static int RunRomInfo(Dictionary<string, string> argsDic)
         {
-            if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
-            { Console.Error.WriteLine("Error: --rom-info requires --rom=<rom>"); return 1; }
+            // Two load sources: classic --rom=<file>, or decomp --project=<dir>.
+            bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
+            string romPath;
+            bool decompMode = false;
 
-            string romPath = argsDic["--rom"];
-            if (!File.Exists(romPath))
-            { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
-
-            // Try to detect ROM version first — fail fast for non-ROM files
-            RomLoader.InitEnvironment();
-            if (!RomLoader.LoadRom(romPath, argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null))
+            if (isProject)
             {
-                Console.Error.WriteLine($"Error: Not a recognized GBA Fire Emblem ROM: {romPath}");
-                return 1;
+                string projectDir = argsDic["--project"];
+                RomLoader.InitEnvironment();
+                if (!RomLoader.LoadProject(projectDir))
+                {
+                    // LoadProject already emitted a ShowError to stderr (CliAppServices).
+                    // Re-emit the actionable message so the failure is unambiguous on
+                    // both channels for the "run the build first" assertion (#1129).
+                    Console.Error.WriteLine($"Error: Could not open decomp project: {projectDir}");
+                    return 1;
+                }
+                romPath = CoreState.DecompProject?.BuiltRomPath ?? "";
+                decompMode = true;
+            }
+            else
+            {
+                if (!argsDic.ContainsKey("--rom") || string.IsNullOrEmpty(argsDic["--rom"]))
+                { Console.Error.WriteLine("Error: --rom-info requires --rom=<rom> or --project=<dir>"); return 1; }
+
+                romPath = argsDic["--rom"];
+                if (!File.Exists(romPath))
+                { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+
+                // Try to detect ROM version first — fail fast for non-ROM files
+                RomLoader.InitEnvironment();
+                if (!RomLoader.LoadRom(romPath, argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null))
+                {
+                    Console.Error.WriteLine($"Error: Not a recognized GBA Fire Emblem ROM: {romPath}");
+                    return 1;
+                }
             }
 
             byte[] data = CoreState.ROM.Data;
@@ -4077,6 +4109,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"header_checksum=0x{actual:X02}");
             Console.WriteLine($"header_checksum_expected=0x{expected:X02}");
             Console.WriteLine($"header_checksum_status={checksumStatus}");
+            if (decompMode)
+                Console.WriteLine($"Mode: Decomp (preview ROM {romPath})");
+            else
+                Console.WriteLine("Mode: Rom");
             return 0;
         }
 
