@@ -37,6 +37,12 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
+    - name: Setup .NET 9.0 x86
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+        architecture: 'x86'
+
     - name: Publish ColorzCore (self-contained Windows x86)
       run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{env.BUILD_CONFIGURATION}} -r win-x86 --self-contained true -o tools/publish
 
