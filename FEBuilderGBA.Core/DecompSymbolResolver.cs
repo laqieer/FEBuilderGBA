@@ -363,19 +363,33 @@ namespace FEBuilderGBA
             return shippedNear >= projectNear ? shippedNear : projectNear;
         }
 
-        // Nearest project key at/below pointer (no span requirement); NOT_FOUND when
-        // pointer is below every project key.
+        // Project-side span-covering nearest key (Copilot PR #1138). Walk the
+        // ascending project keys at/below `pointer`, tracking BOTH the nearest
+        // at/below key AND the highest-base key whose SPAN (key + Length) actually
+        // covers `pointer`. A covering key wins so a later zero-length project point
+        // can't mask an earlier sized project symbol that still covers the address;
+        // when none covers, fall back to the nearest at/below key. NOT_FOUND when
+        // `pointer` is below every project key.
         uint ProjectSearchNear(uint pointer)
         {
-            uint best = U.NOT_FOUND;
+            uint nearest = U.NOT_FOUND;
+            uint covering = U.NOT_FOUND;
             // _projectKeys is ascending; linear is fine (project tables are small).
             for (int i = 0; i < _projectKeys.Count; i++)
             {
                 uint k = _projectKeys[i];
                 if (k > pointer) break;
-                best = k;
+                nearest = k;
+                if (_project?.Symbols != null
+                    && _project.Symbols.TryGetValue(k, out var st)
+                    && st != null)
+                {
+                    ulong span = (ulong)k + st.Length;
+                    if (pointer < span)
+                        covering = k;   // highest base that covers wins
+                }
             }
-            return best;
+            return covering != U.NOT_FOUND ? covering : nearest;
         }
 
         // Does the symbol at `key` (in the given table) span-cover `pointer`?

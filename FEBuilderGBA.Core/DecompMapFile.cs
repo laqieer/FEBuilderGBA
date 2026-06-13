@@ -99,8 +99,8 @@ namespace FEBuilderGBA
                     {
                         curSection = secm.Groups[1].Value;
                         uint secAddr = ParseHex(secm.Groups[2].Value);
-                        if (secAddr >= 0x02000000)
-                            boundaries.Add(secAddr);
+                        uint secSize = ParseHex(secm.Groups[3].Value);
+                        AddSectionBoundaries(boundaries, secAddr, secSize);
                         continue;
                     }
 
@@ -113,8 +113,8 @@ namespace FEBuilderGBA
                         {
                             curSection = wrapName.Groups[1].Value;
                             uint secAddr = ParseHex(cont.Groups[1].Value);
-                            if (secAddr >= 0x02000000)
-                                boundaries.Add(secAddr);
+                            uint secSize = ParseHex(cont.Groups[2].Value);
+                            AddSectionBoundaries(boundaries, secAddr, secSize);
                             i++; // consume the continuation line
                             continue;
                         }
@@ -192,6 +192,25 @@ namespace FEBuilderGBA
             }
         }
 
+        // Add a section's START and END addresses as Size boundaries. The END
+        // boundary (secAddr + secSize) is what gives the LAST symbol in a section a
+        // correct Size and, crucially, stops a RAM (IWRAM/EWRAM) section's last
+        // symbol from spanning all the way into the next ROM section. Overflow- and
+        // range-guarded: an END past ROM space (> 0x0A000000) or that wraps uint is
+        // skipped (Copilot PR #1138).
+        static void AddSectionBoundaries(List<uint> boundaries, uint secAddr, uint secSize)
+        {
+            if (secAddr >= 0x02000000)
+                boundaries.Add(secAddr);
+
+            if (secSize > 0)
+            {
+                ulong end = (ulong)secAddr + secSize;
+                if (end > secAddr && end <= 0x0A000000UL)
+                    boundaries.Add((uint)end);
+            }
+        }
+
         static bool ShouldSkipLine(string line)
         {
             // Cheap substring checks for linker-script / assignment / fill noise.
@@ -241,9 +260,11 @@ namespace FEBuilderGBA
                     if (line == null) continue;
                     string trimmed = line.Trim();
                     if (trimmed.Length == 0) continue;
-                    // no$gba line: "100109C MMBDrawInventoryObjs" (split on a single space).
-                    string[] sp = trimmed.Split(' ');
-                    if (sp.Length != 2) continue;
+                    // no$gba line: "100109C MMBDrawInventoryObjs". Column-aligned dumps
+                    // use repeated spaces/tabs between addr and name, so split on any
+                    // run of whitespace and take the first two tokens (Copilot PR #1138).
+                    string[] sp = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (sp.Length < 2) continue;
 
                     uint addr = U.atoh(sp[0]);
                     string name = sp[1];

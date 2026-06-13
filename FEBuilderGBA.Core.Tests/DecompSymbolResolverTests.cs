@@ -177,6 +177,19 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(dir, true); } catch { } }
         }
 
+        // Build a resolver from a JSON artifact (auto-discovered as <stem>.sym.json),
+        // so symbols carry EXPLICIT sizes the .map parser can't express.
+        static DecompSymbolResolver ResolverFromJson(string jsonText)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), $"decompjson_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "rom.gba"), "x");
+            File.WriteAllText(Path.Combine(dir, "rom.sym.json"), jsonText);
+            var project = new DecompProject { ProjectRoot = dir, BuiltRomPath = Path.Combine(dir, "rom.gba") };
+            try { return DecompSymbolResolver.Load(project); }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
         [Fact]
         public void Merged_Precedence_ProjectWinsAtSameAddr()
         {
@@ -208,13 +221,19 @@ namespace FEBuilderGBA.Core.Tests
             shipped.LoadFromLines(MakeFe8uRom(), new[] { "08001000\t&PALETTE8\tShippedSpan" }); // len 0x100
 
             // Project: a ZERO-LENGTH key at 0x08001080 (between base and the query).
+            // Use a section with size 0 so NO section-END boundary is added (#1138),
+            // keeping ProjectPoint genuinely zero-length (it's also the last symbol).
             var resolver = ResolverFromMap(string.Join("\n", new[]
             {
-                " .text          0x08000000     0x2000 a.o",
-                "                0x08001080                ProjectPoint",  // size 0 (last symbol, no next boundary)
+                " .text          0x08000000        0x0 a.o",
+                "                0x08001080                ProjectPoint",  // size 0
             }));
 
             var merged = new MergedAsmMapFile(shipped, resolver);
+
+            // Sanity: ProjectPoint really is zero-length.
+            Assert.True(merged.TryGetValue(0x08001080u, out var pt));
+            Assert.Equal(0u, pt.Length);
 
             // Query 0x080010C0 is inside the shipped span but ABOVE the zero-length
             // project key. SearchNear must return the covering shipped base, not the
@@ -223,6 +242,38 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x08001000u, near);
             Assert.True(merged.TryGetValue(near, out var sp));
             Assert.Equal("ShippedSpan", sp.Name);
+        }
+
+        [Fact]
+        public void Merged_SearchNear_ProjectSide_CoveringSymbolNotMaskedByLaterZeroLengthPoint()
+        {
+            // PROJECT-vs-PROJECT masking regression (#1138). Build a project symbol
+            // table from a JSON artifact with EXPLICIT sizes so a sized symbol's span
+            // can extend PAST a later zero-length point:
+            //   SizedSym @ 0x08001000 len 0x100  -> span [0x1000 .. 0x1100)
+            //   PointSym @ 0x08001080 len 0      -> a zero-length point INSIDE the span
+            // Resolving 0x080010C0 (ABOVE the point, still inside SizedSym's span) must
+            // return 0x08001000 — the covering walk must NOT be masked by the nearest
+            // at/below PointSym (which does not cover). No shipped table.
+            string json = @"[
+                { ""name"": ""SizedSym"", ""addr"": ""0x08001000"", ""size"": 256 },
+                { ""name"": ""PointSym"", ""addr"": ""0x08001080"", ""size"": 0 }
+            ]";
+            var resolver = ResolverFromJson(json);
+
+            Assert.True(resolver.Symbols.TryGetValue(0x08001000u, out var sized));
+            Assert.Equal(0x100u, sized.Length);
+            Assert.True(resolver.Symbols.TryGetValue(0x08001080u, out var point));
+            Assert.Equal(0u, point.Length);
+
+            var merged = new MergedAsmMapFile(null, resolver);
+
+            // Nearest at/below 0x080010C0 is PointSym (0x1080), which does NOT cover.
+            // The project-side covering walk must instead return the covering SizedSym.
+            uint near = merged.SearchNear(0x080010C0u);
+            Assert.Equal(0x08001000u, near);
+            Assert.True(merged.TryGetValue(near, out var st));
+            Assert.Equal("SizedSym", st.Name);
         }
 
         // ---------------------------------------------------------------- Discovery

@@ -41,6 +41,11 @@ namespace FEBuilderGBA
         // symbols win at the same address. Null + dirty in classic mode (no overlay).
         DecompSymbolResolver _projectResolver;
         bool _projectDirty = true;
+        // Cached merged wrapper (Copilot PR #1138): MergedAsmMapFile copies+sorts all
+        // project keys at construction, so rebuilding it on every GetAsmMapFile() call
+        // is wasteful. Built once per dirty cycle alongside _projectResolver; nulled
+        // in ClearCache() / rebuilt when _projectDirty.
+        MergedAsmMapFile _mergedMap;
 
         /// <summary>
         /// The ROM this cache scans. Captured at construction so a cache wired for
@@ -68,6 +73,7 @@ namespace FEBuilderGBA
                 _dirty = true;
                 _symbolDirty = true;
                 _projectDirty = true;
+                _mergedMap = null;
             }
         }
 
@@ -83,6 +89,7 @@ namespace FEBuilderGBA
         {
             lock (_lock)
             {
+                bool symbolMapRebuilt = false;
                 if (_symbolDirty || _symbolMap == null)
                 {
                     try
@@ -97,11 +104,15 @@ namespace FEBuilderGBA
                         _symbolMap = new AsmMapSymbolFile(null);
                     }
                     _symbolDirty = false;
+                    symbolMapRebuilt = true;
                 }
 
                 // #1130: in decomp mode, layer the project's symbol artifacts OVER
-                // the shipped map (project wins). Any fault returns the shipped map
-                // unchanged so classic behaviour is never disturbed.
+                // the shipped map (project wins) via a CACHED MergedAsmMapFile
+                // wrapper (#1138 — building it copies+sorts all project keys, so it
+                // is rebuilt only when the project resolver or the shipped map
+                // changes). Any fault returns the shipped map unchanged so classic
+                // behaviour is never disturbed.
                 if (CoreState.IsDecompMode && CoreState.DecompProject != null)
                 {
                     try
@@ -111,11 +122,17 @@ namespace FEBuilderGBA
                             _projectResolver = DecompSymbolResolver.Load(CoreState.DecompProject);
                             _projectResolver.RegisterToCommentCache(_rom);
                             _projectDirty = false;
+                            _mergedMap = null;   // resolver changed -> rebuild wrapper
                         }
-                        return new MergedAsmMapFile(_symbolMap, _projectResolver);
+                        if (_mergedMap == null || symbolMapRebuilt)
+                        {
+                            _mergedMap = new MergedAsmMapFile(_symbolMap, _projectResolver);
+                        }
+                        return _mergedMap;
                     }
                     catch
                     {
+                        // Never cache a half-built merged map on fault.
                         return _symbolMap;
                     }
                 }
