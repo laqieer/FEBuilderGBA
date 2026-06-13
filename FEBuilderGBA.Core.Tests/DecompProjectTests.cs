@@ -402,6 +402,64 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ParseManifest_ObjectShapedBuildSection_StillParses()
+        {
+            // Copilot PR #1136 finding: reserved `build` as an OBJECT (e.g.
+            // {command,args}) must parse tolerantly, not throw + reject the project.
+            string dir = NewTempDir();
+            try
+            {
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"build\": { \"command\": \"make\", \"args\": [\"-j8\"] } }");
+                TouchGba(dir, "synth.gba");
+
+                var m = DecompProjectDetector.ParseManifest(Path.Combine(dir, DecompProject.ManifestFileName));
+                Assert.NotNull(m);
+                Assert.Equal("make", m.BuildCommand);   // extracted from object .command
+
+                // And the manifest-only project must still be ACCEPTED (not rejected
+                // because the object-shaped build threw during parse).
+                var p = DecompProjectDetector.Detect(dir);
+                Assert.NotNull(p);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseManifest_ScalarBuildAndElf_SurfacedAsStrings()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"build\": \"make all\", \"elf\": \"synth.elf\" }");
+                var m = DecompProjectDetector.ParseManifest(Path.Combine(dir, DecompProject.ManifestFileName));
+                Assert.NotNull(m);
+                Assert.Equal("make all", m.BuildCommand);
+                Assert.Equal("synth.elf", m.ElfPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseManifest_ObjectShapedElfMapSym_StillParsesNoThrow()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                WriteFile(dir, DecompProject.ManifestFileName,
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"elf\": { \"path\": \"a.elf\" }, \"map\": [1,2], \"sym\": { } }");
+                var m = DecompProjectDetector.ParseManifest(Path.Combine(dir, DecompProject.ManifestFileName));
+                Assert.NotNull(m);
+                // Non-string shapes surface as null (no throw).
+                Assert.Null(m.ElfPath);
+                Assert.Null(m.MapPath);
+                Assert.Null(m.SymPath);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
         public void ParseManifest_Missing_ReturnsNullNoThrow()
         {
             Assert.Null(DecompProjectDetector.ParseManifest(null));

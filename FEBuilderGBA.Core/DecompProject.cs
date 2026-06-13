@@ -121,18 +121,60 @@ namespace FEBuilderGBA
         [JsonPropertyName("forceVersion")]
         public string ForceVersion { get; set; }
 
-        // ---- Reserved getters for #1130-#1134 (read off artifacts if present) ----
+        // ---- Reserved artifact paths for #1130-#1134. Typed as tolerant
+        //      JsonElement? (NOT string) so a future object/array shape — e.g.
+        //      `"build": { "command": "make" }` — never throws during parse and
+        //      rejects an otherwise-valid manifest-only project. Scalar values are
+        //      surfaced via the string getters below. ----
         [JsonPropertyName("elf")]
-        public string ElfPath { get; set; }
+        public JsonElement? Elf { get; set; }
 
         [JsonPropertyName("map")]
-        public string MapPath { get; set; }
+        public JsonElement? Map { get; set; }
 
         [JsonPropertyName("sym")]
-        public string SymPath { get; set; }
+        public JsonElement? Sym { get; set; }
 
         [JsonPropertyName("build")]
-        public string BuildCommand { get; set; }
+        public JsonElement? Build { get; set; }
+
+        /// <summary>ELF path when the reserved <c>elf</c> value is a plain string, else null.</summary>
+        [JsonIgnore]
+        public string ElfPath => AsString(Elf);
+
+        /// <summary>.map path when the reserved <c>map</c> value is a plain string, else null.</summary>
+        [JsonIgnore]
+        public string MapPath => AsString(Map);
+
+        /// <summary>.sym path when the reserved <c>sym</c> value is a plain string, else null.</summary>
+        [JsonIgnore]
+        public string SymPath => AsString(Sym);
+
+        /// <summary>
+        /// Build command: the <c>build</c> value when it is a plain string, or its
+        /// <c>command</c> property when <c>build</c> is an object; else null.
+        /// </summary>
+        [JsonIgnore]
+        public string BuildCommand
+        {
+            get
+            {
+                if (Build is JsonElement b)
+                {
+                    if (b.ValueKind == JsonValueKind.String)
+                        return b.GetString();
+                    if (b.ValueKind == JsonValueKind.Object
+                        && b.TryGetProperty("command", out var cmd)
+                        && cmd.ValueKind == JsonValueKind.String)
+                        return cmd.GetString();
+                }
+                return null;
+            }
+        }
+
+        /// <summary>Return a JsonElement's string value, or null for any non-string/absent value.</summary>
+        static string AsString(JsonElement? e)
+            => (e is JsonElement je && je.ValueKind == JsonValueKind.String) ? je.GetString() : null;
 
         // ---- Reserved sections: tolerant, never break parse on shape change ----
         [JsonPropertyName("artifacts")]

@@ -14152,6 +14152,9 @@ Avalonia 跨平台预览
 :Open _Last ROM
 打开上次的ROM(_L)
 
+:Open _Decomp Project...
+打开反编译工程...(_D)
+
 :_Recent Files
 最近的文件(_R)
 
@@ -24548,3 +24551,24 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Transplant completed, but some instrument data was corrupt and only the recognized parts were imported.
 移植已完成，但部分乐器数据已损坏，仅导入了可识别的部分。
+
+:Open Decomp Project
+打开反编译工程
+
+:Decomp Project
+反编译工程
+
+:Source-backed project · ROM is a build preview
+基于源码的工程·ROM 为构建预览
+
+:Not a decomp project directory.
+不是反编译工程目录。
+
+:Project found but no built ROM — run the build first, then reload.
+已找到工程但没有已构建的 ROM——请先执行构建，然后重新加载。
+
+:This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead.
+这是一个基于源码的反编译工程。已构建的 ROM 仅为预览，无法直接覆盖保存。请改为编辑源码并重新构建。
+
+:Failed to open decomp project:
+打开反编译工程失败:
