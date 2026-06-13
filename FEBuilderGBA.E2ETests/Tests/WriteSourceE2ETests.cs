@@ -146,6 +146,49 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
+        // ---- no-op (value already matches) → no write, NeedsRebuild=false ----
+
+        [SkippableFact]
+        public void WriteSource_NoOp_ValueAlreadyMatches_NoWrite_NeedsRebuildFalse()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source no-op test");
+
+            string projectDir = NewTempDir("noop");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "item.c");
+                string content =
+                    "const struct Item gItemData[] = {\n" +
+                    "    [0] = { .might = 5 },\n" +
+                    "    [1] = { .might = 8 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+                var mtimeBefore = File.GetLastWriteTimeUtc(srcAbs);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"items\", \"format\": \"cstruct\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"gItemData\", \"sourceFile\": \"src/item.c\"," +
+                    "    \"fields\": [ { \"name\": \"might\" } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // Entry 1 .might is already 8 → requesting 8 is a no-op.
+                string args = $"--write-source --project=\"{projectDir}\" --table=items --id=1 --field=might --value=8";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=false", stdout);
+                // The source file must be byte-identical (no churn) and untouched.
+                Assert.Equal(content, File.ReadAllText(srcAbs));
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
         // ---- --out-diff artifact ----
 
         [SkippableFact]

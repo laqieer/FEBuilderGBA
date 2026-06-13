@@ -36,8 +36,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(40u, dict["maxUses"]);
             Assert.Equal(1500u, dict["cost"]);
             Assert.Equal(1500u, dict["price"]);
-            Assert.Equal(1u, dict["maxRange"]);
-            Assert.Equal(1u, dict["minRange"]);
+            // #1132 review finding 5: the encoded min-max range byte is intentionally
+            // NOT mapped to minRange/maxRange (mapping one encoded byte to both real
+            // components would be wrong), so neither key is emitted.
+            Assert.False(dict.ContainsKey("maxRange"));
+            Assert.False(dict.ContainsKey("minRange"));
         }
 
         [Fact]

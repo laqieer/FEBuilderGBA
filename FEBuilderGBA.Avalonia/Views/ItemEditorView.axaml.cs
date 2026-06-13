@@ -458,15 +458,14 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateComputedUI();
 
             // #1132: in decomp mode, structured-table edits are source-backed. Route
-            // the "items" table to the C-source writer instead of the preview ROM when
-            // the project declares a source owner with writePolicy=source/cstruct.
+            // the "items" table to the C-source writer instead of the preview ROM.
             // The classic (!IsDecompMode) ROM-write path below is byte-for-byte unchanged.
             if (CoreState.IsDecompMode)
             {
                 if (TryWriteItemSource())
                     return;
-                // Owned-but-unsupported / ROM-only / manual: do NOT silently write the
-                // preview ROM — inform the user to edit source + rebuild, then stop.
+                // No owner at all for the items table → genuinely ROM-only. Do NOT
+                // silently write the preview ROM; tell the user, then stop.
                 CoreState.Services.ShowInfo(R._("This item is ROM-only in decomp mode. Edit the source manually and rebuild."));
                 return;
             }
@@ -489,21 +488,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// #1132: attempt a source-backed write of the current item. Returns true when
-        /// the items table is source-owned AND the write was attempted (success or a
-        /// handled error shown to the user); false when the table is not source-owned
-        /// (caller falls back to the ROM-only notice — never the silent ROM write).
+        /// the items table HAS a source owner (so the write was attempted and an
+        /// accurate, status-specific message was shown — success, no-change, romOnly,
+        /// manual, json, or an error). Returns false ONLY when there is no owner at all,
+        /// so the caller shows the generic ROM-only notice (never a silent ROM write).
         /// </summary>
         bool TryWriteItemSource()
         {
             var project = CoreState.DecompProject;
             var owner = project?.TryGetTableOwner("items");
             if (owner == null)
-                return false;
-
-            bool isSource = string.Equals(owner.WritePolicy ?? "source", "source", StringComparison.OrdinalIgnoreCase);
-            bool isCstruct = string.Equals(owner.Format ?? "cstruct", "cstruct", StringComparison.OrdinalIgnoreCase);
-            if (!isSource || !isCstruct)
-                return false;
+                return false;   // genuinely no owner → caller shows generic ROM-only
 
             // Intersect the candidate field dict with the owner's declared fields so a
             // field the manifest doesn't declare is dropped (no UnsupportedField error).
@@ -518,18 +513,35 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
+            // Always call the writer and branch on its typed status so the user sees an
+            // ACCURATE message (the writer returns the right message for romOnly /
+            // manual / json / not-owned, rather than a generic "ROM-only" string).
             var res = DecompSourceWriterCore.WriteTableEntry(
                 project, "items", _vm.CurrentItemIndex, changed);
 
-            if (res.Ok)
+            switch (res.Status)
             {
-                _vm.MarkClean();
-                UpdateWarnings();
-                CoreState.Services.ShowInfo(R._("Item source updated. Project needs rebuild."));
-            }
-            else
-            {
-                CoreState.Services.ShowError(res.Message);
+                case DecompSourceWriteStatus.Ok:
+                    _vm.MarkClean();
+                    UpdateWarnings();
+                    // ChangedFields empty ⇒ a no-op (value already matched) — don't
+                    // claim a rebuild is needed.
+                    if (res.ChangedFields != null && res.ChangedFields.Count > 0)
+                        CoreState.Services.ShowInfo(R._("Item source updated. Project needs rebuild."));
+                    else
+                        CoreState.Services.ShowInfo(R._("No change needed — the source already matches."));
+                    break;
+                case DecompSourceWriteStatus.RomOnly:
+                    CoreState.Services.ShowInfo(R._("This item table is ROM-only in decomp mode."));
+                    break;
+                case DecompSourceWriteStatus.Manual:
+                    // Covers writePolicy=manual AND format=json (the writer returns the
+                    // accurate per-case message — use it verbatim).
+                    CoreState.Services.ShowInfo(res.Message);
+                    break;
+                default:
+                    CoreState.Services.ShowError(res.Message);
+                    break;
             }
             return true;
         }

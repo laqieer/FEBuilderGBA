@@ -86,6 +86,23 @@ namespace FEBuilderGBA
     public static class DecompSourceWriterCore
     {
         /// <summary>
+        /// Per-field outcome of applying one change to an element (#1132).
+        /// Distinguishes a real rewrite from a no-op / a skipped macro / a fault so the
+        /// caller can avoid false "changed" signals and macro-blocking on bulk writes.
+        /// </summary>
+        enum FieldApplyOutcome
+        {
+            /// <summary>The integer-literal token was rewritten to a new value.</summary>
+            Changed,
+            /// <summary>The token is an integer literal already equal to the requested value.</summary>
+            NoOp,
+            /// <summary>The token is a macro/expression and the set is bulk (multi-field) — skipped.</summary>
+            SkippedMacro,
+            /// <summary>A hard failure (macro under single-field intent, or a real fault).</summary>
+            Failed,
+        }
+
+        /// <summary>
         /// Rewrite one table entry's field(s) in the owning C source file.
         ///
         /// Gates (in order): decomp mode → owner declared → writePolicy is "source" →
@@ -209,6 +226,19 @@ namespace FEBuilderGBA
                 if (!rewrite.Ok)
                     return rewrite;
 
+                // No-op rewrite (empty change-set, all values already equal, or all
+                // macro skips): the text is byte-identical. Do NOT touch the file and
+                // do NOT flag a rebuild — a false rebuild signal + needless timestamp
+                // bump would be wrong (#1132 review finding 2).
+                if (rewrite.ChangedFields == null || rewrite.ChangedFields.Count == 0
+                    || string.Equals(newSourceText, sourceText, StringComparison.Ordinal))
+                {
+                    rewrite.Status = DecompSourceWriteStatus.Ok;
+                    if (string.IsNullOrEmpty(rewrite.Message) || rewrite.Message.StartsWith("Rewrote"))
+                        rewrite.Message = "No change needed.";
+                    return rewrite;
+                }
+
                 // Re-encode with the SAME BOM-state and write atomically.
                 try
                 {
@@ -278,9 +308,11 @@ namespace FEBuilderGBA
                 }
                 if (changedFields == null || changedFields.Count == 0)
                 {
-                    // Nothing to change is a successful no-op.
+                    // Nothing to change is a successful no-op — text identical, no churn.
                     result.Status = DecompSourceWriteStatus.Ok;
-                    result.Message = "No fields to change.";
+                    result.Message = "No change needed.";
+                    result.ChangedFields = new List<string>();
+                    newSourceText = sourceText;
                     return result;
                 }
 
@@ -326,12 +358,24 @@ namespace FEBuilderGBA
                     return result;
                 }
 
-                // Find element [entryId] inside the body.
-                if (!TryFindElementSpan(sourceText, bodyOpen, bodyClose, entryId,
+                // Translate the manifest entry id to a 0-based element index using the
+                // owner's declared index base (default 0). An id below the base is a
+                // parse failure (the original entryId is kept in the message).
+                int indexBase = owner.IndexBase ?? 0;
+                int elementIndex = entryId - indexBase;
+                if (elementIndex < 0)
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Entry id {entryId} is below the declared indexBase {indexBase}.";
+                    return result;
+                }
+
+                // Find the element at the 0-based elementIndex inside the body.
+                if (!TryFindElementSpan(sourceText, bodyOpen, bodyClose, elementIndex,
                         out int elemOpen, out int elemClose))
                 {
                     result.Status = DecompSourceWriteStatus.ParseFailed;
-                    result.Message = $"Entry index {entryId} is out of range in array '{symbol}'.";
+                    result.Message = $"Entry id {entryId} is out of range in array '{symbol}'.";
                     return result;
                 }
 
@@ -343,8 +387,16 @@ namespace FEBuilderGBA
                 // contains at least one top-level `.field` designator.
                 bool hasDesignators = ElementHasDesignators(innerBody);
 
+                // A single-field change-set is an EXPLICIT field intent: a macro value
+                // token then honestly fails (the user targeted that field). A bulk/
+                // multi-field set treats an untouchable macro token as a SKIP (never
+                // rewritten, never blocks the write) so unchanged macro fields the user
+                // never edited don't fail the whole save.
+                bool singleFieldIntent = changedFields.Count == 1;
+
                 // Apply each changed field to the element text. We accumulate edits
-                // into a fresh copy of elementText so all-or-nothing per element.
+                // into a fresh copy of elementText so all-or-nothing per element. Only
+                // tokens that ACTUALLY change (int literal whose value differs) count.
                 string editedElement = elementText;
                 var changed = new List<string>();
 
@@ -353,21 +405,40 @@ namespace FEBuilderGBA
                     string field = kv.Key;
                     uint newVal = kv.Value;
 
-                    bool applied;
-                    DecompSourceWriteStatus failStatus;
-                    string failMsg;
                     string next = ApplyFieldToElement(
-                        editedElement, field, newVal, hasDesignators, fieldOrder,
-                        out applied, out failStatus, out failMsg);
+                        editedElement, field, newVal, hasDesignators, fieldOrder, singleFieldIntent,
+                        out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg);
 
-                    if (!applied)
+                    switch (outcome)
                     {
-                        result.Status = failStatus;
-                        result.Message = failMsg;
-                        return result;   // no write — validate-all-before-mutate
+                        case FieldApplyOutcome.Changed:
+                            editedElement = next;
+                            changed.Add(field);
+                            break;
+                        case FieldApplyOutcome.NoOp:        // int literal already == newVal
+                        case FieldApplyOutcome.SkippedMacro: // macro token in a bulk set
+                            // No textual change; leave editedElement untouched.
+                            break;
+                        default: // Failed — macro in single-field intent, or a real fault
+                            result.Status = failStatus;
+                            result.Message = failMsg;
+                            return result;   // no write — validate-all-before-mutate
                     }
-                    editedElement = next;
-                    changed.Add(field);
+                }
+
+                // If nothing actually changed (empty diff: all no-ops / all skipped),
+                // report a clean no-op and keep the text byte-identical (no churn).
+                if (changed.Count == 0)
+                {
+                    result.Status = DecompSourceWriteStatus.Ok;
+                    result.Message = "No change needed.";
+                    result.ChangedFields = new List<string>();
+                    result.BeforeText = elementText;
+                    result.AfterText = elementText;
+                    result.ChangedLineStart = LineOf(sourceText, elemOpen);
+                    result.ChangedLineEnd = LineOf(sourceText, elemClose);
+                    newSourceText = sourceText;
+                    return result;
                 }
 
                 // Reassemble: prefix + edited element + suffix. Bytes outside the
@@ -527,15 +598,19 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Apply a single field change to one element's text. Returns the new element
-        /// text. On a fault, sets <paramref name="applied"/> false + a status/message
-        /// and returns the input unchanged. NEVER throws.
+        /// text via the return value, and the outcome via <paramref name="outcome"/>.
+        /// <para>A macro/expression value token is a SKIP (no change) when
+        /// <paramref name="singleFieldIntent"/> is false (bulk write), but a hard
+        /// <see cref="FieldApplyOutcome.Failed"/> when it is true (the user explicitly
+        /// targeted that one field).</para>
+        /// On a real fault, returns the input unchanged with a status/message. NEVER throws.
         /// </summary>
         static string ApplyFieldToElement(
             string elementText, string field, uint newVal,
-            bool hasDesignators, List<string> fieldOrder,
-            out bool applied, out DecompSourceWriteStatus failStatus, out string failMsg)
+            bool hasDesignators, List<string> fieldOrder, bool singleFieldIntent,
+            out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg)
         {
-            applied = false;
+            outcome = FieldApplyOutcome.Failed;
             failStatus = DecompSourceWriteStatus.UnsupportedField;
             failMsg = "";
 
@@ -565,8 +640,8 @@ namespace FEBuilderGBA
                 p = SkipTrivia(elementText, p + 1);
                 // value token runs until next top-level ',' or the closing '}'.
                 int valEnd = FindTopLevelValueEnd(elementText, p, innerEnd);
-                return ReplaceValueToken(elementText, p, valEnd, newVal,
-                    out applied, out failStatus, out failMsg);
+                return ReplaceValueToken(elementText, p, valEnd, newVal, singleFieldIntent,
+                    out outcome, out failStatus, out failMsg);
             }
             else
             {
@@ -590,23 +665,29 @@ namespace FEBuilderGBA
                 int s = ts, e = te;
                 while (s < e && char.IsWhiteSpace(elementText[s])) s++;
                 while (e > s && char.IsWhiteSpace(elementText[e - 1])) e--;
-                return ReplaceValueToken(elementText, s, e, newVal,
-                    out applied, out failStatus, out failMsg);
+                return ReplaceValueToken(elementText, s, e, newVal, singleFieldIntent,
+                    out outcome, out failStatus, out failMsg);
             }
         }
 
         /// <summary>
-        /// Replace the [start,end) span (a value token) with the new value IF the
-        /// existing token is a plain integer literal. Hex literals are re-emitted in
-        /// hex, decimal in decimal; an integer suffix (u/U/l/L) is preserved. Sets
-        /// <paramref name="applied"/> false (no change) for macro/identifier/expression
-        /// tokens. NEVER throws.
+        /// Replace the [start,end) span (a value token) with <paramref name="newVal"/>
+        /// IF the existing token is a plain integer literal that DIFFERS from it. Hex
+        /// literals are re-emitted in hex, decimal in decimal; an integer suffix
+        /// (u/U/l/L) is preserved.
+        /// <list type="bullet">
+        ///   <item><description>integer literal whose value differs → <see cref="FieldApplyOutcome.Changed"/></description></item>
+        ///   <item><description>integer literal already equal to <paramref name="newVal"/> → <see cref="FieldApplyOutcome.NoOp"/> (no churn)</description></item>
+        ///   <item><description>macro/identifier/expression + bulk set → <see cref="FieldApplyOutcome.SkippedMacro"/> (untouched)</description></item>
+        ///   <item><description>macro/identifier/expression + single-field intent → <see cref="FieldApplyOutcome.Failed"/> (UnsupportedField)</description></item>
+        /// </list>
+        /// NEVER throws.
         /// </summary>
         static string ReplaceValueToken(
-            string text, int start, int end, uint newVal,
-            out bool applied, out DecompSourceWriteStatus failStatus, out string failMsg)
+            string text, int start, int end, uint newVal, bool singleFieldIntent,
+            out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg)
         {
-            applied = false;
+            outcome = FieldApplyOutcome.Failed;
             failStatus = DecompSourceWriteStatus.UnsupportedField;
             failMsg = "";
 
@@ -619,10 +700,28 @@ namespace FEBuilderGBA
             string token = text.Substring(start, end - start);
             string trimmed = token.Trim();
 
-            if (!TryParseIntLiteral(trimmed, out bool isHex, out string suffix))
+            if (!TryParseIntLiteral(trimmed, out bool isHex, out string suffix, out uint oldVal))
             {
-                failStatus = DecompSourceWriteStatus.UnsupportedField;
-                failMsg = $"Value '{trimmed}' is a macro/identifier/expression, not an integer literal — edit manually.";
+                // Not an integer literal. A bulk write skips it; a single-field intent
+                // (the user explicitly targeted this field) is an honest hard fail.
+                if (singleFieldIntent)
+                {
+                    failStatus = DecompSourceWriteStatus.UnsupportedField;
+                    failMsg = $"Value '{trimmed}' is a macro/identifier/expression, not an integer literal — edit manually.";
+                    outcome = FieldApplyOutcome.Failed;
+                }
+                else
+                {
+                    outcome = FieldApplyOutcome.SkippedMacro;
+                }
+                return text;
+            }
+
+            // No-op: the existing literal already represents the requested value. Leave
+            // the token (and its radix/suffix/formatting) exactly as written — no churn.
+            if (oldVal == newVal)
+            {
+                outcome = FieldApplyOutcome.NoOp;
                 return text;
             }
 
@@ -630,18 +729,20 @@ namespace FEBuilderGBA
                 ? "0x" + newVal.ToString("X", CultureInfo.InvariantCulture) + suffix
                 : newVal.ToString(CultureInfo.InvariantCulture) + suffix;
 
-            applied = true;
+            outcome = FieldApplyOutcome.Changed;
             return text.Substring(0, start) + newToken + text.Substring(end);
         }
 
         /// <summary>
         /// Parse a plain integer literal: decimal (<c>123</c>) or hex (<c>0x1F</c>),
-        /// optionally with a single trailing run of u/U/l/L suffix chars. Returns
-        /// false for anything else (identifier, macro, expression, float, etc.).
+        /// optionally with a single trailing run of u/U/l/L suffix chars. Outputs the
+        /// parsed value in <paramref name="value"/> (so callers can detect no-ops).
+        /// Returns false for anything else (identifier, macro, expression, float,
+        /// overflow beyond 32-bit, etc.).
         /// </summary>
-        static bool TryParseIntLiteral(string s, out bool isHex, out string suffix)
+        static bool TryParseIntLiteral(string s, out bool isHex, out string suffix, out uint value)
         {
-            isHex = false; suffix = "";
+            isHex = false; suffix = ""; value = 0;
             if (string.IsNullOrEmpty(s))
                 return false;
 
@@ -668,6 +769,8 @@ namespace FEBuilderGBA
                 if (i == digitsStart) return false;   // no leading digit
             }
 
+            int digitsEnd = i;
+
             // Remaining must be only suffix chars u/U/l/L.
             int suffixStart = i;
             while (i < n)
@@ -677,7 +780,13 @@ namespace FEBuilderGBA
                 return false;   // trailing non-suffix char → not a plain literal
             }
             suffix = s.Substring(suffixStart);
-            return true;
+
+            // Parse the digit run to a 32-bit value (overflow → reject, treat as non-literal).
+            string digits = s.Substring(digitsStart, digitsEnd - digitsStart);
+            bool parsed = isHex
+                ? uint.TryParse(digits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value)
+                : uint.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+            return parsed;
         }
 
         // -------------------------------------------------- token / span scanners

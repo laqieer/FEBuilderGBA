@@ -162,6 +162,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// dropped (never an UnsupportedField error). Only plain integer item-stat
         /// fields are included — pointers and text-id fields are intentionally
         /// omitted (they are not safe to rewrite as integer literals here).
+        ///
+        /// NOTE: the range byte is intentionally omitted. <see cref="Range"/> is a
+        /// single encoded min-max byte; mapping it to a manifest <c>minRange</c>/
+        /// <c>maxRange</c> pair would write the same encoded byte into both real
+        /// components — wrong. Until the encoded byte can be split safely, range edits
+        /// stay ROM-only (omitted here, like pointers and text-id fields).
         /// </summary>
         public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
         {
@@ -172,8 +178,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 { "hitRate",       Hit },
                 { "weight",        Weight },
                 { "critRate",      Crit },
-                { "maxRange",      Range },
-                { "minRange",      Range },
                 { "cost",          Price },
                 { "price",         Price },
                 { "weaponLevel",   WeaponRank },

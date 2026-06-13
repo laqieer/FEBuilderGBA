@@ -591,6 +591,146 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(DecompSourceWriteStatus.NotDecompMode, res.Status);
         }
 
+        // =====================================================================
+        //  #1132 review fixes: indexBase, no-op/no-churn, macro skip-vs-fail
+        // =====================================================================
+
+        // Finding 1 — owner.IndexBase is honored (manifest ids are translated to a
+        // 0-based element index).
+        [Fact]
+        public void Rewrite_IndexBase1_EditId1_RewritesFirstElement()
+        {
+            string src =
+                "Item gItemData[] = {\n" +
+                "    [0] = { .might = 5 },\n" +
+                "    [1] = { .might = 8 },\n" +
+                "};\n";
+            var owner = ItemsOwner("src/item.c");
+            owner.IndexBase = 1;   // ids are 1-based
+            var changes = new Dictionary<string, uint> { { "might", 10 } };
+
+            // id 1 with base 1 → element index 0 (the FIRST element).
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 1, changes, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal(src.Replace("[0] = { .might = 5 }", "[0] = { .might = 10 }"), outText);
+        }
+
+        // Finding 1 — an id below the declared base is a ParseFailed (no write).
+        [Fact]
+        public void Rewrite_IndexBase1_EditId0_BelowBase_ParseFailed()
+        {
+            string src = "Item gItemData[] = { [0] = { .might = 5 } };\n";
+            var owner = ItemsOwner("src/item.c");
+            owner.IndexBase = 1;
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 10 } }, out string outText);
+            Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+            Assert.Equal(src, outText);   // unchanged
+        }
+
+        // Finding 2 — an empty change-set writes NOTHING and never flags rebuild.
+        [Fact]
+        public void Write_EmptyChangeSet_NoWrite_NoRebuild()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcAbs = Path.Combine(dir, "item.c");
+                string content = "Item gItemData[] = { [0] = { .might = 5 } };\n";
+                File.WriteAllText(srcAbs, content);
+                var before = File.GetLastWriteTimeUtc(srcAbs);
+
+                var proj = ProjectWith(dir, ItemsOwner("item.c"));
+                CoreState.DecompProject = proj;
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint>());
+
+                Assert.True(res.Ok, res.Message);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs));     // byte-identical
+                Assert.Equal(before, File.GetLastWriteTimeUtc(srcAbs)); // not even touched
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // Finding 2 — a value already equal to the source token is a no-op: no churn,
+        // no rebuild, file untouched.
+        [Fact]
+        public void Write_ValueAlreadyEqual_NoChurn_NoRebuild()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcAbs = Path.Combine(dir, "item.c");
+                string content = "Item gItemData[] = { [0] = { .might = 5 } };\n";
+                File.WriteAllText(srcAbs, content);
+                var before = File.GetLastWriteTimeUtc(srcAbs);
+
+                var proj = ProjectWith(dir, ItemsOwner("item.c"));
+                CoreState.DecompProject = proj;
+
+                // .might is already 5 → requesting 5 is a no-op.
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint> { { "might", 5 } });
+
+                Assert.True(res.Ok, res.Message);
+                Assert.Empty(res.ChangedFields);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs));      // byte-identical
+                Assert.Equal(before, File.GetLastWriteTimeUtc(srcAbs)); // not touched
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // Finding 2/3 — hex no-op: 0x05 token requested as 5 is recognized as a no-op
+        // and the original radix/formatting is left exactly as written.
+        [Fact]
+        public void Rewrite_HexNoOp_LeavesTokenUntouched()
+        {
+            string src = "Item gItemData[] = { [0] = { .might = 0x05 } };\n";
+            var owner = ItemsOwner("src/item.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 5 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // 0x05 preserved verbatim
+        }
+
+        // Finding 3 — in a BULK (multi-field) change-set, a macro-valued field is
+        // SKIPPED (not rewritten, not a failure) while an integer field is rewritten.
+        [Fact]
+        public void Rewrite_BulkSet_MacroFieldSkipped_IntFieldChanged()
+        {
+            string src =
+                "Item gItemData[] = {\n" +
+                "    [0] = { .might = SOME_MACRO, .hitRate = 90 },\n" +
+                "};\n";
+            var owner = ItemsOwner("src/item.c");
+            // Two fields → bulk intent. might is a macro (skip); hitRate is an int (change).
+            var changes = new Dictionary<string, uint> { { "might", 7 }, { "hitRate", 99 } };
+
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0, changes, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".might = SOME_MACRO", outText);  // macro untouched
+            Assert.Contains(".hitRate = 99", outText);        // int rewritten
+            Assert.Contains("hitRate", res.ChangedFields);
+            Assert.DoesNotContain("might", res.ChangedFields);
+        }
+
+        // Finding 3 — a SINGLE-field change-set targeting a macro field is an honest
+        // hard failure (UnsupportedField), no write.
+        [Fact]
+        public void Rewrite_SingleField_MacroTarget_UnsupportedField()
+        {
+            string src = "Item gItemData[] = { [0] = { .might = SOME_MACRO } };\n";
+            var owner = ItemsOwner("src/item.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 7 } }, out string outText);
+            Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+            Assert.Equal(src, outText);   // untouched
+        }
+
         // ---- small helpers ----
 
         static int CountSubstr(string s, string sub)

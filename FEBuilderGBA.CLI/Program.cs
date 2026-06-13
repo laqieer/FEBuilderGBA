@@ -4585,6 +4585,18 @@ namespace FEBuilderGBA.CLI
             if (res.Ok)
             {
                 Console.WriteLine($"Source file: {res.SourceFile}");
+
+                // A no-op (empty ChangedFields) means the source already matched the
+                // requested value(s): nothing was written, no rebuild is needed
+                // (#1132 review finding 2). Report it honestly and skip the diff/rebuild.
+                bool anyChanged = res.ChangedFields != null && res.ChangedFields.Count > 0;
+                if (!anyChanged)
+                {
+                    Console.WriteLine("No change needed (source already matches the requested value).");
+                    Console.WriteLine("NeedsRebuild=false");
+                    return 0;
+                }
+
                 Console.WriteLine($"Entry {res.EntryId}, fields changed: {string.Join(", ", res.ChangedFields)}");
                 Console.WriteLine($"Lines {res.ChangedLineStart}-{res.ChangedLineEnd}");
                 Console.WriteLine("--- BEFORE ---");
