@@ -124,6 +124,19 @@ namespace FEBuilderGBA
         public static ROM ROM { get; set; }
         public static Undo Undo { get; set; }
 
+        // ---- Decomp project open-mode (#1129 slice 1) ----
+        /// <summary>
+        /// Active decomp project, or null in classic ROM mode. When set, the loaded
+        /// ROM is a build PREVIEW of a source tree and is treated as read-only.
+        /// </summary>
+        public static DecompProject DecompProject { get; set; }
+
+        /// <summary>
+        /// Computed: true when a decomp project is open. Cannot go stale because it
+        /// reads <see cref="DecompProject"/> directly.
+        /// </summary>
+        public static bool IsDecompMode => DecompProject != null;
+
         // ---- Types used by Core code via interfaces ----
         public static IEtcCache CommentCache { get; set; }
         public static IEtcCache LintCache { get; set; }

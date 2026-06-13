@@ -220,6 +220,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // File sub-items
             if (OpenRomMenuItem != null) OpenRomMenuItem.Header = R._("_Open ROM...");
             if (OpenLastRomMenuItem != null) OpenLastRomMenuItem.Header = R._("Open _Last ROM");
+            if (OpenDecompProjectMenuItem != null) OpenDecompProjectMenuItem.Header = R._("Open _Decomp Project...");
             if (RecentFilesMenuItem != null) RecentFilesMenuItem.Header = R._("_Recent Files");
             if (SaveMenuItem != null) SaveMenuItem.Header = R._("_Save ROM");
             if (SaveAsMenuItem != null) SaveAsMenuItem.Header = R._("Save _As...");
@@ -650,6 +651,55 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
             }
+
+            // Auto-open a decomp project if --project was specified (#1129). This
+            // drives the headless badge screenshot. Guard with try/catch so a bad
+            // project fails like the rom-failure path in smoke/screenshot mode.
+            if (!string.IsNullOrEmpty(App.StartupProjectDir))
+            {
+                bool projectOk = false;
+                try
+                {
+                    var project = DecompProjectDetector.Detect(App.StartupProjectDir);
+                    if (project != null)
+                    {
+                        var resolved = DecompProjectDetector.ResolveBuiltRom(App.StartupProjectDir, project);
+                        if (resolved.Status == DecompResolveStatus.Ok)
+                        {
+                            project.BuiltRomPath = resolved.Path;
+                            CoreState.DecompProject = project;
+                            projectOk = LoadRomFile(resolved.Path);
+                            if (!projectOk)
+                                CoreState.DecompProject = null;
+                            UpdateDecompBadge();
+                        }
+                    }
+                }
+                catch
+                {
+                    projectOk = false;
+                    CoreState.DecompProject = null;
+                }
+
+                if (!projectOk)
+                {
+                    if (App.SmokeTestMode)
+                    {
+                        Environment.ExitCode = 2;
+                        Close();
+                        return;
+                    }
+                    await MessageBoxWindow.Show(this, R._("Failed to open decomp project:") + $" {App.StartupProjectDir}", R._("Error"), MessageBoxMode.Ok);
+                    return;
+                }
+
+                if (App.SmokeTestMode)
+                {
+                    await Task.Delay(200);
+                    RunSmokeTest();
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -757,6 +807,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Update UI
             _vm.UpdateFromRom();
+            // #1129: reflect decomp mode on the toolbar badge. CoreState.DecompProject
+            // is set BEFORE this call in the decomp open path and cleared before it in
+            // the classic open path, so reading CoreState.IsDecompMode here is correct.
+            _vm.RefreshDecompMode();
             SetStatusText(_vm.StatusText);
             NoRomLabel.IsVisible = false;
             EditorPanel.IsVisible = true;
@@ -946,6 +1000,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 Directory.CreateDirectory(screenshotDir);
 
                 string romVersion = CoreState.ROM?.RomInfo?.VersionToFilename ?? "Unknown";
+
+                // Capture the MainWindow itself first, so window-level chrome (e.g.
+                // the #1129 decomp "build preview" toolbar badge) appears in a PNG.
+                try
+                {
+                    await Task.Delay(200); // let the toolbar/badge realize
+                    var mainSize = new PixelSize(
+                        Math.Max((int)this.Bounds.Width, 100),
+                        Math.Max((int)this.Bounds.Height, 100));
+                    using var mainRtb = new RenderTargetBitmap(mainSize, new Vector(96, 96));
+                    mainRtb.Render(this);
+                    string mainFile = Path.Combine(screenshotDir, $"Avalonia_MainWindow_{romVersion}.png");
+                    mainRtb.Save(mainFile);
+                    Console.WriteLine($"SCREENSHOT: MainWindow ... OK ({mainFile})");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SCREENSHOT: MainWindow ... FAIL: {ex.Message}");
+                }
 
                 var editors = GetAllEditorFactories();
                 Console.WriteLine($"SCREENSHOT: Capturing {editors.Count} editors...");
@@ -2392,16 +2465,77 @@ namespace FEBuilderGBA.Avalonia.Views
             var path = await FileDialogHelper.OpenRomFile(this);
             if (string.IsNullOrEmpty(path)) return;
 
+            // Opening a plain ROM clears any active decomp project (#1129). Cleared
+            // only AFTER the picker returns a real path, so cancelling the dialog
+            // leaves a currently-open decomp preview (and its save guard) intact.
+            CoreState.DecompProject = null;
+
             bool ok = LoadRomFile(path);
             if (!ok)
             {
                 await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
             }
+            UpdateDecompBadge();
+        }
+
+        /// <summary>
+        /// Open a decomp project folder, resolve its built ROM, and load it as a
+        /// read-only preview with the "build preview" badge shown (#1129 slice 1).
+        /// </summary>
+        private async void OpenDecompProject_Click(object? sender, RoutedEventArgs e)
+        {
+            var dir = await FileDialogHelper.OpenProjectFolder(this);
+            if (string.IsNullOrEmpty(dir)) return;
+
+            var project = DecompProjectDetector.Detect(dir);
+            if (project == null)
+            {
+                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
+
+            var resolved = DecompProjectDetector.ResolveBuiltRom(dir, project);
+            if (resolved.Status == DecompResolveStatus.NotBuilt)
+            {
+                await MessageBoxWindow.Show(this, R._("Project found but no built ROM — run the build first, then reload."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
+            if (resolved.Status != DecompResolveStatus.Ok)
+            {
+                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
+
+            project.BuiltRomPath = resolved.Path;
+            CoreState.DecompProject = project;
+
+            bool ok = LoadRomFile(resolved.Path);
+            if (!ok)
+            {
+                CoreState.DecompProject = null;
+                UpdateDecompBadge();
+                await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {resolved.Path}", R._("Error"), MessageBoxMode.Ok);
+                return;
+            }
+            UpdateDecompBadge();
+        }
+
+        /// <summary>Refresh the decomp-mode badge from CoreState after a load.</summary>
+        private void UpdateDecompBadge()
+        {
+            _vm.RefreshDecompMode();
         }
 
         private void SaveRom_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;
+            // Amendment 5: decomp preview ROMs are read-only — block save with an
+            // explanatory dialog (non-awaited pattern to keep the sync signature).
+            if (CoreState.IsDecompMode)
+            {
+                _ = MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
             CoreState.ROM.Save(CoreState.ROM.Filename, false);
             _vm.HasUnsavedChanges = false;
             AutoSaveService.Instance.MarkSaved();
@@ -2411,6 +2545,12 @@ namespace FEBuilderGBA.Avalonia.Views
         private async void SaveAsRom_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;
+            // Amendment 5: block Save As for decomp preview ROMs too.
+            if (CoreState.IsDecompMode)
+            {
+                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
 
             string suggestedName = Path.GetFileName(CoreState.ROM.Filename ?? "rom.gba");
             var path = await FileDialogHelper.SaveRomFile(this, suggestedName);
@@ -2430,15 +2570,22 @@ namespace FEBuilderGBA.Avalonia.Views
             string lastPath = CoreState.Config?.at("Last_Rom_Filename", "") ?? "";
             if (string.IsNullOrEmpty(lastPath) || !File.Exists(lastPath))
             {
+                // No recent ROM — leave a currently-open decomp preview (and its
+                // save guard) intact rather than dropping decomp mode (#1129).
                 _ = MessageBoxWindow.Show(this, R._("No recent ROM found."), R._("Open Last ROM"), MessageBoxMode.Ok);
                 return;
             }
+
+            // Opening a plain ROM clears any active decomp project (#1129). Cleared
+            // only after we know a real last ROM exists to load.
+            CoreState.DecompProject = null;
 
             bool ok = LoadRomFile(lastPath);
             if (!ok)
             {
                 _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {lastPath}", R._("Error"), MessageBoxMode.Ok);
             }
+            UpdateDecompBadge();
         }
 
         private void Undo_Click(object? sender, RoutedEventArgs e)

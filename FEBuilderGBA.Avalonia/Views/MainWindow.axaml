@@ -11,6 +11,7 @@
       <MenuItem AutomationProperties.AutomationId="Main_FileMenu_Button" Header="_File" Name="FileMenu">
         <MenuItem AutomationProperties.AutomationId="Main_OpenRomMenuItem_Button" Header="_Open ROM..." Click="OpenRom_Click" InputGesture="Ctrl+O" Name="OpenRomMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_OpenLastRomMenuItem_Button" Header="Open _Last ROM" Click="OpenLastRom_Click" Name="OpenLastRomMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_OpenDecompProjectMenuItem_Button" Header="Open _Decomp Project..." Click="OpenDecompProject_Click" Name="OpenDecompProjectMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_RecentFilesMenuItem_Button" Header="_Recent Files" Name="RecentFilesMenuItem" />
         <Separator />
         <MenuItem AutomationProperties.AutomationId="Main_SaveMenuItem_Button" Header="_Save ROM" Click="SaveRom_Click" Name="SaveMenuItem" IsEnabled="False" InputGesture="Ctrl+S" />
@@ -71,6 +72,9 @@
       <DockPanel>
         <ToggleButton AutomationProperties.AutomationId="Main_EasyMode_Check" Name="EasyModeToggle" Content="Easy Mode" Click="ToggleEasyMode_Click"
                       DockPanel.Dock="Right" Padding="12,4" Margin="4,0" FontSize="12" />
+        <TextBlock AutomationProperties.AutomationId="Main_DecompBadge_Label" Name="DecompBadgeLabel"
+                   DockPanel.Dock="Left" Text="{Binding DecompBadgeText}" IsVisible="{Binding IsDecompMode}"
+                   Foreground="{DynamicResource DecompBadgeBrush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="4,0" />
         <Panel /> <!-- fill remaining space -->
       </DockPanel>
     </Border>
