@@ -32,6 +32,13 @@ namespace FEBuilderGBA
         public uint Addr;
         public uint Size;
         public string Section = "";
+        /// <summary>
+        /// Best-effort owning object-file / source path the linker map carried on
+        /// the section line (e.g. <c>build/src/unit.o</c>), or empty when the map
+        /// did not record one. Read-only hint for the #1131 diff-to-source
+        /// migration assistant's SourceFile suggestion; never fabricated.
+        /// </summary>
+        public string ObjectPath = "";
     }
 
     /// <summary>
@@ -80,10 +87,13 @@ namespace FEBuilderGBA
 
                 // Section boundaries (sorted later) used to bound a symbol's Size.
                 var boundaries = new List<uint>();
-                // (addr,name,section) raw hits, in file order.
-                var raw = new List<(uint Addr, string Name, string Section)>();
+                // (addr,name,section,objectPath) raw hits, in file order.
+                var raw = new List<(uint Addr, string Name, string Section, string ObjectPath)>();
 
                 string curSection = "";
+                // Best-effort object-file / source path the section line carried,
+                // reset whenever we cross into a new section. Empty when absent.
+                string curObjectPath = "";
 
                 for (int i = 0; i < lines.Length; i++)
                 {
@@ -98,6 +108,9 @@ namespace FEBuilderGBA
                     if (secm.Success)
                     {
                         curSection = secm.Groups[1].Value;
+                        // Group 4 is the optional trailing column (an object-file
+                        // path); keep its trimmed value as a SourceFile hint.
+                        curObjectPath = ExtractObjectPath(secm.Groups[4].Value);
                         uint secAddr = ParseHex(secm.Groups[2].Value);
                         uint secSize = ParseHex(secm.Groups[3].Value);
                         AddSectionBoundaries(boundaries, secAddr, secSize);
@@ -112,6 +125,8 @@ namespace FEBuilderGBA
                         if (cont.Success)
                         {
                             curSection = wrapName.Groups[1].Value;
+                            // Group 3 is the wrapped continuation's optional object path.
+                            curObjectPath = ExtractObjectPath(cont.Groups[3].Value);
                             uint secAddr = ParseHex(cont.Groups[1].Value);
                             uint secSize = ParseHex(cont.Groups[2].Value);
                             AddSectionBoundaries(boundaries, secAddr, secSize);
@@ -136,7 +151,7 @@ namespace FEBuilderGBA
                         if (name[0] == '$') continue;          // mapping symbols ($t/$a/$d)
                         if (name == ".") continue;             // hidden `.`-only bookkeeping
 
-                        raw.Add((addr, name, curSection));
+                        raw.Add((addr, name, curSection, curObjectPath));
                         boundaries.Add(addr);
                     }
                 }
@@ -154,7 +169,7 @@ namespace FEBuilderGBA
         // Compute best-effort Size = next boundary above addr - addr, then dedup by
         // addr keeping the FIRST concrete symbol at each address (first wins).
         static void FillSizesAndDedup(
-            List<(uint Addr, string Name, string Section)> raw,
+            List<(uint Addr, string Name, string Section, string ObjectPath)> raw,
             List<uint> boundaries,
             List<DecompSymbol> result)
         {
@@ -188,8 +203,35 @@ namespace FEBuilderGBA
                     Addr = r.Addr,
                     Size = size,
                     Section = r.Section ?? "",
+                    ObjectPath = r.ObjectPath ?? "",
                 });
             }
+        }
+
+        // Clean an optional trailing section-line column into an object-file path
+        // hint. Only accepts a single token that looks like a path with an object
+        // extension (.o/.a/.obj) — never a fill/expression or a make variable —
+        // so we never fabricate a bogus SourceFile. Empty when none qualifies.
+        static string ExtractObjectPath(string trailing)
+        {
+            if (string.IsNullOrEmpty(trailing)) return "";
+            string t = trailing.Trim();
+            if (t.Length == 0) return "";
+            // Take the first whitespace-delimited token (the linker writes the
+            // archive(member.o) / path.o as the leading token of the column).
+            int sp = t.IndexOfAny(new[] { ' ', '\t' });
+            string tok = sp >= 0 ? t.Substring(0, sp) : t;
+            if (tok.IndexOf('$') >= 0) return "";          // make var — not a file
+            if (tok.IndexOf("0x", StringComparison.Ordinal) == 0) return "";
+            // Must look like an object / archive member.
+            if (tok.EndsWith(".o", StringComparison.OrdinalIgnoreCase)
+                || tok.EndsWith(".obj", StringComparison.OrdinalIgnoreCase)
+                || tok.IndexOf(".o)", StringComparison.OrdinalIgnoreCase) >= 0
+                || tok.EndsWith(".a", StringComparison.OrdinalIgnoreCase))
+            {
+                return tok;
+            }
+            return "";
         }
 
         // Add a section's START and END addresses as Size boundaries. The END
@@ -347,7 +389,11 @@ namespace FEBuilderGBA
                     if (el.TryGetProperty("section", out var secEl) && secEl.ValueKind == JsonValueKind.String)
                         section = secEl.GetString() ?? "";
 
-                    result.Add(new DecompSymbol { Name = name, Addr = addr, Size = size, Section = section });
+                    string objectPath = "";
+                    if (el.TryGetProperty("objectPath", out var opEl) && opEl.ValueKind == JsonValueKind.String)
+                        objectPath = opEl.GetString() ?? "";
+
+                    result.Add(new DecompSymbol { Name = name, Addr = addr, Size = size, Section = section, ObjectPath = objectPath });
                 }
             }
             catch

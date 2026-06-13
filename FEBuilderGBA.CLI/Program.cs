@@ -281,6 +281,15 @@ namespace FEBuilderGBA.CLI
                 return RunResolveAddr(argsDic);
             }
 
+            // --migrate-diff --project=<dir> --rom2=<editedRom> [--out=report.tsv]:
+            // decomp diff-to-source migration assistant — classify changed ranges
+            // (symbol/category/source/confidence) for migrating edits back to source.
+            // Advisory + READ-ONLY. Must precede the bare --project fallthrough (#1131).
+            if (argsDic.ContainsKey("--migrate-diff"))
+            {
+                return RunMigrateDiff(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -441,6 +450,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum + Mode line (requires --rom or --project)");
             Console.WriteLine("  --project=<dir>          Open a decomp project directory and load its built ROM for preview; combine with --rom-info");
             Console.WriteLine("  --resolve-addr=<hex>     Resolve an address to a decomp project symbol (requires --project); prints name/source/offset");
+            Console.WriteLine("  --migrate-diff           Decomp diff-to-source migration assistant: classify built-vs-edited ROM changes (requires --project, --rom2)");
+            Console.WriteLine("    --rom2=<editedRom>     The FEBuilder-edited ROM to compare against the project's built/baseline ROM");
+            Console.WriteLine("    --out=<report.tsv>     Optional: write the classified report (range/symbol/category/source/confidence) as TSV");
+            Console.WriteLine("    --max-gap=<int>        Optional: small-gap merge distance for range coalescing (default 16)");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
@@ -462,6 +475,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --pointercalc --rom=source.gba --target=target.gba --address=0x100,0x200");
             Console.WriteLine("  FEBuilderGBA.CLI --rebuild --rom=modified.gba --fromrom=original.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --songexchange --rom=dest.gba --fromrom=source.gba --fromsong=0x1A --tosong=0x1A");
+            Console.WriteLine("  FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --out=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
@@ -4224,6 +4238,88 @@ namespace FEBuilderGBA.CLI
                 }
             }
             return "shipped";
+        }
+
+        // #1131: decomp diff-to-source migration assistant. Opens the project (built
+        // ROM = canonical baseline), reads the edited ROM, classifies each changed
+        // range (symbol/category/source/confidence), and prints/writes the advisory
+        // report. ADVISORY + READ-ONLY — never writes the ROM or source. Analysis
+        // never throws; usage faults return 1, otherwise exit 0.
+        static int RunMigrateDiff(Dictionary<string, string> argsDic)
+        {
+            string projectDir = argsDic.ContainsKey("--project") ? argsDic["--project"] : "";
+            if (string.IsNullOrEmpty(projectDir))
+            {
+                Console.Error.WriteLine("Error: --migrate-diff requires --project=<dir>");
+                return 1;
+            }
+            string editedPath = argsDic.ContainsKey("--rom2") ? argsDic["--rom2"] : "";
+            if (string.IsNullOrEmpty(editedPath))
+            {
+                Console.Error.WriteLine("Error: --migrate-diff requires --rom2=<editedRom>");
+                return 1;
+            }
+            if (!File.Exists(editedPath))
+            {
+                Console.Error.WriteLine($"Error: edited ROM not found: {editedPath}");
+                return 1;
+            }
+
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadProject(projectDir))
+            {
+                Console.Error.WriteLine($"Error: Could not open decomp project: {projectDir}");
+                return 1;
+            }
+
+            ROM builtRom = CoreState.ROM;
+            if (builtRom == null || builtRom.Data == null || builtRom.Data.Length == 0)
+            {
+                Console.Error.WriteLine("Error: built/preview ROM unavailable — run the build first.");
+                return 1;
+            }
+
+            byte[] editedBytes;
+            try { editedBytes = File.ReadAllBytes(editedPath); }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: could not read edited ROM: {ex.Message}");
+                return 1;
+            }
+
+            // Pull the merged resolver (project over shipped) from the wired cache,
+            // plus a freshly-loaded resolver for the section / object-path hints.
+            MergedAsmMapFile map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile() as MergedAsmMapFile;
+            DecompSymbolResolver resolver = null;
+            try { resolver = DecompSymbolResolver.Load(CoreState.DecompProject); }
+            catch { /* analyzer tolerates a null resolver */ }
+
+            int maxGap = DecompDiffMigrationCore.DefaultMaxGap;
+            if (argsDic.ContainsKey("--max-gap") && int.TryParse(argsDic["--max-gap"], out int mg) && mg >= 0)
+                maxGap = mg;
+
+            Console.WriteLine($"Project: {projectDir}");
+            Console.WriteLine($"Built ROM (baseline): {builtRom.Filename} ({builtRom.Data.Length} bytes)");
+            Console.WriteLine($"Edited ROM: {editedPath} ({editedBytes.Length} bytes)");
+            Console.WriteLine("Analyzing (advisory, read-only)...");
+
+            MigrationReport report = DecompDiffMigrationCore.Analyze(builtRom, editedBytes, map, resolver, maxGap);
+
+            if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                try
+                {
+                    File.WriteAllText(argsDic["--out"], DecompDiffMigrationCore.FormatTSV(report));
+                    Console.WriteLine($"Report written to: {argsDic["--out"]}");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Warning: could not write report: {ex.Message}");
+                }
+            }
+
+            Console.WriteLine(DecompDiffMigrationCore.FormatSummary(report));
+            return 0;
         }
 
         static int RunListTables(Dictionary<string, string> argsDic)
