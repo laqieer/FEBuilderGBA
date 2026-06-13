@@ -124,17 +124,20 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gb
 # element) of a structured table entry instead of mutating the preview ROM (the
 # source is the source of truth). The table must declare a source owner in the
 # manifest tables[]. Supported formats: C struct array (format="cstruct" or unset)
-# AND JSON (format="json"). Only plain integer-literal value tokens (C) / JSON
-# Number tokens are rewritten (macros/expressions/strings are reported, not
-# normalized); every other byte of the file (comments, trailing commas, whitespace,
+# AND JSON (format="json"). Only plain INTEGER value tokens are rewritten — C
+# integer literals and JSON integer Number tokens; JSON floats/exponents (and C
+# floats/macros/expressions/strings) are reported as UnsupportedField, not
+# rewritten. Every other byte of the file (comments, trailing commas, whitespace,
 # line endings, BOM) is preserved. On success the project is flagged "needs rebuild".
 #
 # Coverage (#1132 + #1141): items, units (alias: characters), classes. Signed
 # fields (unit base stats, class promotion gains) are driven off the manifest
 # fields[].signed flag — pass the two's-complement magnitude (e.g. --value=255 for
 # an int8 -1); a negative value is re-emitted as a "-N" decimal. --field/--value
-# are REPEATABLE: each --field=X must be immediately followed by its --value=Y in
-# argument order (multiple fields update one entry atomically). Chapter settings
+# are REPEATABLE: each --field must be paired with a FOLLOWING --value (other flags
+# may appear between them; a 2nd --field before its --value, or an unpaired
+# --field/--value, is a usage error) so multiple fields update one entry
+# atomically. Chapter settings
 # (map_settings), shops, and support data are ROM-only/manual this release (no
 # clean source-of-truth C array; faithful writers are a follow-up).
 #
@@ -300,9 +303,11 @@ sibling.
   `writePolicy: source`), this rewrites the owning **C array element** (`format: cstruct`)
   **or JSON element** (`format: json`) IN-PLACE — changing only the value token(s) for the
   requested field and leaving every other byte of the file identical (comments, trailing
-  commas, whitespace, line endings, BOM preserved). C hex tokens stay hex, decimal stays
-  decimal; macro/identifier/expression (C) and string/bool/object/array (JSON) values are
-  reported, not normalized (single-field intent → hard fail; bulk → skipped). Both
+  commas, whitespace, line endings, BOM preserved). Only **integer** value tokens are
+  rewritten — C integer literals and JSON integer Number tokens; C hex tokens stay hex,
+  decimal stays decimal. Non-integer values — macro/identifier/expression (C),
+  string/bool/object/array (JSON), and **JSON floats/exponents** — are reported as
+  UnsupportedField, not normalized (single-field intent → hard fail; bulk → skipped). Both
   designated-initializer (`.field = N`) and positional C elements are supported, and both
   JSON array and object-map forms. **Coverage: `items`, `units` (alias `characters`),
   `classes`.** **Signed fields** (unit base stats, class promotion gains) are driven off
@@ -314,8 +319,9 @@ sibling.
   left untouched (no churn); an existing explicit `-N` literal is treated as already-signed.
   A **malformed/truncated JSON source** (e.g. a missing closing `]`) is validated against the
   whole document first and rejected with no write (the file stays byte-identical). `--field`/`--value`
-  are **REPEATABLE** (each `--field=X` paired with the immediately-following `--value=Y` in
-  argument order) so multiple fields of one entry update in a single atomic source write. **`map_settings` (chapter settings), shops, and support
+  are **REPEATABLE**: each `--field` must be paired with a FOLLOWING `--value` (other flags may
+  appear between them; a second `--field` before its `--value`, or an unpaired `--field`/`--value`,
+  is a usage error) so multiple fields of one entry update in a single atomic source write. **`map_settings` (chapter settings), shops, and support
   data are ROM-only/manual this release** (no clean source-of-truth C array; faithful writers
   are a follow-up). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source

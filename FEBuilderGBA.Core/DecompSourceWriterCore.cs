@@ -1154,7 +1154,9 @@ namespace FEBuilderGBA
         /// Replace the [start,end) span (a value token) with <paramref name="newVal"/>
         /// IF the existing token is a plain integer literal that DIFFERS from it. Hex
         /// literals are re-emitted in hex, decimal in decimal; an integer suffix
-        /// (u/U/l/L) is preserved.
+        /// (u/U/l/L) is preserved — EXCEPT that a NEGATIVE signed re-emit drops the
+        /// unsigned (u/U) marker, since "-1u" is a unary-negated UNSIGNED literal in C
+        /// (wrong semantics); any l/L markers are kept (#1145).
         /// <list type="bullet">
         ///   <item><description>integer literal whose value differs → <see cref="FieldApplyOutcome.Changed"/></description></item>
         ///   <item><description>integer literal already equal to <paramref name="newVal"/> → <see cref="FieldApplyOutcome.NoOp"/> (no churn)</description></item>
@@ -1218,11 +1220,14 @@ namespace FEBuilderGBA
                 // Re-emit. For a signed field whose existing token is hex AND the new
                 // value is non-negative, keep hex; otherwise (negative, or decimal token)
                 // emit a signed decimal. This keeps the sign unambiguous (documented rule).
+                // When the result is NEGATIVE, drop any unsigned (u/U) suffix marker first:
+                // "-1u" is a unary-negated UNSIGNED literal in C (wrong semantics) (#1145).
+                string emitSuffix = newSigned < 0 ? StripUnsignedSuffix(sSuffix) : sSuffix;
                 string sToken;
                 if (sIsHex && newSigned >= 0)
-                    sToken = "0x" + ((ulong)newSigned).ToString("X", CultureInfo.InvariantCulture) + sSuffix;
+                    sToken = "0x" + ((ulong)newSigned).ToString("X", CultureInfo.InvariantCulture) + emitSuffix;
                 else
-                    sToken = newSigned.ToString(CultureInfo.InvariantCulture) + sSuffix;
+                    sToken = newSigned.ToString(CultureInfo.InvariantCulture) + emitSuffix;
 
                 outcome = FieldApplyOutcome.Changed;
                 return text.Substring(0, start) + sToken + text.Substring(end);
@@ -1276,6 +1281,21 @@ namespace FEBuilderGBA
                 case 2: return (short)(ushort)raw;
                 default: return (int)raw;   // 4-byte (and any other width) → 32-bit signed
             }
+        }
+
+        /// <summary>
+        /// Strip the unsigned (u/U) marker(s) from an integer-literal suffix, keeping
+        /// any long (l/L) markers in order. Used when emitting a NEGATIVE signed
+        /// literal for a signed field: "-1u" is a unary-negated UNSIGNED literal in C
+        /// (wrong semantics), so the 'u' must go (Copilot PR #1145 inline finding).
+        /// </summary>
+        static string StripUnsignedSuffix(string suffix)
+        {
+            if (string.IsNullOrEmpty(suffix)) return suffix ?? "";
+            var sb = new StringBuilder(suffix.Length);
+            foreach (char c in suffix)
+                if (c != 'u' && c != 'U') sb.Append(c);
+            return sb.ToString();
         }
 
         /// <summary>

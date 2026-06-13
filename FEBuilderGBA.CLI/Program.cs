@@ -501,7 +501,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --project=<dir>        Decomp project directory (the table must declare a source owner in tables[])");
             Console.WriteLine("    --table=<name>         Structured table name (items, units (alias characters), classes, ...)");
             Console.WriteLine("    --id=<n>               Entry index (respecting the array order)");
-            Console.WriteLine("    --field=<name>         C/JSON field name to change (must be declared on the owner; REPEATABLE)");
+            Console.WriteLine("    --field=<name>         C/JSON field name to change (must be declared on the owner; REPEATABLE — pair each --field with a following --value; other flags may appear between them; a 2nd --field before its --value, or an unpaired --field/--value, is a usage error)");
             Console.WriteLine("    --value=<int>          New value for the preceding --field (0x hex or decimal; signed fields take the two's-complement magnitude; REPEATABLE)");
             Console.WriteLine("    --out-diff=<path>      Optional: write a unified-diff-ish before/after of the changed element");
             Console.WriteLine("  --build-project          Run the decomp project's declared build command (requires --project; gated behind --yes)");
@@ -4691,11 +4691,13 @@ namespace FEBuilderGBA.CLI
         /// 1 = usage fault / parse failure / source-not-found / unexpected error.
         ///
         /// #1141: <c>--field</c>/<c>--value</c> are REPEATABLE — pair each
-        /// <c>--field=X</c> with the immediately-following <c>--value=Y</c> in argv order
-        /// (the dictionary collapses duplicates, so the raw argv is parsed for pairs).
-        /// Last value wins on a duplicate field (a warning is printed). Signed fields are
-        /// driven off the manifest <c>fields[].signed</c>; pass the two's-complement
-        /// magnitude (decimal or 0x hex) — e.g. <c>--value=255</c> for an int8 -1.
+        /// <c>--field=X</c> with a FOLLOWING <c>--value=Y</c> in argv order (other flags may
+        /// appear between them; a second <c>--field</c> before its <c>--value</c>, or an
+        /// unpaired <c>--field</c>/<c>--value</c>, is a usage error). The dictionary
+        /// collapses duplicates, so the raw argv is parsed for pairs. Last value wins on a
+        /// duplicate field (a warning is printed). Signed fields are driven off the manifest
+        /// <c>fields[].signed</c>; pass the two's-complement magnitude (decimal or 0x hex) —
+        /// e.g. <c>--value=255</c> for an int8 -1.
         /// </summary>
         static int RunWriteSource(Dictionary<string, string> argsDic)
         {
@@ -4811,10 +4813,12 @@ namespace FEBuilderGBA.CLI
 
         /// <summary>
         /// Extract ordered <c>--field=X --value=Y</c> pairs from the raw argv (#1141).
-        /// Each <c>--field</c> must be immediately followed (in argv order) by a
-        /// <c>--value</c>; an unpaired <c>--field</c> or <c>--value</c> is a usage error.
-        /// Last value wins on a duplicate field (a warning is printed to stderr).
-        /// Supports both <c>--field=X</c> and <c>--field X</c> spellings.
+        /// Each <c>--field</c> must be paired with a FOLLOWING <c>--value</c> (in argv
+        /// order); other flags may appear between them — only a SECOND <c>--field</c>
+        /// arriving before its <c>--value</c>, an unpaired trailing <c>--field</c>, or a
+        /// <c>--value</c> with no preceding <c>--field</c>, is a usage error. Last value
+        /// wins on a duplicate field (a warning is printed to stderr). Supports both
+        /// <c>--field=X</c> and <c>--field X</c> spellings.
         /// </summary>
         static bool TryExtractFieldValuePairs(
             string[] args, out Dictionary<string, uint> result, out string error)

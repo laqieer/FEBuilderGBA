@@ -1294,6 +1294,37 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(src, outText);
         }
 
+        // (Finding 1 #1145) A NEGATIVE signed re-emit must DROP the existing unsigned (u/U)
+        // suffix: "-1u" is a unary-negated UNSIGNED literal in C (wrong semantics). Existing
+        // 0u (signed int8), request 255 (→ -1) → emit ".promoHp = -1", never "-1u".
+        [Fact]
+        public void Cstruct_Signed_NegativeEmit_StripsUnsignedSuffix()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0u } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = -1", outText);
+            Assert.DoesNotContain("-1u", outText);
+            Assert.DoesNotContain("-1U", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
+        // (Finding 1 #1145) A NON-NEGATIVE signed re-emit keeps the suffix verbatim: existing
+        // 0u (signed int8), request 5 → emit ".promoHp = 5u" (suffix preserved).
+        [Fact]
+        public void Cstruct_Signed_NonNegativeEmit_KeepsSuffix()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0u } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 5 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = 5u", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
         // ---- small helpers ----
 
         /// <summary>Pack a signed int8 into the two's-complement byte the writer reinterprets.</summary>
