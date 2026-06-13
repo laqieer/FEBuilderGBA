@@ -273,6 +273,14 @@ namespace FEBuilderGBA.CLI
                 return RunRomInfo(argsDic);
             }
 
+            // --project=<dir> --resolve-addr=<hex>: resolve an address to a decomp
+            // project symbol (.map/ELF/.sym/JSON merged over shipped). Must be
+            // dispatched BEFORE the bare --project rom-info fallthrough (#1130).
+            if (argsDic.ContainsKey("--project") && argsDic.ContainsKey("--resolve-addr"))
+            {
+                return RunResolveAddr(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -432,6 +440,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
             Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum + Mode line (requires --rom or --project)");
             Console.WriteLine("  --project=<dir>          Open a decomp project directory and load its built ROM for preview; combine with --rom-info");
+            Console.WriteLine("  --resolve-addr=<hex>     Resolve an address to a decomp project symbol (requires --project); prints name/source/offset");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
@@ -4110,10 +4119,111 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"header_checksum_expected=0x{expected:X02}");
             Console.WriteLine($"header_checksum_status={checksumStatus}");
             if (decompMode)
+            {
                 Console.WriteLine($"Mode: Decomp (preview ROM {romPath})");
+                // #1130: report the decomp symbol-artifact breakdown.
+                try
+                {
+                    if (CoreState.DecompProject != null)
+                    {
+                        var resolver = DecompSymbolResolver.Load(CoreState.DecompProject);
+                        Console.WriteLine(
+                            $"Symbols: {resolver.Count} (map={resolver.CountMap} elf={resolver.CountElf} sym={resolver.CountSym} json={resolver.CountJson})");
+                    }
+                }
+                catch { /* never break rom-info on a symbol-load fault */ }
+            }
             else
                 Console.WriteLine("Mode: Rom");
             return 0;
+        }
+
+        // #1130: resolve an address to a decomp project symbol. Loads the project
+        // (which wires CoreState.AsmMapFileAsmCache -> MergedAsmMapFile), normalizes
+        // the address to a GBA pointer, then resolves exact -> span-near. Never
+        // throws; always exits 0.
+        static int RunResolveAddr(Dictionary<string, string> argsDic)
+        {
+            try
+            {
+                string projectDir = argsDic.ContainsKey("--project") ? argsDic["--project"] : "";
+                if (string.IsNullOrEmpty(projectDir))
+                {
+                    Console.Error.WriteLine("Error: --resolve-addr requires --project=<dir>");
+                    return 0;
+                }
+
+                RomLoader.InitEnvironment();
+                if (!RomLoader.LoadProject(projectDir))
+                {
+                    Console.Error.WriteLine($"Error: Could not open decomp project: {projectDir}");
+                    return 0;
+                }
+
+                string addrStr = argsDic.ContainsKey("--resolve-addr") ? argsDic["--resolve-addr"] : "";
+                uint rawAddr = U.atoi0x((addrStr ?? "").Trim());
+                uint pointer = U.toPointer(rawAddr);
+
+                Console.WriteLine($"addr=0x{pointer:X08}");
+
+                IAsmMapFile asmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                if (asmMap == null)
+                {
+                    Console.WriteLine("symbol=(none)");
+                    return 0;
+                }
+
+                // Exact match first.
+                if (asmMap.TryGetValue(pointer, out var p) && p != null)
+                {
+                    Console.WriteLine($"symbol={p.ToStringInfo()}");
+                    Console.WriteLine($"source={SourceFor(asmMap, pointer)}");
+                    Console.WriteLine("offset=+0x0");
+                    return 0;
+                }
+
+                // Span-covering nearest.
+                uint near = asmMap.SearchNear(pointer);
+                if (near != U.NOT_FOUND
+                    && asmMap.TryGetValue(near, out var np)
+                    && np != null
+                    && pointer < (ulong)near + np.Length)
+                {
+                    uint off = pointer - near;
+                    Console.WriteLine($"symbol={np.ToStringInfo()}");
+                    Console.WriteLine($"source={SourceFor(asmMap, near)}");
+                    Console.WriteLine($"offset=+0x{off:X}");
+                    return 0;
+                }
+
+                Console.WriteLine("symbol=(none)");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                // Never throw — report and exit 0.
+                Console.Error.WriteLine($"resolve-addr error: {ex.Message}");
+                Console.WriteLine("symbol=(none)");
+                return 0;
+            }
+        }
+
+        // Resolve the artifact source label for a key: a project symbol reports its
+        // artifact (map/elf/sym/json); anything else is "shipped".
+        static string SourceFor(IAsmMapFile asmMap, uint key)
+        {
+            if (asmMap is MergedAsmMapFile merged
+                && merged.TryGetSource(key, out var src))
+            {
+                switch (src)
+                {
+                    case DecompArtifactSource.Map: return "map";
+                    case DecompArtifactSource.Elf: return "elf";
+                    case DecompArtifactSource.Sym: return "sym";
+                    case DecompArtifactSource.Json: return "json";
+                }
+            }
+            return "shipped";
         }
 
         static int RunListTables(Dictionary<string, string> argsDic)

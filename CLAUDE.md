@@ -484,7 +484,7 @@ Specialized utilities for different graphic types:
 - `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors (MenuDefinition/StatusRMenu(recursive)/SoundBossBGM+WorldMapBGM/WorldMapEvent/FE8N-Ver3-skill), reusing ExportFilterCore; `AsmMapTextSymbolReader` + `PatchTextRefScannerCore` (installed ADDR/STRUCT TEXT/SONG/EVENT) + `ITextIDCache.EnumerateUsedTextIds`. PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
 - `ToolAnimationCreatorViewViewModel.InitFromMagicRom`/`InitFromSkillRom` (Avalonia, R/O) — Animation-Creator jump seeds: magic #996 (FEditor/CSA 0x86 via `MagicEffectExportCore`) + skill #1115 (`ExportSkillAnimation`→wait+TSA-preview; `CountSkillFrames` probe; `SkillConfigAnimeJumpHelper` 4 variants, Ver1 render-only). MapAction write-back only.
 - `PatchMacroAddressResolverCore.cs` (Core, READ-ONLY) — `$GREP`/`$XGREP`/`$FGREP`/`$P32`/`$TEXTID` resolver; adds `GrepPatternMatchEnd`/`GrepPatternMatchBegin` to Core `U.cs`; wires `PatchTextRefScannerCore` so grep-resolved TEXT/SONG/EVENT refs reach the free-area union. #1027.
-- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp-project open mode (#1129 s1): `DecompProjectDetector.Detect` (weighted score >=2 / `febuilder.project.json` short-circuit) + `ResolveBuiltRom` (manifest builtRom / Makefile `ROM:=` stem / same-stem-.elf glob; `NotBuilt`/`NotProject`); `CoreState.IsDecompMode` badge; CLI `--project`; artifact consumption deferred to #1130.
+- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp-project open mode (#1129 s1): `DecompProjectDetector.Detect` (score >=2 / manifest short-circuit) + `ResolveBuiltRom` (builtRom / `ROM:=` stem / same-stem-.elf glob); `CoreState.IsDecompMode`; CLI `--project`. #1130: `DecompSymbolResolver`/`MergedAsmMapFile` layer `.map`/ELF/`.sym`/JSON over shipped at `GetAsmMapFile()` (project wins; CLI `--resolve-addr`).
 
 ### Caching System
 
@@ -500,7 +500,7 @@ Multiple cache layers for performance:
    `Update`/`Save`/`GetName` ported verbatim from WF `EtcCacheTextID` (which now implements the
    same interface); `GetName` = direct user→system dict lookup (no WF `UseValsID`). `CoreState.UseTextIDCache`
    typed `ITextIDCache`; (re)created on every Avalonia ROM load (ROM/path/lang-sensitive), shared from WF Program.
-5. **PatchHardCodeScanner + CoreAsmMapCache** (Core, `IAsmMapCache`) — hardcode detection (#1035): WF `MakeHardCodeWarning`+`CheckIFFast` gate; lazy, lights Unit/Class/Item `[HardCoding]`. `GetAsmMapFile()`→`AsmMapSymbolFile` backs the Pointer Tool "What is this address?" (#1026) + `PointerToolAutoSearchCore` (READ-ONLY, never-throws, #1113) cross-ROM AutoSearch: NAME (`IAsmMapFile.SearchName`/`GetName`)+LDR-pool symmetry+window/slide retry; `MakeLDRMap` +4-hardened.
+5. **PatchHardCodeScanner + CoreAsmMapCache** (Core, `IAsmMapCache`) — hardcode detection (#1035): WF `MakeHardCodeWarning`+`CheckIFFast` gate; lazy, lights Unit/Class/Item `[HardCoding]`. `GetAsmMapFile()`→`AsmMapSymbolFile` backs the Pointer Tool "What is this address?" (#1026) + `PointerToolAutoSearchCore` (READ-ONLY, never-throws, #1113) cross-ROM AutoSearch: NAME+LDR-pool symmetry+window/slide retry; `MakeLDRMap` +4-hardened.
 
 Cache invalidation occurs on ROM modifications.
 

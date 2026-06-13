@@ -1006,15 +1006,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 var asmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                // #1130: in decomp mode GetAsmMapFile() returns a MergedAsmMapFile;
+                // both it and the shipped AsmMapSymbolFile expose FirstKeyForScreenshot().
+                uint firstKey = U.NOT_FOUND;
                 if (asmMap is AsmMapSymbolFile sym)
                 {
-                    uint firstKey = sym.FirstKeyForScreenshot();   // smallest key
-                    if (firstKey != U.NOT_FOUND)
-                    {
-                        AddressInput = $"0x{firstKey:X08}";
-                        LookupAddressType(firstKey);
-                        return;
-                    }
+                    firstKey = sym.FirstKeyForScreenshot();   // smallest key
+                }
+                else if (asmMap is MergedAsmMapFile merged)
+                {
+                    firstKey = merged.FirstKeyForScreenshot();
+                }
+                if (firstKey != U.NOT_FOUND)
+                {
+                    AddressInput = $"0x{firstKey:X08}";
+                    LookupAddressType(firstKey);
+                    return;
                 }
                 // Fallback: describe whatever address SeedDemoCrossRom seeded.
                 if (uint.TryParse((AddressInput ?? "").Replace("0x", "").Trim(),
