@@ -349,13 +349,16 @@ namespace FEBuilderGBA
                         return ResolvedRom.Ok(resolved);
                 }
 
-                // 2. Makefile ROM stem → <stem>.gba in root.
+                // 2. Makefile ROM stem → <stem>.gba in root. Route through the same
+                //    project-root containment check as the manifest builtRom path so a
+                //    rooted (`/tmp/out`, `C:\out`) or `..`-escaping stem can never load
+                //    a ROM outside the selected project directory (Amendment 3 parity).
                 string stem = ParseMakefileRomStem(root);
                 if (!string.IsNullOrEmpty(stem))
                 {
-                    string candidate = Path.Combine(root, stem + ".gba");
-                    if (File.Exists(candidate))
-                        return ResolvedRom.Ok(Path.GetFullPath(candidate));
+                    string candidate = ResolveProjectRelative(root, stem + ".gba");
+                    if (candidate != null && File.Exists(candidate))
+                        return ResolvedRom.Ok(candidate);
                 }
 
                 // 3. glob root *.gba with a same-stem *.elf sibling (Amendment 4).
@@ -434,6 +437,14 @@ namespace FEBuilderGBA
                 // Guard against make-variable references like $(NAME) — those
                 // cannot resolve to a real file, so treat as "no stem".
                 if (stem.IndexOf('$') >= 0)
+                    return null;
+
+                // A decomp ROM stem is always project-relative. Reject a rooted
+                // stem (e.g. `/tmp/out` or `C:\out`) so that the caller's
+                // `Path.Combine(root, stem + ".gba")` cannot silently escape the
+                // project root (the manifest builtRom containment rule, Amendment 3,
+                // would otherwise be bypassed via the Makefile-stem path).
+                if (Path.IsPathRooted(stem))
                     return null;
 
                 return string.IsNullOrEmpty(stem) ? null : stem;

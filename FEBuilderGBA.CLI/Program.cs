@@ -430,7 +430,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --rom2=<path>          Second ROM to compare against");
             Console.WriteLine("    --out=<path>           Output TSV file (omit for summary to stdout)");
             Console.WriteLine("  --testonly               Run self-test diagnostics then exit");
-            Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum (requires --rom)");
+            Console.WriteLine("  --rom-info               Print ROM metadata: version, title, size, CRC32, checksum + Mode line (requires --rom or --project)");
             Console.WriteLine("  --project=<dir>          Open a decomp project directory and load its built ROM for preview; combine with --rom-info");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");

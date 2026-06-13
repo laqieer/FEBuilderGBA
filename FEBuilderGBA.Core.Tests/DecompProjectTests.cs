@@ -370,8 +370,13 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Resolve_NullProject_NotProject()
         {
-            var r = DecompProjectDetector.ResolveBuiltRom(NewTempDir(), null);
-            Assert.Equal(DecompResolveStatus.NotProject, r.Status);
+            string dir = NewTempDir();
+            try
+            {
+                var r = DecompProjectDetector.ResolveBuiltRom(dir, null);
+                Assert.Equal(DecompResolveStatus.NotProject, r.Status);
+            }
+            finally { Directory.Delete(dir, true); }
         }
 
         // ---- ParseManifest tolerance ----------------------------------------
@@ -444,6 +449,47 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Null(DecompProjectDetector.ParseMakefileRomStem(dir));
             }
             finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseMakefileRomStem_RootedStem_ReturnsNull()
+        {
+            // A rooted stem would let Path.Combine ignore the project root, escaping
+            // the containment rule — reject it (Copilot PR #1136 finding).
+            string dir = NewTempDir();
+            try
+            {
+                string rooted = OperatingSystem.IsWindows() ? @"C:\out.gba" : "/tmp/out.gba";
+                WriteFile(dir, "Makefile", "ROM := " + rooted + "\n");
+                Assert.Null(DecompProjectDetector.ParseMakefileRomStem(dir));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void Resolve_RootedMakefileStem_NotBuiltNoEscape()
+        {
+            // Even if a rooted ROM := line points at an existing absolute .gba, the
+            // resolver must NOT load it from outside the project (containment).
+            string outside = Path.Combine(Path.GetTempPath(), "decomp_outside_" + Guid.NewGuid().ToString("N") + ".gba");
+            File.WriteAllBytes(outside, new byte[] { 0, 1, 2, 3 });
+            string dir = NewTempDir();
+            try
+            {
+                string rooted = Path.ChangeExtension(outside, null); // strip .gba → stem
+                WriteFile(dir, "Makefile", "ROM := " + rooted + "\n");
+                WriteFile(dir, "x.sha1", "00\n");  // score 2 → accepted as a project
+
+                var p = DecompProjectDetector.Detect(dir);
+                Assert.NotNull(p);
+                var r = DecompProjectDetector.ResolveBuiltRom(dir, p);
+                Assert.Equal(DecompResolveStatus.NotBuilt, r.Status);
+            }
+            finally
+            {
+                try { File.Delete(outside); } catch { }
+                Directory.Delete(dir, true);
+            }
         }
 
         // ---- CoreState.IsDecompMode regression -------------------------------

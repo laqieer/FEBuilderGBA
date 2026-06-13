@@ -2461,11 +2461,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void OpenRom_Click(object? sender, RoutedEventArgs e)
         {
-            // Opening a plain ROM clears any active decomp project (#1129).
-            CoreState.DecompProject = null;
-
             var path = await FileDialogHelper.OpenRomFile(this);
             if (string.IsNullOrEmpty(path)) return;
+
+            // Opening a plain ROM clears any active decomp project (#1129). Cleared
+            // only AFTER the picker returns a real path, so cancelling the dialog
+            // leaves a currently-open decomp preview (and its save guard) intact.
+            CoreState.DecompProject = null;
 
             bool ok = LoadRomFile(path);
             if (!ok)
@@ -2564,15 +2566,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private void OpenLastRom_Click(object? sender, RoutedEventArgs e)
         {
-            // Opening a plain ROM clears any active decomp project (#1129).
-            CoreState.DecompProject = null;
-
             string lastPath = CoreState.Config?.at("Last_Rom_Filename", "") ?? "";
             if (string.IsNullOrEmpty(lastPath) || !File.Exists(lastPath))
             {
+                // No recent ROM — leave a currently-open decomp preview (and its
+                // save guard) intact rather than dropping decomp mode (#1129).
                 _ = MessageBoxWindow.Show(this, R._("No recent ROM found."), R._("Open Last ROM"), MessageBoxMode.Ok);
                 return;
             }
+
+            // Opening a plain ROM clears any active decomp project (#1129). Cleared
+            // only after we know a real last ROM exists to load.
+            CoreState.DecompProject = null;
 
             bool ok = LoadRomFile(lastPath);
             if (!ok)
