@@ -130,6 +130,14 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gb
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=10 --out-diff=change.diff
 
+# Build decomp project ROM (run the manifest-declared build command).
+# Security gate: --yes is required to actually execute the build command.
+# Without --yes, prints the command that would run (dry-run) and exits 0.
+# Exit codes: 0 = build succeeded (or dry-run); 1 = build failed / usage error; 2 = not opted in.
+dotnet run --project FEBuilderGBA.CLI -- --build-project --project=path/to/decomp --yes
+dotnet run --project FEBuilderGBA.CLI -- --build-project --project=path/to/decomp --reload --yes
+dotnet run --project FEBuilderGBA.CLI -- --build-project --project=path/to/decomp --reload --yes --timeout=300000
+
 # Build SkiaSharp image backend
 dotnet build FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj
 

@@ -2526,6 +2526,82 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.RefreshDecompMode();
         }
 
+        /// <summary>Run the project build without reloading the ROM (#1134).</summary>
+        private async void DecompBuild_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunDecompBuild(reload: false);
+        }
+
+        /// <summary>Run the project build and reload the built ROM (#1134).</summary>
+        private async void DecompBuildReload_Click(object? sender, RoutedEventArgs e)
+        {
+            await RunDecompBuild(reload: true);
+        }
+
+        private async System.Threading.Tasks.Task RunDecompBuild(bool reload)
+        {
+            var project = CoreState.DecompProject;
+            if (project == null) return;
+
+            if (!project.IsBuildEnabled)
+            {
+                await MessageBoxWindow.Show(this,
+                    R._("Project has not opted into FEBuilder-managed builds. Add a build section to febuilder.project.json."),
+                    R._("Decomp Build"), MessageBoxMode.Ok);
+                return;
+            }
+
+            string cmdLine = DecompBuildCore.GetEffectiveCommandLine(project);
+            string confirmMsg = $"{R._("Run build command?")}\n\n{cmdLine}\n\n{R._("Working directory:")} {project.ProjectRoot}";
+            var confirm = await MessageBoxWindow.Show(this, confirmMsg, R._("Decomp Build"), MessageBoxMode.YesNo);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            _vm.DecompBuildOutput = R._("Building...");
+
+            DecompBuildResult res = await System.Threading.Tasks.Task.Run(
+                () => DecompBuildCore.Build(project, ProcessRunnerCore.DefaultTimeoutMs));
+
+            var sb = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(res.Run.Stdout))
+            {
+                sb.AppendLine("--- stdout ---");
+                sb.Append(res.Run.Stdout);
+            }
+            if (!string.IsNullOrEmpty(res.Run.Stderr))
+            {
+                sb.AppendLine("--- stderr ---");
+                sb.Append(res.Run.Stderr);
+            }
+            if (res.Run.Started)
+                sb.AppendLine($"Exit: {res.Run.ExitCode}");
+            sb.AppendLine(res.Message);
+            _vm.DecompBuildOutput = sb.ToString();
+
+            if (!res.Success)
+            {
+                _vm.RefreshDecompMode();
+                return;
+            }
+
+            if (reload)
+            {
+                var status = DecompBuildCore.ReloadBuiltRom(
+                    project,
+                    (p, fv) => LoadRomFile(p));
+
+                if (status != DecompResolveStatus.Ok)
+                {
+                    _vm.DecompBuildOutput += R._("\nFailed to reload built ROM after build.");
+                }
+                else
+                {
+                    // Re-init for symbol re-parse (Avalonia path wires AsmMapCache in LoadRomFile)
+                }
+            }
+
+            UpdateDecompBadge();
+        }
+
         private void SaveRom_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;

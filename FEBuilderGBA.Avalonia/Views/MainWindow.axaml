@@ -79,6 +79,30 @@
       </DockPanel>
     </Border>
 
+    <!-- Decomp Build Panel (only visible in decomp mode) -->
+    <Border DockPanel.Dock="Top" IsVisible="{Binding IsDecompMode}"
+            Background="{DynamicResource ToolbarBackgroundBrush}" Padding="8,4"
+            BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+      <StackPanel Spacing="4">
+        <DockPanel>
+          <TextBlock Text="Decomp Build" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
+          <Button AutomationProperties.AutomationId="Main_DecompBuild_Button" Content="Build"
+                  Click="DecompBuild_Click" DockPanel.Dock="Left" Padding="8,2" Margin="0,0,4,0" />
+          <Button AutomationProperties.AutomationId="Main_DecompBuildReload_Button" Content="Build &amp; Reload"
+                  Click="DecompBuildReload_Click" DockPanel.Dock="Left" Padding="8,2" Margin="0,0,4,0" />
+          <TextBlock AutomationProperties.AutomationId="Main_DecompStale_Label"
+                     Text="{Binding DecompStaleText}" IsVisible="{Binding DecompStale}"
+                     Foreground="OrangeRed" VerticalAlignment="Center" Margin="4,0" DockPanel.Dock="Left" />
+          <Panel />
+        </DockPanel>
+        <TextBox AutomationProperties.AutomationId="Main_DecompBuildOutput_Text"
+                 Text="{Binding DecompBuildOutput}" IsReadOnly="True" AcceptsReturn="True"
+                 MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 FontFamily="Courier New,monospace" FontSize="11"
+                 IsVisible="{Binding DecompBuildOutput, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+    </Border>
+
     <!-- Main Content -->
     <Grid>
       <!-- Easy Mode Panel (hidden by default) -->

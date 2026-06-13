@@ -110,7 +110,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsDecompMode = CoreState.IsDecompMode;
             OnPropertyChanged(nameof(DecompNeedsRebuild));
             OnPropertyChanged(nameof(DecompBadgeText));
+            OnPropertyChanged(nameof(DecompStale));
+            OnPropertyChanged(nameof(DecompStaleText));
         }
+
+        string _decompBuildOutput = "";
+
+        /// <summary>Captured stdout+stderr from the most recent build run.</summary>
+        public string DecompBuildOutput
+        {
+            get => _decompBuildOutput;
+            set => SetField(ref _decompBuildOutput, value);
+        }
+
+        /// <summary>True when the built ROM might be out of date.</summary>
+        public bool DecompStale => DecompBuildCore.IsStale(CoreState.DecompProject);
+
+        /// <summary>Hint text shown when the preview ROM may be stale.</summary>
+        public string DecompStaleText =>
+            DecompStale ? R._("Preview may be stale — rebuild") : "";
 
         /// <summary>
         /// Computed window title: "FEBuilderGBA - [filename] *" when dirty,

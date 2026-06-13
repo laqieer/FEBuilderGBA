@@ -307,6 +307,15 @@ namespace FEBuilderGBA.CLI
                 return RunWriteSource(argsDic);
             }
 
+            // --build-project --project=<dir> [--reload] [--yes] [--timeout=<ms>]:
+            // run the decomp project's declared build command + optionally reload
+            // the built ROM into CoreState (#1134). Must precede the bare --project
+            // rom-info fallthrough so --build-project is not swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--build-project"))
+            {
+                return RunBuildProject(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -489,6 +498,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --field=<name>         C field name to change (must be declared on the owner)");
             Console.WriteLine("    --value=<int>          New value (0x hex or decimal; integer-literal tokens only)");
             Console.WriteLine("    --out-diff=<path>      Optional: write a unified-diff-ish before/after of the changed element");
+            Console.WriteLine("  --build-project          Run the decomp project's declared build command (requires --project; gated behind --yes)");
+            Console.WriteLine("    --project=<dir>        Decomp project directory containing febuilder.project.json with a build section");
+            Console.WriteLine("    --yes                  Required to actually execute the build command (explicit opt-in gate)");
+            Console.WriteLine("    --reload               After a successful build, reload the built ROM into CoreState and print version info");
+            Console.WriteLine("    --timeout=<ms>         Build timeout in milliseconds (default 600000 = 10 minutes)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -520,6 +534,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
+            Console.WriteLine("  FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
@@ -4091,6 +4106,128 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine($"Repaired header checksum: 0x{current:X02} -> 0x{correct:X02}");
             Console.WriteLine($"Saved: {romPath}");
             return 0;
+        }
+
+        /// <summary>
+        /// Run the decomp project's declared build command and optionally reload the
+        /// built ROM into CoreState (#1134). Never throws; always returns an exit code.
+        ///
+        /// Security: the build command is NEVER auto-run. It requires ALL of:
+        ///   (1) --project=&lt;dir&gt; pointing at a manifest that opts in via a build section,
+        ///   (2) --yes (explicit confirm flag),
+        ///   (3) The manifest build section itself (BuildEnabled==true).
+        /// Without --yes the command line is printed and the process exits 0 (dry-run).
+        /// </summary>
+        static int RunBuildProject(Dictionary<string, string> argsDic)
+        {
+            try
+            {
+                // Require --project
+                if (!argsDic.ContainsKey("--project") || string.IsNullOrEmpty(argsDic["--project"]))
+                {
+                    Console.Error.WriteLine("Error: --build-project requires --project=<dir>");
+                    return 1;
+                }
+                string dir = argsDic["--project"];
+
+                RomLoader.InitEnvironment();
+
+                var project = DecompProjectDetector.Detect(dir);
+                if (project == null)
+                {
+                    Console.Error.WriteLine($"Error: Not a decomp project directory: {dir}");
+                    return 1;
+                }
+
+                // Parse timeout
+                int timeout = ProcessRunnerCore.DefaultTimeoutMs;
+                if (argsDic.ContainsKey("--timeout"))
+                    TryParseIntArg(argsDic["--timeout"], out timeout);
+
+                string cmdLine = DecompBuildCore.GetEffectiveCommandLine(project);
+                if (string.IsNullOrEmpty(cmdLine))
+                {
+                    Console.WriteLine("Project has not opted into FEBuilder-managed builds; add a build section to febuilder.project.json.");
+                    Console.WriteLine("Example: { \"schemaVersion\": 1, \"builtRom\": \"out.gba\", \"build\": \"make\" }");
+                    return 2;
+                }
+                Console.WriteLine($"Command: {cmdLine}");
+
+                // Build opt-in check
+                if (!project.IsBuildEnabled)
+                {
+                    Console.WriteLine("Project has not opted into FEBuilder-managed builds; add a build section to febuilder.project.json.");
+                    return 2;
+                }
+
+                // Dry-run gate
+                if (!argsDic.ContainsKey("--yes"))
+                {
+                    Console.WriteLine($"This will execute the above command in: {project.ProjectRoot}");
+                    Console.WriteLine("Re-run with --yes to execute.");
+                    return 0;
+                }
+
+                // Execute the build
+                var res = DecompBuildCore.Build(project, timeout);
+
+                // Always print captured output
+                if (!string.IsNullOrEmpty(res.Run.Stdout))
+                {
+                    Console.WriteLine("--- stdout ---");
+                    Console.Write(res.Run.Stdout);
+                }
+                if (!string.IsNullOrEmpty(res.Run.Stderr))
+                {
+                    Console.Error.WriteLine("--- stderr ---");
+                    Console.Error.Write(res.Run.Stderr);
+                }
+
+                if (res.Run.Started)
+                    Console.WriteLine($"Exit: {res.Run.ExitCode}");
+
+                if (!res.Success)
+                {
+                    Console.Error.WriteLine($"Build failed: {res.Message}");
+                    return 1;
+                }
+
+                // Build succeeded
+                bool doReload = argsDic.ContainsKey("--reload");
+                if (doReload)
+                {
+                    CoreState.DecompProject = project;
+                    var reloadStatus = DecompBuildCore.ReloadBuiltRom(
+                        project,
+                        (p, fv) => RomLoader.LoadRom(p, fv));
+
+                    if (reloadStatus != DecompResolveStatus.Ok)
+                    {
+                        Console.Error.WriteLine("Error: no built ROM after build (resolve failed).");
+                        return 1;
+                    }
+
+                    // Full init for symbol re-parse
+                    RomLoader.InitFull();
+
+                    string version = CoreState.ROM?.RomInfo?.VersionToFilename ?? "unknown";
+                    Console.WriteLine($"Mode: Decomp (preview ROM {project.BuiltRomPath})");
+                    Console.WriteLine($"version={version}");
+                    Console.WriteLine($"Stale={DecompBuildCore.IsStale(project)}");
+                }
+                else
+                {
+                    Console.WriteLine("Build succeeded (use --reload to load the built ROM)");
+                    Console.WriteLine($"Stale={DecompBuildCore.IsStale(project)}");
+                }
+
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Unhandled error in --build-project: {ex.Message}");
+                return 1;
+            }
         }
 
         static int RunRomInfo(Dictionary<string, string> argsDic)

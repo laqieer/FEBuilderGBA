@@ -67,6 +67,15 @@ namespace FEBuilderGBA
         /// <summary>Reserved: build command from the manifest (null if unset).</summary>
         public string BuildCommand => Manifest?.BuildCommand;
 
+        /// <summary>Reserved: build args from the manifest (empty array if unset).</summary>
+        public string[] BuildArgs => Manifest?.BuildArgs ?? Array.Empty<string>();
+
+        /// <summary>Reserved: compare target from the manifest (null if unset).</summary>
+        public string CompareTarget => Manifest?.CompareTarget;
+
+        /// <summary>True when the project has opted into FEBuilder-managed builds.</summary>
+        public bool IsBuildEnabled => Manifest?.BuildEnabled == true;
+
         /// <summary>True when a non-empty built ROM path is set and the file exists.</summary>
         public bool IsBuilt => !string.IsNullOrEmpty(BuiltRomPath) && File.Exists(BuiltRomPath);
 
@@ -304,6 +313,84 @@ namespace FEBuilderGBA
                         return cmd.GetString();
                 }
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Build args: the <c>args</c> array when <c>build</c> is an object with an
+        /// <c>args</c> property that is an array of strings; else empty. Never throws.
+        /// </summary>
+        [JsonIgnore]
+        public string[] BuildArgs
+        {
+            get
+            {
+                try
+                {
+                    if (Build is JsonElement b && b.ValueKind == JsonValueKind.Object
+                        && b.TryGetProperty("args", out var argsEl)
+                        && argsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        var list = new List<string>();
+                        foreach (var item in argsEl.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.String)
+                                list.Add(item.GetString() ?? "");
+                        }
+                        return list.ToArray();
+                    }
+                }
+                catch { }
+                return Array.Empty<string>();
+            }
+        }
+
+        /// <summary>
+        /// Compare target: the <c>compareTarget</c> string when <c>build</c> is an object
+        /// with that property; else null. Never throws.
+        /// </summary>
+        [JsonIgnore]
+        public string CompareTarget
+        {
+            get
+            {
+                try
+                {
+                    if (Build is JsonElement b && b.ValueKind == JsonValueKind.Object
+                        && b.TryGetProperty("compareTarget", out var ct)
+                        && ct.ValueKind == JsonValueKind.String)
+                        return ct.GetString();
+                }
+                catch { }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// True when the project opts into FEBuilder-managed builds. Build must be non-null
+        /// AND (a non-empty string, an object [even empty {}], or has enabled:true/command/args).
+        /// A null build section → false. Never throws.
+        /// </summary>
+        [JsonIgnore]
+        public bool BuildEnabled
+        {
+            get
+            {
+                try
+                {
+                    if (!(Build is JsonElement b))
+                        return false;
+                    if (b.ValueKind == JsonValueKind.String)
+                        return !string.IsNullOrEmpty(b.GetString());
+                    if (b.ValueKind == JsonValueKind.Object)
+                    {
+                        // Empty object {} counts as opt-in
+                        // Also accepts enabled:true, command, or args present
+                        return true;
+                    }
+                }
+                catch { }
+                return false;
             }
         }
 
