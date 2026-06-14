@@ -307,7 +307,7 @@ namespace FEBuilderGBA.Avalonia
                 // Frame 2: navigate to one editor so the page host + back bar are
                 // populated (empty without a ROM — fine for a shell chrome render).
                 try { Services.WindowManager.Instance.Open<Views.UnitEditorView>(); }
-                catch (Exception ex) { Log.Error("RenderMainView open editor: ", ex.Message); }
+                catch (Exception ex) { Log.Error("RenderMainView open editor: ", ex.ToString()); }
                 host.UpdateLayout();
                 RenderViewToFile(view, fullPath);
 

@@ -301,11 +301,21 @@ namespace FEBuilderGBA.Avalonia.Services
                     methodName,
                     BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
                     binder: null, types: new[] { typeof(EventArgs) }, modifiers: null);
-                method?.Invoke(window, new object[] { EventArgs.Empty });
+                if (method == null)
+                {
+                    // A future Avalonia version could rename/reshape OnOpened/OnClosed;
+                    // surface that loudly so the lifecycle regression is diagnosable.
+                    Log.Error("AndroidNavigationService.RaiseWindowEvent: Window.", methodName,
+                              "(EventArgs) not found — page lifecycle hook skipped.");
+                    return;
+                }
+                method.Invoke(window, new object[] { EventArgs.Empty });
             }
             catch (Exception ex)
             {
-                Log.Error("AndroidNavigationService.RaiseWindowEvent ", methodName, ": ", ex.Message);
+                // Log the full exception text (not just Message) so navigation
+                // never throws because of a lifecycle hook but stays diagnosable.
+                Log.Error("AndroidNavigationService.RaiseWindowEvent ", methodName, ": ", ex.ToString());
             }
         }
     }

@@ -109,7 +109,9 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             foreach (var w in new List<Window>(_windows.Values))
             {
-                try { w.Close(); } catch (Exception ex) { Log.Error("WindowManager.CloseAll window close: {0}", ex.Message); }
+                // Log.Error takes params string[] joined with spaces (no composite
+                // formatting), so pass the full exception text as its own arg.
+                try { w.Close(); } catch (Exception ex) { Log.Error("DesktopNavigationService.CloseAll window close: ", ex.ToString()); }
             }
             _windows.Clear();
         }

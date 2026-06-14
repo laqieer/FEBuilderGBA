@@ -116,9 +116,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 btn.Click += (_, _) =>
                 {
                     // Log.Error takes params string[] joined with spaces (no
-                    // composite formatting), so pass the message as its own arg.
+                    // composite formatting); log the full exception text (not just
+                    // Message) so launcher failures keep their stack trace.
                     try { open(); }
-                    catch (Exception ex) { Log.Error("MainView launcher open failed: ", ex.Message); }
+                    catch (Exception ex) { Log.Error("MainView launcher open failed: ", ex.ToString()); }
                 };
                 panel.Children.Add(btn);
             }
