@@ -81,7 +81,7 @@ For each unit:
   ```bash
   copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
   Post your review findings as a comment on the issue. \
-  After you finish posting the review, prune any git worktree you created for this review: run `git worktree prune` and `git worktree remove --force` any checkout you made under your session-state directory. \
+  After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
@@ -309,7 +309,7 @@ EOF
   Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
   For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
   Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Also flag placeholder/template text that was not replaced (e.g., items containing angle brackets like '<what was tested>' or generic boilerplate) — each item must describe a specific test that was actually performed. \
-  After you finish posting the review, prune any git worktree you created for this review: run `git worktree prune` and `git worktree remove --force` any checkout you made under your session-state directory. \
+  After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
