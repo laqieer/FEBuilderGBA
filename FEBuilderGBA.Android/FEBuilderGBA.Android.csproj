@@ -1,19 +1,37 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Avalonia.Android head skeleton for FEBuilderGBA (exploration epic #1070).
+    Avalonia.Android head for FEBuilderGBA (exploration epic #1070).
 
-    STATUS: authored exploration skeleton. This project is INTENTIONALLY NOT
-    part of FEBuilderGBA.sln. The `check.yml` CI builds the whole solution on
-    a windows-latest runner that does NOT have the `android` .NET workload
-    installed, so including this project in the .sln would break the required
-    `build` check. To work on it locally, install the workload and build the
-    csproj directly:
+    STATUS: builds a full APK against the shared FEBuilderGBA.Avalonia UI (#1121).
+    The structural blocker — FEBuilderGBA.Avalonia was single-target net9.0 — is
+    resolved by conditional multi-targeting: that project now opts into
+    net9.0;net9.0-android when EnableAndroidTarget=true, and the ProjectReference
+    below activates the android TFM via AdditionalProperties (an MSBuild-verified
+    requirement — setting the property on this head alone does NOT propagate to
+    the referenced project).
+
+    This project is INTENTIONALLY NOT part of FEBuilderGBA.sln. The `check.yml`
+    CI builds the whole solution on a windows-latest runner that does NOT have the
+    `android` .NET workload installed, so including this project in the .sln would
+    break the required `build` check. To work on it locally, install the workload
+    and build the csproj directly:
 
         dotnet workload install android
-        dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj
+        dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
 
-    See docs/ANDROID.md for the full feasibility assessment, blockers, and the
-    phased path to a runnable Android app.
+    The `-p:EnableAndroidTarget=true` flag is REQUIRED. The `AdditionalProperties`
+    on the ProjectReference below correctly drives the *build* phase, but NuGet
+    *restore* uses a separate static graph that does not apply per-reference
+    AdditionalProperties when resolving the referenced project's target
+    frameworks — so without the global property, restore writes a net9.0-only
+    `project.assets.json` for FEBuilderGBA.Avalonia and the build then fails with
+    NETSDK1005 ("doesn't have a target for 'net9.0-android'"). Passing
+    EnableAndroidTarget as a global property flows it to the referenced project's
+    restore AND build, so the shared UI cross-targets correctly.
+
+    NOT YET device/emulator-validated: the runtime port (single-view MainView,
+    config asset extraction, SAF file I/O) lands in #1122/#1123/#1124. See
+    docs/ANDROID.md for the full feasibility assessment and phased plan.
   -->
   <PropertyGroup>
     <TargetFramework>net9.0-android</TargetFramework>
@@ -47,7 +65,13 @@
          references FEBuilderGBA.Core + FEBuilderGBA.SkiaSharp. The WinForms
          project (net9.0-windows) is NOT referenced and MUST never be — it is
          not Android-capable. -->
-    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" />
+    <!-- AdditionalProperties="EnableAndroidTarget=true" is REQUIRED (#1121,
+         MSBuild-verified): EnableAndroidTarget set on THIS head does not flow to
+         the referenced project, so the shared UI would otherwise resolve to its
+         default net9.0 TFM and fail the android build. AdditionalProperties is
+         passed across the ProjectReference and activates the net9.0-android TFM
+         on FEBuilderGBA.Avalonia. -->
+    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" AdditionalProperties="EnableAndroidTarget=true" />
   </ItemGroup>
 
   <!--

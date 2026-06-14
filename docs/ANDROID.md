@@ -1,12 +1,15 @@
 # Native Android (Avalonia.Android) — Feasibility Assessment
 
-> **Status: exploration only.** This document is the feasibility/scoping
-> deliverable for epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070).
-> A native Android build is **technically feasible but a substantial, separate
-> port** — it is **not** a free byproduct of moving to Avalonia. **Nothing here
-> is shipped, and there is no commitment to ship.** The repository carries an
-> authored Avalonia.Android **head skeleton** (`FEBuilderGBA.Android/`) that is
-> intentionally **not** part of `FEBuilderGBA.sln` (see
+> **Status: builds an APK; not yet device-validated.** This document is the
+> feasibility/scoping deliverable for epic
+> [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). The structural
+> prerequisite — packaging the shared Avalonia UI into an APK — **landed in
+> [#1121](https://github.com/laqieer/FEBuilderGBA/issues/1121)**: the Android head
+> (`FEBuilderGBA.Android/`) now builds a real APK against the conditionally
+> multi-targeted `FEBuilderGBA.Avalonia`. A *runnable, usable* Android app is
+> still **a substantial, separate port** (single-view navigation, config asset
+> extraction, SAF ROM I/O, touch UX) and is **not** a free byproduct of Avalonia.
+> The head remains intentionally **not** part of `FEBuilderGBA.sln` (see
 > [§7 Build status in this environment](#7-build-status-in-this-environment)).
 
 This assessment is evidence-backed: every claim cites a `file:line` in the
@@ -22,7 +25,7 @@ FEBuilderGBA is split into layers with very different platform coupling:
 |---------|-----|------------------|----------|
 | `FEBuilderGBA.Core` | `net9.0` | **Yes** | `FEBuilderGBA.Core/FEBuilderGBA.Core.csproj:3` targets plain `net9.0`; no WinForms / `System.Drawing`. ROM engine, undo, LZ77, Huffman/text codec, etc. are portable. Image/font coupling is behind the `IImageService` / `IFontRasterizer` abstraction seams. |
 | `FEBuilderGBA.SkiaSharp` | `net9.0` | **Yes (with a native-version pin — see §3)** | `FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:13` |
-| `FEBuilderGBA.Avalonia` | `net9.0` (desktop) | **Source-portable, but desktop-targeted today** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj:3-8`: `OutputType=WinExe`, plain `net9.0`, `Avalonia.Desktop`, Windows `app.manifest`. Because it is *not* multi-targeted, an Android head that references it builds it as `net9.0` and then **fails at Android RID packaging** (§7) — it cannot be *packaged* into an APK as-is. Making it `net9.0;net9.0-android` (or splitting a shared UI library) is the prerequisite follow-up (#1121). |
+| `FEBuilderGBA.Avalonia` | `net9.0`, opt-in `net9.0-android` (#1121) | **Yes — conditionally multi-targeted** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj`: opts into `net9.0;net9.0-android` when `EnableAndroidTarget=true` (default OFF, so the desktop `.sln`/CI see `net9.0` only). On the android TFM `OutputType=Library`, `app.manifest` / `Avalonia.Desktop` / `Microsoft.CodeAnalysis.CSharp` / `Program.cs` / the `GapSweep` dev-tooling are all excluded. The Android head's `ProjectReference` activates the android TFM via `AdditionalProperties="EnableAndroidTarget=true"`. This resolves the prerequisite #1121. |
 | `FEBuilderGBA` (WinForms) | `net9.0-windows` | **No — must be excluded** | WinForms + P/Invoke + `System.Drawing`. Never reference it from an Android head. |
 
 **The Android head must reference only `FEBuilderGBA.Avalonia`** (which transitively
@@ -189,45 +192,73 @@ This section is deliberately precise about **what built vs what is authored-only
   files (`*-Signed.apk`). This proves the workload + SDK + JDK toolchain is
   fully functional in this environment.
 - ✅ **The Android head's own code compiles against `FEBuilderGBA.Avalonia`** —
-  `dotnet build FEBuilderGBA.Android.csproj` restores cleanly and gets past the
-  C# compile of `MainActivity` (which references the shared `App` + views via
-  the `net9.0` reference assembly). MSBuild builds `FEBuilderGBA.Avalonia` as
-  `bin\Debug\net9.0\FEBuilderGBA.Avalonia.dll` (its own `net9.0` TFM — it is
-  **not** recompiled under the Android TFM), and the only skeleton compile error
-  was a single optional `.WithInterFont()` call (since removed). The build then
-  reaches the Android RID-packaging stage before failing (next bullet).
-- ❌ **The full FEBuilderGBA Android APK does NOT build** — once the build moves
-  to per-RID packaging (`android-x64` / `android-arm64`), it fails with
-  `NETSDK1047` (and, with an explicit RID, `NETSDK1112`) because the referenced
-  **`FEBuilderGBA.Avalonia` project targets plain `net9.0`** and therefore has no
-  `net9.0-android` / android-bionic runtime-pack target for the RID resolver to
-  consume. The error is purely RID/runtime-pack resolution on the desktop-TFM
-  ProjectReference — not a code error in the skeleton.
+  with the required `-p:EnableAndroidTarget=true` global flag (see the next
+  bullet), `dotnet build` restores + compiles `MainActivity` (which references
+  the shared `App` + views) and packages the APK. (A *bare*
+  `dotnet build FEBuilderGBA.Android.csproj` — without the global property —
+  fails restore with `NETSDK1005`, because NuGet restore's static graph ignores
+  the per-reference `AdditionalProperties`; the next bullet explains this.)
+- ✅ **The full FEBuilderGBA Android APK NOW builds (#1121).** The structural
+  blocker below is resolved: `FEBuilderGBA.Avalonia` conditionally multi-targets
+  `net9.0;net9.0-android` (opt-in via `EnableAndroidTarget`), and the Android
+  head's `ProjectReference` carries `AdditionalProperties="EnableAndroidTarget=true"`.
+  Build it with the property as a **global** flag:
+  ```bash
+  dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
+  ```
+  This produced both `com.laqieer.febuildergba.apk` and the signed
+  `com.laqieer.febuildergba-Signed.apk` (~33 MB each) under
+  `bin/Release/net9.0-android/`, with `FEBuilderGBA.Avalonia.dll` compiled under
+  the android TFM. **Why the global `-p:` is required:** the `AdditionalProperties`
+  on the ProjectReference correctly drives the *build* phase, but NuGet *restore*
+  uses a separate static graph that does **not** apply per-reference
+  `AdditionalProperties` when resolving a referenced project's target frameworks
+  — verified via an MSBuild probe (`-getProperty:TargetFrameworks` returns
+  `net9.0;net9.0-android` only when `EnableAndroidTarget=true` is set). Without
+  the global property, restore writes a net9.0-only `project.assets.json` for the
+  shared project and the build fails with `NETSDK1005`. On the android TFM the
+  shared project excludes `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the
+  `GapSweep` Roslyn dev-tooling (`GapSweep/**` + `App.GapSweep.cs`) and the
+  `Microsoft.CodeAnalysis.CSharp` package; the `GapSweep` dispatch in
+  `App.OnFrameworkInitializationCompleted` is `#if !ANDROID`-guarded. The only
+  android-specific warnings are benign `XA0141` 16-KB-page-size advisories on the
+  prebuilt Skia/HarfBuzz `.so` natives.
+
+### Historical blocker (resolved by #1121)
+
+Before #1121, once the build moved to per-RID packaging
+(`android-x64` / `android-arm64`) it failed with `NETSDK1047` (and, with an
+explicit RID, `NETSDK1112`) because the referenced **`FEBuilderGBA.Avalonia`
+project targeted plain `net9.0`** and therefore had no `net9.0-android` /
+android-bionic runtime-pack target for the RID resolver to consume. The
+conditional multi-target gives the resolver a real `net9.0-android` target.
 
 ### Honest conclusion
 
-The Android toolchain works here (a minimal `net9.0-android` project builds and
-packages a signed APK), and the FEBuilderGBA Android head compiles against the
-shared Avalonia reference up to the packaging stage. The blocker is purely
-structural: **a desktop (`net9.0`) project cannot be packaged into an APK by
-reference** — it is built as `net9.0`, not under the Android TFM, so RID
-packaging has nothing to consume. Producing a runnable APK
-requires making `FEBuilderGBA.Avalonia` **multi-target** (`net9.0;net9.0-android`)
-or **splitting the shared UI into a class library** the Android head and the
-desktop head both reference. That is the recommended first implementation step
-(see follow-ups), and it is intentionally **out of scope** for this skeleton
-(which must not perturb the existing desktop build / CI).
+The Android APK builds against the shared Avalonia UI (#1121). What remains is
+**runtime**, not structural — the APK is **not yet device/emulator-validated**:
 
-> Because the Android head needs `FEBuilderGBA.Avalonia` to be android-aware, the
-> skeleton `FEBuilderGBA.Android/` project is **deliberately excluded from
-> `FEBuilderGBA.sln`**. `.github/workflows/check.yml` builds the whole solution
-> on a `windows-latest` runner with no android workload; adding the project to
-> the .sln would break the required `build` check for every unrelated PR.
-> `crossplatform.yml` builds individual `csproj`s and does not touch the Android
-> head. Build the skeleton standalone:
+- Under the single-view Android lifetime, `App.OnFrameworkInitializationCompleted`
+  still only presents UI in its `IClassicDesktopStyleApplicationLifetime` branch,
+  so the booted app does not yet show the editor — the
+  `ISingleViewApplicationLifetime.MainView` + `WindowManager` page/view-stack
+  rework is #1122 (see §2).
+- `config/**` ships beside the APK as loose Content today, not as an extracted
+  `AndroidAsset` — APK config bundling + first-run extraction to `Context.FilesDir`
+  is #1123 (see §5).
+- ROM open/save still goes through path-based I/O; SAF stream I/O is #1124 (see §4).
+
+> The Android head needs `FEBuilderGBA.Avalonia` to be android-aware, which it
+> now is *opt-in*; the `EnableAndroidTarget` default is OFF so the desktop build
+> is unchanged. The `FEBuilderGBA.Android/` project remains **deliberately
+> excluded from `FEBuilderGBA.sln`**: `.github/workflows/check.yml` builds the
+> whole solution on a `windows-latest` runner with no android workload, so adding
+> the project to the .sln would break the required `build` check for every
+> unrelated PR. `crossplatform.yml` builds individual `csproj`s and does not
+> touch the Android head. Build it standalone:
 > ```bash
 > dotnet workload install android
-> dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj
+> dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
 > ```
 
 ---
@@ -237,9 +268,11 @@ desktop head both reference. That is the recommended first implementation step
 The real port work surfaced by this exploration is split into concrete issues,
 linked under #1070 as its checklist:
 
-1. **Android: multi-target `FEBuilderGBA.Avalonia` (or split a shared UI library)
-   so the Android head can be packaged into an APK.** *(prerequisite — unblocks
-   everything below; see §7.)*
+1. ~~**Android: multi-target `FEBuilderGBA.Avalonia` (or split a shared UI library)
+   so the Android head can be packaged into an APK.**~~ **DONE (#1121)** — the
+   shared project conditionally multi-targets `net9.0;net9.0-android`; the head
+   builds a real APK (build-only — not yet device-validated). *(prerequisite —
+   unblocked everything below; see §7.)*
 2. **Android: single-activity navigation model for the multi-window editors**
    (`WindowManager` page/view-stack rework + `ISingleViewApplicationLifetime`
    `MainView`). *(largest item; see §2.)*
@@ -263,8 +296,8 @@ not promise Android from "Avalonia supports Android" alone.
 
 **Phased path:**
 
-1. **Phase A — make it packageable.** Multi-target / split the shared UI (#1
-   above) so an APK can actually be produced.
+1. ~~**Phase A — make it packageable.**~~ **DONE (#1121)** — the shared UI is
+   conditionally multi-targeted and the Android head builds an APK.
 2. **Phase B — make it run.** Single-view lifetime + a minimal navigation host
    (#2), config extraction (#3), and SAF ROM I/O (#4) — enough to open a ROM and
    show one editor on a device.
@@ -273,10 +306,10 @@ not promise Android from "Avalonia supports Android" alone.
    `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke
    test (#5) and a CI/APK job (#6).
 
-Until Phase A lands, the `FEBuilderGBA.Android/` skeleton stands as an authored
-starting point whose own code compiles against the shared Avalonia reference
-(the build reaches Android RID packaging before failing on the desktop-TFM
-reference) — not a runnable app.
+Phase A landed in #1121: the `FEBuilderGBA.Android/` head now builds a real APK
+against the shared, conditionally-multi-targeted Avalonia UI. It is **not yet a
+runnable app** — booting it presents no editor under the single-view lifetime
+until the navigation rework (Phase B / #1122) lands.
 
 ---
 
