@@ -623,6 +623,9 @@ namespace FEBuilderGBA
         // LoadBytes seam as the path Load so detection stays identical.
         public bool LoadFromStream(System.IO.Stream stream, string name, out string version)
         {
+            // Path Load always reads from the start; rewind a seekable input so a
+            // stream left at a non-zero position doesn't load truncated (#1124 review).
+            if (stream.CanSeek) { stream.Seek(0, System.IO.SeekOrigin.Begin); }
             using (var ms = new System.IO.MemoryStream())
             {
                 stream.CopyTo(ms);
@@ -631,6 +634,7 @@ namespace FEBuilderGBA
         }
         public async System.Threading.Tasks.Task<(bool ok, string version)> LoadFromStreamAsync(System.IO.Stream stream, string name)
         {
+            if (stream.CanSeek) { stream.Seek(0, System.IO.SeekOrigin.Begin); }
             using (var ms = new System.IO.MemoryStream())
             {
                 await stream.CopyToAsync(ms).ConfigureAwait(false);
@@ -697,6 +701,15 @@ namespace FEBuilderGBA
         public void SaveToStream(System.IO.Stream stream) => SaveToStream(stream, false);
         public void SaveToStream(System.IO.Stream stream, bool silent)
         {
+            // Mirror Save(name,...) which truncates/replaces the file: for a seekable
+            // target, rewind + SetLength so a pre-existing LARGER stream (the real SAF
+            // OpenWriteAsync write-back case) doesn't keep stale trailing bytes (#1124
+            // Copilot review).
+            if (stream.CanSeek)
+            {
+                stream.Seek(0, System.IO.SeekOrigin.Begin);
+                stream.SetLength(this.Data.Length);
+            }
             stream.Write(this.Data, 0, this.Data.Length);
             if (!silent)
             {
@@ -705,6 +718,11 @@ namespace FEBuilderGBA
         }
         public async System.Threading.Tasks.Task SaveToStreamAsync(System.IO.Stream stream, bool silent = false)
         {
+            if (stream.CanSeek)
+            {
+                stream.Seek(0, System.IO.SeekOrigin.Begin);
+                stream.SetLength(this.Data.Length);
+            }
             await stream.WriteAsync(this.Data, 0, this.Data.Length).ConfigureAwait(false);
             if (!silent)
             {

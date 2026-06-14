@@ -163,5 +163,106 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(syncBytes.SequenceEqual(asyncBytes));
             Assert.True(asyncBytes.SequenceEqual(rom.Data));
         }
+
+        // #1124 Copilot review — SaveToStream into a pre-filled LARGER seekable
+        // stream (the real SAF OpenWriteAsync write-back case) must truncate to
+        // exactly Data.Length so no stale trailing bytes remain (corrupt ROM).
+        [Fact]
+        public void SaveToStream_IntoPrefilledLargerStream_TruncatesToExactLength()
+        {
+            byte[] buffer = MakeFe8uBuffer();
+            var rom = new ROM();
+            Assert.True(rom.LoadFromStream(new MemoryStream(buffer), "BE8E01.gba", out _));
+
+            using var ms = new MemoryStream();
+            // Pre-fill so Length = Data.Length + 123 and position is at the end.
+            byte[] filler = new byte[rom.Data.Length + 123];
+            for (int i = 0; i < filler.Length; i++) filler[i] = 0xCC;
+            ms.Write(filler, 0, filler.Length);
+            Assert.Equal(rom.Data.Length + 123, ms.Length);
+
+            rom.SaveToStream(ms);
+
+            Assert.Equal(rom.Data.Length, ms.Length);
+            Assert.True(ms.ToArray().SequenceEqual(rom.Data));
+        }
+
+        [Fact]
+        public async Task SaveToStreamAsync_IntoPrefilledLargerStream_TruncatesToExactLength()
+        {
+            byte[] buffer = MakeFe8uBuffer();
+            var rom = new ROM();
+            Assert.True(rom.LoadFromStream(new MemoryStream(buffer), "BE8E01.gba", out _));
+
+            using var ms = new MemoryStream();
+            byte[] filler = new byte[rom.Data.Length + 123];
+            for (int i = 0; i < filler.Length; i++) filler[i] = 0xCC;
+            await ms.WriteAsync(filler, 0, filler.Length);
+            Assert.Equal(rom.Data.Length + 123, ms.Length);
+
+            await rom.SaveToStreamAsync(ms);
+
+            Assert.Equal(rom.Data.Length, ms.Length);
+            Assert.True(ms.ToArray().SequenceEqual(rom.Data));
+        }
+
+        // #1124 Copilot review — LoadFromStream must rewind a seekable input that
+        // is not at position 0 (path Load always reads from the start), otherwise
+        // it would load a truncated ROM.
+        [Fact]
+        public void LoadFromStream_NonZeroPosition_RewindsAndLoadsFull()
+        {
+            byte[] buffer = MakeFe8uBuffer();
+            string tempFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(tempFile, buffer);
+                var romPath = new ROM();
+                Assert.True(romPath.Load(tempFile, out string versionPath));
+
+                using var ms = new MemoryStream();
+                ms.Write(buffer, 0, buffer.Length);
+                ms.Position = 100; // non-zero — must be rewound by the loader
+
+                var romStream = new ROM();
+                bool ok = romStream.LoadFromStream(ms, "BE8E01.gba", out string versionStream);
+
+                Assert.True(ok);
+                Assert.Equal(versionPath, versionStream);
+                Assert.True(romPath.Data.SequenceEqual(romStream.Data));
+            }
+            finally
+            {
+                if (File.Exists(tempFile)) File.Delete(tempFile);
+            }
+        }
+
+        [Fact]
+        public async Task LoadFromStreamAsync_NonZeroPosition_RewindsAndLoadsFull()
+        {
+            byte[] buffer = MakeFe8uBuffer();
+            string tempFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(tempFile, buffer);
+                var romPath = new ROM();
+                Assert.True(romPath.Load(tempFile, out string versionPath));
+
+                using var ms = new MemoryStream();
+                ms.Write(buffer, 0, buffer.Length);
+                ms.Position = 100;
+
+                var romStream = new ROM();
+                var result = await romStream.LoadFromStreamAsync(ms, "BE8E01.gba");
+
+                Assert.True(result.ok);
+                Assert.Equal(versionPath, result.version);
+                Assert.True(romPath.Data.SequenceEqual(romStream.Data));
+            }
+            finally
+            {
+                if (File.Exists(tempFile)) File.Delete(tempFile);
+            }
+        }
     }
 }
