@@ -24,6 +24,14 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly MainWindowViewModel _vm = new();
 
+        /// <summary>
+        /// Retains the picked SAF/content:// <see cref="global::Avalonia.Platform.Storage.IStorageFile"/>
+        /// handle when a ROM was opened from a source that has NO local filesystem
+        /// path (Android), so a later Save can write back via OpenWriteAsync (#1124).
+        /// Null on desktop and whenever the current ROM has a real local path.
+        /// </summary>
+        private global::Avalonia.Platform.Storage.IStorageFile? _currentRomStorageFile;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -731,6 +739,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 ok = rom.Load(path, out string version);
             }
             if (!ok) return false;
+
+            // This is a real local-path load (desktop / OpenLastRom / decomp /
+            // build-reload), so clear any retained SAF handle from a prior Android
+            // content:// open before converging on the shared init (#1124).
+            _currentRomStorageFile = null;
+            return FinishLoadedRom(rom, path);
+        }
+
+        /// <summary>
+        /// Shared post-load initialization for both the local-path and the Android
+        /// SAF/stream load paths (#1124). Wires CoreState, caches, encoders, event
+        /// scripts, UI state and auto-save. <paramref name="displayName"/> is the
+        /// path on desktop or the SAF file name on Android (used for recent-files
+        /// and the last-ROM config key).
+        /// </summary>
+        private bool FinishLoadedRom(ROM rom, string displayName)
+        {
+            string path = displayName;
 
             CoreState.ROM = rom;
 
@@ -2482,20 +2508,53 @@ namespace FEBuilderGBA.Avalonia.Views
 
         private async void OpenRom_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.OpenRomFile(this);
-            if (string.IsNullOrEmpty(path)) return;
+            var file = await FileDialogHelper.OpenRomFilePick(this);
+            if (file == null) return;
 
             // Opening a plain ROM clears any active decomp project (#1129). Cleared
-            // only AFTER the picker returns a real path, so cancelling the dialog
+            // only AFTER the picker returns a real file, so cancelling the dialog
             // leaves a currently-open decomp preview (and its save guard) intact.
             CoreState.DecompProject = null;
 
-            bool ok = LoadRomFile(path);
+            string? localPath = file.TryGetLocalPath();
+            bool ok;
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                // Desktop / any provider with a real filesystem path — unchanged behavior.
+                _currentRomStorageFile = null;
+                ok = LoadRomFile(localPath);
+            }
+            else
+            {
+                // Android SAF content:// — no local path. Read via the stream API and
+                // retain the handle so a later Save can OpenWriteAsync() it (#1124).
+                ok = await LoadRomFromStorageFile(file);
+            }
             if (!ok)
             {
                 await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
             }
             UpdateDecompBadge();
+        }
+
+        /// <summary>
+        /// Load a ROM from a SAF/content:// IStorageFile that has no local filesystem
+        /// path (Android). Reads bytes via the stream API, retains the handle for a
+        /// later stream Save, and converges on the shared post-load init (#1124).
+        /// </summary>
+        private async System.Threading.Tasks.Task<bool> LoadRomFromStorageFile(global::Avalonia.Platform.Storage.IStorageFile file)
+        {
+            ROM rom = new ROM();
+            bool ok;
+            string displayName = file.Name ?? "rom.gba";
+            await using (var stream = await file.OpenReadAsync())
+            {
+                var result = await rom.LoadFromStreamAsync(stream, displayName);
+                ok = result.ok;
+            }
+            if (!ok) { _currentRomStorageFile = null; return false; }
+            _currentRomStorageFile = file;
+            return FinishLoadedRom(rom, displayName);
         }
 
         /// <summary>
@@ -2622,17 +2681,25 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateDecompBadge();
         }
 
-        private void SaveRom_Click(object? sender, RoutedEventArgs e)
+        private async void SaveRom_Click(object? sender, RoutedEventArgs e)
         {
             if (CoreState.ROM == null) return;
-            // Amendment 5: decomp preview ROMs are read-only — block save with an
-            // explanatory dialog (non-awaited pattern to keep the sync signature).
+            // Amendment 5: decomp preview ROMs are read-only — block save.
             if (CoreState.IsDecompMode)
             {
-                _ = MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
                 return;
             }
-            CoreState.ROM.Save(CoreState.ROM.Filename, false);
+            if (_currentRomStorageFile != null && string.IsNullOrEmpty(_currentRomStorageFile.TryGetLocalPath()))
+            {
+                // Android SAF-backed ROM — write back through the retained handle.
+                await using var stream = await _currentRomStorageFile.OpenWriteAsync();
+                await CoreState.ROM.SaveToStreamAsync(stream);
+            }
+            else
+            {
+                CoreState.ROM.Save(CoreState.ROM.Filename, false);
+            }
             _vm.HasUnsavedChanges = false;
             AutoSaveService.Instance.MarkSaved();
             CoreState.Services.ShowInfo(R._("ROM saved."));
@@ -2649,16 +2716,34 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             string suggestedName = Path.GetFileName(CoreState.ROM.Filename ?? "rom.gba");
-            var path = await FileDialogHelper.SaveRomFile(this, suggestedName);
-            if (string.IsNullOrEmpty(path)) return;
+            var file = await FileDialogHelper.SaveRomFilePick(this, suggestedName);
+            if (file == null) return;
 
-            CoreState.ROM.Save(path, false);
-            CoreState.ROM.Filename = path;  // Keep ROM.Filename in sync after Save As
-            _vm.RomFilename = Path.GetFileName(path);
+            string? localPath = file.TryGetLocalPath();
+            string displayName;
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                _currentRomStorageFile = null;
+                CoreState.ROM.Save(localPath, false);
+                CoreState.ROM.Filename = localPath;  // Keep ROM.Filename in sync after Save As
+                displayName = localPath;
+            }
+            else
+            {
+                // Android SAF — write via stream + retain the new handle (#1124).
+                await using (var stream = await file.OpenWriteAsync())
+                {
+                    await CoreState.ROM.SaveToStreamAsync(stream);
+                }
+                _currentRomStorageFile = file;
+                displayName = file.Name ?? "rom.gba";
+                CoreState.ROM.Filename = displayName;
+            }
+            _vm.RomFilename = Path.GetFileName(displayName);
             _vm.HasUnsavedChanges = false;
-            AutoSaveService.Instance.UpdateRomFilename(path);
+            AutoSaveService.Instance.UpdateRomFilename(displayName);
             AutoSaveService.Instance.MarkSaved();
-            CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(path)}");
+            CoreState.Services.ShowInfo(R._("ROM saved as:") + $" {Path.GetFileName(displayName)}");
         }
 
         private void OpenLastRom_Click(object? sender, RoutedEventArgs e)

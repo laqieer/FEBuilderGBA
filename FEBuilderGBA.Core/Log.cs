@@ -50,6 +50,7 @@ namespace FEBuilderGBA
 
         static string GetLogFilename()
         {
+            // #1124: CoreState.BaseDirectory is the exe dir on desktop and Context.FilesDir (app-private) on Android (#1123), so the log is already redirected to app-private storage on Android.
             return Path.Combine(CoreState.BaseDirectory ?? ".", "config", "log", "log.txt");
         }
 

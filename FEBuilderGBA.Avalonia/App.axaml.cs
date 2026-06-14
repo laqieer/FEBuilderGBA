@@ -182,6 +182,7 @@ namespace FEBuilderGBA.Avalonia
             CoreState.WireHeadlessAppendBinaryData();
 
             // Load config
+            // #1124: baseDir is the exe dir on desktop and Context.FilesDir (app-private) on Android (#1123), so config.xml is already redirected to app-private storage on Android.
             string configPath = Path.Combine(baseDir, "config", "config.xml");
             if (File.Exists(configPath))
             {

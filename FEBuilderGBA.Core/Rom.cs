@@ -595,6 +595,15 @@ namespace FEBuilderGBA
             }
             return false;
         }
+        // Shared byte-level load seam: extract the GBA game code at 0x080000AC and
+        // dispatch to LoadLow. Used by Load, LoadFromStream and the async wrappers so
+        // the stream==path round-trip is a real drift guard (#1124).
+        bool LoadBytes(string name, byte[] data, out string version)
+        {
+            version = U.getASCIIString(data, U.toOffset(0x080000AC), 6);
+            return LoadLow(name, data, version);
+        }
+
         public bool Load(string name,out string version)
         {
             if (!File.Exists(name))
@@ -604,9 +613,30 @@ namespace FEBuilderGBA
             }
 
             byte[] data = File.ReadAllBytes(name);
-            version = U.getASCIIString(data,U.toOffset(0x080000AC),6);
 
-            return LoadLow(name, data, version);
+            return LoadBytes(name, data, out version);
+        }
+
+        // Stream-based ROM load (#1124). On Android a SAF content:// pick has no
+        // local filesystem path, so the Avalonia head reads the bytes via the
+        // IStorageFile stream API and feeds them here. Converges on the same
+        // LoadBytes seam as the path Load so detection stays identical.
+        public bool LoadFromStream(System.IO.Stream stream, string name, out string version)
+        {
+            using (var ms = new System.IO.MemoryStream())
+            {
+                stream.CopyTo(ms);
+                return LoadBytes(name, ms.ToArray(), out version);
+            }
+        }
+        public async System.Threading.Tasks.Task<(bool ok, string version)> LoadFromStreamAsync(System.IO.Stream stream, string name)
+        {
+            using (var ms = new System.IO.MemoryStream())
+            {
+                await stream.CopyToAsync(ms).ConfigureAwait(false);
+                bool ok = LoadBytes(name, ms.ToArray(), out string version);
+                return (ok, version);
+            }
         }
 
         public bool LoadForceVersion(string name,string forceversion)
@@ -655,6 +685,27 @@ namespace FEBuilderGBA
         {
             U.WriteAllBytes(name, this.Data);
 
+            if (!silent)
+            {
+                this.Modified = false;
+            }
+        }
+
+        // Stream-based ROM save (#1124). Mirrors Save(name, silent) Modified
+        // semantics so the Android SAF write-back path (no local path → write via
+        // IStorageFile.OpenWriteAsync) clears Modified exactly like the path Save.
+        public void SaveToStream(System.IO.Stream stream) => SaveToStream(stream, false);
+        public void SaveToStream(System.IO.Stream stream, bool silent)
+        {
+            stream.Write(this.Data, 0, this.Data.Length);
+            if (!silent)
+            {
+                this.Modified = false;
+            }
+        }
+        public async System.Threading.Tasks.Task SaveToStreamAsync(System.IO.Stream stream, bool silent = false)
+        {
+            await stream.WriteAsync(this.Data, 0, this.Data.Length).ConfigureAwait(false);
             if (!silent)
             {
                 this.Modified = false;

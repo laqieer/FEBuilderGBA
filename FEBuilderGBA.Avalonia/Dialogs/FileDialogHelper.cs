@@ -66,6 +66,34 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>
+        /// Open a GBA ROM and return the picked <see cref="IStorageFile"/> itself
+        /// (not collapsed to a local path). On Android the SAF result usually has NO
+        /// local path, so callers must read it via the stream API (#1124). Desktop
+        /// callers can still call TryGetLocalPath() on the returned handle.
+        /// </summary>
+        public static async Task<IStorageFile?> OpenRomFilePick(Window owner)
+        {
+            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = R._("Open ROM"),
+                AllowMultiple = false,
+                FileTypeFilter = new[] { MakeGbaFileType(), MakeAllFileType() },
+            });
+            return files.Count > 0 ? files[0] : null;
+        }
+
+        /// <summary>Save a GBA ROM and return the picked IStorageFile (#1124).</summary>
+        public static async Task<IStorageFile?> SaveRomFilePick(Window owner, string? suggestedName = null)
+        {
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Save ROM"),
+                SuggestedFileName = suggestedName ?? "rom.gba",
+                FileTypeChoices = new[] { MakeGbaFileType(), MakeAllFileType() },
+            });
+        }
+
+        /// <summary>
         /// Open a decomp project folder (#1129 slice 1). Returns the chosen
         /// directory's local path, or null when cancelled / unavailable.
         /// </summary>
