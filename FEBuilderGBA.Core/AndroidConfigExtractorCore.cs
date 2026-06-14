@@ -203,10 +203,16 @@ namespace FEBuilderGBA
 
             for (int i = 2; i < lines.Length; i++)
             {
-                string rel = NormalizeRelative(lines[i]);
-                // A blank or unsafe (rooted / `..`) manifest entry means the stamp
-                // is malformed/tampered -> do NOT skip. Re-extract instead.
-                if (rel.Length == 0 || !IsSafeRelativePath(rel)) return false;
+                // Validate the RAW (only whitespace-trimmed) entry for rootedness /
+                // traversal BEFORE any normalization. NormalizeRelative strips a
+                // leading '/', so normalizing first would let a tampered rooted
+                // entry like "/config/data/foo.txt" (or "\\server\x") pass as a safe
+                // relative path and validate against an in-root file — incorrectly
+                // skipping re-extraction. A blank / rooted / '..' / separator-style
+                // entry means the stamp is malformed or tampered -> do NOT skip.
+                string raw = lines[i].Trim();
+                if (!IsSafeStampEntry(raw)) return false;
+                string rel = NormalizeRelative(raw);
                 string p = Path.Combine(targetRootDir, ToPlatformPath(rel));
                 if (!File.Exists(p)) return false;
             }
@@ -248,6 +254,27 @@ namespace FEBuilderGBA
             string s = p.Replace('\\', '/').Trim();
             while (s.StartsWith("/", StringComparison.Ordinal)) s = s.Substring(1);
             return s;
+        }
+
+        /// <summary>
+        /// Stamp-manifest safety check on the RAW entry (NOT slash-normalized).
+        /// Rejects blank, rooted ("/x", "\\x", "C:\x"), Windows-separator, or
+        /// "."/".."-segment entries. Unlike <see cref="IsSafeRelativePath"/> this
+        /// must run BEFORE <see cref="NormalizeRelative"/> strips a leading slash,
+        /// so a tampered rooted stamp line can never masquerade as safe.
+        /// </summary>
+        static bool IsSafeStampEntry(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return false;
+            if (raw[0] == '/' || raw[0] == '\\') return false;     // unix/UNC root
+            if (raw.IndexOf('\\') >= 0) return false;              // no backslash separators in a POSIX manifest
+            if (Path.IsPathRooted(raw)) return false;              // drive-rooted (e.g. C:\ or C:/)
+            if (raw.IndexOf(':') >= 0) return false;               // drive/scheme marker
+            foreach (string seg in raw.Split('/'))
+            {
+                if (seg == "." || seg == "..") return false;
+            }
+            return true;
         }
 
         /// <summary>Reject empty, rooted, or parent-traversal paths (defense-in-depth on the seam).</summary>

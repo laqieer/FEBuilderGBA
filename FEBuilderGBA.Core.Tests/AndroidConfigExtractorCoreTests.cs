@@ -330,6 +330,58 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(src, target); }
         }
 
+        // ---- Case 12: tampered stamp with a LEADING-SLASH in-root entry -> does NOT skip ----
+        // Regression for the Copilot CLI re-review finding: NormalizeRelative strips a
+        // leading '/', so "/config/data/foo.txt" must be rejected on the RAW entry
+        // BEFORE normalization, otherwise it would validate against the existing
+        // in-root file and incorrectly skip.
+        [Fact]
+        public void TamperedStamp_LeadingSlashInRootEntry_ReExtracts_NotSkip()
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                string stamp = Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName);
+                // count=1 + a single rooted entry that, if naively normalized, points
+                // at the real in-root config/data/foo.txt.
+                File.WriteAllText(stamp, "1.0-1\n1\n/config/data/foo.txt\n");
+
+                string foo = Path.Combine(target, "config", "data", "foo.txt");
+                File.WriteAllText(foo, "SENTINEL");
+
+                var result = AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.ReExtracted, result);
+                Assert.Equal("FOO", File.ReadAllText(foo)); // re-extracted, NOT skipped
+            }
+            finally { Cleanup(src, target); }
+        }
+
+        // ---- Case 13: tampered stamp with a backslash-separator entry -> does NOT skip ----
+        [Fact]
+        public void TamperedStamp_BackslashEntry_ReExtracts_NotSkip()
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                string stamp = Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName);
+                File.WriteAllText(stamp, "1.0-1\n1\n..\\escape.txt\n");
+
+                string foo = Path.Combine(target, "config", "data", "foo.txt");
+                File.WriteAllText(foo, "SENTINEL");
+
+                var result = AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.ReExtracted, result);
+                Assert.Equal("FOO", File.ReadAllText(foo));
+            }
+            finally { Cleanup(src, target); }
+        }
+
         // ---- stampFileName path-traversal guard ----
         [Theory]
         [InlineData("../stamp")]
