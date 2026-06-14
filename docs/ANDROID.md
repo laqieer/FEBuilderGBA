@@ -147,8 +147,11 @@ head therefore ships + extracts config:
    completeness manifest, so the guarantee is: skip when up-to-date; re-extract
    on version bump; **crash-before-stamp recovery** (the stamp is written LAST);
    and **manifest-completeness re-extract** (a matching stamp with any missing
-   extracted file forces a clean re-extract). Path-traversal asset entries are
-   rejected defensively at the seam.
+   extracted file forces a clean re-extract). Path-traversal is rejected
+   defensively: rooted / `..` entries from the asset source are dropped, a
+   tampered/corrupt stamp listing rooted / `..` entries is treated as invalid
+   (re-extract, never a false "up to date"), and the `stampFileName` public-API
+   argument is validated to be a plain file name.
 3. `FEBuilderGBA.Android/MainActivity.OnCreate` runs the extraction **before**
    the Avalonia app boots and points the android-only
    `App.BaseDirectoryOverride` at the extracted root, so the shared

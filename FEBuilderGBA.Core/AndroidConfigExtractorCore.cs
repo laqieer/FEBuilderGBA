@@ -99,6 +99,12 @@ namespace FEBuilderGBA
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (string.IsNullOrEmpty(targetRootDir)) throw new ArgumentException("targetRootDir must be non-empty", nameof(targetRootDir));
             if (version == null) throw new ArgumentNullException(nameof(version));
+            // Guard the public API against a path-traversal footgun: the stamp must
+            // be a plain file name directly under targetRootDir, never a rooted path
+            // or one containing directory separators / "..", so it can never be
+            // created/deleted outside the extraction root.
+            if (!IsSimpleFileName(stampFileName))
+                throw new ArgumentException("stampFileName must be a simple file name (no path separators, not rooted, no '..')", nameof(stampFileName));
 
             string stampPath = Path.Combine(targetRootDir, stampFileName);
             bool stampExisted = File.Exists(stampPath);
@@ -163,7 +169,13 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// A stamp is valid (skip) only when its version line matches AND every
-        /// manifest-listed file still exists under the target root.
+        /// manifest-listed file still exists under the target root. A tampered or
+        /// corrupt stamp must NOT be trusted to greenlight a skip: any rooted /
+        /// parent-traversal / blank manifest entry makes the stamp invalid (force
+        /// a clean re-extract), because <see cref="Path.Combine"/> ignores
+        /// <paramref name="targetRootDir"/> for a rooted entry — so a tampered
+        /// stamp could otherwise "prove" completeness against files OUTSIDE the
+        /// extraction root and incorrectly skip.
         /// </summary>
         static bool IsStampValid(string stampPath, string version, string targetRootDir)
         {
@@ -191,8 +203,10 @@ namespace FEBuilderGBA
 
             for (int i = 2; i < lines.Length; i++)
             {
-                string rel = lines[i].Trim();
-                if (rel.Length == 0) continue;
+                string rel = NormalizeRelative(lines[i]);
+                // A blank or unsafe (rooted / `..`) manifest entry means the stamp
+                // is malformed/tampered -> do NOT skip. Re-extract instead.
+                if (rel.Length == 0 || !IsSafeRelativePath(rel)) return false;
                 string p = Path.Combine(targetRootDir, ToPlatformPath(rel));
                 if (!File.Exists(p)) return false;
             }
@@ -246,6 +260,21 @@ namespace FEBuilderGBA
                 if (seg == "..") return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// True only for a plain file name (no directory separators, not rooted,
+        /// not "." / ".."), so the stamp can never escape the target root.
+        /// </summary>
+        static bool IsSimpleFileName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            if (name == "." || name == "..") return false;
+            if (Path.IsPathRooted(name)) return false;
+            if (name.IndexOf('/') >= 0 || name.IndexOf('\\') >= 0) return false;
+            // Path.GetFileName strips any directory portion; if it differs, the
+            // input carried path structure we don't allow.
+            return string.Equals(Path.GetFileName(name), name, StringComparison.Ordinal);
         }
 
         static string ToPlatformPath(string posixRel)

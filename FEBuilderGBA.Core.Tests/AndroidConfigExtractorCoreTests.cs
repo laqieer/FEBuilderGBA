@@ -273,6 +273,81 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(target, outside); }
         }
 
+        // ---- Case 10: tampered stamp with a rooted entry -> does NOT skip ----
+        [Fact]
+        public void TamperedStamp_RootedManifestEntry_ReExtracts_NotSkip()
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                // Forge a stamp whose version + count match but whose manifest lists
+                // a ROOTED path that exists OUTSIDE the target root. Path.Combine
+                // would resolve to that outside file; IsStampValid must reject it.
+                string outsideFile = Path.Combine(Path.GetTempPath(), "feb_outside_" + Guid.NewGuid().ToString("N") + ".txt");
+                File.WriteAllText(outsideFile, "OUTSIDE");
+                try
+                {
+                    string stamp = Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName);
+                    File.WriteAllText(stamp, "1.0-1\n1\n" + outsideFile.Replace('\\', '/') + "\n");
+
+                    // Put a sentinel into a real extracted file; a (wrongly) skipped
+                    // run would leave it, a correct re-extract overwrites it.
+                    string foo = Path.Combine(target, "config", "data", "foo.txt");
+                    File.WriteAllText(foo, "SENTINEL");
+
+                    var result = AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                    Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.ReExtracted, result);
+                    Assert.Equal("FOO", File.ReadAllText(foo)); // overwritten -> NOT skipped
+                }
+                finally { try { File.Delete(outsideFile); } catch { } }
+            }
+            finally { Cleanup(src, target); }
+        }
+
+        // ---- Case 11: tampered stamp with a parent-traversal entry -> does NOT skip ----
+        [Fact]
+        public void TamperedStamp_TraversalManifestEntry_ReExtracts_NotSkip()
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                string stamp = Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName);
+                File.WriteAllText(stamp, "1.0-1\n1\n../escape.txt\n");
+
+                string foo = Path.Combine(target, "config", "data", "foo.txt");
+                File.WriteAllText(foo, "SENTINEL");
+
+                var result = AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "1.0-1");
+
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.ReExtracted, result);
+                Assert.Equal("FOO", File.ReadAllText(foo)); // re-extracted, not skipped
+            }
+            finally { Cleanup(src, target); }
+        }
+
+        // ---- stampFileName path-traversal guard ----
+        [Theory]
+        [InlineData("../stamp")]
+        [InlineData("sub/stamp")]
+        [InlineData("sub\\stamp")]
+        [InlineData("..")]
+        public void UnsafeStampFileName_Throws(string badStamp)
+        {
+            var files = new Dictionary<string, byte[]>();
+            string target = NewTempDir();
+            try
+            {
+                Assert.Throws<ArgumentException>(() =>
+                    AndroidConfigExtractorCore.EnsureExtracted(new InMemoryAssetSource(files), target, "1.0-1", badStamp));
+            }
+            finally { Cleanup(target); }
+        }
+
         // ---- Argument guards ----
         [Fact]
         public void NullSource_Throws()
