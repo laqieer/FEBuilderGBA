@@ -75,17 +75,28 @@
   </ItemGroup>
 
   <!--
-    config/ asset bundling is DEFERRED to a follow-up sub-issue. On desktop the
-    Avalonia project copies config/** loose beside the exe and Core reads it via
+    config/ asset bundling (#1123). On desktop the Avalonia project copies
+    config/** loose beside the exe and Core reads it via
     CoreState.BaseDirectory = AppDomain.CurrentDomain.BaseDirectory. That layout
-    does not exist inside an APK. The Android port must instead ship config/**
-    as <AndroidAsset> and extract it to Context.FilesDir on first run, then point
-    CoreState.BaseDirectory there. The line below is shown (commented) as the
-    intended shape but is NOT enabled, because without the first-run extraction
-    code the app would have no config to read.
+    does not exist inside an APK, so here config/** (EXCLUDING patch2) ships as
+    <AndroidAsset> and MainActivity.OnCreate extracts it once (version-stamped,
+    via the pure AndroidConfigExtractorCore) into Context.FilesDir on first run,
+    then points App.BaseDirectoryOverride there so PathUtil.ConfigPath resolves.
 
-    <ItemGroup>
-      <AndroidAsset Include="..\config\**\*.*" Exclude="..\config\patch2\**" />
-    </ItemGroup>
+    The glob is `..\config\**\*` (NOT `*.*`) so a future extensionless config
+    file is not silently dropped — the AndroidAsset contract is config/**.
+    Link="config\%(RecursiveDir)%(Filename)%(Extension)" lands every asset under
+    a clean `assets/config/...` tree inside the APK (the asset path the
+    AndroidAssetSource adapter + the unzip build proof both expect).
+
+    config/patch2 is NOT bundled (deferred): it is a runtime-installed git
+    submodule (hundreds of MB) that the desktop app installs on demand via
+    GitUtil; bundling it would bloat the APK enormously and Android has no
+    in-process git. See docs/ANDROID.md §5.
   -->
+  <ItemGroup>
+    <AndroidAsset Include="..\config\**\*"
+                  Exclude="..\config\patch2\**"
+                  Link="config\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

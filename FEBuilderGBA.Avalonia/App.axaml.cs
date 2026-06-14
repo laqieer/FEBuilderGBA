@@ -23,6 +23,17 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>ROM path passed via --rom command line argument.</summary>
         public static string? StartupRomPath { get; set; }
 
+        /// <summary>
+        /// Overrides the base directory used to resolve <c>config/</c> (#1123, Android).
+        /// When non-null, <see cref="OnFrameworkInitializationCompleted"/> sets
+        /// <see cref="CoreState.BaseDirectory"/> to this instead of
+        /// <c>AppDomain.CurrentDomain.BaseDirectory</c>. The Android head sets it
+        /// (in <c>MainActivity.OnCreate</c>, before the Avalonia app boots) to the
+        /// FilesDir root where the bundled <c>config/</c> assets were extracted.
+        /// Desktop NEVER sets it, so desktop base-directory resolution is unchanged.
+        /// </summary>
+        public static string? BaseDirectoryOverride { get; set; }
+
         /// <summary>Decomp project directory passed via --project command line argument (#1129).</summary>
         public static string? StartupProjectDir { get; set; }
 
@@ -134,8 +145,11 @@ namespace FEBuilderGBA.Avalonia
             // Register code pages for Shift-JIS, etc.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            // Set up Core state
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            // Set up Core state. On Android the head extracts config/ assets to
+            // FilesDir and sets BaseDirectoryOverride before the app boots (#1123);
+            // on desktop the override is always null, so this resolves to the
+            // exe-adjacent loose config layout exactly as before.
+            string baseDir = BaseDirectoryOverride ?? AppDomain.CurrentDomain.BaseDirectory;
             CoreState.BaseDirectory = baseDir;
             CoreState.Services = new AvaloniaAppServices();
             CoreState.ImageService = new SkiaImageService();
