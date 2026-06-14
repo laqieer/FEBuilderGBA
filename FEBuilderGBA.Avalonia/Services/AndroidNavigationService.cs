@@ -10,13 +10,26 @@
 // NavigateToWithCostType, ...). So this service instantiates the view Window as
 // a CONTENT FACTORY: it takes the Window's .Content (a normal Control), detaches
 // it, and pushes THAT control onto the stack. The Window object itself is
-// retained (never Show()n) so callers' NavigateTo/SelectFirstItem/view-method
-// calls still operate on the live view (they touch the DataContext/named
-// controls, not the act of being shown).
+// retained (the page's owner) but never Show()n.
+//
+// WINDOW-LIFECYCLE PARITY (Copilot PR #1154 review): editor views do their data
+// load + translation in a `Window.Opened` handler and their unsubscribe/bitmap
+// cleanup in `Closed`. Since the page Window is never Show()n, this service
+// drives those lifecycles explicitly:
+//   - on push it propagates the Window-level DataContext onto the detached
+//     content (so AXAML bindings that inherit from the Window still resolve) and
+//     RAISES the Window's `Opened` event (so list-loaders / TranslatedWindow
+//     translation run);
+//   - when a page leaves the stack (back / pop / clear / CloseAll) it RAISES the
+//     Window's `Closed` event (cleanup) and drops the singleton from `_open`, so
+//     `FindOpen<T>` never returns a no-longer-visible view.
+// The page-leave reconciliation runs off `NavigationStack.StackChanged`, so it
+// covers every removal path uniformly.
 //
 // HONEST SCOPE (#1122 / carved to #1070): this covers the COMMON navigation
 // paths — Open/Navigate/back, modal-as-overlay-page, and PickFromEditor
-// result-await. It does NOT yet make every per-editor attached-Window service
+// result-await, with the Opened/Closed lifecycle + DataContext + FindOpen
+// parity above. It does NOT yet make every per-editor attached-Window service
 // work on Android: views that call StorageProvider / MessageBoxWindow.Show(this)
 // / ShowDialog(this) / Close() directly still assume an attached top-level
 // Window owner. A detached, never-shown Window is not a reliable top-level, so
@@ -25,6 +38,8 @@
 // path is unaffected (DesktopNavigationService).
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 
@@ -45,6 +60,11 @@ namespace FEBuilderGBA.Avalonia.Services
         // instance and FindOpen<T> can return it.
         readonly Dictionary<Type, (Window Window, Control Content)> _open = new();
 
+        // Every page Control currently considered "on the stack" -> its owning
+        // Window, so StackChanged reconciliation can fire `Closed` on pages that
+        // left and drop the matching `_open` singleton entry.
+        readonly Dictionary<Control, Window> _pageWindows = new();
+
         /// <summary>
         /// Test seam (#1122): raised with each freshly instantiated view Window
         /// right after its content is detached and pushed. Tests use it to reach
@@ -56,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public AndroidNavigationService()
         {
-            _stack.StackChanged += () => StackChanged?.Invoke();
+            _stack.StackChanged += OnStackChanged;
         }
 
         // --- INavigationHost (shell-facing) ----------------------------------
@@ -90,7 +110,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
             var (window, content) = MakePage<T>();
             _open[typeof(T)] = (window, content);
-            _stack.Push(content);
+            PushPage(window, content);
             return window;
         }
 
@@ -104,7 +124,9 @@ namespace FEBuilderGBA.Avalonia.Services
         public async Task<T> OpenModal<T>(Window? owner = null) where T : Window, new()
         {
             var (window, content) = MakePage<T>();
+            _pageWindows[content] = window;
             var (entry, result) = _stack.PushForResult<object?>(content, asModal: true);
+            RaiseWindowEvent(window, OpenedEventName);
 
             // A modal view signals completion by closing itself. We can't Show()
             // it, so bridge Window.Closed -> pop+complete. (Desktop awaits
@@ -134,8 +156,10 @@ namespace FEBuilderGBA.Avalonia.Services
             // Pick views are always fresh (non-cached), matching desktop.
             var (window, content) = MakePage<T>();
             window.EnablePickMode();
+            _pageWindows[content] = window;
 
             var (entry, result) = _stack.PushForResult<PickResult>(content, asModal: true);
+            RaiseWindowEvent(window, OpenedEventName);
 
             window.SelectionConfirmed += picked =>
             {
@@ -161,34 +185,71 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             // Cancel every pending pick/modal to null and drop back to the root
             // launcher page. Mirrors desktop CloseAll (all editor windows close).
-            _open.Clear();
+            // ClearToRoot raises StackChanged, so OnStackChanged fires `Closed`
+            // on every removed page and clears their `_open` entries.
             _stack.ClearToRoot();
         }
 
         // --- helpers ---------------------------------------------------------
 
+        // Window.OnOpened / Window.OnClosed are the protected virtual methods the
+        // windowing system calls on Show()/Close(); invoking them raises the
+        // public Opened/Closed events AND runs subclass overrides (e.g.
+        // TranslatedWindow.OnClosed unsubscribes its language-change handler).
+        // Since the page Window is never shown, we invoke them reflectively so
+        // editor list-loaders (Opened) + cleanup (Closed) run.
+        const string OpenedEventName = "OnOpened";
+        const string ClosedEventName = "OnClosed";
+
         /// <summary>
         /// Instantiate a view Window and detach its <c>Content</c> control so it
         /// can be hosted as a page. The Window is kept alive (the page's owner)
-        /// but never Show()n.
+        /// but never Show()n. The Window-level DataContext is propagated onto the
+        /// detached content when the content has none of its own, so AXAML
+        /// bindings that inherit from the Window still resolve once the content
+        /// is re-parented under the shell.
         /// </summary>
         (T Window, Control Content) MakePage<T>() where T : Window, new()
         {
             var window = new T();
             Control content = window.Content as Control
                               ?? new ContentControl { Content = window.Content };
-            // Detach from the Window's logical tree so it can be re-parented
-            // into the nav host without an "already has a visual parent" error.
+
+            // Capture the Window-level VM BEFORE detaching: many views set
+            // DataContext = _vm on the Window while their AXAML bindings live in
+            // the content tree and INHERIT it through the logical tree.
+            object? windowVm = window.DataContext;
+
+            // Detach from the Window's logical tree so it can be re-parented into
+            // the nav host without an "already has a visual parent" error. After
+            // this, any inherited DataContext on the content is gone, so its
+            // DataContext reads null unless it was set LOCALLY.
             window.Content = null;
+
+            // Preserve binding inheritance: if the content has no local VM of its
+            // own, give it the Window's, so bindings that inherited from the
+            // Window keep resolving once the content is re-parented under the shell.
+            if (content.DataContext == null && windowVm != null)
+                content.DataContext = windowVm;
+
             ViewInstantiated?.Invoke(window);
             return (window, content);
+        }
+
+        void PushPage(Window window, Control content)
+        {
+            _pageWindows[content] = window;
+            _stack.Push(content);
+            // Editor views load their lists / translate in Window.Opened.
+            RaiseWindowEvent(window, OpenedEventName);
         }
 
         void BringToTop(Control content)
         {
             // Already on the stack — re-push to surface it. Re-pushing a control
             // already present is harmless for the pure stack (it tracks entries,
-            // not uniqueness); the host renders CurrentTop.
+            // not uniqueness); the host renders CurrentTop. We do NOT re-raise
+            // Opened (the view is already initialized).
             _stack.Push(content);
         }
 
@@ -196,6 +257,56 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             if (ReferenceEquals(_stack.CurrentTop?.Page, content))
                 _stack.Pop();
+        }
+
+        /// <summary>
+        /// Reconcile tracked page windows against the stack after any mutation:
+        /// any page that left the stack gets its Window's <c>Closed</c> raised
+        /// (cleanup) and its singleton entry dropped from <c>_open</c>, so
+        /// <c>FindOpen&lt;T&gt;</c> matches desktop "closed window" behavior.
+        /// Then forwards <see cref="StackChanged"/> to the shell.
+        /// </summary>
+        void OnStackChanged()
+        {
+            var present = new HashSet<Control>(_stack.Entries.Select(e => e.Page));
+            var removed = _pageWindows.Keys.Where(c => !present.Contains(c)).ToList();
+            foreach (var content in removed)
+            {
+                var window = _pageWindows[content];
+                _pageWindows.Remove(content);
+
+                // Drop the singleton entry that maps to this content (if any).
+                var keys = _open.Where(kv => ReferenceEquals(kv.Value.Content, content))
+                                .Select(kv => kv.Key).ToList();
+                foreach (var k in keys) _open.Remove(k);
+
+                // Run the view's Closed cleanup (unsubscribe, dispose bitmaps).
+                RaiseWindowEvent(window, ClosedEventName);
+            }
+
+            StackChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Invoke a <see cref="Window"/>'s protected <c>OnOpened</c>/<c>OnClosed</c>
+        /// method reflectively, which raises the public <c>Opened</c>/<c>Closed</c>
+        /// event AND runs subclass overrides. No-op + logged if the method shape
+        /// ever changes, so navigation never throws because of a lifecycle hook.
+        /// </summary>
+        static void RaiseWindowEvent(Window window, string methodName)
+        {
+            try
+            {
+                MethodInfo? method = typeof(Window).GetMethod(
+                    methodName,
+                    BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                    binder: null, types: new[] { typeof(EventArgs) }, modifiers: null);
+                method?.Invoke(window, new object[] { EventArgs.Empty });
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AndroidNavigationService.RaiseWindowEvent ", methodName, ": ", ex.Message);
+            }
         }
     }
 }

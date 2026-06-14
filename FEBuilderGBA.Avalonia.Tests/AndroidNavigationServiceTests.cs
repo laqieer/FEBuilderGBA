@@ -180,6 +180,94 @@ public class AndroidNavigationServiceTests
         Assert.False(host.CanGoBack); // back to root
     }
 
+    // ---- Copilot PR #1154 review: Window-lifecycle + DataContext + FindOpen ----
+
+    // A view whose Window.Opened loads data (like real editors) and whose
+    // OnClosed override runs cleanup. Also sets Window.DataContext = vm with
+    // the binding-carrying content NOT carrying its own DataContext.
+    public class LifecycleTestView : Window, IEditorView
+    {
+        public int OpenedCount;
+        public int ClosedCount;
+        public readonly object Vm = new();
+
+        public LifecycleTestView()
+        {
+            Content = new TextBlock { Text = "lifecycle" }; // no local DataContext
+            DataContext = Vm;                                // Window-level VM
+            Opened += (_, _) => OpenedCount++;               // editor list-load hook
+        }
+
+        protected override void OnClosed(System.EventArgs e) { ClosedCount++; base.OnClosed(e); }
+
+        public string ViewTitle => "Lifecycle";
+        public bool IsLoaded => true;
+        public void NavigateTo(uint address) { }
+    }
+
+    [AvaloniaFact]
+    public void Open_raises_Window_Opened_so_editor_loaders_run()
+    {
+        var service = NewServiceWithRoot();
+        var view = service.Open<LifecycleTestView>();
+        // The Window.Opened handler (the editor list-load equivalent) ran exactly
+        // once even though the Window was never Show()n.
+        Assert.Equal(1, view.OpenedCount);
+    }
+
+    [AvaloniaFact]
+    public void MakePage_propagates_Window_DataContext_onto_detached_content()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+        var view = service.Open<LifecycleTestView>();
+        // The detached content (now the top page) carries the Window's VM, so
+        // AXAML bindings that inherited from the Window still resolve under the shell.
+        Assert.Same(view.Vm, host.CurrentContent!.DataContext);
+    }
+
+    [AvaloniaFact]
+    public void GoBack_raises_Window_Closed_and_clears_FindOpen()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+        var view = service.Open<LifecycleTestView>();
+        Assert.Same(view, service.FindOpen<LifecycleTestView>());
+        Assert.Equal(0, view.ClosedCount);
+
+        host.GoBack(); // pop the editor page
+        // Closed cleanup ran, and the stale singleton was dropped.
+        Assert.Equal(1, view.ClosedCount);
+        Assert.Null(service.FindOpen<LifecycleTestView>());
+        Assert.False(host.CanGoBack);
+    }
+
+    [AvaloniaFact]
+    public void ReOpen_after_GoBack_creates_a_fresh_instance()
+    {
+        var service = NewServiceWithRoot();
+        var first = service.Open<LifecycleTestView>();
+        ((INavigationHost)service).GoBack();
+        var second = service.Open<LifecycleTestView>();
+        // After back closed the first, a re-Open builds a NEW instance (matches
+        // desktop closed-window behavior), and it re-runs its Opened loader.
+        Assert.NotSame(first, second);
+        Assert.Equal(1, second.OpenedCount);
+    }
+
+    [AvaloniaFact]
+    public void CloseAll_raises_Closed_on_every_open_page_and_clears_FindOpen()
+    {
+        var service = NewServiceWithRoot();
+        var a = service.Open<LifecycleTestView>();
+        var b = service.Open<PickTestView2>();
+        service.CloseAll();
+        Assert.Equal(1, a.ClosedCount);
+        Assert.Null(service.FindOpen<LifecycleTestView>());
+        Assert.Null(service.FindOpen<PickTestView2>());
+        Assert.False(((INavigationHost)service).CanGoBack);
+    }
+
     // A second editor type for multi-page tests.
     public class PickTestView2 : Window, IEditorView
     {
