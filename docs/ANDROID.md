@@ -120,29 +120,61 @@ which write beside the exe / ROM — to **app-private storage** (`Context.FilesD
 
 ## 5. `config/` packaging for an APK
 
+> **Status: implemented (#1123) — build-only validated, not yet device-validated.**
+
 The `config/` directory (game data, scripts, names, translations) is **required
 at runtime**: `FEBuilderGBA.Core/PathUtil.cs:39` resolves `config/<subpath>`
-relative to `CoreState.BaseDirectory`, which `App.axaml.cs:135-136` sets to
-`AppDomain.CurrentDomain.BaseDirectory`. On desktop, `FEBuilderGBA.Avalonia.csproj:25`
-copies `config/**` (excluding `patch2`) as loose files beside the exe.
+relative to `CoreState.BaseDirectory`, which `App.axaml.cs` sets to
+`AppDomain.CurrentDomain.BaseDirectory` on desktop. On desktop,
+`FEBuilderGBA.Avalonia.csproj` copies `config/**` (excluding `patch2`) as loose
+files beside the exe.
 
-**Inside an APK there is no "beside the exe" loose-file layout.** The port must:
+**Inside an APK there is no "beside the exe" loose-file layout.** The Android
+head therefore ships + extracts config:
 
-1. Ship `config/**` (excluding `patch2`) as **`AndroidAsset`** (the skeleton
-   csproj shows the intended `<AndroidAsset Include="..\config\**\*.*" .../>`
-   line, commented out — see below).
-2. On first run, **extract** assets once into app-private storage
-   (`Context.FilesDir`), **version-stamped** so an app update re-extracts.
-3. Point `CoreState.BaseDirectory` at that extracted root.
+1. `config/**` (excluding `patch2`) ships as **`AndroidAsset`**
+   (`FEBuilderGBA.Android.csproj`:
+   `<AndroidAsset Include="..\config\**\*" Exclude="..\config\patch2\**" Link="config\..." />`).
+   The glob is `**\*` (not `*.*`) so a future extensionless config file is not
+   silently dropped, and the `Link` lands every asset under a clean
+   `assets/config/...` tree inside the APK.
+2. On first run, the assets are **extracted once** into app-private storage
+   (`Context.FilesDir`), **version-stamped** so an app-version bump re-extracts.
+   The extraction logic lives in the **pure, desktop-unit-testable**
+   `FEBuilderGBA.Core/AndroidConfigExtractorCore.cs` (an `IAssetSource` seam +
+   `EnsureExtracted`), with the Android `AssetManager` only as a source adapter
+   (`FEBuilderGBA.Android/AndroidAssetSource.cs`). The version stamp doubles as a
+   completeness manifest, so the guarantee is: skip when up-to-date; re-extract
+   on version bump; **crash-before-stamp recovery** (the stamp is written LAST);
+   and **manifest-completeness re-extract** (a matching stamp with any missing
+   extracted file forces a clean re-extract). Path-traversal is rejected
+   defensively: rooted / `..` entries from the asset source are dropped, a
+   tampered/corrupt stamp listing rooted / `..` entries is treated as invalid
+   (re-extract, never a false "up to date"), and the `stampFileName` public-API
+   argument is validated to be a plain file name.
+3. `FEBuilderGBA.Android/MainActivity.OnCreate` runs the extraction **before**
+   the Avalonia app boots and points the android-only
+   `App.BaseDirectoryOverride` at the extracted root, so the shared
+   `App.OnFrameworkInitializationCompleted` sets `CoreState.BaseDirectory` there.
+   On desktop the override is always null, so **desktop base-directory resolution
+   is unchanged**. Extraction failure logs + rethrows (fail fast — a booted app
+   with missing config is worse than a visible crash).
 
-> The skeleton leaves the `AndroidAsset` line **commented out on purpose**:
-> without the first-run extraction code, bundling assets alone would give the
-> app no readable config. Bundle + extract land together in the follow-up.
+> **patch2 delivery decision: `config/patch2` is NOT bundled for Android
+> (deferred).** It is a runtime-installed git submodule (hundreds of MB) that the
+> desktop app installs on demand via `GitUtil`; bundling it would bloat the APK
+> enormously and Android has no in-process git. Deciding on-device patch delivery
+> (e.g. an on-demand download into `FilesDir`) is tracked under the epic #1070,
+> not this issue. The issue explicitly accepts "deferred / not bundled."
 
-**`config/patch2` is deferred / not bundled** for the Android exploration. It is
-a separate git submodule installed at runtime on desktop; deciding how (or
-whether) to deliver patch data to Android is part of the config-bundling
-follow-up, not this skeleton.
+> **Validation note (#1123).** No device/emulator was available, so this was
+> **desktop/build-only validated**: the extraction logic is unit-tested on desktop
+> (`FEBuilderGBA.Core.Tests/AndroidConfigExtractorCoreTests.cs` — fresh extract,
+> version-stamp skip, version-bump re-extract, partial/corrupt re-extract,
+> crash-before-stamp recovery, manifest-completeness, nested paths,
+> path-traversal rejection, unrelated-dir isolation) and the APK is verified to
+> contain `assets/config/...` while excluding `assets/config/patch2/` (unzip +
+> grep). On-device first-run extraction runtime is tracked under #1070.
 
 ---
 
@@ -243,9 +275,9 @@ The Android APK builds against the shared Avalonia UI (#1121). What remains is
   so the booted app does not yet show the editor — the
   `ISingleViewApplicationLifetime.MainView` + `WindowManager` page/view-stack
   rework is #1122 (see §2).
-- `config/**` ships beside the APK as loose Content today, not as an extracted
-  `AndroidAsset` — APK config bundling + first-run extraction to `Context.FilesDir`
-  is #1123 (see §5).
+- `config/**` ships as an extracted `AndroidAsset` with version-stamped first-run
+  extraction to `Context.FilesDir` (#1123, build-only validated — see §5). ROM
+  open/save (the remaining storage item) is still path-based.
 - ROM open/save still goes through path-based I/O; SAF stream I/O is #1124 (see §4).
 
 > The Android head needs `FEBuilderGBA.Avalonia` to be android-aware, which it
@@ -276,8 +308,10 @@ linked under #1070 as its checklist:
 2. **Android: single-activity navigation model for the multi-window editors**
    (`WindowManager` page/view-stack rework + `ISingleViewApplicationLifetime`
    `MainView`). *(largest item; see §2.)*
-3. **Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
-   first run** (version-stamped); decide `patch2` delivery. *(see §5.)*
+3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
+   first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
+   build-only validated (no device); `config/patch2` deferred / not bundled.
+   *(see §5.)*
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
 5. **Android: `SkiaSharp.NativeAssets.Android` version pinning + render
@@ -299,8 +333,8 @@ not promise Android from "Avalonia supports Android" alone.
 1. ~~**Phase A — make it packageable.**~~ **DONE (#1121)** — the shared UI is
    conditionally multi-targeted and the Android head builds an APK.
 2. **Phase B — make it run.** Single-view lifetime + a minimal navigation host
-   (#2), config extraction (#3), and SAF ROM I/O (#4) — enough to open a ROM and
-   show one editor on a device.
+   (#2), config extraction (#3 — **DONE (#1123)**, build-only), and SAF ROM I/O
+   (#4) — enough to open a ROM and show one editor on a device.
 3. **Phase C — make it usable.** Touch UX adaptation (larger hit targets,
    phone/tablet layouts, touch-friendly numeric entry replacing the ~2,300
    `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke

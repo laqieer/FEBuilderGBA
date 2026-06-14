@@ -52,9 +52,16 @@ project's restore + build. A successful build emits
   `bin/Release/net9.0-android/`. On the android TFM the shared project excludes
   `Program.cs`, `Avalonia.Desktop`, `app.manifest`, the `GapSweep` Roslyn
   dev-tooling, and `Microsoft.CodeAnalysis.CSharp`.
-- ⚠️ **Not yet device/emulator-validated** — it builds, but the runtime port
-  (single-view `MainView`, config asset extraction, SAF ROM I/O) is still
-  pending. See
+- ✅ **config asset bundling + first-run extraction (#1123, build-only).**
+  `config/**` (excluding `patch2`) ships as `<AndroidAsset>`; `MainActivity.OnCreate`
+  extracts it once (version-stamped, idempotent, via the pure
+  `FEBuilderGBA.Core/AndroidConfigExtractorCore`) into `Context.FilesDir` and
+  points the android-only `App.BaseDirectoryOverride` at it before the app boots,
+  so Core's `PathUtil.ConfigPath` resolves on Android. The extraction logic is
+  desktop-unit-tested; the APK is verified to contain `assets/config/...`
+  (excluding `patch2`). Not yet device-validated (no device available).
+- ⚠️ **Not yet device/emulator-validated** — it builds, but the remaining runtime
+  port (single-view `MainView`, SAF ROM I/O) is still pending. See
   [docs/ANDROID.md §7](../docs/ANDROID.md#7-build-status-in-this-environment).
 
 ## Known skeleton limitations
@@ -64,7 +71,8 @@ project's restore + build. A successful build emits
   boots the Avalonia runtime but shows no editor. Wiring
   `ISingleViewApplicationLifetime.MainView` + porting `WindowManager`'s
   multi-window model to page navigation is the largest follow-up.
-- `config/` asset bundling + first-run extraction and SAF-stream ROM I/O are
-  separate follow-ups (the `<AndroidAsset>` line in the csproj is intentionally
-  commented out — config bundling is deferred to #1123). Today `config/**` ships
-  as loose Content beside the APK, which is harmless but not the shipping layout.
+- `config/` asset bundling + first-run extraction landed in #1123 (build-only —
+  see above). SAF-stream ROM I/O is a separate follow-up (#1124).
+- `config/patch2` is **not bundled** for Android (deferred): it is a
+  runtime-installed git submodule (hundreds of MB); on-device patch delivery is
+  tracked under #1070. See [docs/ANDROID.md §5](../docs/ANDROID.md#5-config-packaging-for-an-apk).

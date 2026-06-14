@@ -56,10 +56,11 @@
   </ItemGroup>
   <!-- Copy config/ directory to output, excluding patch2 (installed separately via git).
        On net9.0 (desktop) this lands beside the exe and Core reads it via
-       CoreState.BaseDirectory. On net9.0-android the loose Content is harmless but is
-       NOT the shipping mechanism — APK config bundling (AndroidAsset + first-run
-       extraction to Context.FilesDir) is deferred to #1123. -->
-  <ItemGroup>
+       CoreState.BaseDirectory. The android TFM is EXCLUDED (#1123): the APK ships
+       config/ as <AndroidAsset> (FEBuilderGBA.Android.csproj) extracted to
+       Context.FilesDir on first run, so the loose Content here would only bloat
+       the APK with a redundant second copy of the ~7.5 MB config tree. -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net9.0-android'">
     <Content Include="..\config\**\*.*" Exclude="..\config\patch2\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
