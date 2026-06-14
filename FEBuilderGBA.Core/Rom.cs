@@ -595,6 +595,15 @@ namespace FEBuilderGBA
             }
             return false;
         }
+        // Shared byte-level load seam: extract the GBA game code at 0x080000AC and
+        // dispatch to LoadLow. Used by Load, LoadFromStream and the async wrappers so
+        // the stream==path round-trip is a real drift guard (#1124).
+        bool LoadBytes(string name, byte[] data, out string version)
+        {
+            version = U.getASCIIString(data, U.toOffset(0x080000AC), 6);
+            return LoadLow(name, data, version);
+        }
+
         public bool Load(string name,out string version)
         {
             if (!File.Exists(name))
@@ -604,9 +613,34 @@ namespace FEBuilderGBA
             }
 
             byte[] data = File.ReadAllBytes(name);
-            version = U.getASCIIString(data,U.toOffset(0x080000AC),6);
 
-            return LoadLow(name, data, version);
+            return LoadBytes(name, data, out version);
+        }
+
+        // Stream-based ROM load (#1124). On Android a SAF content:// pick has no
+        // local filesystem path, so the Avalonia head reads the bytes via the
+        // IStorageFile stream API and feeds them here. Converges on the same
+        // LoadBytes seam as the path Load so detection stays identical.
+        public bool LoadFromStream(System.IO.Stream stream, string name, out string version)
+        {
+            // Path Load always reads from the start; rewind a seekable input so a
+            // stream left at a non-zero position doesn't load truncated (#1124 review).
+            if (stream.CanSeek) { stream.Seek(0, System.IO.SeekOrigin.Begin); }
+            using (var ms = new System.IO.MemoryStream())
+            {
+                stream.CopyTo(ms);
+                return LoadBytes(name, ms.ToArray(), out version);
+            }
+        }
+        public async System.Threading.Tasks.Task<(bool ok, string version)> LoadFromStreamAsync(System.IO.Stream stream, string name)
+        {
+            if (stream.CanSeek) { stream.Seek(0, System.IO.SeekOrigin.Begin); }
+            using (var ms = new System.IO.MemoryStream())
+            {
+                await stream.CopyToAsync(ms).ConfigureAwait(false);
+                bool ok = LoadBytes(name, ms.ToArray(), out string version);
+                return (ok, version);
+            }
         }
 
         public bool LoadForceVersion(string name,string forceversion)
@@ -655,6 +689,41 @@ namespace FEBuilderGBA
         {
             U.WriteAllBytes(name, this.Data);
 
+            if (!silent)
+            {
+                this.Modified = false;
+            }
+        }
+
+        // Stream-based ROM save (#1124). Mirrors Save(name, silent) Modified
+        // semantics so the Android SAF write-back path (no local path → write via
+        // IStorageFile.OpenWriteAsync) clears Modified exactly like the path Save.
+        public void SaveToStream(System.IO.Stream stream) => SaveToStream(stream, false);
+        public void SaveToStream(System.IO.Stream stream, bool silent)
+        {
+            // Mirror Save(name,...) which truncates/replaces the file: for a seekable
+            // target, rewind + SetLength so a pre-existing LARGER stream (the real SAF
+            // OpenWriteAsync write-back case) doesn't keep stale trailing bytes (#1124
+            // Copilot review).
+            if (stream.CanSeek)
+            {
+                stream.Seek(0, System.IO.SeekOrigin.Begin);
+                stream.SetLength(this.Data.Length);
+            }
+            stream.Write(this.Data, 0, this.Data.Length);
+            if (!silent)
+            {
+                this.Modified = false;
+            }
+        }
+        public async System.Threading.Tasks.Task SaveToStreamAsync(System.IO.Stream stream, bool silent = false)
+        {
+            if (stream.CanSeek)
+            {
+                stream.Seek(0, System.IO.SeekOrigin.Begin);
+                stream.SetLength(this.Data.Length);
+            }
+            await stream.WriteAsync(this.Data, 0, this.Data.Length).ConfigureAwait(false);
             if (!silent)
             {
                 this.Modified = false;

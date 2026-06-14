@@ -352,6 +352,7 @@ Two distinct paths exist, both covered in detail in [docs/CROSS_PLATFORM.md → 
 
 - **Emulation (Gamenative/Winlator)** — run the Windows *desktop* build under Wine + Box86/Box64. User-side, **experimental / unsupported / community-tested**; try the Avalonia `win-x64` build first.
 - **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). Not shipped. See the evidence-backed feasibility assessment in [docs/ANDROID.md](docs/ANDROID.md) (Avalonia.Android lifetime, SkiaSharp native pin, SAF ROM access, `config/` bundling, the multi-window→single-activity gap) and the authored head skeleton in [`FEBuilderGBA.Android/`](FEBuilderGBA.Android/README.md).
+  - **Stream-based ROM I/O for SAF (#1124)** — `ROM.LoadFromStream`/`SaveToStream` (+ async) share the byte-level seam with the existing path `Load`/`Save`, so the Avalonia head can open/save a ROM picked via `IStorageProvider` even when the SAF `content://` handle has no local filesystem path (it retains the `IStorageFile` and reads/writes through `OpenReadAsync`/`OpenWriteAsync`). Desktop path I/O is unchanged. The auto-save sidecar is redirected into app-private `{BaseDirectory}/autosave/` on Android (where the ROM's parent dir is not writable); the log and `config.xml` already resolve under `BaseDirectory` (`Context.FilesDir` on Android via #1123).
 
 ### Architecture Diagram
 

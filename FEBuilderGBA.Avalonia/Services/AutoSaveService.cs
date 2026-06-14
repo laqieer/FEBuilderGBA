@@ -28,13 +28,26 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Compute the auto-save sidecar file path from the primary ROM filename.
-        /// Returns {dir}/{base}.autosave.gba.
+        /// Desktop: {romDir}/{base}.autosave.gba. On Android the ROM is a content://
+        /// URI with no writable parent dir, so redirect into app-private storage
+        /// {CoreState.BaseDirectory}/autosave/{base}.autosave.gba (#1124).
         /// </summary>
         public static string ComputeSidecarPath(string romFilename)
+            => ComputeSidecarPath(romFilename, OperatingSystem.IsAndroid(), CoreState.BaseDirectory);
+
+        /// <summary>Testable core of <see cref="ComputeSidecarPath(string)"/> — the
+        /// platform flag + base dir are injected so desktop unit tests can exercise the
+        /// Android branch (#1124).</summary>
+        internal static string ComputeSidecarPath(string romFilename, bool isAndroid, string baseDir)
         {
             if (string.IsNullOrEmpty(romFilename)) return null;
-            string dir = Path.GetDirectoryName(romFilename) ?? ".";
             string baseName = Path.GetFileNameWithoutExtension(romFilename);
+            if (isAndroid)
+            {
+                string root = string.IsNullOrEmpty(baseDir) ? "." : baseDir;
+                return Path.Combine(root, "autosave", baseName + ".autosave.gba");
+            }
+            string dir = Path.GetDirectoryName(romFilename) ?? ".";
             return Path.Combine(dir, baseName + ".autosave.gba");
         }
 
@@ -108,6 +121,12 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 try
                 {
+                    // Ensure the sidecar directory exists. On Android the redirect
+                    // target {BaseDirectory}/autosave may not exist yet (#1124); on
+                    // desktop the ROM's own dir already does, so this is a no-op.
+                    string sidecarDir = Path.GetDirectoryName(sidecar);
+                    if (!string.IsNullOrEmpty(sidecarDir)) Directory.CreateDirectory(sidecarDir);
+
                     // Write to temp file first, then move for atomicity
                     string tempPath = sidecar + ".tmp";
                     File.WriteAllBytes(tempPath, data);
