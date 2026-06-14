@@ -192,8 +192,12 @@ This section is deliberately precise about **what built vs what is authored-only
   files (`*-Signed.apk`). This proves the workload + SDK + JDK toolchain is
   fully functional in this environment.
 - ✅ **The Android head's own code compiles against `FEBuilderGBA.Avalonia`** —
-  `dotnet build FEBuilderGBA.Android.csproj` restores cleanly and compiles
-  `MainActivity` (which references the shared `App` + views).
+  with the required `-p:EnableAndroidTarget=true` global flag (see the next
+  bullet), `dotnet build` restores + compiles `MainActivity` (which references
+  the shared `App` + views) and packages the APK. (A *bare*
+  `dotnet build FEBuilderGBA.Android.csproj` — without the global property —
+  fails restore with `NETSDK1005`, because NuGet restore's static graph ignores
+  the per-reference `AdditionalProperties`; the next bullet explains this.)
 - ✅ **The full FEBuilderGBA Android APK NOW builds (#1121).** The structural
   blocker below is resolved: `FEBuilderGBA.Avalonia` conditionally multi-targets
   `net9.0;net9.0-android` (opt-in via `EnableAndroidTarget`), and the Android
