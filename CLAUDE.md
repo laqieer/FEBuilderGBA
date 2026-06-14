@@ -348,7 +348,7 @@ InputFormRef.MakeLinkEvent(this);
 
 **Convention-based linking:** Controls named `L_{id}_{linktype}_{args}` automatically get event handlers wired.
 
-**Avalonia equivalent** (`FEBuilderGBA.Avalonia/Services/WindowManager.cs`): `WindowManager.Navigate<TView>(addr)` opens an editor positioned at an address; `WindowManager.PickFromEditor<TView>(addr, owner)` opens an editor in pick mode and awaits the user's selection. For type-ID fields (Class ID, etc.), the reusable `Controls/IdFieldControl` (#366) bundles a hyperlink label + NumericUpDown + inline name preview + Jump button + Pick button, with `JumpRequested` / `PickRequested` / `ValueChanged` routed events the host wires per call site.
+**Avalonia equivalent** (`FEBuilderGBA.Avalonia/Services/WindowManager.cs`): `WindowManager.Navigate<TView>(addr)` opens an editor positioned at an address; `WindowManager.PickFromEditor<TView>(addr, owner)` opens an editor in pick mode and awaits the user's selection. `WindowManager` is a stable facade over `INavigationService` (#1122): `DesktopNavigationService` = today's multi-window behavior (verbatim); `AndroidNavigationService` = single-view view-stack host (pure `NavigationStack`; `Open<T>` content-detaches the view Window into a page; modal-as-page; pick-await) via `OperatingSystem.IsAndroid()`; `App` sets `Views/MainView` under `ISingleViewApplicationLifetime` (see docs/ANDROID.md §2). For type-ID fields, `Controls/IdFieldControl` (#366) bundles label + NumericUpDown + name preview + Jump + Pick.
 
 ### Patch & Mod System
 
@@ -384,7 +384,7 @@ Specialized utilities for different graphic types:
   BULK whole-screen import for the Battle Screen Layout editor (#988). `EncodeTSAKeep` keeps the TSA + applies
   the INVERSE per-cell flip; `ImportBattleScreenBulk` validate-all-before-mutate (5 strips LZ77-written +
   repointed, then palette, ambient undo, no partial commit). **Palette = SAFE single bank** (`BULK_MAX_COLORS=16`;
-  >16-color source REJECTED no-mutation; merges into bank 0, banks 1–15 preserved). Bulk Redo + multi-bank quantizer deferred. #989.
+  >16-color source REJECTED no-mutation; merges into bank 0, banks 1–15 preserved). #989.
 - `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) — SkillSystems skill-anime EXPORT: `SkipCode`
   (FE8J direct; FE8U skips the `.dmp` program + flags defender), `ExportSkillAnimation` (walks frames
   to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`, `GetFrameImage`
@@ -398,7 +398,7 @@ Specialized utilities for different graphic types:
   (`EnumerateOldAnimeRegions` #914); cross-slot safety (`BuildSkillAnimeRegionRefcount`: ≥2-owner region never recycled #929).
 - `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) — `ExportAll` bulk-exports the
   SkillSystems skill config to `*.SkillConfig.tsv` (`textID<TAB>animePtr` rows) + per-skill anime
-  dirs; the `writeAnime` delegate keeps Core free of GUI image-save. #920.
+  dirs; `writeAnime` delegate keeps Core GUI-free. #920.
 - `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) — `ImportAll`
   re-imports every skill as **ONE atomic transaction**: all commit (one undo record) or the ROM is
   restored byte-identical (zero records). Length-aware restore + return-value fault detection + one
@@ -438,7 +438,6 @@ Specialized utilities for different graphic types:
   `Import` validates dims → animType (16x48→0 / 16x96→1 / 32x96→2, else NO mutation), encodes, LZ77-
   writes + repoints `+4`, writes b2 @ `+2`, ambient undo, byte-identical fault restore (#885/#923). Class
   back-refs in `ClassFormCore` (`GetClassIdWhereWaitIconId`, `GetClassMoveIcon` move-icon id 1-BASED #993).
-  Gaps: GIF import, palette dialog, old-region recycle (always-append).
 - `EventScriptReferenceScanner.cs` (Core, READ-ONLY) — generic event-script cross-reference scanner
   (#990; ports `EventCondForm.MakeEventScriptPointer` + FE7 tutorial table). `EnumerateEventEntries`
   yields every event entry point with verified per-cond geometry (TURN/TALK/OBJECT/ALWAYS/TUTORIAL/
@@ -451,23 +450,23 @@ Specialized utilities for different graphic types:
   prerequisites unsatisfied, so an early/headless call can't pin a permanently-empty cache.
 - `BattleAnimeRendererCore.CountAnimationPaletteBanks`/`MaxOamPaletteBank` (Core, READ-ONLY) — 32-color
   banner detector (#1033) replacing WF `GetPalette16Count`: scans all sections/frames' OAM for the max
-  non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner); CONSERVATIVE; safe default 1 on guard fail.
+  non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner); CONSERVATIVE; safe default 1.
 - `ClassOPDemoFontRenderCore.cs` (Core, READ-ONLY) — Class OP Demo N1 JP-name font-glyph preview (#1032;
   ports WF `OPClassFontForm.DrawFontByID`/`DrawFont`). `RenderGlyphById(rom,id)` bounded-DataCount-scans the
   4-byte-pointer table at `op_class_font_pointer` (reject id ≥ run; overflow-safe) → `RenderGlyphImage`
   LZ77-decompresses the 4bpp glyph → 32×32 `ImageUtilCore.ByteToImage16Tile`. Drives the Avalonia
-  `ClassOPDemoView` preview (live on N1 spinner/selection); null on guard fail.
+  `ClassOPDemoView` preview (live on N1 spinner/selection).
 - `OPClassFontImportCore.cs` (Core, ROM-MUTATING) — OP Class Font glyph PNG import (#999; wait-icon pattern).
   `Import` validates dims (%8), `EncodeDirectTiles4bpp` + LZ77-writes + repoints the D0 glyph pointer (ambient
-  undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto shared palette.
+  undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto palette.
 - `ImageWorldMapCore.ImportIconStrip`/`TryGetStripPalette` (Core, ROM-MUTATING / READ-ONLY) — World Map
   Mini/Point1/Point2/Road single-LZ77 strip imports (#1000; wait-icon pattern): validate dims (%8), encode +
-  LZ77-write + repoint the ONE image pointer; shared palette NOT written; byte-identical fault restore.
-  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates. Event/Border deferred.
+  LZ77-write + repoint the ONE image pointer; palette NOT written; fault-restore.
+  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA) for a resolved table, hex
-  stub for unresolved. Gaps: no signed-byte/hex-radix; NMM aux→`NULL`. #1012.
+  stub for unresolved. #1012.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core,
   READ-ONLY) — live-recolor the Unit Palette editor sample preview from in-memory R/G/B spinners (WF
   `OnChangeColor`): Avalonia `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) →
@@ -479,7 +478,7 @@ Specialized utilities for different graphic types:
   Vol/Pan/Tempo. Slice 3 = `SongExchangeCore.ConvertSong` cross-ROM transplant (InstrumentMap/Rip/Burn port, sample
   recycle + pointer fixups, validate-before-mutate, NO ROM growth); Avalonia `SongExchangeView` + CLI `--songexchange`.
 - `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor AI Hints export (#1028 Slice C): `GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, `(f2&0x80)==0x20` quirk) + `AppendAIHintMessage` (escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)`.
-- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): 6 un-Huffman sigs (both FE8U @0x2BA4); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF encode-fail→callback shows `TextBadCharPopupView`→ABORT via `EncodeAbortedException`; ja/zh/ko gated.
+- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): 6 un-Huffman sigs (both FE8U @0x2BA4); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF encode-fail→callback shows `TextBadCharPopupView`→ABORT via `EncodeAbortedException` (ja/zh/ko).
 - `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, READ-ONLY) — Text Editor Export Filter (#1028 Slice B): WF `InitExportFilter` 11 cats (0=All→null); BattleTalk/Haiku event-ptr-when-0; Skill via `SkillSystemTextScanner`; EventCond via `EventScriptReferenceScanner.CollectEventCondTextIds` (4 text-args+POINTER_EVENT+MENUEXTENDS/etc+FE8). `U.GrepPatternMatch`/`MakeMask2` ported.
 - `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors (MenuDefinition/StatusRMenu(recursive)/SoundBossBGM+WorldMapBGM/WorldMapEvent/FE8N-Ver3-skill), reusing ExportFilterCore; `AsmMapTextSymbolReader` + `PatchTextRefScannerCore` (installed ADDR/STRUCT TEXT/SONG/EVENT) + `ITextIDCache.EnumerateUsedTextIds`. PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
 - `ToolAnimationCreatorViewViewModel.InitFromMagicRom`/`InitFromSkillRom` (Avalonia, R/O) — Animation-Creator jump seeds: magic #996 (FEditor/CSA 0x86 via `MagicEffectExportCore`) + skill #1115 (`ExportSkillAnimation`; `CountSkillFrames`; `SkillConfigAnimeJumpHelper` 4 variants, Ver1 render-only). MapAction write-back only.

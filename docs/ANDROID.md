@@ -35,36 +35,57 @@ pulls in `Core` + `SkiaSharp`). The WinForms project is explicitly out of scope.
 
 ## 2. Avalonia-on-Android specifics (lifetime & windowing)
 
+> **Status: implemented (#1122) — build-only validated, not yet device-validated.**
+
 Avalonia 11 ships a real Android target: the `Avalonia.Android` package, an
 `[Activity]`-attributed `MainActivity : AvaloniaMainActivity<App>` entry point,
 and a **single-view** application lifetime (`ISingleViewApplicationLifetime`) —
 one Activity hosting one root view.
 
-The current desktop app is built around the **classic desktop** lifetime and a
-**multi-window** model, which is the single biggest port item:
+The desktop app is built around the **classic desktop** lifetime and a
+**multi-window** model — this was the single biggest port item, now resolved by
+the `INavigationService` abstraction (#1122):
 
-- **Entry point / lifetime.** `FEBuilderGBA.Avalonia/Program.cs:33`
+- **Entry point / lifetime.** `FEBuilderGBA.Avalonia/Program.cs`
   `BuildAvaloniaApp().StartWithClassicDesktopLifetime(args)` with `[STAThread]`.
-  `App.OnFrameworkInitializationCompleted` (`App.axaml.cs:188-203`) only builds
-  its UI inside `if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)`
-  and sets `desktop.MainWindow = new Views.MainWindow()`. **Under the single-view
-  Android lifetime, that branch is never entered** — so the skeleton boots the
-  Avalonia runtime but presents no editor. Android needs an
+  `App.OnFrameworkInitializationCompleted` builds its desktop UI inside
+  `if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)`
+  (`desktop.MainWindow = new Views.MainWindow()`) AND now has an
   `else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)`
-  branch that sets `singleView.MainView`.
-- **Multi-window → single-view.** `FEBuilderGBA.Avalonia/Services/WindowManager.cs`
-  is built on top-level `Window`s: `Open<T>` calls `window.Show()` (line 32),
-  `OpenModal<T>` / `PickFromEditor<T>` call `window.ShowDialog(parent)` (lines
-  50 / 94), and it caches a `Dictionary<Type, Window>` (line 17). Roughly
-  356 of 358 views are top-level `Window` / `TranslatedWindow`. Android has **no
-  desktop multi-window model**, so the navigation layer must be reworked to a
-  page/view-stack (e.g. a single host view with a back stack, or Avalonia
-  navigation controls). This is the **largest** follow-up
-  ([single-activity navigation model](#8-follow-up-sub-issues)).
+  branch that sets `singleView.MainView = new Views.MainView()` (#1122). The
+  desktop branch is **unchanged**; on Android the desktop cast is false, so the
+  single-view branch presents the editor UI.
+- **Multi-window → single-view (`INavigationService`, #1122).**
+  `FEBuilderGBA.Avalonia/Services/WindowManager.cs` is now a thin **facade** over
+  `INavigationService` (its public API — `Open`/`Navigate`/`OpenModal`/
+  `PickFromEditor`/`FindOpen`/`CloseAll`/`MainWindow` — is unchanged, so the ~356
+  call sites are untouched). Two implementations:
+  - **`DesktopNavigationService`** — the original multi-window body moved
+    verbatim (`Open<T>` → `window.Show()`, `OpenModal`/`PickFromEditor` →
+    `window.ShowDialog(parent)`, `Dictionary<Type,Window>` cache).
+    **Behavior-identical to the pre-#1122 WindowManager** (regression-safe).
+  - **`AndroidNavigationService`** — a single-view page/view-stack host with a
+    back stack, built on the pure, desktop-unit-tested `NavigationStack<TPage>`.
+    `Open<T>` instantiates the view `Window` as a content factory, detaches its
+    `Content`, and pushes that control as a page (the `Window` is retained but
+    never shown, so callers' `NavigateTo`/view-method calls still work). Modal =
+    overlay page; `PickFromEditor` = push the pick view + await via
+    `NavigationStack.PushForResult` (`SelectionConfirmed` resolves, back cancels
+    to null). The service implements `INavigationHost` (`Back`/`CanGoBack`/
+    `CurrentContent`/`StackChanged`), which `Views/MainView` binds to.
+  - The service is selected once via `OperatingSystem.IsAndroid()`.
+- **Carved to #1070 (honest):** per-editor attached-`Window` flows (file pickers
+  via `StorageProvider`, `MessageBoxWindow.Show(this)`, in-page `Close()`),
+  page-transition/touch-UX polish, and the full desktop `MainWindow` shell
+  controller (ROM open/save actions, recent files, undo UI). A detached
+  never-shown `Window` is not a reliable top-level owner, so those dialog flows
+  need routing through `TopLevel.GetTopLevel(content)` — a device-validatable
+  follow-up. The `MainView` ships an editor-launcher root + the nav host so
+  editors are reachable.
 
 The repository's `FEBuilderGBA.Android/MainActivity.cs` is the Android-equivalent
 of `Program.Main` — it subclasses `AvaloniaMainActivity<App>` and reuses the
-shared `App`. Its XML doc records the single-view limitation above honestly.
+shared `App`, which now presents `MainView` under the single-view lifetime.
 
 ---
 
@@ -271,10 +292,13 @@ The Android APK builds against the shared Avalonia UI (#1121). What remains is
 **runtime**, not structural — the APK is **not yet device/emulator-validated**:
 
 - Under the single-view Android lifetime, `App.OnFrameworkInitializationCompleted`
-  still only presents UI in its `IClassicDesktopStyleApplicationLifetime` branch,
-  so the booted app does not yet show the editor — the
-  `ISingleViewApplicationLifetime.MainView` + `WindowManager` page/view-stack
-  rework is #1122 (see §2).
+  now sets `singleView.MainView = new Views.MainView()` (#1122), and
+  `WindowManager` routes the ~356 editor-launch call sites through
+  `AndroidNavigationService` (a single-view page/view-stack nav host) — so the
+  booted app presents the editor-launcher shell. **Build-only validated** (no
+  device): the nav-stack core is unit-tested and the desktop nav is
+  regression-verified behavior-identical; the on-device runtime UX (touch,
+  per-editor attached-`Window` dialogs) is carved to #1070 (see §2).
 - `config/**` ships as an extracted `AndroidAsset` with version-stamped first-run
   extraction to `Context.FilesDir` (#1123, build-only validated — see §5). ROM
   open/save (the remaining storage item) is still path-based.
@@ -305,9 +329,15 @@ linked under #1070 as its checklist:
    shared project conditionally multi-targets `net9.0;net9.0-android`; the head
    builds a real APK (build-only — not yet device-validated). *(prerequisite —
    unblocked everything below; see §7.)*
-2. **Android: single-activity navigation model for the multi-window editors**
+2. ~~**Android: single-activity navigation model for the multi-window editors**
    (`WindowManager` page/view-stack rework + `ISingleViewApplicationLifetime`
-   `MainView`). *(largest item; see §2.)*
+   `MainView`).~~ **DONE (#1122)** — `INavigationService` abstraction
+   (`DesktopNavigationService` behavior-identical + `AndroidNavigationService`
+   single-view nav host over the pure `NavigationStack`), `WindowManager` kept as
+   a stable facade (~356 call sites untouched), `App` single-view branch +
+   `Views/MainView` shell. Build-only validated (no device); per-editor
+   attached-`Window` dialog flows + touch-UX polish carved to #1070. *(was the
+   largest item; see §2.)*
 3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
    first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
    build-only validated (no device); `config/patch2` deferred / not bundled.

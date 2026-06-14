@@ -22,16 +22,17 @@ namespace FEBuilderGBA.Android
     /// </para>
     ///
     /// <para>
-    /// HONEST SKELETON LIMITATION: the shared <c>App.OnFrameworkInitializationCompleted</c>
-    /// only builds its UI inside an <c>if (ApplicationLifetime is
-    /// IClassicDesktopStyleApplicationLifetime desktop)</c> branch (it sets
-    /// <c>desktop.MainWindow = new MainWindow()</c>). Under the single-view
-    /// Android lifetime that branch is NOT entered, so this skeleton boots the
-    /// Avalonia runtime but does NOT yet present the editor UI. Wiring an
-    /// <c>ISingleViewApplicationLifetime.MainView</c> + porting the
-    /// <c>WindowManager</c> multi-window model to page navigation is the
-    /// largest follow-up sub-issue (single-activity navigation model). SAF ROM
-    /// I/O is a separate follow-up (#1124). See docs/ANDROID.md.
+    /// SINGLE-VIEW UI (#1122): the shared <c>App.OnFrameworkInitializationCompleted</c>
+    /// now presents the editor UI under the single-view Android lifetime — its
+    /// <c>else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)</c>
+    /// branch sets <c>singleView.MainView = new Views.MainView()</c> (the desktop
+    /// <c>IClassicDesktopStyleApplicationLifetime</c> branch is unchanged). The
+    /// <c>WindowManager</c> multi-window model is reworked behind an
+    /// <c>INavigationService</c> abstraction: desktop keeps multi-window
+    /// behavior, Android uses a single-view page/view-stack nav host (back stack,
+    /// modal-as-page, pick-await). Build-only validated — the on-device runtime
+    /// UX (touch + per-editor attached-Window dialogs) is tracked under #1070.
+    /// SAF ROM I/O landed in #1124. See docs/ANDROID.md §2.
     /// </para>
     ///
     /// <para>

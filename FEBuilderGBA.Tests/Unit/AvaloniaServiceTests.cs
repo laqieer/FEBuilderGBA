@@ -84,11 +84,69 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("CloseAll", src);
         }
 
+        // ---- #1122: INavigationService abstraction + platform impls ----
+
+        [Fact]
+        public void INavigationService_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Services", "INavigationService.cs")));
+        }
+
+        [Fact]
+        public void DesktopNavigationService_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Services", "DesktopNavigationService.cs")));
+        }
+
+        [Fact]
+        public void AndroidNavigationService_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Services", "AndroidNavigationService.cs")));
+        }
+
+        [Fact]
+        public void NavigationStack_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Services", "NavigationStack.cs")));
+        }
+
+        [Fact]
+        public void WindowManager_DelegatesToNavigationService()
+        {
+            // The facade routes every public method to the active INavigationService.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            Assert.Contains("INavigationService", src);
+            Assert.Contains("_service.Open<T>()", src);
+            Assert.Contains("_service.PickFromEditor", src);
+        }
+
+        [Fact]
+        public void App_HasSingleViewLifetimeBranch()
+        {
+            // The Android single-view boot fix: App sets MainView under
+            // ISingleViewApplicationLifetime (alongside the unchanged desktop branch).
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "App.axaml.cs"));
+            Assert.Contains("ISingleViewApplicationLifetime", src);
+            Assert.Contains("singleView.MainView = new Views.MainView()", src);
+            // The desktop branch must still be present and unchanged.
+            Assert.Contains("desktop.MainWindow = new Views.MainWindow()", src);
+        }
+
+        [Fact]
+        public void MainView_Exists()
+        {
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Views", "MainView.axaml")));
+            Assert.True(File.Exists(Path.Combine(AvaloniaDir, "Views", "MainView.axaml.cs")));
+        }
+
         [Fact]
         public void WindowManager_PickFromEditor_WiresEventBeforeShow()
         {
-            // Verify SelectionConfirmed is wired before ShowDialog/Show is called
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            // #1122: the desktop pick-wiring body moved (verbatim) from
+            // WindowManager.cs into the behavior-identical DesktopNavigationService.cs
+            // (WindowManager is now a thin facade that delegates). This
+            // race-condition guard now reads the desktop service.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "DesktopNavigationService.cs"));
             // Search within PickFromEditor method only
             int pickMethodStart = src.IndexOf("PickFromEditor");
             Assert.True(pickMethodStart > 0, "PickFromEditor method not found");
@@ -112,7 +170,8 @@ namespace FEBuilderGBA.Tests.Unit
             // The race condition was caused by .ShowDialog().ContinueWith() which could
             // set tcs to null before SelectionConfirmed had a chance to fire.
             // The Closed event handler already covers the "no selection" case.
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            // #1122: body lives in DesktopNavigationService.cs now (verbatim).
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "DesktopNavigationService.cs"));
             // Extract just the PickFromEditor method body
             int methodStart = src.IndexOf("PickFromEditor");
             int returnPos = src.IndexOf("return await tcs.Task;", methodStart);
@@ -125,7 +184,8 @@ namespace FEBuilderGBA.Tests.Unit
         public void WindowManager_PickFromEditor_ClosedEventSetsTcsNull()
         {
             // Verify the Closed event handler provides the fallback null result
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "WindowManager.cs"));
+            // #1122: body lives in DesktopNavigationService.cs now (verbatim).
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "DesktopNavigationService.cs"));
             int closedPos = src.IndexOf("window.Closed +=");
             Assert.True(closedPos > 0, "Closed event handler not found");
             Assert.Contains("tcs.TrySetResult(null)", src);

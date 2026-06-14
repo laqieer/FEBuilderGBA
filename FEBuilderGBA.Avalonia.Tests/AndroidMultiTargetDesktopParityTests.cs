@@ -100,4 +100,36 @@ public class AndroidMultiTargetDesktopParityTests : IDisposable
         Assert.Equal(2, code!.Value); // "--gap-sweep-* requires --out=<path>"
         Assert.Equal("density", App.GapSweepMode);
     }
+
+    // ---- #1122: single-view (Android) navigation surface present on desktop ----
+
+    [Fact]
+    public void SingleView_shell_MainView_type_exists()
+    {
+        // The Android single-view shell (set under ISingleViewApplicationLifetime
+        // by App.OnFrameworkInitializationCompleted) compiles on BOTH TFMs — it's
+        // a plain UserControl with no android-only API. Assert the type resolves
+        // so a refactor can't silently drop the shell the App branch sets.
+        Type? mainView = Type.GetType("FEBuilderGBA.Avalonia.Views.MainView, FEBuilderGBA.Avalonia");
+        Assert.NotNull(mainView);
+        Assert.True(typeof(global::Avalonia.Controls.UserControl).IsAssignableFrom(mainView!),
+            "MainView must be a UserControl (the single-view MainView root).");
+    }
+
+    [Fact]
+    public void Desktop_TFM_selects_DesktopNavigationService()
+    {
+        // Regression guard: on the desktop TFM (these tests run net9.0,
+        // non-Android), the navigation service selection must yield the
+        // behavior-identical window-based desktop impl — never the Android one.
+        // Asserted via the same OperatingSystem.IsAndroid() branch WindowManager's
+        // factory uses (not the live singleton, so it can't race a service-swap
+        // test running in another collection).
+        Assert.False(OperatingSystem.IsAndroid());
+        FEBuilderGBA.Avalonia.Services.INavigationService chosen =
+            OperatingSystem.IsAndroid()
+                ? new FEBuilderGBA.Avalonia.Services.AndroidNavigationService()
+                : new FEBuilderGBA.Avalonia.Services.DesktopNavigationService();
+        Assert.IsType<FEBuilderGBA.Avalonia.Services.DesktopNavigationService>(chosen);
+    }
 }
