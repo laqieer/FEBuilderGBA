@@ -81,6 +81,7 @@ For each unit:
   ```bash
   copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
   Post your review findings as a comment on the issue. \
+  After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
@@ -308,6 +309,7 @@ EOF
   Treat a GUI Test Report section as missing if it contains only HTML comments, only placeholder text, or no results table. Flag missing GUI test report as a blocking issue for qualifying GUI feat/fix PRs. \
   For PRs that do not modify GUI files (FEBuilderGBA.Avalonia/ or FEBuilderGBA/), or for docs/chore/refactor PRs, do NOT require a GUI test report. \
   Test plan check: verify the '## Test plan' section has ALL items checked [x]. Flag any unchecked [ ] items as a blocking issue — no exceptions. Also flag placeholder/template text that was not replaced (e.g., items containing angle brackets like '<what was tested>' or generic boilerplate) — each item must describe a specific test that was actually performed. \
+  After you finish posting the review, prune any git worktree you created for this review: run 'git worktree prune' and 'git worktree remove --force' any checkout you made under your session-state directory. \
   Post your review as a pull request review on GitHub. \
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
@@ -460,14 +462,17 @@ gh pr view <M> -R laqieer/FEBuilderGBA --json mergeable --jq '.mergeable'
 
 ### 16. Post-Merge
 - Verify the issue was auto-closed (if `Closes #N` was used)
-- Clean up the worktree (all tasks use worktrees — see step 7):
+- **Prune ALL stale worktrees** (standing post-merge step — prevents disk-space leaks). This includes your own implementation worktree(s) AND any merged-PR Copilot CLI review checkouts under `~/.copilot/session-state/*/files/pr*` (their PRs are merged → safe to remove):
   ```bash
   # 1. Ensure all changes are committed or discarded — git worktree remove fails on a dirty worktree
   # 2. Navigate back to the main repo root (you cannot remove a worktree from inside it)
   cd /path/to/main/repo
-  git worktree list             # verify which worktrees exist
-  git worktree remove <path>    # remove the linked worktree
+  git worktree list                       # inspect every registered worktree FIRST
+  git worktree remove --force <path>      # remove your own implementation worktree(s)
+  git worktree remove --force <path>      # remove merged-PR Copilot CLI review checkouts (~/.copilot/session-state/*/files/pr*)
+  git worktree prune                      # drop stale registrations
   ```
+  **WARNING:** When scripting bulk removal, NEVER `rm -rf` a path you have not explicitly confirmed is a linked worktree — a buggy loop can delete the main checkout. Prefer `git worktree remove --force` for registered worktrees. Only fall back to `rm -rf -- <path>` for an exact, verified ORPHAN checkout directory under `~/.copilot/session-state/<id>/files/pr*` — after printing/confirming the path and verifying it is NOT the main checkout, NOT your current working directory, and NOT an active/unmerged review checkout. NEVER `rm -rf` the whole `~/.copilot/session-state/<id>` directory (it may hold unrelated active session state), and NEVER `rm -rf` a glob-derived path that was not first printed and confirmed.
 - No need to checkout or pull master — just run `git fetch origin` before creating the next worktree (step 7) to ensure remote refs are current.
 
 ---
@@ -600,7 +605,7 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
   → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
   → Re-review → Signoff → CI Green → Merge → Confirm MERGED
   ↑___________________________________________|  (loop until MERGED)
-  → Clean up worktree
+  → Prune ALL stale worktrees (own + Copilot review checkouts)
 ```
 
 **All `gh` commands MUST use `-R laqieer/FEBuilderGBA`.**
