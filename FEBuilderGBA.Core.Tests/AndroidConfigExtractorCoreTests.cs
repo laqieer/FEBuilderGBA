@@ -400,6 +400,41 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(target); }
         }
 
+        // ---- Case 14: source yielding a '.'-segment path is dropped, target root preserved ----
+        // Regression for the Copilot bot finding: a "./config/..." (or any '.'-segment)
+        // source entry must be rejected, NOT treated as a root of "." whose clean
+        // re-extract would delete Path.Combine(targetRootDir, ".") = the whole target.
+        [Fact]
+        public void Source_WithDotSegmentEntry_DropsIt_AndDoesNotWipeTargetRoot()
+        {
+            string target = NewTempDir();
+            try
+            {
+                // Unrelated app-private state that must survive.
+                string unrelated = Path.Combine(target, "user_data", "rom.gba");
+                Directory.CreateDirectory(Path.GetDirectoryName(unrelated)!);
+                File.WriteAllText(unrelated, "ROM");
+
+                var files = new Dictionary<string, byte[]>
+                {
+                    ["./config/data/ok.txt"] = System.Text.Encoding.UTF8.GetBytes("OK"),
+                    ["config/data/real.txt"] = System.Text.Encoding.UTF8.GetBytes("REAL"),
+                };
+
+                var result = AndroidConfigExtractorCore.EnsureExtracted(new InMemoryAssetSource(files), target, "1.0-1");
+
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.Extracted, result);
+                // The unrelated dir/file is intact — target root was NOT wiped.
+                Assert.True(File.Exists(unrelated));
+                Assert.Equal("ROM", File.ReadAllText(unrelated));
+                // The safe entry landed; the '.'-segment entry was dropped (count == 1).
+                Assert.True(File.Exists(Path.Combine(target, "config", "data", "real.txt")));
+                string[] lines = File.ReadAllLines(Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName));
+                Assert.Equal("1", lines[1]);
+            }
+            finally { Cleanup(target); }
+        }
+
         // ---- Argument guards ----
         [Fact]
         public void NullSource_Throws()

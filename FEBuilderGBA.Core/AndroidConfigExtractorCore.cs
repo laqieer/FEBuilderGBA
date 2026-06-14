@@ -277,14 +277,21 @@ namespace FEBuilderGBA
             return true;
         }
 
-        /// <summary>Reject empty, rooted, or parent-traversal paths (defense-in-depth on the seam).</summary>
+        /// <summary>
+        /// Reject empty, rooted, current-dir ('.') or parent-traversal ('..') paths
+        /// (defense-in-depth on the seam). '.' is rejected as well as '..': a
+        /// leading "./config/..." would otherwise make <see cref="TopLevelRoots"/>
+        /// see "." as the first segment, and a clean re-extract would then delete
+        /// <c>Path.Combine(targetRootDir, ".")</c> — the entire target root, wiping
+        /// unrelated app-private state.
+        /// </summary>
         static bool IsSafeRelativePath(string rel)
         {
             if (string.IsNullOrEmpty(rel)) return false;
             if (Path.IsPathRooted(rel)) return false;
             foreach (string seg in rel.Split('/'))
             {
-                if (seg == "..") return false;
+                if (seg == "." || seg == "..") return false;
             }
             return true;
         }
