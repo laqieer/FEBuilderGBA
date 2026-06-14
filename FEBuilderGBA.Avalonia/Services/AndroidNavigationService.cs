@@ -246,11 +246,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
         void BringToTop(Control content)
         {
-            // Already on the stack — re-push to surface it. Re-pushing a control
-            // already present is harmless for the pure stack (it tracks entries,
-            // not uniqueness); the host renders CurrentTop. We do NOT re-raise
-            // Opened (the view is already initialized).
-            _stack.Push(content);
+            // Already on the stack — surface it WITHOUT duplicating its entry
+            // (MoveToTop, not Push), so repeated Open<T> of a singleton can't grow
+            // the back stack unboundedly or create inconsistent duplicate history.
+            // We do NOT re-raise Opened (the view is already initialized).
+            _stack.MoveToTop(content);
         }
 
         void PopIfTop(Control content)

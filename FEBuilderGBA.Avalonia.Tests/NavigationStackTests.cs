@@ -182,6 +182,44 @@ public class NavigationStackTests
     }
 
     [Fact]
+    public void MoveToTop_surfaces_existing_page_without_duplicating()
+    {
+        var s = NewStackWithRoot("root");
+        s.Push("a");
+        s.Push("b");
+        Assert.Equal(3, s.PageCount);
+        // Surface "a" without adding a 4th entry.
+        s.MoveToTop("a");
+        Assert.Equal(3, s.PageCount);
+        Assert.Equal("a", s.CurrentTop!.Page);
+        // Order is now root, b, a — one back reveals b, not a duplicate a.
+        s.Back();
+        Assert.Equal("b", s.CurrentTop!.Page);
+    }
+
+    [Fact]
+    public void MoveToTop_falls_back_to_push_when_absent()
+    {
+        var s = NewStackWithRoot("root");
+        var entry = s.MoveToTop("new");
+        Assert.Equal(2, s.PageCount);
+        Assert.Equal("new", entry.Page);
+        Assert.Equal("new", s.CurrentTop!.Page);
+    }
+
+    [Fact]
+    public void MoveToTop_is_noop_when_already_top()
+    {
+        var s = NewStackWithRoot("root");
+        s.Push("a");
+        int changes = 0;
+        s.StackChanged += () => changes++;
+        s.MoveToTop("a"); // already top — no mutation, no event
+        Assert.Equal(0, changes);
+        Assert.Equal(2, s.PageCount);
+    }
+
+    [Fact]
     public void Nested_modals_pop_in_lifo_order()
     {
         var s = NewStackWithRoot();

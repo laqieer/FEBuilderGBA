@@ -115,8 +115,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 };
                 btn.Click += (_, _) =>
                 {
+                    // Log.Error takes params string[] joined with spaces (no
+                    // composite formatting), so pass the message as its own arg.
                     try { open(); }
-                    catch (Exception ex) { Log.Error("MainView launcher open failed: {0}", ex.Message); }
+                    catch (Exception ex) { Log.Error("MainView launcher open failed: ", ex.Message); }
                 };
                 panel.Children.Add(btn);
             }

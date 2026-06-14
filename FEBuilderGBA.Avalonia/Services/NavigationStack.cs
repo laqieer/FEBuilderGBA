@@ -105,6 +105,29 @@ namespace FEBuilderGBA.Avalonia.Services
             return entry;
         }
 
+        /// <summary>
+        /// Surface an already-present normal page to the TOP of the page stack
+        /// WITHOUT duplicating it (re-activating a singleton). Moves the existing
+        /// entry to the end of the page list; if the page is not present, falls
+        /// back to <see cref="Push"/>. Modal overlays are untouched (they stay
+        /// above pages). Returns the surfaced entry.
+        /// </summary>
+        public NavigationEntry<TPage> MoveToTop(TPage page)
+        {
+            int idx = _pages.FindIndex(e => EqualityComparer<TPage>.Default.Equals(e.Page, page));
+            if (idx < 0)
+                return Push(page);
+
+            var entry = _pages[idx];
+            if (idx != _pages.Count - 1)
+            {
+                _pages.RemoveAt(idx);
+                _pages.Add(entry);
+                StackChanged?.Invoke();
+            }
+            return entry;
+        }
+
         /// <summary>Push a modal overlay above all normal pages.</summary>
         public NavigationEntry<TPage> PushModal(TPage page)
         {

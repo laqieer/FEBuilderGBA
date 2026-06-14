@@ -120,6 +120,23 @@ public class AndroidNavigationServiceTests
     }
 
     [AvaloniaFact]
+    public void Repeated_Open_of_singleton_does_not_grow_the_stack()
+    {
+        var service = NewServiceWithRoot();
+        var view = service.Open<NavTestView>();
+        for (int i = 0; i < 5; i++)
+        {
+            var again = service.Open<NavTestView>();
+            Assert.Same(view, again); // same cached singleton each time
+        }
+        // root + the single NavTestView page only — back returns to root once.
+        INavigationHost host = service;
+        Assert.True(host.CanGoBack);
+        host.GoBack();
+        Assert.False(host.CanGoBack); // NOT 5 duplicate entries to unwind
+    }
+
+    [AvaloniaFact]
     public async Task PickFromEditor_resolves_on_SelectionConfirmed()
     {
         var service = NewServiceWithRoot();
