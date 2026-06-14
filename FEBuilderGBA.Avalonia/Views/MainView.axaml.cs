@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             var scroller = new ScrollViewer { Content = panel };
-            global::Avalonia.Automation.AutomationProperties.SetAutomationId(scroller, "Android_MainView_Launcher");
+            global::Avalonia.Automation.AutomationProperties.SetAutomationId(scroller, "Main_AndroidLauncher_Control");
             return scroller;
         }
 
