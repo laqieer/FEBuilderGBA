@@ -91,11 +91,14 @@ namespace FEBuilderGBA.SharedTest
         // ---------- helpers ----------
 
         /// <summary>
-        /// Decode two 64-byte tiles into their 256 2-bit palette indices
-        /// (reverse of the Image4ToByte pack: per byte, 4 pixels =
-        /// (b&gt;&gt;0)&amp;3, (b&gt;&gt;2)&amp;3, (b&gt;&gt;4)&amp;3, (b&gt;&gt;6)&amp;3) and
-        /// count how many of the 256 pixels differ. Used by the golden tests to
-        /// tolerate the small x64-vs-arm64 antialiasing drift.
+        /// Unpack EACH 64-byte 2bpp tile (<paramref name="expected"/> and
+        /// <paramref name="actual"/>) into its 256 palette indices — a single
+        /// 64-byte tile already encodes 256 pixels (4 px/byte; reverse of the
+        /// Image4ToByte pack: per byte, 4 pixels =
+        /// (b&gt;&gt;0)&amp;3, (b&gt;&gt;2)&amp;3, (b&gt;&gt;4)&amp;3, (b&gt;&gt;6)&amp;3)
+        /// — and count how many of the 256 pixels differ between the two tiles.
+        /// Used by the golden tests to tolerate the small x64-vs-arm64
+        /// antialiasing drift.
         /// </summary>
         public static int CountDifferingPixels(byte[] expected, byte[] actual)
         {

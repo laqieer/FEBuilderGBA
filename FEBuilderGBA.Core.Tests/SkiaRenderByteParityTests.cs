@@ -134,6 +134,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(png.Length > 8, "EncodePng produced no data");
 
             using IImage decoded = svc.LoadImageFromBytes(png);
+            Assert.False(decoded.IsIndexed, "PNG round-trip should decode to a non-indexed RGBA image so GetPixelData() returns RGBA bytes, not palette indices");
             byte[] rgba = decoded.GetPixelData(); // RGBA for a non-indexed image
 
             Assert.Equal(GoldenRgba.Length, rgba.Length);

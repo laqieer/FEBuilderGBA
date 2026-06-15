@@ -52,18 +52,32 @@ namespace FEBuilderGBA.Core.Tests
                 $"could not locate FEBuilderGBA.sln walking up from {AppContext.BaseDirectory}");
         }
 
-        // The csprojs that may carry a direct SkiaSharp* PackageReference. The
-        // CLI / Avalonia / Tests projects pull SkiaSharp transitively via a
-        // ProjectReference (no direct pin), so they will contribute zero refs —
-        // that's fine; we only require at least ONE ref across the whole set.
-        static readonly string[] CsprojRelPaths =
+        /// <summary>
+        /// Enumerate EVERY *.csproj under the repo root (recursively), excluding
+        /// build-output (bin/, obj/) and nested git-worktree (.claude/worktrees/)
+        /// directories. Scanning all projects — not a hard-coded subset — means a
+        /// future NEW project that introduces a SkiaSharp 3.x reference is caught
+        /// by the declared-version guard.
+        ///
+        /// The exclusion test runs against the path RELATIVE to <paramref name="root"/>,
+        /// not the absolute path: when this test itself runs from inside an
+        /// isolated git worktree the root is ALREADY under .claude/worktrees/, so
+        /// an absolute-path filter would exclude every csproj (yielding zero) —
+        /// the relative-path filter only skips worktrees nested *under* the root.
+        /// </summary>
+        static IEnumerable<string> EnumerateRepoCsprojs(string root)
         {
-            Path.Combine("FEBuilderGBA.SkiaSharp", "FEBuilderGBA.SkiaSharp.csproj"),
-            Path.Combine("FEBuilderGBA.Android", "FEBuilderGBA.Android.csproj"),
-            Path.Combine("FEBuilderGBA.CLI", "FEBuilderGBA.CLI.csproj"),
-            Path.Combine("FEBuilderGBA.Avalonia", "FEBuilderGBA.Avalonia.csproj"),
-            Path.Combine("FEBuilderGBA.Tests", "FEBuilderGBA.Tests.csproj"),
-        };
+            foreach (string path in Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories))
+            {
+                string rel = Path.GetRelativePath(root, path).Replace('\\', '/');
+                // Wrap in leading/trailing '/' so a segment match is exact (e.g.
+                // "bin/" matches the bin directory, not a project named "...bin").
+                string probe = "/" + rel + "/";
+                if (probe.Contains("/bin/") || probe.Contains("/obj/") || probe.Contains("/.claude/worktrees/"))
+                    continue;
+                yield return path;
+            }
+        }
 
         // Matches: <PackageReference Include="SkiaSharp[.NativeAssets.*]" Version="X" />
         // (attribute order-independent).
@@ -79,18 +93,20 @@ namespace FEBuilderGBA.Core.Tests
         static readonly Regex Pin288 = new Regex("^2\\.88\\.");
         static readonly Regex Reject3x = new Regex("^3\\.");
 
+        // Asserts EVERY direct SkiaSharp* <PackageReference> across the WHOLE repo
+        // (every *.csproj under the root, not a hard-coded subset) pins the 2.88.x
+        // family. The CLI / Avalonia / Tests projects pull SkiaSharp transitively
+        // via a ProjectReference (no direct pin), so they contribute zero refs —
+        // that's fine; we only require at least ONE direct pin to exist somewhere.
         [Fact]
         public void DeclaredSkiaSharpPackageRefs_Pin_288_Family()
         {
             string root = FindRepoRoot();
             int found = 0;
 
-            foreach (string rel in CsprojRelPaths)
+            foreach (string path in EnumerateRepoCsprojs(root))
             {
-                string path = Path.Combine(root, rel);
-                if (!File.Exists(path))
-                    continue; // tolerate a layout where a project is absent
-
+                string rel = Path.GetRelativePath(root, path).Replace('\\', '/');
                 string xml = File.ReadAllText(path);
 
                 foreach (Match m in CollectPackageRefs(xml))
@@ -107,7 +123,7 @@ namespace FEBuilderGBA.Core.Tests
             }
 
             Assert.True(found > 0,
-                "found ZERO SkiaSharp PackageReference pins across the scanned csprojs — the parse silently matched nothing (expected at least the SkiaSharp + Android pins)");
+                "found ZERO direct SkiaSharp PackageReference pins across every csproj in the repo — the parse silently matched nothing (expected at least the SkiaSharp + Android pins)");
         }
 
         static IEnumerable<Match> CollectPackageRefs(string xml)
