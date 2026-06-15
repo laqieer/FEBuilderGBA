@@ -75,10 +75,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         string DescribeTop()
         {
-            // Prefer a navigated editor's title when the page carries one.
-            if (Host.CurrentContent?.DataContext is IEditorView ev && !string.IsNullOrEmpty(ev.ViewTitle))
-                return ev.ViewTitle;
-            return "FEBuilderGBA";
+            // The page title comes from the OWNING view Window's ViewTitle, which
+            // the nav host resolves via its page->Window map (IEditorView is
+            // implemented by the Window subclass, NOT the page content's
+            // DataContext). Falls back to the app name for the root/untitled page.
+            return Host.CurrentTitle ?? "FEBuilderGBA";
         }
 
         void Back_Click(object? sender, RoutedEventArgs e) => Host.GoBack();

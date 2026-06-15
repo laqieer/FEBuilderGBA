@@ -285,6 +285,61 @@ public class AndroidNavigationServiceTests
         Assert.False(((INavigationHost)service).CanGoBack);
     }
 
+    [AvaloniaFact]
+    public void CurrentTitle_comes_from_owning_view_Window_ViewTitle()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+        // Root launcher page has no owning editor Window -> null title.
+        Assert.Null(host.CurrentTitle);
+
+        service.Open<NavTestView>(); // ViewTitle = "NavTest"
+        Assert.Equal("NavTest", host.CurrentTitle);
+
+        host.GoBack();
+        Assert.Null(host.CurrentTitle); // back at root
+    }
+
+    [AvaloniaFact]
+    public async Task OpenModal_completes_on_window_Close_and_returns_to_previous_page()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+
+        // A normal editor page first, so we can prove the modal returns to it.
+        service.Open<NavTestView>();
+        var baseContent = host.CurrentContent;
+
+        ModalTestView? captured = null;
+        service.ViewInstantiated += w => { if (w is ModalTestView m) captured = m; };
+
+        var modalTask = service.OpenModal<ModalTestView>();
+        Assert.NotNull(captured);
+        // The modal overlay is now the top page.
+        Assert.NotSame(baseContent, host.CurrentContent);
+        Assert.False(modalTask.IsCompleted);
+
+        // The modal view signals completion by closing itself.
+        captured!.Dismiss();
+
+        await modalTask; // completes
+        // Back to the editor page underneath; FindOpen still returns it.
+        Assert.Same(baseContent, host.CurrentContent);
+        Assert.Same(service.FindOpen<NavTestView>()!.Marker, host.CurrentContent);
+    }
+
+    [AvaloniaFact]
+    public async Task OpenModal_completes_on_GoBack()
+    {
+        INavigationHost host = NewServiceWithRoot();
+        var service = (AndroidNavigationService)host;
+        var modalTask = service.OpenModal<ModalTestView>();
+        Assert.False(modalTask.IsCompleted);
+        host.GoBack();      // dismiss the modal overlay
+        await modalTask;    // completes (cancelled to null result internally)
+        Assert.False(host.CanGoBack); // back at root
+    }
+
     // A second editor type for multi-page tests.
     public class PickTestView2 : Window, IEditorView
     {
@@ -292,5 +347,13 @@ public class AndroidNavigationServiceTests
         public string ViewTitle => "View2";
         public bool IsLoaded => true;
         public void NavigateTo(uint address) { }
+    }
+
+    // A modal view that completes by closing itself (Window.Close raises Closed,
+    // which the OpenModal bridge pops + completes).
+    public class ModalTestView : Window
+    {
+        public ModalTestView() { Content = new TextBlock { Text = "modal" }; }
+        public void Dismiss() => Close();
     }
 }

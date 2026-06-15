@@ -87,6 +87,25 @@ namespace FEBuilderGBA.Avalonia.Services
         public event Action? StackChanged;
 
         /// <summary>
+        /// Title of the current page, from the OWNING view Window's
+        /// <see cref="IEditorView.ViewTitle"/> (IEditorView is implemented by the
+        /// Window subclass, not the page content's DataContext — so the title is
+        /// resolved via the page→Window map, not the content). Null for the root
+        /// launcher page (no owning editor Window).
+        /// </summary>
+        public string? CurrentTitle
+        {
+            get
+            {
+                var content = _stack.CurrentTop?.Page;
+                if (content != null && _pageWindows.TryGetValue(content, out var window)
+                    && window is IEditorView ev && !string.IsNullOrEmpty(ev.ViewTitle))
+                    return ev.ViewTitle;
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Seed the stack with the shell's initial root page (the editor
         /// launcher). Called once by <c>MainView</c> at construction.
         /// </summary>

@@ -66,6 +66,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>The control currently shown at the top of the view stack (or null).</summary>
         Control? CurrentContent { get; }
 
+        /// <summary>
+        /// The title of the currently shown page, taken from the owning view's
+        /// <see cref="IEditorView.ViewTitle"/> when it has one, else null (root /
+        /// untitled page). The shell shows this in its app bar.
+        /// </summary>
+        string? CurrentTitle { get; }
+
         /// <summary>Dismiss the top modal/page. Returns true if it consumed the back.</summary>
         bool GoBack();
 
