@@ -160,4 +160,5 @@ jobs:
             instrument-out-${{ matrix.arch }}.txt
             TestResults-${{ matrix.arch }}.xml
             logcat-${{ matrix.arch }}.txt
+            instrumentation-error-${{ matrix.arch }}.txt
           if-no-files-found: warn

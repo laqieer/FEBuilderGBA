@@ -71,8 +71,19 @@ echo ""
 # ---------------------------------------------------------------
 XML_LOCAL="TestResults-${ARCH}.xml"
 if ! adb pull "${RESULTS_DEVICE_PATH}/TestResults.xml" "${XML_LOCAL}"; then
-  echo "WARNING: could not pull TestResults.xml — the test run may not have written it."
+  echo "WARNING: could not pull TestResults.xml -- the test run may not have written it."
   XML_LOCAL=""
+fi
+
+# Pull instrumentation-error.txt (written by Instrumentation.cs on exception).
+# Best-effort -- absence means no on-device exception was caught.
+ERROR_LOCAL="instrumentation-error-${ARCH}.txt"
+if adb pull "${RESULTS_DEVICE_PATH}/instrumentation-error.txt" "${ERROR_LOCAL}" 2>/dev/null; then
+  echo "=== instrumentation-error.txt ==="
+  cat "${ERROR_LOCAL}"
+  echo ""
+else
+  ERROR_LOCAL=""
 fi
 
 # ---------------------------------------------------------------
@@ -80,13 +91,15 @@ fi
 # ---------------------------------------------------------------
 adb logcat -d > "logcat-${ARCH}.txt" || true
 
+
 # ---------------------------------------------------------------
-# 6. PARSE RESULTS — fail the step if any test failed
+# 6. PARSE RESULTS -- fail the step if any test failed
 # ---------------------------------------------------------------
 FAILED=0
+RC_VAL=""
+FT_VAL=""
 
-# (a) am instrument output: FAILURES!!! marker (printed by am instrument on
-#     nonzero instrumentation result) or INSTRUMENTATION_ABORTED.
+# (a) am instrument output: FAILURES!!! or INSTRUMENTATION_ABORTED markers.
 if grep -q "FAILURES!!!" "${OUTFILE}" 2>/dev/null; then
   echo "FAIL: instrument output contains FAILURES!!!"
   FAILED=1
@@ -96,13 +109,25 @@ if grep -q "INSTRUMENTATION_ABORTED" "${OUTFILE}" 2>/dev/null; then
   FAILED=1
 fi
 
-# (b) TestResults.xml: parse failure-count attributes on the <assembly ...>
-#     element.  XHarness writes xUnit v2 XML where the <assembly> element
-#     uses `failed="N"` (xUnit v2) — but older schemas use `failures="N"`.
-#     We grep for BOTH and treat either nonzero as failure.
-#     We also check `errors="N"`.  Raw matched values are echoed for
-#     diagnosability.
-if [ -n "${XML_LOCAL}" ] && [ -f "${XML_LOCAL}" ]; then
+# (b) Non-zero return-code in INSTRUMENTATION_RESULT.
+RC_VAL=$(grep "INSTRUMENTATION_RESULT: return-code=" "${OUTFILE}" 2>/dev/null \
+  | tail -1 | sed "s/.*return-code=//" || echo "")
+if [ -n "${RC_VAL}" ] && [ "${RC_VAL}" != "0" ]; then
+  echo "FAIL: INSTRUMENTATION_RESULT return-code=${RC_VAL} (non-zero)"
+  FAILED=1
+fi
+
+# (c) Non-zero failed-tests in INSTRUMENTATION_RESULT.
+FT_VAL=$(grep "INSTRUMENTATION_RESULT: failed-tests=" "${OUTFILE}" 2>/dev/null \
+  | tail -1 | sed "s/.*failed-tests=//" || echo "")
+if [ -n "${FT_VAL}" ] && [ "${FT_VAL}" != "0" ]; then
+  echo "FAIL: INSTRUMENTATION_RESULT failed-tests=${FT_VAL} (non-zero)"
+  FAILED=1
+fi
+
+# (d) TestResults.xml: parse failure/error counts and REQUIRE total >= 4.
+# total=0 or missing/empty XML means test discovery failed (trimming/exception).
+if [ -n "${XML_LOCAL}" ] && [ -f "${XML_LOCAL}" ] && [ -s "${XML_LOCAL}" ]; then
   # failed= (xUnit v2 <assembly> attribute)
   XML_FAILED=$(grep -oP 'failed="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
   # failures= (older / NUnit-style schema)
@@ -117,23 +142,25 @@ if [ -n "${XML_LOCAL}" ] && [ -f "${XML_LOCAL}" ]; then
     echo "FAIL: TestResults.xml reports failed=${XML_FAILED} failures=${XML_FAILURES} errors=${XML_ERRORS}"
     FAILED=1
   fi
-else
-  echo "WARNING: TestResults.xml not available; relying on instrument output only."
-  # If no XML and no FAILURES marker, check for an explicit OK marker.
-  if ! grep -qE "INSTRUMENTATION_STATUS_CODE: 0|OK \(" "${OUTFILE}" 2>/dev/null; then
-    echo "FAIL: instrument output has no OK marker and no TestResults.xml."
+  # REQUIRE at least 4 executed tests.
+  if [ "${XML_TOTAL:-0}" -lt "4" ] 2>/dev/null; then
+    echo "FAIL: expected >= 4 executed tests, got ${XML_TOTAL} (trimming/discovery problem)"
     FAILED=1
   fi
+else
+  echo "WARNING: TestResults.xml missing or empty."
+  echo "FAIL: zero tests executed -- XML absent/empty means trimming or discovery failure."
+  FAILED=1
 fi
 
 # ---------------------------------------------------------------
 # 7. Final result
 # ---------------------------------------------------------------
+echo ""
+echo "=== Summary: arch=${ARCH} total=${XML_TOTAL} passed=${XML_PASSED} failed=${XML_FAILED} errors=${XML_ERRORS} return-code=${RC_VAL:-0} ==="
 if [ "${FAILED}" = "0" ]; then
-  echo ""
   echo "=== PASS: Android Emulator Parity (arch=${ARCH}) ==="
 else
-  echo ""
   echo "=== FAIL: Android Emulator Parity (arch=${ARCH}) ==="
   exit 1
 fi

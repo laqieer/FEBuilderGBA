@@ -11,6 +11,11 @@
 //      which drives the xUnit runner and writes TestResults.xml.
 //   3. Passes the results path and a pass/fail return code back to ADB
 //      via Finish(), so the CI script can detect failures.
+//   4. Logs the reflected test-class count BEFORE RunAsync, so CI can
+//      distinguish trimmer-stripped classes (count=0) from a runtime
+//      exception as the cause of zero executed tests (#1125 r4).
+//   5. Writes an instrumentation-error.txt file into the results dir if
+//      an exception is caught, so CI can adb-pull and display it.
 //
 // Font path assumption: on .NET-Android, AppContext.BaseDirectory is the
 // directory containing the managed assemblies (the native library extraction
@@ -41,6 +46,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.DotNet.XHarness.DefaultAndroidEntryPoint.Xunit;
 using Microsoft.DotNet.XHarness.TestRunners.Common;
@@ -94,6 +101,19 @@ namespace FEBuilderGBA.Android.Tests
 
             global::Android.Util.Log.Info(LogTag, $"XHarness results path: {resultsPath}");
 
+            // --- Reflect and count test classes BEFORE RunAsync ---
+            // This lets CI distinguish trimmer-stripped classes (count=0)
+            // from a runtime exception as the cause of zero executed tests.
+            int reflectedTestClassCount = CountReflectedTestClasses(out string reflectionDiag);
+            global::Android.Util.Log.Info(LogTag,
+                $"Reflected test classes found: {reflectedTestClassCount}. {reflectionDiag}");
+            if (reflectedTestClassCount == 0)
+            {
+                global::Android.Util.Log.Error(LogTag,
+                    "ZERO test classes found via reflection -- IL trimmer may have removed them. " +
+                    "Ensure AndroidLinkMode=None is set in the test project.");
+            }
+
             // Build the optional bundle dict from the instrumentation arguments.
             var bundleDict = new Dictionary<string, string>(StringComparer.Ordinal);
             if (_arguments != null)
@@ -109,6 +129,9 @@ namespace FEBuilderGBA.Android.Tests
 
             int failedCount = 0;
             int passedCount = 0;
+            int executedCount = 0;
+            string? caughtError = null;
+            string? finalResultsXmlPath = null;
 
             try
             {
@@ -123,31 +146,141 @@ namespace FEBuilderGBA.Android.Tests
                 entryPoint.TestsCompleted += (sender, results) =>
                 {
                     // TestRunResult is a struct; access fields directly (no null check).
-                    failedCount = (int)results.FailedTests;
-                    passedCount = (int)results.PassedTests;
+                    failedCount   = (int)results.FailedTests;
+                    passedCount   = (int)results.PassedTests;
+                    executedCount = (int)results.ExecutedTests;
                     global::Android.Util.Log.Info(LogTag,
-                        $"XHarness completed: passed={passedCount} failed={failedCount} skipped={results.SkippedTests} total={results.ExecutedTests}");
+                        $"XHarness completed: passed={passedCount} failed={failedCount} " +
+                        $"skipped={results.SkippedTests} total={results.ExecutedTests}");
                 };
 
                 await entryPoint.RunAsync();
 
+                finalResultsXmlPath = entryPoint.TestsResultsFinalPath;
                 global::Android.Util.Log.Info(LogTag,
-                    $"RunAsync finished. Results XML: {entryPoint.TestsResultsFinalPath}");
+                    $"RunAsync finished. Results XML: {finalResultsXmlPath}");
+
+                // Belt-and-suspenders: if the TestsCompleted event never fired
+                // (e.g., 0 tests discovered), log and force a failure.
+                if (executedCount == 0)
+                {
+                    global::Android.Util.Log.Warn(LogTag,
+                        "Zero tests executed after RunAsync -- " +
+                        "likely trimming/discovery failure or empty assembly. " +
+                        $"Reflected test classes before run: {reflectedTestClassCount}.");
+                    // Force at least one failure so CI does not falsely report PASS.
+                    failedCount = Math.Max(1, failedCount);
+                }
             }
             catch (Exception ex)
             {
-                global::Android.Util.Log.Error(LogTag, $"XHarness RunAsync threw: {ex}");
+                caughtError = ex.ToString();
+                global::Android.Util.Log.Error(LogTag, $"XHarness RunAsync threw: {caughtError}");
                 failedCount = Math.Max(1, failedCount);
+
+                // Write the full exception to a file that CI can adb-pull for diagnostics.
+                TryWriteErrorFile(resultsPath, caughtError);
+            }
+
+            // Verify the XML was actually written and is non-empty.
+            // A missing or empty XML after a zero-test run means CI must not report PASS.
+            if (finalResultsXmlPath != null)
+            {
+                try
+                {
+                    var fi = new FileInfo(finalResultsXmlPath);
+                    if (!fi.Exists || fi.Length == 0)
+                    {
+                        global::Android.Util.Log.Warn(LogTag,
+                            $"Results XML missing or empty at {finalResultsXmlPath} -- treating as failure.");
+                        failedCount = Math.Max(1, failedCount);
+                    }
+                }
+                catch (Exception xmlCheckEx)
+                {
+                    global::Android.Util.Log.Warn(LogTag, $"Could not stat results XML: {xmlCheckEx.Message}");
+                }
             }
 
             // Finish with a result bundle. Non-zero return code signals CI failure.
+            bool anyFailure = failedCount > 0 || executedCount == 0;
             var result = new global::Android.OS.Bundle();
-            result.PutString("results-file-path", resultsPath);
-            result.PutInt("return-code", failedCount > 0 ? 1 : 0);
-            result.PutInt("failed-tests", failedCount);
-            result.PutInt("passed-tests", passedCount);
+            result.PutString("results-file-path",   resultsPath);
+            result.PutInt("return-code",             anyFailure ? 1 : 0);
+            result.PutInt("failed-tests",            failedCount);
+            result.PutInt("passed-tests",            passedCount);
+            result.PutInt("executed-tests",          executedCount);
+            result.PutInt("reflected-test-classes",  reflectedTestClassCount);
+            if (caughtError != null)
+                result.PutString("error", caughtError.Length > 500 ? caughtError[..500] : caughtError);
 
-            Finish(failedCount > 0 ? global::Android.App.Result.Canceled : global::Android.App.Result.Ok, result);
+            Finish(anyFailure ? global::Android.App.Result.Canceled : global::Android.App.Result.Ok, result);
+        }
+
+        /// <summary>
+        /// Count the number of types in this assembly whose name ends with Tests
+        /// or that have at least one method decorated with [Fact] or [Theory].
+        /// Catches ReflectionTypeLoadException and logs the loader exceptions
+        /// (which reveal missing-dependency load failures) without throwing.
+        /// </summary>
+        int CountReflectedTestClasses(out string diag)
+        {
+            try
+            {
+                var asm = typeof(TestInstrumentation).Assembly;
+                Type[] types;
+                try
+                {
+                    types = asm.GetTypes();
+                }
+                catch (ReflectionTypeLoadException rtle)
+                {
+                    // Log every loader exception so CI can see which dependency is missing.
+                    var loaderMsgs = rtle.LoaderExceptions
+                        .Where(e => e != null)
+                        .Select(e => e!.Message)
+                        .ToArray();
+                    global::Android.Util.Log.Error(LogTag,
+                        $"ReflectionTypeLoadException: {rtle.Message}. " +
+                        $"LoaderExceptions ({loaderMsgs.Length}): {string.Join("; ", loaderMsgs)}");
+                    types = rtle.Types.Where(t => t != null).ToArray()!;
+                }
+
+                int count = types.Count(t =>
+                    t.Name.EndsWith("Tests", StringComparison.Ordinal) ||
+                    t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                     .Any(m => m.GetCustomAttributes(inherit: false)
+                               .Any(a => a.GetType().Name is "FactAttribute" or "TheoryAttribute")));
+
+                diag = $"Assembly: {asm.FullName}; total types: {types.Length}; test classes: {count}";
+                return count;
+            }
+            catch (Exception ex)
+            {
+                diag = $"Reflection failed: {ex.Message}";
+                global::Android.Util.Log.Error(LogTag, $"CountReflectedTestClasses threw: {ex}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Write the full exception text to instrumentation-error.txt in the
+        /// results directory so CI can adb pull it for diagnostics.
+        /// Failures here are silently swallowed -- error file is best-effort.
+        /// </summary>
+        void TryWriteErrorFile(string resultsPath, string errorText)
+        {
+            try
+            {
+                Directory.CreateDirectory(resultsPath);
+                string errorFile = Path.Combine(resultsPath, "instrumentation-error.txt");
+                File.WriteAllText(errorFile, errorText);
+                global::Android.Util.Log.Info(LogTag, $"Wrote error file: {errorFile}");
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Warn(LogTag, $"Could not write error file: {ex.Message}");
+            }
         }
 
         /// <summary>

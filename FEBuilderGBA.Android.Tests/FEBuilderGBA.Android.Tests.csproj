@@ -40,6 +40,15 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RootNamespace>FEBuilderGBA.Android.Tests</RootNamespace>
     <AssemblyName>FEBuilderGBA.Android.Tests</AssemblyName>
+    <!-- Disable IL trimming and AOT so xUnit reflection-based test discovery
+         survives the Release build. Without AndroidLinkMode=None the linker
+         strips the test classes (no static reference → dead code elimination)
+         and RunAsync finds 0 tests — the CI false-green closed by #1125 r4. -->
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <AndroidUseInterpreter>true</AndroidUseInterpreter>
   </PropertyGroup>
 
   <ItemGroup>
