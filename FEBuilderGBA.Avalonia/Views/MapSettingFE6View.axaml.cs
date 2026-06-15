@@ -410,18 +410,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;
             }
 
-            // Treat "no declared fields" as "allow all" so an owner that omits fields[]
-            // doesn't drop every edit into a misleading no-op (Copilot PR #1158 inline finding).
+            // The writer requires every changed field to be declared, so an owner with no
+            // fields[] can never write — fail fast with a clear error (Copilot PR #1158).
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
-            bool filterByDeclared = declared.Count > 0;
+            if (declared.Count == 0)
+            {
+                CoreState.Services?.ShowError(R._("The map_settings source owner declares no fields[] in the manifest — chapter edits cannot be written to source. Add the fields[] declaration and retry."));
+                return true;
+            }
 
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
             foreach (var kv in _vm.BuildSourceFieldDict())
-                if (!filterByDeclared || declared.Contains(kv.Key))
+                if (declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
             if (changed.Count == 0 && _vm.HasUnsupportedFieldChanges())

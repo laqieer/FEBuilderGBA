@@ -24636,6 +24636,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Could not resolve this chapter's entry id — source write skipped.
 无法解析此章节的条目ID——已跳过源码写入。
 
+:The map_settings source owner declares no fields[] in the manifest — chapter edits cannot be written to source. Add the fields[] declaration and retry.
+map_settings 源码所有者未在清单中声明 fields[]——章节编辑无法写入源码。请添加 fields[] 声明后重试。
+
 :map asset
 地图资源
 

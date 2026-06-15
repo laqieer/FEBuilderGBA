@@ -347,22 +347,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;   // owner exists, but we cannot key the edit → not a silent ROM write
             }
 
-            // Intersect the candidate field dict with the owner's declared fields so a field
-            // the manifest does not declare is dropped (no UnsupportedField error). When the
-            // owner declares NO fields at all (allowed by the schema), an empty declared-set
-            // would otherwise drop every edit and make a real change look like a no-op — so
-            // treat "no declared fields" as "allow all" (the writer still validates each
-            // field against the source) (Copilot PR #1158 inline finding).
+            // Build the owner's declared-field set. DecompSourceWriterCore requires EVERY
+            // changed field to be declared in owner.Fields, so an owner with no fields[] can
+            // never write — fail fast with a clear, actionable error instead of dropping
+            // every edit into a misleading no-op or a confusing per-field UnsupportedField
+            // (Copilot PR #1158 inline finding, re-reviewed).
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
-            bool filterByDeclared = declared.Count > 0;
+            if (declared.Count == 0)
+            {
+                CoreState.Services?.ShowError(R._("The map_settings source owner declares no fields[] in the manifest — chapter edits cannot be written to source. Add the fields[] declaration and retry."));
+                return true;   // owner exists but is unwritable — not a silent ROM write
+            }
 
+            // Intersect the candidate field dict with the declared fields so a field the
+            // manifest does not declare is dropped (no UnsupportedField error).
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
             foreach (var kv in _vm.BuildSourceFieldDict())
-                if (!filterByDeclared || declared.Contains(kv.Key))
+                if (declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
             // #1148 finding 2: if the user changed NO supported field but DID change a
