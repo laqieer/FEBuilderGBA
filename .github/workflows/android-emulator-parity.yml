@@ -47,6 +47,11 @@
 # * adb install + am instrument are retried once on transient failure.
 # * CI fails the step (exit 1) if instrument output contains a failure marker
 #   OR if TestResults.xml reports failures/errors > 0, OR if the XML is absent.
+# * All parity-run logic lives in scripts/android-parity-run.sh, invoked via a
+#   SINGLE-LINE `script:` value. This is required because
+#   reactivecircus/android-emulator-runner@v2 executes each `script:` line in a
+#   SEPARATE `/usr/bin/sh -c <line>` invocation — multi-line constructs
+#   (variable persistence, shell functions, if/fi blocks) cannot span lines.
 
 name: Android Emulator Parity
 
@@ -144,109 +149,7 @@ jobs:
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           emulator-boot-timeout: 900
-          script: |
-            set -eu
-
-            ARCH="${{ matrix.arch }}"
-            echo "=== Android Emulator Parity: arch=${ARCH} ==="
-
-            # Locate the signed APK
-            APK_PATH=$(find FEBuilderGBA.Android.Tests/bin/Release/net9.0-android -name "*-Signed.apk" | head -1)
-            if [ -z "$APK_PATH" ]; then
-              echo "ERROR: No *-Signed.apk found under FEBuilderGBA.Android.Tests/bin/Release/net9.0-android/"
-              ls -la FEBuilderGBA.Android.Tests/bin/Release/net9.0-android/ || true
-              exit 1
-            fi
-            echo "APK: $APK_PATH"
-
-            # Install APK with one retry on transient adb failure
-            install_apk() {
-              adb install -r "$APK_PATH"
-            }
-            if ! install_apk; then
-              echo "adb install failed, retrying in 10 seconds..."
-              sleep 10
-              install_apk
-            fi
-
-            # Run the instrumented tests via `am instrument`.
-            # -e results-file-path: where the XHarness DefaultAndroidEntryPoint
-            #   writes TestResults.xml (on the device, readable via adb pull).
-            # -w: wait for instrumentation to finish (required for result collection).
-            RESULTS_DEVICE_PATH="/sdcard/Download"
-            INSTRUMENT_CMD="adb shell am instrument -w -e results-file-path ${RESULTS_DEVICE_PATH} com.laqieer.febuildergba.tests/com.laqieer.febuildergba.tests.TestInstrumentation"
-            OUTFILE="instrument-out-${ARCH}.txt"
-
-            run_instrument() {
-              eval "$INSTRUMENT_CMD 2>&1 | tee $OUTFILE"
-            }
-            if ! run_instrument; then
-              echo "am instrument failed, retrying in 15 seconds..."
-              sleep 15
-              run_instrument
-            fi
-
-            echo ""
-            echo "=== instrument output ==="
-            cat "$OUTFILE"
-            echo ""
-
-            # Pull TestResults.xml from the device
-            XML_LOCAL="TestResults-${ARCH}.xml"
-            if ! adb pull "${RESULTS_DEVICE_PATH}/TestResults.xml" "$XML_LOCAL"; then
-              echo "WARNING: could not pull TestResults.xml — the test run may not have written it."
-              XML_LOCAL=""
-            fi
-
-            # Pull logcat for diagnostics
-            adb logcat -d > "logcat-${ARCH}.txt" || true
-
-            # ---------------------------------------------------------------
-            # PARSE RESULTS — fail the step if any test failed
-            # ---------------------------------------------------------------
-            FAILED=0
-
-            # (a) am instrument output: look for the `FAILURES!!!` marker that
-            #     am instrument prints when tests fail, or for an abnormal
-            #     INSTRUMENTATION_RESULT code=failure.
-            if grep -q "FAILURES!!!" "$OUTFILE" 2>/dev/null; then
-              echo "FAIL: instrument output contains FAILURES!!!"
-              FAILED=1
-            fi
-            if grep -q "INSTRUMENTATION_ABORTED" "$OUTFILE" 2>/dev/null; then
-              echo "FAIL: INSTRUMENTATION_ABORTED in output"
-              FAILED=1
-            fi
-
-            # (b) TestResults.xml: parse failures= and errors= attributes on
-            #     the <assembly ...> element using grep (no xmllint dependency).
-            if [ -n "$XML_LOCAL" ] && [ -f "$XML_LOCAL" ]; then
-              XML_FAILURES=$(grep -oP 'failures="\K[^"]+' "$XML_LOCAL" | head -1 || echo "0")
-              XML_ERRORS=$(grep -oP 'errors="\K[^"]+' "$XML_LOCAL" | head -1 || echo "0")
-              XML_TOTAL=$(grep -oP 'total="\K[^"]+' "$XML_LOCAL" | head -1 || echo "0")
-              XML_PASSED=$(grep -oP 'passed="\K[^"]+' "$XML_LOCAL" | head -1 || echo "0")
-              echo "TestResults.xml: total=${XML_TOTAL} passed=${XML_PASSED} failures=${XML_FAILURES} errors=${XML_ERRORS}"
-              if [ "${XML_FAILURES:-0}" != "0" ] || [ "${XML_ERRORS:-0}" != "0" ]; then
-                echo "FAIL: TestResults.xml reports failures=${XML_FAILURES} errors=${XML_ERRORS}"
-                FAILED=1
-              fi
-            else
-              echo "WARNING: TestResults.xml not available; relying on instrument output only."
-              # If no XML and no explicit FAILURES marker, check for OK marker.
-              if ! grep -q "INSTRUMENTATION_STATUS_CODE: 0\|OK (" "$OUTFILE" 2>/dev/null; then
-                echo "FAIL: instrument output has no OK marker and no TestResults.xml."
-                FAILED=1
-              fi
-            fi
-
-            if [ "$FAILED" = "0" ]; then
-              echo ""
-              echo "=== PASS: Android Emulator Parity (arch=${ARCH}) ==="
-            else
-              echo ""
-              echo "=== FAIL: Android Emulator Parity (arch=${ARCH}) ==="
-              exit 1
-            fi
+          script: bash scripts/android-parity-run.sh ${{ matrix.arch }}
 
       - name: Upload test artifacts
         if: always()
