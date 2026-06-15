@@ -296,6 +296,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Alias groups of the source-writable field keys (#1148, Copilot PR #1158 review):
+        /// each inner array is the set of MANIFEST-NAME aliases that all refer to ONE logical
+        /// scalar (e.g. <c>{"Weather","weather"}</c>). The save-gate reasons per logical field
+        /// — a logical scalar is source-writable when the manifest declares AT LEAST ONE of its
+        /// aliases (not all), so a normal manifest declaring only <c>Weather</c> is accepted.
+        /// Keys here must stay in sync with <see cref="CurrentSourceFieldMap"/>.
+        /// </summary>
+        public static readonly string[][] SourceFieldAliasGroups =
+        {
+            new[] { "PLISTObj", "objPlist" },
+            new[] { "PLISTPal" },
+            new[] { "PLISTConfig" },
+            new[] { "PLISTMap" },
+            new[] { "PLISTAnime1" },
+            new[] { "PLISTAnime2" },
+            new[] { "PLISTMapchange" },
+            new[] { "Weather", "weather" },
+            new[] { "fog", "FogLevel" },
+            new[] { "BattlePreparation", "hasPrepScreen" },
+            new[] { "ChapterTitleIndex" },
+            new[] { "ChapterTitleIndex2" },
+            new[] { "InitialX" },
+            new[] { "InitialY" },
+            new[] { "BattleBGLookup" },
+            new[] { "DifficultyMode" },
+            new[] { "BGM1" }, new[] { "BGM2" }, new[] { "BGM3" }, new[] { "BGM4" },
+            new[] { "BGM5" }, new[] { "BGM6" }, new[] { "BGM7" }, new[] { "BGM8" },
+            new[] { "BreakableWallHP" },
+            new[] { "TextMapName" },
+            new[] { "TextMapName2" },
+            new[] { "PLISTEvent" },
+            new[] { "WorldMapEvent" },
+            new[] { "ChapterNumber", "chapterId" },
+            new[] { "VictoryBGMEnemyCount" },
+            new[] { "TextGoal" },
+            new[] { "TextStatus" },
+            new[] { "SpecialDisplay" },
+            new[] { "TurnCountDisplay" },
+            new[] { "DefenseUnitMark" },
+            new[] { "EscapeMarkerX" },
+            new[] { "EscapeMarkerY" },
+        };
+
+        /// <summary>
         /// The UNSUPPORTED (pointer) chapter-setting fields (#1148, Copilot finding 2): the
         /// C pointers that the source writer cannot rewrite as integer literals. Tracked
         /// separately so the save-gate can detect "the user edited ONLY a pointer field" and

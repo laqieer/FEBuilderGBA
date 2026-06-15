@@ -149,6 +149,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             };
         }
 
+        /// <summary>
+        /// Alias groups for the FE6 source-writable scalar keys (#1148, Copilot PR #1158): each
+        /// inner array is the manifest-name aliases of one logical scalar. A logical scalar is
+        /// source-writable when the manifest declares AT LEAST ONE of its aliases. Keys must
+        /// stay in sync with <see cref="CurrentSourceFieldMap"/>.
+        /// </summary>
+        public static readonly string[][] SourceFieldAliasGroups =
+        {
+            new[] { "PLISTObj", "objPlist" },
+            new[] { "PLISTPal" },
+            new[] { "PLISTConfig" },
+            new[] { "PLISTMap" },
+            new[] { "PLISTAnime1" },
+            new[] { "PLISTAnime2" },
+            new[] { "PLISTMapchange" },
+            new[] { "FogLevel", "fog" },
+            new[] { "BattlePreparation", "hasPrepScreen" },
+            new[] { "ChapterTitleIndex" },
+            new[] { "Weather", "weather" },
+            new[] { "BattleBGLookup" },
+            new[] { "BGM1" }, new[] { "BGM2" }, new[] { "BGM3" },
+            new[] { "HardBoost" },
+            new[] { "BreakableWallHP" },
+            new[] { "TextGoal" },
+            new[] { "TextChapterName" },
+            new[] { "PLISTEvent" },
+            new[] { "WorldMapEvent" },
+            new[] { "WorldMapPlaceName" },
+            new[] { "ChapterNumber", "chapterId" },
+            new[] { "WorldMapX" },
+            new[] { "WorldMapY" },
+            new[] { "VictoryBGMEnemyCount" },
+        };
+
         /// <summary>The unsupported (pointer) FE6 chapter field — D0/EventDataPtr (#1148).</summary>
         Dictionary<string, uint> CurrentUnsupportedFieldMap()
         {

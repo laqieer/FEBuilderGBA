@@ -361,36 +361,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;
             }
 
-            // 2) Build the owner's declared-field set and the raw set of source-writable
-            //    scalar fields the user edited since load.
+            // 2) Build the owner's declared-field set and evaluate the all-or-nothing gate
+            //    over LOGICAL fields / alias groups (Copilot PR #1158: a manifest declaring
+            //    only ONE alias of a logical scalar — e.g. "Weather" not "weather" — is valid,
+            //    while an edited logical scalar with NO declared alias blocks the whole save).
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
 
-            var rawChanged = _vm.BuildSourceFieldDict();
-
-            // 3) EVERY edited scalar must be declared. If ANY edited scalar is not declared
-            //    by the manifest (incl. the empty-fields[] case), the edit can't reach source
-            //    — report it honestly and skip the write WITHOUT marking/re-baselining the VM
-            //    (no partial write, no false no-op).
-            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
-            bool anyUndeclared = false;
-            foreach (var kv in rawChanged)
-            {
-                if (declared.Contains(kv.Key))
-                    changed[kv.Key] = kv.Value;
-                else
-                    anyUndeclared = true;
-            }
-            if (anyUndeclared)
+            ChapterSaveGateResult gate = DecompChapterSaveGate.Evaluate(
+                MapSettingViewModel.SourceFieldAliasGroups, _vm.BuildSourceFieldDict(), declared,
+                out Dictionary<string, uint> changed);
+            if (gate == ChapterSaveGateResult.UndeclaredScalar)
             {
                 CoreState.Services?.ShowError(R._("This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild."));
                 return true;
             }
-            // 4) changed.Count == 0 here means genuinely nothing was edited → fall through;
-            //    the writer reports a clean no-op (no churn, no rebuild).
+            // gate == NoChange (changed empty) → fall through; the writer reports a clean no-op.
 
             // Always call the writer and branch on its typed status so the user sees an
             // ACCURATE message (the writer returns the right message for romOnly / manual /
