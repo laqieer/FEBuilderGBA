@@ -1,91 +1,65 @@
-﻿// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
-// XHarness Android instrumentation entry point for FEBuilderGBA.Android.Tests (#1125).
+// Direct reflection-based on-device test runner for FEBuilderGBA.Android.Tests (#1125).
 //
-// This class is the on-device runner harness. It:
-//   1. Copies the bundled Tuffy font from APK assets into
-//      AppContext.BaseDirectory/Fonts/ BEFORE any test runs, so the
-//      hard-coded LoadTuffy() path in SkiaRenderByteParityTests resolves
-//      without modifying the shared (linked) test source.
-//   2. Delegates test execution to the XHarness DefaultAndroidEntryPoint,
-//      which drives the xUnit runner and writes TestResults.xml.
-//   3. Passes the results path and a pass/fail return code back to ADB
-//      via Finish(), so the CI script can detect failures.
-//   4. Logs the reflected test-class count BEFORE RunAsync, so CI can
-//      distinguish trimmer-stripped classes (count=0) from a runtime
-//      exception as the cause of zero executed tests (#1125 r4).
-//   5. Writes an instrumentation-error.txt file into the results dir if
-//      an exception is caught, so CI can adb-pull and display it.
+// WHY NO xUnit FILE-DISCOVERY:
+//   .NET 9 Android embeds managed assemblies as ELF-wrapped native libraries
+//   (lib/<abi>/lib_<Name>.dll.so) rather than as plain PE .dll zip entries.
+//   xUnit's XunitFrontController calls Guard.FileExists() which requires a real
+//   on-disk PE file; assembly.Location is empty on .NET 9 Android, so xUnit
+//   throws "File not found" before executing any test.
 //
-// Font path assumption: on .NET-Android, AppContext.BaseDirectory is the
-// directory containing the managed assemblies (the native library extraction
-// directory, e.g. /data/app/.../<package>/lib/x86_64/). Loose
-// CopyToOutputDirectory content files are placed there by the .NET-Android
-// build system in .NET 7+. However, because this behaviour is not 100%
-// guaranteed across .NET versions and device configurations, this class
-// ALSO copies from APK assets as a belt-and-suspenders fallback, always
-// winning the race with an explicit write. The write is done with
-// FileMode.Create so a stale CopyToOutputDirectory copy does not cause
-// a "file already exists" failure.
+//   This runner sidesteps xUnit file-discovery entirely: it references the two
+//   test classes STATICALLY (defeating any residual IL trimmer), then invokes
+//   every [Fact]/[SkippableFact] method directly via Reflection on the
+//   in-memory, linked assembly -- executing the IDENTICAL golden assertions that
+//   run on Linux/macOS/Windows CI.
 //
-// If AppContext.BaseDirectory is on a read-only mount (which can happen on
-// some Android API levels for the native lib dir), the Directory.CreateDirectory
-// and FileStream calls will throw; this is caught and logged. In that case the
-// font tests emit a "bundled font missing" assertion failure with the actual
-// path in the message, which clearly identifies the root cause in CI output.
-// The IMAGE parity tests and the RuntimeLoadedSkiaSharpAssembly_Is_288 guard
-// do NOT require the font and will still pass in that scenario.
+// HOW IT WORKS:
+//   1. CopyTuffyFontFromAssets() -- copies Tuffy-Regular.ttf from APK assets
+//      into AppContext.BaseDirectory/Fonts/ before any test runs, so the
+//      hard-coded LoadTuffy() path in SkiaRenderByteParityTests resolves.
+//   2. RunTestsAsync() builds a list of [Fact]/[SkippableFact] methods from
+//      the two statically-referenced test types, invokes each, catches
+//      Xunit.SkipException (thrown by Skip.If/Skip.Unless from the
+//      xunit.SkippableFact package), and records Pass/Fail/Skip.
+//   3. Writes a xUnit v2-compatible TestResults.xml that the CI script parses.
+//   4. Reports counts via the ADB instrumentation bundle so the CI script can
+//      verify total >= 4 executed tests without even reading the XML.
 //
-// NAMESPACE NOTE: This project lives in the FEBuilderGBA.Android.Tests
-// namespace. The `Android` segment in `Android.App.Instrumentation` would
-// otherwise resolve to the `FEBuilderGBA.Android` sub-namespace rather than
-// the top-level `Android` namespace from Mono.Android. All Android SDK types
-// are therefore referenced via `global::Android.*` to force resolution from
-// the global namespace root.
+// NAMESPACE NOTE: Android SDK types are referenced via global::Android.* to
+// prevent the local FEBuilderGBA.Android sub-namespace from shadowing the top-
+// level Android namespace from Mono.Android.
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Security;
+using System.Text;
 using System.Threading.Tasks;
-using Microsoft.DotNet.XHarness.DefaultAndroidEntryPoint.Xunit;
-using Microsoft.DotNet.XHarness.TestRunners.Common;
+
+// Static references defeat IL trimmer: the linker sees these as live roots
+// and preserves the entire test class hierarchy including their dependencies.
+using FEBuilderGBA.Core.Tests;
 
 namespace FEBuilderGBA.Android.Tests
 {
-    // ---------------------------------------------------------------------------
-    // ParityAndroidEntryPoint -- thin subclass of DefaultAndroidEntryPoint that
-    // overrides GetTestAssemblies() to supply a REAL on-disk path for the test
-    // assembly DLL.  The base class yields assembly.Location (which is empty on
-    // .NET 9 Android), causing xUnit's FileExists guard to throw
-    // "File not found: FEBuilderGBA.Android.Tests.dll".  Our override bypasses
-    // that by pointing xUnit at the extracted path.
-    // ---------------------------------------------------------------------------
-    sealed class ParityAndroidEntryPoint : DefaultAndroidEntryPoint
-    {
-        public Assembly? TestAssembly { get; set; }
-        public string TestAssemblyPath { get; set; } = string.Empty;
-
-        public ParityAndroidEntryPoint(string resultsPath, Dictionary<string, string> bundle)
-            : base(resultsPath, bundle)
-        {
-        }
-
-        protected override IEnumerable<TestAssemblyInfo> GetTestAssemblies()
-        {
-            if (TestAssembly != null && !string.IsNullOrEmpty(TestAssemblyPath))
-                yield return new TestAssemblyInfo(TestAssembly, TestAssemblyPath);
-        }
-    }
-
     [global::Android.App.Instrumentation(Name = "com.laqieer.febuildergba.tests.TestInstrumentation")]
     public class TestInstrumentation : global::Android.App.Instrumentation
     {
         const string LogTag = "FEBuilderGBA.Tests";
         const string DefaultResultsPath = "/sdcard/Download";
-        const string TestDllName = "FEBuilderGBA.Android.Tests.dll";
+
+        // Static references to the test types so the IL trimmer sees them as
+        // live roots and does NOT strip the test methods or their dependencies.
+        static readonly Type[] TestTypes = new[]
+        {
+            typeof(SkiaRenderByteParityTests),
+            typeof(SkiaSharpVersionGuardTests),
+        };
 
         global::Android.OS.Bundle? _arguments;
 
@@ -115,9 +89,9 @@ namespace FEBuilderGBA.Android.Tests
 
         async Task RunTestsAsync()
         {
+            await Task.Yield(); // ensure we're off the main thread
+
             // Parse the results path from the ADB instrument -e arguments bundle.
-            // The XHarness CI script passes: adb shell am instrument -w
-            //   -e results-file-path /sdcard/Download ...
             string resultsPath = DefaultResultsPath;
             if (_arguments != null)
             {
@@ -126,257 +100,225 @@ namespace FEBuilderGBA.Android.Tests
                     resultsPath = val;
             }
 
-            global::Android.Util.Log.Info(LogTag, $"XHarness results path: {resultsPath}");
+            global::Android.Util.Log.Info(LogTag, $"Reflection runner: results path = {resultsPath}");
 
-            // --- Reflect and count test classes BEFORE RunAsync ---
-            // This lets CI distinguish trimmer-stripped classes (count=0)
-            // from a runtime exception as the cause of zero executed tests.
-            int reflectedTestClassCount = CountReflectedTestClasses(out string reflectionDiag);
-            global::Android.Util.Log.Info(LogTag,
-                $"Reflected test classes found: {reflectedTestClassCount}. {reflectionDiag}");
-            if (reflectedTestClassCount == 0)
-            {
-                global::Android.Util.Log.Error(LogTag,
-                    "ZERO test classes found via reflection -- IL trimmer may have removed them. " +
-                    "Ensure AndroidLinkMode=None is set in the test project.");
-            }
-
-            // Build the optional bundle dict from the instrumentation arguments.
-            var bundleDict = new Dictionary<string, string>(StringComparer.Ordinal);
-            if (_arguments != null)
-            {
-                foreach (string? key in _arguments.KeySet() ?? Array.Empty<string>())
-                {
-                    if (key == null) continue;
-                    string? v = _arguments.GetString(key);
-                    if (v != null)
-                        bundleDict[key] = v;
-                }
-            }
-
-            int failedCount = 0;
-            int passedCount = 0;
-            int executedCount = 0;
-            string? caughtError = null;
-            string? finalResultsXmlPath = null;
+            int passed = 0, failed = 0, skipped = 0;
+            string? runnerError = null;
+            var records = new List<TestRecord>();
 
             try
             {
-                // -----------------------------------------------------------
-                // Extract the test assembly DLL from the APK to a real path
-                // so xUnit's FileExists guard can open it.
-                // -----------------------------------------------------------
-                string extractedPath = ExtractTestAssembly(resultsPath);
-                global::Android.Util.Log.Info(LogTag,
-                    $"Test assembly extracted to: {extractedPath}");
+                Directory.CreateDirectory(resultsPath);
 
-                var entryPoint = new ParityAndroidEntryPoint(resultsPath, bundleDict)
+                foreach (var type in TestTypes)
                 {
-                    TestAssembly = typeof(TestInstrumentation).Assembly,
-                    TestAssemblyPath = extractedPath,
-                    // Also set the base Tests list for other internal uses.
-                    Tests = new[] { typeof(TestInstrumentation).Assembly },
-                };
-
-                entryPoint.TestsCompleted += (sender, results) =>
-                {
-                    // TestRunResult is a struct; access fields directly (no null check).
-                    failedCount   = (int)results.FailedTests;
-                    passedCount   = (int)results.PassedTests;
-                    executedCount = (int)results.ExecutedTests;
-                    global::Android.Util.Log.Info(LogTag,
-                        $"XHarness completed: passed={passedCount} failed={failedCount} " +
-                        $"skipped={results.SkippedTests} total={results.ExecutedTests}");
-                };
-
-                await entryPoint.RunAsync();
-
-                finalResultsXmlPath = entryPoint.TestsResultsFinalPath;
-                global::Android.Util.Log.Info(LogTag,
-                    $"RunAsync finished. Results XML: {finalResultsXmlPath}");
-
-                // Belt-and-suspenders: if the TestsCompleted event never fired
-                // (e.g., 0 tests discovered), log and force a failure.
-                if (executedCount == 0)
-                {
-                    global::Android.Util.Log.Warn(LogTag,
-                        "Zero tests executed after RunAsync -- " +
-                        "likely trimming/discovery failure or empty assembly. " +
-                        $"Reflected test classes before run: {reflectedTestClassCount}.");
-                    // Force at least one failure so CI does not falsely report PASS.
-                    failedCount = Math.Max(1, failedCount);
-                }
-            }
-            catch (Exception ex)
-            {
-                caughtError = ex.ToString();
-                global::Android.Util.Log.Error(LogTag, $"XHarness RunAsync threw: {caughtError}");
-                failedCount = Math.Max(1, failedCount);
-
-                // Write the full exception to a file that CI can adb-pull for diagnostics.
-                TryWriteErrorFile(resultsPath, caughtError);
-            }
-
-            // Verify the XML was actually written and is non-empty.
-            // A missing or empty XML after a zero-test run means CI must not report PASS.
-            if (finalResultsXmlPath != null)
-            {
-                try
-                {
-                    var fi = new FileInfo(finalResultsXmlPath);
-                    if (!fi.Exists || fi.Length == 0)
+                    object? instance;
+                    try
                     {
-                        global::Android.Util.Log.Warn(LogTag,
-                            $"Results XML missing or empty at {finalResultsXmlPath} -- treating as failure.");
-                        failedCount = Math.Max(1, failedCount);
+                        instance = Activator.CreateInstance(type);
+                    }
+                    catch (Exception ex)
+                    {
+                        global::Android.Util.Log.Error(LogTag,
+                            $"Could not create instance of {type.FullName}: {ex}");
+                        // Record a synthetic failure for the entire class.
+                        records.Add(new TestRecord(
+                            type.FullName + ".<ctor>",
+                            TestOutcome.Fail,
+                            0.0,
+                            failMessage: ex.GetType().Name + ": " + ex.Message,
+                            failStack: ex.StackTrace ?? ""));
+                        failed++;
+                        continue;
+                    }
+
+                    // Collect [Fact] / [SkippableFact] methods.
+                    // [SkippableFact] derives from [Fact] in xunit.SkippableFact, so a
+                    // single check for Xunit.FactAttribute (inherit:true) catches BOTH.
+                    var methods = type
+                        .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                        .Where(m =>
+                            m.GetCustomAttributes(inherit: true)
+                             .Any(a => a is Xunit.FactAttribute))
+                        .ToArray();
+
+                    global::Android.Util.Log.Info(LogTag,
+                        $"Type {type.Name}: {methods.Length} [Fact]/[SkippableFact] method(s)");
+
+                    foreach (var method in methods)
+                    {
+                        string testName = type.FullName + "." + method.Name;
+                        global::Android.Util.Log.Info(LogTag, $"  RUN  {testName}");
+                        var sw = Stopwatch.StartNew();
+                        try
+                        {
+                            method.Invoke(instance, null);
+                            sw.Stop();
+                            passed++;
+                            records.Add(new TestRecord(testName, TestOutcome.Pass, sw.Elapsed.TotalSeconds));
+                            global::Android.Util.Log.Info(LogTag,
+                                $"  PASS {testName} ({sw.ElapsedMilliseconds} ms)");
+                        }
+                        catch (TargetInvocationException tie)
+                        {
+                            sw.Stop();
+                            var inner = tie.InnerException ?? tie;
+                            // xunit.SkippableFact throws Xunit.SkipException for Skip.If/Skip.Unless
+                            if (inner is Xunit.SkipException skipEx)
+                            {
+                                skipped++;
+                                records.Add(new TestRecord(testName, TestOutcome.Skip,
+                                    sw.Elapsed.TotalSeconds, skipReason: skipEx.Message));
+                                global::Android.Util.Log.Info(LogTag,
+                                    $"  SKIP {testName}: {skipEx.Message}");
+                            }
+                            else
+                            {
+                                failed++;
+                                records.Add(new TestRecord(testName, TestOutcome.Fail,
+                                    sw.Elapsed.TotalSeconds,
+                                    failMessage: inner.GetType().Name + ": " + inner.Message,
+                                    failStack: inner.StackTrace ?? ""));
+                                global::Android.Util.Log.Error(LogTag,
+                                    $"  FAIL {testName}: {inner.GetType().Name}: {inner.Message}\n{inner.StackTrace}");
+                            }
+                        }
                     }
                 }
-                catch (Exception xmlCheckEx)
+
+                // Write TestResults.xml in xUnit v2 / JUnit format.
+                WriteResultsXml(resultsPath, records, passed, failed, skipped);
+
+                // On all-pass, write a short success note to stdout (no error file).
+                if (failed == 0)
                 {
-                    global::Android.Util.Log.Warn(LogTag, $"Could not stat results XML: {xmlCheckEx.Message}");
+                    global::Android.Util.Log.Info(LogTag,
+                        $"All tests passed: passed={passed} skipped={skipped} failed=0");
                 }
-            }
-
-            // Finish with a result bundle. Non-zero return code signals CI failure.
-            bool anyFailure = failedCount > 0 || executedCount == 0;
-            var result = new global::Android.OS.Bundle();
-            result.PutString("results-file-path",   resultsPath);
-            result.PutInt("return-code",             anyFailure ? 1 : 0);
-            result.PutInt("failed-tests",            failedCount);
-            result.PutInt("passed-tests",            passedCount);
-            result.PutInt("executed-tests",          executedCount);
-            result.PutInt("reflected-test-classes",  reflectedTestClassCount);
-            if (caughtError != null)
-                result.PutString("error", caughtError.Length > 500 ? caughtError[..500] : caughtError);
-
-            Finish(anyFailure ? global::Android.App.Result.Canceled : global::Android.App.Result.Ok, result);
-        }
-
-        /// <summary>
-        /// Extract FEBuilderGBA.Android.Tests.dll from the APK zip to a real writable
-        /// path (Context.FilesDir) so xUnit's FileExists guard can open it.
-        ///
-        /// With AndroidUseAssemblyStore=false + AndroidEnableAssemblyCompression=false
-        /// the DLL is stored as an individual, uncompressed entry inside the APK.
-        /// Common APK layout (probed in order):
-        ///   assemblies/FEBuilderGBA.Android.Tests.dll       (primary path)
-        ///   assemblies/x86_64/FEBuilderGBA.Android.Tests.dll (arch-specific fallback)
-        ///
-        /// If none is found, throws an exception whose message lists all .dll entries
-        /// in the APK (first 30) so the next CI run shows the actual layout.
-        /// </summary>
-        string ExtractTestAssembly(string resultsPath)
-        {
-            string apkPath = Context!.ApplicationInfo!.SourceDir!;
-            global::Android.Util.Log.Info(LogTag, $"Opening APK: {apkPath}");
-
-            // Destination: Context.FilesDir is always writable (private app storage).
-            string destDir = Context.FilesDir!.AbsolutePath;
-            string destPath = Path.Combine(destDir, TestDllName);
-
-            using var apk = ZipFile.OpenRead(apkPath);
-
-            // Probe candidate paths in priority order.
-            ZipArchiveEntry? entry =
-                apk.GetEntry($"assemblies/{TestDllName}")
-                ?? apk.GetEntry($"assemblies/x86_64/{TestDllName}")
-                ?? apk.GetEntry($"assemblies/x86/{TestDllName}")
-                ?? apk.GetEntry($"assemblies/arm64-v8a/{TestDllName}")
-                ?? apk.GetEntry($"assemblies/armeabi-v7a/{TestDllName}")
-                ?? apk.Entries.FirstOrDefault(e => e.Name == TestDllName);
-
-            if (entry == null)
-            {
-                // Collect diagnostic info: list .dll / FEBuilderGBA entries (up to 30).
-                var dllEntries = apk.Entries
-                    .Where(e => e.FullName.Contains("FEBuilderGBA", StringComparison.OrdinalIgnoreCase)
-                             || e.FullName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                    .Take(30)
-                    .Select(e => e.FullName)
-                    .ToArray();
-
-                string entryList = string.Join("; ", dllEntries);
-                string errorMsg =
-                    $"Test assembly DLL not found in APK. " +
-                    $"AndroidUseAssemblyStore/Compression may not be effective. " +
-                    $"Relevant entries ({dllEntries.Length}): {entryList}";
-
-                global::Android.Util.Log.Error(LogTag, errorMsg);
-                TryWriteErrorFile(resultsPath, errorMsg);
-                throw new InvalidOperationException(errorMsg);
-            }
-
-            global::Android.Util.Log.Info(LogTag,
-                $"Found APK entry: {entry.FullName} ({entry.Length} bytes). " +
-                $"Extracting to {destPath}");
-
-            // Extract (overwrite any stale copy).
-            entry.ExtractToFile(destPath, overwrite: true);
-
-            global::Android.Util.Log.Info(LogTag,
-                $"Extracted {TestDllName}: {new System.IO.FileInfo(destPath).Length} bytes");
-
-            return destPath;
-        }
-
-        /// <summary>
-        /// Count the number of types in this assembly whose name ends with Tests
-        /// or that have at least one method decorated with [Fact] or [Theory].
-        /// Catches ReflectionTypeLoadException and logs the loader exceptions
-        /// (which reveal missing-dependency load failures) without throwing.
-        /// </summary>
-        int CountReflectedTestClasses(out string diag)
-        {
-            try
-            {
-                var asm = typeof(TestInstrumentation).Assembly;
-                Type[] types;
-                try
+                else
                 {
-                    types = asm.GetTypes();
+                    // Write human-readable failure summary to instrumentation-error.txt.
+                    TryWriteErrorFile(resultsPath, records);
                 }
-                catch (ReflectionTypeLoadException rtle)
-                {
-                    // Log every loader exception so CI can see which dependency is missing.
-                    var loaderMsgs = rtle.LoaderExceptions
-                        .Where(e => e != null)
-                        .Select(e => e!.Message)
-                        .ToArray();
-                    global::Android.Util.Log.Error(LogTag,
-                        $"ReflectionTypeLoadException: {rtle.Message}. " +
-                        $"LoaderExceptions ({loaderMsgs.Length}): {string.Join("; ", loaderMsgs)}");
-                    types = rtle.Types.Where(t => t != null).ToArray()!;
-                }
-
-                int count = types.Count(t =>
-                    t.Name.EndsWith("Tests", StringComparison.Ordinal) ||
-                    t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
-                     .Any(m => m.GetCustomAttributes(inherit: false)
-                               .Any(a => a.GetType().Name is "FactAttribute" or "TheoryAttribute")));
-
-                diag = $"Assembly: {asm.FullName}; total types: {types.Length}; test classes: {count}";
-                return count;
             }
             catch (Exception ex)
             {
-                diag = $"Reflection failed: {ex.Message}";
-                global::Android.Util.Log.Error(LogTag, $"CountReflectedTestClasses threw: {ex}");
-                return 0;
+                runnerError = ex.ToString();
+                global::Android.Util.Log.Error(LogTag, $"Runner-level exception: {runnerError}");
+                failed = Math.Max(1, failed);
+                TryWriteRunnerErrorFile(resultsPath, runnerError);
             }
+
+            int executed = passed + failed;
+            bool anyFailure = failed > 0 || executed == 0;
+
+            var result = new global::Android.OS.Bundle();
+            result.PutString("results-file-path",  resultsPath);
+            result.PutInt("return-code",            anyFailure ? 1 : 0);
+            result.PutInt("passed-tests",           passed);
+            result.PutInt("failed-tests",           failed);
+            result.PutInt("skipped-tests",          skipped);
+            result.PutInt("executed-tests",         executed);
+            if (runnerError != null)
+                result.PutString("error",
+                    runnerError.Length > 500 ? runnerError[..500] : runnerError);
+
+            Finish(
+                anyFailure ? global::Android.App.Result.Canceled : global::Android.App.Result.Ok,
+                result);
         }
 
-        /// <summary>
-        /// Write the full exception text to instrumentation-error.txt in the
-        /// results directory so CI can adb pull it for diagnostics.
-        /// Failures here are silently swallowed -- error file is best-effort.
-        /// </summary>
-        void TryWriteErrorFile(string resultsPath, string errorText)
+        // -----------------------------------------------------------------------
+        // XML writer -- xUnit v2 schema (same as what the CI script already greps)
+        // -----------------------------------------------------------------------
+        static void WriteResultsXml(
+            string resultsPath,
+            List<TestRecord> records,
+            int passed, int failed, int skipped)
+        {
+            string xmlPath = Path.Combine(resultsPath, "TestResults.xml");
+            int total = passed + failed + skipped;
+            double totalSec = records.Sum(r => r.DurationSec);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+            sb.AppendLine("<assemblies>");
+            sb.AppendLine(
+                $"  <assembly name=\"FEBuilderGBA.Android.Tests\"" +
+                $" total=\"{total}\"" +
+                $" passed=\"{passed}\"" +
+                $" failed=\"{failed}\"" +
+                $" skipped=\"{skipped}\"" +
+                $" errors=\"0\"" +
+                $" time=\"{totalSec:F3}\">");
+            sb.AppendLine(
+                $"    <collection total=\"{total}\"" +
+                $" passed=\"{passed}\"" +
+                $" failed=\"{failed}\"" +
+                $" skipped=\"{skipped}\"" +
+                $" name=\"Reflection Runner\"" +
+                $" time=\"{totalSec:F3}\">");
+
+            foreach (var r in records)
+            {
+                string outcome = r.Outcome switch
+                {
+                    TestOutcome.Pass => "Pass",
+                    TestOutcome.Fail => "Fail",
+                    TestOutcome.Skip => "Skip",
+                    _ => "Fail"
+                };
+                sb.AppendLine(
+                    $"      <test name=\"{EscapeXml(r.Name)}\"" +
+                    $" result=\"{outcome}\"" +
+                    $" time=\"{r.DurationSec:F3}\">");
+                if (r.Outcome == TestOutcome.Fail)
+                {
+                    sb.AppendLine("        <failure>");
+                    sb.AppendLine(
+                        $"          <message><![CDATA[{r.FailMessage ?? string.Empty}]]></message>");
+                    sb.AppendLine(
+                        $"          <stack-trace><![CDATA[{r.FailStack ?? string.Empty}]]></stack-trace>");
+                    sb.AppendLine("        </failure>");
+                }
+                else if (r.Outcome == TestOutcome.Skip)
+                {
+                    sb.AppendLine(
+                        $"        <reason><![CDATA[{r.SkipReason ?? string.Empty}]]></reason>");
+                }
+                sb.AppendLine("      </test>");
+            }
+
+            sb.AppendLine("    </collection>");
+            sb.AppendLine("  </assembly>");
+            sb.AppendLine("</assemblies>");
+
+            File.WriteAllText(xmlPath, sb.ToString(), Encoding.UTF8);
+            global::Android.Util.Log.Info(LogTag, $"TestResults.xml written: {xmlPath}");
+        }
+
+        static string EscapeXml(string s) =>
+            SecurityElement.Escape(s) ?? s;
+
+        // -----------------------------------------------------------------------
+        // Error file helpers
+        // -----------------------------------------------------------------------
+        void TryWriteErrorFile(string resultsPath, List<TestRecord> records)
         {
             try
             {
                 Directory.CreateDirectory(resultsPath);
                 string errorFile = Path.Combine(resultsPath, "instrumentation-error.txt");
-                File.WriteAllText(errorFile, errorText);
+                var sb = new StringBuilder();
+                foreach (var r in records.Where(r => r.Outcome == TestOutcome.Fail))
+                {
+                    sb.AppendLine($"FAIL: {r.Name}");
+                    sb.AppendLine($"  {r.FailMessage}");
+                    if (!string.IsNullOrEmpty(r.FailStack))
+                        sb.AppendLine(r.FailStack);
+                    sb.AppendLine();
+                }
+                File.WriteAllText(errorFile, sb.ToString(), Encoding.UTF8);
                 global::Android.Util.Log.Info(LogTag, $"Wrote error file: {errorFile}");
             }
             catch (Exception ex)
@@ -385,13 +327,30 @@ namespace FEBuilderGBA.Android.Tests
             }
         }
 
+        void TryWriteRunnerErrorFile(string resultsPath, string error)
+        {
+            try
+            {
+                Directory.CreateDirectory(resultsPath);
+                string errorFile = Path.Combine(resultsPath, "instrumentation-error.txt");
+                File.WriteAllText(errorFile, error, Encoding.UTF8);
+                global::Android.Util.Log.Info(LogTag, $"Wrote runner error file: {errorFile}");
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Warn(LogTag, $"Could not write runner error file: {ex.Message}");
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Font bootstrapper
+        // -----------------------------------------------------------------------
         /// <summary>
         /// Copy Tuffy-Regular.ttf from APK assets into
-        /// <c>AppContext.BaseDirectory/Fonts/Tuffy-Regular.ttf</c> so that the
-        /// hard-coded <c>LoadTuffy()</c> in SkiaRenderByteParityTests resolves.
-        /// Wrapped in try/catch so a font-copy failure does not abort the entire
-        /// instrumentation run — the image parity + runtime-version-guard tests
-        /// do not need the font and must still run.
+        /// AppContext.BaseDirectory/Fonts/Tuffy-Regular.ttf so that the
+        /// hard-coded LoadTuffy() in SkiaRenderByteParityTests resolves.
+        /// Wrapped in try/catch: a font-copy failure does NOT abort the run --
+        /// the image-parity + runtime-version-guard tests do not need the font.
         /// </summary>
         void CopyTuffyFontFromAssets()
         {
@@ -402,22 +361,18 @@ namespace FEBuilderGBA.Android.Tests
 
                 Directory.CreateDirectory(fontsDir);
 
-                // Open from APK assets (packed as "Tuffy-Regular.ttf" by the
-                // <AndroidAsset Link="Tuffy-Regular.ttf"/> item in the csproj).
-                // Android.App.Instrumentation does not have an Assets property;
-                // assets are accessed through the instrumentation context.
                 var assets = Context?.Assets;
                 if (assets == null)
                 {
                     global::Android.Util.Log.Warn(LogTag,
-                        "Instrumentation context Assets is null — font parity tests may fail.");
+                        "Instrumentation context Assets is null -- font parity tests may fail.");
                     return;
                 }
                 using var assetStream = assets.Open("Tuffy-Regular.ttf");
                 if (assetStream == null)
                 {
                     global::Android.Util.Log.Warn(LogTag,
-                        "Font asset 'Tuffy-Regular.ttf' not found in APK — font parity tests may fail.");
+                        "Font asset 'Tuffy-Regular.ttf' not found in APK -- font parity tests may fail.");
                     return;
                 }
 
@@ -431,9 +386,37 @@ namespace FEBuilderGBA.Android.Tests
             {
                 global::Android.Util.Log.Warn(LogTag,
                     $"Font copy from assets failed (font parity tests will report missing font): {ex.Message}");
-                // Do NOT rethrow — the IMAGE parity tests (exact golden + PNG
-                // round-trip) and the runtime-2.88 version guard do not need the
-                // font and must still run even if the font copy fails.
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Internal record types
+        // -----------------------------------------------------------------------
+        enum TestOutcome { Pass, Fail, Skip }
+
+        sealed class TestRecord
+        {
+            public string Name { get; }
+            public TestOutcome Outcome { get; }
+            public double DurationSec { get; }
+            public string? FailMessage { get; }
+            public string? FailStack { get; }
+            public string? SkipReason { get; }
+
+            public TestRecord(
+                string name,
+                TestOutcome outcome,
+                double durationSec,
+                string? failMessage = null,
+                string? failStack = null,
+                string? skipReason = null)
+            {
+                Name       = name;
+                Outcome    = outcome;
+                DurationSec = durationSec;
+                FailMessage = failMessage;
+                FailStack   = failStack;
+                SkipReason  = skipReason;
             }
         }
     }

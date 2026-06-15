@@ -1,12 +1,19 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    XHarness instrumented test head for Android (#1125).
+    Reflection-based instrumented test head for Android (#1125).
 
     This project is the on-device byte-parity proof for #1125 / #1070.
     It links (never copies) the same SkiaRenderByteParityTests and
     SkiaSharpVersionGuardTests that run in the desktop Core.Tests suite,
     so the SAME golden assertions that pass on Linux/macOS/Windows are
     run on-device under the pinned libSkiaSharp 2.88.x Android native.
+
+    WHY NO XHarness: .NET 9 Android embeds managed assemblies as ELF-wrapped
+    native libs (lib/<abi>/lib_<Name>.dll.so), not as plain PE .dll zip
+    entries. xUnit's Guard.FileExists() requires a real on-disk PE file;
+    assembly.Location is empty on .NET 9 Android. Instrumentation.cs uses
+    a direct reflection runner instead, invoking [Fact]/[SkippableFact]
+    methods in-memory and writing its own TestResults.xml.
 
     INTENTIONALLY NOT part of FEBuilderGBA.sln. The required `build`
     check (check.yml / windows-latest) has no android workload, so
@@ -17,7 +24,7 @@
         dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
 
     The -p:EnableAndroidTarget=true flag is NOT needed here because this
-    project does NOT reference FEBuilderGBA.Avalonia — it references only
+    project does NOT reference FEBuilderGBA.Avalonia - it references only
     FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net9.0,
     which need no conditional multi-targeting.
 
@@ -40,39 +47,21 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RootNamespace>FEBuilderGBA.Android.Tests</RootNamespace>
     <AssemblyName>FEBuilderGBA.Android.Tests</AssemblyName>
-    <!-- Disable IL trimming and AOT so xUnit reflection-based test discovery
-         survives the Release build. Without AndroidLinkMode=None the linker
-         strips the test classes (no static reference → dead code elimination)
-         and RunAsync finds 0 tests — the CI false-green closed by #1125 r4. -->
+    <!-- Disable IL trimming and AOT so [Fact]/[SkippableFact] reflection-based
+         test discovery survives the Release build. Without AndroidLinkMode=None
+         the linker strips the test classes (no static reference -> dead code
+         elimination) and the runner finds 0 tests. -->
     <AndroidLinkMode>None</AndroidLinkMode>
     <PublishTrimmed>false</PublishTrimmed>
     <RunAOTCompilation>false</RunAOTCompilation>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <AndroidUseInterpreter>true</AndroidUseInterpreter>
-    <!-- AndroidUseAssemblyStore=false + AndroidEnableAssemblyCompression=false ensure
-         that managed assemblies are stored as individual, uncompressed zip entries
-         inside the APK (rather than packed into a compressed blob store). This lets
-         the on-device runner open the APK as a ZipArchive and extract
-         FEBuilderGBA.Android.Tests.dll to a real on-disk path that xUnit can
-         open via its FileExists guard (assembly.Location is empty on .NET 9 Android
-         because assemblies are embedded, not on disk). -->
-    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
-    <AndroidEnableAssemblyCompression>false</AndroidEnableAssemblyCompression>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- xUnit test framework. Using 2.9.3 here (vs 2.9.2 in Core.Tests) because
-         the XHarness runner packages transitively require xunit.extensibility.core
-         2.9.3, which conflicts with the xunit 2.9.2 pin (NU1107). The version
-         guard tests check the MANAGED SkiaSharp assembly version, not xunit's. -->
+    <!-- xUnit test framework (2.9.3). -->
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.SkippableFact" Version="1.4.13" />
-    <!-- XHarness Android runner + default entry point (dnceng public feed — see nuget.config).
-         Version pinned to the latest available prerelease resolved by NuGet from the
-         dnceng feed; the prompt specified 11.0.0-prerelease.26312.1 but 25569.2 is the
-         highest available — using a floor pin so CI gets the latest stable prerelease. -->
-    <PackageReference Include="Microsoft.DotNet.XHarness.TestRunners.Xunit" Version="11.0.0-prerelease.25569.2" />
-    <PackageReference Include="Microsoft.DotNet.XHarness.DefaultAndroidEntryPoint.Xunit" Version="11.0.0-prerelease.25569.2" />
     <!-- CRITICAL native-version pin (#796/#798/#1125): must match the 2.88.x family
          everywhere SkiaSharp ships a native. The SkiaSharp managed assembly arrives
          transitively through FEBuilderGBA.SkiaSharp (pinned to 2.88.9 there). -->
@@ -80,9 +69,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Core library (pure net9.0 — no EnableAndroidTarget needed) -->
+    <!-- Core library (pure net9.0 - no EnableAndroidTarget needed) -->
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
-    <!-- SkiaSharp backend (net9.0 — provides SkiaImageService + SkiaFontRasterizer) -->
+    <!-- SkiaSharp backend (net9.0 - provides SkiaImageService + SkiaFontRasterizer) -->
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
 
@@ -109,7 +98,7 @@
           Instrumentation.OnCreate copies it from AssetManager into
           AppContext.BaseDirectory/Fonts/ BEFORE any test runs, so the
           unchanged LoadTuffy() hard-coded path resolves on-device.
-       Both items reference the same upstream file — no duplication. -->
+       Both items reference the same upstream file - no duplication. -->
   <ItemGroup>
     <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\Tuffy-Regular.ttf"
           Link="Fonts\Tuffy-Regular.ttf"
