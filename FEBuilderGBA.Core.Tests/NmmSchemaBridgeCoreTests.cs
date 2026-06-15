@@ -78,6 +78,49 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("3", weird.UnsupportedReason);
         }
 
+        // Finding #2: a pointer signaled by the NMM TYPE CODE ('P') must be flagged even
+        // when the field NAME is neutral (no Ptr/Pointer token) and the size is a valid 4.
+        [Fact]
+        public void ParseNmm_NeutralName_PointerTypeCode_IsUnsupported_AndMarkedInJson()
+        {
+            // Field NAMED "Data" (neutral), Size 4, TypeCode "NEPU" (the 'P' = pointer).
+            string nmm =
+                "1\nPtrSample by FEBuilderGBA\n0x809B7B4\n10\n8\nNULL\nNULL\n\n" +
+                "Data\n0\n4\nNEPU\nNULL\n\n";
+            NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(nmm);
+
+            NmmField data = p.Fields.Find(f => f.Name == "Data");
+            Assert.NotNull(data);
+            Assert.Equal(4, data.Size);
+            Assert.True(data.Unsupported, "a NEPU (pointer) type code must flag the field unsupported");
+            Assert.Contains("ointer", data.UnsupportedReason); // "Pointer field ..."
+
+            // BuildManifestTablesEntry must emit "unsupported": true for it.
+            string json = NmmSchemaBridgeCore.BuildManifestTablesEntry(p, "ptr_table");
+            using JsonDocument doc = JsonDocument.Parse(json);
+            JsonElement field = doc.RootElement.GetProperty("fields")[0];
+            Assert.Equal("Data", field.GetProperty("name").GetString());
+            Assert.True(field.GetProperty("unsupported").GetBoolean());
+        }
+
+        // Finding #2 guard: a NORMAL type code (NEHU/NEHS/NEDU/NEDS, no 'P') with a valid
+        // size and neutral name must NOT be flagged unsupported.
+        [Theory]
+        [InlineData("NEHU")]
+        [InlineData("NEHS")]
+        [InlineData("NEDU")]
+        [InlineData("NEDS")]
+        public void ParseNmm_NeutralName_NormalTypeCode_NotUnsupported(string typeCode)
+        {
+            string nmm =
+                "1\nOk by FEBuilderGBA\n0x0\n1\n4\nNULL\nNULL\n\n" +
+                $"Value\n0\n2\n{typeCode}\nNULL\n\n";
+            NmmParseResult p = NmmSchemaBridgeCore.ParseNmm(nmm);
+            NmmField v = p.Fields.Find(f => f.Name == "Value");
+            Assert.NotNull(v);
+            Assert.False(v.Unsupported, $"type code '{typeCode}' (no pointer marker) must not flag unsupported");
+        }
+
         [Fact]
         public void BuildManifestTablesEntry_ParsesAsJson_AndContainsUnsupportedMarker()
         {

@@ -198,20 +198,31 @@ namespace FEBuilderGBA
                         $"Pixel index {maxIndex} >= palette size {info.PaletteColorCount}."));
                 }
 
-                // 4bpp-target warning: only when the palette indicates a single 16-color bank.
+                // 4bpp-target warning (Finding #3): a GBA 4bpp tile uses a single 16-color
+                // bank. The intended case is a PNG whose PLTE has MORE than 16 colors (so
+                // INDEX_OUT_OF_RANGE does NOT fire) but that USES an index >= 16 — a 4bpp
+                // import would clip it to the first bank. The previous PaletteColorCount<=16
+                // condition was unreachable (any maxIndex>=16 with <=16 colors already fires
+                // INDEX_OUT_OF_RANGE). So warn when the index is valid for the PLTE
+                // (maxIndex < PaletteColorCount) but exceeds a single 4bpp bank.
                 if ((kind == AssetKind.Graphics || kind == AssetKind.Icon)
-                    && info.PaletteColorCount > 0 && info.PaletteColorCount <= 16
-                    && maxIndex >= 16)
+                    && info.PaletteColorCount > 16
+                    && maxIndex >= 16 && maxIndex < info.PaletteColorCount)
                 {
                     r.Warnings.Add(new AssetIssue("MAX_INDEX_GT_4BPP",
-                        $"Pixel index {maxIndex} exceeds 15 but the palette is a single 16-color bank — a 4bpp import would clip it."));
+                        $"Pixel index {maxIndex} exceeds a 16-color bank but the palette has {info.PaletteColorCount} colors — a 4bpp import would clip indices >15."));
                 }
 
-                // index-0 used but no tRNS: GBA convention is index 0 = transparent.
-                if (usesIndex0 && !info.HasTrns)
+                // index-0 used: GBA convention treats palette index 0 as transparent
+                // (Finding #4). Warn when there is no tRNS at all, OR when tRNS is present
+                // but does NOT mark index 0 as fully transparent (transparency is on a
+                // different index / index 0 is opaque).
+                if (usesIndex0 && (!info.HasTrns || !IsTransparentIndex(info, 0)))
                 {
                     r.Warnings.Add(new AssetIssue("PALETTE_ORDER",
-                        "Index 0 is used but there is no tRNS chunk — GBA convention treats palette index 0 as transparent."));
+                        !info.HasTrns
+                            ? "Index 0 is used but there is no tRNS chunk — GBA convention treats palette index 0 as transparent."
+                            : "Index 0 is used but the tRNS chunk does not mark index 0 as fully transparent — GBA convention treats palette index 0 as transparent."));
                 }
             }
             else if (info.FiltersUnsupportedForIndexCheck)
@@ -237,6 +248,19 @@ namespace FEBuilderGBA
                         $"Icon is {info.Width}x{info.Height}; the standard icon is {IconSize}x{IconSize}."));
                 }
             }
+        }
+
+        /// <summary>
+        /// True when <paramref name="index"/> is in the PNG's fully-transparent set
+        /// (a tRNS alpha byte == 0 for that index). Used to verify index 0 is actually
+        /// marked transparent (Finding #4). Indices beyond the tRNS length are opaque.
+        /// </summary>
+        static bool IsTransparentIndex(IndexedPngInfo info, int index)
+        {
+            if (info?.TransparentIndices == null) return false;
+            foreach (int i in info.TransparentIndices)
+                if (i == index) return true;
+            return false;
         }
 
         // -------------------------------------------------------------- Palette (.pal JASC)

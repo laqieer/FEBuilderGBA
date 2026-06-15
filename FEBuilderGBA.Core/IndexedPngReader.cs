@@ -87,8 +87,13 @@ namespace FEBuilderGBA
 
                 int pos = 8;
                 bool sawIhdr = false;
-                byte[] idat = null;
-                int idatLen = 0;
+                bool sawPlte = false;
+                bool sawIdat = false;
+                bool sawIend = false;
+
+                // Finding #5: accumulate IDAT chunk slices and concatenate ONCE after the
+                // loop (O(n)), instead of growing a byte[] per chunk (the old O(n^2) path).
+                var idatChunks = new System.Collections.Generic.List<byte[]>();
 
                 while (pos + 8 <= pngBytes.Length)
                 {
@@ -111,11 +116,14 @@ namespace FEBuilderGBA
 
                         case "PLTE":
                             info.PaletteColorCount = len / 3;
+                            sawPlte = true;
                             break;
 
                         case "tRNS":
                         {
                             info.HasTrns = true;
+                            // An index i is fully transparent when its tRNS alpha byte == 0;
+                            // indices beyond the tRNS length are implicitly opaque (255).
                             var trans = new System.Collections.Generic.List<int>();
                             for (int t = 0; t < len; t++)
                             {
@@ -128,23 +136,16 @@ namespace FEBuilderGBA
 
                         case "IDAT":
                         {
-                            // Concatenate IDAT chunks.
-                            if (idat == null)
-                            {
-                                idat = new byte[len];
-                                Array.Copy(pngBytes, dataPos, idat, 0, len);
-                                idatLen = len;
-                            }
-                            else
-                            {
-                                var grown = new byte[idatLen + len];
-                                Array.Copy(idat, 0, grown, 0, idatLen);
-                                Array.Copy(pngBytes, dataPos, grown, idatLen, len);
-                                idat = grown;
-                                idatLen += len;
-                            }
+                            var chunk = new byte[len];
+                            Array.Copy(pngBytes, dataPos, chunk, 0, len);
+                            idatChunks.Add(chunk);
+                            sawIdat = true;
                             break;
                         }
+
+                        case "IEND":
+                            sawIend = true;
+                            break;
                     }
 
                     pos = dataPos + len + 4; // skip data + CRC
@@ -153,6 +154,22 @@ namespace FEBuilderGBA
 
                 if (!sawIhdr)
                 { info.Error = "No IHDR chunk."; return info; }
+
+                // Finding #1: a header-only / incomplete PNG must NOT be accepted as valid.
+                // Every well-formed PNG requires an IDAT (pixel data) and an IEND terminator;
+                // an indexed (colorType 3) PNG additionally requires a PLTE chunk. For
+                // non-indexed color types PLTE is optional, but the file is still read enough
+                // for DecompAssetValidatorCore to emit NON_INDEXED — we just require IDAT+IEND
+                // so a header-only file is rejected as a bad PNG instead of "0 errors, OK".
+                if (!sawIdat)
+                { info.Error = "Missing IDAT chunk (incomplete PNG — no pixel data)."; return info; }
+                if (!sawIend)
+                { info.Error = "Missing IEND chunk (truncated PNG)."; return info; }
+                if (info.ColorType == 3 && !sawPlte)
+                { info.Error = "Missing PLTE chunk (an indexed PNG requires a palette)."; return info; }
+
+                // Concatenate all IDAT chunk bytes ONCE (Finding #5).
+                byte[] idat = ConcatChunks(idatChunks);
 
                 info.Ok = true;
 
@@ -222,6 +239,28 @@ namespace FEBuilderGBA
                 // inflate / shape fault: indices simply unavailable (structural still ok).
                 info.IndicesAvailable = false;
             }
+        }
+
+        /// <summary>
+        /// Concatenate the accumulated IDAT chunk byte arrays into one buffer in a single
+        /// pass (Finding #5). Returns an empty array when there are no chunks; the byte
+        /// content is identical to the old per-chunk grow path.
+        /// </summary>
+        static byte[] ConcatChunks(System.Collections.Generic.List<byte[]> chunks)
+        {
+            if (chunks == null || chunks.Count == 0)
+                return Array.Empty<byte>();
+            int total = 0;
+            for (int i = 0; i < chunks.Count; i++)
+                total += chunks[i].Length;
+            var result = new byte[total];
+            int offset = 0;
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                Array.Copy(chunks[i], 0, result, offset, chunks[i].Length);
+                offset += chunks[i].Length;
+            }
+            return result;
         }
 
         static int ReadU32BE(byte[] b, int off)

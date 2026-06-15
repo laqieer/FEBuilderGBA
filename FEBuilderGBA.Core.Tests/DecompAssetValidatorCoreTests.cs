@@ -37,6 +37,45 @@ namespace FEBuilderGBA.Core.Tests
             return p;
         }
 
+        // PNG signature + one chunk writer (test helpers for hand-built / incomplete PNGs).
+        static readonly byte[] Sig = { 137, 80, 78, 71, 13, 10, 26, 10 };
+
+        static void WriteU32BE(System.IO.MemoryStream ms, uint v)
+        {
+            ms.WriteByte((byte)(v >> 24)); ms.WriteByte((byte)(v >> 16));
+            ms.WriteByte((byte)(v >> 8)); ms.WriteByte((byte)v);
+        }
+
+        static void WriteChunk(System.IO.MemoryStream ms, string type, byte[] data)
+        {
+            WriteU32BE(ms, (uint)data.Length);
+            byte[] t = Encoding.ASCII.GetBytes(type);
+            ms.Write(t, 0, 4);
+            ms.Write(data, 0, data.Length);
+            // CRC bytes are not validated by the reader; write zeros.
+            WriteU32BE(ms, 0);
+        }
+
+        static byte[] BuildIhdr(int w, int h, byte colorType)
+        {
+            var d = new byte[13];
+            d[0] = (byte)(w >> 24); d[1] = (byte)(w >> 16); d[2] = (byte)(w >> 8); d[3] = (byte)w;
+            d[4] = (byte)(h >> 24); d[5] = (byte)(h >> 16); d[6] = (byte)(h >> 8); d[7] = (byte)h;
+            d[8] = 8;            // bit depth
+            d[9] = colorType;    // color type
+            return d;            // compression/filter/interlace = 0
+        }
+
+        /// <summary>Build a deliberately INCOMPLETE PNG: signature + IHDR (+ optional IEND), no PLTE/IDAT.</summary>
+        static byte[] BuildHeaderOnlyPng(int w, int h, byte colorType, bool withIend)
+        {
+            using var ms = new System.IO.MemoryStream();
+            ms.Write(Sig, 0, Sig.Length);
+            WriteChunk(ms, "IHDR", BuildIhdr(w, h, colorType));
+            if (withIend) WriteChunk(ms, "IEND", Array.Empty<byte>());
+            return ms.ToArray();
+        }
+
         // ---------------------------------------------------------------- IndexedPngReader
 
         [Fact]
@@ -72,6 +111,42 @@ namespace FEBuilderGBA.Core.Tests
         {
             IndexedPngInfo info = IndexedPngReader.Read(null);
             Assert.False(info.Ok);
+        }
+
+        // Finding #1: a header-only / incomplete PNG must NOT be accepted as valid.
+
+        [Fact]
+        public void IndexedPngReader_HeaderOnly_NoIdat_OkFalse()
+        {
+            // signature + IHDR (colorType 3), no PLTE/IDAT/IEND.
+            byte[] png = BuildHeaderOnlyPng(16, 16, 3, withIend: false);
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+            Assert.False(info.Ok);
+            Assert.False(string.IsNullOrEmpty(info.Error));
+        }
+
+        [Fact]
+        public void IndexedPngReader_IhdrPlusIend_NoIdat_OkFalse()
+        {
+            // signature + IHDR + IEND, still no PLTE/IDAT (no pixels).
+            byte[] png = BuildHeaderOnlyPng(16, 16, 3, withIend: true);
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+            Assert.False(info.Ok);
+            Assert.Contains("IDAT", info.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Validate_HeaderOnlyPng_HasError_NotOk()
+        {
+            byte[] png = BuildHeaderOnlyPng(16, 16, 3, withIend: true);
+            string path = WriteTemp(png, ".png");
+            try
+            {
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
+                Assert.False(r.Ok);
+                Assert.Contains(r.Errors, e => e.Code == "BAD_PNG");
+            }
+            finally { File.Delete(path); }
         }
 
         // ---------------------------------------------------------------- Graphics PNG
@@ -119,6 +194,80 @@ namespace FEBuilderGBA.Core.Tests
                 AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
                 Assert.False(r.Ok);
                 Assert.Contains(r.Errors, e => e.Code == "NOT_TILE_ALIGNED");
+            }
+            finally { File.Delete(path); }
+        }
+
+        // Finding #3: the 4bpp warning fires when a >16-color palette is used with an
+        // index >=16 (valid for the PLTE, so no INDEX_OUT_OF_RANGE, but a 4bpp clip risk).
+
+        [Fact]
+        public void Validate_Graphics_32ColorPalette_Index20_Warns_NoOutOfRange()
+        {
+            int w = 16, h = 16;
+            var indices = new byte[w * h];
+            // Use a pixel index of 20 somewhere; rest stay 0. 20 < 32 (palette), so no OOR.
+            indices[0] = 20;
+            byte[] png = IndexedPngWriter.Write(indices, w, h, BuildPalette(32), 32, transparentIndex: 0);
+            Assert.NotNull(png);
+            string path = WriteTemp(png, ".png");
+            try
+            {
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
+                Assert.DoesNotContain(r.Errors, e => e.Code == "INDEX_OUT_OF_RANGE");
+                Assert.Contains(r.Warnings, w2 => w2.Code == "MAX_INDEX_GT_4BPP");
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void Validate_Graphics_16ColorBank_NoMaxIndexWarning()
+        {
+            // A 16-color palette with max index 15 must NOT raise the 4bpp warning
+            // (it would never have under the old condition either, but guard the regression).
+            int w = 16, h = 16;
+            var indices = new byte[w * h];
+            for (int i = 0; i < indices.Length; i++) indices[i] = (byte)(i % 16);
+            byte[] png = IndexedPngWriter.Write(indices, w, h, BuildPalette(16), 16, transparentIndex: 0);
+            string path = WriteTemp(png, ".png");
+            try
+            {
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
+                Assert.DoesNotContain(r.Warnings, w2 => w2.Code == "MAX_INDEX_GT_4BPP");
+            }
+            finally { File.Delete(path); }
+        }
+
+        // Finding #4: tRNS must actually mark index 0 transparent, not just be present.
+
+        [Fact]
+        public void Validate_Graphics_Trns_MarksIndex0_NoPaletteOrderWarning()
+        {
+            int w = 16, h = 16;
+            var indices = new byte[w * h]; // all index 0
+            // transparentIndex 0 → tRNS = [0] (index 0 alpha 0 → transparent).
+            byte[] png = IndexedPngWriter.Write(indices, w, h, BuildPalette(16), 16, transparentIndex: 0);
+            string path = WriteTemp(png, ".png");
+            try
+            {
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
+                Assert.DoesNotContain(r.Warnings, w2 => w2.Code == "PALETTE_ORDER");
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
+        public void Validate_Graphics_Trns_MarksOnlyIndex1_Index0Used_PaletteOrderWarning()
+        {
+            int w = 16, h = 16;
+            var indices = new byte[w * h]; // all index 0 (so index 0 IS used)
+            // transparentIndex 1 → tRNS = [255, 0]: index 0 OPAQUE, index 1 transparent.
+            byte[] png = IndexedPngWriter.Write(indices, w, h, BuildPalette(16), 16, transparentIndex: 1);
+            string path = WriteTemp(png, ".png");
+            try
+            {
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAsset(AssetKind.Graphics, path);
+                Assert.Contains(r.Warnings, w2 => w2.Code == "PALETTE_ORDER");
             }
             finally { File.Delete(path); }
         }

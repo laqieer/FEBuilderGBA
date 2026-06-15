@@ -408,9 +408,15 @@ namespace FEBuilderGBA
 
             string tc = (f.TypeCode ?? "").ToUpperInvariant();
             string nm = (f.Name ?? "").ToUpperInvariant();
-            // A 'P' token, "PTR"/"POINTER" in the type code or name signals a pointer field.
-            if (tc.Contains("PTR") || tc.Contains("POINTER") || nm.Contains("POINTER")
-                || nm.Contains("PTR") || nm.EndsWith("PTR"))
+            // The NMM type code signals a pointer (Finding #2). Normal FormatNMM type codes
+            // are NEHU / NEHS / NEDU / NEDS (N=name, E=no-dropdown, H/D=hex/decimal radix,
+            // U/S=unsigned/signed) — NONE contain a 'P'. So a 'P' anywhere in a non-empty
+            // type code is an unambiguous POINTER marker, even when the field NAME is neutral
+            // (e.g. a field named "Data" with type code "NEPU"). We also keep the existing
+            // name-based PTR/POINTER detection.
+            if (tc.Contains("P")
+                || tc.Contains("PTR") || tc.Contains("POINTER")
+                || nm.Contains("POINTER") || nm.Contains("PTR") || nm.EndsWith("PTR"))
             {
                 f.Unsupported = true;
                 f.UnsupportedReason = "Pointer field — informational schema only, not source-writable.";
