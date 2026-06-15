@@ -128,7 +128,10 @@ These are **desktop-validated** today (image pixels exact; font within the
 documented tolerance). **#1126 must run these SAME assertions on the four
 Android ABIs** — `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` — under an Android
 emulator / instrumented test run, to prove the pinned `2.88.x` native renders
-byte-identically on each ABI. Concretely, #1126 must:
+the **image path byte-identically** and the **font path within the documented
+pixel tolerance** on each ABI. (The runtime-loaded `2.88` assembly guard runs on
+the device too; the declared/restored-graph guards are source-tree-only and skip
+on an on-device host.) Concretely, #1126 must:
 
 1. Build an instrumented (androidTest) host that links the same
    `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests` assertions (or a

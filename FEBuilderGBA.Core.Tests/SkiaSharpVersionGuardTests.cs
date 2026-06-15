@@ -38,6 +38,13 @@ namespace FEBuilderGBA.Core.Tests
         /// FEBuilderGBA.sln. When run from inside an isolated git worktree this
         /// resolves to the worktree root — which has its own copy of every
         /// csproj, exactly what we want to assert on.
+        ///
+        /// Returns <c>null</c> when no FEBuilderGBA.sln is found walking up,
+        /// i.e. the source tree / .sln is absent — e.g. an on-device or
+        /// instrumented Android test host (#1126) where only the compiled
+        /// assemblies + native ship. The two source-tree-dependent guards
+        /// (declared + restored-graph) SKIP in that case; the
+        /// source-tree-independent runtime-loaded guard still runs.
         /// </summary>
         static string FindRepoRoot()
         {
@@ -48,8 +55,7 @@ namespace FEBuilderGBA.Core.Tests
                     return dir.FullName;
                 dir = dir.Parent;
             }
-            throw new InvalidOperationException(
-                $"could not locate FEBuilderGBA.sln walking up from {AppContext.BaseDirectory}");
+            return null;
         }
 
         /// <summary>
@@ -98,10 +104,11 @@ namespace FEBuilderGBA.Core.Tests
         // family. The CLI / Avalonia / Tests projects pull SkiaSharp transitively
         // via a ProjectReference (no direct pin), so they contribute zero refs —
         // that's fine; we only require at least ONE direct pin to exist somewhere.
-        [Fact]
+        [SkippableFact]
         public void DeclaredSkiaSharpPackageRefs_Pin_288_Family()
         {
             string root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
             int found = 0;
 
             foreach (string path in EnumerateRepoCsprojs(root))
@@ -163,10 +170,11 @@ namespace FEBuilderGBA.Core.Tests
         // (b3) restored-graph guard (the leak-catcher)
         // ------------------------------------------------------------------
 
-        [Fact]
+        [SkippableFact]
         public void RestoredAssetsGraph_Resolves_Only_288_SkiaSharp()
         {
             string root = FindRepoRoot();
+            Skip.If(root == null, "source tree / FEBuilderGBA.sln not found (e.g. on-device Android instrumented host) — declared/restored-graph guards are source-tree-only; the runtime-loaded guard still validates the native here");
 
             // Only assert on assets files that exist (a clean checkout may not
             // have restored CLI). SkiaSharp's own assets reliably exist because
