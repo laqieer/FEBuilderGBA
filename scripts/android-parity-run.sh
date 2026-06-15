@@ -43,8 +43,11 @@ fi
 # ---------------------------------------------------------------
 # 3. Run the instrumented tests via am instrument (with retry)
 # ---------------------------------------------------------------
-# -e results-file-path: where XHarness DefaultAndroidEntryPoint writes
-#   TestResults.xml on the device (readable via adb pull).
+# -e results-file-path: where the custom reflection-based TestInstrumentation
+#   runner writes TestResults.xml on the device (readable via adb pull).
+#   NOT XHarness -- the runner is a direct Android.App.Instrumentation subclass
+#   that invokes [Fact]/[SkippableFact] methods via reflection and writes its
+#   own xUnit-shaped TestResults.xml (see Instrumentation.cs for rationale).
 # -w: wait for instrumentation to finish (required for result collection).
 RESULTS_DEVICE_PATH="/sdcard/Download"
 OUTFILE="instrument-out-${ARCH}.txt"
@@ -98,6 +101,14 @@ adb logcat -d > "logcat-${ARCH}.txt" || true
 FAILED=0
 RC_VAL=""
 FT_VAL=""
+# Initialize XML vars to safe defaults so the final summary echo never
+# hits an unbound-variable error even when XML is absent/empty (set -u).
+XML_TOTAL="0"
+XML_PASSED="0"
+XML_FAILED="0"
+XML_FAILURES="0"
+XML_ERRORS="0"
+XML_SKIPPED="0"
 
 # (a) am instrument output: FAILURES!!! or INSTRUMENTATION_ABORTED markers.
 if grep -q "FAILURES!!!" "${OUTFILE}" 2>/dev/null; then
@@ -125,31 +136,45 @@ if [ -n "${FT_VAL}" ] && [ "${FT_VAL}" != "0" ]; then
   FAILED=1
 fi
 
-# (d) TestResults.xml: parse failure/error counts and REQUIRE total >= 4.
-# total=0 or missing/empty XML means test discovery failed (trimming/exception).
+# (d) TestResults.xml: parse failure/error counts and REQUIRE executed >= 4.
+# A missing or empty XML is an UNCONDITIONAL FAIL -- the reflection runner
+# always writes TestResults.xml; absence means trimming/crash/discovery failure.
+# We never fall through to a pass on a missing XML.
 if [ -n "${XML_LOCAL}" ] && [ -f "${XML_LOCAL}" ] && [ -s "${XML_LOCAL}" ]; then
-  # failed= (xUnit v2 <assembly> attribute)
-  XML_FAILED=$(grep -oP 'failed="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
-  # failures= (older / NUnit-style schema)
-  XML_FAILURES=$(grep -oP 'failures="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
-  XML_ERRORS=$(grep -oP 'errors="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
-  XML_TOTAL=$(grep -oP 'total="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
-  XML_PASSED=$(grep -oP 'passed="\K[^"]+' "${XML_LOCAL}" | head -1 || echo "0")
-  echo "TestResults.xml: total=${XML_TOTAL} passed=${XML_PASSED} failed=${XML_FAILED} failures=${XML_FAILURES} errors=${XML_ERRORS}"
+  # POSIX-portable XML attribute extraction (no GNU -P/PCRE).
+  # Extracts the value of attr="VALUE" using sed (works on macOS/BSD/Linux).
+  _xml_attr() {
+    # Usage: _xml_attr ATTR FILE
+    sed -n "s/.*${1}=\"\([0-9]*\)\".*/\1/p" "${2}" | head -1
+  }
+  XML_FAILED=$(   _xml_attr "failed"    "${XML_LOCAL}"); XML_FAILED="${XML_FAILED:-0}"
+  XML_FAILURES=$( _xml_attr "failures"  "${XML_LOCAL}"); XML_FAILURES="${XML_FAILURES:-0}"
+  XML_ERRORS=$(   _xml_attr "errors"    "${XML_LOCAL}"); XML_ERRORS="${XML_ERRORS:-0}"
+  XML_TOTAL=$(    _xml_attr "total"     "${XML_LOCAL}"); XML_TOTAL="${XML_TOTAL:-0}"
+  XML_PASSED=$(   _xml_attr "passed"    "${XML_LOCAL}"); XML_PASSED="${XML_PASSED:-0}"
+  XML_SKIPPED=$(  _xml_attr "skipped"   "${XML_LOCAL}"); XML_SKIPPED="${XML_SKIPPED:-0}"
+  # executed = passed + failed (total includes skipped; gate on actually-executed tests)
+  XML_EXECUTED=$(( XML_PASSED + XML_FAILED ))
+  echo "TestResults.xml: total=${XML_TOTAL} passed=${XML_PASSED} failed=${XML_FAILED} skipped=${XML_SKIPPED} executed=${XML_EXECUTED} failures=${XML_FAILURES} errors=${XML_ERRORS}"
   if [ "${XML_FAILED:-0}"    != "0" ] || \
      [ "${XML_FAILURES:-0}"  != "0" ] || \
      [ "${XML_ERRORS:-0}"    != "0" ]; then
     echo "FAIL: TestResults.xml reports failed=${XML_FAILED} failures=${XML_FAILURES} errors=${XML_ERRORS}"
     FAILED=1
   fi
-  # REQUIRE at least 4 executed tests.
-  if [ "${XML_TOTAL:-0}" -lt "4" ] 2>/dev/null; then
-    echo "FAIL: expected >= 4 executed tests, got ${XML_TOTAL} (trimming/discovery problem)"
+  # REQUIRE at least 4 EXECUTED tests (passed+failed, NOT total which includes skipped).
+  # We have 5 executed: 2 image-parity + 2 font-parity + 1 runtime-version-guard;
+  # 2 tests skip on-device (declared/restored graph guards need the source tree).
+  if [ "${XML_EXECUTED:-0}" -lt "4" ] 2>/dev/null; then
+    echo "FAIL: expected >= 4 executed tests, got ${XML_EXECUTED} (passed=${XML_PASSED}+failed=${XML_FAILED}); trimming/discovery problem?"
     FAILED=1
   fi
 else
-  echo "WARNING: TestResults.xml missing or empty."
-  echo "FAIL: zero tests executed -- XML absent/empty means trimming or discovery failure."
+  # Missing or empty XML is an unconditional failure.
+  # The reflection runner ALWAYS writes TestResults.xml; absence means the
+  # instrumentation crashed or the APK was trimmed incorrectly.
+  echo "FAIL: TestResults.xml missing or empty -- reflection runner did not write results."
+  echo "      This is an unconditional failure (no 'OK marker' fallback)."
   FAILED=1
 fi
 
@@ -157,7 +182,7 @@ fi
 # 7. Final result
 # ---------------------------------------------------------------
 echo ""
-echo "=== Summary: arch=${ARCH} total=${XML_TOTAL} passed=${XML_PASSED} failed=${XML_FAILED} errors=${XML_ERRORS} return-code=${RC_VAL:-0} ==="
+echo "=== Summary: arch=${ARCH} total=${XML_TOTAL} passed=${XML_PASSED} failed=${XML_FAILED} executed=${XML_EXECUTED:-0} errors=${XML_ERRORS} return-code=${RC_VAL:-0} ==="
 if [ "${FAILED}" = "0" ]; then
   echo "=== PASS: Android Emulator Parity (arch=${ARCH}) ==="
 else

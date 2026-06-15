@@ -134,16 +134,14 @@ booted API-34 x86_64 Android emulator):
   .sln) links (never copies) `SkiaRenderByteParityTests.cs`,
   `SkiaSharpVersionGuardTests.cs`, and `SkiaFontGoldens.cs` via `<Compile Link>`
   — single source of truth with the desktop suite. `TestInstrumentation` is an
-  `[Instrumentation]`-attributed **direct reflection runner** (NOT XHarness
-  xUnit discovery): it discovers and invokes `[Fact]`/`[SkippableFact]` methods
-  via reflection, catches `Xunit.SkipException` vs failures, and writes its own
-  xUnit-shaped `TestResults.xml` + an ADB result bundle. The reflection runner is
-  required because .NET 9 Android embeds managed assemblies as
-  `lib/<abi>/lib_*.dll.so` native libs (`Assembly.Location` is empty), and
-  xUnit's `XunitFrontController` hard-requires a real on-disk `.dll`
-  (`Guard.FileExists`) — file-based discovery throws on-device. The reflection
-  runner sidesteps that while running the identical assertions. The test head
-  restores from **nuget.org only** (`xunit`, `xunit.SkippableFact`,
+  `[Instrumentation]`-attributed **direct reflection-based Android.App.Instrumentation
+  runner (NOT XHarness — xUnit discovery needs an on-disk `.dll`; .NET 9 Android
+  embeds assemblies as `lib/<abi>/lib_*.dll.so` native libs with empty
+  `Assembly.Location`; see csproj + Instrumentation.cs for rationale)**:
+  it discovers and invokes `[Fact]`/`[SkippableFact]` methods via reflection,
+  catches `Xunit.SkipException` vs failures, and writes its own xUnit-shaped
+  `TestResults.xml` + an ADB result bundle. The test head restores from
+  **nuget.org only** (`xunit`, `xunit.SkippableFact`,
   `SkiaSharp.NativeAssets.Android 2.88.9`) — no XHarness packages, no dnceng
   feed. `AndroidLinkMode=None`/`PublishTrimmed=false` ensure reflection-discovered
   classes survive the linker.
@@ -156,13 +154,14 @@ booted API-34 x86_64 Android emulator):
 - **ABI coverage (honest):** `x86_64` is the only on-device-proven ABI.
   API 34 has no 32-bit `x86` system image (Google dropped `x86` at API 31+).
   `arm64-v8a` and `armeabi-v7a` ship in the **same pinned
-  `SkiaSharp.NativeAssets.Android 2.88.9` package** (the same compiled `.so`
-  files) but are NOT bootable on GitHub-hosted `x86_64` runners — they require
+  `SkiaSharp.NativeAssets.Android 2.88.9` package** (same package version /
+  same upstream Skia build, ABI-specific native binaries — not identical `.so`
+  bytes) but are NOT bootable on GitHub-hosted `x86_64` runners — they require
   a self-hosted ARM runner or a paid ARM-emulator service. The `x86` (32-bit)
   ABI has no API-34 system image at all. The workflow provides direct on-device
   proof for `x86_64`; the other three ABIs (`arm64-v8a`, `armeabi-v7a`, `x86`)
-  are covered by the same-package argument (identical 2.88.9 `.so` origin,
-  same `SkiaSharp.NativeAssets.Android 2.88.9` pin).
+  are covered by the same-package argument (same `SkiaSharp.NativeAssets.Android
+  2.88.9` pin, same upstream Skia source build).
 - **What runs on-device:** the image parity tests (EXACT byte equality — the tile
   decode + PNG round-trip golden); the font parity tests (within shared pixel
   tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_288` (the runtime-loaded
@@ -413,8 +412,9 @@ dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Rel
 The workflow is advisory / non-blocking (job context `android-emulator-parity`,
 not `build`); once consistently green it can be flipped to required via a
 branch-ruleset change. `arm64-v8a`, `armeabi-v7a`, and `x86` are covered by
-the same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` `.so`
-files) but are not directly emulated on GitHub-hosted runners — `x86` has no
+the same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` package
+version / same upstream Skia build, ABI-specific native binaries — not identical `.so`
+bytes) but are not directly emulated on GitHub-hosted runners — `x86` has no
 API-34 system image; `arm64-v8a`/`armeabi-v7a` need a self-hosted ARM runner
 (see §3). This closes #1125 and completes the #1070 epic checklist item 5.
 
@@ -451,10 +451,12 @@ linked under #1070 as its checklist:
    GREEN on `x86_64` (the runner-bootable ABI at API 34; `x86` dropped at API
    31+). The reflection-runner instrumented head (`FEBuilderGBA.Android.Tests/`)
    links the same `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests`
-   as the desktop suite (no XHarness — .NET 9 Android embeds assemblies as
-   `.so` files; xUnit needs an on-disk DLL). `arm64-v8a`, `armeabi-v7a`, and
-   `x86` ship in the same `2.88.9` package but are not bootable on
-   GitHub-hosted runners (see §3). *(see §3, §7.)*
+   as the desktop suite (direct reflection runner, NOT XHarness — .NET 9
+   Android embeds assemblies as `.so` files; xUnit's `Guard.FileExists` needs
+   an on-disk DLL). `arm64-v8a`, `armeabi-v7a`, and `x86` ship in the same
+   `SkiaSharp.NativeAssets.Android 2.88.9` package (same package version /
+   same upstream Skia build, ABI-specific native binaries) but are not
+   bootable on GitHub-hosted runners (see §3). *(see §3, §7.)*
 6. ~~**Android: CI job + signed APK packaging** (separate android-workload job,
    not the desktop `.sln` build).~~ **DONE (#1126)** — `.github/workflows/android.yml`
    builds the APK on `ubuntu-latest` and uploads the debug-keystore `*-Signed.apk`

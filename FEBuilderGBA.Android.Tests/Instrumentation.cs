@@ -108,6 +108,10 @@ namespace FEBuilderGBA.Android.Tests
 
             try
             {
+                // Ensure the results directory exists before writing.
+                // /sdcard/Download works on the API-34 google_apis emulator (test APK
+                // is not sandboxed the same way as production apps). If this ever fails
+                // on a stricter image, switch to Context.GetExternalFilesDir(null).
                 Directory.CreateDirectory(resultsPath);
 
                 foreach (var type in TestTypes)
@@ -152,7 +156,11 @@ namespace FEBuilderGBA.Android.Tests
                         var sw = Stopwatch.StartNew();
                         try
                         {
-                            method.Invoke(instance, null);
+                            // If the Fact method returns a Task (async), await it so
+                            // async test failures are not silently swallowed.
+                            var returnVal = method.Invoke(instance, null);
+                            if (returnVal is System.Threading.Tasks.Task t)
+                                t.GetAwaiter().GetResult();
                             sw.Stop();
                             passed++;
                             records.Add(new TestRecord(testName, TestOutcome.Pass, sw.Elapsed.TotalSeconds));
@@ -323,7 +331,7 @@ namespace FEBuilderGBA.Android.Tests
             }
             catch (Exception ex)
             {
-                global::Android.Util.Log.Warn(LogTag, $"Could not write error file: {ex.Message}");
+                global::Android.Util.Log.Warn(LogTag, $"Could not write error file: {ex}");
             }
         }
 
@@ -338,7 +346,7 @@ namespace FEBuilderGBA.Android.Tests
             }
             catch (Exception ex)
             {
-                global::Android.Util.Log.Warn(LogTag, $"Could not write runner error file: {ex.Message}");
+                global::Android.Util.Log.Warn(LogTag, $"Could not write runner error file: {ex}");
             }
         }
 
@@ -385,7 +393,7 @@ namespace FEBuilderGBA.Android.Tests
             catch (Exception ex)
             {
                 global::Android.Util.Log.Warn(LogTag,
-                    $"Font copy from assets failed (font parity tests will report missing font): {ex.Message}");
+                    $"Font copy from assets failed (font parity tests will report missing font): {ex}");
             }
         }
 

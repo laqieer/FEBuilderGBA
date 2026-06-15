@@ -15,7 +15,8 @@
 # x86_64 is the ONLY GitHub-hosted-runner-bootable ABI for API 34. Google
 # dropped 32-bit x86 system images at API 31+; API 34 ships only x86_64.
 # arm64-v8a and armeabi-v7a ship in the same pinned
-# SkiaSharp.NativeAssets.Android 2.88.9 package (the same compiled .so files),
+# SkiaSharp.NativeAssets.Android 2.88.9 package (same package version / same
+# upstream Skia build, ABI-specific native binaries -- not identical .so bytes),
 # but Android arm64/arm AVDs are NOT bootable on GitHub-hosted (x86_64) runners
 # without KVM — they require a self-hosted ARM runner or a paid ARM-emulator
 # service. The x86 (32-bit) ABI has no API-34 system image at all. This
@@ -41,9 +42,10 @@
 # * AVD snapshots are cached per arch to speed up repeated runs.
 # * The test APK does NOT reference FEBuilderGBA.Avalonia (no Avalonia startup
 #   needed for pure SkiaSharp render tests), so no -p:EnableAndroidTarget flag.
-# * Instruments via TestInstrumentation (com.laqieer.febuildergba.tests), which
-#   delegates to the XHarness DefaultAndroidEntryPoint, writes TestResults.xml,
-#   and returns a non-zero code on failure.
+# * Instruments via TestInstrumentation (com.laqieer.febuildergba.tests), a
+#   direct reflection-based Android.App.Instrumentation runner (NOT XHarness --
+#   see csproj/Instrumentation.cs for rationale). It writes TestResults.xml and
+#   returns a non-zero code on failure.
 # * adb install + am instrument are retried once on transient failure.
 # * CI fails the step (exit 1) if instrument output contains a failure marker
 #   OR if TestResults.xml reports failures/errors > 0, OR if the XML is absent.
@@ -124,8 +126,7 @@ jobs:
         with:
           path: |
             ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-api34-${{ matrix.arch }}-v1
+          key: avd-api34-${{ matrix.arch }}-v2
 
       - name: Create AVD (cache miss only)
         if: steps.avd-cache.outputs.cache-hit != 'true'
