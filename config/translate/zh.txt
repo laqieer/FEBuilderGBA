@@ -24621,5 +24621,47 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :No change needed — the source already matches.
 无需更改——源码已经匹配。
 
+:This chapter is ROM-only in decomp mode. Edit the source manually and rebuild.
+在反编译模式下，此章节仅限ROM。请手动编辑源码并重新构建。
+
+:Chapter source updated. Project needs rebuild.
+章节源码已更新。工程需要重新构建。
+
+:This chapter table is ROM-only in decomp mode.
+在反编译模式下，此章节表仅限ROM。
+
+:This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild.
+在反编译模式下，此章节字段仅限ROM（例如事件/难度指针）。请手动编辑源码并重新构建。
+
+:Could not resolve this chapter's entry id — source write skipped.
+无法解析此章节的条目ID——已跳过源码写入。
+
+:This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild.
+此章节编辑针对的字段未在 map_settings 清单的 fields[] 中声明——无法写入源码。请在清单中声明该字段，或手动编辑源码并重新构建。
+
+:map asset
+地图资源
+
+:map tile layout
+地图图块布局
+
+:map tileset (OBJ)
+地图图块集（OBJ）
+
+:map palette
+地图调色板
+
+:map chipset config
+地图图块组配置
+
+:map-change overlay
+地图变化覆盖层
+
+:map-change table
+地图变化表
+
+:In decomp mode, the {0} is a source-tree asset. Editing it here would write the build-preview ROM, which is overwritten on rebuild. Export it to the source tree (Decomp asset export) and edit it there instead.
+在反编译模式下，{0}是源码树中的资源。在此编辑会写入构建预览ROM，而该ROM会在重新构建时被覆盖。请将其导出到源码树（反编译资源导出）并在那里编辑。
+
 :Failed to open decomp project:
 打开反编译工程失败:

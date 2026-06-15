@@ -132,20 +132,32 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gb
 # rewritten. Every other byte of the file (comments, trailing commas, whitespace,
 # line endings, BOM) is preserved. On success the project is flagged "needs rebuild".
 #
-# Coverage (#1132 + #1141): items, units (alias: characters), classes. Signed
+# Coverage (#1132 + #1141 + #1148): items, units (alias: characters), classes, and
+# chapter settings (map_settings). Signed
 # fields (unit base stats, class promotion gains) are driven off the manifest
 # fields[].signed flag — pass the two's-complement magnitude (e.g. --value=255 for
 # an int8 -1); a negative value is re-emitted as a "-N" decimal. --field/--value
 # are REPEATABLE: each --field must be paired with a FOLLOWING --value (other flags
 # may appear between them; a 2nd --field before its --value, or an unpaired
 # --field/--value, is a usage error) so multiple fields update one entry
-# atomically. Chapter settings
-# (map_settings), shops, and support data are ROM-only/manual this release (no
-# clean source-of-truth C array; faithful writers are a follow-up).
+# atomically.
+#
+# Chapter / map scope (#1148): chapter SETTINGS (map_settings) are source-backed —
+# the scalar struct fields (weather, fog, PLIST index bytes, BGM ids, difficulty
+# bytes, chapter number, clear-condition text ids, escape markers, etc.) rewrite the
+# owning C array element (or a flat-numeric JSON element). ROM-only/manual: the
+# event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw map ASSET
+# bytes (.mar tile layout, OBJ tileset, palette, chipset config/TSA, tile animations,
+# the map-change overlay — these are LZ77 binaries, migrate via --export-asset
+# #1133/#1140), and the nested `chapter_settings.json` shape (nested objects / bools /
+# enum strings / split obj1Id|obj2Id are reported UnsupportedField/Manual, never
+# silently corrupted — flat top-level Number fields in that file still rewrite). Shops
+# and support data remain ROM-only/manual (no clean source-of-truth C array).
 #
 # Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned; 1 = usage/parse error.
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=units --id=1 --field=hp --value=18 --field=pow --value=7
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=map_settings --id=1 --field=Weather --value=4
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=10 --out-diff=change.diff
 
 # Build decomp project ROM (run the manifest-declared build command).
@@ -312,7 +324,7 @@ sibling.
   UnsupportedField, not normalized (single-field intent → hard fail; bulk → skipped). Both
   designated-initializer (`.field = N`) and positional C elements are supported, and both
   JSON array and object-map forms. **Coverage: `items`, `units` (alias `characters`),
-  `classes`.** **Signed fields** (unit base stats, class promotion gains) are driven off
+  `classes`, and `map_settings` (chapter settings, #1148).** **Signed fields** (unit base stats, class promotion gains) are driven off
   `fields[].signed` (+ optional `width` 1/2/4) — pass the two's-complement magnitude
   (e.g. `--value=255` for an int8 -1); a value that reinterprets negative is re-emitted as a
   `-N` decimal. The no-op check is **width-aware**: an existing bit-pattern literal (e.g.
@@ -323,23 +335,35 @@ sibling.
   whole document first and rejected with no write (the file stays byte-identical). `--field`/`--value`
   are **REPEATABLE**: each `--field` must be paired with a FOLLOWING `--value` (other flags may
   appear between them; a second `--field` before its `--value`, or an unpaired `--field`/`--value`,
-  is a usage error) so multiple fields of one entry update in a single atomic source write. **`map_settings` (chapter settings), shops, and support
-  data are ROM-only/manual this release** (no clean source-of-truth C array; faithful writers
-  are a follow-up). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
+  is a usage error) so multiple fields of one entry update in a single atomic source write.
+  **Chapter / map (#1148):** `map_settings` scalar fields are source-backed; ROM-only/manual are
+  the event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw map ASSET binaries
+  (`.mar` tile layout, OBJ tileset, palette, chipset config/TSA, tile animations, the map-change
+  overlay — migrate via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
+  shape (nested objects / bools / enum strings / split `obj1Id`|`obj2Id` are reported
+  UnsupportedField/Manual, never silently corrupted; flat top-level Number fields still rewrite).
+  **Shops and support data remain ROM-only/manual** (no clean source-of-truth C array). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source
   rewritten; `2` = ROM-only / manual / not owned / unsupported field / path rejected;
   `1` = usage / parse error / source not found.
-- **Avalonia GUI:** in decomp mode the **Items**, **Units**, and **Classes** editor Write
-  buttons route to the source writer when the matching table is source-owned (showing e.g.
-  *"Unit source updated. Project needs rebuild."*) instead of mutating the preview ROM; an
-  owned-but-unsupported / ROM-only entry shows a ROM-only notice instead of a silent ROM
-  write. The toolbar badge gains a *" · needs rebuild"* suffix after a source write. The
-  classic (non-decomp) ROM write path is byte-for-byte unchanged. The Avalonia editors map
-  their UI fields to conventional decomp C names — units: `hp`/`pow`/`skl`/`spd`/`def`/`res`/
-  `lck`/`con` (signed base stats), `level`, `affinity`, `growthHp`/`growthPow`/… ; classes:
+- **Avalonia GUI:** in decomp mode the **Items**, **Units**, **Classes**, and **Map Settings
+  (chapter settings, #1148)** editor Write buttons route to the source writer when the matching
+  table is source-owned (showing e.g. *"Chapter source updated. Project needs rebuild."*) instead
+  of mutating the preview ROM; an owned-but-unsupported / ROM-only entry shows a ROM-only notice
+  instead of a silent ROM write. **#1148 pointer-edit guard:** when the user edits ONLY an
+  unsupported chapter pointer field (e.g. EventDataPtr / a difficulty pointer), the gate shows an
+  explicit ROM-only/manual notice and does NOT mutate the preview ROM (rather than a misleading
+  "no change needed"). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
+  write, Map Style OBJ/palette/chipset import + write, Event Map Change write/import/expand) surface
+  an export-only/manual notice in decomp mode instead of silently writing the build-preview ROM —
+  migrate those via the asset-export pipeline. The toolbar badge gains a *" · needs rebuild"* suffix
+  after a source write. The classic (non-decomp) ROM write path is byte-for-byte unchanged. The
+  Avalonia editors map their UI fields to conventional decomp C names — units: `hp`/`pow`/`skl`/`spd`/
+  `def`/`res`/`lck`/`con` (signed base stats), `level`, `affinity`, `growthHp`/`growthPow`/… ; classes:
   `baseHp`/`baseStr`(+`basePow`)/…, `maxHp`/…, `classPower`, `growthHp`/…, and signed
-  `promoHp`/`promoStr`/… The View intersects these with the manifest owner's declared
-  `fields`, so a manifest that omits a field simply skips it.
+  `promoHp`/`promoStr`/… ; map_settings: `Weather`/`FogLevel`/`PLISTObj`/`PLISTMap`/…/`BGM1`/…/
+  `ChapterNumber`/`TextGoal`/`EscapeMarkerX`/… (pointers excluded). The View intersects these with
+  the manifest owner's declared `fields`, so a manifest that omits a field simply skips it.
 
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
 symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant;

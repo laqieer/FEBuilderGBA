@@ -55,6 +55,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint DataSize { get => _dataSize; set => SetField(ref _dataSize, value); }
 
+        // #1148: load-time snapshot of the source-writable chapter-setting fields, used so
+        // BuildSourceFieldDict() emits ONLY fields the user actually changed (never a full
+        // snapshot of possibly-stale preview-ROM values that could clobber an unrelated
+        // source field that diverged from the unrebuilt preview). Mirrors the #1132 Item pattern.
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        // #1148 (Copilot plan review finding 2): a parallel snapshot of the UNSUPPORTED
+        // chapter fields (the C pointers — D0/EventDataPtr + D96..D108 difficulty pointers).
+        // When the user edits ONLY one of these the save-gate must show a ROM-only/manual
+        // notice and NOT write the preview ROM, rather than collapsing into an empty
+        // change-set that the writer would report as a misleading "no change needed".
+        Dictionary<string, uint> _loadedUnsupportedFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        // #1148 (Copilot PR #1158 final review): snapshot of every UI-editable scalar that is
+        // NEITHER source-writable NOR a pointer (difficulty Rating bytes/words, Field/Unknown
+        // bytes, ChapterTitleImage2, the BGM flag words). An edit to any of these must surface
+        // an honest ROM-only/manual notice (fail-closed), never a silent drop / false no-op.
+        Dictionary<string, uint> _loadedUncoveredScalarSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Current map id (0-based list index) derived from <see cref="CurrentAddr"/> via the
+        /// canonical <c>baseAddr + i*dataSize</c> layout, for the source-backed writer save-gate
+        /// (#1148). Returns <see cref="U.NOT_FOUND"/> when the address does not resolve to an
+        /// enumerated map-setting entry. Read on demand; does not raise PropertyChanged.
+        /// </summary>
+        public uint CurrentMapEntryId => MapSettingCore.GetMapIdFromAddr(CoreState.ROM, CurrentAddr);
+
         // D0: CP / CString pointer
         public uint CpPointer { get => _cpPointer; set => SetField(ref _cpPointer, value); }
 
@@ -201,6 +226,241 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (id == 0) return "(none)";
             try { return NameResolver.GetTextById(id); }
             catch { return "???"; }
+        }
+
+        // ---- #1148: decomp source-backed chapter-setting field maps ----
+
+        /// <summary>
+        /// The candidate C-field → value map for the source-backed writer (#1148): every
+        /// SOURCE-WRITABLE chapter-setting field that is a plain integer struct member.
+        /// Keys use conventional decomp / FEBuilder struct field names (the View intersects
+        /// this with the manifest owner's declared <c>fields</c>, so a name the manifest does
+        /// not declare is silently dropped — and synonyms cost nothing).
+        ///
+        /// Pointer fields (D0 EventDataPtr + D96..D108 difficulty pointers) are INTENTIONALLY
+        /// excluded — see <see cref="CurrentUnsupportedFieldMap"/>. Rewriting a pointer address
+        /// as a decimal literal would be wrong; pointers stay ROM-only/manual.
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                // W4 / B6..B11 — tileset + map PLIST index bytes (plain indices, source-safe).
+                { "PLISTObj",        ObjectTypePLIST },
+                { "objPlist",        ObjectTypePLIST },
+                { "PLISTPal",        PalettePLIST },
+                { "PLISTConfig",     ChipsetConfigPLIST },
+                { "PLISTMap",        MapPointerPLIST },
+                { "PLISTAnime1",     TileAnimation1PLIST },
+                { "PLISTAnime2",     TileAnimation2PLIST },
+                { "PLISTMapchange",  MapChangePLIST },
+                // B12..B19 — map properties.
+                { "Weather",         Weather },
+                { "weather",         Weather },
+                { "fog",             FogLevel },
+                { "FogLevel",        FogLevel },
+                { "BattlePreparation", BattlePreparation },
+                { "hasPrepScreen",   BattlePreparation },
+                { "ChapterTitleIndex",  ChapterTitleImage },
+                { "ChapterTitleIndex2", ChapterTitleImage2 },
+                { "InitialX",        InitialX },
+                { "InitialY",        InitialY },
+                { "BattleBGLookup",  BattleBGLookup },
+                // W20 — difficulty.
+                { "DifficultyMode",  DifficultyAdjustment },
+                // W22..W36 — BGM ids.
+                { "BGM1",            PlayerPhaseBGM },
+                { "BGM2",            EnemyPhaseBGM },
+                { "BGM3",            NpcPhaseBGM },
+                { "BGM4",            PlayerPhaseBGM2 },
+                { "BGM5",            EnemyPhaseBGM2 },
+                { "BGM6",            NpcPhaseBGM2 },
+                { "BGM7",            PlayerPhaseBGMFlag4 },
+                { "BGM8",            EnemyPhaseBGMFlag4 },
+                // B44 — breakable wall HP.
+                { "BreakableWallHP", BreakableWallHP },
+                // W112..W114 — map name text ids.
+                { "TextMapName",     MapNameText1 },
+                { "TextMapName2",    MapNameText2 },
+                // B116..B135 — event/world-map/chapter.
+                { "PLISTEvent",      EventIdPLIST },
+                { "WorldMapEvent",   WorldMapAutoEvent },
+                { "ChapterNumber",   ChapterNumber },
+                { "chapterId",       ChapterNumber },
+                { "VictoryBGMEnemyCount", VictoryBGMEnemyCount },
+                // W136..W138 — clear-condition text ids.
+                { "TextGoal",        ClearConditionText },
+                { "TextStatus",      DetailClearConditionText },
+                // B140..B147 — display flags + escape markers.
+                { "SpecialDisplay",  SpecialDisplay },
+                { "TurnCountDisplay", TurnCountDisplay },
+                { "DefenseUnitMark", DefenseUnitMark },
+                { "EscapeMarkerX",   EscapeMarkerX },
+                { "EscapeMarkerY",   EscapeMarkerY },
+            };
+        }
+
+        /// <summary>
+        /// Alias groups of the source-writable field keys (#1148, Copilot PR #1158 review):
+        /// each inner array is the set of MANIFEST-NAME aliases that all refer to ONE logical
+        /// scalar (e.g. <c>{"Weather","weather"}</c>). The save-gate reasons per logical field
+        /// — a logical scalar is source-writable when the manifest declares AT LEAST ONE of its
+        /// aliases (not all), so a normal manifest declaring only <c>Weather</c> is accepted.
+        /// Keys here must stay in sync with <see cref="CurrentSourceFieldMap"/>.
+        /// </summary>
+        public static readonly string[][] SourceFieldAliasGroups =
+        {
+            new[] { "PLISTObj", "objPlist" },
+            new[] { "PLISTPal" },
+            new[] { "PLISTConfig" },
+            new[] { "PLISTMap" },
+            new[] { "PLISTAnime1" },
+            new[] { "PLISTAnime2" },
+            new[] { "PLISTMapchange" },
+            new[] { "Weather", "weather" },
+            new[] { "fog", "FogLevel" },
+            new[] { "BattlePreparation", "hasPrepScreen" },
+            new[] { "ChapterTitleIndex" },
+            new[] { "ChapterTitleIndex2" },
+            new[] { "InitialX" },
+            new[] { "InitialY" },
+            new[] { "BattleBGLookup" },
+            new[] { "DifficultyMode" },
+            new[] { "BGM1" }, new[] { "BGM2" }, new[] { "BGM3" }, new[] { "BGM4" },
+            new[] { "BGM5" }, new[] { "BGM6" }, new[] { "BGM7" }, new[] { "BGM8" },
+            new[] { "BreakableWallHP" },
+            new[] { "TextMapName" },
+            new[] { "TextMapName2" },
+            new[] { "PLISTEvent" },
+            new[] { "WorldMapEvent" },
+            new[] { "ChapterNumber", "chapterId" },
+            new[] { "VictoryBGMEnemyCount" },
+            new[] { "TextGoal" },
+            new[] { "TextStatus" },
+            new[] { "SpecialDisplay" },
+            new[] { "TurnCountDisplay" },
+            new[] { "DefenseUnitMark" },
+            new[] { "EscapeMarkerX" },
+            new[] { "EscapeMarkerY" },
+        };
+
+        /// <summary>
+        /// The UNSUPPORTED (pointer) chapter-setting fields (#1148, Copilot finding 2): the
+        /// C pointers that the source writer cannot rewrite as integer literals. Tracked
+        /// separately so the save-gate can detect "the user edited ONLY a pointer field" and
+        /// show an honest ROM-only/manual notice instead of a misleading "no change needed".
+        /// </summary>
+        Dictionary<string, uint> CurrentUnsupportedFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "EventDataPtr",      CpPointer },
+                { "DiffPtrEliwoodNormal", DiffPtrEliwoodNormal },
+                { "DiffPtrEliwoodHard",   DiffPtrEliwoodHard },
+                { "DiffPtrHectorNormal",  DiffPtrHectorNormal },
+                { "DiffPtrHectorHard",    DiffPtrHectorHard },
+            };
+        }
+
+        /// <summary>
+        /// Build the C-field → value map of ONLY the source-writable fields the user actually
+        /// changed since <see cref="LoadMapSetting"/> (#1148). Comparing against the load-time
+        /// snapshot guarantees an unrelated field whose source diverged from the (stale,
+        /// pre-rebuild) preview ROM is NOT rewritten back to the stale value.
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+            {
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                {
+                    changed[kv.Key] = kv.Value;
+                }
+            }
+            return changed;
+        }
+
+        /// <summary>
+        /// True when the user changed at least one chapter field that is NOT source-writable
+        /// since load — either a POINTER field, OR a UI-editable scalar that the source-field
+        /// map does not cover (e.g. the difficulty Rating bytes/words, ChapterTitleImage2, the
+        /// Field/Unknown bytes) (#1148, Copilot PR #1158 final review). The save-gate uses this
+        /// to show an honest ROM-only/manual notice instead of silently dropping the edit /
+        /// reporting a false "no change needed". Fail-closed: any uncovered edit blocks the
+        /// source write.
+        /// </summary>
+        public bool HasUnsupportedFieldChanges()
+        {
+            foreach (var kv in CurrentUnsupportedFieldMap())
+                if (!_loadedUnsupportedFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                    return true;
+
+            // Any edited UI scalar NOT covered by the source-field map is ROM-only/manual too.
+            foreach (var kv in CurrentUncoveredScalarMap())
+                if (!_loadedUncoveredScalarSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// UI-editable scalar fields that are NOT in <see cref="CurrentSourceFieldMap"/> and are
+        /// NOT pointers — they have no clean source representation in this slice, so an edit to
+        /// any of them is ROM-only/manual (#1148, Copilot PR #1158 final review). Keyed by VM
+        /// property name (these never reach the writer; they only drive the fail-closed gate).
+        /// </summary>
+        Dictionary<string, uint> CurrentUncoveredScalarMap()
+        {
+            // NOTE: ChapterTitleImage2 (ChapterTitleIndex2), PlayerPhaseBGMFlag4 (BGM7) and
+            // EnemyPhaseBGMFlag4 (BGM8) are deliberately NOT here — they ARE source-writable
+            // via CurrentSourceFieldMap, so they must not also be flagged uncovered (Copilot
+            // PR #1158: keep the source-writable surface and the uncovered gate disjoint).
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "UnknownW38", UnknownW38 }, { "UnknownW40", UnknownW40 }, { "UnknownW42", UnknownW42 },
+                { "RatingAEliwoodNormal", RatingAEliwoodNormal }, { "RatingAEliwoodHard", RatingAEliwoodHard },
+                { "RatingAHectorNormal", RatingAHectorNormal }, { "RatingAHectorHard", RatingAHectorHard },
+                { "RatingBEliwoodNormal", RatingBEliwoodNormal }, { "RatingBEliwoodHard", RatingBEliwoodHard },
+                { "RatingBHectorNormal", RatingBHectorNormal }, { "RatingBHectorHard", RatingBHectorHard },
+                { "RatingCEliwoodNormal", RatingCEliwoodNormal }, { "RatingCEliwoodHard", RatingCEliwoodHard },
+                { "RatingCHectorNormal", RatingCHectorNormal }, { "RatingCHectorHard", RatingCHectorHard },
+                { "RatingDEliwoodNormal", RatingDEliwoodNormal }, { "RatingDEliwoodHard", RatingDEliwoodHard },
+                { "RatingDHectorNormal", RatingDHectorNormal }, { "RatingDHectorHard", RatingDHectorHard },
+                { "UnknownB61", UnknownB61 },
+                { "RatingAEliwoodNormalW", RatingAEliwoodNormalW }, { "RatingAEliwoodHardW", RatingAEliwoodHardW },
+                { "RatingAHectorNormalW", RatingAHectorNormalW }, { "RatingAHectorHardW", RatingAHectorHardW },
+                { "RatingBEliwoodNormalW", RatingBEliwoodNormalW }, { "RatingBEliwoodHardW", RatingBEliwoodHardW },
+                { "RatingBHectorNormalW", RatingBHectorNormalW }, { "RatingBHectorHardW", RatingBHectorHardW },
+                { "RatingCEliwoodNormalW", RatingCEliwoodNormalW }, { "RatingCEliwoodHardW", RatingCEliwoodHardW },
+                { "RatingCHectorNormalW", RatingCHectorNormalW }, { "RatingCHectorHardW", RatingCHectorHardW },
+                { "RatingDEliwoodNormalW", RatingDEliwoodNormalW }, { "RatingDEliwoodHardW", RatingDEliwoodHardW },
+                { "RatingDHectorNormalW", RatingDHectorNormalW }, { "RatingDHectorHardW", RatingDHectorHardW },
+                { "UnknownW94", UnknownW94 },
+                { "UnknownB118", UnknownB118 }, { "UnknownB119", UnknownB119 }, { "UnknownB120", UnknownB120 },
+                { "UnknownB121", UnknownB121 }, { "UnknownB122", UnknownB122 }, { "UnknownB123", UnknownB123 },
+                { "UnknownB124", UnknownB124 }, { "UnknownB125", UnknownB125 }, { "UnknownB126", UnknownB126 },
+                { "UnknownB127", UnknownB127 },
+                { "UnknownB129", UnknownB129 }, { "UnknownB130", UnknownB130 }, { "UnknownB131", UnknownB131 },
+                { "UnknownB132", UnknownB132 }, { "UnknownB133", UnknownB133 },
+                { "BlackoutBeforeStart", BlackoutBeforeStart },
+                { "UnknownB145", UnknownB145 }, { "UnknownB146", UnknownB146 }, { "UnknownB147", UnknownB147 },
+            };
+        }
+
+        /// <summary>
+        /// Re-baseline all source-field snapshots to the CURRENT values after a successful
+        /// source-backed write (#1148), so an immediate re-Save of the same edit is a no-op.
+        /// </summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+            _loadedUnsupportedFieldSnapshot = CurrentUnsupportedFieldMap();
+            _loadedUncoveredScalarSnapshot = CurrentUncoveredScalarMap();
         }
 
         // ---- Reset all fields to defaults (used by FE6 guard to prevent stale UI) ----
@@ -486,6 +746,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OnPropertyChanged(nameof(PlayerPhaseBGM2Resolved));
             OnPropertyChanged(nameof(EnemyPhaseBGM2Resolved));
             OnPropertyChanged(nameof(NpcPhaseBGM2Resolved));
+
+            // #1148: snapshot the source-writable + unsupported field values so
+            // BuildSourceFieldDict() / HasUnsupportedFieldChanges() later emit ONLY the
+            // fields the user actually changed (never a stale full-snapshot clobber).
+            RefreshSourceFieldSnapshot();
 
             IsLoaded = true;
         }

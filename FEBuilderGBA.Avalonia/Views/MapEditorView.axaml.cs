@@ -182,6 +182,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     if (_vm.HasChipsetSelected)
                     {
+                        // #1148: click-to-paint commits the raw .mar map layout to the
+                        // build-preview ROM (PaintTileAt → ApplyMapEdit → LZ77 write +
+                        // repoint). In decomp mode that's a source-tree asset — block it
+                        // and surface the export-only notice (the eyedropper path below,
+                        // and select-only mode, are read-only and stay available).
+                        if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                            return;
+
                         // Wrap the paint commit in an undo scope so ROM writes are reversible.
                         _undo.Begin("MapEditor.PaintTile");
                         bool ok;
@@ -292,6 +300,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (!_vm.HasTileSelected) return;
+
+                // #1148: the map tile layout is a raw source-tree asset in decomp mode —
+                // export it to source rather than mutating the build-preview ROM.
+                if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                    return;
 
                 // Parse hex tile ID from text box
                 string text = TileIdTextBox.Text?.Trim() ?? "";

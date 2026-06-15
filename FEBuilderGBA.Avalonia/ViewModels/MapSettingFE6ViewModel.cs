@@ -91,10 +91,165 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint WorldMapPointY { get => _worldMapPointY; set => SetField(ref _worldMapPointY, value); }
         public uint VictoryBGMEnemyCount { get => _victoryBGMEnemyCount; set => SetField(ref _victoryBGMEnemyCount, value); }
 
+        // #1148: load-time snapshots for the decomp source-backed save-gate (mirrors the
+        // FE7/8 MapSettingViewModel pattern). Source-writable scalar fields vs the single
+        // unsupported pointer field (D0/EventDataPtr).
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        Dictionary<string, uint> _loadedUnsupportedFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        Dictionary<string, uint> _loadedUncoveredScalarSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+
         public List<AddrResult> LoadMapSettingList()
         {
             try { return MapSettingCore.MakeMapIDList(); }
             catch { return new List<AddrResult>(); }
+        }
+
+        // ---- #1148: decomp source-backed chapter-setting field maps (FE6) ----
+
+        /// <summary>
+        /// Candidate C-field → value map of every SOURCE-WRITABLE FE6 chapter-setting field
+        /// (plain integer struct members). Keys use FEBuilder/decomp struct names; the View
+        /// intersects this with the manifest owner's declared fields. The D0 EventDataPtr
+        /// pointer is excluded (see <see cref="CurrentUnsupportedFieldMap"/>).
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "PLISTObj",        ObjectTypePLIST },
+                { "objPlist",        ObjectTypePLIST },
+                { "PLISTPal",        PalettePLIST },
+                { "PLISTConfig",     ChipsetConfigPLIST },
+                { "PLISTMap",        MapPointerPLIST },
+                { "PLISTAnime1",     TileAnimation1PLIST },
+                { "PLISTAnime2",     TileAnimation2PLIST },
+                { "PLISTMapchange",  MapChangePLIST },
+                { "FogLevel",        FogLevel },
+                { "fog",             FogLevel },
+                { "BattlePreparation", BattlePreparation },
+                { "hasPrepScreen",   BattlePreparation },
+                { "ChapterTitleIndex", ChapterTitleImage },
+                { "Weather",         Weather },
+                { "weather",         Weather },
+                { "BattleBGLookup",  BattleBGLookup },
+                { "BGM1",            PlayerPhaseBGM },
+                { "BGM2",            EnemyPhaseBGM },
+                { "BGM3",            NpcPhaseBGM },
+                { "HardBoost",       HardBoost },
+                { "BreakableWallHP", BreakableWallHP },
+                { "TextGoal",        ClearConditionText },
+                { "TextChapterName", ChapterTitleText },
+                { "PLISTEvent",      EventIdPLIST },
+                { "WorldMapEvent",   WorldMapAutoEvent },
+                { "WorldMapPlaceName", WorldMapPlaceName },
+                { "ChapterNumber",   ChapterNumber },
+                { "chapterId",       ChapterNumber },
+                { "WorldMapX",       WorldMapX },
+                { "WorldMapY",       WorldMapY },
+                { "VictoryBGMEnemyCount", VictoryBGMEnemyCount },
+            };
+        }
+
+        /// <summary>
+        /// Alias groups for the FE6 source-writable scalar keys (#1148, Copilot PR #1158): each
+        /// inner array is the manifest-name aliases of one logical scalar. A logical scalar is
+        /// source-writable when the manifest declares AT LEAST ONE of its aliases. Keys must
+        /// stay in sync with <see cref="CurrentSourceFieldMap"/>.
+        /// </summary>
+        public static readonly string[][] SourceFieldAliasGroups =
+        {
+            new[] { "PLISTObj", "objPlist" },
+            new[] { "PLISTPal" },
+            new[] { "PLISTConfig" },
+            new[] { "PLISTMap" },
+            new[] { "PLISTAnime1" },
+            new[] { "PLISTAnime2" },
+            new[] { "PLISTMapchange" },
+            new[] { "FogLevel", "fog" },
+            new[] { "BattlePreparation", "hasPrepScreen" },
+            new[] { "ChapterTitleIndex" },
+            new[] { "Weather", "weather" },
+            new[] { "BattleBGLookup" },
+            new[] { "BGM1" }, new[] { "BGM2" }, new[] { "BGM3" },
+            new[] { "HardBoost" },
+            new[] { "BreakableWallHP" },
+            new[] { "TextGoal" },
+            new[] { "TextChapterName" },
+            new[] { "PLISTEvent" },
+            new[] { "WorldMapEvent" },
+            new[] { "WorldMapPlaceName" },
+            new[] { "ChapterNumber", "chapterId" },
+            new[] { "WorldMapX" },
+            new[] { "WorldMapY" },
+            new[] { "VictoryBGMEnemyCount" },
+        };
+
+        /// <summary>The unsupported (pointer) FE6 chapter field — D0/EventDataPtr (#1148).</summary>
+        Dictionary<string, uint> CurrentUnsupportedFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "EventDataPtr", CpPointer },
+            };
+        }
+
+        /// <summary>Source-writable fields the user changed since load (#1148).</summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    changed[kv.Key] = kv.Value;
+            return changed;
+        }
+
+        /// <summary>
+        /// True when the user changed a non-source-writable FE6 field since load — a POINTER
+        /// (EventDataPtr) OR a UI-editable scalar the source-field map does not cover (the
+        /// FE6 Field/Unknown bytes/words, the W-form BGM ids, army/banner text ids, world-map
+        /// point coords) (#1148, Copilot PR #1158 final review). Fail-closed: any uncovered
+        /// edit surfaces an honest ROM-only/manual notice instead of a silent drop.
+        /// </summary>
+        public bool HasUnsupportedFieldChanges()
+        {
+            foreach (var kv in CurrentUnsupportedFieldMap())
+                if (!_loadedUnsupportedFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    return true;
+            foreach (var kv in CurrentUncoveredScalarMap())
+                if (!_loadedUncoveredScalarSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    return true;
+            return false;
+        }
+
+        /// <summary>
+        /// FE6 UI-editable scalars that are NOT source-writable and NOT pointers — an edit to
+        /// any is ROM-only/manual (#1148, Copilot PR #1158 final review). Keyed by VM property
+        /// name; never reaches the writer (only drives the fail-closed gate).
+        /// </summary>
+        Dictionary<string, uint> CurrentUncoveredScalarMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "UnknownB15", UnknownB15 }, { "UnknownB16", UnknownB16 }, { "UnknownB17", UnknownB17 },
+                { "UnknownB24", UnknownB24 }, { "UnknownB26", UnknownB26 }, { "UnknownB27", UnknownB27 },
+                { "UnknownB28", UnknownB28 }, { "UnknownB29", UnknownB29 }, { "UnknownB30", UnknownB30 },
+                { "UnknownB31", UnknownB31 },
+                { "PlayerPhaseBGMW", PlayerPhaseBGMW }, { "EnemyPhaseBGMW", EnemyPhaseBGMW }, { "NpcPhaseBGMW", NpcPhaseBGMW },
+                { "UnknownW38", UnknownW38 }, { "UnknownW40", UnknownW40 }, { "UnknownW42", UnknownW42 },
+                { "UnknownW44", UnknownW44 }, { "UnknownW46", UnknownW46 },
+                { "UpperArmyText", UpperArmyText }, { "LowerArmyText", LowerArmyText },
+                { "EnemyBannerFlag", EnemyBannerFlag },
+                { "WorldMapPointX", WorldMapPointX }, { "WorldMapPointY", WorldMapPointY },
+            };
+        }
+
+        /// <summary>Re-baseline all snapshots after a successful source write (#1148).</summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+            _loadedUnsupportedFieldSnapshot = CurrentUnsupportedFieldMap();
+            _loadedUncoveredScalarSnapshot = CurrentUncoveredScalarMap();
         }
 
         public void LoadEntry(uint addr)
@@ -166,6 +321,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     Name = $"Map 0x{addr:X}";
             }
             catch { Name = "???"; }
+
+            // #1148: snapshot the source-writable + unsupported field values for the
+            // decomp save-gate dirty tracking.
+            RefreshSourceFieldSnapshot();
+
             IsLoaded = true;
         }
 
