@@ -541,9 +541,15 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_attributes --id=1 --field=b1 --value=2   (assumes owner declares b0..b1 or uses .bN= initializers)");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_talks --id=0 --field=w4 --value=0x0A12   (assumes owner declares the ordered prefix up to w4 or uses .bN= initializers)");
             Console.WriteLine("  FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=support_units --out=support_units.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=support_attributes --out=support_attrs.tsv");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=support_talks --out=support_talks.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --data-roundtrip --rom=rom.gba --table=all");
             Console.WriteLine("  FEBuilderGBA.CLI --import-midi --rom=rom.gba --song-id=0x1A --in=song.mid");
@@ -4735,10 +4741,22 @@ namespace FEBuilderGBA.CLI
             {
                 Console.WriteLine($"Source file: {res.SourceFile}");
 
-                // A no-op (empty ChangedFields) means the source already matched the
-                // requested value(s): nothing was written, no rebuild is needed
-                // (#1132 review finding 2). Report it honestly and skip the diff/rebuild.
                 bool anyChanged = res.ChangedFields != null && res.ChangedFields.Count > 0;
+                bool anySkipped = res.SkippedFields != null && res.SkippedFields.Count > 0;
+
+                // ALL requested fields were SKIPPED (macro/expression) — nothing writable
+                // matched, no source change. This is NOT a clean success: the user must edit
+                // those fields manually. Exit 2 (advisory / manual-required) (#1159).
+                if (!anyChanged && anySkipped)
+                {
+                    Console.Error.WriteLine($"No writable change: all requested field(s) map to a macro/expression and were skipped: {string.Join(", ", res.SkippedFields)}. Edit them manually.");
+                    Console.WriteLine("NeedsRebuild=false");
+                    return 2;
+                }
+
+                // A no-op (empty ChangedFields, nothing skipped) means the source already
+                // matched the requested value(s): nothing was written, no rebuild is needed
+                // (#1132 review finding 2). Report it honestly and skip the diff/rebuild.
                 if (!anyChanged)
                 {
                     Console.WriteLine("No change needed (source already matches the requested value).");
@@ -4770,6 +4788,17 @@ namespace FEBuilderGBA.CLI
                 }
 
                 Console.WriteLine("NeedsRebuild=true");
+
+                // PARTIAL write: some numeric field(s) were written to source, but other
+                // requested field(s) map to a macro/expression and were SKIPPED. The source
+                // IS modified (rebuild needed), but the skipped fields need manual edits — so
+                // this is NOT a clean success. Warn + exit 2 (manual-required) (#1159).
+                if (anySkipped)
+                {
+                    Console.Error.WriteLine($"WARNING: {res.SkippedFields.Count} requested field(s) were SKIPPED (macro/expression) and need manual edits: {string.Join(", ", res.SkippedFields)}");
+                    return 2;
+                }
+
                 return 0;
             }
 

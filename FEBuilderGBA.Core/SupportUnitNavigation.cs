@@ -259,6 +259,88 @@ namespace FEBuilderGBA
         /// </summary>
         public static uint OneBasedIdFromPickIndex(int zeroBasedIndex) => (uint)zeroBasedIndex + 1;
 
+        // ---- #1149: entry-id resolvers for decomp source-backed writers ----
+
+        /// <summary>
+        /// Resolve the 0-based entry id for a support_units record from its ROM address.
+        /// Returns <see cref="U.NOT_FOUND"/> on any miss (null rom, null RomInfo, zero pointer,
+        /// unsafe base, addr below base, misaligned, out-of-range, or overflows uint).
+        /// Mirrors <see cref="MapSettingCore.GetMapIdFromAddr"/> in structure.
+        /// </summary>
+        /// <param name="rom">ROM to read.</param>
+        /// <param name="addr">ROM file offset of the support_units entry.</param>
+        /// <param name="blockSize">Per-version support struct byte size (24 for FE7/8, 32 for FE6).</param>
+        public static uint GetSupportUnitEntryIdFromAddr(ROM rom, uint addr, uint blockSize)
+        {
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+            if (addr == U.NOT_FOUND || blockSize == 0) return U.NOT_FOUND;
+            uint ptr = rom.RomInfo.support_unit_pointer;
+            if (ptr == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(ptr, rom)) return U.NOT_FOUND;
+            if ((ulong)ptr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+            if (addr < baseAddr) return U.NOT_FOUND;
+            uint delta = addr - baseAddr;
+            if (delta % blockSize != 0) return U.NOT_FOUND;
+            uint id = delta / blockSize;
+            // Sane cap: support tables are always well under 0x1000 entries.
+            if (id >= 0x1000) return U.NOT_FOUND;
+            // Verify the full row fits in ROM.
+            if ((ulong)addr + blockSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            return id;
+        }
+
+        /// <summary>
+        /// Resolve the 0-based entry id for a support_attributes record from its ROM address.
+        /// Block size is fixed at 8 bytes for all versions. Returns <see cref="U.NOT_FOUND"/> on miss.
+        /// </summary>
+        public static uint GetSupportAttributeEntryIdFromAddr(ROM rom, uint addr)
+        {
+            const uint BlockSize = 8;
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+            if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+            uint ptr = rom.RomInfo.support_attribute_pointer;
+            if (ptr == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(ptr, rom)) return U.NOT_FOUND;
+            if ((ulong)ptr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+            if (addr < baseAddr) return U.NOT_FOUND;
+            uint delta = addr - baseAddr;
+            if (delta % BlockSize != 0) return U.NOT_FOUND;
+            uint id = delta / BlockSize;
+            if (id >= 0x1000) return U.NOT_FOUND;
+            if ((ulong)addr + BlockSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            return id;
+        }
+
+        /// <summary>
+        /// Resolve the 0-based entry id for a support_talks record from its ROM address.
+        /// Returns <see cref="U.NOT_FOUND"/> on miss.
+        /// </summary>
+        /// <param name="rom">ROM to read.</param>
+        /// <param name="addr">ROM file offset of the support_talks entry.</param>
+        /// <param name="blockSize">Per-version struct size (16 for FE8/FE6, 20 for FE7).</param>
+        public static uint GetSupportTalkEntryIdFromAddr(ROM rom, uint addr, uint blockSize)
+        {
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+            if (addr == U.NOT_FOUND || blockSize == 0) return U.NOT_FOUND;
+            uint ptr = rom.RomInfo.support_talk_pointer;
+            if (ptr == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(ptr, rom)) return U.NOT_FOUND;
+            if ((ulong)ptr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+            if (addr < baseAddr) return U.NOT_FOUND;
+            uint delta = addr - baseAddr;
+            if (delta % blockSize != 0) return U.NOT_FOUND;
+            uint id = delta / blockSize;
+            if (id >= 0x1000) return U.NOT_FOUND;
+            if ((ulong)addr + blockSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            return id;
+        }
+
         /// <summary>
         /// Resolve the actual unit-table base (file offset) accounting for
         /// FE6's first-entry skip. FE6's unit table at <c>p32(unit_pointer)</c>

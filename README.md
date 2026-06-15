@@ -151,13 +151,21 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gb
 # the map-change overlay — these are LZ77 binaries, migrate via --export-asset
 # #1133/#1140), and the nested `chapter_settings.json` shape (nested objects / bools /
 # enum strings / split obj1Id|obj2Id are reported UnsupportedField/Manual, never
-# silently corrupted — flat top-level Number fields in that file still rewrite). Shops
-# and support data remain ROM-only/manual (no clean source-of-truth C array).
+# silently corrupted — flat top-level Number fields in that file still rewrite).
+# Shops (sentinel-terminated variable-length lists) remain ROM-only/manual. Support
+# data (support_units, support_attributes, support_talks) is source-writable when
+# the manifest declares a source owner for those tables (#1149).
 #
 # Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned; 1 = usage/parse error.
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=units --id=1 --field=hp --value=18 --field=pow --value=7
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=map_settings --id=1 --field=Weather --value=4
+# support_units b0 is a LEADING field — safe with a minimal fields[] = [b0]:
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=support_units --id=5 --field=b0 --value=0x06
+# support_attributes b1 / support_talks w4 are NON-leading — for positional initializers the
+# owner must declare the full ordered prefix up to them (or use designated .bN= initializers):
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=support_attributes --id=2 --field=b1 --value=0x05
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=support_talks --id=3 --field=w4 --value=0x1A0
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=10 --out-diff=change.diff
 
 # Build decomp project ROM (run the manifest-declared build command).
@@ -342,15 +350,18 @@ sibling.
   overlay — migrate via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
   shape (nested objects / bools / enum strings / split `obj1Id`|`obj2Id` are reported
   UnsupportedField/Manual, never silently corrupted; flat top-level Number fields still rewrite).
-  **Shops and support data remain ROM-only/manual** (no clean source-of-truth C array). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
+  **Shops remain ROM-only/manual** (sentinel-terminated variable-length lists, no clean source-of-truth C array). **Support data** (`support_units`, `support_attributes`, `support_talks`) **is source-writable** when the manifest `tables[]` section declares a source owner for those tables (#1149); use byte-offset field names (`b0`..`b23` / `b0`..`b31` / `b0`..`b7` / `b0`+`w4`+…) in `--field`. **Positional-initializer constraint:** for a source that uses positional `{ … }` C initializers, the writer maps a byte-offset field name to a positional index by the ORDER of the owner's `fields[]` array — so a field's declared index must equal its real token position. Editing only a **leading prefix** (`b0`, then `b0`+`b1`, …) is always safe with a minimal `fields[]` that lists just those leading fields in order. Editing a **non-leading** field positionally (e.g. `b7` or `w4`) requires the owner declare the full ordered prefix up to that index (e.g. `b0`..`b7`) — OR use designated `.bN = …` initializers, which are matched by name and need no ordered list. Declaring the full ordered struct layout (e.g. all of `b0`..`b23` for `support_units`) is the safest, easiest guarantee but is not strictly required when you only edit a leading prefix. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source
   rewritten; `2` = ROM-only / manual / not owned / unsupported field / path rejected;
   `1` = usage / parse error / source not found.
-- **Avalonia GUI:** in decomp mode the **Items**, **Units**, **Classes**, and **Map Settings
-  (chapter settings, #1148)** editor Write buttons route to the source writer when the matching
-  table is source-owned (showing e.g. *"Chapter source updated. Project needs rebuild."*) instead
-  of mutating the preview ROM; an owned-but-unsupported / ROM-only entry shows a ROM-only notice
-  instead of a silent ROM write. **#1148 pointer-edit guard:** when the user edits ONLY an
+- **Avalonia GUI:** in decomp mode the **Items**, **Units**, **Classes**, **Map Settings
+  (chapter settings, #1148)**, **Support Unit** (FE7/8 + FE6), **Support Attribute**, and
+  **Support Talk** (FE8/FE7/FE6, #1149) editor Write buttons route to the source writer when the
+  matching table is source-owned (showing e.g. *"Support unit source updated. Project needs rebuild."*)
+  instead of mutating the preview ROM; an owned-but-unsupported / ROM-only entry shows a ROM-only notice
+  instead of a silent ROM write. **Shop editors** (Item Shop Viewer) block all three mutating
+  operations (Write, Append Slot, Remove Last Slot) in decomp mode with a ROM-only/manual notice
+  (#1149). **#1148 pointer-edit guard:** when the user edits ONLY an
   unsupported chapter pointer field (e.g. EventDataPtr / a difficulty pointer), the gate shows an
   explicit ROM-only/manual notice and does NOT mutate the preview ROM (rather than a misleading
   "no change needed"). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile

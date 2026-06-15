@@ -487,5 +487,192 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(projectDir, true); } catch { }
             }
         }
+
+        // ---- #1149: support_units not-owned → exit 2 ----
+
+        [SkippableFact]
+        public void WriteSource_SupportUnits_NotOwned_ExitsTwo()
+        {
+            Skip.If(FirstRom == null, "No ROM available for support_units not-owned test");
+
+            string projectDir = NewTempDir("su_notowned");
+            try
+            {
+                // Manifest declares NO support_units owner → ROM-only.
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=5";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1149: support_units success path ----
+
+        [SkippableFact]
+        public void WriteSource_SupportUnits_Success_RewritesSourceFile()
+        {
+            Skip.If(FirstRom == null, "No ROM available for support_units success test");
+
+            string projectDir = NewTempDir("su_success");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "support.c");
+                // Minimal 24-field entry (all u8 fields for a support_units row)
+                string content =
+                    "const SupportData gSupportData[] = {\n" +
+                    "    {0x06, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                string manifest =
+                    "{\n" +
+                    "  \"schemaVersion\": 1,\n" +
+                    "  \"builtRom\": \"synth.gba\",\n" +
+                    "  \"tables\": [\n" +
+                    "    { \"table\": \"support_units\", \"format\": \"cstruct\", \"writePolicy\": \"source\",\n" +
+                    "      \"arrayName\": \"gSupportData\", \"sourceFile\": \"src/support.c\",\n" +
+                    "      \"fields\": [ { \"name\": \"b0\" }, { \"name\": \"b1\" } ] }\n" +
+                    "  ]\n" +
+                    "}\n";
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"), manifest);
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=0x09";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                // The stub source { {0x06, 0x07, ...} } is a valid positional cstruct that
+                // the writer locates deterministically — this MUST be a strict success.
+                Assert.True(code == 0,
+                    $"--write-source support_units success exited {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+                Assert.Contains("Source file:", stdout);
+
+                // b0 was 0x06 (hex); the writer preserves the hex radix and emits the
+                // shortest form (ToString("X")), so 0x06 -> 0x9 (NOT 0x09). Assert the
+                // exact churn-free change.
+                string after = File.ReadAllText(srcAbs);
+                Assert.Contains("{0x9, 0x07, 0x00", after);   // b0 rewritten 0x06->0x9, b1 (0x07) untouched
+                Assert.DoesNotContain("{0x06,", after);       // old token gone
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1159 (re-review): macro-skip exit codes ----
+
+        // ALL requested fields map to a macro/expression → CLI exits 2 + stderr mentions
+        // skipped + NeedsRebuild=false. Nothing is written to source.
+        [SkippableFact]
+        public void WriteSource_SupportUnits_AllSkipped_ExitsTwo()
+        {
+            Skip.If(FirstRom == null, "No ROM available for support_units all-skipped test");
+
+            string projectDir = NewTempDir("su_allskip");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "support.c");
+                // b0 slot is a MACRO token (unwritable).
+                string content =
+                    "const SupportData gSupportData[] = {\n" +
+                    "    {SOME_MACRO, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                string manifest =
+                    "{\n" +
+                    "  \"schemaVersion\": 1,\n" +
+                    "  \"builtRom\": \"synth.gba\",\n" +
+                    "  \"tables\": [\n" +
+                    "    { \"table\": \"support_units\", \"format\": \"cstruct\", \"writePolicy\": \"source\",\n" +
+                    "      \"arrayName\": \"gSupportData\", \"sourceFile\": \"src/support.c\",\n" +
+                    "      \"fields\": [ { \"name\": \"b0\" }, { \"name\": \"b1\" } ] }\n" +
+                    "  ]\n" +
+                    "}\n";
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"), manifest);
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // Edit ONLY the macro field → all requested fields skipped.
+                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=0x09";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.Contains("skipped", stderr, System.StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("NeedsRebuild=false", stdout);
+
+                // Source is byte-identical — nothing written.
+                Assert.Equal(content, File.ReadAllText(srcAbs));
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // PARTIAL: one numeric + one macro field edited → CLI exits 2, stderr WARNING names
+        // the skipped field, and the NUMERIC field WAS written to source.
+        [SkippableFact]
+        public void WriteSource_SupportUnits_Partial_ExitsTwo_WritesNumericField()
+        {
+            Skip.If(FirstRom == null, "No ROM available for support_units partial test");
+
+            string projectDir = NewTempDir("su_partial");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "support.c");
+                // b0 slot is a MACRO (unwritable); b1 is a plain literal (writable).
+                string content =
+                    "const SupportData gSupportData[] = {\n" +
+                    "    {SOME_MACRO, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                string manifest =
+                    "{\n" +
+                    "  \"schemaVersion\": 1,\n" +
+                    "  \"builtRom\": \"synth.gba\",\n" +
+                    "  \"tables\": [\n" +
+                    "    { \"table\": \"support_units\", \"format\": \"cstruct\", \"writePolicy\": \"source\",\n" +
+                    "      \"arrayName\": \"gSupportData\", \"sourceFile\": \"src/support.c\",\n" +
+                    "      \"fields\": [ { \"name\": \"b0\" }, { \"name\": \"b1\" } ] }\n" +
+                    "  ]\n" +
+                    "}\n";
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"), manifest);
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // Edit BOTH b0 (macro — skipped) and b1 (numeric 0x07 -> 0x22 — written).
+                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=0x09 --field=b1 --value=0x22";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                // Partial = manual-required → exit 2, with NeedsRebuild=true (source WAS modified).
+                Assert.Equal(2, code);
+                Assert.Contains("NeedsRebuild=true", stdout);
+                Assert.Contains("WARNING", stderr);
+                Assert.Contains("b0", stderr);   // the skipped field is named
+
+                // The numeric field WAS written (0x07 -> 0x22); the macro token is preserved.
+                string after = File.ReadAllText(srcAbs);
+                Assert.Contains("{SOME_MACRO, 0x22, 0x00", after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
     }
 }
