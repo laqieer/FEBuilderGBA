@@ -1,0 +1,165 @@
+# Advisory Android Emulator Parity workflow (#1125) — the on-device byte-parity
+# proof that closes #1125 and completes the #1070 epic checklist item 5.
+#
+# PURPOSE
+# -------
+# This workflow runs the SAME SkiaRenderByteParityTests and
+# SkiaSharpVersionGuardTests that pass on the desktop (Linux/macOS/Windows) in
+# the Core.Tests suite, but ON AN ANDROID EMULATOR, to prove that the pinned
+# libSkiaSharp 2.88.9 Android native renders the GBA 4bpp-tile decode and PNG
+# round-trip byte-identically, and the Tuffy glyph within the shared pixel
+# tolerance, on the CI-bootable Android ABIs.
+#
+# ABI COVERAGE
+# ------------
+# x86_64 is the ONLY GitHub-hosted-runner-bootable ABI for API 34. Google
+# dropped 32-bit x86 system images at API 31+; API 34 ships only x86_64.
+# arm64-v8a and armeabi-v7a ship in the same pinned
+# SkiaSharp.NativeAssets.Android 2.88.9 package (same package version / same
+# upstream Skia build, ABI-specific native binaries -- not identical .so bytes),
+# but Android arm64/arm AVDs are NOT bootable on GitHub-hosted (x86_64) runners
+# without KVM — they require a self-hosted ARM runner or a paid ARM-emulator
+# service. The x86 (32-bit) ABI has no API-34 system image at all. This
+# workflow provides direct on-device parity proof for x86_64; the other three
+# ABIs (arm64-v8a, armeabi-v7a, x86) are covered by the same-native-package
+# argument (identical 2.88.9 .so origin) and are honestly noted as not
+# runner-bootable (or unavailable) here.
+#
+# ADVISORY / NON-BLOCKING by construction
+# ----------------------------------------
+# * Separate workflow file — NOT part of check.yml.
+# * Job/check context name: `android-emulator-parity` (NOT `build`, NOT
+#   `android-build`) — can never collide with the required build contexts.
+# * A slow emulator boot, a flaky KVM run, or a test failure shows as a
+#   non-blocking red check on the PR, not a PR-merge gate.
+# * Once stable, a maintainer can flip it to required via a branch-ruleset
+#   change — no code change needed.
+#
+# DESIGN DECISIONS
+# ----------------
+# * KVM acceleration is enabled via the standard udev rule (required for any
+#   useful emulator performance on ubuntu-latest).
+# * AVD snapshots are cached per arch to speed up repeated runs.
+# * The test APK does NOT reference FEBuilderGBA.Avalonia (no Avalonia startup
+#   needed for pure SkiaSharp render tests), so no -p:EnableAndroidTarget flag.
+# * Instruments via TestInstrumentation (com.laqieer.febuildergba.tests), a
+#   direct reflection-based Android.App.Instrumentation runner (NOT XHarness --
+#   see csproj/Instrumentation.cs for rationale). It writes TestResults.xml and
+#   returns a non-zero code on failure.
+# * adb install + am instrument are retried once on transient failure.
+# * CI fails the step (exit 1) if instrument output contains a failure marker
+#   OR if TestResults.xml reports failures/errors > 0, OR if the XML is absent.
+# * All parity-run logic lives in scripts/android-parity-run.sh, invoked via a
+#   SINGLE-LINE `script:` value. This is required because
+#   reactivecircus/android-emulator-runner@v2 executes each `script:` line in a
+#   SEPARATE `/usr/bin/sh -c <line>` invocation — multi-line constructs
+#   (variable persistence, shell functions, if/fi blocks) cannot span lines.
+
+name: Android Emulator Parity
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-emulator-parity:
+    name: Android Emulator Parity (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        # Same submodule set as android.yml / check.yml. config/patch2 must
+        # resolve (globbed as AndroidAsset in the main Android head; the test
+        # head does not bundle it, but the submodule dir must exist for sibling
+        # project restore). tool submodules are referenced transitively.
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-android-tests-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('FEBuilderGBA.Android.Tests/**/*.csproj', 'FEBuilderGBA.Android.Tests/nuget.config', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-android-tests-${{ runner.os }}-${{ matrix.arch }}-
+            nuget-android-tests-${{ runner.os }}-
+
+      - name: Install android workload
+        run: dotnet workload install android
+
+      - name: Enable KVM
+        # Required for usable emulator performance on ubuntu-latest GitHub runners.
+        # Without KVM the emulator runs in software-only mode and boots extremely
+        # slowly (often timing out before the first adb command succeeds).
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build test APK
+        # No -p:EnableAndroidTarget needed — the test project only references
+        # FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net9.0.
+        run: dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
+
+      - name: Cache AVD snapshot
+        id: avd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+          key: avd-api34-${{ matrix.arch }}-v2
+
+      - name: Create AVD (cache miss only)
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: false
+          script: echo "AVD snapshot created for ${{ matrix.arch }}"
+
+      - name: Run parity tests on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: bash scripts/android-parity-run.sh ${{ matrix.arch }}
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-parity-${{ matrix.arch }}
+          path: |
+            instrument-out-${{ matrix.arch }}.txt
+            TestResults-${{ matrix.arch }}.xml
+            logcat-${{ matrix.arch }}.txt
+            instrumentation-error-${{ matrix.arch }}.txt
+          if-no-files-found: warn

@@ -1,0 +1,115 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Reflection-based instrumented test head for Android (#1125).
+
+    This project is the on-device byte-parity proof for #1125 / #1070.
+    It links (never copies) the same SkiaRenderByteParityTests and
+    SkiaSharpVersionGuardTests that run in the desktop Core.Tests suite,
+    so the SAME golden assertions that pass on Linux/macOS/Windows are
+    run on-device under the pinned libSkiaSharp 2.88.x Android native.
+
+    WHY NO XHarness: .NET 9 Android embeds managed assemblies as ELF-wrapped
+    native libs (lib/<abi>/lib_<Name>.dll.so), not as plain PE .dll zip
+    entries. xUnit's Guard.FileExists() requires a real on-disk PE file;
+    assembly.Location is empty on .NET 9 Android. Instrumentation.cs uses
+    a direct reflection runner instead, invoking [Fact]/[SkippableFact]
+    methods in-memory and writing its own TestResults.xml.
+
+    INTENTIONALLY NOT part of FEBuilderGBA.sln. The required `build`
+    check (check.yml / windows-latest) has no android workload, so
+    including this project would break every unrelated PR. Build it
+    standalone:
+
+        dotnet workload install android
+        dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
+
+    The -p:EnableAndroidTarget=true flag is NOT needed here because this
+    project does NOT reference FEBuilderGBA.Avalonia - it references only
+    FEBuilderGBA.Core and FEBuilderGBA.SkiaSharp, both plain net9.0,
+    which need no conditional multi-targeting.
+
+    Font bootstrap: Tuffy-Regular.ttf ships as both a CopyToOutputDirectory
+    item (for the net9.0-android assembly extraction dir) and an
+    AndroidAsset (for the APK assets/ tree). Instrumentation.OnCreate
+    copies the asset into AppContext.BaseDirectory/Fonts/ before any test
+    runs, so the hard-coded LoadTuffy() path in SkiaRenderByteParityTests
+    resolves without modification to the shared test source.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationId>com.laqieer.febuildergba.tests</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <RootNamespace>FEBuilderGBA.Android.Tests</RootNamespace>
+    <AssemblyName>FEBuilderGBA.Android.Tests</AssemblyName>
+    <!-- Disable IL trimming and AOT so [Fact]/[SkippableFact] reflection-based
+         test discovery survives the Release build. Without AndroidLinkMode=None
+         the linker strips the test classes (no static reference -> dead code
+         elimination) and the runner finds 0 tests. -->
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <AndroidUseInterpreter>true</AndroidUseInterpreter>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xUnit test framework (2.9.3). -->
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.SkippableFact" Version="1.4.13" />
+    <!-- CRITICAL native-version pin (#796/#798/#1125): must match the 2.88.x family
+         everywhere SkiaSharp ships a native. The SkiaSharp managed assembly arrives
+         transitively through FEBuilderGBA.SkiaSharp (pinned to 2.88.9 there). -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Core library (pure net9.0 - no EnableAndroidTarget needed) -->
+    <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+    <!-- SkiaSharp backend (net9.0 - provides SkiaImageService + SkiaFontRasterizer) -->
+    <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
+  </ItemGroup>
+
+  <!-- NO-DUPLICATION: link the shared test sources; never copy them.
+       Linking ensures that a fix to the desktop test is automatically
+       inherited by the Android test head on the next build. -->
+  <ItemGroup>
+    <Compile Include="..\FEBuilderGBA.Core.Tests\SkiaRenderByteParityTests.cs"
+             Link="SkiaRenderByteParityTests.cs" />
+    <Compile Include="..\FEBuilderGBA.Core.Tests\SkiaSharpVersionGuardTests.cs"
+             Link="SkiaSharpVersionGuardTests.cs" />
+    <!-- Shared font goldens + tolerances + helpers (single source of truth,
+         same link strategy as Core.Tests and Avalonia.Tests) -->
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\SkiaFontGoldens.cs"
+             Link="SkiaFontGoldens.cs" />
+  </ItemGroup>
+
+  <!-- Font bundling strategy (two-pronged for Android runtime safety):
+       1. CopyToOutputDirectory: lands Fonts/Tuffy-Regular.ttf in the
+          assembly extraction directory (AppContext.BaseDirectory/Fonts/).
+          Works reliably on desktop/CI; on Android the extraction dir may
+          be read-only or may not include loose content files.
+       2. AndroidAsset: ships the font inside the APK at assets/Tuffy-Regular.ttf.
+          Instrumentation.OnCreate copies it from AssetManager into
+          AppContext.BaseDirectory/Fonts/ BEFORE any test runs, so the
+          unchanged LoadTuffy() hard-coded path resolves on-device.
+       Both items reference the same upstream file - no duplication. -->
+  <ItemGroup>
+    <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\Tuffy-Regular.ttf"
+          Link="Fonts\Tuffy-Regular.ttf"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\OFL.txt"
+          Link="Fonts\OFL.txt"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- AndroidAsset path: assets/Tuffy-Regular.ttf inside the APK -->
+    <AndroidAsset Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\Tuffy-Regular.ttf"
+                  Link="Tuffy-Regular.ttf" />
+  </ItemGroup>
+</Project>
