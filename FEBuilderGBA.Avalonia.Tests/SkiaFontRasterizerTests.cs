@@ -13,6 +13,7 @@ using System.Linq;
 using Xunit;
 using FEBuilderGBA;
 using FEBuilderGBA.SkiaSharp;
+using FEBuilderGBA.SharedTest;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -106,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // fill, an edge fill pixel by outline).
             var r = new SkiaFontRasterizer();
             byte[] tile = r.RasterizeGlyph(TuffySpec(20f), "W", isItemFont: true, 0, out _);
-            byte[,] grid = UnpackGrid(tile);
+            byte[,] grid = SkiaFontGoldens.UnpackGrid(tile);
 
             int fillCount = 0;
             int ringCount = 0;
@@ -155,38 +156,25 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         // ---------- GOLDEN: Skia-path regression lock (pixel tolerance) ----------
         //
-        // The baseline golden bytes below are the Windows/Linux (x64) render.
-        // We compare with a small PER-PIXEL tolerance instead of exact byte
-        // equality because Apple-Silicon (arm64) Skia performs floating-point
-        // antialiasing slightly differently than x64: a glyph-edge pixel can
-        // land marginally on the other side of the `R < 0xA0` foreground
-        // threshold. With Hinting=None there is no OS hinting variance — only
-        // this sub-pixel AA-threshold drift (deterministic per native build, not
-        // flaky).
-        //
-        // The two glyph kinds get SEPARATE tolerances because the item font's
-        // 4-neighbour outline AMPLIFIES the drift: a boundary AA flip on a TEXT
-        // glyph changes only that one pixel, but on an ITEM glyph it can
-        // additionally toggle up to ~4 surrounding outline (idx-3) pixels. CI on
-        // macos-latest/arm64 measured ~1-2 px text drift and 8 px item drift.
-        //   - text tolerance 12  (~2x the observed text drift)
-        //   - item tolerance 18  (~2.25x the observed 8 px, with native-variation headroom)
-        // Both stay FAR below a real regression footprint: a broken threshold /
-        // scale / composite-offset / pack flips 30+ of the tile's 256 pixels
-        // (>> 18), so the goldens still catch genuine regressions. Exact-equality
-        // is intentionally NOT used.
-        const int GoldenTextPixelTolerance = 12;
-        const int GoldenItemPixelTolerance = 18;
+        // The golden tiles, widths, and per-glyph-kind tolerances live in the
+        // shared SkiaFontGoldens (FEBuilderGBA.SharedTest) so this desktop lock
+        // and the cross-platform render parity smoke test
+        // (FEBuilderGBA.Core.Tests/SkiaRenderByteParityTests.cs, #1125) can never
+        // silently diverge — both <Compile … Link>-include the same source file.
+        // We compare with a small PER-PIXEL tolerance (not exact byte equality)
+        // because arm64 Skia AA can land a glyph-edge pixel on the other side of
+        // the `R < 0xA0` foreground threshold; see SkiaFontGoldens for the full
+        // rationale and the observed-drift-vs-tolerance margins.
 
         [Fact]
         public void Golden_TextGlyph_A_WithinPixelTolerance()
         {
             var r = new SkiaFontRasterizer();
             byte[] tile = r.RasterizeGlyph(TuffySpec(), "A", isItemFont: false, 0, out int width);
-            int diff = CountDifferingPixels(GoldenTextA, tile);
-            Assert.True(diff <= GoldenTextPixelTolerance,
-                $"text glyph 'A' differs from baseline golden by {diff} pixels (tolerance {GoldenTextPixelTolerance})");
-            Assert.Equal(GoldenTextAWidth, width);
+            int diff = SkiaFontGoldens.CountDifferingPixels(SkiaFontGoldens.GoldenTextA, tile);
+            Assert.True(diff <= SkiaFontGoldens.GoldenTextPixelTolerance,
+                $"text glyph 'A' differs from baseline golden by {diff} pixels (tolerance {SkiaFontGoldens.GoldenTextPixelTolerance})");
+            Assert.Equal(SkiaFontGoldens.GoldenTextAWidth, width);
         }
 
         [Fact]
@@ -194,80 +182,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var r = new SkiaFontRasterizer();
             byte[] tile = r.RasterizeGlyph(TuffySpec(), "A", isItemFont: true, 0, out int width);
-            int diff = CountDifferingPixels(GoldenItemA, tile);
-            Assert.True(diff <= GoldenItemPixelTolerance,
-                $"item glyph 'A' differs from baseline golden by {diff} pixels (tolerance {GoldenItemPixelTolerance})");
-            Assert.Equal(GoldenItemAWidth, width);
+            int diff = SkiaFontGoldens.CountDifferingPixels(SkiaFontGoldens.GoldenItemA, tile);
+            Assert.True(diff <= SkiaFontGoldens.GoldenItemPixelTolerance,
+                $"item glyph 'A' differs from baseline golden by {diff} pixels (tolerance {SkiaFontGoldens.GoldenItemPixelTolerance})");
+            Assert.Equal(SkiaFontGoldens.GoldenItemAWidth, width);
         }
-
-        // Baseline golden bytes: the Windows/Linux (x64) SkiaSharp render of
-        // Tuffy 'A' at 12pt, loaded via FontSpec.FontFileData with Hinting=None
-        // (Skia geometric rasterizer, no OS hinting) under native libSkiaSharp
-        // 2.88 (aligned to Avalonia 11.2.3). Identical on win + ubuntu (x64);
-        // arm64 (macOS) drifts a few px via AA-threshold rounding, absorbed by
-        // the GoldenText/ItemPixelTolerance compares above. Regenerate only on an
-        // intentional rasterizer change.
-        static readonly byte[] GoldenTextA =
-        {
-            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-            0x3C,0x00,0x00,0x00,0x3C,0x00,0x00,0x00,0x3C,0x00,0x00,0x00,0x33,0x00,0x00,0x00,
-            0xC3,0x00,0x00,0x00,0xC3,0x00,0x00,0x00,0xFF,0x00,0x00,0x00,0xC0,0x00,0x00,0x00,
-        };
-        const int GoldenTextAWidth = 4;
-        static readonly byte[] GoldenItemA =
-        {
-            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xF0,0x00,0x00,0x00,
-            0xAC,0x03,0x00,0x00,0xAC,0x03,0x00,0x00,0xBB,0x03,0x00,0x00,0xFB,0x0E,0x00,0x00,
-            0xAB,0x0E,0x00,0x00,0xFE,0x0E,0x00,0x00,0x02,0x3B,0x00,0x00,0x02,0x3B,0x00,0x00,
-        };
-        const int GoldenItemAWidth = 6;
 
         // ---------- helpers ----------
 
-        /// <summary>
-        /// Decode two 64-byte tiles into their 256 2-bit palette indices
-        /// (reverse of the Image4ToByte pack: per byte, 4 pixels =
-        /// (b&gt;&gt;0)&amp;3, (b&gt;&gt;2)&amp;3, (b&gt;&gt;4)&amp;3, (b&gt;&gt;6)&amp;3) and
-        /// count how many of the 256 pixels differ. Used by the golden tests to
-        /// tolerate the small x64-vs-arm64 antialiasing drift.
-        /// </summary>
-        static int CountDifferingPixels(byte[] expected, byte[] actual)
-        {
-            byte[] e = UnpackIndices(expected);
-            byte[] a = UnpackIndices(actual);
-            int diff = 0;
-            for (int i = 0; i < e.Length; i++)
-            {
-                if (e[i] != a[i]) diff++;
-            }
-            return diff;
-        }
-
-        static byte[] UnpackIndices(byte[] tile)
-        {
-            var idx = new byte[256];
-            int p = 0;
-            for (int i = 0; i < 64; i++)
-            {
-                byte b = tile[i];
-                idx[p++] = (byte)(b & 0x03);
-                idx[p++] = (byte)((b >> 2) & 0x03);
-                idx[p++] = (byte)((b >> 4) & 0x03);
-                idx[p++] = (byte)((b >> 6) & 0x03);
-            }
-            return idx;
-        }
-
-        static byte[,] UnpackGrid(byte[] tile)
-        {
-            byte[] flat = UnpackIndices(tile);
-            var grid = new byte[16, 16];
-            for (int y = 0; y < 16; y++)
-                for (int x = 0; x < 16; x++)
-                    grid[x, y] = flat[x + y * 16];
-            return grid;
-        }
+        static byte[] UnpackIndices(byte[] tile) => SkiaFontGoldens.UnpackIndices(tile);
     }
 }

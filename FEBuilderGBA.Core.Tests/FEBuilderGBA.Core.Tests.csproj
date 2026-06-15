@@ -19,6 +19,22 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
+    <!-- #1125: the SkiaSharp render byte-parity + version-guard tests need the
+         managed SkiaSharp backend (SkiaImageService / SkiaFontRasterizer) and
+         force its 2.88.x restore so the restored-graph guard has assets to read. -->
+    <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
+  </ItemGroup>
+  <!-- #1125: share the SINGLE source-of-truth font goldens + tolerances + tile
+       helpers with the desktop regression lock so the two suites never diverge. -->
+  <ItemGroup>
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\SkiaFontGoldens.cs" Link="SkiaFontGoldens.cs" />
+  </ItemGroup>
+  <!-- #1125: bundle the license-clean Tuffy font (SIL OFL 1.1) + its license so
+       the cross-platform font parity test renders the same glyph the desktop
+       lock does. Mirrors FEBuilderGBA.Avalonia.Tests/Fonts. -->
+  <ItemGroup>
+    <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\Tuffy-Regular.ttf" Link="Fonts\Tuffy-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\FEBuilderGBA.Avalonia.Tests\Fonts\OFL.txt" Link="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <!-- Include ComboResourceHelper source directly to avoid pulling in Avalonia UI dependencies -->
