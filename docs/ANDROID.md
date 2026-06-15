@@ -125,22 +125,40 @@ in the net9.0 cross-platform suite:
   `SkiaFontGoldens` single source of truth.
 
 These are **desktop-validated** today (image pixels exact; font within the
-documented tolerance). **#1126 must run these SAME assertions on the four
-Android ABIs** — `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` — under an Android
-emulator / instrumented test run, to prove the pinned `2.88.x` native renders
-the **image path byte-identically** and the **font path within the documented
-pixel tolerance** on each ABI. (The runtime-loaded `2.88` assembly guard runs on
-the device too; the declared/restored-graph guards are source-tree-only and skip
-on an on-device host.) Concretely, #1126 must:
+documented tolerance). **#1125 now runs these SAME assertions on-device** via an
+XHarness instrumented test head (`FEBuilderGBA.Android.Tests/`) and an advisory
+emulator CI workflow (`.github/workflows/android-emulator-parity.yml`):
 
-1. Build an instrumented (androidTest) host that links the same
-   `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests` assertions (or a
-   thin device-side harness invoking the same `SkiaImageService` /
-   `SkiaFontRasterizer` calls against the same inline goldens).
-2. Run it on an emulator image for each of the four ABIs above.
-3. Require **EXACT** equality for the image decode/PNG-round-trip golden and
-   **within-tolerance** equality for the font golden — failing the Android CI if
-   any ABI diverges (which would signal a native-version or codegen drift).
+- **Test head:** `FEBuilderGBA.Android.Tests.csproj` (net9.0-android, NOT in the
+  .sln) links (never copies) `SkiaRenderByteParityTests.cs`,
+  `SkiaSharpVersionGuardTests.cs`, and `SkiaFontGoldens.cs` via `<Compile Link>`.
+  `TestInstrumentation` (XHarness `DefaultAndroidEntryPoint`) copies the bundled
+  Tuffy font from APK assets into `AppContext.BaseDirectory/Fonts/` before tests
+  run, writes `TestResults.xml`, and returns a non-zero code on failure.
+- **CI workflow:** `.github/workflows/android-emulator-parity.yml` runs on
+  `ubuntu-latest` for a 2-arch matrix (`x86_64`, `x86`) on push/PR to master.
+  It boots an API-34 `google_apis` AVD (KVM-accelerated, AVD snapshot cached),
+  installs the test APK, runs `adb shell am instrument -w`, pulls
+  `TestResults.xml`, and fails the step if any test fails.
+- **ABI coverage (honest):** `x86_64` and `x86` are the GitHub-hosted-runner-
+  bootable ABIs. `arm64-v8a` and `armeabi-v7a` ship in the **same pinned
+  `SkiaSharp.NativeAssets.Android 2.88.9` package** (the same compiled `.so`
+  files) but are NOT bootable on GitHub-hosted `x86_64` runners — they would
+  require a self-hosted ARM runner or a paid ARM-emulator service. The workflow
+  provides direct on-device proof for x86_64 + x86; the other two ABIs are
+  covered by the same-package argument (identical `.so` origin, same `2.88.9` pin).
+- **What runs on-device:** the image parity tests (EXACT byte equality — the tile
+  decode + PNG round-trip golden); the font parity tests (within shared pixel
+  tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_288` (the runtime-loaded
+  managed SkiaSharp version guard). The declared/restored-graph guards skip on
+  the device (no source tree / `.sln` present on an Android host), as documented
+  in `SkiaSharpVersionGuardTests.cs`.
+
+The advisory workflow is non-blocking by construction: separate workflow file,
+job context `android-emulator-parity` (not `build`), and no `continue-on-error`.
+A flaky emulator boot or test failure surfaces as a (non-blocking) red check.
+Once the runs are consistently green, a maintainer can flip the check to required
+via a branch-ruleset change — no code change needed. See §7 for workflow details.
 
 ---
 
@@ -360,10 +378,27 @@ flaky Android build can never block a PR merge — the required checks live in
 non-blocking) red check instead of a misleading green one; the
 `if-no-files-found: error` flag on the upload step likewise ensures a run that
 produced no APK (e.g. a path regression) fails visibly rather than passing green
-with an empty artifact. **What remains:** the on-device / emulator SkiaSharp byte-parity run
-(#1125) — running `SkiaRenderByteParityTests` on the Android native across the
-four ABIs via an instrumented test head (XHarness-style + emulator boot) — is
-the remaining step that keeps #1125 and the overall #1070 epic open.
+with an empty artifact.
+
+**On-device byte-parity CI (#1125 — WIRED, pending green):**
+`.github/workflows/android-emulator-parity.yml` now runs `SkiaRenderByteParityTests`
++ `SkiaSharpVersionGuardTests` on an API-34 Android emulator across two
+CI-bootable ABIs (`x86_64` + `x86`) on every push/PR to master. The instrumented
+test head `FEBuilderGBA.Android.Tests/` (XHarness `DefaultAndroidEntryPoint`)
+links the same test sources as `FEBuilderGBA.Core.Tests` — no duplication. Build
+it standalone:
+
+```bash
+dotnet workload install android
+dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Release
+```
+
+The workflow is advisory / non-blocking (job context `android-emulator-parity`,
+not `build`); once consistently green it can be flipped to required via a
+branch-ruleset change. `arm64-v8a` + `armeabi-v7a` are covered by the
+same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` `.so` files)
+but are not directly emulated on GitHub-hosted runners (see §3). This wires
+#1125 and completes the #1070 epic checklist item 5.
 
 ---
 
@@ -392,11 +427,14 @@ linked under #1070 as its checklist:
    *(see §5.)*
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
-5. **Android: `SkiaSharp.NativeAssets.Android` version pinning + render
-   byte-parity smoke test** on the Android native. *(see §3.)* The desktop
-   SkiaSharp byte-parity tests exist; the on-device ABI run across
-   `android-x64`/`android-arm64`/`android-x86`/`android-arm` (instrumented
-   XHarness-style, emulator boot) is still pending (#1125).
+5. ~~**Android: `SkiaSharp.NativeAssets.Android` version pinning + render
+   byte-parity smoke test** on the Android native.~~ **WIRED (#1125, pending
+   green)** — `FEBuilderGBA.Android.Tests/` (XHarness test head) links the
+   same `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests` as the
+   desktop suite; `.github/workflows/android-emulator-parity.yml` boots API-34
+   emulators for `x86_64` + `x86` (CI-bootable ABIs) on every push/PR.
+   `arm64-v8a` + `armeabi-v7a` ship in the same `2.88.9` package but are not
+   bootable on GitHub-hosted runners (see §3). *(see §3, §7.)*
 6. ~~**Android: CI job + signed APK packaging** (separate android-workload job,
    not the desktop `.sln` build).~~ **DONE (#1126)** — `.github/workflows/android.yml`
    builds the APK on `ubuntu-latest` and uploads the debug-keystore `*-Signed.apk`
