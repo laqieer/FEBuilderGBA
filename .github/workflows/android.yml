@@ -11,10 +11,17 @@
 #   * It is a SEPARATE workflow (not the required `build` job in check.yml).
 #   * The job/check context is `android-build` (NOT `build`) so it can never
 #     collide with the required build contexts.
-#   * continue-on-error: true keeps the overall run from going red.
-# So a slow/flaky Android build can NOT block PR merges. Once the Android build
-# has been stable for a while the maintainer can flip it to required via a
+# So a slow/flaky Android build can NOT block PR merges (the required checks
+# live in check.yml / crossplatform.yml and are unaffected). Once the Android
+# build has been stable for a while the maintainer can flip it to required via a
 # follow-up PR / branch-ruleset change.
+#
+# NOTE on continue-on-error: deliberately NOT set at the job level. With
+# continue-on-error a failed build/upload step would still report the check as
+# success, which would silently mask a real regression and defeat the
+# `if-no-files-found: error` guard below. The job is already non-blocking by
+# being a separate, non-required workflow, so we let genuine failures surface as
+# a (still non-blocking) RED check rather than a misleading green one.
 #
 # Release signing-key handling is deferred: the artifact is the debug-keystore
 # *-Signed.apk the build already produces (docs/ANDROID.md §7).
@@ -25,6 +32,10 @@
 # flaky emulator boot, which is out of scope for this build+artifact workflow.
 # That instrumented-parity run is the remaining step that keeps #1125 (and thus
 # #1070) open. See docs/ANDROID.md §7-8.
+#
+# Actions are pinned to @v4 tags to stay consistent with the repo's other
+# workflows (check.yml / crossplatform.yml); a repo-wide move to commit-SHA
+# pinning is a separate hardening task, not scoped to this PR.
 
 name: Android
 
@@ -42,8 +53,6 @@ jobs:
   android-build:
     name: Android APK (advisory)
     runs-on: ubuntu-latest
-    # ADVISORY: never block a PR merge even if the Android build is slow/flaky.
-    continue-on-error: true
 
     steps:
       - name: Checkout
@@ -61,6 +70,17 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        # Speeds up restore + reduces network flakiness on repeated PR runs
+        # (the android workload pulls a large set of packages). Keyed on the
+        # project/props files so a dependency bump busts the cache.
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-android-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-android-${{ runner.os }}-
 
       - name: Install android workload
         # Installs the net9.0-android TFM toolchain. ubuntu-latest ships the
@@ -80,9 +100,12 @@ jobs:
         with:
           name: febuildergba-android-apk
           # The debug-keystore-signed APK the build already produces
-          # (docs/ANDROID.md §7). if-no-files-found: error so a green-looking
-          # run that uploaded NO apk (path/package regression) fails visibly —
-          # it still can't block merges because the job is advisory + the check
-          # context is android-build, not the required `build`.
+          # (docs/ANDROID.md §7), at the well-known net9.0-android output path.
+          # if-no-files-found: error so a run that produced NO apk (a path /
+          # packaging regression) fails VISIBLY rather than passing green with
+          # an empty artifact — this is meaningful precisely because the job is
+          # NOT continue-on-error. It still can't block merges: the workflow is
+          # separate + non-required (context android-build, not the required
+          # `build`).
           path: FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk
           if-no-files-found: error
