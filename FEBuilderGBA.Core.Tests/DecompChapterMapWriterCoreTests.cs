@@ -272,6 +272,47 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(dir); }
         }
 
+        [Fact]
+        public void Chapter_MixedDeclaredAndUndeclaredScalars_Reports_UnsupportedField_NoPartialWrite()
+        {
+            // Copilot PR #1158 re-review: a mix of one DECLARED + one UNDECLARED scalar must
+            // NOT silently write only the declared one (a partial write that loses the other
+            // edit). The writer validates ALL changed fields up-front and rejects the whole
+            // set with UnsupportedField + zero mutation — the contract the Avalonia save-gate
+            // now intercepts pre-emptively (it never even passes a mixed set to the writer).
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "src/chapters.c";
+                string srcAbs = Path.Combine(dir, "src", "chapters.c");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                string content =
+                    "struct ChapterData gMapChapterData[] = {\n" +
+                    "    [0] = { .Weather = 0, .ChapterNumber = 0 },\n" +
+                    "    [1] = { .Weather = 1, .ChapterNumber = 5 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                // Declares ONLY Weather; a {Weather, ChapterNumber} set has an undeclared member.
+                var owner = new DecompTableEntry
+                {
+                    Table = "map_settings", Format = "cstruct", WritePolicy = "source",
+                    ArrayName = "gMapChapterData", SourceFile = srcRel, IndexBase = 0,
+                    Fields = new List<DecompTableField> { new DecompTableField { Name = "Weather" } },
+                };
+                var proj = ActiveProject(dir, owner);
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "map_settings", 1,
+                    new Dictionary<string, uint> { { "Weather", 4 }, { "ChapterNumber", 9 } });
+
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs)); // NO partial write — untouched
+            }
+            finally { TryDelete(dir); }
+        }
+
         // =====================================================================
         //  romOnly owner — RomOnly, NO mutation
         // =====================================================================

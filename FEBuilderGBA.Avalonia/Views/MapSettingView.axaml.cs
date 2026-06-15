@@ -347,54 +347,50 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;   // owner exists, but we cannot key the edit → not a silent ROM write
             }
 
-            // Build the owner's declared-field set. DecompSourceWriterCore requires EVERY
-            // changed field to be declared in owner.Fields, so an owner with no fields[] can
-            // never write — fail fast with a clear, actionable error instead of dropping
-            // every edit into a misleading no-op or a confusing per-field UnsupportedField
-            // (Copilot PR #1158 inline finding, re-reviewed).
+            // ALL-OR-NOTHING save gate (#1148, Copilot PR #1158 re-review): the source write
+            // proceeds ONLY when EVERY logical field the user edited is source-representable.
+            // A real edit must never be silently dropped (partial write) nor reported as a
+            // misleading "no change needed".
+            //
+            // 1) A pointer edit (EventDataPtr / a difficulty pointer) is NEVER source-writable
+            //    — if any pointer changed, the whole save is ROM-only/manual (even if scalars
+            //    also changed: writing only the scalars would silently lose the pointer edit).
+            if (_vm.HasUnsupportedFieldChanges())
+            {
+                CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
+                return true;
+            }
+
+            // 2) Build the owner's declared-field set and the raw set of source-writable
+            //    scalar fields the user edited since load.
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
-            if (declared.Count == 0)
-            {
-                CoreState.Services?.ShowError(R._("The map_settings source owner declares no fields[] in the manifest — chapter edits cannot be written to source. Add the fields[] declaration and retry."));
-                return true;   // owner exists but is unwritable — not a silent ROM write
-            }
 
-            // The raw set of source-writable scalar fields the user actually changed since
-            // load (before the declared-field intersection). Used to tell a genuine "no edit"
-            // apart from "edited a scalar the manifest doesn't declare".
             var rawChanged = _vm.BuildSourceFieldDict();
 
-            // Intersect with the declared fields so a field the manifest does not declare is
-            // dropped (no per-field UnsupportedField error from the writer).
+            // 3) EVERY edited scalar must be declared. If ANY edited scalar is not declared
+            //    by the manifest (incl. the empty-fields[] case), the edit can't reach source
+            //    — report it honestly and skip the write WITHOUT marking/re-baselining the VM
+            //    (no partial write, no false no-op).
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            bool anyUndeclared = false;
             foreach (var kv in rawChanged)
+            {
                 if (declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
-
-            // #1148 finding 2: the user changed NO declared scalar — figure out WHY, so we
-            // never report a misleading "no change needed" for a real edit:
-            if (changed.Count == 0)
-            {
-                // (a) edited an unsupported pointer field (EventDataPtr / a difficulty ptr).
-                if (_vm.HasUnsupportedFieldChanges())
-                {
-                    CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
-                    return true;
-                }
-                // (b) edited a source-writable SCALAR that the manifest's fields[] omits
-                //     (or declares only nested/manual JSON keys) — a real edit that can't
-                //     reach source. Report it honestly as unsupported/manual; never a no-op.
-                if (rawChanged.Count > 0)
-                {
-                    CoreState.Services?.ShowError(R._("This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild."));
-                    return true;
-                }
-                // (c) genuinely nothing edited → fall through; the writer reports a clean no-op.
+                else
+                    anyUndeclared = true;
             }
+            if (anyUndeclared)
+            {
+                CoreState.Services?.ShowError(R._("This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild."));
+                return true;
+            }
+            // 4) changed.Count == 0 here means genuinely nothing was edited → fall through;
+            //    the writer reports a clean no-op (no churn, no rebuild).
 
             // Always call the writer and branch on its typed status so the user sees an
             // ACCURATE message (the writer returns the right message for romOnly / manual /
