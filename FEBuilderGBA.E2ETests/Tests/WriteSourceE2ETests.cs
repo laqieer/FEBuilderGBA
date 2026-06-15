@@ -403,5 +403,89 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, _) = RunWithRetry("--write-source --project=fake_dir --table=items --id=1 --field=might");
             Assert.NotEqual(0, code);
         }
+
+        // ====================================================================
+        //  #1148: chapter settings (map_settings) source-backed write
+        // ====================================================================
+
+        [SkippableFact]
+        public void WriteSource_MapSettingsCArray_RewritesChurnFree_ExitsZero()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source map_settings test");
+
+            string projectDir = NewTempDir("mapsettings");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src", "data");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "chapters.c");
+                string content =
+                    "struct ChapterData gMapChapterData[] = {\n" +
+                    "    [0] = { .Weather = 0, .FogLevel = 0, .ChapterNumber = 0 },\n" +
+                    "    [1] = { .Weather = 1, .FogLevel = 3, .ChapterNumber = 5 }, // ch1\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"map_settings\", \"format\": \"cstruct\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"gMapChapterData\", \"sourceFile\": \"src/data/chapters.c\", \"indexBase\": 0," +
+                    "    \"fields\": [ { \"name\": \"Weather\" }, { \"name\": \"FogLevel\" }, { \"name\": \"ChapterNumber\" } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=map_settings --id=1 --field=Weather --value=4";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+
+                // Churn-free: ONLY entry 1's Weather token changed; everything else byte-identical.
+                string after = File.ReadAllText(srcAbs);
+                Assert.Equal(content.Replace(".Weather = 1", ".Weather = 4"), after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void WriteSource_MapSettingsNoOp_ValueAlreadyMatches_NeedsRebuildFalse()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source map_settings no-op test");
+
+            string projectDir = NewTempDir("mapnoop");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "chapters.c");
+                string content =
+                    "struct ChapterData gMapChapterData[] = {\n" +
+                    "    [0] = { .Weather = 2 },\n" +
+                    "    [1] = { .Weather = 1 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"map_settings\", \"format\": \"cstruct\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"gMapChapterData\", \"sourceFile\": \"src/chapters.c\"," +
+                    "    \"fields\": [ { \"name\": \"Weather\" } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // Entry 1 .Weather is already 1 → requesting 1 is a no-op.
+                string args = $"--write-source --project=\"{projectDir}\" --table=map_settings --id=1 --field=Weather --value=1";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=false", stdout);
+                Assert.Equal(content, File.ReadAllText(srcAbs)); // byte-identical, untouched
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
     }
 }

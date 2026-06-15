@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -290,10 +291,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWriteClick(object? sender, RoutedEventArgs e)
         {
+            ReadUIToVM();
+
+            // #1148: in decomp mode, chapter-setting edits are source-backed. Route the
+            // "map_settings" table to the C/JSON-source writer instead of the preview ROM.
+            // The classic (!IsDecompMode) ROM-write path below is byte-for-byte unchanged.
+            if (CoreState.IsDecompMode)
+            {
+                if (TryWriteMapSettingSource())
+                    return;
+                // No owner at all for the map_settings table → genuinely ROM-only. Do NOT
+                // silently write the preview ROM; tell the user, then stop.
+                CoreState.Services?.ShowInfo(R._("This chapter is ROM-only in decomp mode. Edit the source manually and rebuild."));
+                return;
+            }
+
             _undoService.Begin("Edit Map Setting");
             try
             {
-                ReadUIToVM();
                 _vm.WriteMapSetting();
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -307,6 +322,84 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("MapSettingView.Write failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// #1148: attempt a source-backed write of the current chapter (map_settings).
+        /// Returns true when the map_settings table HAS a source owner (so the write was
+        /// attempted and a status-specific message was shown). Returns false ONLY when there
+        /// is no owner at all, so the caller shows the generic ROM-only notice (never a
+        /// silent ROM write). Mirrors ItemEditorView.TryWriteItemSource (#1132) with the
+        /// added "pointer-only edit" guard (Copilot plan-review finding 2).
+        /// </summary>
+        bool TryWriteMapSettingSource()
+        {
+            var project = CoreState.DecompProject;
+            var owner = project?.TryGetTableOwner("map_settings");
+            if (owner == null)
+                return false;   // genuinely no owner → caller shows generic ROM-only
+
+            // Resolve the 0-based entry id from the address (canonical baseAddr + i*size).
+            uint mapId = _vm.CurrentMapEntryId;
+            if (mapId == U.NOT_FOUND)
+            {
+                CoreState.Services?.ShowError(R._("Could not resolve this chapter's entry id — source write skipped."));
+                return true;   // owner exists, but we cannot key the edit → not a silent ROM write
+            }
+
+            // Intersect the candidate field dict with the owner's declared fields so a field
+            // the manifest does not declare is dropped (no UnsupportedField error).
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            if (owner.Fields != null)
+                foreach (var f in owner.Fields)
+                    if (f != null && !string.IsNullOrEmpty(f.Name))
+                        declared.Add(f.Name);
+
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in _vm.BuildSourceFieldDict())
+                if (declared.Contains(kv.Key))
+                    changed[kv.Key] = kv.Value;
+
+            // #1148 finding 2: if the user changed NO supported field but DID change a
+            // pointer/unsupported chapter field, show an honest ROM-only/manual notice and
+            // do NOT mutate the preview ROM (rather than a misleading "no change needed").
+            if (changed.Count == 0 && _vm.HasUnsupportedFieldChanges())
+            {
+                CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
+                return true;
+            }
+
+            // Always call the writer and branch on its typed status so the user sees an
+            // ACCURATE message (the writer returns the right message for romOnly / manual /
+            // json / not-owned, rather than a generic "ROM-only" string).
+            var res = DecompSourceWriterCore.WriteTableEntry(
+                project, "map_settings", (int)mapId, changed);
+
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.Ok:
+                    _vm.MarkClean();
+                    // Re-baseline the dirty snapshot to the just-written values so an
+                    // immediate re-Save is a no-op (and never re-clobbers from stale ROM).
+                    _vm.RefreshSourceFieldSnapshot();
+                    if (res.ChangedFields != null && res.ChangedFields.Count > 0)
+                        CoreState.Services?.ShowInfo(R._("Chapter source updated. Project needs rebuild."));
+                    else
+                        CoreState.Services?.ShowInfo(R._("No change needed — the source already matches."));
+                    break;
+                case DecompSourceWriteStatus.RomOnly:
+                    CoreState.Services?.ShowInfo(R._("This chapter table is ROM-only in decomp mode."));
+                    break;
+                case DecompSourceWriteStatus.Manual:
+                    // Covers writePolicy=manual AND format=json (the writer returns the
+                    // accurate per-case message — use it verbatim).
+                    CoreState.Services?.ShowInfo(res.Message);
+                    break;
+                default:
+                    CoreState.Services?.ShowError(res.Message);
+                    break;
+            }
+            return true;
         }
 
         public void SelectFirstItem()

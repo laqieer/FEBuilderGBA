@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -342,6 +343,17 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.CurrentAddr == 0)
                 return;
 
+            // #1148: in decomp mode, route chapter-setting edits to the source writer.
+            if (CoreState.IsDecompMode)
+            {
+                if (!ReadUIToVM())
+                    return;
+                if (TryWriteMapSettingSource())
+                    return;
+                CoreState.Services?.ShowInfo(R._("This chapter is ROM-only in decomp mode. Edit the source manually and rebuild."));
+                return;
+            }
+
             _undoService.Begin("Edit FE6 Map Setting");
             try
             {
@@ -376,6 +388,69 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowError(
                     $"Failed to write Map Setting (FE6): {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// #1148: source-backed write of the current FE6 chapter (map_settings). Returns
+        /// true when an owner exists (write attempted, status message shown), false when
+        /// there is no owner (caller shows the generic ROM-only notice — never a silent
+        /// ROM write). Mirrors MapSettingView.TryWriteMapSettingSource.
+        /// </summary>
+        bool TryWriteMapSettingSource()
+        {
+            var project = CoreState.DecompProject;
+            var owner = project?.TryGetTableOwner("map_settings");
+            if (owner == null)
+                return false;
+
+            uint mapId = _vm.CurrentMapId;
+            if (mapId == U.NOT_FOUND)
+            {
+                CoreState.Services?.ShowError(R._("Could not resolve this chapter's entry id — source write skipped."));
+                return true;
+            }
+
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            if (owner.Fields != null)
+                foreach (var f in owner.Fields)
+                    if (f != null && !string.IsNullOrEmpty(f.Name))
+                        declared.Add(f.Name);
+
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in _vm.BuildSourceFieldDict())
+                if (declared.Contains(kv.Key))
+                    changed[kv.Key] = kv.Value;
+
+            if (changed.Count == 0 && _vm.HasUnsupportedFieldChanges())
+            {
+                CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
+                return true;
+            }
+
+            var res = DecompSourceWriterCore.WriteTableEntry(
+                project, "map_settings", (int)mapId, changed);
+
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.Ok:
+                    _vm.MarkClean();
+                    _vm.RefreshSourceFieldSnapshot();
+                    if (res.ChangedFields != null && res.ChangedFields.Count > 0)
+                        CoreState.Services?.ShowInfo(R._("Chapter source updated. Project needs rebuild."));
+                    else
+                        CoreState.Services?.ShowInfo(R._("No change needed — the source already matches."));
+                    break;
+                case DecompSourceWriteStatus.RomOnly:
+                    CoreState.Services?.ShowInfo(R._("This chapter table is ROM-only in decomp mode."));
+                    break;
+                case DecompSourceWriteStatus.Manual:
+                    CoreState.Services?.ShowInfo(res.Message);
+                    break;
+                default:
+                    CoreState.Services?.ShowError(res.Message);
+                    break;
+            }
+            return true;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

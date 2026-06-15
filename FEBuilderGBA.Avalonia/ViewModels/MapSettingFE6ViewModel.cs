@@ -91,10 +91,99 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint WorldMapPointY { get => _worldMapPointY; set => SetField(ref _worldMapPointY, value); }
         public uint VictoryBGMEnemyCount { get => _victoryBGMEnemyCount; set => SetField(ref _victoryBGMEnemyCount, value); }
 
+        // #1148: load-time snapshots for the decomp source-backed save-gate (mirrors the
+        // FE7/8 MapSettingViewModel pattern). Source-writable scalar fields vs the single
+        // unsupported pointer field (D0/EventDataPtr).
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        Dictionary<string, uint> _loadedUnsupportedFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+
         public List<AddrResult> LoadMapSettingList()
         {
             try { return MapSettingCore.MakeMapIDList(); }
             catch { return new List<AddrResult>(); }
+        }
+
+        // ---- #1148: decomp source-backed chapter-setting field maps (FE6) ----
+
+        /// <summary>
+        /// Candidate C-field → value map of every SOURCE-WRITABLE FE6 chapter-setting field
+        /// (plain integer struct members). Keys use FEBuilder/decomp struct names; the View
+        /// intersects this with the manifest owner's declared fields. The D0 EventDataPtr
+        /// pointer is excluded (see <see cref="CurrentUnsupportedFieldMap"/>).
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "PLISTObj",        ObjectTypePLIST },
+                { "objPlist",        ObjectTypePLIST },
+                { "PLISTPal",        PalettePLIST },
+                { "PLISTConfig",     ChipsetConfigPLIST },
+                { "PLISTMap",        MapPointerPLIST },
+                { "PLISTAnime1",     TileAnimation1PLIST },
+                { "PLISTAnime2",     TileAnimation2PLIST },
+                { "PLISTMapchange",  MapChangePLIST },
+                { "FogLevel",        FogLevel },
+                { "fog",             FogLevel },
+                { "BattlePreparation", BattlePreparation },
+                { "hasPrepScreen",   BattlePreparation },
+                { "ChapterTitleIndex", ChapterTitleImage },
+                { "Weather",         Weather },
+                { "weather",         Weather },
+                { "BattleBGLookup",  BattleBGLookup },
+                { "BGM1",            PlayerPhaseBGM },
+                { "BGM2",            EnemyPhaseBGM },
+                { "BGM3",            NpcPhaseBGM },
+                { "HardBoost",       HardBoost },
+                { "BreakableWallHP", BreakableWallHP },
+                { "TextGoal",        ClearConditionText },
+                { "TextChapterName", ChapterTitleText },
+                { "PLISTEvent",      EventIdPLIST },
+                { "WorldMapEvent",   WorldMapAutoEvent },
+                { "WorldMapPlaceName", WorldMapPlaceName },
+                { "ChapterNumber",   ChapterNumber },
+                { "chapterId",       ChapterNumber },
+                { "WorldMapX",       WorldMapX },
+                { "WorldMapY",       WorldMapY },
+                { "VictoryBGMEnemyCount", VictoryBGMEnemyCount },
+            };
+        }
+
+        /// <summary>The unsupported (pointer) FE6 chapter field — D0/EventDataPtr (#1148).</summary>
+        Dictionary<string, uint> CurrentUnsupportedFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "EventDataPtr", CpPointer },
+            };
+        }
+
+        /// <summary>Source-writable fields the user changed since load (#1148).</summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    changed[kv.Key] = kv.Value;
+            return changed;
+        }
+
+        /// <summary>True when the user changed an UNSUPPORTED (pointer) FE6 field since load (#1148).</summary>
+        public bool HasUnsupportedFieldChanges()
+        {
+            var current = CurrentUnsupportedFieldMap();
+            foreach (var kv in current)
+                if (!_loadedUnsupportedFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    return true;
+            return false;
+        }
+
+        /// <summary>Re-baseline both snapshots after a successful source write (#1148).</summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+            _loadedUnsupportedFieldSnapshot = CurrentUnsupportedFieldMap();
         }
 
         public void LoadEntry(uint addr)
@@ -166,6 +255,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     Name = $"Map 0x{addr:X}";
             }
             catch { Name = "???"; }
+
+            // #1148: snapshot the source-writable + unsupported field values for the
+            // decomp save-gate dirty tracking.
+            RefreshSourceFieldSnapshot();
+
             IsLoaded = true;
         }
 

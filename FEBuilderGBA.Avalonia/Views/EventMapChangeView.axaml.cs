@@ -186,6 +186,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: the map-change overlay is a raw source-tree asset (LZ77 tile binary +
+            // its struct) — blocked in decomp mode; migrate via the source-tree asset path.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map-change overlay")))
+                return;
+
             // Refuse the write when no entry is loaded — protects against
             // the Map Names list selecting a map with no change-data
             // (LoadEntryForMap returned false → VM cleared) and the user
@@ -262,6 +267,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // place, so a size mismatch can't corrupt neighbouring data.
         async void PointerImport_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: importing map-change data mutates the build-preview ROM — blocked in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map-change overlay")))
+                return;
+
             try
             {
                 if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
@@ -338,6 +347,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // pattern).
         async void ListExpands_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: expanding the map-change table mutates / reallocates ROM — blocked in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map-change table")))
+                return;
+
             try
             {
                 if (!_vm.IsLoaded || _vm.CurrentAddr == 0)

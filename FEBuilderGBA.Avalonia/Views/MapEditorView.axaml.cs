@@ -293,6 +293,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!_vm.HasTileSelected) return;
 
+                // #1148: the map tile layout is a raw source-tree asset in decomp mode —
+                // export it to source rather than mutating the build-preview ROM.
+                if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                    return;
+
                 // Parse hex tile ID from text box
                 string text = TileIdTextBox.Text?.Trim() ?? "";
                 if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))

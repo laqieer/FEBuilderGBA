@@ -345,6 +345,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: the map tileset OBJ/style is a raw source-tree asset in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map tileset (OBJ)")))
+                return;
+
             _vm.ObjPointer = ParseHexText(ObjPtrBox.Text);
 
             _undoService.Begin("Edit Map Style");
@@ -372,6 +376,10 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         void PaletteWrite_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: the map palette is a raw source-tree asset in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map palette")))
+                return;
+
             if (_vm.PaletteAddress == 0)
             {
                 CoreState.Services.ShowError("Palette address not resolved -- select a map style first.");
@@ -685,6 +693,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ConfigWrite_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: the chipset config (TSA/terrain) is a raw source-tree asset in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map chipset config")))
+                return;
+
             if (!_vm.CanEditChipsetConfig)
             {
                 CoreState.Services.ShowError("CONFIG PLIST not resolved — select a map style first.");
@@ -836,6 +848,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void PaletteImport_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: importing a map palette mutates the build-preview ROM — blocked in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map palette")))
+                return;
+
             try
             {
                 string? path = await FileDialogHelper.OpenPaletteFile(this);
@@ -1182,6 +1198,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
         async void ObjImport_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: importing the tileset OBJ mutates the build-preview ROM — blocked in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map tileset (OBJ)")))
+                return;
+
             try
             {
                 if (!_vm.CanImportObj)
@@ -1303,6 +1323,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
         async void MapChipImport_Click(object? sender, RoutedEventArgs e)
         {
+            // #1148: importing the chipset config (TSA) mutates the build-preview ROM — blocked in decomp mode.
+            if (DecompMapAssetGuard.BlockIfDecomp(R._("map chipset config")))
+                return;
+
             try
             {
                 var topLevel = TopLevel.GetTopLevel(this);
