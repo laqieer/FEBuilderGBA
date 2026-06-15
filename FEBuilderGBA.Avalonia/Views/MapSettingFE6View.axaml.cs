@@ -423,15 +423,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;
             }
 
+            var rawChanged = _vm.BuildSourceFieldDict();
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
-            foreach (var kv in _vm.BuildSourceFieldDict())
+            foreach (var kv in rawChanged)
                 if (declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
-            if (changed.Count == 0 && _vm.HasUnsupportedFieldChanges())
+            if (changed.Count == 0)
             {
-                CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
-                return true;
+                if (_vm.HasUnsupportedFieldChanges())
+                {
+                    CoreState.Services?.ShowInfo(R._("This chapter field is ROM-only in decomp mode (e.g. an event/difficulty pointer). Edit the source manually and rebuild."));
+                    return true;
+                }
+                // A real scalar edit the manifest doesn't declare — honest error, never a no-op.
+                if (rawChanged.Count > 0)
+                {
+                    CoreState.Services?.ShowError(R._("This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild."));
+                    return true;
+                }
             }
 
             var res = DecompSourceWriterCore.WriteTableEntry(

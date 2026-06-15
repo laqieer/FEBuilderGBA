@@ -24639,6 +24639,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :The map_settings source owner declares no fields[] in the manifest — chapter edits cannot be written to source. Add the fields[] declaration and retry.
 map_settings 源码所有者未在清单中声明 fields[]——章节编辑无法写入源码。请添加 fields[] 声明后重试。
 
+:This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild.
+此章节编辑针对的字段未在 map_settings 清单的 fields[] 中声明——无法写入源码。请在清单中声明该字段，或手动编辑源码并重新构建。
+
 :map asset
 地图资源
 

@@ -230,6 +230,49 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // =====================================================================
+        //  Declared subset OMITS the edited scalar — UnsupportedField, NO mutation
+        //  (Copilot PR #1158 re-review: the Avalonia save-gate intercepts this BEFORE
+        //   calling the writer and shows an honest unsupported/manual error rather than
+        //   a false no-op; this test pins the writer's underlying contract.)
+        // =====================================================================
+
+        [Fact]
+        public void Chapter_DeclaredSubsetOmitsEditedScalar_Reports_UnsupportedField_NoMutation()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "src/chapters.c";
+                string srcAbs = Path.Combine(dir, "src", "chapters.c");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                string content =
+                    "struct ChapterData gMapChapterData[] = {\n" +
+                    "    [0] = { .Weather = 0, .FogLevel = 0 },\n" +
+                    "    [1] = { .Weather = 1, .FogLevel = 3 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                // The owner declares ONLY FogLevel — a Weather edit is not declared.
+                var owner = new DecompTableEntry
+                {
+                    Table = "map_settings", Format = "cstruct", WritePolicy = "source",
+                    ArrayName = "gMapChapterData", SourceFile = srcRel, IndexBase = 0,
+                    Fields = new List<DecompTableField> { new DecompTableField { Name = "FogLevel" } },
+                };
+                var proj = ActiveProject(dir, owner);
+
+                var res = DecompSourceWriterCore.WriteTableEntry(
+                    proj, "map_settings", 1, new Dictionary<string, uint> { { "Weather", 4 } });
+
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs)); // untouched
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // =====================================================================
         //  romOnly owner — RomOnly, NO mutation
         // =====================================================================
 
