@@ -70,14 +70,20 @@ namespace FEBuilderGBA.Avalonia.Services
                         continue;
                     anyEdited = true;
 
-                    // Is at least one alias of this logical field declared by the manifest?
+                    // Pass AT MOST ONE declared alias per logical scalar to the writer. If a
+                    // manifest redundantly declares multiple aliases of one field (e.g. both
+                    // "Weather" and "weather"), asking the writer to rewrite both would make
+                    // it look up two designators for one struct member — the second alias has
+                    // no designator in the source and the write fails ("designator not found").
+                    // One declared alias is enough to write the logical field (Copilot PR #1158).
                     bool covered = false;
                     foreach (string key in group)
                     {
                         if (key != null && declared.Contains(key))
                         {
-                            changed[key] = value;   // pass only DECLARED keys to the writer
+                            changed[key] = value;   // first declared alias only
                             covered = true;
+                            break;
                         }
                     }
                     if (!covered)

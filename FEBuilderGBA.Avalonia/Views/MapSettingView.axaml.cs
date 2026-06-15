@@ -320,7 +320,9 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingView.Write failed: {0}", ex.Message);
+                // Log.Error joins params with spaces (no composite formatting), so pass the
+                // message directly instead of a "{0}" placeholder (Copilot PR #1158 finding).
+                Log.Error("MapSettingView.Write failed: " + ex.Message);
             }
         }
 

@@ -222,6 +222,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void Gate_BothAliasesDeclared_PassesAtMostOneToWriter()
+        {
+            // A manifest that redundantly declares BOTH "Weather" and "weather" must not make
+            // the gate pass two keys for one struct member (the writer would fail "designator
+            // not found" on the alias absent from the source) — exactly one is passed.
+            var raw = new Dictionary<string, uint> { { "Weather", 4u }, { "weather", 4u } };
+            var r = DecompChapterSaveGate.Evaluate(
+                MapSettingViewModel.SourceFieldAliasGroups, raw,
+                Declared("Weather", "weather"), out var changed);
+            Assert.Equal(ChapterSaveGateResult.Write, r);
+            // Exactly one alias of the Weather logical field reaches the writer.
+            int weatherKeys = (changed.ContainsKey("Weather") ? 1 : 0) + (changed.ContainsKey("weather") ? 1 : 0);
+            Assert.Equal(1, weatherKeys);
+        }
+
+        [Fact]
         public void Gate_FE6_SingleAliasDeclared_AllowsWrite()
         {
             var raw = new Dictionary<string, uint> { { "FogLevel", 2u }, { "fog", 2u } };
