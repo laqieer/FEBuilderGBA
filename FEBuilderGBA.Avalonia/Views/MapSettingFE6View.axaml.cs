@@ -410,15 +410,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 return true;
             }
 
+            // Treat "no declared fields" as "allow all" so an owner that omits fields[]
+            // doesn't drop every edit into a misleading no-op (Copilot PR #1158 inline finding).
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
+            bool filterByDeclared = declared.Count > 0;
 
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
             foreach (var kv in _vm.BuildSourceFieldDict())
-                if (declared.Contains(kv.Key))
+                if (!filterByDeclared || declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
             if (changed.Count == 0 && _vm.HasUnsupportedFieldChanges())

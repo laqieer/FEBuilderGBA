@@ -27,23 +27,30 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <param name="assetName">Short human name of the asset (e.g. "map tile").</param>
         public static bool BlockIfDecomp(string assetName)
         {
+            // Decide block/proceed FIRST (cheap, can't throw) so the answer is correct even
+            // if showing the UI notice later faults. FAIL CLOSED in decomp mode: a fault must
+            // never let a raw map-asset ROM write through (Copilot PR #1158 inline finding).
+            bool decomp;
+            try { decomp = CoreState.IsDecompMode; }
+            catch { decomp = false; }   // can't tell → preserve classic behavior (proceed)
+
+            if (!decomp)
+                return false;           // classic ROM mode → proceed (unchanged)
+
+            // In decomp mode, surface the export-only notice — but a failure to SHOW it must
+            // NOT flip the decision: we still return true (block) below.
             try
             {
-                if (!CoreState.IsDecompMode)
-                    return false;
-
                 string what = string.IsNullOrEmpty(assetName) ? R._("map asset") : assetName;
                 CoreState.Services?.ShowInfo(string.Format(
                     R._("In decomp mode, the {0} is a source-tree asset. Editing it here would write the build-preview ROM, which is overwritten on rebuild. Export it to the source tree (Decomp asset export) and edit it there instead."),
                     what));
-                return true;
             }
             catch
             {
-                // Never throw at a UI boundary; on any fault, do not block (preserve
-                // classic behavior) — the source-backed paths already guard themselves.
-                return false;
+                // Notice failed (e.g. a bad format string) — block anyway (fail closed).
             }
+            return true;
         }
     }
 }

@@ -348,16 +348,21 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Intersect the candidate field dict with the owner's declared fields so a field
-            // the manifest does not declare is dropped (no UnsupportedField error).
+            // the manifest does not declare is dropped (no UnsupportedField error). When the
+            // owner declares NO fields at all (allowed by the schema), an empty declared-set
+            // would otherwise drop every edit and make a real change look like a no-op — so
+            // treat "no declared fields" as "allow all" (the writer still validates each
+            // field against the source) (Copilot PR #1158 inline finding).
             var declared = new HashSet<string>(StringComparer.Ordinal);
             if (owner.Fields != null)
                 foreach (var f in owner.Fields)
                     if (f != null && !string.IsNullOrEmpty(f.Name))
                         declared.Add(f.Name);
+            bool filterByDeclared = declared.Count > 0;
 
             var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
             foreach (var kv in _vm.BuildSourceFieldDict())
-                if (declared.Contains(kv.Key))
+                if (!filterByDeclared || declared.Contains(kv.Key))
                     changed[kv.Key] = kv.Value;
 
             // #1148 finding 2: if the user changed NO supported field but DID change a
