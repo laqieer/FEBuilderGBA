@@ -344,6 +344,80 @@ FEBuilderGBA.CLI --test
 
 ---
 
+### `--decomp-audit`
+
+Print the maintained decomp **round-trip coverage matrix** (#1150) — which FEBuilder editor/action is source-backed, exporter-migrated, preview-only, manual, or ROM-only. READ-ONLY; never loads a ROM.
+
+| Option | Required | Description |
+|---|---|---|
+| `--format=<tsv\|md>` | No | Output format: `tsv` (default) or `md` (GitHub markdown table). |
+| `--out=<path>` | No | Write the matrix to a file (otherwise printed to stdout). |
+
+```
+FEBuilderGBA.CLI --decomp-audit
+FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md
+```
+
+**Exit code:** 0 (1 on a write fault).
+
+---
+
+### `--nmm-to-manifest`
+
+Parse a No$gba memory map (`.nmm`, the `--export-data … STRUCT/NMM` sibling) into a decomp manifest `tables[]` entry JSON (#1150). A **schema aid, not a writability path**: pointer / var-length / odd-size fields survive flagged `"unsupported": true` (never dropped). No ROM.
+
+| Option | Required | Description |
+|---|---|---|
+| `--in=<x.nmm>` | Required | Input `.nmm` file. |
+| `--table=<name>` | No | Table name for the emitted entry (default `table`). |
+| `--out=<path>` | No | Write the JSON to a file (otherwise stdout); warnings go to stderr. |
+
+```
+FEBuilderGBA.CLI --nmm-to-manifest --in=items.nmm --table=items --out=items.tables.json
+```
+
+**Exit code:** 0 on parse-ok, 1 on usage/file-not-found, 2 when the NMM header is unusable.
+
+---
+
+### `--manifest-to-nmm`
+
+Emit `.nmm` text for a manifest table owner (#1150), reusing the FormatNMM grammar. Pointer/var fields are flagged unsafe via stderr warnings. No ROM mutation.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Required | Decomp project directory whose manifest declares the table owner. |
+| `--table=<name>` | Required | Table name to export to `.nmm`. |
+| `--out=<path>` | No | Write the `.nmm` to a file (otherwise stdout). |
+
+```
+FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm
+```
+
+**Exit code:** 0 on success, 1 on usage/load fault, 2 when the table has no owner in the manifest.
+
+---
+
+### `--validate-asset`
+
+Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar).
+
+| Option | Required | Description |
+|---|---|---|
+| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`. |
+| `--in=<srcAsset>` | Required | Input asset file (PNG / `.pal` / `.mar`). |
+
+```
+FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png
+FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal
+```
+
+Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout) plus a summary line.
+
+**Exit code:** 0 on no errors (warnings allowed), 2 on errors, 1 on usage / bad-kind.
+
+---
+
 ## Summary Table
 
 | Command | `--rom` | `--fromrom` | `--in` | `--out` | Other required | ROM init |

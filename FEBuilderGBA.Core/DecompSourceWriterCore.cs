@@ -97,6 +97,25 @@ namespace FEBuilderGBA
     public static class DecompSourceWriterCore
     {
         /// <summary>
+        /// Canonical list of structured tables the source-backed writer can rewrite
+        /// (#1150). This is the SINGLE SOURCE OF TRUTH for "source-backed row save"
+        /// coverage: the round-trip audit matrix (<see cref="DecompRoundTripAuditCore"/>)
+        /// asserts its SourceBackedWriter rows match this set exactly. <c>units</c> is
+        /// the FEBuilder table name; the manifest may alias it as <c>characters</c>
+        /// (handled by <see cref="DecompProject.TryGetTableOwner"/>).
+        /// </summary>
+        public static readonly IReadOnlyList<string> SourceBackedTables = new[]
+        {
+            "items",
+            "units",
+            "classes",
+            "map_settings",
+            "support_units",
+            "support_attributes",
+            "support_talks",
+        };
+
+        /// <summary>
         /// Per-field outcome of applying one change to an element (#1132).
         /// Distinguishes a real rewrite from a no-op / a skipped macro / a fault so the
         /// caller can avoid false "changed" signals and macro-blocking on bulk writes.

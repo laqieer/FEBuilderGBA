@@ -1,0 +1,45 @@
+$ FEBuilderGBA.CLI --decomp-audit --format=md   (first 8 lines)
+------------------------------------------------------------------
+| Editor | Table | Action | Coverage | Notes |
+| --- | --- | --- | --- | --- |
+| Item Editor | items | Row save | SourceBackedWriter | Main structured-row save only |
+| Unit Editor | units | Row save | SourceBackedWriter | Main structured-row save only (manifest alias: characters) |
+| Class Editor | classes | Row save | SourceBackedWriter | Main structured-row save only |
+| Map Settings Editor | map_settings | Row save | SourceBackedWriter | Main structured-row save only |
+| Support Unit Editor | support_units | Row save | SourceBackedWriter | Main structured-row save only |
+| Support Attribute Editor | support_attributes | Row save | SourceBackedWriter | Main structured-row save only |
+
+$ FEBuilderGBA.CLI --nmm-to-manifest --in=items.nmm --table=items
+------------------------------------------------------------------
+WARN: field 'UsePointer' is unsupported (flagged, not dropped): Pointer field - informational schema only, not source-writable.
+{
+  "table": "items",
+  "count": 255,
+  "entrySize": 36,
+  "fields": [
+    {
+      "name": "NameTextID",
+      "offset": 0,
+      "width": 2
+    },
+    {
+      "name": "Might",
+      "offset": 4,
+      "width": 1
+    },
+    {
+      "name": "UsePointer",
+      "offset": 8,
+      "width": 4,
+      "unsupported": true,
+      "unsupportedReason": "Pointer field \u2014 informational schema only, not source-writable."
+    }
+  ],
+  "baseAddress": "0x809B7B4"
+}
+
+$ FEBuilderGBA.CLI --validate-asset --kind=graphics --in=bad.png   (errors, no ROM mutation)
+------------------------------------------------------------------
+ERROR [BAD_PNG] Not a valid PNG: Bad PNG signature.
+Validation: 1 error(s), 0 warning(s) - FAILED
+(exit code: 2)

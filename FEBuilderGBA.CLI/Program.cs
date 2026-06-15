@@ -322,6 +322,36 @@ namespace FEBuilderGBA.CLI
                 return RunBuildProject(argsDic);
             }
 
+            // --decomp-audit [--format=tsv|md] [--out=path]: print the maintained decomp
+            // round-trip coverage matrix (#1150). READ-ONLY, never loads a ROM. Must
+            // precede the bare --project rom-info fallthrough.
+            if (argsDic.ContainsKey("--decomp-audit"))
+            {
+                return RunDecompAudit(argsDic);
+            }
+
+            // --nmm-to-manifest --in=x.nmm [--table=name] [--out=path]: parse a No$gba
+            // memory map into a manifest tables[] entry JSON (#1150). No ROM.
+            if (argsDic.ContainsKey("--nmm-to-manifest"))
+            {
+                return RunNmmToManifest(argsDic);
+            }
+
+            // --manifest-to-nmm --project=<dir> --table=<name> [--out=path]: emit .nmm
+            // text for a manifest table owner (#1150). Must precede the bare --project
+            // rom-info fallthrough so it is not swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--manifest-to-nmm"))
+            {
+                return RunManifestToNmm(argsDic);
+            }
+
+            // --validate-asset --kind=<...> --in=<src>: structurally validate a decomp
+            // IMPORT asset (#1150). READ-ONLY, never loads a ROM.
+            if (argsDic.ContainsKey("--validate-asset"))
+            {
+                return RunValidateAsset(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -509,6 +539,20 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --yes                  Required to actually execute the build command (explicit opt-in gate)");
             Console.WriteLine("    --reload               After a successful build, reload the built ROM into CoreState and print version info");
             Console.WriteLine("    --timeout=<ms>         Build timeout in milliseconds (default 600000 = 10 minutes)");
+            Console.WriteLine("  --decomp-audit           Print the maintained decomp round-trip coverage matrix (no ROM; editor/table/action/coverage/notes)");
+            Console.WriteLine("    --format=<tsv|md>      Output format: tsv (default) or md (GitHub markdown table)");
+            Console.WriteLine("    --out=<path>           Optional: write the matrix to a file (otherwise printed to stdout)");
+            Console.WriteLine("  --nmm-to-manifest        Parse a No$gba memory map (.nmm) into a decomp manifest tables[] entry JSON (no ROM)");
+            Console.WriteLine("    --in=<x.nmm>           Input .nmm file (the FormatNMM grammar)");
+            Console.WriteLine("    --table=<name>         Table name for the emitted entry (default 'table'); unsupported fields are flagged, never dropped");
+            Console.WriteLine("    --out=<path>           Optional: write the JSON to a file (otherwise printed to stdout); warnings go to stderr");
+            Console.WriteLine("  --manifest-to-nmm        Emit .nmm text for a manifest table owner (requires --project, --table; no ROM mutation)");
+            Console.WriteLine("    --project=<dir>        Decomp project directory whose manifest declares the table owner");
+            Console.WriteLine("    --table=<name>         Table name to export to .nmm; pointer/var fields are flagged unsafe via warnings (stderr)");
+            Console.WriteLine("    --out=<path>           Optional: write the .nmm to a file (otherwise printed to stdout)");
+            Console.WriteLine("  --validate-asset         Structurally validate a decomp IMPORT asset on disk (no ROM; never mutates)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map");
+            Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -539,6 +583,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
+            Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md");
+            Console.WriteLine("  FEBuilderGBA.CLI --nmm-to-manifest --in=items.nmm --table=items --out=items.tables.json");
+            Console.WriteLine("  FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm");
+            Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png");
+            Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
@@ -4526,6 +4575,177 @@ namespace FEBuilderGBA.CLI
                 Console.WriteLine(name);
             }
             return 0;
+        }
+
+        /// <summary>
+        /// --decomp-audit: print the maintained decomp round-trip coverage matrix (#1150).
+        /// READ-ONLY; never loads a ROM. Honors --format=tsv|md (default tsv) and writes to
+        /// --out or stdout. Exit 0 always (or 1 on a write fault).
+        /// </summary>
+        static int RunDecompAudit(Dictionary<string, string> argsDic)
+        {
+            string fmt = argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"])
+                ? argsDic["--format"].Trim().ToLowerInvariant()
+                : "tsv";
+            if (fmt != "tsv" && fmt != "md")
+            {
+                Console.Error.WriteLine($"Error: --format must be tsv or md (got '{fmt}')");
+                return 1;
+            }
+
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            string text = DecompRoundTripAuditCore.FormatMatrix(rows, fmt);
+
+            if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                try
+                {
+                    File.WriteAllText(argsDic["--out"], text);
+                    Console.WriteLine($"Wrote: {argsDic["--out"]}");
+                    return 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: could not write '{argsDic["--out"]}': {ex.Message}");
+                    return 1;
+                }
+            }
+
+            Console.Write(text);
+            return 0;
+        }
+
+        /// <summary>
+        /// --nmm-to-manifest: parse a No$gba memory map into a decomp manifest tables[]
+        /// entry JSON (#1150). No ROM. Exit 0 on parse-ok, 1 on usage/file-not-found,
+        /// 2 when the NMM header is unusable (Ok=false). Warnings (unsupported fields)
+        /// print to stderr.
+        /// </summary>
+        static int RunNmmToManifest(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --nmm-to-manifest requires --in=<x.nmm>"); return 1; }
+            string inPath = argsDic["--in"];
+            if (!File.Exists(inPath))
+            { Console.Error.WriteLine($"Error: input file not found: {inPath}"); return 1; }
+
+            string tableName = argsDic.ContainsKey("--table") && !string.IsNullOrEmpty(argsDic["--table"])
+                ? argsDic["--table"] : "table";
+
+            string nmmText;
+            try { nmmText = File.ReadAllText(inPath); }
+            catch (Exception ex)
+            { Console.Error.WriteLine($"Error: could not read '{inPath}': {ex.Message}"); return 1; }
+
+            NmmParseResult parsed = NmmSchemaBridgeCore.ParseNmm(nmmText);
+            foreach (string w in parsed.Warnings)
+                Console.Error.WriteLine($"WARN: {w}");
+            foreach (NmmField f in parsed.Fields)
+                if (f.Unsupported)
+                    Console.Error.WriteLine($"WARN: field '{f.Name}' is unsupported (flagged, not dropped): {f.UnsupportedReason}");
+
+            string json = NmmSchemaBridgeCore.BuildManifestTablesEntry(parsed, tableName);
+
+            if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                try
+                {
+                    File.WriteAllText(argsDic["--out"], json);
+                    Console.WriteLine($"Wrote: {argsDic["--out"]}");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: could not write '{argsDic["--out"]}': {ex.Message}");
+                    return 1;
+                }
+            }
+            else
+            {
+                Console.WriteLine(json);
+            }
+
+            return parsed.Ok ? 0 : 2;
+        }
+
+        /// <summary>
+        /// --manifest-to-nmm: emit .nmm text for a manifest table owner (#1150). Requires
+        /// --project + --table. No ROM mutation. Exit 0 on success, 1 on usage/load fault,
+        /// 2 when the table has no owner in the manifest. Warnings (pointer/var fields)
+        /// print to stderr.
+        /// </summary>
+        static int RunManifestToNmm(Dictionary<string, string> argsDic)
+        {
+            string projectDir = argsDic.ContainsKey("--project") ? argsDic["--project"] : "";
+            if (string.IsNullOrEmpty(projectDir))
+            { Console.Error.WriteLine("Error: --manifest-to-nmm requires --project=<dir>"); return 1; }
+
+            string table = argsDic.ContainsKey("--table") ? argsDic["--table"] : "";
+            if (string.IsNullOrEmpty(table))
+            { Console.Error.WriteLine("Error: --manifest-to-nmm requires --table=<name>"); return 1; }
+
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadProject(projectDir))
+                return 1;
+
+            DecompProject project = CoreState.DecompProject;
+            DecompTableEntry owner = project?.TryGetTableOwner(table);
+            if (owner == null)
+            {
+                Console.Error.WriteLine($"Error: table '{table}' has no source owner in the manifest tables[] section.");
+                return 2;
+            }
+
+            string nmm = NmmSchemaBridgeCore.ExportTableToNmm(owner, out List<string> warnings);
+            foreach (string w in warnings)
+                Console.Error.WriteLine($"WARN: {w}");
+
+            if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+            {
+                try
+                {
+                    File.WriteAllText(argsDic["--out"], nmm);
+                    Console.WriteLine($"Wrote: {argsDic["--out"]}");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: could not write '{argsDic["--out"]}': {ex.Message}");
+                    return 1;
+                }
+            }
+            else
+            {
+                Console.Write(nmm);
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// --validate-asset: structurally validate a decomp IMPORT asset on disk (#1150).
+        /// READ-ONLY; NEVER loads a ROM. Exit 0 when there are no errors (warnings ok),
+        /// 2 when there are errors, 1 on a usage / bad-kind fault.
+        /// </summary>
+        static int RunValidateAsset(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map>"); return 1; }
+            AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
+            if (kind == null)
+            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map"); return 1; }
+
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --validate-asset requires --in=<srcAsset>"); return 1; }
+            string inPath = argsDic["--in"];
+
+            AssetValidationResult result = DecompAssetValidatorCore.ValidateAsset(kind.Value, inPath);
+
+            foreach (AssetIssue e in result.Errors)
+                Console.Error.WriteLine($"ERROR [{e.Code}] {e.Message}");
+            foreach (AssetIssue w in result.Warnings)
+                Console.WriteLine($"WARN [{w.Code}] {w.Message}");
+
+            Console.WriteLine($"Validation: {result.Errors.Count} error(s), {result.Warnings.Count} warning(s) — {(result.Ok ? "OK" : "FAILED")}");
+            return result.Ok ? 0 : 2;
         }
 
         /// <summary>
