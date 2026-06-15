@@ -10,6 +10,7 @@
 //   - HasUnsupportedFieldChanges() distinguishes a pointer-only edit from "no change".
 using System.Collections.Generic;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
 
@@ -18,6 +19,35 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class DecompChapterMapWriteGateTests
     {
+        // #1148 (Copilot PR #1158 review): the raw map-asset write/import paths — including
+        // the Visual Map Editor click-to-paint path (PaintTileAt → ApplyMapEdit → ROM write)
+        // — must route through DecompMapAssetGuard so they are BLOCKED in decomp mode and
+        // PROCEED in classic ROM mode. The guard is the centralized seam every asset handler
+        // (the Write Tile button AND paint mode) calls, so covering it covers all of them.
+        [Fact]
+        public void DecompMapAssetGuard_BlocksInDecompMode_ProceedsInClassicMode()
+        {
+            var saved = CoreState.DecompProject;
+            try
+            {
+                // Classic ROM mode (no active project) → guard returns false (proceed).
+                CoreState.DecompProject = null;
+                Assert.False(CoreState.IsDecompMode);
+                Assert.False(DecompMapAssetGuard.BlockIfDecomp("map tile layout"));
+
+                // Decomp mode (active project) → guard returns true (block the ROM write).
+                CoreState.DecompProject = new DecompProject { ProjectRoot = "." };
+                Assert.True(CoreState.IsDecompMode);
+                Assert.True(DecompMapAssetGuard.BlockIfDecomp("map tile layout"));
+                // Empty/whitespace asset name must not throw (defaults internally).
+                Assert.True(DecompMapAssetGuard.BlockIfDecomp(""));
+            }
+            finally
+            {
+                CoreState.DecompProject = saved;
+            }
+        }
+
         [Fact]
         public void MapSettingVM_BuildSourceFieldDict_EmitsOnlyChangedFields_PointersExcluded()
         {
