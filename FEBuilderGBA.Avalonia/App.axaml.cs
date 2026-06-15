@@ -24,6 +24,16 @@ namespace FEBuilderGBA.Avalonia
         public static string? StartupRomPath { get; set; }
 
         /// <summary>
+        /// #1122 build proof: when set (via <c>--render-mainview=&lt;path&gt;</c>),
+        /// the desktop app renders the Android single-view shell
+        /// (<see cref="Views.MainView"/>) to a PNG using the real desktop Skia
+        /// platform (the headless test platform's <c>UseHeadlessDrawing</c> does
+        /// not rasterize), then exits. Lets a no-device environment capture the
+        /// SAME shell the App sets under <c>ISingleViewApplicationLifetime</c>.
+        /// </summary>
+        public static string? RenderMainViewPath { get; set; }
+
+        /// <summary>
         /// Overrides the base directory used to resolve <c>config/</c> (#1123, Android).
         /// When non-null, <see cref="OnFrameworkInitializationCompleted"/> sets
         /// <see cref="CoreState.BaseDirectory"/> to this instead of
@@ -223,10 +233,103 @@ namespace FEBuilderGBA.Avalonia
                 }
 #endif
 
+                // #1122 build proof: render the single-view shell to a PNG using
+                // the real desktop Skia platform, then exit. Never runs on Android
+                // (this is the desktop lifetime branch).
+                if (!string.IsNullOrEmpty(RenderMainViewPath))
+                {
+                    int code = RenderMainViewToPng(RenderMainViewPath!);
+                    Environment.Exit(code);
+                    return;
+                }
+
                 desktop.MainWindow = new Views.MainWindow();
+            }
+            // #1122: Android single-activity / single-view lifetime. The desktop
+            // branch above is UNCHANGED; this additional branch sets a MainView
+            // (the single-view shell that hosts the page/view-stack navigation
+            // host) so the booted Android app presents UI. On desktop the
+            // lifetime is always IClassicDesktopStyleApplicationLifetime, so this
+            // branch never runs there.
+            else if (ApplicationLifetime is ISingleViewApplicationLifetime singleView)
+            {
+                singleView.MainView = new Views.MainView();
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        /// <summary>
+        /// #1122 build proof: render the Android single-view shell
+        /// (<see cref="Views.MainView"/>) — launcher root + a navigated page so
+        /// the back bar lights — to <paramref name="path"/> using the real
+        /// desktop Skia render target. Returns 0 on success, non-zero on error.
+        /// Desktop-only (called from the classic-desktop branch); never on Android.
+        /// </summary>
+        static int RenderMainViewToPng(string path)
+        {
+            try
+            {
+                // Install the single-view nav service so MainView wires its host.
+                Services.WindowManager.Instance.SetService(new Services.AndroidNavigationService());
+
+                var view = new Views.MainView
+                {
+                    Background = global::Avalonia.Media.Brushes.White,
+                };
+
+                // Host the UserControl in a Window so the FluentTheme styles are
+                // applied and a full layout pass runs (a detached control renders
+                // blank). The window is shown off the visible area, rendered, and
+                // closed — never presented to a user.
+                var host = new global::Avalonia.Controls.Window
+                {
+                    Width = 360,
+                    Height = 640,
+                    SystemDecorations = global::Avalonia.Controls.SystemDecorations.None,
+                    ShowInTaskbar = false,
+                    Position = new global::Avalonia.PixelPoint(-4000, -4000),
+                    Content = view,
+                };
+                host.Show();
+                host.UpdateLayout();
+
+                string fullPath = Path.GetFullPath(path);
+                string? dir = Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                // Frame 1: the launcher root page (the editor menu / Home).
+                string launcherPath = Path.Combine(
+                    dir ?? ".",
+                    Path.GetFileNameWithoutExtension(fullPath) + "-home" + Path.GetExtension(fullPath));
+                RenderViewToFile(view, launcherPath);
+
+                // Frame 2: navigate to one editor so the page host + back bar are
+                // populated (empty without a ROM — fine for a shell chrome render).
+                try { Services.WindowManager.Instance.Open<Views.UnitEditorView>(); }
+                catch (Exception ex) { Log.Error("RenderMainView open editor: ", ex.ToString()); }
+                host.UpdateLayout();
+                RenderViewToFile(view, fullPath);
+
+                host.Close();
+                Log.Notify("Rendered single-view shell to ", path);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RenderMainViewToPng failed: ", ex.ToString());
+                return 1;
+            }
+        }
+
+        static void RenderViewToFile(global::Avalonia.Controls.Control view, string outPath)
+        {
+            view.Measure(new global::Avalonia.Size(360, 640));
+            view.Arrange(new global::Avalonia.Rect(0, 0, 360, 640));
+            using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
+                new global::Avalonia.PixelSize(360, 640), new global::Avalonia.Vector(96, 96));
+            rtb.Render(view);
+            rtb.Save(outPath);
         }
 
         /// <summary>Toggle between light and dark mode, updating dynamic resources and persisting the choice.</summary>
@@ -484,6 +587,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--rom="))
                 {
                     StartupRomPath = args[i].Substring("--rom=".Length);
+                }
+                else if (args[i].StartsWith("--render-mainview="))
+                {
+                    RenderMainViewPath = args[i].Substring("--render-mainview=".Length);
                 }
                 else if (args[i].StartsWith("--project="))
                 {

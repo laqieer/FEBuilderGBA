@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.MainView"
+             AutomationProperties.AutomationId="Main_AndroidShell_Control">
+  <!-- #1122: Android single-activity shell. A top app bar (Back + title +
+       overflow) over a content host that renders the navigation host's current
+       page. The desktop multi-window MainWindow is unchanged; this view only
+       exists under ISingleViewApplicationLifetime (Android). -->
+  <Grid RowDefinitions="Auto,*">
+    <!-- Top app bar -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource ToolbarBackgroundBrush}"
+            BorderBrush="{DynamicResource ToolbarBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="6,4">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <!-- Button/title text is set in code-behind via R._() (so it is
+             translated and the L10n scanner sees no AXAML literal). -->
+        <Button Grid.Column="0"
+                Name="BackButton"
+                AutomationProperties.AutomationId="Main_AndroidBack_Button"
+                Click="Back_Click"
+                IsEnabled="False"
+                Margin="0,0,8,0" />
+        <TextBlock Grid.Column="1"
+                   Name="TitleText"
+                   AutomationProperties.AutomationId="Main_AndroidTitle_Label"
+                   VerticalAlignment="Center"
+                   FontWeight="SemiBold" />
+        <Button Grid.Column="2"
+                Name="HomeButton"
+                AutomationProperties.AutomationId="Main_AndroidHome_Button"
+                Click="Home_Click" />
+      </Grid>
+    </Border>
+
+    <!-- Navigation content host: renders the nav host's current top page. -->
+    <ContentControl Grid.Row="1"
+                    Name="NavHost"
+                    AutomationProperties.AutomationId="Main_AndroidNavHost_Control" />
+  </Grid>
+</UserControl>
