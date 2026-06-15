@@ -15,7 +15,7 @@ The short alias `-h` is equivalent to `--help`.
 
 When invoked with no arguments, the CLI prints help and exits with code 0.
 
-> **Android note:** The Android port is a **GUI build** (Avalonia single-view app), not a CLI command — there are no Android-specific CLI flags. See [docs/ANDROID.md](ANDROID.md) and [docs/CROSS_PLATFORM.md](CROSS_PLATFORM.md) for how the cross-platform builds are produced and run.
+> **Android note:** The Android port is a **GUI build** (Avalonia single-view app), not a CLI command — there are no Android-specific CLI flags. See [ANDROID.md](ANDROID.md) and [CROSS_PLATFORM.md](CROSS_PLATFORM.md) for how the cross-platform builds are produced and run.
 
 ---
 
@@ -358,10 +358,12 @@ owning source (`--write-source`) / export assets (`--export-asset`) → rebuild 
 
 ### `--project=<dir>`
 
-Open a decomp project directory and load its built ROM for preview. This is a **modifier**, not a
-standalone command — combine it with `--rom-info` (which then prints a `Mode: Decomp (preview ROM …)`
-line, flagging that the ROM is a source-backed build preview) or with any of the other decomp commands
-below. Classic ROM mode (`--rom=<path>`) is unchanged.
+Open a decomp project directory and load its built ROM for preview. Used standalone,
+`--project=<dir>` is treated as a `--rom-info` alias — it opens the project, loads its built/preview
+ROM, and prints the ROM metadata + a Mode line (decomp vs classic; the decomp Mode line is
+`Mode: Decomp (preview ROM …)`, flagging that the ROM is a source-backed build preview). It also
+combines with the decomp commands below (`--resolve-addr`, `--migrate-diff`, `--write-source`,
+`--export-asset`, `--build-project`). Classic ROM mode (`--rom=<path>`) is unchanged.
 
 | Option | Required | Description |
 |---|---|---|
@@ -371,7 +373,8 @@ below. Classic ROM mode (`--rom=<path>`) is unchanged.
 FEBuilderGBA.CLI --rom-info --project=decomp/
 ```
 
-**Exit code:** no standalone exit code — determined by the command it combines with.
+**Exit code:** when run standalone it behaves as `--rom-info` (0 on success, 1 on load failure);
+otherwise determined by the decomp command it is combined with.
 
 ---
 
@@ -417,7 +420,9 @@ built/baseline ROM and a FEBuilder-edited ROM by symbol / category / source / co
 FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv
 ```
 
-**Exit code:** 1 on a usage fault (missing `--project` / `--rom2` / file not found), otherwise 0.
+**Exit code:** 1 on a usage fault (missing `--project`/`--rom2`, file not found, project/preview-ROM
+load failure) **or when a requested `--out` report cannot be written**; otherwise 0. The analysis
+itself is advisory and never mutates anything.
 
 ---
 
@@ -479,13 +484,14 @@ FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 ### `--build-project`
 
 Run the decomp project's declared build command (requires `--project`; the manifest
-`febuilder.project.json` must declare a `build` section). **Gated behind `--yes`** — it never runs
-implicitly. Captures the build's stdout/stderr.
+`febuilder.project.json` must declare a `build` section). **Without `--yes` it is a dry-run** (prints
+the command, exits 0); pass `--yes` to actually execute. It never runs the build implicitly. Captures
+the build's stdout/stderr.
 
 | Option | Required | Description |
 |---|---|---|
 | `--project=<dir>` | Yes | Decomp project directory containing `febuilder.project.json` with a `build` section. |
-| `--yes` | Yes | Required to actually execute the build command (explicit opt-in gate). |
+| `--yes` | No | Execute the build command for real. **Without `--yes`, the command is a DRY-RUN** — it prints the resolved build command and exits without building. |
 | `--reload` | No | After a successful build, reload the built ROM into CoreState and print version info. |
 | `--timeout=<ms>` | No | Build timeout in milliseconds. Default: **600000** (10 minutes). |
 
@@ -493,7 +499,9 @@ implicitly. Captures the build's stdout/stderr.
 FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes
 ```
 
-**Exit code:** 0 on success, non-zero on usage / build fault.
+**Exit code:** 0 on a successful build or a dry-run (no `--yes`); 1 on a usage fault, a failed build,
+or a failed `--reload`; 2 when the project has not opted into FEBuilder-managed builds (no/disabled
+`build` section in `febuilder.project.json`).
 
 ---
 
@@ -592,13 +600,13 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--force-detail` | — | — | — | — | — | No |
 | `--test` / `--testonly` | Optional | — | — | — | — | Conditional |
 | `--rom-info` | Optional | — | — | — | `--rom` or `--project` | Full |
-| `--project=<dir>` | — | — | — | — | (modifier; combine with another command) | Project |
+| `--project=<dir>` | — | — | — | — | — (standalone, runs as `--rom-info`) | Project |
 | `--resolve-addr=<hex>` | — | — | — | — | `--project` | Project |
 | `--migrate-diff` | — | — | — | Optional | `--project`, `--rom2` | Project |
 | `--write-source` | — | — | — | — | `--project`, `--table`, `--id`, `--field`, `--value` | Project |
 | `--export-asset` | Optional | — | — | Required | `--kind` (+ `--rom` or `--project`) | Project |
 | `--validate-asset` | — | — | Required | — | `--kind` | No |
-| `--build-project` | — | — | — | — | `--project`, `--yes` | Project |
+| `--build-project` | — | — | — | — | `--project` (`--yes` to execute) | Project |
 | `--decomp-audit` | — | — | — | Optional | — | No |
 | `--nmm-to-manifest` | — | — | Required | Optional | — | No |
 | `--manifest-to-nmm` | — | — | — | Optional | `--project`, `--table` | Project |
