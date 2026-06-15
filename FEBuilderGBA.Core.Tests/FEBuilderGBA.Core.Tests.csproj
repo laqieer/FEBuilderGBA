@@ -24,6 +24,16 @@
          force its 2.88.x restore so the restored-graph guard has assets to read. -->
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- #1125: FEBuilderGBA.SkiaSharp pulls only the Win32 + macOS native assets
+         transitively (NuGet RID-agnostic restore for a managed lib). Core.Tests
+         runs the Skia render parity tests on Linux CI too and references SkiaSharp
+         directly (no Avalonia.Skia to supply the Linux native), so without this the
+         Linux test output has no libSkiaSharp.so and the tests throw
+         DllNotFoundException. Pin the matching 2.88.9 Linux native explicitly.
+         (Win32 + macOS arrive transitively; this completes the 3 desktop CI OSes.) -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.9" />
+  </ItemGroup>
   <!-- #1125: share the SINGLE source-of-truth font goldens + tolerances + tile
        helpers with the desktop regression lock so the two suites never diverge. -->
   <ItemGroup>

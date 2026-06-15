@@ -170,11 +170,15 @@ namespace FEBuilderGBA.Core.Tests
 
             // Only assert on assets files that exist (a clean checkout may not
             // have restored CLI). SkiaSharp's own assets reliably exist because
-            // Core.Tests references it, forcing its restore.
+            // Core.Tests references it, forcing its restore. Core.Tests' OWN
+            // assets are scanned too (#1125) — it explicitly pins the 2.88.9
+            // Linux native asset for Skia tests on Linux CI, so this guard now
+            // fails loudly if that native is ever bumped to a mismatched version.
             string[] assetsCandidates =
             {
                 Path.Combine(root, "FEBuilderGBA.SkiaSharp", "obj", "project.assets.json"),
                 Path.Combine(root, "FEBuilderGBA.CLI", "obj", "project.assets.json"),
+                Path.Combine(root, "FEBuilderGBA.Core.Tests", "obj", "project.assets.json"),
             };
 
             int filesScanned = 0;
