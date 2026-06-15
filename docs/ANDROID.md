@@ -107,9 +107,40 @@ Avalonia process with a `TypeInitializationException` on non-Windows
 <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
 ```
 
-**Risk:** font/image byte-parity is currently golden-tested only on the desktop
-native. The Android native (`2.88.9` for the four Android ABIs) must be re-verified
-for byte-identical rendering output — a parity smoke test is a tracked follow-up.
+**Risk (mitigated — #1125):** the parity smoke test now EXISTS and is authored
+**cross-platform** so the SAME assertions run everywhere SkiaSharp does. It lives
+in the net9.0 cross-platform suite:
+
+- `FEBuilderGBA.Core.Tests/SkiaSharpVersionGuardTests.cs` — three-layer pin guard:
+  **(b1) declared** (every `SkiaSharp*` `<PackageReference>` across the repo's
+  csprojs pins `2.88.x`, never `3.x`), **(b2) runtime** (the managed SkiaSharp
+  assembly actually loaded is `2.88`), **(b3) restored** (`project.assets.json`
+  resolved only `2.88.x` SkiaSharp libraries, with no duplicate major family).
+- `FEBuilderGBA.Core.Tests/SkiaRenderByteParityTests.cs` — render byte-parity:
+  the GBA 4bpp-tile → palette-index decode and the index → RGBA palette
+  expansion are asserted **EXACT (zero tolerance)** against hand-derived golden
+  bytes; the Tuffy `A` glyph (text + item) is asserted within the **documented
+  pixel tolerance** (12 text / 18 item) shared with the desktop regression lock
+  (`FEBuilderGBA.Avalonia.Tests/SkiaFontRasterizerTests.cs`) via the linked
+  `SkiaFontGoldens` single source of truth.
+
+These are **desktop-validated** today (image pixels exact; font within the
+documented tolerance). **#1126 must run these SAME assertions on the four
+Android ABIs** — `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` — under an Android
+emulator / instrumented test run, to prove the pinned `2.88.x` native renders
+the **image path byte-identically** and the **font path within the documented
+pixel tolerance** on each ABI. (The runtime-loaded `2.88` assembly guard runs on
+the device too; the declared/restored-graph guards are source-tree-only and skip
+on an on-device host.) Concretely, #1126 must:
+
+1. Build an instrumented (androidTest) host that links the same
+   `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests` assertions (or a
+   thin device-side harness invoking the same `SkiaImageService` /
+   `SkiaFontRasterizer` calls against the same inline goldens).
+2. Run it on an emulator image for each of the four ABIs above.
+3. Require **EXACT** equality for the image decode/PNG-round-trip golden and
+   **within-tolerance** equality for the font golden — failing the Android CI if
+   any ABI diverges (which would signal a native-version or codegen drift).
 
 ---
 
