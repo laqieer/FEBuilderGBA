@@ -1,0 +1,111 @@
+# Advisory Android build + APK artifact workflow (#1126), the capstone of the
+# native-Android epic #1070.
+#
+# The FEBuilderGBA.Android head is INTENTIONALLY excluded from FEBuilderGBA.sln
+# because check.yml builds the whole solution on windows-latest with NO android
+# workload (see docs/ANDROID.md §7). This dedicated workflow builds the Android
+# APK on a workload-capable ubuntu-latest runner WITHOUT touching the required
+# `build` check.
+#
+# ADVISORY / non-blocking by construction:
+#   * It is a SEPARATE workflow (not the required `build` job in check.yml).
+#   * The job/check context is `android-build` (NOT `build`) so it can never
+#     collide with the required build contexts.
+# So a slow/flaky Android build can NOT block PR merges (the required checks
+# live in check.yml / crossplatform.yml and are unaffected). Once the Android
+# build has been stable for a while the maintainer can flip it to required via a
+# follow-up PR / branch-ruleset change.
+#
+# NOTE on continue-on-error: deliberately NOT set at the job level. With
+# continue-on-error a failed build/upload step would still report the check as
+# success, which would silently mask a real regression and defeat the
+# `if-no-files-found: error` guard below. The job is already non-blocking by
+# being a separate, non-required workflow, so we let genuine failures surface as
+# a (still non-blocking) RED check rather than a misleading green one.
+#
+# Release signing-key handling is deferred: the artifact is the debug-keystore
+# *-Signed.apk the build already produces (docs/ANDROID.md §7).
+#
+# The on-device / emulator SkiaSharp byte-parity run (#1125) — running
+# SkiaRenderByteParityTests on the Android native across the 4 ABIs — is NOT
+# included here: it needs a new instrumented test head (XHarness-style) + a
+# flaky emulator boot, which is out of scope for this build+artifact workflow.
+# That instrumented-parity run is the remaining step that keeps #1125 (and thus
+# #1070) open. See docs/ANDROID.md §7-8.
+#
+# Actions are pinned to @v4 tags to stay consistent with the repo's other
+# workflows (check.yml / crossplatform.yml); a repo-wide move to commit-SHA
+# pinning is a separate hardening task, not scoped to this PR.
+
+name: Android
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-build:
+    name: Android APK (advisory)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        # Same submodule set as check.yml / crossplatform.yml. config/patch2
+        # must exist (config/** is globbed as AndroidAsset, with patch2
+        # excluded, in FEBuilderGBA.Android.csproj — but the submodule dir still
+        # needs to resolve); the Avalonia -> Core chain expects the tool
+        # submodules present like the desktop builds.
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        # Speeds up restore + reduces network flakiness on repeated PR runs
+        # (the android workload pulls a large set of packages). Keyed on the
+        # project/props files so a dependency bump busts the cache.
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-android-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-android-${{ runner.os }}-
+
+      - name: Install android workload
+        # Installs the net9.0-android TFM toolchain. ubuntu-latest ships the
+        # Android SDK + a JDK that the workload build consumes.
+        run: dotnet workload install android
+
+      - name: Build Android APK
+        # -p:EnableAndroidTarget=true is REQUIRED as a GLOBAL property (#1121):
+        # a bare build fails restore with NETSDK1005 because NuGet restore's
+        # static graph ignores the per-reference AdditionalProperties that
+        # activates the net9.0-android TFM on the shared FEBuilderGBA.Avalonia
+        # project. See docs/ANDROID.md §7.
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: febuildergba-android-apk
+          # The debug-keystore-signed APK the build already produces
+          # (docs/ANDROID.md §7), at the well-known net9.0-android output path.
+          # if-no-files-found: error so a run that produced NO apk (a path /
+          # packaging regression) fails VISIBLY rather than passing green with
+          # an empty artifact — this is meaningful precisely because the job is
+          # NOT continue-on-error. It still can't block merges: the workflow is
+          # separate + non-required (context android-build, not the required
+          # `build`).
+          path: FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk
+          if-no-files-found: error

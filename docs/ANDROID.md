@@ -348,6 +348,23 @@ The Android APK builds against the shared Avalonia UI (#1121). What remains is
 > dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
 > ```
 
+**Advisory CI workflow (#1126 — DONE):** `.github/workflows/android.yml` now
+builds the Android APK on `ubuntu-latest` (`dotnet workload install android` +
+`dotnet build … -p:EnableAndroidTarget=true`) and uploads the `*-Signed.apk` as
+a `febuildergba-android-apk` workflow artifact on every push/PR to `master`. The
+workflow is kept **off** the required `build` check by design: it is a separate
+workflow file and the job context is `android-build` (not `build`), so a slow or
+flaky Android build can never block a PR merge — the required checks live in
+`check.yml` / `crossplatform.yml` and are unaffected. The job deliberately does
+**not** set `continue-on-error`, so a genuine failure surfaces as a (still
+non-blocking) red check instead of a misleading green one; the
+`if-no-files-found: error` flag on the upload step likewise ensures a run that
+produced no APK (e.g. a path regression) fails visibly rather than passing green
+with an empty artifact. **What remains:** the on-device / emulator SkiaSharp byte-parity run
+(#1125) — running `SkiaRenderByteParityTests` on the Android native across the
+four ABIs via an instrumented test head (XHarness-style + emulator boot) — is
+the remaining step that keeps #1125 and the overall #1070 epic open.
+
 ---
 
 ## 8. Follow-up sub-issues
@@ -376,9 +393,16 @@ linked under #1070 as its checklist:
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
 5. **Android: `SkiaSharp.NativeAssets.Android` version pinning + render
-   byte-parity smoke test** on the Android native. *(see §3.)*
-6. **Android: CI job + signed APK packaging** (separate android-workload job,
-   not the desktop `.sln` build). *(see §7.)*
+   byte-parity smoke test** on the Android native. *(see §3.)* The desktop
+   SkiaSharp byte-parity tests exist; the on-device ABI run across
+   `android-x64`/`android-arm64`/`android-x86`/`android-arm` (instrumented
+   XHarness-style, emulator boot) is still pending (#1125).
+6. ~~**Android: CI job + signed APK packaging** (separate android-workload job,
+   not the desktop `.sln` build).~~ **DONE (#1126)** — `.github/workflows/android.yml`
+   builds the APK on `ubuntu-latest` and uploads the debug-keystore `*-Signed.apk`
+   as a workflow artifact; kept off the required `build` check (separate workflow +
+   `android-build` context, non-required). Signed-release-key packaging and the
+   emulator byte-parity run (#1125) are deferred. *(see §7.)*
 
 ---
 
