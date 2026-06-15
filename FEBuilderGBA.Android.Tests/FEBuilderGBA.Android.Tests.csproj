@@ -49,6 +49,15 @@
     <RunAOTCompilation>false</RunAOTCompilation>
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
     <AndroidUseInterpreter>true</AndroidUseInterpreter>
+    <!-- AndroidUseAssemblyStore=false + AndroidEnableAssemblyCompression=false ensure
+         that managed assemblies are stored as individual, uncompressed zip entries
+         inside the APK (rather than packed into a compressed blob store). This lets
+         the on-device runner open the APK as a ZipArchive and extract
+         FEBuilderGBA.Android.Tests.dll to a real on-disk path that xUnit can
+         open via its FileExists guard (assembly.Location is empty on .NET 9 Android
+         because assemblies are embedded, not on disk). -->
+    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <AndroidEnableAssemblyCompression>false</AndroidEnableAssemblyCompression>
   </PropertyGroup>
 
   <ItemGroup>

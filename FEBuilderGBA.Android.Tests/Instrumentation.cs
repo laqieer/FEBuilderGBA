@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // XHarness Android instrumentation entry point for FEBuilderGBA.Android.Tests (#1125).
 //
@@ -46,6 +46,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -54,11 +55,37 @@ using Microsoft.DotNet.XHarness.TestRunners.Common;
 
 namespace FEBuilderGBA.Android.Tests
 {
+    // ---------------------------------------------------------------------------
+    // ParityAndroidEntryPoint -- thin subclass of DefaultAndroidEntryPoint that
+    // overrides GetTestAssemblies() to supply a REAL on-disk path for the test
+    // assembly DLL.  The base class yields assembly.Location (which is empty on
+    // .NET 9 Android), causing xUnit's FileExists guard to throw
+    // "File not found: FEBuilderGBA.Android.Tests.dll".  Our override bypasses
+    // that by pointing xUnit at the extracted path.
+    // ---------------------------------------------------------------------------
+    sealed class ParityAndroidEntryPoint : DefaultAndroidEntryPoint
+    {
+        public Assembly? TestAssembly { get; set; }
+        public string TestAssemblyPath { get; set; } = string.Empty;
+
+        public ParityAndroidEntryPoint(string resultsPath, Dictionary<string, string> bundle)
+            : base(resultsPath, bundle)
+        {
+        }
+
+        protected override IEnumerable<TestAssemblyInfo> GetTestAssemblies()
+        {
+            if (TestAssembly != null && !string.IsNullOrEmpty(TestAssemblyPath))
+                yield return new TestAssemblyInfo(TestAssembly, TestAssemblyPath);
+        }
+    }
+
     [global::Android.App.Instrumentation(Name = "com.laqieer.febuildergba.tests.TestInstrumentation")]
     public class TestInstrumentation : global::Android.App.Instrumentation
     {
         const string LogTag = "FEBuilderGBA.Tests";
         const string DefaultResultsPath = "/sdcard/Download";
+        const string TestDllName = "FEBuilderGBA.Android.Tests.dll";
 
         global::Android.OS.Bundle? _arguments;
 
@@ -135,13 +162,21 @@ namespace FEBuilderGBA.Android.Tests
 
             try
             {
-                var entryPoint = new DefaultAndroidEntryPoint(resultsPath, bundleDict);
+                // -----------------------------------------------------------
+                // Extract the test assembly DLL from the APK to a real path
+                // so xUnit's FileExists guard can open it.
+                // -----------------------------------------------------------
+                string extractedPath = ExtractTestAssembly(resultsPath);
+                global::Android.Util.Log.Info(LogTag,
+                    $"Test assembly extracted to: {extractedPath}");
 
-                // Wire the assembly containing the linked test classes.
-                // Because SkiaRenderByteParityTests and SkiaSharpVersionGuardTests
-                // are compiled INTO this assembly (via <Compile Link>), their
-                // Assembly is this assembly — typeof(TestInstrumentation).Assembly.
-                entryPoint.Tests = new[] { typeof(TestInstrumentation).Assembly };
+                var entryPoint = new ParityAndroidEntryPoint(resultsPath, bundleDict)
+                {
+                    TestAssembly = typeof(TestInstrumentation).Assembly,
+                    TestAssemblyPath = extractedPath,
+                    // Also set the base Tests list for other internal uses.
+                    Tests = new[] { typeof(TestInstrumentation).Assembly },
+                };
 
                 entryPoint.TestsCompleted += (sender, results) =>
                 {
@@ -215,6 +250,73 @@ namespace FEBuilderGBA.Android.Tests
                 result.PutString("error", caughtError.Length > 500 ? caughtError[..500] : caughtError);
 
             Finish(anyFailure ? global::Android.App.Result.Canceled : global::Android.App.Result.Ok, result);
+        }
+
+        /// <summary>
+        /// Extract FEBuilderGBA.Android.Tests.dll from the APK zip to a real writable
+        /// path (Context.FilesDir) so xUnit's FileExists guard can open it.
+        ///
+        /// With AndroidUseAssemblyStore=false + AndroidEnableAssemblyCompression=false
+        /// the DLL is stored as an individual, uncompressed entry inside the APK.
+        /// Common APK layout (probed in order):
+        ///   assemblies/FEBuilderGBA.Android.Tests.dll       (primary path)
+        ///   assemblies/x86_64/FEBuilderGBA.Android.Tests.dll (arch-specific fallback)
+        ///
+        /// If none is found, throws an exception whose message lists all .dll entries
+        /// in the APK (first 30) so the next CI run shows the actual layout.
+        /// </summary>
+        string ExtractTestAssembly(string resultsPath)
+        {
+            string apkPath = Context!.ApplicationInfo!.SourceDir!;
+            global::Android.Util.Log.Info(LogTag, $"Opening APK: {apkPath}");
+
+            // Destination: Context.FilesDir is always writable (private app storage).
+            string destDir = Context.FilesDir!.AbsolutePath;
+            string destPath = Path.Combine(destDir, TestDllName);
+
+            using var apk = ZipFile.OpenRead(apkPath);
+
+            // Probe candidate paths in priority order.
+            ZipArchiveEntry? entry =
+                apk.GetEntry($"assemblies/{TestDllName}")
+                ?? apk.GetEntry($"assemblies/x86_64/{TestDllName}")
+                ?? apk.GetEntry($"assemblies/x86/{TestDllName}")
+                ?? apk.GetEntry($"assemblies/arm64-v8a/{TestDllName}")
+                ?? apk.GetEntry($"assemblies/armeabi-v7a/{TestDllName}")
+                ?? apk.Entries.FirstOrDefault(e => e.Name == TestDllName);
+
+            if (entry == null)
+            {
+                // Collect diagnostic info: list .dll / FEBuilderGBA entries (up to 30).
+                var dllEntries = apk.Entries
+                    .Where(e => e.FullName.Contains("FEBuilderGBA", StringComparison.OrdinalIgnoreCase)
+                             || e.FullName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    .Take(30)
+                    .Select(e => e.FullName)
+                    .ToArray();
+
+                string entryList = string.Join("; ", dllEntries);
+                string errorMsg =
+                    $"Test assembly DLL not found in APK. " +
+                    $"AndroidUseAssemblyStore/Compression may not be effective. " +
+                    $"Relevant entries ({dllEntries.Length}): {entryList}";
+
+                global::Android.Util.Log.Error(LogTag, errorMsg);
+                TryWriteErrorFile(resultsPath, errorMsg);
+                throw new InvalidOperationException(errorMsg);
+            }
+
+            global::Android.Util.Log.Info(LogTag,
+                $"Found APK entry: {entry.FullName} ({entry.Length} bytes). " +
+                $"Extracting to {destPath}");
+
+            // Extract (overwrite any stale copy).
+            entry.ExtractToFile(destPath, overwrite: true);
+
+            global::Android.Util.Log.Info(LogTag,
+                $"Extracted {TestDllName}: {new System.IO.FileInfo(destPath).Length} bytes");
+
+            return destPath;
         }
 
         /// <summary>
