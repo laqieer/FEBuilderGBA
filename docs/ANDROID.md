@@ -136,17 +136,21 @@ emulator CI workflow (`.github/workflows/android-emulator-parity.yml`):
   Tuffy font from APK assets into `AppContext.BaseDirectory/Fonts/` before tests
   run, writes `TestResults.xml`, and returns a non-zero code on failure.
 - **CI workflow:** `.github/workflows/android-emulator-parity.yml` runs on
-  `ubuntu-latest` for a 2-arch matrix (`x86_64`, `x86`) on push/PR to master.
+  `ubuntu-latest` for a single-arch matrix (`x86_64`) on push/PR to master
+  (API 34 has no 32-bit `x86` system image; `x86` was dropped at API 31+).
   It boots an API-34 `google_apis` AVD (KVM-accelerated, AVD snapshot cached),
   installs the test APK, runs `adb shell am instrument -w`, pulls
   `TestResults.xml`, and fails the step if any test fails.
-- **ABI coverage (honest):** `x86_64` and `x86` are the GitHub-hosted-runner-
-  bootable ABIs. `arm64-v8a` and `armeabi-v7a` ship in the **same pinned
+- **ABI coverage (honest):** `x86_64` is the only on-device-proven ABI.
+  API 34 has no 32-bit `x86` system image (Google dropped `x86` at API 31+).
+  `arm64-v8a` and `armeabi-v7a` ship in the **same pinned
   `SkiaSharp.NativeAssets.Android 2.88.9` package** (the same compiled `.so`
-  files) but are NOT bootable on GitHub-hosted `x86_64` runners — they would
-  require a self-hosted ARM runner or a paid ARM-emulator service. The workflow
-  provides direct on-device proof for x86_64 + x86; the other two ABIs are
-  covered by the same-package argument (identical `.so` origin, same `2.88.9` pin).
+  files) but are NOT bootable on GitHub-hosted `x86_64` runners — they require
+  a self-hosted ARM runner or a paid ARM-emulator service. The `x86` (32-bit)
+  ABI has no API-34 system image at all. The workflow provides direct on-device
+  proof for `x86_64`; the other three ABIs (`arm64-v8a`, `armeabi-v7a`, `x86`)
+  are covered by the same-package argument (identical 2.88.9 `.so` origin,
+  same `SkiaSharp.NativeAssets.Android 2.88.9` pin).
 - **What runs on-device:** the image parity tests (EXACT byte equality — the tile
   decode + PNG round-trip golden); the font parity tests (within shared pixel
   tolerance); and `RuntimeLoadedSkiaSharpAssembly_Is_288` (the runtime-loaded
@@ -382,8 +386,8 @@ with an empty artifact.
 
 **On-device byte-parity CI (#1125 — WIRED, pending green):**
 `.github/workflows/android-emulator-parity.yml` now runs `SkiaRenderByteParityTests`
-+ `SkiaSharpVersionGuardTests` on an API-34 Android emulator across two
-CI-bootable ABIs (`x86_64` + `x86`) on every push/PR to master. The instrumented
++ `SkiaSharpVersionGuardTests` on an API-34 Android emulator for `x86_64`
+(the only CI-bootable ABI at API 34 — `x86` was dropped at API 31+) on every push/PR to master. The instrumented
 test head `FEBuilderGBA.Android.Tests/` (XHarness `DefaultAndroidEntryPoint`)
 links the same test sources as `FEBuilderGBA.Core.Tests` — no duplication. Build
 it standalone:
@@ -395,10 +399,11 @@ dotnet build FEBuilderGBA.Android.Tests/FEBuilderGBA.Android.Tests.csproj -c Rel
 
 The workflow is advisory / non-blocking (job context `android-emulator-parity`,
 not `build`); once consistently green it can be flipped to required via a
-branch-ruleset change. `arm64-v8a` + `armeabi-v7a` are covered by the
-same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` `.so` files)
-but are not directly emulated on GitHub-hosted runners (see §3). This wires
-#1125 and completes the #1070 epic checklist item 5.
+branch-ruleset change. `arm64-v8a`, `armeabi-v7a`, and `x86` are covered by
+the same-package argument (same `SkiaSharp.NativeAssets.Android 2.88.9` `.so`
+files) but are not directly emulated on GitHub-hosted runners — `x86` has no
+API-34 system image; `arm64-v8a`/`armeabi-v7a` need a self-hosted ARM runner
+(see §3). This wires #1125 and completes the #1070 epic checklist item 5.
 
 ---
 
@@ -432,9 +437,10 @@ linked under #1070 as its checklist:
    green)** — `FEBuilderGBA.Android.Tests/` (XHarness test head) links the
    same `SkiaRenderByteParityTests` + `SkiaSharpVersionGuardTests` as the
    desktop suite; `.github/workflows/android-emulator-parity.yml` boots API-34
-   emulators for `x86_64` + `x86` (CI-bootable ABIs) on every push/PR.
-   `arm64-v8a` + `armeabi-v7a` ship in the same `2.88.9` package but are not
-   bootable on GitHub-hosted runners (see §3). *(see §3, §7.)*
+   emulator for `x86_64` on every push/PR (the only CI-bootable ABI at API 34;
+   `x86` dropped at API 31+). `arm64-v8a`, `armeabi-v7a`, and `x86` ship in
+   the same `2.88.9` package but are not bootable on GitHub-hosted runners
+   (see §3). *(see §3, §7.)*
 6. ~~**Android: CI job + signed APK packaging** (separate android-workload job,
    not the desktop `.sln` build).~~ **DONE (#1126)** — `.github/workflows/android.yml`
    builds the APK on `ubuntu-latest` and uploads the debug-keystore `*-Signed.apk`

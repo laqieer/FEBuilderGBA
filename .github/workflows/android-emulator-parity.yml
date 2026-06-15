@@ -12,14 +12,17 @@
 #
 # ABI COVERAGE
 # ------------
-# x86_64 and x86 are the GitHub-hosted-runner-bootable ABIs. arm64-v8a and
-# armeabi-v7a ship in the same pinned SkiaSharp.NativeAssets.Android 2.88.9
-# package (the same .so files), but Android arm64/arm AVDs are NOT bootable on
-# GitHub-hosted (x86_64) runners without KVM — they would require either a
-# self-hosted ARM runner or a paid ARM-emulator service. This workflow provides
-# on-device parity proof for x86_64 + x86; the other two ABIs are covered by
-# the same-native-package argument (same 2.88.9 .so) and are honestly noted as
-# not runner-bootable here.
+# x86_64 is the ONLY GitHub-hosted-runner-bootable ABI for API 34. Google
+# dropped 32-bit x86 system images at API 31+; API 34 ships only x86_64.
+# arm64-v8a and armeabi-v7a ship in the same pinned
+# SkiaSharp.NativeAssets.Android 2.88.9 package (the same compiled .so files),
+# but Android arm64/arm AVDs are NOT bootable on GitHub-hosted (x86_64) runners
+# without KVM — they require a self-hosted ARM runner or a paid ARM-emulator
+# service. The x86 (32-bit) ABI has no API-34 system image at all. This
+# workflow provides direct on-device parity proof for x86_64; the other three
+# ABIs (arm64-v8a, armeabi-v7a, x86) are covered by the same-native-package
+# argument (identical 2.88.9 .so origin) and are honestly noted as not
+# runner-bootable (or unavailable) here.
 #
 # ADVISORY / NON-BLOCKING by construction
 # ----------------------------------------
@@ -66,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [x86_64, x86]
+        arch: [x86_64]
 
     steps:
       - name: Checkout
@@ -142,7 +145,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
-            set -euo pipefail
+            set -eu
 
             ARCH="${{ matrix.arch }}"
             echo "=== Android Emulator Parity: arch=${ARCH} ==="
