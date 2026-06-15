@@ -96,6 +96,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // unsupported pointer field (D0/EventDataPtr).
         Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
         Dictionary<string, uint> _loadedUnsupportedFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        Dictionary<string, uint> _loadedUncoveredScalarSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
 
         public List<AddrResult> LoadMapSettingList()
         {
@@ -203,21 +204,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return changed;
         }
 
-        /// <summary>True when the user changed an UNSUPPORTED (pointer) FE6 field since load (#1148).</summary>
+        /// <summary>
+        /// True when the user changed a non-source-writable FE6 field since load — a POINTER
+        /// (EventDataPtr) OR a UI-editable scalar the source-field map does not cover (the
+        /// FE6 Field/Unknown bytes/words, the W-form BGM ids, army/banner text ids, world-map
+        /// point coords) (#1148, Copilot PR #1158 final review). Fail-closed: any uncovered
+        /// edit surfaces an honest ROM-only/manual notice instead of a silent drop.
+        /// </summary>
         public bool HasUnsupportedFieldChanges()
         {
-            var current = CurrentUnsupportedFieldMap();
-            foreach (var kv in current)
+            foreach (var kv in CurrentUnsupportedFieldMap())
                 if (!_loadedUnsupportedFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    return true;
+            foreach (var kv in CurrentUncoveredScalarMap())
+                if (!_loadedUncoveredScalarSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
                     return true;
             return false;
         }
 
-        /// <summary>Re-baseline both snapshots after a successful source write (#1148).</summary>
+        /// <summary>
+        /// FE6 UI-editable scalars that are NOT source-writable and NOT pointers — an edit to
+        /// any is ROM-only/manual (#1148, Copilot PR #1158 final review). Keyed by VM property
+        /// name; never reaches the writer (only drives the fail-closed gate).
+        /// </summary>
+        Dictionary<string, uint> CurrentUncoveredScalarMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "UnknownB15", UnknownB15 }, { "UnknownB16", UnknownB16 }, { "UnknownB17", UnknownB17 },
+                { "UnknownB24", UnknownB24 }, { "UnknownB26", UnknownB26 }, { "UnknownB27", UnknownB27 },
+                { "UnknownB28", UnknownB28 }, { "UnknownB29", UnknownB29 }, { "UnknownB30", UnknownB30 },
+                { "UnknownB31", UnknownB31 },
+                { "PlayerPhaseBGMW", PlayerPhaseBGMW }, { "EnemyPhaseBGMW", EnemyPhaseBGMW }, { "NpcPhaseBGMW", NpcPhaseBGMW },
+                { "UnknownW38", UnknownW38 }, { "UnknownW40", UnknownW40 }, { "UnknownW42", UnknownW42 },
+                { "UnknownW44", UnknownW44 }, { "UnknownW46", UnknownW46 },
+                { "UpperArmyText", UpperArmyText }, { "LowerArmyText", LowerArmyText },
+                { "EnemyBannerFlag", EnemyBannerFlag },
+                { "WorldMapPointX", WorldMapPointX }, { "WorldMapPointY", WorldMapPointY },
+            };
+        }
+
+        /// <summary>Re-baseline all snapshots after a successful source write (#1148).</summary>
         public void RefreshSourceFieldSnapshot()
         {
             _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
             _loadedUnsupportedFieldSnapshot = CurrentUnsupportedFieldMap();
+            _loadedUncoveredScalarSnapshot = CurrentUncoveredScalarMap();
         }
 
         public void LoadEntry(uint addr)

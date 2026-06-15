@@ -87,6 +87,43 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(vm.HasUnsupportedFieldChanges());
         }
 
+        // #1148 (Copilot PR #1158 final review): a UI-editable scalar NOT covered by the
+        // source-field map (e.g. a difficulty Rating byte, an Unknown/Field byte,
+        // ChapterTitleImage2) must be reported as an unsupported change — never silently
+        // dropped / reported as a false no-op. The gate checks HasUnsupportedFieldChanges()
+        // BEFORE scalar processing, so an uncovered edit surfaces a ROM-only/manual notice.
+        [Fact]
+        public void MapSettingVM_UncoveredScalarEdit_DetectedAsUnsupported()
+        {
+            var vm = new MapSettingViewModel { Weather = 1, RatingAEliwoodNormal = 0, ChapterTitleImage2 = 0 };
+            vm.RefreshSourceFieldSnapshot();
+            Assert.False(vm.HasUnsupportedFieldChanges());
+
+            // Edit a difficulty Rating byte — not in CurrentSourceFieldMap → uncovered.
+            vm.RatingAEliwoodNormal = 7;
+            Assert.Empty(vm.BuildSourceFieldDict());          // not a source-writable field
+            Assert.True(vm.HasUnsupportedFieldChanges());     // but flagged as unsupported
+
+            vm.RefreshSourceFieldSnapshot();
+            Assert.False(vm.HasUnsupportedFieldChanges());
+
+            // ChapterTitleImage2 is also uncovered.
+            vm.ChapterTitleImage2 = 3;
+            Assert.True(vm.HasUnsupportedFieldChanges());
+        }
+
+        [Fact]
+        public void MapSettingFE6VM_UncoveredScalarEdit_DetectedAsUnsupported()
+        {
+            var vm = new MapSettingFE6ViewModel { Weather = 1, UpperArmyText = 0 };
+            vm.RefreshSourceFieldSnapshot();
+            Assert.False(vm.HasUnsupportedFieldChanges());
+
+            vm.UpperArmyText = 5;   // FE6 army text id — uncovered scalar
+            Assert.Empty(vm.BuildSourceFieldDict());
+            Assert.True(vm.HasUnsupportedFieldChanges());
+        }
+
         [Fact]
         public void MapSettingVM_PointerOnlyEdit_DetectedAsUnsupported_NotAsNoChange()
         {

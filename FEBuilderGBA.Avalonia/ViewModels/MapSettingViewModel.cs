@@ -66,6 +66,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // notice and NOT write the preview ROM, rather than collapsing into an empty
         // change-set that the writer would report as a misleading "no change needed".
         Dictionary<string, uint> _loadedUnsupportedFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+        // #1148 (Copilot PR #1158 final review): snapshot of every UI-editable scalar that is
+        // NEITHER source-writable NOR a pointer (difficulty Rating bytes/words, Field/Unknown
+        // bytes, ChapterTitleImage2, the BGM flag words). An edit to any of these must surface
+        // an honest ROM-only/manual notice (fail-closed), never a silent drop / false no-op.
+        Dictionary<string, uint> _loadedUncoveredScalarSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
 
         /// <summary>
         /// Current map id (0-based list index) derived from <see cref="CurrentAddr"/> via the
@@ -379,32 +384,82 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// True when the user changed at least one UNSUPPORTED (pointer) chapter field since
-        /// the load-time snapshot (#1148, Copilot finding 2). The save-gate uses this to show
-        /// a ROM-only/manual notice for a pointer-only edit instead of a false no-op.
+        /// True when the user changed at least one chapter field that is NOT source-writable
+        /// since load — either a POINTER field, OR a UI-editable scalar that the source-field
+        /// map does not cover (e.g. the difficulty Rating bytes/words, ChapterTitleImage2, the
+        /// Field/Unknown bytes) (#1148, Copilot PR #1158 final review). The save-gate uses this
+        /// to show an honest ROM-only/manual notice instead of silently dropping the edit /
+        /// reporting a false "no change needed". Fail-closed: any uncovered edit blocks the
+        /// source write.
         /// </summary>
         public bool HasUnsupportedFieldChanges()
         {
-            var current = CurrentUnsupportedFieldMap();
-            foreach (var kv in current)
-            {
+            foreach (var kv in CurrentUnsupportedFieldMap())
                 if (!_loadedUnsupportedFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
                     || baseline != kv.Value)
-                {
                     return true;
-                }
-            }
+
+            // Any edited UI scalar NOT covered by the source-field map is ROM-only/manual too.
+            foreach (var kv in CurrentUncoveredScalarMap())
+                if (!_loadedUncoveredScalarSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                    return true;
+
             return false;
         }
 
         /// <summary>
-        /// Re-baseline both source-field snapshots to the CURRENT values after a successful
+        /// UI-editable scalar fields that are NOT in <see cref="CurrentSourceFieldMap"/> and are
+        /// NOT pointers — they have no clean source representation in this slice, so an edit to
+        /// any of them is ROM-only/manual (#1148, Copilot PR #1158 final review). Keyed by VM
+        /// property name (these never reach the writer; they only drive the fail-closed gate).
+        /// </summary>
+        Dictionary<string, uint> CurrentUncoveredScalarMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                { "ChapterTitleImage2", ChapterTitleImage2 },
+                { "PlayerPhaseBGMFlag4", PlayerPhaseBGMFlag4 },
+                { "EnemyPhaseBGMFlag4", EnemyPhaseBGMFlag4 },
+                { "UnknownW38", UnknownW38 }, { "UnknownW40", UnknownW40 }, { "UnknownW42", UnknownW42 },
+                { "RatingAEliwoodNormal", RatingAEliwoodNormal }, { "RatingAEliwoodHard", RatingAEliwoodHard },
+                { "RatingAHectorNormal", RatingAHectorNormal }, { "RatingAHectorHard", RatingAHectorHard },
+                { "RatingBEliwoodNormal", RatingBEliwoodNormal }, { "RatingBEliwoodHard", RatingBEliwoodHard },
+                { "RatingBHectorNormal", RatingBHectorNormal }, { "RatingBHectorHard", RatingBHectorHard },
+                { "RatingCEliwoodNormal", RatingCEliwoodNormal }, { "RatingCEliwoodHard", RatingCEliwoodHard },
+                { "RatingCHectorNormal", RatingCHectorNormal }, { "RatingCHectorHard", RatingCHectorHard },
+                { "RatingDEliwoodNormal", RatingDEliwoodNormal }, { "RatingDEliwoodHard", RatingDEliwoodHard },
+                { "RatingDHectorNormal", RatingDHectorNormal }, { "RatingDHectorHard", RatingDHectorHard },
+                { "UnknownB61", UnknownB61 },
+                { "RatingAEliwoodNormalW", RatingAEliwoodNormalW }, { "RatingAEliwoodHardW", RatingAEliwoodHardW },
+                { "RatingAHectorNormalW", RatingAHectorNormalW }, { "RatingAHectorHardW", RatingAHectorHardW },
+                { "RatingBEliwoodNormalW", RatingBEliwoodNormalW }, { "RatingBEliwoodHardW", RatingBEliwoodHardW },
+                { "RatingBHectorNormalW", RatingBHectorNormalW }, { "RatingBHectorHardW", RatingBHectorHardW },
+                { "RatingCEliwoodNormalW", RatingCEliwoodNormalW }, { "RatingCEliwoodHardW", RatingCEliwoodHardW },
+                { "RatingCHectorNormalW", RatingCHectorNormalW }, { "RatingCHectorHardW", RatingCHectorHardW },
+                { "RatingDEliwoodNormalW", RatingDEliwoodNormalW }, { "RatingDEliwoodHardW", RatingDEliwoodHardW },
+                { "RatingDHectorNormalW", RatingDHectorNormalW }, { "RatingDHectorHardW", RatingDHectorHardW },
+                { "UnknownW94", UnknownW94 },
+                { "UnknownB118", UnknownB118 }, { "UnknownB119", UnknownB119 }, { "UnknownB120", UnknownB120 },
+                { "UnknownB121", UnknownB121 }, { "UnknownB122", UnknownB122 }, { "UnknownB123", UnknownB123 },
+                { "UnknownB124", UnknownB124 }, { "UnknownB125", UnknownB125 }, { "UnknownB126", UnknownB126 },
+                { "UnknownB127", UnknownB127 },
+                { "UnknownB129", UnknownB129 }, { "UnknownB130", UnknownB130 }, { "UnknownB131", UnknownB131 },
+                { "UnknownB132", UnknownB132 }, { "UnknownB133", UnknownB133 },
+                { "BlackoutBeforeStart", BlackoutBeforeStart },
+                { "UnknownB145", UnknownB145 }, { "UnknownB146", UnknownB146 }, { "UnknownB147", UnknownB147 },
+            };
+        }
+
+        /// <summary>
+        /// Re-baseline all source-field snapshots to the CURRENT values after a successful
         /// source-backed write (#1148), so an immediate re-Save of the same edit is a no-op.
         /// </summary>
         public void RefreshSourceFieldSnapshot()
         {
             _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
             _loadedUnsupportedFieldSnapshot = CurrentUnsupportedFieldMap();
+            _loadedUncoveredScalarSnapshot = CurrentUncoveredScalarMap();
         }
 
         // ---- Reset all fields to defaults (used by FE6 guard to prevent stale UI) ----
