@@ -321,8 +321,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 // Log.Error joins params with spaces (no composite formatting), so pass the
-                // message directly instead of a "{0}" placeholder (Copilot PR #1158 finding).
-                Log.Error("MapSettingView.Write failed: " + ex.Message);
+                // detail directly; use ex.ToString() to keep the full stack trace for
+                // diagnosis instead of just the message (Copilot PR #1158 findings).
+                Log.Error("MapSettingView.Write failed: " + ex.ToString());
             }
         }
 

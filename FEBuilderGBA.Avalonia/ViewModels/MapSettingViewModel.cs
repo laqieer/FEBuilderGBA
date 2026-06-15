@@ -416,11 +416,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         Dictionary<string, uint> CurrentUncoveredScalarMap()
         {
+            // NOTE: ChapterTitleImage2 (ChapterTitleIndex2), PlayerPhaseBGMFlag4 (BGM7) and
+            // EnemyPhaseBGMFlag4 (BGM8) are deliberately NOT here — they ARE source-writable
+            // via CurrentSourceFieldMap, so they must not also be flagged uncovered (Copilot
+            // PR #1158: keep the source-writable surface and the uncovered gate disjoint).
             return new Dictionary<string, uint>(StringComparer.Ordinal)
             {
-                { "ChapterTitleImage2", ChapterTitleImage2 },
-                { "PlayerPhaseBGMFlag4", PlayerPhaseBGMFlag4 },
-                { "EnemyPhaseBGMFlag4", EnemyPhaseBGMFlag4 },
                 { "UnknownW38", UnknownW38 }, { "UnknownW40", UnknownW40 }, { "UnknownW42", UnknownW42 },
                 { "RatingAEliwoodNormal", RatingAEliwoodNormal }, { "RatingAEliwoodHard", RatingAEliwoodHard },
                 { "RatingAHectorNormal", RatingAHectorNormal }, { "RatingAHectorHard", RatingAHectorHard },

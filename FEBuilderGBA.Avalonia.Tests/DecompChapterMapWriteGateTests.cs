@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void MapSettingVM_UncoveredScalarEdit_DetectedAsUnsupported()
         {
-            var vm = new MapSettingViewModel { Weather = 1, RatingAEliwoodNormal = 0, ChapterTitleImage2 = 0 };
+            var vm = new MapSettingViewModel { Weather = 1, RatingAEliwoodNormal = 0, UnknownB118 = 0 };
             vm.RefreshSourceFieldSnapshot();
             Assert.False(vm.HasUnsupportedFieldChanges());
 
@@ -107,9 +107,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.RefreshSourceFieldSnapshot();
             Assert.False(vm.HasUnsupportedFieldChanges());
 
-            // ChapterTitleImage2 is also uncovered.
-            vm.ChapterTitleImage2 = 3;
+            // An Unknown/Field byte is also uncovered.
+            vm.UnknownB118 = 3;
             Assert.True(vm.HasUnsupportedFieldChanges());
+        }
+
+        [Fact]
+        public void MapSettingVM_SourceWritableSurface_AndUncoveredGate_AreDisjoint()
+        {
+            // Copilot PR #1158: ChapterTitleImage2 (ChapterTitleIndex2) and the *BGMFlag4
+            // (BGM7/BGM8) fields are SOURCE-WRITABLE, so editing them is a normal source edit
+            // — NOT flagged as uncovered/unsupported (the two surfaces must stay disjoint).
+            var vm = new MapSettingViewModel
+            {
+                ChapterTitleImage2 = 0, PlayerPhaseBGMFlag4 = 0, EnemyPhaseBGMFlag4 = 0,
+            };
+            vm.RefreshSourceFieldSnapshot();
+
+            vm.ChapterTitleImage2 = 5;
+            var d1 = vm.BuildSourceFieldDict();
+            Assert.Equal(5u, d1["ChapterTitleIndex2"]);
+            Assert.False(vm.HasUnsupportedFieldChanges());   // source-writable, not uncovered
+
+            vm.RefreshSourceFieldSnapshot();
+            vm.PlayerPhaseBGMFlag4 = 0x30;
+            var d2 = vm.BuildSourceFieldDict();
+            Assert.Equal(0x30u, d2["BGM7"]);
+            Assert.False(vm.HasUnsupportedFieldChanges());
         }
 
         [Fact]
