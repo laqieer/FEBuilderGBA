@@ -65,6 +65,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        // ---- #1149: decomp source-backed save-gate fields ----
+
+        /// <summary>Snapshot of source-writable fields at load time (byte-offset keys, OrdinalIgnoreCase).</summary>
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Block size for FE6 support_talks (16 bytes).</summary>
+        const uint BLOCK_SIZE = 16;
+
+        /// <summary>0-based entry id for the decomp source-backed writer. <see cref="U.NOT_FOUND"/> when unresolvable.</summary>
+        public uint CurrentEntryId => SupportUnitNavigation.GetSupportTalkEntryIdFromAddr(CoreState.ROM, CurrentAddr, BLOCK_SIZE);
+
+        /// <summary>All source-writable scalar fields keyed by lowercase byte-offset name (b0, b1, w4, w8, w12, b14, b15 for FE6 16-byte struct).</summary>
+        public Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "b0",  SupportPartner1 }, { "b1",  SupportPartner2 },
+                { "w4",  TextC }, { "w8",  TextB }, { "w12", TextA },
+                { "b14", Padding1 }, { "b15", Padding2 },
+            };
+        }
+
+        /// <summary>Returns ONLY fields whose value differs from the load-time snapshot (#1149).</summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in current)
+            {
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    changed[kv.Key] = kv.Value;
+            }
+            return changed;
+        }
+
+        /// <summary>Re-baseline the snapshot to current values after a successful source-backed write.</summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+        }
+
         public void LoadSupportTalk(uint addr)
         {
             ROM rom = CoreState.ROM;
@@ -83,6 +124,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Padding2 = v["B15"];
 
             IsLoaded = true;
+            RefreshSourceFieldSnapshot();
         }
 
         public void WriteSupportTalk()

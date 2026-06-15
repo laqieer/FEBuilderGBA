@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -182,6 +183,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // #1149: shops use sentinel-terminated variable-length lists — no safe
+            // source owner, always ROM-only in decomp mode (spec: MANUAL guard). Shops
+            // have no struct "source"; they're event-driven, so the user must edit the
+            // source/event scripts and rebuild. Surface via the dialog too (not just the
+            // status label) so the user definitely sees it — matches the support editors.
+            if (CoreState.IsDecompMode)
+            {
+                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
+                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                return;
+            }
+
             // Guard: refuse to write when no slot is currently selected (e.g.
             // user clicked Write on an empty shop after the editor was cleared
             // by OnShopSelected).
@@ -213,6 +226,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void AppendSlot_Click(object? sender, RoutedEventArgs e)
         {
+            // #1149: shops are ROM-only in decomp mode (variable-length, no source owner).
+            if (CoreState.IsDecompMode)
+            {
+                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
+                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                return;
+            }
+
             if (_vm.CurrentShopAddr == 0)
             {
                 StatusLabel.Text = "Select a shop first.";
@@ -273,6 +294,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void RemoveLastSlot_Click(object? sender, RoutedEventArgs e)
         {
+            // #1149: shops are ROM-only in decomp mode (variable-length, no source owner).
+            if (CoreState.IsDecompMode)
+            {
+                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
+                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                return;
+            }
+
             if (_vm.CurrentShopAddr == 0)
             {
                 StatusLabel.Text = "Select a shop first.";

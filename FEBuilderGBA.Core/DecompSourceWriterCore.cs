@@ -52,6 +52,14 @@ namespace FEBuilderGBA
         public int EntryId;
         /// <summary>C field names that were actually changed.</summary>
         public List<string> ChangedFields = new List<string>();
+        /// <summary>
+        /// C field names that were REQUESTED but SKIPPED because their source token is a
+        /// macro/expression/non-integer (or, JSON, a non-number / missing field) and the
+        /// write was a bulk (multi-field) set. A non-empty list on an Ok status means the
+        /// write was PARTIAL — the caller (all-or-nothing save gates) must NOT treat it as
+        /// fully saved. Distinct from a legitimate no-op (value already equal). (#1159)
+        /// </summary>
+        public List<string> SkippedFields = new List<string>();
         /// <summary>Text of the targeted element BEFORE the rewrite.</summary>
         public string BeforeText = "";
         /// <summary>Text of the targeted element AFTER the rewrite.</summary>
@@ -418,6 +426,7 @@ namespace FEBuilderGBA
                 // tokens that ACTUALLY change (int literal whose value differs) count.
                 string editedElement = elementText;
                 var changed = new List<string>();
+                var skipped = new List<string>();
 
                 foreach (var kv in changedFields)
                 {
@@ -436,8 +445,13 @@ namespace FEBuilderGBA
                             changed.Add(field);
                             break;
                         case FieldApplyOutcome.NoOp:        // int literal already == newVal
+                            // Legitimate no-op; NOT a skipped edit.
+                            break;
                         case FieldApplyOutcome.SkippedMacro: // macro token in a bulk set
-                            // No textual change; leave editedElement untouched.
+                            // The requested field could NOT be written (its source token is a
+                            // macro/expression). Record it as skipped so the all-or-nothing
+                            // save gates treat the write as PARTIAL (#1159).
+                            skipped.Add(field);
                             break;
                         default: // Failed — macro in single-field intent, or a real fault
                             result.Status = failStatus;
@@ -451,8 +465,15 @@ namespace FEBuilderGBA
                 if (changed.Count == 0)
                 {
                     result.Status = DecompSourceWriteStatus.Ok;
-                    result.Message = "No change needed.";
+                    // A no-op with macro-skipped fields is NOT "no change needed" — the edits
+                    // were unwritable (nothing matched), so report that honestly (#1159).
+                    result.Message = skipped.Count > 0
+                        ? $"No writable change: {skipped.Count} field(s) map to a macro/expression and were skipped."
+                        : "No change needed.";
                     result.ChangedFields = new List<string>();
+                    // Even with no textual change, a bulk set can have macro-skipped fields;
+                    // those are real skipped edits the caller must surface (#1159).
+                    result.SkippedFields = skipped;
                     result.BeforeText = elementText;
                     result.AfterText = elementText;
                     result.ChangedLineStart = LineOf(sourceText, elemOpen);
@@ -470,6 +491,7 @@ namespace FEBuilderGBA
                 result.Status = DecompSourceWriteStatus.Ok;
                 result.Message = $"Rewrote {changed.Count} field(s) in entry {entryId}.";
                 result.ChangedFields = changed;
+                result.SkippedFields = skipped;   // partial write if non-empty (#1159)
                 result.BeforeText = elementText;
                 result.AfterText = editedElement;
                 // 1-based line span of the element (in the original text).
@@ -594,6 +616,7 @@ namespace FEBuilderGBA
 
                 bool singleFieldIntent = changedFields.Count == 1;
                 var changed = new List<string>();
+                var skipped = new List<string>();
 
                 // Accumulate edits as (byteStart, byteLen, replacementBytes) on the
                 // ORIGINAL byte offsets; apply right-to-left so earlier offsets stay valid.
@@ -618,6 +641,7 @@ namespace FEBuilderGBA
                             result.Message = $"Field '{field}' not present in JSON entry {entryId} — edit manually.";
                             return result;
                         }
+                        skipped.Add(field);   // requested but unwritable → partial (#1159)
                         continue;
                     }
                     if (loc.Kind == JsonLocateKind.NonNumber)
@@ -629,6 +653,7 @@ namespace FEBuilderGBA
                             result.Message = $"Field '{field}' in JSON entry {entryId} is not a number — edit manually.";
                             return result;
                         }
+                        skipped.Add(field);   // requested but unwritable → partial (#1159)
                         continue;
                     }
 
@@ -645,10 +670,11 @@ namespace FEBuilderGBA
                             result.Message = $"Field '{field}' in JSON entry {entryId} is not an integer number — edit manually.";
                             return result;
                         }
+                        skipped.Add(field);   // requested but unwritable → partial (#1159)
                         continue;
                     }
                     if (isNoOp)
-                        continue;   // value already equal — no churn
+                        continue;   // value already equal — legitimate no-op (NOT skipped)
 
                     edits.Add(((int)loc.Start, (int)(loc.End - loc.Start),
                         new UTF8Encoding(false).GetBytes(newToken)));
@@ -664,8 +690,15 @@ namespace FEBuilderGBA
                 if (changed.Count == 0)
                 {
                     result.Status = DecompSourceWriteStatus.Ok;
-                    result.Message = "No change needed.";
+                    // A no-op with skipped fields is NOT "no change needed" — the edits were
+                    // unwritable (nothing matched), so report that honestly (#1159).
+                    result.Message = skipped.Count > 0
+                        ? $"No writable change: {skipped.Count} field(s) map to a macro/expression and were skipped."
+                        : "No change needed.";
                     result.ChangedFields = new List<string>();
+                    // A bulk set can have skipped (macro/non-number/absent) fields even with
+                    // no textual change — surface them so the caller knows it was partial (#1159).
+                    result.SkippedFields = skipped;
                     result.BeforeText = elementText;
                     result.AfterText = elementText;
                     newSourceText = sourceText;
@@ -702,6 +735,7 @@ namespace FEBuilderGBA
                 result.Status = DecompSourceWriteStatus.Ok;
                 result.Message = $"Rewrote {changed.Count} field(s) in entry {entryId}.";
                 result.ChangedFields = changed;
+                result.SkippedFields = skipped;   // partial write if non-empty (#1159)
                 result.BeforeText = elementText;
                 return result;
             }

@@ -24639,6 +24639,51 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :This chapter edit targets a field the manifest's fields[] does not declare for map_settings — it cannot be written to source. Declare the field in the manifest, or edit the source manually and rebuild.
 此章节编辑针对的字段未在 map_settings 清单的 fields[] 中声明——无法写入源码。请在清单中声明该字段，或手动编辑源码并重新构建。
 
+:Support unit source updated. Project needs rebuild.
+支援单位源码已更新。工程需要重新构建。
+
+:Support attribute source updated. Project needs rebuild.
+支援属性源码已更新。工程需要重新构建。
+
+:Support talk source updated. Project needs rebuild.
+支援对话源码已更新。工程需要重新构建。
+
+:This support unit entry is ROM-only in decomp mode.
+在反编译模式下，此支援单位条目仅限ROM。
+
+:This support attribute entry is ROM-only in decomp mode.
+在反编译模式下，此支援属性条目仅限ROM。
+
+:This support talk entry is ROM-only in decomp mode.
+在反编译模式下，此支援对话条目仅限ROM。
+
+:This support unit entry is ROM-only in decomp mode. Edit the source manually and rebuild.
+在反编译模式下，此支援单位条目仅限ROM。请手动编辑源码并重新构建。
+
+:This support attribute entry is ROM-only in decomp mode. Edit the source manually and rebuild.
+在反编译模式下，此支援属性条目仅限ROM。请手动编辑源码并重新构建。
+
+:This support talk entry is ROM-only in decomp mode. Edit the source manually and rebuild.
+在反编译模式下，此支援对话条目仅限ROM。请手动编辑源码并重新构建。
+
+:This support edit targets a field the manifest's fields[] does not declare — edit the source manually and rebuild.
+此支援编辑针对的字段未在清单的 fields[] 中声明——请手动编辑源码并重新构建。
+
+:Could not resolve this support unit entry id — source write skipped.
+无法解析此支援单位的条目ID——已跳过源码写入。
+
+:Could not resolve this support attribute entry id — source write skipped.
+无法解析此支援属性的条目ID——已跳过源码写入。
+
+:Could not resolve this support talk entry id — source write skipped.
+无法解析此支援对话的条目ID——已跳过源码写入。
+
+:Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.
+在反编译模式下，商店数据仅限ROM。请编辑源码/事件脚本并重新构建。
+
+:Some edited support fields map to a macro/expression and were skipped (edit those manually and rebuild). Any other fields were written to source — this entry was NOT fully saved. Skipped:
+部分已编辑的支援字段在源码中对应宏/表达式，已跳过（请手动编辑这些字段并重新构建）。其他字段已写入源码——此条目未完全保存。已跳过:
+
 :map asset
 地图资源
 

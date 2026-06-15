@@ -126,6 +126,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        // ---- #1149: decomp source-backed save-gate fields ----
+
+        /// <summary>
+        /// Snapshot of the source-writable fields at load time (byte-offset keys).
+        /// Used by <see cref="BuildSourceFieldDict"/> to emit ONLY user-changed fields.
+        /// </summary>
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Current entry id (0-based) derived from <see cref="CurrentAddr"/> for the decomp
+        /// source-backed writer. Returns <see cref="U.NOT_FOUND"/> when unresolvable.
+        /// </summary>
+        public uint CurrentEntryId => SupportUnitNavigation.GetSupportUnitEntryIdFromAddr(CoreState.ROM, CurrentAddr, BLOCK_SIZE);
+
+        /// <summary>
+        /// All source-writable scalar fields keyed by lowercase byte-offset name, mapped to the current VM values.
+        /// Byte-offset field-name contract: b0..b23 for FE7/8 (24-byte struct).
+        /// </summary>
+        public Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            return new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "b0",  Partner1 }, { "b1",  Partner2 }, { "b2",  Partner3 },
+                { "b3",  Partner4 }, { "b4",  Partner5 }, { "b5",  Partner6 },
+                { "b6",  Partner7 },
+                { "b7",  InitialValue1 }, { "b8",  InitialValue2 }, { "b9",  InitialValue3 },
+                { "b10", InitialValue4 }, { "b11", InitialValue5 }, { "b12", InitialValue6 },
+                { "b13", InitialValue7 },
+                { "b14", GrowthRate1 }, { "b15", GrowthRate2 }, { "b16", GrowthRate3 },
+                { "b17", GrowthRate4 }, { "b18", GrowthRate5 }, { "b19", GrowthRate6 },
+                { "b20", GrowthRate7 },
+                { "b21", PartnerCount }, { "b22", Separator1 }, { "b23", Separator2 },
+            };
+        }
+
+        /// <summary>
+        /// Returns ONLY the fields whose value differs from the load-time snapshot (#1149).
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in current)
+            {
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline) || baseline != kv.Value)
+                    changed[kv.Key] = kv.Value;
+            }
+            return changed;
+        }
+
+        /// <summary>Re-baseline the snapshot to current values after a successful source-backed write.</summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+        }
+
         public void LoadSupportUnit(uint addr)
         {
             ROM rom = CoreState.ROM;
@@ -167,6 +223,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             CanWrite = true;
+            RefreshSourceFieldSnapshot();
         }
 
         /// <summary>
