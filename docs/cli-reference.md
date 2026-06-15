@@ -15,6 +15,8 @@ The short alias `-h` is equivalent to `--help`.
 
 When invoked with no arguments, the CLI prints help and exits with code 0.
 
+> **Android note:** The Android port is a **GUI build** (Avalonia single-view app), not a CLI command — there are no Android-specific CLI flags. See [docs/ANDROID.md](ANDROID.md) and [docs/CROSS_PLATFORM.md](CROSS_PLATFORM.md) for how the cross-platform builds are produced and run.
+
 ---
 
 ## Global Options
@@ -344,6 +346,157 @@ FEBuilderGBA.CLI --test
 
 ---
 
+## Decomp project mode
+
+These commands operate on a **decomp project directory** (one containing a `febuilder.project.json`
+manifest and a buildable C/JSON source tree) instead of a single `.gba` file. The classic ROM mode
+(`--rom=<path>`) is unchanged; the decomp family below adds a `--project=<dir>` mode that loads the
+project's *built* ROM as a preview and can rewrite the owning source elements (a churn-free diff)
+rather than mutating the ROM directly. A typical workflow is: open the project (`--project`) → resolve
+addresses to symbols (`--resolve-addr`) → classify FEBuilder edits (`--migrate-diff`) → rewrite the
+owning source (`--write-source`) / export assets (`--export-asset`) → rebuild (`--build-project`).
+
+### `--project=<dir>`
+
+Open a decomp project directory and load its built ROM for preview. This is a **modifier**, not a
+standalone command — combine it with `--rom-info` (which then prints a `Mode: Decomp (preview ROM …)`
+line, flagging that the ROM is a source-backed build preview) or with any of the other decomp commands
+below. Classic ROM mode (`--rom=<path>`) is unchanged.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory (containing `febuilder.project.json`). |
+
+```
+FEBuilderGBA.CLI --rom-info --project=decomp/
+```
+
+**Exit code:** no standalone exit code — determined by the command it combines with.
+
+---
+
+### `--resolve-addr=<hex>`
+
+Resolve an address to a decomp project symbol (requires `--project`). Layers the project's
+`.map` / ELF / `.sym` / JSON symbols over the shipped symbol set; this is also what powers the
+Pointer Tool's "What is this address?" lookup.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory whose symbols are layered over the shipped set. |
+| `--resolve-addr=<hex>` | Yes | The address to resolve (e.g., `0x08012345`). |
+
+Output: it first prints `addr=0x........`. **When a symbol resolves**, it additionally prints
+`symbol=...`, `source=<map|elf|sym|json|shipped>`, and `offset=+0x..`. On the no-symbol path (or an
+internal error) it instead prints `symbol=(none)` (preceded by `addr=` if it got that far). The
+`source=` / `offset=` lines do **not** always print — only when a symbol is actually found. This
+command never throws.
+
+```
+FEBuilderGBA.CLI --resolve-addr=0x08012345 --project=decomp/
+```
+
+**Exit code:** always 0.
+
+---
+
+### `--migrate-diff`
+
+Decomp **diff-to-source migration assistant**: classifies the changes between the project's
+built/baseline ROM and a FEBuilder-edited ROM by symbol / category / source / confidence. This is
+**advisory and read-only** — it never writes the ROM or any source file.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory (its built ROM is the baseline). |
+| `--rom2=<editedRom>` | Yes | The FEBuilder-edited ROM, compared against the project's built/baseline ROM. |
+| `--out=<report.tsv>` | No | Write the classified report (range / symbol / category / source / confidence) as TSV. |
+| `--max-gap=<int>` | No | Small-gap merge distance for range coalescing. Default: **16**. |
+
+```
+FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv
+```
+
+**Exit code:** 1 on a usage fault (missing `--project` / `--rom2` / file not found), otherwise 0.
+
+---
+
+### `--write-source`
+
+Rewrite the owning **C/JSON source element** for a structured table entry instead of mutating the
+ROM. This produces a churn-free, minimal diff and marks the project as "needs rebuild".
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory (the table must declare a source owner in `tables[]`). |
+| `--table=<name>` | Yes | Structured table: `items`, `units` (alias `characters`), `classes`, `map_settings`/`chapter`, `support_units`/`support_attributes`/`support_talks`. |
+| `--id=<n>` | Yes | Entry index, in array order. |
+| `--field=<name>` | Yes | C/JSON field to change. **REPEATABLE, ordered** — pair each `--field` with a following `--value`. |
+| `--value=<int>` | Yes | New value for the preceding `--field` (`0x` hex or decimal; signed fields take the two's-complement magnitude). **REPEATABLE.** |
+| `--out-diff=<path>` | No | Write a before/after of the changed source element. |
+
+Unsupported / pointer-like fields fall back to ROM-only / manual handling, and shops are ROM-only.
+
+```
+FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A
+FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7
+```
+
+**Exit code:** 0 on success, non-zero on usage / write fault.
+
+---
+
+### `--export-asset`
+
+Export a ROM asset to a decomp source-tree path. Use the existing dedicated commands
+(`--export-midi`, `--render-portrait` / `--export-portrait-all`, `--export-battle-anime`) for
+music, portraits, and battle animations.
+
+| Option | Required | Description |
+|---|---|---|
+| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `text`. |
+| `--out=<path>` | Yes | Output path (project-relative when `--project`; absolute or relative when `--rom`). |
+| `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
+| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`). |
+| `--palette-addr=<hex>` | Cond. | ROM address of the palette data (required for `graphics`). |
+| `--width=<int>` | Cond. | Image width in pixels (required for `graphics`). |
+| `--height=<int>` | Cond. | Image height in pixels (required for `graphics`). |
+| `--colors=<int>` | No | Palette colors (for `palette` and `graphics`). Default: **16**. |
+| `--bpp=<int>` | No | Bits per pixel for `graphics`: `4` or `8`. Default: **4**. |
+| `--compressed` | No | (graphics only) the source tiles at `--addr` are LZ77-compressed (flag). |
+
+```
+FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out=gfx/palette.pal
+FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
+FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
+FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
+```
+
+**Exit code:** 0 on success, non-zero on usage / export fault.
+
+---
+
+### `--build-project`
+
+Run the decomp project's declared build command (requires `--project`; the manifest
+`febuilder.project.json` must declare a `build` section). **Gated behind `--yes`** — it never runs
+implicitly. Captures the build's stdout/stderr.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory containing `febuilder.project.json` with a `build` section. |
+| `--yes` | Yes | Required to actually execute the build command (explicit opt-in gate). |
+| `--reload` | No | After a successful build, reload the built ROM into CoreState and print version info. |
+| `--timeout=<ms>` | No | Build timeout in milliseconds. Default: **600000** (10 minutes). |
+
+```
+FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes
+```
+
+**Exit code:** 0 on success, non-zero on usage / build fault.
+
+---
+
 ### `--decomp-audit`
 
 Print the maintained decomp **round-trip coverage matrix** (#1150) — which FEBuilder editor/action is source-backed, exporter-migrated, preview-only, manual, or ROM-only. READ-ONLY; never loads a ROM.
@@ -438,11 +591,23 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--lastrom` | — | — | — | — | — | Full |
 | `--force-detail` | — | — | — | — | — | No |
 | `--test` / `--testonly` | Optional | — | — | — | — | Conditional |
+| `--rom-info` | Optional | — | — | — | `--rom` or `--project` | Full |
+| `--project=<dir>` | — | — | — | — | (modifier; combine with another command) | Project |
+| `--resolve-addr=<hex>` | — | — | — | — | `--project` | Project |
+| `--migrate-diff` | — | — | — | Optional | `--project`, `--rom2` | Project |
+| `--write-source` | — | — | — | — | `--project`, `--table`, `--id`, `--field`, `--value` | Project |
+| `--export-asset` | Optional | — | — | Required | `--kind` (+ `--rom` or `--project`) | Project |
+| `--validate-asset` | — | — | Required | — | `--kind` | No |
+| `--build-project` | — | — | — | — | `--project`, `--yes` | Project |
+| `--decomp-audit` | — | — | — | Optional | — | No |
+| `--nmm-to-manifest` | — | — | Required | Optional | — | No |
+| `--manifest-to-nmm` | — | — | — | Optional | `--project`, `--table` | Project |
 
 **ROM init levels:**
 - **No** — command operates on raw files, no ROM object needed.
 - **Partial** — loads ROM for metadata (song table pointer) but not full init.
 - **Full** — calls `RomLoader.InitEnvironment()` + `RomLoader.LoadRom()` + `RomLoader.InitFull()` (Huffman, text, event scripts, caches).
+- **Project** — opens a decomp project via `--project` and loads its *built* ROM (full init); commands that also accept `--rom` fall back to a plain ROM load with that flag.
 - **Conditional** — depends on whether `--rom` is provided.
 
 ---
@@ -521,4 +686,12 @@ FEBuilderGBA.CLI --lastrom
 # Self-test
 FEBuilderGBA.CLI --test --rom=rom.gba
 FEBuilderGBA.CLI --testonly --rom=rom.gba
+
+# Decomp project mode
+FEBuilderGBA.CLI --rom-info --project=decomp/
+FEBuilderGBA.CLI --resolve-addr=0x08012345 --project=decomp/
+FEBuilderGBA.CLI --migrate-diff --project=decomp/ --rom2=edited.gba --out=migrate.tsv
+FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A
+FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
+FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes
 ```
