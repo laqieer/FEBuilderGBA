@@ -11001,3 +11001,12 @@ UPSパッチを保存
 
 :Edit Ending Text
 エンディングテキストの編集
+
+:Action:
+アクション:
+
+:The function routine that runs when a unit performs this action.
+ユニットがこのアクションを実行するときに動作する関数ルーチン。
+
+:Edit Unit Action Pointer
+ユニットアクションポインタの編集

@@ -24839,3 +24839,12 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Ending Text
 编辑结局文本
+
+:Action:
+动作:
+
+:The function routine that runs when a unit performs this action.
+单位执行此动作时运行的函数例程。
+
+:Edit Unit Action Pointer
+编辑单位动作指针
