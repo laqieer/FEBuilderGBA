@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE6View.LoadList failed: " + ex.Message);
+                Log.Error("EDFE6View.LoadList failed: " + ex.ToString());
             }
         }
 
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE6View.OnSelected failed: " + ex.Message);
+                Log.Error("EDFE6View.OnSelected failed: " + ex.ToString());
             }
         }
 
@@ -100,7 +100,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE6View.Write_Click failed: " + ex.Message);
+                _undoService.Rollback();
+                Log.Error("EDFE6View.Write_Click failed: " + ex.ToString());
             }
 
             UpdateUI();
