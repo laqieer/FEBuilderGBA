@@ -1,21 +1,20 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OpenLastSelectedFileView"
-        Title="Open Last Selected File" Width="800" Height="500"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="OpenLastSelectedFile_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
-
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Open Last Selected File" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="OpenLastSelectedFile_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        Title="Open Last Selected File" Width="760" Height="240"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="8">
+    <StackPanel Spacing="12" Margin="8">
+      <TextBlock Text="Open Last Selected File" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Last selected file:" />
+      <TextBox AutomationProperties.AutomationId="OpenLastSelectedFile_Path_Input" Name="PathTextBox"
+               IsReadOnly="True" Watermark="(no file selected)" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button AutomationProperties.AutomationId="OpenLastSelectedFile_Open_Button" Name="OpenButton"
+                Content="Open file" Click="Open_Click" IsEnabled="False" />
+        <Button AutomationProperties.AutomationId="OpenLastSelectedFile_Folder_Button" Name="FolderButton"
+                Content="Open containing folder" Click="Folder_Click" IsEnabled="False" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    </StackPanel>
+  </ScrollViewer>
 </Window>

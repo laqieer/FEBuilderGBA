@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -16,42 +18,72 @@ namespace FEBuilderGBA.Avalonia.Views
         public OpenLastSelectedFileView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) => Refresh();
         }
 
-        void LoadList()
+        void Refresh()
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                _vm.Load();
+                PathTextBox.Text = _vm.LastFile;
+                bool has = _vm.HasFile;
+                OpenButton.IsEnabled = has;
+                FolderButton.IsEnabled = has;
             }
             catch (Exception ex)
             {
-                Log.Error("OpenLastSelectedFileView.LoadList failed: {0}", ex.Message);
+                Log.Error("OpenLastSelectedFileView.Refresh failed: " + ex);
             }
         }
 
-        void OnSelected(uint addr)
+        // Open the last-selected file with its default application (WF U.OpenURLOrFile).
+        void Open_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                if (!_vm.HasFile) return;
+                Process.Start(new ProcessStartInfo(_vm.LastFile) { UseShellExecute = true });
             }
             catch (Exception ex)
             {
-                Log.Error("OpenLastSelectedFileView.OnSelected failed: {0}", ex.Message);
+                Log.Error("OpenLastSelectedFileView.Open_Click failed: " + ex);
             }
         }
 
-        void UpdateUI()
+        // Reveal the file in the system file manager (WF U.SelectFileByExplorer).
+        void Folder_Click(object? sender, RoutedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            try
+            {
+                if (!_vm.HasFile) return;
+                RevealInExplorer(_vm.LastFile);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OpenLastSelectedFileView.Folder_Click failed: " + ex);
+            }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        static void RevealInExplorer(string path)
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
+                }
+                else
+                {
+                    string dir = Path.GetDirectoryName(path) ?? "";
+                    if (!string.IsNullOrEmpty(dir))
+                        Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
+                }
+            }
+            catch { /* reveal is best-effort */ }
+        }
+
+        public void NavigateTo(uint address) { }
+        public void SelectFirstItem() { }
     }
 }
