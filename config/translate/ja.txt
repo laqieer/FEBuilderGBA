@@ -10953,3 +10953,6 @@ UPSパッチを作成しました: {0}
 
 :Save UPS Patch
 UPSパッチを保存
+
+:The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.
+選択したROMはこのゲームの無改造の元ROMではありません（CRC32が一致しません）。正規の無改造ROMを選択してください。

@@ -7,6 +7,7 @@ using System.Text;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -83,6 +84,31 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void SuggestedName_MirrorsWinFormsFormat()
         {
             Assert.Equal("PATCH.20260616123000.ups", ToolUPSPatchSimpleViewModel.SuggestedName("20260616123000"));
+        }
+    }
+
+    // Needs a real ROM so RomInfo.orignal_crc32 is set; skips without ROMs.
+    [Collection("SharedState")]
+    public class ToolUPSPatchSimpleRomValidationTests : IClassFixture<RomFixture>
+    {
+        readonly RomFixture _fixture;
+        readonly ITestOutputHelper _output;
+        public ToolUPSPatchSimpleRomValidationTests(RomFixture fixture, ITestOutputHelper output)
+        { _fixture = fixture; _output = output; }
+
+        [Fact]
+        public void MakeUps_WrongOriginal_ReturnsOriginalNotMatching()
+        {
+            if (!_fixture.IsAvailable) { _output.WriteLine("SKIP: no ROM available"); return; }
+            string wrong = Path.Combine(Path.GetTempPath(), "feb_ups_wrong_" + Guid.NewGuid().ToString("N") + ".gba");
+            try
+            {
+                // Zeros -> CRC32 won't match the loaded game's known-original CRC32.
+                File.WriteAllBytes(wrong, new byte[0x1000]);
+                var vm = new ToolUPSPatchSimpleViewModel();
+                Assert.Equal(ToolUPSPatchSimpleViewModel.MakeResult.OriginalNotMatching, vm.MakeUps(wrong, "out.ups"));
+            }
+            finally { try { File.Delete(wrong); } catch { } }
         }
     }
 }

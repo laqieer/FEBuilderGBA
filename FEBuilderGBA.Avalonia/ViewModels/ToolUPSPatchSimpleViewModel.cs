@@ -20,7 +20,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string OriginalRom { get => _originalRom; set => SetField(ref _originalRom, value); }
         public string Status { get => _status; set => SetField(ref _status, value); }
 
-        public enum MakeResult { Ok, NoRom, OriginalMissing, OriginalUnreadable, Error }
+        public enum MakeResult { Ok, NoRom, OriginalMissing, OriginalUnreadable, OriginalNotMatching, Error }
 
         /// <summary>
         /// Best-effort auto-find of a clean original ROM near the loaded ROM
@@ -33,11 +33,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null || string.IsNullOrEmpty(rom.Filename)) return "";
+                uint targetCrc = rom.RomInfo.orignal_crc32;
+                if (targetCrc == 0) return "";
                 string dir = Path.GetDirectoryName(rom.Filename) ?? "";
-                string found = ToolTranslateROMCore.FindOrignalROMByLang(
-                    dir, CoreState.Language ?? "en", rom.RomInfo.version, "", rom.Filename, "") ?? "";
-                // Never suggest the loaded ROM as its own "original" — diffing a ROM
-                // against itself yields an empty patch (and the path is the user's own).
+                // Find the clean ROM by the loaded ROM's known-original CRC32 — language-
+                // INDEPENDENT (a by-language search depends on the UI locale, which may not
+                // match the ROM's region) and only ever returns the CORRECT original.
+                string found = ToolTranslateROMCore.FindOrignalROMByCRC32(dir, targetCrc, "", rom.Filename, "") ?? "";
+                // If the loaded ROM is itself unmodified it would match; don't suggest it as
+                // its own original (diffing a ROM against itself yields an empty patch).
                 if (!string.IsNullOrEmpty(found) && SamePath(found, rom.Filename)) return "";
                 return found;
             }
@@ -64,6 +68,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try { src = File.ReadAllBytes(originalPath); }
             catch { return MakeResult.OriginalUnreadable; }
             if (src.Length == 0) return MakeResult.OriginalUnreadable;
+
+            // Verify the selected file IS the unmodified original for the loaded game: its
+            // CRC32 must equal the loaded ROM's known-original CRC32 (mirrors WF
+            // CheckOrignalROM). A UPS built from the wrong/already-modified ROM is unusable
+            // by others. (RomInfo can be null in headless tests — skip the check then.)
+            uint targetCrc = rom.RomInfo?.orignal_crc32 ?? 0;
+            if (targetCrc != 0 && new UPSUtilCore.CRC32().Calc(src) != targetCrc)
+                return MakeResult.OriginalNotMatching;
 
             try
             {

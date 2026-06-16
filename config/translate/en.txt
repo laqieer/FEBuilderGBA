@@ -20134,3 +20134,6 @@ UPS patch created: {0}
 
 :Save UPS Patch
 Save UPS Patch
+
+:The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.
+The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.

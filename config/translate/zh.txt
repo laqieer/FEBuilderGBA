@@ -24791,3 +24791,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Save UPS Patch
 保存 UPS 补丁
+
+:The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.
+所选 ROM 不是此游戏的未修改原版（CRC32 不匹配）。请选择正版的原始 ROM。

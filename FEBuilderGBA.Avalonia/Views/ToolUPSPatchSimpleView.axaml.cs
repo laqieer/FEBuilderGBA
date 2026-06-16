@@ -66,6 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     ToolUPSPatchSimpleViewModel.MakeResult.NoRom => R._("No ROM is loaded."),
                     ToolUPSPatchSimpleViewModel.MakeResult.OriginalMissing => R._("Please select a valid original (unmodified) ROM."),
                     ToolUPSPatchSimpleViewModel.MakeResult.OriginalUnreadable => R._("The original ROM could not be read."),
+                    ToolUPSPatchSimpleViewModel.MakeResult.OriginalNotMatching => R._("The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM."),
                     _ => R._("Failed to create the UPS patch."),
                 };
                 if (result == ToolUPSPatchSimpleViewModel.MakeResult.Ok)
