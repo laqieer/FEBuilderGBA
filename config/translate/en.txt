@@ -20101,3 +20101,39 @@ Flag name
 
 :Reset to default
 Reset to default
+
+:Create a UPS patch that turns the original (unmodified) ROM into the currently-loaded ROM.
+Create a UPS patch that turns the original (unmodified) ROM into the currently-loaded ROM.
+
+:Original (unmodified) ROM:
+Original (unmodified) ROM:
+
+:Path to the clean ROM
+Path to the clean ROM
+
+:Select…
+Select…
+
+:Create UPS patch…
+Create UPS patch…
+
+:Please select a valid original (unmodified) ROM.
+Please select a valid original (unmodified) ROM.
+
+:No ROM is loaded.
+No ROM is loaded.
+
+:The original ROM could not be read.
+The original ROM could not be read.
+
+:Failed to create the UPS patch.
+Failed to create the UPS patch.
+
+:UPS patch created: {0}
+UPS patch created: {0}
+
+:Save UPS Patch
+Save UPS Patch
+
+:The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.
+The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM.
