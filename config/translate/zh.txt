@@ -24716,3 +24716,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Test Play This Version in Emulator
 在模拟器中试玩此版本
 
+:{0} change(s)
+{0}处更改
+

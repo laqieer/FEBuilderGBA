@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Localized timestamp, or empty for the "latest" sentinel row.</summary>
         public string TimeText { get; }
 
-        /// <summary>Number of modified address ranges in this snapshot, or "-" for the sentinel row.</summary>
+        /// <summary>Localized "N change(s)" label for this snapshot, or "-" for the sentinel row.</summary>
         public string ChangeCountText { get; }
 
         public UndoEntryRowViewModel(int position, string displayName, bool isCurrent, string timeText, string changeCountText)
@@ -85,12 +85,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string name = undo.MakeName(pos, showAllowMark: false);
 
                 string timeText = "";
+                // Localized fully-formatted label ("-" for the sentinel row). Built
+                // here via R._ rather than an AXAML StringFormat, because the Avalonia
+                // translation pass only translates Text/Header/Content/Title/Watermark/
+                // ToolTip values — a StringFormat suffix like "change(s)" would stay
+                // English in ja/zh (Copilot PR #1206 review).
                 string changeText = "-";
                 if (pos < count)
                 {
                     Undo.UndoData ud = undo.UndoBuffer[pos];
                     timeText = ud.time.ToString();
-                    changeText = ud.list.Count.ToString();
+                    changeText = R._("{0} change(s)", ud.list.Count);
                 }
 
                 var row = new UndoEntryRowViewModel(pos, name, isCurrent, timeText, changeText);

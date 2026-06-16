@@ -162,7 +162,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(0, dataRow.Position);
             Undo.UndoData ud = CoreState.Undo!.UndoBuffer[0];
             Assert.Equal(ud.time.ToString(), dataRow.TimeText);
-            Assert.Equal(ud.list.Count.ToString(), dataRow.ChangeCountText);
+            // Localized "N change(s)" label (R._ key "{0} change(s)").
+            Assert.Equal(R._("{0} change(s)", ud.list.Count), dataRow.ChangeCountText);
+            Assert.Contains(ud.list.Count.ToString(), dataRow.ChangeCountText);
         }
 
         // -----------------------------------------------------------------

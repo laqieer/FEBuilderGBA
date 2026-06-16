@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.Refresh failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.Refresh failed: " + ex.ToString());
             }
         }
 
@@ -69,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.TestPlay_Click failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.TestPlay_Click failed: " + ex.ToString());
             }
         }
 
@@ -102,7 +102,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.RollbackSelectedAsync failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.RollbackSelectedAsync failed: " + ex.ToString());
             }
         }
 
