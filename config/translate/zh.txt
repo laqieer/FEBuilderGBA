@@ -24821,3 +24821,21 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Talk Group
 会话组
+
+:Ending (FE6)
+结局 (FE6)
+
+:Text 1:
+文本1:
+
+:Text 2:
+文本2:
+
+:Text 3:
+文本3:
+
+:Text 4:
+文本4:
+
+:Edit Ending Text
+编辑结局文本
