@@ -14,15 +14,15 @@
                    Text="Select a snapshot, then roll the ROM back to it. The newest state (最新版 / latest) is at the top; &quot;-&gt;&quot; marks the current position." />
 
         <Border BorderBrush="#888888" BorderThickness="1" CornerRadius="3" Padding="10" MinHeight="120">
-          <TextBlock AutomationProperties.AutomationId="ToolUndo_Detail" Name="DetailText"
+          <TextBlock AutomationProperties.AutomationId="ToolUndo_Detail_Label" Name="DetailText"
                      Text="(no snapshot selected)" TextWrapping="Wrap"
                      FontFamily="Consolas,Courier New,monospace" />
         </Border>
 
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <Button AutomationProperties.AutomationId="ToolUndo_Rollback" Name="RollbackButton"
+          <Button AutomationProperties.AutomationId="ToolUndo_Rollback_Button" Name="RollbackButton"
                   Content="Roll back to this version" Click="Rollback_Click" IsEnabled="False" />
-          <Button AutomationProperties.AutomationId="ToolUndo_TestPlay" Name="TestPlayButton"
+          <Button AutomationProperties.AutomationId="ToolUndo_TestPlay_Button" Name="TestPlayButton"
                   Content="Test-play this version" Click="TestPlay_Click" IsEnabled="False" />
         </StackPanel>
       </StackPanel>
