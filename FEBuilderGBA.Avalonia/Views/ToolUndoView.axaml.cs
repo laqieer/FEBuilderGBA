@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.LoadList failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.LoadList failed: " + ex);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.OnSelected failed: " + ex);
             }
         }
 
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.Rollback_Click failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.Rollback_Click failed: " + ex);
             }
         }
 
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUndoView.TestPlay_Click failed: {0}", ex.Message);
+                Log.Error("ToolUndoView.TestPlay_Click failed: " + ex);
             }
         }
 

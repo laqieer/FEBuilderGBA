@@ -24710,3 +24710,18 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Failed to open decomp project:
 打开反编译工程失败:
+
+:Select a snapshot, then roll the ROM back to it.
+选择一个快照，将 ROM 回滚到该状态。
+
+:(no snapshot selected)
+（未选择快照）
+
+:Roll back to this version
+回滚到此版本
+
+:Test-play this version
+试玩此版本
+
+:Revert to this version ({0})?
+回滚到此版本（{0}）吗？
