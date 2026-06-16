@@ -65,9 +65,14 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 const uint flag = 1;   // flag 1 has a shipped base name in every version
                 uint addr = ToolFlagNameViewModel.AddrFromFlag(flag);
+                // The SHIPPED base name — NOT vm.FlagName, which may already hold an on-disk
+                // customization (EtcCacheFLag merges config/etc into Flag). Delete() reverts
+                // to this shipped base, so the assertion must compare against it.
+                EtcCacheFLag.LoadBaseFlagNames().TryGetValue(flag, out string shippedBase);
+                shippedBase ??= "";
+
                 vm.LoadEntry(addr);
                 Assert.True(vm.HasSelection);
-                string baseName = vm.FlagName;
 
                 // Write a custom name -> cache reflects it + it is now "custom".
                 Assert.True(vm.Write(flag, "My Custom Flag"));
@@ -75,10 +80,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal("My Custom Flag", vm.FlagName);
                 Assert.True(vm.IsCustom);
 
-                // Delete -> revert to the shipped base name + no longer custom.
+                // Delete -> revert to the SHIPPED base name + no longer custom.
                 vm.Delete(flag);
                 vm.LoadEntry(addr);
-                Assert.Equal(baseName, vm.FlagName);
+                Assert.Equal(shippedBase, vm.FlagName);
                 Assert.False(vm.IsCustom);
             }
             finally { CoreState.FlagCache = prevCache; }

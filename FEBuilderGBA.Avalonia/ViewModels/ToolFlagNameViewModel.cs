@@ -34,6 +34,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public static uint AddrFromFlag(uint flag) => flag + 1;
         public static uint FlagFromAddr(uint addr) => addr - 1;
 
+        // Mirrors internal U.ToHexString (not accessible from Avalonia): magnitude-padded
+        // hex with NO "0x" prefix, exactly as the WinForms list renders flag addresses.
+        static string ToHexString(uint a) =>
+            a <= 0xff ? a.ToString("X02")
+            : a <= 0xffff ? a.ToString("X04")
+            : a <= 0xffffff ? a.ToString("X06")
+            : a.ToString("X08");
+
         Dictionary<uint, string> BaseFlags => _baseFlags ??= EtcCacheFLag.LoadBaseFlagNames();
 
         string BaseNameOf(uint flag) => BaseFlags.TryGetValue(flag, out string b) ? (b ?? "") : "";
@@ -46,8 +54,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             foreach (AddrResult ar in cache.MakeList())
             {
-                // Display "0xNN name" (matches WinForms ToHexString(addr) + " " + name).
-                string label = ("0x" + ar.addr.ToString("X") + " " + (ar.name ?? "")).TrimEnd();
+                // Match WinForms: U.ToHexString(addr) + " " + name (magnitude-padded hex, no "0x").
+                string label = (ToHexString(ar.addr) + " " + (ar.name ?? "")).TrimEnd();
                 result.Add(new AddrResult(AddrFromFlag(ar.addr), label, ar.addr));
             }
             return result;

@@ -53,10 +53,10 @@ namespace FEBuilderGBA
         }
         public void Save(string romBaseFilename)
         {
-            if (this.EtcFlag.Count >= 1)
-            {
-                U.SaveConfigEtcTSV1("flag_", this.EtcFlag, romBaseFilename);
-            }
+            // Always delegate: SaveConfigEtcTSV1 DELETES the per-ROM file when EtcFlag is
+            // empty, so clearing the last customization removes the stale on-disk config
+            // instead of leaving it behind (#1191). Writing an empty file is also harmless.
+            U.SaveConfigEtcTSV1("flag_", this.EtcFlag, romBaseFilename);
         }
 
         /// <summary>
