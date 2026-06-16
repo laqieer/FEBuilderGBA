@@ -20182,3 +20182,12 @@ Text 4:
 
 :Edit Ending Text
 Edit Ending Text
+
+:Action:
+Action:
+
+:The function routine that runs when a unit performs this action.
+The function routine that runs when a unit performs this action.
+
+:Edit Unit Action Pointer
+Edit Unit Action Pointer

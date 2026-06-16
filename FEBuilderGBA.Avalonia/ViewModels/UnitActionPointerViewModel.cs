@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using FEBuilderGBA.Avalonia.Services;
@@ -20,10 +21,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
         uint _p0;
+        uint _actionId;
+        string _actionName = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
+
+        /// <summary>1-based action id of the selected entry (WinForms: non-rework ids start at 1).</summary>
+        public uint ActionId { get => _actionId; set => SetField(ref _actionId, value); }
+
+        /// <summary>Human-readable action name from the <c>unitaction_</c> resource (empty if none).</summary>
+        public string ActionName { get => _actionName; set => SetField(ref _actionName, value); }
 
         /// <summary>
         /// Resolve the base address of the unit action pointer table.
@@ -46,6 +55,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = ResolveBaseAddress(rom);
             if (baseAddr == 0) return new List<AddrResult>();
 
+            var actionNames = LoadActionNames();
+
             return EditorFormRef.BuildListWithCount(rom, baseAddr, EntrySize,
                 (i, addr) =>
                 {
@@ -54,9 +65,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 },
                 (i, addr) =>
                 {
-                    // WinForms starts at id=1 for non-reworked; we use 0-based index here
+                    // WinForms starts at id=1 for non-reworked; we use 0-based index here.
                     uint id = (uint)(i + 1);
-                    return $"{U.ToHexString(id)} Action {id}";
+                    return MakeLabel(id, actionNames);
                 });
         }
 
@@ -68,7 +79,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             P0 = values["P0"];
+
+            // Recover the 1-based action id from the offset within the table and resolve its name.
+            uint baseAddr = ResolveBaseAddress(rom);
+            ActionId = (baseAddr != 0 && addr >= baseAddr) ? (addr - baseAddr) / EntrySize + 1 : 0;
+            ActionName = ActionId != 0 ? U.at(LoadActionNames(), ActionId) : "";
+
             IsLoaded = true;
+        }
+
+        /// <summary>Load the version-specific unit-action name dictionary (empty on any failure).</summary>
+        static Dictionary<uint, string> LoadActionNames()
+        {
+            try { return U.LoadDicResource(U.ConfigDataFilename("unitaction_")); }
+            catch { return new Dictionary<uint, string>(); }
+        }
+
+        /// <summary>List label mirroring WinForms: hex id + action name (falls back to "Action N").</summary>
+        static string MakeLabel(uint id, Dictionary<uint, string> actionNames)
+        {
+            string name = U.at(actionNames, id);
+            return string.IsNullOrEmpty(name)
+                ? U.ToHexString(id) + " Action " + id
+                : U.ToHexString(id) + " " + name;
         }
 
         public void WriteEntry()
