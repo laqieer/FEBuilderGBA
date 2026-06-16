@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MapMiniMapTerrainImageViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _loading;
+        bool _syncing;
 
         public string ViewTitle => "Mini-Map Terrain";
         public bool IsLoaded => _vm.IsLoaded;
@@ -22,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteButton.Click += OnWrite;
             TileArrayCombo.ItemsSource = _vm.OptionLabels;
             TileArrayCombo.SelectionChanged += OnComboChanged;
+            PointerBox.ValueChanged += OnPointerChanged;
             Opened += (_, _) => LoadList();
         }
 
@@ -81,10 +83,21 @@ namespace FEBuilderGBA.Avalonia.Views
         // Selecting a known tile array sets the pointer field to its value.
         void OnComboChanged(object? sender, SelectionChangedEventArgs e)
         {
-            if (_loading) return;
+            if (_loading || _syncing) return;
             int idx = TileArrayCombo.SelectedIndex;
             if (idx < 0) return;
-            PointerBox.Value = _vm.GetOptionValue(idx);
+            _syncing = true;
+            try { PointerBox.Value = _vm.GetOptionValue(idx); }
+            finally { _syncing = false; }
+        }
+
+        // Editing the pointer manually re-selects the matching preset (or clears it).
+        void OnPointerChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_loading || _syncing) return;
+            _syncing = true;
+            try { TileArrayCombo.SelectedIndex = _vm.GetOptionIndex((uint)(PointerBox.Value ?? 0)); }
+            finally { _syncing = false; }
         }
 
         void OnWrite(object? sender, RoutedEventArgs e)

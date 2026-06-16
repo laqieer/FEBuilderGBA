@@ -24,8 +24,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _p0;
         string _tileArrayName = string.Empty;
 
-        List<uint> _optionValues;
-        List<string> _optionLabels;
+        List<uint> _optionValues = new();
+        List<string> _optionLabels = new();
+        bool _optionsLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -107,19 +108,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         void EnsureOptions()
         {
-            if (_optionLabels != null) return;
-            _optionValues = new List<uint>();
-            _optionLabels = new List<string>();
+            if (_optionsLoaded) return;
+
+            // Without a ROM there is no version to resolve the resource file for — leave the
+            // presets empty (without marking them loaded, so a later call with a ROM retries)
+            // rather than caching a versionless fallback.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
 
             Dictionary<uint, string> dic;
-            try { dic = U.LoadDicResource(U.ConfigDataFilename("map_minimap_tile_array_")); }
+            try { dic = U.LoadDicResource(U.ConfigDataFilename("map_minimap_tile_array_", rom)); }
             catch { dic = new Dictionary<uint, string>(); }
 
+            _optionValues.Clear();
+            _optionLabels.Clear();
             foreach (var kv in dic)
             {
                 _optionValues.Add(kv.Key);
                 _optionLabels.Add(U.ToHexString(kv.Key) + " " + CleanName(kv.Value));
             }
+            _optionsLoaded = true;
         }
 
         string ResolveName(uint value)
