@@ -24803,3 +24803,18 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Open containing folder
 打开所在文件夹
+
+:Unit Talk Group
+单位会话组
+
+:Player units grouped by their talk-group id; units sharing a non-zero talk group converse as a set. Read-only (FE7/FE8).
+按会话组 ID 分组显示玩家单位；共享同一非零会话组的单位会作为一组对话。只读（FE7/FE8）。
+
+:(select a talk group)
+（请选择一个会话组）
+
+:(no units in this talk group)
+（此会话组中没有单位）
+
+:Talk groups are available on FE7 / FE8 only.
+会话组仅在 FE7/FE8 中可用。

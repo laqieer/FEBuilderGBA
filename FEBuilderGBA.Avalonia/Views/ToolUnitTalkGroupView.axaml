@@ -2,19 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUnitTalkGroupView"
-        Title="Talk Group Editor" Width="1081" Height="558"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+        Title="Unit Talk Group" Width="820" Height="540"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ToolUnitTalkGroup_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Talk Group Editor" FontSize="18" FontWeight="Bold" />
+      <StackPanel Spacing="10" Margin="8">
+        <TextBlock Text="Unit Talk Group" FontSize="18" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                   Text="Player units grouped by their talk-group id; units sharing a non-zero talk group converse as a set. Read-only (FE7/FE8)." />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUnitTalkGroup_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <Border BorderBrush="#888888" BorderThickness="1" CornerRadius="3" Padding="10" MinHeight="200">
+          <TextBlock AutomationProperties.AutomationId="ToolUnitTalkGroup_Detail_Label" Name="DetailText"
+                     Text="(select a talk group)" TextWrapping="Wrap"
+                     FontFamily="Consolas,Courier New,monospace" />
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

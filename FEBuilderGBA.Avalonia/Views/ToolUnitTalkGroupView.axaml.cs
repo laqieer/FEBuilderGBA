@@ -10,7 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ToolUnitTalkGroupViewModel _vm = new();
 
-        public string ViewTitle => "Talk Group Editor";
+        public string ViewTitle => "Unit Talk Group";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolUnitTalkGroupView()
@@ -26,10 +26,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                if (items.Count == 0)
+                {
+                    // FE6 (or no ROM): no talk groups to show.
+                    _vm.IsLoaded = true;
+                    DetailText.Text = R._("Talk groups are available on FE7 / FE8 only.");
+                }
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUnitTalkGroupView.LoadList failed: {0}", ex.Message);
+                Log.Error("ToolUnitTalkGroupView.LoadList failed: " + ex);
             }
         }
 
@@ -38,17 +44,14 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
-                UpdateUI();
+                DetailText.Text = string.IsNullOrEmpty(_vm.Detail)
+                    ? R._("(no units in this talk group)")
+                    : _vm.Detail;
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUnitTalkGroupView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ToolUnitTalkGroupView.OnSelected failed: " + ex);
             }
-        }
-
-        void UpdateUI()
-        {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

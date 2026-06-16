@@ -20146,3 +20146,18 @@ Open file
 
 :Open containing folder
 Open containing folder
+
+:Unit Talk Group
+Unit Talk Group
+
+:Player units grouped by their talk-group id; units sharing a non-zero talk group converse as a set. Read-only (FE7/FE8).
+Player units grouped by their talk-group id; units sharing a non-zero talk group converse as a set. Read-only (FE7/FE8).
+
+:(select a talk group)
+(select a talk group)
+
+:(no units in this talk group)
+(no units in this talk group)
+
+:Talk groups are available on FE7 / FE8 only.
+Talk groups are available on FE7 / FE8 only.
