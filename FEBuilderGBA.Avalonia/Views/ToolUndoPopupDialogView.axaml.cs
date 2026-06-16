@@ -20,6 +20,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        /// <summary>Set the version label/prompt (mirrors WinForms ToolUndoPopupDialogForm.Init).</summary>
+        public void Init(string version) => _vm.Init(version);
+
         void TestPlay_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "TestPlay";
