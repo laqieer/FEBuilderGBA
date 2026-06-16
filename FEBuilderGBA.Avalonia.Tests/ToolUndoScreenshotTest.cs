@@ -15,6 +15,7 @@ using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Media.Imaging;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.SkiaSharp;
 using Xunit;
@@ -69,6 +70,43 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.Undo = prevUndo;
                 CoreState.ROM = prevRom;
                 CoreState.ImageService = prevImageService;
+            }
+        }
+
+        // #1207 review: LoadList must highlight the CURRENT undo position (parity
+        // with WinForms ToolUndoForm.Redraw), not always HEAD.
+        [AvaloniaFact]
+        public void UndoHistoryTool_HighlightsCurrentUndoPosition_NotHead()
+        {
+            var prevUndo = CoreState.Undo;
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x4000]);
+                CoreState.ROM = rom;
+
+                var undo = new Undo();
+                undo.Push(undo.NewUndoData("Edit A"));
+                undo.Push(undo.NewUndoData("Edit B"));
+                undo.Push(undo.NewUndoData("Edit C"));   // Postion = 3 (HEAD)
+                undo.Rollback(1);                          // roll the ROM back -> Postion = 1
+                CoreState.Undo = undo;
+                Assert.Equal(1, undo.Postion);
+
+                var view = new ToolUndoView();
+                Invoke(view, "LoadList");
+
+                var list = view.FindControl<AddressListControl>("EntryList");
+                Assert.NotNull(list);
+                Assert.NotNull(list!.SelectedItem);
+                // Current position is pos 1 -> addr (pos+1); NOT HEAD (pos 3).
+                Assert.Equal(ToolUndoViewModel.AddrFromPos(1), list.SelectedItem!.addr);
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+                CoreState.ROM = prevRom;
             }
         }
 

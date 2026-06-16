@@ -25,7 +25,21 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);   // auto-selects first (HEAD) -> OnSelected -> UpdateUI
+                EntryList.SetItems(items);   // SetItems auto-selects the first item (HEAD)
+                var undo = CoreState.Undo;
+                if (undo != null && items.Count > 0)
+                {
+                    // Parity with WinForms ToolUndoForm.Redraw: highlight the CURRENT
+                    // undo position (where the ROM actually is), not the newest snapshot.
+                    EntryList.SelectAddress(ToolUndoViewModel.AddrFromPos(undo.Postion));
+                }
+                else
+                {
+                    // Empty buffer (no active undo): reset the panel + buttons so nothing
+                    // stale lingers from a previous ROM (no selection event fires here).
+                    _vm.LoadEntry(0);   // null-undo path clears SelectedInfo + disables actions
+                    UpdateUI();
+                }
             }
             catch (Exception ex)
             {
