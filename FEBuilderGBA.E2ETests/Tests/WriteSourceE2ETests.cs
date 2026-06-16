@@ -585,10 +585,10 @@ namespace FEBuilderGBA.E2ETests.Tests
                 string srcDir = Path.Combine(projectDir, "src");
                 Directory.CreateDirectory(srcDir);
                 string srcAbs = Path.Combine(srcDir, "support.c");
-                // b0 slot is a MACRO token (unwritable).
+                // b0 AND b1 slots are MACRO tokens (unwritable) — a genuine BULK all-skipped scenario.
                 string content =
                     "const SupportData gSupportData[] = {\n" +
-                    "    {SOME_MACRO, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},\n" +
+                    "    {SOME_MACRO, OTHER_MACRO, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},\n" +
                     "};\n";
                 File.WriteAllText(srcAbs, content);
 
@@ -605,8 +605,11 @@ namespace FEBuilderGBA.E2ETests.Tests
                 File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"), manifest);
                 File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
 
-                // Edit ONLY the macro field → all requested fields skipped.
-                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=0x09";
+                // Edit BOTH macro fields → every requested field maps to a macro → all skipped (bulk).
+                // (A single-field macro edit is a HARD UnsupportedField fail by #1159 design; only a
+                //  bulk/multi-field edit routes macro fields to the soft "skipped" no-op path, which is
+                //  what this test's stderr "skipped" + "NeedsRebuild=false" + byte-identical contract asserts.)
+                string args = $"--write-source --project=\"{projectDir}\" --table=support_units --id=0 --field=b0 --value=0x09 --field=b1 --value=0x0A";
                 var (code, stdout, stderr) = RunWithRetry(args);
 
                 Assert.Equal(2, code);
