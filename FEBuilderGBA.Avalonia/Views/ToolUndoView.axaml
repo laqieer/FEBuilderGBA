@@ -2,19 +2,29 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoView"
-        Title="Undo History Viewer" Width="1131" Height="927"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+        Title="Undo History Viewer" Width="900" Height="560"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ToolUndo_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Undo History Viewer" FontSize="18" FontWeight="Bold" />
+      <StackPanel Spacing="10" Margin="8">
+        <TextBlock Text="Undo History" FontSize="18" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                   Text="Select a snapshot, then roll the ROM back to it." />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUndo_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <Border BorderBrush="#888888" BorderThickness="1" CornerRadius="3" Padding="10" MinHeight="120">
+          <TextBlock AutomationProperties.AutomationId="ToolUndo_Detail_Label" Name="DetailText"
+                     Text="(no snapshot selected)" TextWrapping="Wrap"
+                     FontFamily="Consolas,Courier New,monospace" />
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button AutomationProperties.AutomationId="ToolUndo_Rollback_Button" Name="RollbackButton"
+                  Content="Roll back to this version" Click="Rollback_Click" IsEnabled="False" />
+          <Button AutomationProperties.AutomationId="ToolUndo_TestPlay_Button" Name="TestPlayButton"
+                  Content="Test-play this version" Click="TestPlay_Click" IsEnabled="False" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

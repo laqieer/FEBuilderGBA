@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Init(string version)
         {
             VersionName = version;
-            InfoText = $"Revert to this version ({version})?";
+            InfoText = R._("Revert to this version ({0})?", version);
         }
     }
 }
