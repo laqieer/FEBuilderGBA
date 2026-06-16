@@ -24725,3 +24725,24 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Revert to this version ({0})?
 回滚到此版本（{0}）吗？
+
+:latest (HEAD)
+最新版（HEAD）
+
+:(current position)
+（当前位置）
+
+:Position: {0} / {1}
+位置：{0} / {1}
+
+:Time: {0}
+时间：{0}
+
+:Changed regions: {0}
+更改区域：{0}
+
+:File size: {0} bytes
+文件大小：{0} 字节
+
+:[F5 test build]
+[F5 测试构建]

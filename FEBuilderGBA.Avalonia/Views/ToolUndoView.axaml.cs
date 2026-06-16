@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            DetailText.Text = string.IsNullOrEmpty(_vm.SelectedInfo) ? "(no snapshot selected)" : _vm.SelectedInfo;
+            DetailText.Text = string.IsNullOrEmpty(_vm.SelectedInfo) ? R._("(no snapshot selected)") : _vm.SelectedInfo;
             RollbackButton.IsEnabled = _vm.CanRollback;
             TestPlayButton.IsEnabled = _vm.CanTestPlay;
         }

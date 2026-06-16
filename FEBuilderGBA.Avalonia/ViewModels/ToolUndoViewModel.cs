@@ -68,17 +68,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanTestPlay = valid;
         }
 
+        // All user-facing labels go through R._ so the detail panel localizes
+        // (it is set from code-behind, bypassing the window's AXAML translation scan).
         static string BuildInfo(Undo undo, int pos)
         {
-            bool current = pos == undo.Postion;
+            string cur = pos == undo.Postion ? "\n" + R._("(current position)") : "";
+            string posLine = R._("Position: {0} / {1}", pos, undo.UndoBuffer.Count);
             if (pos == undo.UndoBuffer.Count)
-                return $"最新版 / latest (HEAD)\nPosition: {pos} / {undo.UndoBuffer.Count}\nCurrent: {(current ? "yes" : "no")}";
+                return R._("latest (HEAD)") + "\n" + posLine + cur;
 
             Undo.UndoData ud = undo.UndoBuffer[pos];
             int regions = ud.list?.Count ?? 0;
-            string f5 = ud.is_f5test ? "\n[F5 test build]" : "";
-            return $"{ud.name}\nTime: {ud.time}\nChanged regions: {regions}\nFile size: {ud.filesize} bytes{f5}\n"
-                 + $"Position: {pos} / {undo.UndoBuffer.Count}\nCurrent: {(current ? "yes" : "no")}";
+            string f5 = ud.is_f5test ? "\n" + R._("[F5 test build]") : "";
+            return ud.name + "\n"
+                 + R._("Time: {0}", ud.time) + "\n"
+                 + R._("Changed regions: {0}", regions) + "\n"
+                 + R._("File size: {0} bytes", ud.filesize) + f5 + "\n"
+                 + posLine + cur;
         }
 
         /// <summary>The confirm-dialog version label (no current-position marker), like WinForms MakeName(pos,false).</summary>

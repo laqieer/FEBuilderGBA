@@ -20068,3 +20068,24 @@ Test-play this version
 
 :Revert to this version ({0})?
 Revert to this version ({0})?
+
+:latest (HEAD)
+latest (HEAD)
+
+:(current position)
+(current position)
+
+:Position: {0} / {1}
+Position: {0} / {1}
+
+:Time: {0}
+Time: {0}
+
+:Changed regions: {0}
+Changed regions: {0}
+
+:File size: {0} bytes
+File size: {0} bytes
+
+:[F5 test build]
+[F5 test build]
