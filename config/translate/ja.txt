@@ -10965,3 +10965,21 @@ UPSパッチを保存
 
 :Open containing folder
 格納フォルダを開く
+
+:Unit Talk Group
+ユニット会話グループ
+
+:Player units grouped by their talk-group id; units sharing a non-zero talk group converse as a set. Read-only (FE7/FE8).
+会話グループIDごとにプレイヤーユニットをまとめて表示します。0以外の同じ会話グループのユニットはまとめて会話します。読み取り専用（FE7/FE8）。
+
+:(select a talk group)
+(会話グループを選択してください)
+
+:(no units in this talk group)
+(この会話グループにユニットはありません)
+
+:Talk groups are available on FE7 / FE8 only.
+会話グループはFE7/FE8のみ対応しています。
+
+:Talk Group
+会話グループ
