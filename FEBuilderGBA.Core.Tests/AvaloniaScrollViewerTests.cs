@@ -37,6 +37,7 @@ namespace FEBuilderGBA.Core.Tests
             "NotifyPleaseWaitView.axaml",  // Simple progress indicator
             "EasyModePanel.axaml",          // UserControl, not Window
             "EventScriptView.axaml",        // Uses internal ListBox + TextBox with own scrolling
+            "ToolUndoView.axaml",           // Undo history tool: ListBox provides its own scrolling (#1190)
         };
 
         [Fact]

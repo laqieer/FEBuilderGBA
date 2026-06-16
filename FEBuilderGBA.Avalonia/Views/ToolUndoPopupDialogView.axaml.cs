@@ -20,6 +20,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        /// <summary>
+        /// Set the version name shown in the confirmation prompt before the dialog
+        /// is shown. Mirrors WinForms <c>ToolUndoPopupDialogForm.Init(version)</c>;
+        /// called by <see cref="ToolUndoView"/> prior to <c>ShowDialog</c> (#1190).
+        /// </summary>
+        public void Init(string version) => _vm.Init(version);
+
         void TestPlay_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "TestPlay";

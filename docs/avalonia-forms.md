@@ -564,7 +564,7 @@ Miscellaneous tools for ROM management, lint, diff, UPS, and more.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 319 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
+| 319 | ToolUndoView | ToolUndoViewModel | Undo history list (newest-first) with rollback / test-play, parity with WinForms ToolUndoForm (#1190) |
 | 320 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
 | 321 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool |
 | 322 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |

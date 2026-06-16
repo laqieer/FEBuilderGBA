@@ -24710,3 +24710,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Failed to open decomp project:
 打开反编译工程失败:
+:Undo History (newest on top)
+修改历史(最新在上)
+
+:Test Play This Version in Emulator
+在模拟器中试玩此版本
+

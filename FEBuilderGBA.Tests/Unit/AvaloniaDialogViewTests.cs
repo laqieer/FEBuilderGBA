@@ -754,6 +754,65 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("DialogResult", src);
         }
 
+        [Fact]
+        public void ToolUndoPopupDialog_View_ExposesInitPassthrough()
+        {
+            // ToolUndoView calls popup.Init(version) before ShowDialog to keep
+            // WinForms ToolUndoPopupDialogForm.Init(version) parity (#1190).
+            var src = ReadView("ToolUndoPopupDialogView.axaml.cs");
+            Assert.Contains("public void Init(string version)", src);
+        }
+
+        // --- ToolUndoView (Undo history tool, #1190) ---
+
+        [Fact]
+        public void ToolUndo_Axaml_BindsRealHistoryList()
+        {
+            var src = ReadAxaml("ToolUndoView.axaml");
+            // Real ListBox bound to the history collection (no longer a stub).
+            Assert.Contains("<ListBox", src);
+            Assert.Contains("ItemsSource=\"{Binding Entries}\"", src);
+            Assert.Contains("UndoEntryRowViewModel", src);
+            // Both action buttons (test-play + rollback) with parity AutomationIds.
+            Assert.Contains("ToolUndo_TestPlay_Button", src);
+            Assert.Contains("ToolUndo_Rollback_Button", src);
+            // Newest-first header parity ("履歴(上が最新)").
+            Assert.Contains("newest on top", src);
+        }
+
+        [Fact]
+        public void ToolUndo_View_WiresRollbackAndTestPlay()
+        {
+            var src = ReadView("ToolUndoView.axaml.cs");
+            // Confirm-then-rollback flow through the existing popup dialog.
+            Assert.Contains("ToolUndoPopupDialogView", src);
+            Assert.Contains("ShowDialog<string?>", src);
+            Assert.Contains("RunUndo", src);
+            Assert.Contains("TestPlay", src);
+            // Refresh on both Opened and Activated (WinForms Load + Activated).
+            Assert.Contains("Activated", src);
+            Assert.Contains("Opened", src);
+            // Still an IEditorView for the registry + screenshot recipe.
+            Assert.Contains("IEditorView", src);
+            Assert.Contains("SelectFirstItem", src);
+        }
+
+        [Fact]
+        public void ToolUndo_ViewModel_ExposesHistoryMembers()
+        {
+            var src = ReadVM("ToolUndoViewModel.cs");
+            Assert.Contains("ObservableCollection<UndoEntryRowViewModel> Entries", src);
+            Assert.Contains("LoadList()", src);
+            Assert.Contains("RollbackPositionFor", src);
+            Assert.Contains("TestPlayPositionFor", src);
+            Assert.Contains("MakeVersionName", src);
+            Assert.Contains("DoRollback", src);
+            Assert.Contains("DoTestPlay", src);
+            // Reads the Core Undo buffer (parity with WinForms Program.Undo.UndoBuffer).
+            Assert.Contains("UndoBuffer", src);
+            Assert.Contains("MakeName", src);
+        }
+
         // --- ToolChangeProjectnameView (#269) ---
 
         [Fact]

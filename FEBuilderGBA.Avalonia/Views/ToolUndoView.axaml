@@ -1,21 +1,45 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:vm="using:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUndoView"
-        Title="Undo History Viewer" Width="1131" Height="927"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolUndo_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Undo History Viewer" Width="900" Height="700"
+        SizeToContent="Manual">
+  <DockPanel Margin="12">
+    <!-- Header (WinForms label30 "履歴(上が最新)") -->
+    <TextBlock DockPanel.Dock="Top" Text="Undo History (newest on top)"
+               FontSize="16" FontWeight="Bold" Margin="0,0,0,8"
+               HorizontalAlignment="Center" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Undo History Viewer" FontSize="18" FontWeight="Bold" />
+    <!-- Action buttons (WinForms testplayButton + rollbackButton) -->
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,8,Auto" Margin="0,8,0,0">
+      <Button AutomationProperties.AutomationId="ToolUndo_TestPlay_Button" Grid.Column="0"
+              Name="TestPlayButton" Content="Test Play This Version in Emulator"
+              Height="36" HorizontalAlignment="Stretch" Click="TestPlay_Click" />
+      <Button AutomationProperties.AutomationId="ToolUndo_Rollback_Button" Grid.Column="2"
+              Name="RollbackButton" Content="Revert to This Version"
+              Height="36" Width="280" Click="Rollback_Click" />
+    </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUndo_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    <!-- History list -->
+    <ListBox AutomationProperties.AutomationId="ToolUndo_Entry_List"
+             Name="EntryList" ItemsSource="{Binding Entries}"
+             SelectionChanged="EntryList_SelectionChanged"
+             DoubleTapped="EntryList_DoubleTapped">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:UndoEntryRowViewModel">
+          <Grid ColumnDefinitions="24,*,Auto" Margin="0,2">
+            <!-- Current-position marker (WinForms "->" prefix) -->
+            <TextBlock Grid.Column="0" Text="▶" VerticalAlignment="Center"
+                       FontWeight="Bold" Foreground="DodgerBlue"
+                       IsVisible="{Binding IsCurrent}" />
+            <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                       VerticalAlignment="Center" TextWrapping="NoWrap" />
+            <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                       FontSize="11" Foreground="Gray"
+                       Text="{Binding ChangeCountText, StringFormat='{}{0} change(s)'}" />
+          </Grid>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </DockPanel>
 </Window>
