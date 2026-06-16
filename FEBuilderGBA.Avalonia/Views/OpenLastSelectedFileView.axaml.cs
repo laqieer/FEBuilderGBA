@@ -65,22 +65,20 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // No try/catch here — Folder_Click's handler catches + LOGS any failure (a silent
+        // swallow here would hide platform-specific errors and make the caller's catch moot).
         static void RevealInExplorer(string path)
         {
-            try
+            if (OperatingSystem.IsWindows())
             {
-                if (OperatingSystem.IsWindows())
-                {
-                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
-                }
-                else
-                {
-                    string dir = Path.GetDirectoryName(path) ?? "";
-                    if (!string.IsNullOrEmpty(dir))
-                        Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
-                }
+                Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
             }
-            catch { /* reveal is best-effort */ }
+            else
+            {
+                string dir = Path.GetDirectoryName(path) ?? "";
+                if (!string.IsNullOrEmpty(dir))
+                    Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
+            }
         }
 
         public void NavigateTo(uint address) { }
