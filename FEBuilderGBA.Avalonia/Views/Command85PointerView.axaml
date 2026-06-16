@@ -11,10 +11,20 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Command 0x85 Pointer" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="Command85Pointer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="160,260" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="Command85Pointer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Command:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="Command85Pointer_Command_Label" Grid.Row="1" Grid.Column="1" Name="CommandLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Function Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="Command85Pointer_Pointer_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="PointerBox" Minimum="0" Maximum="4294967295" Increment="1" Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="The function routine called by event command 0x85 for this command code." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button AutomationProperties.AutomationId="Command85Pointer_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

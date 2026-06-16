@@ -11010,3 +11010,9 @@ UPSパッチを保存
 
 :Edit Unit Action Pointer
 ユニットアクションポインタの編集
+
+:The function routine called by event command 0x85 for this command code.
+このコマンドコードに対してイベントコマンド0x85が呼び出す関数ルーチン。
+
+:Edit Command 0x85 Pointer
+コマンド0x85ポインタの編集
