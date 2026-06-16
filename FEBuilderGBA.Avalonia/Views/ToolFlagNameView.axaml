@@ -2,19 +2,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolFlagNameView"
-        Title="Flag Name Editor" Width="987" Height="842"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+        Title="Flag Name Editor" Width="900" Height="560"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="300,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ToolFlagName_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+      <StackPanel Spacing="10" Margin="8">
         <TextBlock Text="Flag Name Editor" FontSize="18" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                   Text="Assign a human-readable name to the selected event flag." />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolFlagName_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="80,*">
+          <TextBlock Grid.Column="0" Text="Flag:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolFlagName_Flag_Label" Grid.Column="1"
+                     Name="FlagLabel" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" />
         </Grid>
+
+        <TextBox AutomationProperties.AutomationId="ToolFlagName_Name_Input" Name="FlagNameTextBox"
+                 Watermark="Flag name" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button AutomationProperties.AutomationId="ToolFlagName_Write_Button" Name="WriteButton"
+                  Content="Write" Click="Write_Click" IsEnabled="False" />
+          <Button AutomationProperties.AutomationId="ToolFlagName_Delete_Button" Name="DeleteButton"
+                  Content="Reset to default" Click="Delete_Click" IsEnabled="False" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

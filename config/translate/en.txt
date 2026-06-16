@@ -20089,3 +20089,15 @@ File size: {0} bytes
 
 :[F5 test build]
 [F5 test build]
+
+:Assign a human-readable name to the selected event flag.
+Assign a human-readable name to the selected event flag.
+
+:Flag:
+Flag:
+
+:Flag name
+Flag name
+
+:Reset to default
+Reset to default

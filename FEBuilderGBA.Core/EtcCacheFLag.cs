@@ -53,10 +53,21 @@ namespace FEBuilderGBA
         }
         public void Save(string romBaseFilename)
         {
-            if (this.EtcFlag.Count >= 1)
-            {
-                U.SaveConfigEtcTSV1("flag_", this.EtcFlag, romBaseFilename);
-            }
+            // Always delegate: SaveConfigEtcTSV1 DELETES the per-ROM file when EtcFlag is
+            // empty, so clearing the last customization removes the stale on-disk config
+            // instead of leaving it behind (#1191). Writing an empty file is also harmless.
+            U.SaveConfigEtcTSV1("flag_", this.EtcFlag, romBaseFilename);
+        }
+
+        /// <summary>
+        /// Load the SHIPPED base flag names (config/data/flag_*.txt) WITHOUT any user
+        /// customizations. The Flag-Name tool needs these to detect a custom name
+        /// (current != base) and to revert (pass as baseName to <see cref="Update"/>).
+        /// Mirrors what WinForms ToolFlagNameForm loads into its BaseFlag dict. (#1191)
+        /// </summary>
+        public static Dictionary<uint, string> LoadBaseFlagNames()
+        {
+            return U.LoadDicResource(U.ConfigDataFilename("flag_"));
         }
 
         public List<AddrResult> MakeList()
