@@ -12,7 +12,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// global ending-event pointers. Per-entry event pointers and the two endings are read in
     /// offset form (<c>p32</c>) and written back via <c>write_p32</c> (mask re-applied).
     /// </summary>
-    public class WorldMapEventPointerFE7ViewModel : ViewModelBase, IDataVerifiable
+    public class WorldMapEventPointerFE7ViewModel : ViewModelBase
     {
         public const uint EntrySize = 4;
 
@@ -106,31 +106,5 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadList().Count;
-
-        public Dictionary<string, string> GetDataReport()
-        {
-            return new Dictionary<string, string>
-            {
-                ["addr"] = $"0x{CurrentAddr:X08}",
-                ["EventPointer"] = $"0x{EventPointer:X08}",
-            };
-        }
-
-        public Dictionary<string, string> GetRawRomReport()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
-            uint a = CurrentAddr;
-            return new Dictionary<string, string>
-            {
-                ["addr"] = $"0x{a:X08}",
-                ["p32@0x00"] = $"0x{rom.p32(a):X08}",
-            };
-        }
-
-        public Dictionary<string, string> GetFieldOffsetMap() => new()
-        {
-            ["EventPointer"] = "p32@0x00",
-        };
     }
 }
