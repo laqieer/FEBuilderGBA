@@ -24854,3 +24854,12 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Command 0x85 Pointer
 编辑命令0x85指针
+
+:Tile Array:
+图块数组:
+
+:Pointer to the minimap tile-array graphic used for this terrain type.
+指向此地形类型所用小地图图块数组图形的指针。
+
+:Edit Mini-Map Terrain
+编辑小地图地形
