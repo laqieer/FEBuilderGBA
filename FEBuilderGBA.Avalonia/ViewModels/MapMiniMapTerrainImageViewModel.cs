@@ -1,16 +1,46 @@
+using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Mini-Map Terrain image editor — port of WinForms <c>MapMiniMapTerrainImageForm</c>.
+    /// The table at <c>p32(RomInfo.map_minimap_tile_array_pointer)</c> holds one 4-byte pointer per
+    /// terrain type (count = <c>map_terrain_type_count</c>); each points at the minimap tile-array
+    /// graphic for that terrain. The pointer is editable directly, and a combo offers the known
+    /// named tile arrays from the version-specific <c>map_minimap_tile_array_</c> resource
+    /// (lines of <c>&lt;pointer&gt;=&lt;name&gt;</c>).
+    /// </summary>
     public class MapMiniMapTerrainImageViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "D0" });
 
+        public const uint EntrySize = 4;
+
+        uint _currentAddr;
+        bool _isLoaded;
+        uint _p0;
+        string _tileArrayName = string.Empty;
+
+        List<uint> _optionValues = new();
+        List<string> _optionLabels = new();
+        bool _optionsLoaded;
+
+        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        /// <summary>The 4-byte tile-array pointer (raw GBA pointer, matching the resource keys).</summary>
+        public uint P0 { get => _p0; set { if (SetField(ref _p0, value)) TileArrayName = ResolveName(value); } }
+        /// <summary>Resolved name of the current pointer from the tile-array resource (empty if custom).</summary>
+        public string TileArrayName { get => _tileArrayName; set => SetField(ref _tileArrayName, value); }
+
+        /// <summary>Combo labels ("0xPOINTER Name") for the known named tile arrays.</summary>
+        public List<string> OptionLabels { get { EnsureOptions(); return _optionLabels; } }
+
         /// <summary>
         /// Load the list of minimap terrain entries from map_minimap_tile_array_pointer.
-        /// Each entry is 4 bytes (a pointer/DWORD), total count = map_terrain_type_count.
+        /// Each entry is 4 bytes (a pointer), total count = map_terrain_type_count.
         /// </summary>
         public List<AddrResult> LoadList()
         {
@@ -24,30 +54,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             int count = (int)rom.RomInfo.map_terrain_type_count;
-            const uint entrySize = 4;
             var result = new List<AddrResult>();
             for (int i = 0; i < count; i++)
             {
-                uint addr = (uint)(baseAddr + i * entrySize);
-                if (addr + entrySize > (uint)rom.Data.Length) break;
+                uint addr = (uint)(baseAddr + i * EntrySize);
+                if (addr + EntrySize > (uint)rom.Data.Length) break;
                 result.Add(new AddrResult(addr, $"0x{i:X02} Terrain {i}", (uint)i));
             }
             return result;
         }
 
-        uint _currentAddr;
-        bool _isLoaded;
-        uint _p0;
-
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint P0 { get => _p0; set => SetField(ref _p0, value); }
-
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 4 > (uint)rom.Data.Length) return;
+            if (addr + EntrySize > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
@@ -55,11 +76,76 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        public void Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            if (CurrentAddr + EntrySize > (uint)rom.Data.Length) return;
+            var values = new Dictionary<string, uint> { ["D0"] = P0 };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
+        }
+
+        /// <summary>Combo index (-1 if none) whose pointer matches <paramref name="value"/>.</summary>
+        public int GetOptionIndex(uint value)
+        {
+            EnsureOptions();
+            return _optionValues.IndexOf(value);
+        }
+
+        /// <summary>Pointer for combo <paramref name="index"/>, or 0 when out of range.</summary>
+        public uint GetOptionValue(int index)
+        {
+            EnsureOptions();
+            return (index >= 0 && index < _optionValues.Count) ? _optionValues[index] : 0;
+        }
+
         public int GetListCount()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
             return (int)rom.RomInfo.map_terrain_type_count;
+        }
+
+        void EnsureOptions()
+        {
+            if (_optionsLoaded) return;
+
+            // Without a ROM there is no version to resolve the resource file for — leave the
+            // presets empty (without marking them loaded, so a later call with a ROM retries)
+            // rather than caching a versionless fallback.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            Dictionary<uint, string> dic;
+            try { dic = U.LoadDicResource(U.ConfigDataFilename("map_minimap_tile_array_", rom)); }
+            catch { dic = new Dictionary<uint, string>(); }
+
+            _optionValues.Clear();
+            _optionLabels.Clear();
+            foreach (var kv in dic)
+            {
+                _optionValues.Add(kv.Key);
+                _optionLabels.Add(U.ToHexString(kv.Key) + " " + CleanName(kv.Value));
+            }
+            _optionsLoaded = true;
+        }
+
+        string ResolveName(uint value)
+        {
+            EnsureOptions();
+            int i = _optionValues.IndexOf(value);
+            if (i < 0) return "";
+            // OptionLabels[i] is "0xVALUE Name" — return the name portion.
+            int sp = _optionLabels[i].IndexOf(' ');
+            return sp >= 0 ? _optionLabels[i].Substring(sp + 1) : _optionLabels[i];
+        }
+
+        /// <summary>Trim the resource's trailing language/comment annotations (e.g. "Plain\t{J}").</summary>
+        static string CleanName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var parts = s.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length > 0 ? parts[0] : s.Trim();
         }
 
         public Dictionary<string, string> GetDataReport()

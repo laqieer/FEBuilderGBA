@@ -9,6 +9,9 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class MapMiniMapTerrainImageView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly MapMiniMapTerrainImageViewModel _vm = new();
+        readonly UndoService _undoService = new();
+        bool _loading;
+        bool _syncing;
 
         public string ViewTitle => "Mini-Map Terrain";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
+            TileArrayCombo.ItemsSource = _vm.OptionLabels;
+            TileArrayCombo.SelectionChanged += OnComboChanged;
+            PointerBox.ValueChanged += OnPointerChanged;
             Opened += (_, _) => LoadList();
         }
 
@@ -24,12 +31,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
             }
             catch (Exception ex)
             {
-                Log.Error("MapMiniMapTerrainImageView.LoadList failed: {0}", ex.Message);
+                Log.Error("MapMiniMapTerrainImageView.LoadList failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -37,18 +50,75 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
-                Log.Error("MapMiniMapTerrainImageView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MapMiniMapTerrainImageView.OnSelected failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            _loading = true;
+            try
+            {
+                AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+                PointerBox.Value = _vm.P0;
+                TileArrayCombo.SelectedIndex = _vm.GetOptionIndex(_vm.P0);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+
+        // Selecting a known tile array sets the pointer field to its value.
+        void OnComboChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_loading || _syncing) return;
+            int idx = TileArrayCombo.SelectedIndex;
+            if (idx < 0) return;
+            _syncing = true;
+            try { PointerBox.Value = _vm.GetOptionValue(idx); }
+            finally { _syncing = false; }
+        }
+
+        // Editing the pointer manually re-selects the matching preset (or clears it).
+        void OnPointerChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_loading || _syncing) return;
+            _syncing = true;
+            try { TileArrayCombo.SelectedIndex = _vm.GetOptionIndex((uint)(PointerBox.Value ?? 0)); }
+            finally { _syncing = false; }
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _undoService.Begin(R._("Edit Mini-Map Terrain"));
+            try
+            {
+                _vm.P0 = (uint)(PointerBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapMiniMapTerrainImageView.OnWrite failed: " + ex.ToString());
+            }
+
+            UpdateUI();
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

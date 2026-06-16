@@ -11016,3 +11016,12 @@ UPSパッチを保存
 
 :Edit Command 0x85 Pointer
 コマンド0x85ポインタの編集
+
+:Tile Array:
+タイル配列:
+
+:Pointer to the minimap tile-array graphic used for this terrain type.
+この地形タイプに使用されるミニマップのタイル配列グラフィックへのポインタ。
+
+:Edit Mini-Map Terrain
+ミニマップ地形の編集
