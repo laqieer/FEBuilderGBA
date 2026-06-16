@@ -26,8 +26,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public static uint AddrFromGroup(uint g) => g + 1;
         public static uint GroupFromAddr(uint addr) => addr - 1;
 
-        // FE6 has no talk groups (UnitForm.GetTalkGroupByAddr returns NOT_FOUND on v6).
-        public bool SupportsTalkGroup => CoreState.ROM?.RomInfo != null && CoreState.ROM.RomInfo.version != 6;
+        // Talk groups exist only on FE7 (7) and FE8 (8). FE6 has none, and unknown/ROMFE0
+        // ROMs (version 0) must NOT be treated as supported.
+        public bool SupportsTalkGroup
+            => CoreState.ROM?.RomInfo != null
+               && (CoreState.ROM.RomInfo.version == 7 || CoreState.ROM.RomInfo.version == 8);
 
         public List<AddrResult> LoadList()
         {

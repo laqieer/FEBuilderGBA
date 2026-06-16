@@ -20161,3 +20161,6 @@ Player units grouped by their talk-group id; units sharing a non-zero talk group
 
 :Talk groups are available on FE7 / FE8 only.
 Talk groups are available on FE7 / FE8 only.
+
+:Talk Group
+Talk Group

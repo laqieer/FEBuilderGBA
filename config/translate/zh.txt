@@ -24818,3 +24818,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Talk groups are available on FE7 / FE8 only.
 会话组仅在 FE7/FE8 中可用。
+
+:Talk Group
+会话组

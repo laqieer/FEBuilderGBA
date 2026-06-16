@@ -28,9 +28,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItems(items);
                 if (items.Count == 0)
                 {
-                    // FE6 (or no ROM): no talk groups to show.
                     _vm.IsLoaded = true;
-                    DetailText.Text = R._("Talk groups are available on FE7 / FE8 only.");
+                    // Distinguish "no ROM" (missing data) from FE6/unsupported (version limit).
+                    DetailText.Text = CoreState.ROM?.RomInfo == null
+                        ? R._("No ROM is loaded.")
+                        : R._("Talk groups are available on FE7 / FE8 only.");
                 }
             }
             catch (Exception ex)

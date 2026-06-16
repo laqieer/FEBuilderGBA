@@ -10980,3 +10980,6 @@ UPSパッチを保存
 
 :Talk groups are available on FE7 / FE8 only.
 会話グループはFE7/FE8のみ対応しています。
+
+:Talk Group
+会話グループ
