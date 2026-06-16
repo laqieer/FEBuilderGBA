@@ -24863,3 +24863,24 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Mini-Map Terrain
 编辑小地图地形
+
+:Ending 1 (Eliwood):
+结局1 (埃利乌德):
+
+:Ending 2 (Hector):
+结局2 (赫克托尔):
+
+:Event Write
+写入事件
+
+:World Map Event (FE7)
+世界地图事件 (FE7)
+
+:Pointer to the event run when this chapter is selected on the world map.
+在世界地图上选择此章节时运行的事件的指针。
+
+:Edit World Map Event (FE7)
+编辑世界地图事件 (FE7)
+
+:Edit World Map Ending Events (FE7)
+编辑世界地图结局事件 (FE7)

@@ -9,12 +9,30 @@
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Event Pointer (FE7)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="World Map Event (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapEventPointerFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="180,300" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapEventPointerFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointerFE7_EventPointer_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295" Increment="1" Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="Pointer to the event run when this chapter is selected on the world map." TextWrapping="Wrap" Foreground="Gray" Margin="0,4" />
+        <Button AutomationProperties.AutomationId="WorldMapEventPointerFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,4" />
+
+        <Border BorderBrush="Gray" BorderThickness="0,1,0,0" Margin="0,12,0,4" />
+
+        <TextBlock Text="Ending Events" FontSize="14" FontWeight="Bold" />
+        <Grid ColumnDefinitions="180,300" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Ending 1 (Eliwood):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointerFE7_Ending1_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Ending1Box" Minimum="0" Maximum="4294967295" Increment="1" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Ending 2 (Hector):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointerFE7_Ending2_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Ending2Box" Minimum="0" Maximum="4294967295" Increment="1" Margin="0,4" />
+        </Grid>
+        <Button AutomationProperties.AutomationId="WorldMapEventPointerFE7_EventWrite_Button" Name="EventWriteButton" Content="Event Write" HorizontalAlignment="Left" Margin="0,4" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
