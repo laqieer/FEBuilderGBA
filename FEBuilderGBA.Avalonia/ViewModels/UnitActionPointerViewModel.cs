@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Recover the 1-based action id from the offset within the table and resolve its name.
             uint baseAddr = ResolveBaseAddress(rom);
             ActionId = (baseAddr != 0 && addr >= baseAddr) ? (addr - baseAddr) / EntrySize + 1 : 0;
-            ActionName = ActionId != 0 ? U.at(LoadActionNames(), ActionId) : "";
+            ActionName = ActionId != 0 ? ResolveActionName(ActionId, LoadActionNames()) : "";
 
             IsLoaded = true;
         }
@@ -95,14 +95,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch { return new Dictionary<uint, string>(); }
         }
 
-        /// <summary>List label mirroring WinForms: hex id + action name (falls back to "Action N").</summary>
-        static string MakeLabel(uint id, Dictionary<uint, string> actionNames)
+        /// <summary>Action name from the resource, falling back to "Action N" when unnamed —
+        /// shared by the list label and the detail panel so both stay consistent.</summary>
+        static string ResolveActionName(uint id, Dictionary<uint, string> actionNames)
         {
             string name = U.at(actionNames, id);
-            return string.IsNullOrEmpty(name)
-                ? U.ToHexString(id) + " Action " + id
-                : U.ToHexString(id) + " " + name;
+            return string.IsNullOrEmpty(name) ? "Action " + id : name;
         }
+
+        /// <summary>List label mirroring WinForms: hex id + action name (falls back to "Action N").</summary>
+        static string MakeLabel(uint id, Dictionary<uint, string> actionNames)
+            => U.ToHexString(id) + " " + ResolveActionName(id, actionNames);
 
         public void WriteEntry()
         {

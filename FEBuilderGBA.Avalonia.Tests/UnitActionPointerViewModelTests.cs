@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
 using Xunit.Abstractions;
@@ -6,7 +7,7 @@ using Xunit.Abstractions;
 namespace FEBuilderGBA.Avalonia.Tests;
 
 /// <summary>
-/// Headless ROM-backed tests for <see cref="UnitActionPointerViewModel"/> (issue #1198 wave-2 #1173 —
+/// Headless ROM-backed tests for <see cref="UnitActionPointerViewModel"/> (issue #1173 —
 /// port of WinForms <c>UnitActionPointerForm</c>). The table is the per-unit action/behavior
 /// function-pointer table at <c>p32(RomInfo.unitaction_function_pointer)</c>, 4 bytes per entry
 /// (a single GBA pointer). The editor exposes that pointer (P0) for read/write plus a resolved
