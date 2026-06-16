@@ -1,6 +1,9 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -16,42 +19,83 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolUPSPatchSimpleView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) =>
+            {
+                _vm.IsLoaded = true;
+                // Best-effort auto-fill the clean original ROM (WinForms parity).
+                string found = _vm.FindOriginal();
+                if (!string.IsNullOrEmpty(found))
+                    OriginalRomTextBox.Text = found;
+            };
         }
 
-        void LoadList()
+        async void Select_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                string? path = await FileDialogHelper.OpenRomFile(this);
+                if (!string.IsNullOrEmpty(path))
+                    OriginalRomTextBox.Text = path;
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUPSPatchSimpleView.LoadList failed: {0}", ex.Message);
+                Log.Error("ToolUPSPatchSimpleView.Select_Click failed: " + ex);
             }
         }
 
-        void OnSelected(uint addr)
+        async void Make_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                string original = OriginalRomTextBox.Text ?? "";
+                if (string.IsNullOrWhiteSpace(original) || !File.Exists(original))
+                {
+                    StatusText.Text = R._("Please select a valid original (unmodified) ROM.");
+                    return;
+                }
+
+                string suggested = ToolUPSPatchSimpleViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
+                string? output = await FileDialogHelper.SaveUpsFile(this, suggested);
+                if (string.IsNullOrEmpty(output))
+                    return;   // user cancelled
+
+                var result = _vm.MakeUps(original, output);
+                StatusText.Text = result switch
+                {
+                    ToolUPSPatchSimpleViewModel.MakeResult.Ok => R._("UPS patch created: {0}", output),
+                    ToolUPSPatchSimpleViewModel.MakeResult.NoRom => R._("No ROM is loaded."),
+                    ToolUPSPatchSimpleViewModel.MakeResult.OriginalMissing => R._("Please select a valid original (unmodified) ROM."),
+                    ToolUPSPatchSimpleViewModel.MakeResult.OriginalUnreadable => R._("The original ROM could not be read."),
+                    _ => R._("Failed to create the UPS patch."),
+                };
+                if (result == ToolUPSPatchSimpleViewModel.MakeResult.Ok)
+                    RevealInExplorer(output);
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUPSPatchSimpleView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ToolUPSPatchSimpleView.Make_Click failed: " + ex);
             }
         }
 
-        void UpdateUI()
+        static void RevealInExplorer(string path)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + path + "\"") { UseShellExecute = true });
+                }
+                else
+                {
+                    string dir = Path.GetDirectoryName(path) ?? "";
+                    if (!string.IsNullOrEmpty(dir))
+                        Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true });
+                }
+            }
+            catch { /* reveal is best-effort */ }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        public void NavigateTo(uint address) { }
+        public void SelectFirstItem() { }
     }
 }

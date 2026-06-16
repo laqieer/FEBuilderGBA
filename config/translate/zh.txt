@@ -24758,3 +24758,36 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Reset to default
 重置为默认
+
+:Create a UPS patch that turns the original (unmodified) ROM into the currently-loaded ROM.
+创建一个将原始（未修改）ROM 转换为当前加载的 ROM 的 UPS 补丁。
+
+:Original (unmodified) ROM:
+原始（未修改）ROM：
+
+:Path to the clean ROM
+原始 ROM 的路径
+
+:Select…
+选择…
+
+:Create UPS patch…
+创建 UPS 补丁…
+
+:Please select a valid original (unmodified) ROM.
+请选择一个有效的原始（未修改）ROM。
+
+:No ROM is loaded.
+未加载 ROM。
+
+:The original ROM could not be read.
+无法读取原始 ROM。
+
+:Failed to create the UPS patch.
+创建 UPS 补丁失败。
+
+:UPS patch created: {0}
+已创建 UPS 补丁：{0}
+
+:Save UPS Patch
+保存 UPS 补丁

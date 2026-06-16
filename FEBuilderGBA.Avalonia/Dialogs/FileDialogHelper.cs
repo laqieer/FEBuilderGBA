@@ -65,6 +65,19 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return file?.TryGetLocalPath();
         }
 
+        /// <summary>Save a UPS patch file (#1194 Save-as-UPS tool).</summary>
+        public static async Task<string?> SaveUpsFile(Window owner, string? suggestedName = null)
+        {
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Save UPS Patch"),
+                SuggestedFileName = suggestedName ?? "patch.ups",
+                FileTypeChoices = new[] { MakeUpsFileType(), MakeAllFileType() },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
         /// <summary>
         /// Open a GBA ROM and return the picked <see cref="IStorageFile"/> itself
         /// (not collapsed to a local path). On Android the SAF result usually has NO

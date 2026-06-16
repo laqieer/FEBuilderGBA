@@ -1,21 +1,27 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUPSPatchSimpleView"
-        Title="UPS Patch Creator" Width="1193" Height="298"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolUPSPatchSimple_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="UPS Patch Creator" Width="760" Height="320"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="8">
+    <StackPanel Spacing="12" Margin="8">
+      <TextBlock Text="UPS Patch Creator" FontSize="18" FontWeight="Bold" />
+      <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                 Text="Create a UPS patch that turns the original (unmodified) ROM into the currently-loaded ROM." />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="UPS Patch Creator" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Original (unmodified) ROM:" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" AutomationProperties.AutomationId="ToolUPSPatchSimple_Original_Input"
+                 Name="OriginalRomTextBox" Watermark="Path to the clean ROM" />
+        <Button Grid.Column="1" AutomationProperties.AutomationId="ToolUPSPatchSimple_Select_Button"
+                Name="SelectButton" Content="Select…" Click="Select_Click" Margin="6,0,0,0" />
+      </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUPSPatchSimple_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <Button AutomationProperties.AutomationId="ToolUPSPatchSimple_Make_Button" Name="MakeButton"
+              Content="Create UPS patch…" Click="Make_Click" />
+
+      <TextBlock AutomationProperties.AutomationId="ToolUPSPatchSimple_Status_Label" Name="StatusText"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
