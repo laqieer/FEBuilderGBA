@@ -2,19 +2,47 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EDFE6View"
-        Title="ED (FE6)" Width="1204" Height="885"
+        Title="Ending (FE6)" Width="1204" Height="885"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="EDFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="ED (FE6)" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Ending (FE6)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EDFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="120,140,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EDFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Text 1:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EDFE6_Text0Id_Input" Grid.Row="1" Grid.Column="1" Name="Text0IdBox"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EDFE6_Text0_Preview_Label" Grid.Row="1" Grid.Column="2" Name="Text0Preview"
+                     VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Text 2:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EDFE6_Text2Id_Input" Grid.Row="2" Grid.Column="1" Name="Text2IdBox"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EDFE6_Text2_Preview_Label" Grid.Row="2" Grid.Column="2" Name="Text2Preview"
+                     VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Text 3:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EDFE6_Text4Id_Input" Grid.Row="3" Grid.Column="1" Name="Text4IdBox"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EDFE6_Text4_Preview_Label" Grid.Row="3" Grid.Column="2" Name="Text4Preview"
+                     VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Text 4:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EDFE6_Text6Id_Input" Grid.Row="4" Grid.Column="1" Name="Text6IdBox"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EDFE6_Text6_Preview_Label" Grid.Row="4" Grid.Column="2" Name="Text6Preview"
+                     VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
         </Grid>
+
+        <Button AutomationProperties.AutomationId="EDFE6_Write_Button" Name="WriteButton"
+                Content="Write" Click="Write_Click" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

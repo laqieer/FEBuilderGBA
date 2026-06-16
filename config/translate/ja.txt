@@ -10983,3 +10983,21 @@ UPSパッチを保存
 
 :Talk Group
 会話グループ
+
+:Ending (FE6)
+エンディング (FE6)
+
+:Text 1:
+テキスト1:
+
+:Text 2:
+テキスト2:
+
+:Text 3:
+テキスト3:
+
+:Text 4:
+テキスト4:
+
+:Edit Ending Text
+エンディングテキストの編集

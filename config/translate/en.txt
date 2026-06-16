@@ -20164,3 +20164,21 @@ Talk groups are available on FE7 / FE8 only.
 
 :Talk Group
 Talk Group
+
+:Ending (FE6)
+Ending (FE6)
+
+:Text 1:
+Text 1:
+
+:Text 2:
+Text 2:
+
+:Text 3:
+Text 3:
+
+:Text 4:
+Text 4:
+
+:Edit Ending Text
+Edit Ending Text
