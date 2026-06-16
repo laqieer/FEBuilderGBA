@@ -59,6 +59,17 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// Load the SHIPPED base flag names (config/data/flag_*.txt) WITHOUT any user
+        /// customizations. The Flag-Name tool needs these to detect a custom name
+        /// (current != base) and to revert (pass as baseName to <see cref="Update"/>).
+        /// Mirrors what WinForms ToolFlagNameForm loads into its BaseFlag dict. (#1191)
+        /// </summary>
+        public static Dictionary<uint, string> LoadBaseFlagNames()
+        {
+            return U.LoadDicResource(U.ConfigDataFilename("flag_"));
+        }
+
         public List<AddrResult> MakeList()
         {
             List<AddrResult> list = new List<AddrResult>();

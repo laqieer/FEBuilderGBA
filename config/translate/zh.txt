@@ -24746,3 +24746,15 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :[F5 test build]
 [F5 测试构建]
+
+:Assign a human-readable name to the selected event flag.
+为所选事件标记指定一个易读的名称。
+
+:Flag:
+标记：
+
+:Flag name
+标记名称
+
+:Reset to default
+重置为默认
