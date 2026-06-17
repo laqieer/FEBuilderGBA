@@ -20278,3 +20278,12 @@ A literal in-ROM string stored outside the main Huffman text table.
 
 :Edit Other Text
 Edit Other Text
+
+:Special OAM
+Special OAM
+
+:OAM12 blocks:
+OAM12 blocks:
+
+:Data:
+Data:

@@ -11288,3 +11288,12 @@ APのインポートに失敗しました: {0}
 
 :World map road write failed: {0}
 ワールドマップの道の書き込みに失敗しました：{0}
+
+:Special OAM
+特殊OAM
+
+:OAM12 blocks:
+OAM12 ブロック:
+
+:Data:
+データ:
