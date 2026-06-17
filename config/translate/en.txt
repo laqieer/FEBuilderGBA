@@ -20248,3 +20248,6 @@ A mid-battle conversation triggered when the attacker and defender units fight.
 
 :Edit Battle Dialogue
 Edit Battle Dialogue
+
+:Edit Battle Dialogue (FE6)
+Edit Battle Dialogue (FE6)
