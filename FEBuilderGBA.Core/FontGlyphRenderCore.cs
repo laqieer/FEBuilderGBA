@@ -58,6 +58,11 @@ namespace FEBuilderGBA.Core
         public const int GLYPH_BITMAP_BYTES = (GLYPH_W * GLYPH_H) / 4; // 64
         public const int GLYPH_STRUCT_BYTES = 8 + GLYPH_BITMAP_BYTES;  // 72
 
+        // Hard cap on a single hash-bucket chain length. A corrupted ROM can have
+        // a cyclic next-pointer chain; the cap guarantees enumeration terminates
+        // (never hangs the UI thread) — no real font bucket is anywhere near this.
+        const int MAX_CHAIN = 0x10000;
+
         // ---- Fixed font palette (matches WF ImageUtil.ByteToImage4) ----
         // Index 0 = background (item vs serif differ), 1 = gray, 2 = white, 3 = black.
         // Stored as RGB; index 0 is rendered TRANSPARENT in the preview.
@@ -136,7 +141,8 @@ namespace FEBuilderGBA.Core
                 uint p = rom.p32(fontlist);
                 if (!U.isSafetyOffset(p, rom)) continue;
 
-                while (p > 0)
+                int guard = 0;
+                while (p > 0 && guard++ < MAX_CHAIN)
                 {
                     // The 72-byte struct (next u32 + 4 header bytes + 64 bitmap) must
                     // fit before any rom.u8/u32 read — isSafetyOffset(p) alone does
@@ -171,7 +177,8 @@ namespace FEBuilderGBA.Core
                 uint p = rom.p32(fontlist);
                 if (!U.isSafetyOffset(p, rom)) continue;
 
-                while (p > 0)
+                int guard = 0;
+                while (p > 0 && guard++ < MAX_CHAIN)
                 {
                     if (!GlyphStructFits(rom, p)) break;
 
@@ -206,7 +213,8 @@ namespace FEBuilderGBA.Core
                 uint p = rom.p32(fontlist);
                 if (!U.isSafetyOffset(p, rom)) continue;
 
-                while (p > 0)
+                int guard = 0;
+                while (p > 0 && guard++ < MAX_CHAIN)
                 {
                     if (!GlyphStructFits(rom, p)) break;
 

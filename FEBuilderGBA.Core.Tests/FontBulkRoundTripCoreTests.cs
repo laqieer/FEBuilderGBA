@@ -154,6 +154,28 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ImportAll_InvalidWidth_AbortsAndRestores()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] snap = (byte[])rom.Data.Clone();
+                byte[] idx = new byte[16 * 16];
+
+                // Non-numeric width column must ABORT (no silent derive-from-pixels).
+                string manifest = "A\ttext\tNaN\ttext_41.png\n";
+                string err = FontBulkImportCore.ImportAll(rom, manifest, (n, t) =>
+                    new FontGlyphPixels { Indexed = idx, Width = 16, Height = 16 });
+                Assert.NotEqual("", err);
+                Assert.Equal(snap, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void ImportAll_TooFewColumns_AbortsAndRestores()
         {
             var prevRom = CoreState.ROM;

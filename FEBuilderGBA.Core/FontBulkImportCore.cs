@@ -90,7 +90,17 @@ namespace FEBuilderGBA.Core
                     }
                     bool isItemFont = (type == "item");
 
-                    int width = ParseWidth(sp[2]); // manifest advance width (column 3)
+                    // Advance width (column 3) must be a non-negative integer —
+                    // a non-numeric width is a manifest error (reject rather than
+                    // silently deriving from pixels, matching the other columns'
+                    // strictness so a bad manifest can't import "successfully").
+                    int width = ParseWidth(sp[2]);
+                    if (width < 0)
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Invalid font width in manifest (expected a non-negative integer): {0}", sp[2]);
+                    }
+
                     string pngName = sp[3].Trim();
                     if (pngName.Length == 0)
                     {
@@ -140,7 +150,9 @@ namespace FEBuilderGBA.Core
 
         /// <summary>
         /// Recover the moji code from a `<type>_<hex>.png` filename. Returns false
-        /// when the suffix isn't valid hex (caller skips the row).
+        /// when the filename has no `_<hex>` suffix or the suffix isn't valid hex.
+        /// (<see cref="ImportAll"/> treats a false here on a data row as a manifest
+        /// error and aborts with an atomic restore — it does NOT skip the row.)
         /// </summary>
         public static bool TryParseMojiFromFilename(string pngName, out uint moji)
         {

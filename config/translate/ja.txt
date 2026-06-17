@@ -11405,3 +11405,6 @@ TSA数: {0}
 
 :Invalid font manifest row (empty filename): {0}
 無効なフォントマニフェスト行です (ファイル名が空): {0}
+
+:Invalid font width in manifest (expected a non-negative integer): {0}
+マニフェストのフォント幅が無効です (0以上の整数が必要): {0}

@@ -365,6 +365,35 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = prevRom; }
         }
 
+        [Fact]
+        public async System.Threading.Tasks.Task EnumerateGlyphs_CyclicChain_Terminates()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // Build a self-referential glyph struct: its next-pointer points
+                // back to itself, so an uncapped while(p>0) would spin forever.
+                // MAX_CHAIN must cap it so the call returns (the 20s watchdog
+                // proves it terminated rather than hanging).
+                uint cyc = 0x00710000;
+                U.write_u32(rom.Data, cyc + 0, U.toPointer(cyc)); // next -> self
+                U.write_u8(rom.Data, cyc + 4, 0x5A);
+                U.write_u8(rom.Data, cyc + 5, 5);
+                uint bucket = rom.RomInfo.font_serif_address + (0x5Au << 2);
+                U.write_u32(rom.Data, bucket, U.toPointer(cyc));
+
+                var work = System.Threading.Tasks.Task.Run(() =>
+                    FontGlyphRenderCore.EnumerateGlyphs(rom, isItemFont: false));
+                var done = await System.Threading.Tasks.Task.WhenAny(
+                    work, System.Threading.Tasks.Task.Delay(20000));
+                Assert.True(ReferenceEquals(done, work), "EnumerateGlyphs did not terminate on a cyclic chain.");
+                Assert.NotNull(await work);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
         // ---------------- Real FE8U (skipped when ROM absent) ----------------
 
         static string? FindRom(string romName)

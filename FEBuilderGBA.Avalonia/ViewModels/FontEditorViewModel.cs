@@ -92,9 +92,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0 || !U.isSafetyOffset(CurrentAddr, rom))
-                return new Dictionary<string, string>();
             uint a = CurrentAddr;
+            // Guard the full +5 read (isSafetyOffset only checks the first byte) so
+            // a near-EOF CurrentAddr can't throw during data verification.
+            if (rom == null || a == 0 || !U.isSafetyOffset(a, rom)
+                || (ulong)a + 6 > (ulong)rom.Data.Length)
+                return new Dictionary<string, string>();
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
