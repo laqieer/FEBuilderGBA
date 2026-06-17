@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class EventFinalSerifFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventFinalSerifFE7ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Final Serif (FE7)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,6 +18,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
+
+            // Live name/text previews while editing.
+            UnitBox.ValueChanged += (_, _) => UnitNameLabel.Text = UnitName(UnitBox);
+            TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);
+
             Opened += (_, _) => LoadList();
         }
 
@@ -24,12 +31,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
             }
             catch (Exception ex)
             {
-                Log.Error("EventFinalSerifFE7View.LoadList failed: {0}", ex.Message);
+                Log.Error("EventFinalSerifFE7View.LoadList failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -37,18 +50,62 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
-                Log.Error("EventFinalSerifFE7View.OnSelected failed: {0}", ex.Message);
+                Log.Error("EventFinalSerifFE7View.OnSelected failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            UnitBox.Value = _vm.Unit;
+            TextIdBox.Value = _vm.TextID;
+            UnitNameLabel.Text = UnitName(UnitBox);
+            TextPreviewLabel.Text = TextPreview(TextIdBox);
+        }
+
+        static string UnitName(NumericUpDown box)
+        {
+            try { return NameResolver.GetUnitNameByOneBasedId((uint)(box.Value ?? 0)); }
+            catch { return ""; }
+        }
+
+        static string TextPreview(NumericUpDown box)
+        {
+            uint id = (uint)(box.Value ?? 0);
+            if (id == 0) return "";
+            try { return NameResolver.GetTextById(id); }
+            catch { return ""; }
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _undoService.Begin(R._("Edit Final Serif (FE7)"));
+            try
+            {
+                _vm.Unit = (uint)(UnitBox.Value ?? 0);
+                _vm.TextID = (uint)(TextIdBox.Value ?? 0);
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventFinalSerifFE7View.OnWrite failed: " + ex.ToString());
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

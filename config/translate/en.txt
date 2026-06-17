@@ -20251,3 +20251,9 @@ Edit Battle Dialogue
 
 :Edit Battle Dialogue (FE6)
 Edit Battle Dialogue (FE6)
+
+:The per-character dialogue line shown in the final chapter.
+The per-character dialogue line shown in the final chapter.
+
+:Edit Final Serif (FE7)
+Edit Final Serif (FE7)

@@ -11070,3 +11070,9 @@ UPSパッチを保存
 
 :Edit Battle Dialogue (FE6)
 戦闘会話の編集 (FE6)
+
+:The per-character dialogue line shown in the final chapter.
+最終章で表示されるキャラクターごとのセリフ。
+
+:Edit Final Serif (FE7)
+終章セリフの編集 (FE7)

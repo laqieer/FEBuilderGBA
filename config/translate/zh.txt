@@ -24908,3 +24908,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Battle Dialogue (FE6)
 编辑战斗对话 (FE6)
+
+:The per-character dialogue line shown in the final chapter.
+在最终章中显示的每个角色的台词。
+
+:Edit Final Serif (FE7)
+编辑终章台词 (FE7)
