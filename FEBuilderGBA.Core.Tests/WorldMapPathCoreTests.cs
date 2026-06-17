@@ -235,6 +235,40 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(err));
         }
 
+        [Fact]
+        public void PackPath_StartXTile255_ReturnsError()
+        {
+            // X/8 == 0xFF writes a header byte LoadPath reads as the TERMINATOR
+            // (silently dropping that chip + everything after). PackPath must
+            // reject it (Copilot PR #1228 re-review). 0xFE (254*8) is allowed.
+            var bad = new List<PathChip> { new PathChip(255 * 8, 0, 0, 0) };
+            Assert.Null(WorldMapPathCore.PackPath(bad, out string err));
+            Assert.False(string.IsNullOrEmpty(err));
+
+            var ok = new List<PathChip> { new PathChip(254 * 8, 0, 0, 0) };
+            Assert.NotNull(WorldMapPathCore.PackPath(ok, out string okErr));
+            Assert.Equal("", okErr);
+        }
+
+        [Fact]
+        public void PackPath_StartXTile255_DoesNotRoundTripAsTerminator()
+        {
+            // Belt-and-suspenders: prove the rejected stream would otherwise have
+            // collapsed at the 0xFF terminator. A chip at X-tile 254 (the max
+            // allowed) DOES round-trip; X-tile 255 is rejected outright above.
+            var ok = new List<PathChip> { new PathChip(254 * 8, 16, 0, 0) };
+            byte[] packed = WorldMapPathCore.PackPath(ok, out string err);
+            Assert.Equal("", err);
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                PlantPathData(rom, 0, packed);
+                var reloaded = WorldMapPathCore.LoadPath(rom, 0);
+                Assert.Single(reloaded);
+                Assert.Equal(254 * 8, reloaded[0].WorldX);
+            });
+        }
+
         // =================================================================
         // WritePath — round-trip + ambient undo + zero-mutation on failure
         // =================================================================

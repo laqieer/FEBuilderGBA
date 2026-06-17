@@ -77,6 +77,10 @@ namespace FEBuilderGBA
         // is corrupt; stop decoding (do NOT throw).
         const int MAX_CHIPS_PER_ROW = 200;
 
+        // The header x8 byte (offset +0) of 0xFF is the TERMINATOR sentinel, so a
+        // run may NOT start at tile X 0xFF — the max addressable X tile is 0xFE.
+        const int MAX_X_TILE = 0xFF; // x8/8 must be < this (0..0xFE)
+
         // ==================================================================
         // List
         // ==================================================================
@@ -276,8 +280,12 @@ namespace FEBuilderGBA
             {
                 if (c.WorldX < 0 || c.WorldY < 0 || (c.WorldX % 8) != 0 || (c.WorldY % 8) != 0)
                 { error = "Chip world coordinates must be non-negative multiples of 8."; return null; }
-                if (c.WorldX / 8 > 255 || c.WorldY / 8 > 255)
-                { error = "Chip world coordinates exceed the 255-tile range."; return null; }
+                // X/8 == 0xFF would write a header byte LoadPath reads as the
+                // TERMINATOR (silently dropping that chip + everything after), so
+                // the X tile cap is 0xFE (Copilot PR #1228 re-review). The Y tile
+                // is never the terminator byte (offset +1), so it caps at 255.
+                if (c.WorldX / 8 >= MAX_X_TILE || c.WorldY / 8 > 255)
+                { error = "Chip world coordinates exceed the addressable tile range."; return null; }
                 if (c.PathX < 0 || (c.PathX % 8) != 0 || c.PathX / 8 >= FLIP_VARIANTS)
                 { error = "Chip flip variant is out of range (must be 0..3; the erase column cannot be stored)."; return null; }
                 if (c.PathY < 0 || (c.PathY % 8) != 0 || c.PathY / 8 >= ROAD_STRIP_TILES_Y)
@@ -321,10 +329,23 @@ namespace FEBuilderGBA
                     n++;
                 }
 
-                U.append_u8(data, (uint)(runStartX / 8));
+                int runLength = n - i;
+                int startXTile = runStartX / 8;
+                // Defensive emit-time guard (Copilot PR #1228 re-review): a header
+                // whose x8 == 0xFF reads as the terminator, and a count >= 200
+                // reads as corrupt — neither round-trips through LoadPath. The
+                // per-chip validation + run cap already prevent both; assert it
+                // here so PackPath NEVER emits a non-round-tripping stream.
+                if (startXTile >= MAX_X_TILE || runLength >= MAX_CHIPS_PER_ROW)
+                {
+                    error = "Path run cannot be encoded (start tile or run length out of range).";
+                    return null;
+                }
+
+                U.append_u8(data, (uint)startXTile);
                 U.append_u8(data, (uint)(rowY / 8));
-                U.append_u8(data, (uint)(n - i)); // contiguous count
-                U.append_u8(data, 1);             // always 1
+                U.append_u8(data, (uint)runLength); // contiguous count
+                U.append_u8(data, 1);               // always 1
 
                 for (; i < n; i++)
                 {
