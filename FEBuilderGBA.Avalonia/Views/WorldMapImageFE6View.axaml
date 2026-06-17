@@ -2,20 +2,205 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE6View"
-        Title="World Map Image (FE6)" Width="692" Height="456"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImageFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="World Map Image (FE6)" Width="900" Height="720"
+        SizeToContent="Width">
+  <!-- World Map Image (FE6) editor (#1183) — port of WF WorldMapImageFE6Form.
+       The FE6 world map is a FLAT 256-color LINEAR raster (NOT the FE7/FE8
+       header-TSA), with FIVE zoom views (full + 4 quadrants NW/NE/SW/SE), each
+       reading a CONSECUTIVE pointer slot. Per zoom: a 240x160 preview + Import
+       (256-linear LZ77 image + palette, both repointed — WF ZLINER256IMAGE +
+       ZPALETTE parity) + Export PNG. The bottom panel holds the five editable
+       image + five editable palette pointer OFFSET fields + a Write button (the
+       WF "AllWriteButton"). Each Import / Write runs under its own undo scope;
+       the top Undo button reverts the most recent change. -->
+  <DockPanel>
+    <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button AutomationProperties.AutomationId="WorldMapImageFE6_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                Click="Undo_Click" />
+      </StackPanel>
+    </Border>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+    <ScrollViewer>
+      <StackPanel Spacing="10" Margin="10">
         <TextBlock Text="World Map Image (FE6)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- ============ Full Map ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_Full_Label"
+                       Name="FullLabel" Text="Full Map" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_FullImport_Button"
+                      Name="FullImportButton" Content="Import" Click="FullImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_FullExport_Button"
+                      Name="FullExportButton" Content="Export" Click="FullExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE6_FullPreview_Image"
+                                        Name="FullPreviewImage" MinWidth="240" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Northwest ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_NW_Label"
+                       Name="NWLabel" Text="Northwest" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_NWImport_Button"
+                      Name="NWImportButton" Content="Import" Click="NWImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_NWExport_Button"
+                      Name="NWExportButton" Content="Export" Click="NWExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE6_NWPreview_Image"
+                                        Name="NWPreviewImage" MinWidth="240" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Northeast ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_NE_Label"
+                       Name="NELabel" Text="Northeast" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_NEImport_Button"
+                      Name="NEImportButton" Content="Import" Click="NEImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_NEExport_Button"
+                      Name="NEExportButton" Content="Export" Click="NEExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE6_NEPreview_Image"
+                                        Name="NEPreviewImage" MinWidth="240" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Southwest ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_SW_Label"
+                       Name="SWLabel" Text="Southwest" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_SWImport_Button"
+                      Name="SWImportButton" Content="Import" Click="SWImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_SWExport_Button"
+                      Name="SWExportButton" Content="Export" Click="SWExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE6_SWPreview_Image"
+                                        Name="SWPreviewImage" MinWidth="240" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Southeast ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_SE_Label"
+                       Name="SELabel" Text="Southeast" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_SEImport_Button"
+                      Name="SEImportButton" Content="Import" Click="SEImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE6_SEExport_Button"
+                      Name="SEExportButton" Content="Export" Click="SEExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE6_SEPreview_Image"
+                                        Name="SEPreviewImage" MinWidth="240" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Editable pointers + Write ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="WorldMapImageFE6_Pointers_Label"
+                       Name="PointersLabel" Text="Pointers" FontWeight="Bold" />
+            <Grid ColumnDefinitions="120,150,120,150" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+              <!-- Header row -->
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_ImageHeader_Label"
+                         Name="ImageHeaderLabel" Text="Image Pointer" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="3"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_PaletteHeader_Label"
+                         Name="PaletteHeaderLabel" Text="Palette Pointer" FontWeight="Bold" />
+
+              <!-- Full -->
+              <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_RowFull_Label"
+                         Name="RowFullLabel" Text="Full Map" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_ImageFull_Input"
+                             Name="ImageFullInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding ImagePtrFull, Mode=TwoWay}" />
+              <NumericUpDown Grid.Row="1" Grid.Column="3" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_PaletteFull_Input"
+                             Name="PaletteFullInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding PalettePtrFull, Mode=TwoWay}" />
+
+              <!-- NW -->
+              <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_RowNW_Label"
+                         Name="RowNWLabel" Text="Northwest" />
+              <NumericUpDown Grid.Row="2" Grid.Column="1" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_ImageNW_Input"
+                             Name="ImageNWInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding ImagePtrNW, Mode=TwoWay}" />
+              <NumericUpDown Grid.Row="2" Grid.Column="3" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_PaletteNW_Input"
+                             Name="PaletteNWInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding PalettePtrNW, Mode=TwoWay}" />
+
+              <!-- NE -->
+              <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_RowNE_Label"
+                         Name="RowNELabel" Text="Northeast" />
+              <NumericUpDown Grid.Row="3" Grid.Column="1" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_ImageNE_Input"
+                             Name="ImageNEInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding ImagePtrNE, Mode=TwoWay}" />
+              <NumericUpDown Grid.Row="3" Grid.Column="3" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_PaletteNE_Input"
+                             Name="PaletteNEInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding PalettePtrNE, Mode=TwoWay}" />
+
+              <!-- SW -->
+              <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_RowSW_Label"
+                         Name="RowSWLabel" Text="Southwest" />
+              <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_ImageSW_Input"
+                             Name="ImageSWInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding ImagePtrSW, Mode=TwoWay}" />
+              <NumericUpDown Grid.Row="4" Grid.Column="3" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_PaletteSW_Input"
+                             Name="PaletteSWInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding PalettePtrSW, Mode=TwoWay}" />
+
+              <!-- SE -->
+              <TextBlock Grid.Row="5" Grid.Column="0" VerticalAlignment="Center"
+                         AutomationProperties.AutomationId="WorldMapImageFE6_RowSE_Label"
+                         Name="RowSELabel" Text="Southeast" />
+              <NumericUpDown Grid.Row="5" Grid.Column="1" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_ImageSE_Input"
+                             Name="ImageSEInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding ImagePtrSE, Mode=TwoWay}" />
+              <NumericUpDown Grid.Row="5" Grid.Column="3" Margin="2"
+                             AutomationProperties.AutomationId="WorldMapImageFE6_PaletteSE_Input"
+                             Name="PaletteSEInput" Minimum="0" Maximum="4294967295" Increment="4"
+                             FormatString="0" Value="{Binding PalettePtrSE, Mode=TwoWay}" />
+            </Grid>
+            <Button AutomationProperties.AutomationId="WorldMapImageFE6_Write_Button"
+                    Name="WriteButton" Content="Write" HorizontalAlignment="Left"
+                    Click="Write_Click" />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
-  </Grid>
+  </DockPanel>
 </Window>

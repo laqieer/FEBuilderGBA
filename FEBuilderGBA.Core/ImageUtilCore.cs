@@ -735,6 +735,160 @@ namespace FEBuilderGBA
         // End ByteToImage16Tile
         // =========================================================================
 
+        // =========================================================================
+        // ByteToImage256Liner / EncodeImage256Liner — the FE6 World Map "big field
+        // map" 256-color LINEAR codec (#1183). UNLIKE the FE8 tile/palette-map and
+        // the 4bpp tile decoders, the FE6 world map is a FLAT 256-color raster:
+        // ONE byte per pixel = a DIRECT index into a single 256-color palette,
+        // stored row-major (NOT 8×8-tiled, NOT nibble-packed). WF originals:
+        //   decode: ImageUtil.ByteToImage256Liner (ImageUtil.cs:852)
+        //   encode: ImageUtil.ImageToByte256Liner (ImageUtil.cs:3403) + ImageToPalette
+        // =========================================================================
+
+        /// <summary>
+        /// Decode a raw 256-color LINEAR image (one byte per pixel = a direct
+        /// index into a single 256-color palette, row-major) to an RGBA
+        /// <see cref="IImage"/>. Ports WF <c>ImageUtil.ByteToImage256Liner</c>
+        /// (used only by FE6 <c>ImageUtilMap.DrawWorldMapFE6</c>).
+        ///
+        /// <para>Every decoded pixel is OPAQUE (alpha 255) — the FE6 world map is
+        /// a full background raster, so index 0 is a real color (reuses
+        /// <see cref="WritePalettePixel"/>, the same opaque-background writer as
+        /// the FE8 big-field-map decoder).</para>
+        ///
+        /// <para><b>Partial render, NOT a throw.</b> The image stream is clamped to
+        /// <c>min(imageOffset + width*height, image.Length)</c>; a short stream
+        /// returns a PARTIAL image (remaining pixels stay at their zero default),
+        /// mirroring WF's <c>length = Math.Min(...)</c>. Never throws.</para>
+        /// </summary>
+        /// <param name="image">RAW (already-LZ77-decompressed) 256-color index
+        /// bytes, one per pixel.</param>
+        /// <param name="imageOffset">Byte offset into <paramref name="image"/> of
+        /// the first pixel (matches WF <c>image_pos</c>).</param>
+        /// <param name="gbaPalette">RAW 256-color palette (up to 512 bytes, BGR555
+        /// LE, 2 bytes/color). Out-of-range indices are skipped (WF tolerance).</param>
+        /// <param name="paletteOffset">Byte offset into <paramref name="gbaPalette"/>
+        /// where the palette starts (matches WF <c>palette_pos</c>); the per-pixel
+        /// color is read at <c>paletteOffset + index*2</c>.</param>
+        /// <param name="width">Output width in pixels.</param>
+        /// <param name="height">Output height in pixels.</param>
+        /// <returns>RGBA <see cref="IImage"/> of <paramref name="width"/>×
+        /// <paramref name="height"/>, or <c>null</c> when
+        /// <see cref="CoreState.ImageService"/> is null, the buffers are null, or
+        /// the dims are non-positive (degenerate inputs, never throws).</returns>
+        public static IImage ByteToImage256Liner(byte[] image, int imageOffset,
+            byte[] gbaPalette, int paletteOffset, int width, int height)
+        {
+            if (CoreState.ImageService == null) return null;
+            if (image == null || gbaPalette == null) return null;
+            if (width <= 0 || height <= 0) return null;
+            if (imageOffset < 0 || paletteOffset < 0) return null;
+
+            var img = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4]; // RGBA
+
+            // WF clamps the END of the image stream to image.Length so a short
+            // image renders partially instead of throwing (ImageUtil.cs:864-865).
+            int length = imageOffset + (width * height);
+            if (length > image.Length) length = image.Length;
+
+            int x = 0;
+            int y = 0;
+            for (int i = imageOffset; i < length; i++)
+            {
+                int colorIndex = image[i];
+                // WritePalettePixel reads gbaPalette at colorIndex*2, so apply the
+                // palette base offset by indexing into the palette via the helper's
+                // colorIndex argument plus the half-offset (paletteOffset is a BYTE
+                // offset; 2 bytes per color). Keep the WF semantics: palette_pos is
+                // a byte position, so add paletteOffset/2 colors.
+                WritePalettePixel(pixels, width, x, y, gbaPalette,
+                    (paletteOffset / 2) + colorIndex);
+
+                x++;
+                if (x >= width)
+                {
+                    x = 0;
+                    y++;
+                }
+            }
+
+            img.SetPixelData(pixels);
+            return img;
+        }
+
+        /// <summary>
+        /// Encode RGBA pixels to a 256-color LINEAR image (the INVERSE of
+        /// <see cref="ByteToImage256Liner"/>) — ports the FE6 world-map import path
+        /// (WF <c>ImageToByte256Liner</c> + <c>ImageToPalette</c>). Builds a
+        /// per-image palette of up to 256 unique colors (first-seen order, row-major
+        /// scan), maps each pixel to its index, and emits the GBA palette (512 bytes,
+        /// BGR555 LE) and the 256-linear index bytes (width*height bytes).
+        ///
+        /// <para><b>≤256-color contract.</b> If the source has MORE than 256 unique
+        /// colors the encode FAILS (returns <c>false</c>, out params null) — the FE6
+        /// big field map is a flat 256-color raster, so a >256-color source cannot
+        /// be represented and the caller must reject it WITHOUT mutating the ROM
+        /// (mirrors the WF import's palette-count error path).</para>
+        /// </summary>
+        /// <param name="rgba">Source pixels, 4 bytes/pixel (R,G,B,A), row-major.</param>
+        /// <param name="width">Source width in pixels.</param>
+        /// <param name="height">Source height in pixels.</param>
+        /// <param name="image256">OUT: the 256-linear index bytes (width*height),
+        /// or null on failure.</param>
+        /// <param name="palette512">OUT: the 256-color GBA palette (512 bytes),
+        /// or null on failure.</param>
+        /// <returns><c>true</c> on success; <c>false</c> (out params null) when the
+        /// inputs are degenerate (null/short rgba, non-positive dims, no image
+        /// service) OR the source has more than 256 distinct GBA RGB555 colors.
+        /// Never throws.</returns>
+        public static bool EncodeImage256Liner(byte[] rgba, int width, int height,
+            out byte[] image256, out byte[] palette512)
+        {
+            image256 = null;
+            palette512 = null;
+            if (CoreState.ImageService == null) return false;
+            if (rgba == null) return false;
+            if (width <= 0 || height <= 0) return false;
+            int pixelCount = width * height;
+            if ((long)rgba.Length < (long)pixelCount * 4) return false;
+
+            // First-seen color → index map keyed on the GBA RGB555 value (alpha
+            // IGNORED) — the emitted palette IS RGB555, so two RGB888 pixels that
+            // collapse to the same RGB555 color (or differ only in alpha) MUST share
+            // ONE palette entry (Copilot #1183 plan review #4). Keying on raw 24-bit
+            // RGBA would over-count (reject representable images) and create
+            // duplicate palette entries. A flat 256-color raster: a >256-RGB555-color
+            // source cannot be represented, so bail (false) WITHOUT producing any
+            // output (the caller rejects + does NOT mutate — WF palette-count error
+            // parity).
+            var colorToIndex = new System.Collections.Generic.Dictionary<ushort, int>(256);
+            byte[] indices = new byte[pixelCount];
+            byte[] palette = new byte[256 * 2];
+
+            for (int p = 0; p < pixelCount; p++)
+            {
+                int off = p * 4;
+                byte r = rgba[off + 0];
+                byte g = rgba[off + 1];
+                byte b = rgba[off + 2];
+                ushort gba = CoreState.ImageService.RGBAToGBAColor(r, g, b);
+                if (!colorToIndex.TryGetValue(gba, out int idx))
+                {
+                    if (colorToIndex.Count >= 256) return false; // >256 GBA colors → reject
+                    idx = colorToIndex.Count;
+                    colorToIndex[gba] = idx;
+                    palette[idx * 2 + 0] = (byte)(gba & 0xFF);
+                    palette[idx * 2 + 1] = (byte)((gba >> 8) & 0xFF);
+                }
+                indices[p] = (byte)idx;
+            }
+
+            image256 = indices;
+            palette512 = palette;
+            return true;
+        }
+
         /// <summary>
         /// Write one OPAQUE palette-indexed pixel into an RGBA buffer for the big
         /// field map. Bounds-safe on both the destination (x &gt;= width or

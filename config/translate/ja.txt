@@ -11136,3 +11136,21 @@ UPSパッチを保存
 
 :WARNING
 警告
+
+:Full Map
+全体マップ
+
+:Northwest
+北西
+
+:Northeast
+北東
+
+:Southwest
+南西
+
+:Southeast
+南東
+
+:Pointers
+ポインタ
