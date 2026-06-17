@@ -893,6 +893,205 @@ namespace FEBuilderGBA
         }
 
         // ==================================================================
+        // FE6 World Map Big Field Map — 256-color LINEAR render + import (#1183).
+        //
+        // The FE6 world map is COMPLETELY different from the FE7 (12-split TSA)
+        // and FE8 (16-tile palette-map) big field maps: it is a FLAT 256-color
+        // raster (one byte/pixel = a direct 256-color index, row-major). There
+        // are FIVE zoom views (full + 4 quadrants NW/NE/SW/SE), each reading a
+        // CONSECUTIVE pointer slot — image at worldmap_big_image_pointer +
+        // {0,8,16,24,32} and palette at worldmap_big_palette_pointer +
+        // {0,8,16,24,32}. Both the image AND palette are LZ77-compressed.
+        //
+        // WF reference: WorldMapImageFE6Form + ImageUtilMap.DrawWorldMapFE6
+        //   (decode) + ImageFormRef ZLINER256IMAGE/ZPALETTE import (both LZ77).
+        // FE6-ONLY: FE7/FE8's worldmap_big_* slots are also resolvable but hold a
+        // different format, so an explicit rom.RomInfo.version == 6 gate is
+        // required (Copilot #1184 plan review #1, same reasoning as the FE7 gate).
+        // ==================================================================
+
+        // The FE6 big field map renders at a fixed 240×160 (one GBA screen).
+        const int FE6_VERSION = 6;
+        const int FE6_BIG_WIDTH = 240;
+        const int FE6_BIG_HEIGHT = 160;
+
+        /// <summary>
+        /// Render one FE6 World Map zoom view (the flat 256-color LINEAR big field
+        /// map) at 240×160. Resolves the image + palette pointers at
+        /// <c>worldmap_big_{image,palette}_pointer + <paramref name="slotByteOffset"/></c>
+        /// (one of {0,8,16,24,32} = full / NW / NE / SW / SE) pointer-to-pointer,
+        /// LZ77-decompresses BOTH, and decodes via
+        /// <see cref="ImageUtilCore.ByteToImage256Liner"/>. FE6-only. Returns
+        /// <c>null</c> (never throws) on any null / non-FE6 / out-of-bounds /
+        /// corrupt / truncated input.
+        /// </summary>
+        /// <param name="rom">Loaded ROM (FE6 only).</param>
+        /// <param name="slotByteOffset">Byte offset into the consecutive pointer
+        /// arrays: 0 = full, 8 = NW, 16 = NE, 24 = SW, 32 = SE.</param>
+        public static IImage TryRenderFE6BigFieldMap(ROM rom, uint slotByteOffset)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (rom.RomInfo.version != FE6_VERSION) return null;
+
+            // Resolve the per-zoom image + palette pointers (pointer-to-pointer).
+            // TryResolveDataOffset bounds-checks the slot itself before the u32 read.
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer + slotByteOffset, out uint imageAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer + slotByteOffset, out uint paletteAddr))
+                return null;
+
+            // FE6 image AND palette are BOTH LZ77-compressed (WF DrawWorldMapFE6).
+            if (!TryDecompressGuarded(rom, imageAddr, out byte[] image)) return null;
+            if (!TryDecompressGuarded(rom, paletteAddr, out byte[] palette)) return null;
+
+            return ImageUtilCore.ByteToImage256Liner(
+                image, 0, palette, 0, FE6_BIG_WIDTH, FE6_BIG_HEIGHT);
+        }
+
+        /// <summary>
+        /// Lightweight FE6 big-field-map render gate — true only when the ROM is
+        /// FE6 AND BOTH the slot-0 (full map) image AND palette pointers resolve to
+        /// in-bounds offsets. Rendering needs BOTH LZ77 streams (image + palette),
+        /// so gating on the image pointer alone could report true while every
+        /// preview blank-renders on a bad palette pointer (Copilot #1183 plan
+        /// review #2). FE7/FE8 → false. Does NOT render (cheap UI gate). Never throws.
+        /// </summary>
+        public static bool CanRenderFE6BigFieldMap(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+            if (rom.RomInfo.version != FE6_VERSION) return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out _))
+                return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out _))
+                return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Lightweight FE6 per-zoom import gate — true only when the ROM is FE6 AND
+        /// the image + palette pointer SLOTS at
+        /// <c>worldmap_big_{image,palette}_pointer + <paramref name="slotByteOffset"/></c>
+        /// are WRITABLE (in-bounds for the <see cref="ROM.write_p32"/> repoint).
+        /// Gates on slot WRITABILITY (<c>IsRegionSafe(slot, 4)</c>), NOT on the
+        /// currently-pointed image/palette RESOLVING: import allocates a NEW
+        /// compressed image + palette and repoints the slots, so requiring the OLD
+        /// targets to resolve would wrongly disable import in the corrupt-pointer
+        /// repair case (Copilot #1183 plan review #3). FE7/FE8 → false. Never throws.
+        /// </summary>
+        public static bool CanImportFE6BigFieldMap(ROM rom, uint slotByteOffset)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+            if (rom.RomInfo.version != FE6_VERSION) return false;
+            // The image + palette pointer SLOTS must be in-bounds for the write_p32
+            // repoint. Do NOT require the old targets to resolve (repair case).
+            if (!IsRegionSafe(rom, rom.RomInfo.worldmap_big_image_pointer + slotByteOffset, 4))
+                return false;
+            if (!IsRegionSafe(rom, rom.RomInfo.worldmap_big_palette_pointer + slotByteOffset, 4))
+                return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Import one FE6 World Map zoom view (240×160 flat 256-color raster) — the
+        /// inverse of <see cref="TryRenderFE6BigFieldMap"/>. Ports the WF FE6
+        /// <c>ImageFormRef</c> <c>ZLINER256IMAGE</c> + <c>ZPALETTE</c> import path:
+        /// encode the source to 256-linear index bytes + a 256-color palette
+        /// (<see cref="ImageUtilCore.EncodeImage256Liner"/>; a &gt;256-color source
+        /// is REJECTED with ZERO mutation), then LZ77-compress + write BOTH to free
+        /// space and repoint their slot pointers at
+        /// <c>worldmap_big_{image,palette}_pointer + <paramref name="slotByteOffset"/></c>.
+        /// Mirrors #1184 <see cref="ImportFE7BigFieldMap"/>: validate-all-before-
+        /// mutate, a defensive snapshot + length-aware byte-identical fault restore
+        /// (#885/#923), and ambient undo (the writes land in the caller's
+        /// <c>ROM.BeginUndoScope</c>; no <c>Undo.UndoData</c> param so no range is
+        /// double-recorded — Copilot #1184 plan review #3).
+        ///
+        /// <para><b>FE6-only.</b> Returns a non-empty error (ZERO mutation) for
+        /// FE7/FE8. Both the image AND the palette slots are repointed = WF parity
+        /// (the FE6 form's import rewrites <c>ZLINER256IMAGE</c> AND <c>ZPALETTE</c>).</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (FE6 only).</param>
+        /// <param name="slotByteOffset">0/8/16/24/32 = full/NW/NE/SW/SE.</param>
+        /// <param name="rgba">Source pixels, 4 bytes/pixel (R,G,B,A), 240×160.</param>
+        /// <param name="srcWidth">Source width (must be 240).</param>
+        /// <param name="srcHeight">Source height (must be 160).</param>
+        /// <returns>"" on success; a non-empty user-facing error (with ZERO ROM
+        /// mutation) on any validation or write failure. Never throws.</returns>
+        public static string ImportFE6BigFieldMap(ROM rom, uint slotByteOffset,
+            byte[] rgba, int srcWidth, int srcHeight)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+                return "ROM not loaded.";
+            if (rom.RomInfo.version != FE6_VERSION)
+                return R.Error("The world map big field map import is only supported for FE6.");
+            if (CoreState.ImageService == null)
+                return "Image service not available.";
+            if (rgba == null)
+                return "Invalid image data.";
+            if (srcWidth != FE6_BIG_WIDTH || srcHeight != FE6_BIG_HEIGHT)
+            {
+                return R.Error(
+                    "The world map big field map must be {0}x{1}.\r\n\r\nSelected image: {2}x{3}.",
+                    FE6_BIG_WIDTH, FE6_BIG_HEIGHT, srcWidth, srcHeight);
+            }
+            if ((long)rgba.Length < (long)srcWidth * srcHeight * 4)
+                return "Image pixel data is missing or too short.";
+
+            // The image + palette pointer SLOTS (these get repointed by
+            // WriteCompressedToROM). They must be in-bounds before any write.
+            uint imageSlot = rom.RomInfo.worldmap_big_image_pointer + slotByteOffset;
+            uint paletteSlot = rom.RomInfo.worldmap_big_palette_pointer + slotByteOffset;
+            if (!IsRegionSafe(rom, imageSlot, 4))
+                return R.Error("worldmap_big_image_pointer slot is invalid or out of ROM.");
+            if (!IsRegionSafe(rom, paletteSlot, 4))
+                return R.Error("worldmap_big_palette_pointer slot is invalid or out of ROM.");
+
+            // Defensive snapshot for the byte-identical restore. The encode does
+            // NOT mutate the ROM, so it lives INSIDE the try; the caller's ambient
+            // undo scope records the writes for UNDO. A FAILED import (incl. a
+            // partial-write fault between the two WriteCompressedToROM calls)
+            // mutates ZERO bytes.
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                // Encode to 256-linear index bytes + 256-color palette. A
+                // >256-color source is rejected here (false) with ZERO mutation.
+                if (!ImageUtilCore.EncodeImage256Liner(rgba, srcWidth, srcHeight,
+                        out byte[] image256, out byte[] palette512)
+                    || image256 == null || palette512 == null)
+                {
+                    return R.Error(
+                        "The world map big field map must use 256 colors or fewer.");
+                }
+
+                // Write the LZ77-compressed image to free space + repoint the slot.
+                uint w1 = ImageImportCore.WriteCompressedToROM(rom, image256, imageSlot);
+                if (w1 == U.NOT_FOUND)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return R.Error("Failed to write world map image. Check ROM free space.");
+                }
+
+                // Write the LZ77-compressed palette to free space + repoint the slot
+                // (WF parity: the FE6 import rewrites ZPALETTE too).
+                uint w2 = ImageImportCore.WriteCompressedToROM(rom, palette512, paletteSlot);
+                if (w2 == U.NOT_FOUND)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return R.Error("Failed to write world map palette. Check ROM free space.");
+                }
+
+                return "";
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                return "World map big field map import failed: " + ex.Message;
+            }
+        }
+
+        // ==================================================================
         // Main Field Map import / Dark Palette import / Dark render (#875)
         // ==================================================================
 

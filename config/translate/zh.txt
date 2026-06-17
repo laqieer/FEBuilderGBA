@@ -24974,3 +24974,21 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :WARNING
 警告
+
+:Full Map
+完整地图
+
+:Northwest
+西北
+
+:Northeast
+东北
+
+:Southwest
+西南
+
+:Southeast
+东南
+
+:Pointers
+指针
