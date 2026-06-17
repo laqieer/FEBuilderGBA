@@ -377,9 +377,9 @@ Specialized utilities for different graphic types:
 - `ImageUtilMap.cs` - Map tiles
 - `ImageUtilMagic.cs` - Magic effects
 - `LZ77.cs` - GBA LZ77 compression (LZSS variant)
-- `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` +
-  Avalonia `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first /
-  raw-fallback pointer search (event-aware path out of scope — `MissingEventAwareCoverage` always set).
+- `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` + Avalonia
+  `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
+  (event-aware path out of scope — `MissingEventAwareCoverage` always set).
 - `ImageBattleScreenCore` — `EncodeTSAKeep` (Core, PURE) + `ImportBattleScreenBulk` (Core, ROM-MUTATING):
   BULK whole-screen import for the Battle Screen Layout editor (#988). `EncodeTSAKeep` keeps the TSA + applies
   the INVERSE per-cell flip; `ImportBattleScreenBulk` validate-all-before-mutate (5 strips LZ77-written +
@@ -464,12 +464,11 @@ Specialized utilities for different graphic types:
   4 handlers + FE8-only `CanImport{strip}` gates.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
-  `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA) for a resolved table, hex
-  stub for unresolved. #1012.
-- `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core,
-  READ-ONLY) — live-recolor the Unit Palette editor sample preview from in-memory R/G/B spinners (WF
-  `OnChangeColor`): Avalonia `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) →
-  `RenderClassSamplePreview(...,editedBlock)` ONLY when `PaletteTypeIndex==EditableBlockIndex`; null/non-32 fallback. #1022.
+  `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA), hex stub for unresolved. #1012.
+- `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core, READ-ONLY)
+  — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
+  `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,
+  editedBlock)` ONLY when `PaletteTypeIndex==EditableBlockIndex`. #1022.
 - `SongTrackChangeCore.ApplyTrackChange` (Core, ROM-MUTATING) + `SongMidiCore.ParseSingleTrackFromDataOffset`
   (Core, READ-ONLY) — single-track Track Change writer (#1002 Slice 1; ports WF `SongUtil.ChangeTrackAndWrite`):
   voice(0xBD) remap + VOL/PAN clamp 0..127 + TEMPO clamp 0..255 + gated note-velocity; validate-all-before-mutate,
