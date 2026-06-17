@@ -109,7 +109,7 @@ namespace FEBuilderGBA
                     // silently drop those shared blocks from the later entry's data.
                     var oam12Local = new List<OamSp12Block>();
                     var alreadyMatch12 = new Dictionary<uint, bool>();
-                    uint length = CalcLengthAndCheck(rom, addr, name, oam12Local, alreadyMatch12);
+                    uint length = CalcLengthAndCheck(rom, addr, oam12Local, alreadyMatch12);
                     if (length == U.NOT_FOUND || length < 4 * 3)
                     {
                         alreadyMatch[addr] = false; // record the failure
@@ -130,7 +130,7 @@ namespace FEBuilderGBA
                     // PER-ENTRY alreadyMatch12 (see Pass 1).
                     var oam12Local = new List<OamSp12Block>();
                     var alreadyMatch12 = new Dictionary<uint, bool>();
-                    uint length = CalcLengthAndCheck(rom, addr, name, oam12Local, alreadyMatch12);
+                    uint length = CalcLengthAndCheck(rom, addr, oam12Local, alreadyMatch12);
                     if (length == U.NOT_FOUND || length < 4)
                     {
                         alreadyMatch[addr] = false; // record the failure
@@ -155,9 +155,11 @@ namespace FEBuilderGBA
         /// at <paramref name="addr"/>, validating each word as an OAM term or a
         /// safe pointer to an OAM12 block (added to <paramref name="oam12Out"/>).
         /// Returns the byte length of the pointer array, or <c>U.NOT_FOUND</c>
-        /// when an illegal command is hit. Bounds-guarded; never throws.
+        /// when an illegal command is hit. Bounds-guarded; never throws. (WF's
+        /// <c>name</c> param built a per-OAM12 label string; the Core port stores
+        /// no per-block label, so it's dropped.)
         /// </summary>
-        static uint CalcLengthAndCheck(ROM rom, uint addr, string name, List<OamSp12Block> oam12Out, Dictionary<uint, bool> alreadyMatch)
+        static uint CalcLengthAndCheck(ROM rom, uint addr, List<OamSp12Block> oam12Out, Dictionary<uint, bool> alreadyMatch)
         {
             uint start = addr;
             if ((ulong)addr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
@@ -266,7 +268,7 @@ namespace FEBuilderGBA
             {
                 var blocks = new List<OamSp12Block>();
                 var localMatch = new Dictionary<uint, bool>();
-                CalcLengthAndCheck(rom, entry.Addr, entry.Name ?? "", blocks, localMatch);
+                CalcLengthAndCheck(rom, entry.Addr, blocks, localMatch);
                 return blocks;
             }
             catch (Exception ex)

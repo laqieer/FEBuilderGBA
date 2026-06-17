@@ -98,8 +98,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             EntryName = entry.Name;
             EntryLength = string.Format("0x{0:X}", entry.Length);
-            // Recompute the COMPLETE OAM12 list fresh (NOT the deduped scan-time
-            // entry.Oam12) so the count matches WF's per-selection detail (#1179).
+            // The COMPLETE per-entry OAM12 list — populated at scan time (per-entry
+            // match cache, #1179), recomputed only if the stored list is empty.
             Oam12Count = SpecialOamScanCore.ComputeOam12Blocks(rom, entry).Count.ToString();
             DetailText = SpecialOamScanCore.BuildDetailDump(rom, entry);
             IsLoaded = true;
