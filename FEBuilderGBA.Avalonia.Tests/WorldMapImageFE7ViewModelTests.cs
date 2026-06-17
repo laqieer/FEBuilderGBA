@@ -74,6 +74,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 vm.LoadEntry(0);
                 Assert.True(vm.IsLoaded);
                 Assert.True(vm.CanImport, "CanImport must be true on FE7");
+                Assert.True(vm.CanImportEvent, "CanImportEvent must be true on FE7");
                 Assert.NotEqual(0u, vm.BigImagePointer);
             });
         }
@@ -88,6 +89,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 vm.LoadEntry(0);
                 Assert.False(vm.CanImport, "CanImport must be false on FE8");
+                // The EVENT import is FE7+FE8, gated on the EVENT pointers (not the
+                // big-map pointers) — true on FE8 even though CanImport is false.
+                Assert.True(vm.CanImportEvent, "CanImportEvent must be true on FE8");
             });
         }
 

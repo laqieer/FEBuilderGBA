@@ -22,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
         bool _canImport;
+        bool _canImportEvent;
         uint _bigImagePtr;
         uint _bigPalettePtr;
         uint _bigTsaPtr;
@@ -29,9 +30,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        /// <summary>True when the FE7 big-field-map / event imports are allowed
-        /// (FE7 ROM with resolvable big-map pointers). FE6/FE8 → false.</summary>
+        /// <summary>True when the FE7 BIG-field-map import is allowed (FE7 ROM with
+        /// resolvable big-map pointer tables + palette). FE6/FE8 → false.</summary>
         public bool CanImport { get => _canImport; set => SetField(ref _canImport, value); }
+
+        /// <summary>True when the world-map EVENT-image import is allowed (FE7/FE8
+        /// ROM with resolvable EVENT pointers — independent of the big-map pointers,
+        /// Copilot PR #1223 review). FE6 → false.</summary>
+        public bool CanImportEvent { get => _canImportEvent; set => SetField(ref _canImportEvent, value); }
 
         /// <summary>The raw <c>worldmap_big_image_pointer</c> slot value (pointer
         /// to the 12-entry image pointer array), shown read-only in the UI.</summary>
@@ -63,10 +69,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BigImagePointer = rom.u32(rom.RomInfo.worldmap_big_image_pointer);
             BigPalettePointer = rom.u32(rom.RomInfo.worldmap_big_palette_pointer);
             BigTsaPointer = rom.u32(rom.RomInfo.worldmap_big_palettemap_pointer);
-            // FE7-only: gate the import on the lightweight FE7 pointer/version
-            // check (NOT a full render — that allocates a 1024×688 surface and
-            // would couple the button-enable to the render pipeline).
+            // Gate each import independently (NOT a full render — that allocates a
+            // 1024×688 surface and would couple the button-enable to the render
+            // pipeline). The big-map and event imports depend on DIFFERENT pointer
+            // sets, so they have DIFFERENT gates (Copilot PR #1223 review).
             CanImport = ImageWorldMapCore.CanImportFE7BigFieldMap(rom);
+            CanImportEvent = ImageWorldMapCore.CanImportEvent(rom);
             IsLoaded = true;
         }
 
@@ -84,9 +92,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public IImage TryRenderEvent() => ImageWorldMapCore.TryRenderEvent(CoreState.ROM);
 
         // ===================================================================
-        // Import + pointer write-back (ROM-MUTATING — run under the View's
-        // ambient UndoService scope; these methods take NO Undo.UndoData so no
-        // range is double-recorded (Copilot #1184 plan review #3)).
+        // Import (ROM-MUTATING — run under the View's ambient UndoService scope;
+        // these methods take NO Undo.UndoData so no range is double-recorded
+        // (Copilot #1184 plan review #3)).
         // ===================================================================
 
         /// <summary>Import a 1024×688 big-field-map from RGBA pixels via
@@ -102,33 +110,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             bool ok = ImageWorldMapCore.ImportEvent(CoreState.ROM, rgba, width, height, out string error);
             return ok ? "" : (string.IsNullOrEmpty(error) ? "Import failed." : error);
-        }
-
-        /// <summary>Write the 3 big + 3 event pointer-slot values back to ROM
-        /// (WF WorldMapImageFE7Form.WriteButton_Click + WMEvent.WritePointer
-        /// parity). Persists the currently-resolved data pointers (the big-map
-        /// import writes data RAW in-place, so the pointers do not change — this
-        /// is the standard "save the numbers you see" confirmation). Runs under
-        /// the View's ambient undo scope.</summary>
-        public void WritePointers()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return;
-
-            // Re-persist each pointer slot's current value (idempotent unless an
-            // earlier in-place import changed the data behind a slot). Ambient undo.
-            rom.write_u32(rom.RomInfo.worldmap_big_image_pointer,
-                rom.u32(rom.RomInfo.worldmap_big_image_pointer));
-            rom.write_u32(rom.RomInfo.worldmap_big_palette_pointer,
-                rom.u32(rom.RomInfo.worldmap_big_palette_pointer));
-            rom.write_u32(rom.RomInfo.worldmap_big_palettemap_pointer,
-                rom.u32(rom.RomInfo.worldmap_big_palettemap_pointer));
-            rom.write_u32(rom.RomInfo.worldmap_event_image_pointer,
-                rom.u32(rom.RomInfo.worldmap_event_image_pointer));
-            rom.write_u32(rom.RomInfo.worldmap_event_palette_pointer,
-                rom.u32(rom.RomInfo.worldmap_event_palette_pointer));
-            rom.write_u32(rom.RomInfo.worldmap_event_tsa_pointer,
-                rom.u32(rom.RomInfo.worldmap_event_tsa_pointer));
         }
     }
 }

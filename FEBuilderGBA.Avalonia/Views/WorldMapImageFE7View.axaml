@@ -9,14 +9,15 @@
        pieces composited into 1024x688 (bottom row clipped to 176). The event
        image reuses the version-agnostic event preview/import path.
 
-       Write Pointers (top) persists the 3 big + 3 event pointer slots (WF
-       WriteButton_Click + WMEvent.WritePointer) under one undo scope. -->
+       The WF "Write Pointers" button persists the editor's pointer NUDs; here
+       the pointers are read-only display labels (the in-place big-map import
+       does not move data, so the pointers never change), so that button would
+       be a no-op that only dirties undo state (Copilot PR #1223 review) — it is
+       omitted. Each Import writes under its own undo scope; the top Undo button
+       reverts the most recent change. -->
   <DockPanel>
     <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="4">
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button AutomationProperties.AutomationId="WorldMapImageFE7_WriteAll_Button"
-                Name="WriteAllButton" Content="Write Pointers"
-                Click="WriteAll_Click" />
         <Button AutomationProperties.AutomationId="WorldMapImageFE7_Undo_Button"
                 Name="UndoButton" Content="Undo"
                 Click="Undo_Click" />

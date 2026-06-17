@@ -362,6 +362,25 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Lightweight world-map EVENT-image import gate (#1184) — true only when
+        /// the ROM is FE7 or FE8 AND all three <c>worldmap_event_*</c> pointer slots
+        /// resolve to in-bounds offsets. Mirrors <see cref="ImportEvent"/>'s version
+        /// + pointer guards WITHOUT mutating (so the UI gates the Event Import button
+        /// on the EVENT pointers, not the big-map pointers). FE6 (event pointers 0x0)
+        /// → false. Never throws.
+        /// </summary>
+        public static bool CanImportEvent(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE7
+                && rom.RomInfo.version != MAIN_FIELD_VERSION_FE8) return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_image_pointer, out _)) return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_tsa_pointer, out _)) return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_palette_pointer, out _)) return false;
+            return true;
+        }
+
+        /// <summary>
         /// Render the FE7 World Map BIG FIELD MAP preview (12-split header-TSA,
         /// #1184) at a fixed 1024×688 px. Ports WF
         /// <c>ImageUtilMap.DrawWorldMapFE7</c>: resolves the shared palette and the
@@ -431,9 +450,12 @@ namespace FEBuilderGBA
 
                     // Decode the 256×256 piece (32×32 tiles, palette banks via TSA
                     // bits 12-15) — the Core equivalent of WF ByteToImage16TileHeaderTSA.
+                    // skipTile0:false — the FE7 big map is an opaque background, so a
+                    // TSA cell of 0 is a VALID tile-0 reference (WF only skips 0xFFFF),
+                    // NOT transparent (Copilot PR #1223 review #1).
                     IImage pieceImg = ImageUtilCore.DecodeHeaderTSA(
                         pieceImage, pieceTsa, palette,
-                        FE7_PIECE_SIZE / 8, FE7_PIECE_SIZE / 8, true, 0, 0);
+                        FE7_PIECE_SIZE / 8, FE7_PIECE_SIZE / 8, true, 0, 0, skipTile0: false);
                     if (pieceImg == null) { canvas.Dispose(); return null; }
 
                     // BitBlt the piece's top-left (col*256, row*256) region into the
@@ -563,10 +585,13 @@ namespace FEBuilderGBA
                 // 1. Derive a 4-bank palette from the source + assign each 8×8 tile
                 //    to the best-fitting bank, remapping pixels to local 4bpp indices.
                 //    Mirrors WF ImageToPalette(bitmap, 4) + the indexed bitmap's banks.
+                //    Uses the FE7-specific remap that maps opaque pixels to ALL 16
+                //    colors INCLUDING index 0 — the FE7 big map is an opaque
+                //    background where slot 0 is a real color (Copilot PR #1223 review
+                //    #2; the generic RemapToMultiPalette reserves index 0 for
+                //    transparency, shrinking each bank to 15 usable colors).
                 byte[] palette128 = BuildFE7Palette(rgba, srcWidth, srcHeight);
-                ImageImportCore.MultiPaletteRemapResult remap =
-                    ImageImportCore.RemapToMultiPalette(rgba, srcWidth, srcHeight,
-                        palette128, FE7_BIG_PALETTE_BANKS);
+                FE7RemapResult remap = RemapFE7BigField(rgba, srcWidth, srcHeight, palette128);
                 if (remap == null || remap.IndexedPixels == null || remap.TilePaletteIndices == null)
                     return R.Error("Color reduction failed for the world map big field map.");
 
@@ -644,6 +669,108 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>Result of <see cref="RemapFE7BigField"/>: local 4bpp indices
+        /// (0..15, index 0 usable) + per-8×8-tile bank.</summary>
+        class FE7RemapResult
+        {
+            public byte[] IndexedPixels;
+            public int[] TilePaletteIndices;
+        }
+
+        /// <summary>
+        /// Remap the FE7 big-field-map source RGBA to local 4bpp indices + per-tile
+        /// banks, mapping EVERY pixel (opaque OR not) to the closest of ALL 16
+        /// colors in its tile's chosen bank — INCLUDING index 0 (the FE7 big map is
+        /// an opaque background where slot 0 is a real color; Copilot PR #1223
+        /// review #2). Differs from <see cref="ImageImportCore.RemapToMultiPalette"/>
+        /// only in that it does NOT reserve index 0 for transparency. Each 8×8 tile
+        /// is assigned to the bank with the lowest total color distance (over all 16
+        /// colors). Returns null on degenerate input. Never throws.
+        /// </summary>
+        static FE7RemapResult RemapFE7BigField(byte[] rgba, int width, int height, byte[] gbaPalette)
+        {
+            if (rgba == null || gbaPalette == null) return null;
+            if (width % 8 != 0 || height % 8 != 0) return null;
+            if (CoreState.ImageService == null) return null;
+            int pixelCount = width * height;
+            if ((long)rgba.Length < (long)pixelCount * 4) return null;
+
+            // Pre-convert all bank colors (all 16 each) to RGB.
+            byte[][] palR = new byte[FE7_BIG_PALETTE_BANKS][];
+            byte[][] palG = new byte[FE7_BIG_PALETTE_BANKS][];
+            byte[][] palB = new byte[FE7_BIG_PALETTE_BANKS][];
+            for (int sp = 0; sp < FE7_BIG_PALETTE_BANKS; sp++)
+            {
+                palR[sp] = new byte[16]; palG[sp] = new byte[16]; palB[sp] = new byte[16];
+                for (int c = 0; c < 16; c++)
+                {
+                    int pi = (sp * 16 + c) * 2;
+                    if (pi + 1 < gbaPalette.Length)
+                    {
+                        ushort col = (ushort)(gbaPalette[pi] | (gbaPalette[pi + 1] << 8));
+                        CoreState.ImageService.GBAColorToRGBA(col, out palR[sp][c], out palG[sp][c], out palB[sp][c]);
+                    }
+                }
+            }
+
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            byte[] indexed = new byte[pixelCount];
+            int[] tileBanks = new int[tilesX * tilesY];
+
+            for (int ty = 0; ty < tilesY; ty++)
+            {
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    // Pick the best bank (lowest total distance over ALL 16 colors).
+                    long bestDist = long.MaxValue;
+                    int bestBank = 0;
+                    for (int sp = 0; sp < FE7_BIG_PALETTE_BANKS; sp++)
+                    {
+                        long total = 0;
+                        for (int py = 0; py < 8; py++)
+                        {
+                            for (int px = 0; px < 8; px++)
+                            {
+                                int off = ((ty * 8 + py) * width + (tx * 8 + px)) * 4;
+                                int pr = rgba[off], pg = rgba[off + 1], pb = rgba[off + 2];
+                                int minD = int.MaxValue;
+                                for (int c = 0; c < 16; c++) // INCLUDE index 0
+                                {
+                                    int dr = pr - palR[sp][c], dg = pg - palG[sp][c], db = pb - palB[sp][c];
+                                    int d = dr * dr + dg * dg + db * db;
+                                    if (d < minD) minD = d;
+                                }
+                                total += minD;
+                            }
+                        }
+                        if (total < bestDist) { bestDist = total; bestBank = sp; }
+                    }
+                    tileBanks[ty * tilesX + tx] = bestBank;
+
+                    // Map each pixel to the closest of ALL 16 colors in that bank.
+                    for (int py = 0; py < 8; py++)
+                    {
+                        for (int px = 0; px < 8; px++)
+                        {
+                            int pos = (ty * 8 + py) * width + (tx * 8 + px);
+                            int off = pos * 4;
+                            int pr = rgba[off], pg = rgba[off + 1], pb = rgba[off + 2];
+                            int best = 0, bestD = int.MaxValue;
+                            for (int c = 0; c < 16; c++) // INCLUDE index 0
+                            {
+                                int dr = pr - palR[bestBank][c], dg = pg - palG[bestBank][c], db = pb - palB[bestBank][c];
+                                int d = dr * dr + dg * dg + db * db;
+                                if (d < bestD) { bestD = d; best = c; }
+                            }
+                            indexed[pos] = (byte)best;
+                        }
+                    }
+                }
+            }
+            return new FE7RemapResult { IndexedPixels = indexed, TilePaletteIndices = tileBanks };
+        }
+
         /// <summary>
         /// Build the 4-bank (128-byte) GBA palette for the FE7 big field map from
         /// the source RGBA by sampling the first 16 unique colors per 8×8-tile
@@ -702,7 +829,7 @@ namespace FEBuilderGBA
         /// <c>TilePaletteIndices</c>. Used for ALL rows — the bottom row is still
         /// extracted at 256 so its TSA (computed at 256) is correct (WF quirk).
         /// </summary>
-        static void ExtractFE7Piece(ImageImportCore.MultiPaletteRemapResult remap,
+        static void ExtractFE7Piece(FE7RemapResult remap,
             int fullWidth, int pieceX, int pieceY,
             out byte[] pieceIdx, out int[] pieceBanks)
         {

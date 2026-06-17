@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             PalettePtrLabel.Text = string.Format("0x{0:X08}", _vm.BigPalettePointer);
             TsaPtrLabel.Text = string.Format("0x{0:X08}", _vm.BigTsaPointer);
             BigImportButton.IsEnabled = _vm.CanImport;
-            EventImportButton.IsEnabled = _vm.CanImport;
+            EventImportButton.IsEnabled = _vm.CanImportEvent;
         }
 
         // ===================================================================
@@ -244,9 +244,36 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void EventExport_Click(object? sender, RoutedEventArgs e)
         {
+            // The event preview is the 256x160 canvas (30x20 visible tiles + a 16px
+            // right margin). DoEventImport accepts ONLY the 240x160 visible map, so
+            // export the CROPPED 240x160 region — otherwise an export->import
+            // round trip fails the size check (Copilot PR #1223 review #3).
             try
             {
-                await EventPreviewImage.ExportPng(this, "worldmap_fe7_event");
+                IImage? full = _vm.TryRenderEvent();
+                if (full == null)
+                {
+                    CoreState.Services?.ShowError(R._("Nothing to export."));
+                    return;
+                }
+                try
+                {
+                    IImage? cropped = CropTopLeft(full,
+                        WorldMapImageFE7ViewModel.EventWidth, WorldMapImageFE7ViewModel.EventHeight);
+                    if (cropped == null)
+                    {
+                        CoreState.Services?.ShowError(R._("Nothing to export."));
+                        return;
+                    }
+                    try
+                    {
+                        string? path = await FileDialogHelper.SaveImageFile(this, "worldmap_fe7_event");
+                        if (string.IsNullOrEmpty(path)) return;
+                        cropped.Save(path);
+                    }
+                    finally { cropped.Dispose(); }
+                }
+                finally { full.Dispose(); }
             }
             catch (Exception ex)
             {
@@ -254,34 +281,38 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // ===================================================================
-        // Write pointers (WF WriteButton_Click + WMEvent.WritePointer) / Undo.
-        // ===================================================================
-
-        void WriteAll_Click(object? sender, RoutedEventArgs e)
+        /// <summary>Crop the top-left <paramref name="w"/>x<paramref name="h"/>
+        /// region of <paramref name="src"/> into a new RGBA image, or null on a
+        /// degenerate input. Used to export the visible 240x160 event map from the
+        /// 256x160 preview canvas.</summary>
+        static IImage? CropTopLeft(IImage src, int w, int h)
         {
-            try
+            if (src == null || CoreState.ImageService == null) return null;
+            if (w <= 0 || h <= 0 || src.Width < w || src.Height < h) return null;
+            byte[] srcPixels = src.GetPixelData();
+            if (srcPixels == null) return null;
+            byte[] dst = new byte[w * h * 4];
+            for (int y = 0; y < h; y++)
             {
-                _undoService.Begin("Write World Map Pointers (FE7)");
-                try
+                for (int x = 0; x < w; x++)
                 {
-                    _vm.WritePointers();
-                    _undoService.Commit();
+                    int si = (y * src.Width + x) * 4;
+                    int di = (y * w + x) * 4;
+                    if (si + 3 >= srcPixels.Length) continue;
+                    dst[di + 0] = srcPixels[si + 0];
+                    dst[di + 1] = srcPixels[si + 1];
+                    dst[di + 2] = srcPixels[si + 2];
+                    dst[di + 3] = srcPixels[si + 3];
                 }
-                catch (Exception ex)
-                {
-                    _undoService.Rollback();
-                    Log.Error("WorldMapImageFE7View.WriteAll write failed: " + ex.ToString());
-                    CoreState.Services?.ShowError(R._("Write failed: {0}", ex.Message));
-                    return;
-                }
-                UpdateUI();
             }
-            catch (Exception ex)
-            {
-                Log.Error("WorldMapImageFE7View.WriteAll_Click failed: " + ex.ToString());
-            }
+            IImage outImg = CoreState.ImageService.CreateImage(w, h);
+            outImg.SetPixelData(dst);
+            return outImg;
         }
+
+        // ===================================================================
+        // Undo (reverts the most recent import).
+        // ===================================================================
 
         void Undo_Click(object? sender, RoutedEventArgs e)
         {
