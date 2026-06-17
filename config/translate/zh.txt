@@ -24935,3 +24935,27 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Other Text
 编辑其他文本
+
+:Severity:
+严重程度:
+
+:Category:
+类别:
+
+:Message:
+消息:
+
+:Rescan
+重新扫描
+
+:No problems found.
+未发现问题。
+
+:Errors
+错误
+
+:(system)
+(系统)
+
+:WARNING
+警告

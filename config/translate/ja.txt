@@ -11097,3 +11097,27 @@ UPSパッチを保存
 
 :Edit Other Text
 その他テキストの編集
+
+:Severity:
+重大度:
+
+:Category:
+カテゴリ:
+
+:Message:
+メッセージ:
+
+:Rescan
+再スキャン
+
+:No problems found.
+問題は見つかりませんでした。
+
+:Errors
+エラー
+
+:(system)
+(システム)
+
+:WARNING
+警告

@@ -566,7 +566,7 @@ Miscellaneous tools for ROM management, lint, diff, UPS, and more.
 |---|------|-----------|-------------|
 | 319 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
 | 320 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
-| 321 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool |
+| 321 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool — read-only viewer over the cross-platform `FELintScanner` (same scan as CLI `--lint`): per-finding list, severity/category/address/message detail, error+warning summary, Rescan, and double-click/Enter jump-to-HexEditor for jumpable findings (#1168) |
 | 322 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |
 | 323 | ToolLZ77View | ToolLZ77ViewModel | LZ77 compression/decompression tool |
 | 324 | ToolDiffView | ToolDiffViewModel | ROM diff comparison tool |

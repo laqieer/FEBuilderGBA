@@ -6,6 +6,12 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// Read-only Lint (FELint) GUI tool (issue #1168 — port of WinForms
+    /// <c>ToolFELintForm</c>). Auto-runs the cross-platform <see cref="FELintScanner"/>
+    /// on open, lists each finding, shows the selected finding's detail, and lets the
+    /// user double-click/Enter a jumpable finding to open it in the Hex Editor.
+    /// </summary>
     public partial class ToolFELintView : TranslatedWindow, IEditorView
     {
         readonly ToolFELintViewModel _vm = new();
@@ -16,7 +22,9 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolFELintView()
         {
             InitializeComponent();
+            DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
+            EntryList.SelectionConfirmed += OnConfirmed;
             Opened += (_, _) => LoadList();
         }
 
@@ -29,26 +37,43 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolFELintView.LoadList failed: {0}", ex.Message);
+                Log.Error("ToolFELintView.LoadList failed: " + ex.ToString());
             }
         }
 
+        // Selection changes resolve the detail panel by the row's original index, NOT by
+        // address, so duplicate-address findings (e.g. multiple SYSTEM_MAP_ID errors) each
+        // show their own message.
         void OnSelected(uint addr)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                _vm.LoadEntryByIndex(EntryList.SelectedOriginalIndex);
             }
             catch (Exception ex)
             {
-                Log.Error("ToolFELintView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ToolFELintView.OnSelected failed: " + ex.ToString());
             }
         }
 
-        void UpdateUI()
+        // Double-click / Enter: jump to the Hex Editor for a real, jumpable finding.
+        // System/global rows (header sentinel, "no problems") are no-ops.
+        void OnConfirmed(PickResult pick)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            try
+            {
+                if (_vm.TryGetJumpOffset(pick.Index, out uint offset))
+                    WindowManager.Instance.Navigate<HexEditorView>(offset);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolFELintView.OnConfirmed failed: " + ex.ToString());
+            }
+        }
+
+        void Rescan_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
