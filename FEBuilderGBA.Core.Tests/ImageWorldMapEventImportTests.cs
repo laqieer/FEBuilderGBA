@@ -269,19 +269,20 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ImportEvent_NonFE8Rom_MutatesZeroBytes()
+        public void ImportEvent_FE6Rom_MutatesZeroBytes()
         {
-            // FE7's worldmap_event_* pointers are ALSO nonzero/resolvable, so the
-            // pointer guard would NOT reject FE7 — the explicit FE8 version gate
-            // must (Copilot PR #1098 review). An FE7U (version 7) ROM is rejected
-            // with no mutation BEFORE any write.
+            // The event-image import is now FE7+FE8 (#1184 generalized the FE8-only
+            // #1098 gate to FE7 — the format is identical and the encode path is
+            // version-independent). FE6 (version 6) has worldmap_event_* as 0x0; even
+            // with planted resolvable pointers the explicit version gate must reject
+            // it with no mutation BEFORE any write.
             var savedRom = CoreState.ROM;
             var savedSvc = CoreState.ImageService;
             try
             {
                 var rom = new ROM();
-                byte[] data = new byte[0x1000000]; // 16 MB (min for FE7U detection)
-                rom.LoadLow("synth_fe7.gba", data, "AE7E01"); // FE7U -> version 7
+                byte[] data = new byte[0x1000000]; // 16 MB
+                rom.LoadLow("synth_fe6.gba", data, "AFEJ01"); // FE6 -> version 6
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
 
@@ -296,6 +297,39 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(ok);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = savedRom; CoreState.ImageService = savedSvc; }
+        }
+
+        [Fact]
+        public void ImportEvent_FE7Rom_PassesVersionGate()
+        {
+            // #1184: FE7 (version 7) is now an ACCEPTED event-import target. With
+            // resolvable event pointers + the standard two-region source, the import
+            // must pass the version gate (it does not fail with the version error;
+            // any later failure would be a free-space/encode issue, not the gate).
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            try
+            {
+                var rom = new ROM();
+                byte[] data = new byte[0x1000000]; // 16 MB (min for FE7U detection)
+                rom.LoadLow("synth_fe7.gba", data, "AE7E01"); // FE7U -> version 7
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                SetPtr(rom, rom.RomInfo.worldmap_event_image_pointer, 0x100000);
+                SetPtr(rom, rom.RomInfo.worldmap_event_tsa_pointer, 0x200000);
+                SetPtr(rom, rom.RomInfo.worldmap_event_palette_pointer, 0x300000);
+
+                bool ok = ImageWorldMapCore.ImportEvent(rom, MakeTwoRegionRgba(SRC_W, SRC_H), SRC_W, SRC_H, out string err);
+
+                // The 16 MB synthetic ROM (mostly 0x00) has abundant free space, so
+                // the FE7 import SUCCEEDS end-to-end through the version-independent
+                // encode path — the key assertion is that the version gate did NOT
+                // reject it.
+                Assert.True(ok, "FE7 event import should pass the version gate: " + err);
+                Assert.Equal("", err);
             }
             finally { CoreState.ROM = savedRom; CoreState.ImageService = savedSvc; }
         }

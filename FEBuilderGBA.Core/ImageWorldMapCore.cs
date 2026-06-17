@@ -104,6 +104,7 @@ namespace FEBuilderGBA
         // WF ImageUtilMap.DrawWorldMap renders the big field map at a FIXED
         // 480x320 (ImageUtilMap.cs:522). The version that reaches
         // ByteToImage16TilePaletteMap is FE8 (FE6/FE7 route elsewhere).
+        const int MAIN_FIELD_VERSION_FE7 = 7;     // ROMFEINFO.version for FE7J/FE7U
         const int MAIN_FIELD_VERSION_FE8 = 8;     // ROMFEINFO.version for FE8J/FE8U
         const int MAIN_FIELD_WIDTH  = 480;
         const int MAIN_FIELD_HEIGHT = 320;
@@ -284,6 +285,478 @@ namespace FEBuilderGBA
 
             return ImageUtilCore.ByteToImage16TilePaletteMap(
                 image, paletteMap, palette, MAIN_FIELD_WIDTH, MAIN_FIELD_HEIGHT);
+        }
+
+        // ==================================================================
+        // FE7 Big Field Map render + import (#1184) — FE7-only, 12-split TSA.
+        //
+        // The FE7 world-map big field map is COMPLETELY different from the FE8
+        // main field map (above): it is a 12-split (4 cols × 3 rows) grid of
+        // 256×256 header-TSA pieces composited into one 1024×688 image, with the
+        // bottom row visually clipped to 176 px (688 = 256 + 256 + 176). Both the
+        // image AND the header-TSA are RAW (uncompressed) — UNLIKE the event
+        // image (LZ77). WF reference:
+        //   ImageUtilMap.DrawWorldMapFE7 (ImageUtilMap.cs:530):
+        //     for the 12 pieces: image = ROM.p32(imagemap += 4),
+        //                        tsa   = ROM.p32(tsamap += 4),
+        //     ByteToImage16TileHeaderTSA(256, 256, ROM.Data, image, palette, tsa)
+        //     BitBlt into the 1024×688 canvas at (x*256, y*256); the bottom row
+        //     blits height 176 but the TSA is STILL decoded at 256 (WF quirk @127).
+        //
+        //   worldmap_big_image_pointer     → an array of 12 image pointers (×4 B).
+        //   worldmap_big_palettemap_pointer→ an array of 12 header-TSA pointers
+        //                                    (NOT a palette-map — the FE7 comment
+        //                                    in ROMFE7U.cs is "TSA 12分割").
+        //   worldmap_big_palette_pointer   → the shared 64-color / 4-bank palette.
+        //
+        // FE7-ONLY: FE8's worldmap_big_* slots are ALSO nonzero/resolvable but
+        // hold a single image + palette-map (not pointer arrays), so an explicit
+        // rom.RomInfo.version == 7 gate is required (Copilot #1184 plan review #1);
+        // FE6's slots are 0x0 (also rejected).
+        // ==================================================================
+
+        // The full FE7 big field map is 1024×688 (12-split 256×256 pieces).
+        const int FE7_BIG_WIDTH  = 1024;
+        const int FE7_BIG_HEIGHT = 688;
+        // Each piece is decoded at 256×256 (even the bottom row — WF quirk @127).
+        const int FE7_PIECE_SIZE = 256;
+        const int FE7_PIECE_COLS = 4;
+        const int FE7_PIECE_ROWS = 3;
+        const int FE7_PIECE_COUNT = FE7_PIECE_COLS * FE7_PIECE_ROWS; // 12
+        // Bottom-row visible height (688 - 256 - 256). The bottom row's image is
+        // sliced to this height on import (WF: image = U.subrange(image, 0, 256/2*176)).
+        const int FE7_BOTTOM_ROW_VISIBLE_H = FE7_BIG_HEIGHT - 2 * FE7_PIECE_SIZE; // 176
+        // One 256×256 4bpp piece image = 256*256/2 = 32,768 bytes (RAW, fixed).
+        const int FE7_PIECE_IMAGE_BYTES = (FE7_PIECE_SIZE * FE7_PIECE_SIZE) / 2; // 32,768
+        // The bottom-row piece image is sliced to 256/2 * 176 bytes on import.
+        const int FE7_BOTTOM_PIECE_IMAGE_BYTES = (FE7_PIECE_SIZE / 2) * FE7_BOTTOM_ROW_VISIBLE_H; // 22,528
+        // The FE7 big-map palette is 4 sub-palettes × 16 colors × 2 bytes = 128 B.
+        const int FE7_BIG_PALETTE_BANKS = 4;
+        const int FE7_BIG_PALETTE_BYTES = FE7_BIG_PALETTE_BANKS * 16 * 2; // 128
+        // The header-TSA for a 256×256 piece with margin 0 = 2 + 32*32*2 = 2050 B.
+        const int FE7_PIECE_HEADERTSA_BYTES =
+            2 + (FE7_PIECE_SIZE / 8) * (FE7_PIECE_SIZE / 8) * 2; // 2050
+
+        /// <summary>
+        /// Lightweight FE7 big-field-map import gate (#1184) — true only when the
+        /// ROM is FE7 AND all three <c>worldmap_big_*</c> pointer slots resolve to
+        /// in-bounds offsets with a valid shared palette + 12-entry pointer arrays.
+        /// Does NOT render (so the UI can gate the Import button cheaply and
+        /// deterministically — unlike a full <see cref="TryRenderFE7BigFieldMap"/>
+        /// which allocates a 1024×688 surface). FE6/FE8 → false. Never throws.
+        /// </summary>
+        public static bool CanImportFE7BigFieldMap(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE7) return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageArrayBase))
+                return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out uint paletteAddr))
+                return false;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palettemap_pointer, out uint tsaArrayBase))
+                return false;
+            if (!IsRegionSafe(rom, imageArrayBase, FE7_PIECE_COUNT * 4)) return false;
+            if (!IsRegionSafe(rom, tsaArrayBase, FE7_PIECE_COUNT * 4)) return false;
+            if (!IsRegionSafe(rom, paletteAddr, FE7_BIG_PALETTE_BYTES)) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Render the FE7 World Map BIG FIELD MAP preview (12-split header-TSA,
+        /// #1184) at a fixed 1024×688 px. Ports WF
+        /// <c>ImageUtilMap.DrawWorldMapFE7</c>: resolves the shared palette and the
+        /// two 12-entry pointer arrays (<c>worldmap_big_image_pointer</c> →
+        /// images, <c>worldmap_big_palettemap_pointer</c> → header-TSAs),
+        /// dereferences each piece's image+TSA pointer, decodes each 256×256 piece
+        /// via <see cref="ImageUtilCore.DecodeHeaderTSA"/> (the Core equivalent of
+        /// WF <c>ByteToImage16TileHeaderTSA</c>), and composites the 12 pieces into
+        /// one 1024×688 RGBA canvas (the bottom row is clipped to 176 px — WF
+        /// quirk, but the TSA is still decoded at 256). Returns <c>null</c> (never
+        /// throws) on any null / out-of-bounds / corrupt input.
+        ///
+        /// <para><b>FE7-only.</b> FE8's <c>worldmap_big_*</c> slots are also
+        /// resolvable (single image + palette-map, NOT pointer arrays), so this
+        /// gates on <c>rom.RomInfo.version == 7</c> and returns <c>null</c> for
+        /// FE6/FE8 rather than mis-interpret their bytes (Copilot #1184 plan
+        /// review #1).</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (FE7 only).</param>
+        public static IImage TryRenderFE7BigFieldMap(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE7) return null;
+
+            // Resolve the shared palette + the two 12-entry pointer-array bases.
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageArrayBase))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out uint paletteAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palettemap_pointer, out uint tsaArrayBase))
+                return null;
+
+            // The shared 64-color (4-bank) / 128-byte palette (RAW, fixed).
+            byte[] palette = ReadRawPalette(rom, paletteAddr, FE7_BIG_PALETTE_BYTES);
+            if (palette == null) return null;
+
+            // Each piece's image+TSA pointer lives in the 12-entry arrays. The
+            // arrays themselves must be fully in-bounds before any p32 read.
+            if (!IsRegionSafe(rom, imageArrayBase, FE7_PIECE_COUNT * 4)) return null;
+            if (!IsRegionSafe(rom, tsaArrayBase, FE7_PIECE_COUNT * 4)) return null;
+
+            // The 1024×688 RGBA composite canvas.
+            var canvas = CoreState.ImageService.CreateImage(FE7_BIG_WIDTH, FE7_BIG_HEIGHT);
+            byte[] canvasPixels = new byte[FE7_BIG_WIDTH * FE7_BIG_HEIGHT * 4];
+
+            int piece = 0;
+            for (int row = 0; row < FE7_PIECE_ROWS; row++)
+            {
+                // The bottom row is visually clipped to 176 px; the TSA is still
+                // decoded at 256 (WF quirk @127).
+                int visibleH = (row == FE7_PIECE_ROWS - 1)
+                    ? FE7_BOTTOM_ROW_VISIBLE_H : FE7_PIECE_SIZE;
+                for (int col = 0; col < FE7_PIECE_COLS; col++, piece++)
+                {
+                    // Dereference this piece's image + header-TSA pointers.
+                    if (!TryResolveDataOffset(rom, imageArrayBase + (uint)(piece * 4), out uint imgOff))
+                    { canvas.Dispose(); return null; }
+                    if (!TryResolveDataOffset(rom, tsaArrayBase + (uint)(piece * 4), out uint tsaOff))
+                    { canvas.Dispose(); return null; }
+
+                    // RAW image (32,768 B) + RAW header-TSA (2,050 B), fixed sizes.
+                    byte[] pieceImage = ReadRawRegion(rom, imgOff, FE7_PIECE_IMAGE_BYTES);
+                    if (pieceImage == null) { canvas.Dispose(); return null; }
+                    byte[] pieceTsa = ReadRawRegion(rom, tsaOff, FE7_PIECE_HEADERTSA_BYTES);
+                    if (pieceTsa == null) { canvas.Dispose(); return null; }
+
+                    // Decode the 256×256 piece (32×32 tiles, palette banks via TSA
+                    // bits 12-15) — the Core equivalent of WF ByteToImage16TileHeaderTSA.
+                    IImage pieceImg = ImageUtilCore.DecodeHeaderTSA(
+                        pieceImage, pieceTsa, palette,
+                        FE7_PIECE_SIZE / 8, FE7_PIECE_SIZE / 8, true, 0, 0);
+                    if (pieceImg == null) { canvas.Dispose(); return null; }
+
+                    // BitBlt the piece's top-left (col*256, row*256) region into the
+                    // canvas, clipping the bottom row to its visible height.
+                    BlitPiece(canvasPixels, FE7_BIG_WIDTH, FE7_BIG_HEIGHT,
+                        pieceImg, col * FE7_PIECE_SIZE, row * FE7_PIECE_SIZE,
+                        FE7_PIECE_SIZE, visibleH);
+                    pieceImg.Dispose();
+                }
+            }
+
+            canvas.SetPixelData(canvasPixels);
+            return canvas;
+        }
+
+        /// <summary>
+        /// Blit the top-left <paramref name="copyW"/>×<paramref name="copyH"/>
+        /// region of <paramref name="src"/> (an RGBA 256×256 piece) into
+        /// <paramref name="dst"/> at (<paramref name="dstX"/>, <paramref name="dstY"/>).
+        /// Opaque copy (the big field map is a full background, not a sprite).
+        /// </summary>
+        static void BlitPiece(byte[] dst, int dstW, int dstH, IImage src,
+            int dstX, int dstY, int copyW, int copyH)
+        {
+            if (src == null) return;
+            byte[] s = src.GetPixelData();
+            if (s == null) return;
+            int srcW = src.Width;
+            for (int y = 0; y < copyH; y++)
+            {
+                int dy = dstY + y;
+                if (dy < 0 || dy >= dstH) continue;
+                for (int x = 0; x < copyW; x++)
+                {
+                    int dx = dstX + x;
+                    if (dx < 0 || dx >= dstW) continue;
+                    int si = (y * srcW + x) * 4;
+                    int di = (dy * dstW + dx) * 4;
+                    if (si + 3 >= s.Length || di + 3 >= dst.Length) continue;
+                    dst[di + 0] = s[si + 0];
+                    dst[di + 1] = s[si + 1];
+                    dst[di + 2] = s[si + 2];
+                    dst[di + 3] = 255; // opaque
+                }
+            }
+        }
+
+        /// <summary>
+        /// Import a FE7 World Map BIG FIELD MAP (#1184), the inverse of
+        /// <see cref="TryRenderFE7BigFieldMap"/>. Ports WF
+        /// <c>WorldMapImageFE7Form.ImportButton_Click</c>: validate the 1024×688
+        /// source, derive a 4-bank palette + per-tile bank assignment, split into
+        /// the 12 256×256 pieces (the bottom row's IMAGE sliced to
+        /// <c>256/2*176</c> bytes but its TSA computed at 256 — WF quirk @127),
+        /// encode each piece (<see cref="ImageImportCore.EncodeDirectTiles4bpp"/> +
+        /// a PLAIN sequential per-tile-bank TSA via <see cref="EncodeFE7PieceTSA"/>
+        /// + <see cref="ImageImportCore.EncodeHeaderTSA"/> at margin 0), and write
+        /// every region RAW IN-PLACE (fixed size, NO realloc/repoint — WF:
+        /// "すべて無圧縮データなので…位置の変換は絶対に起きえません") at the resolved
+        /// piece pointers, plus the 128-byte palette.
+        ///
+        /// <para><b>FE7-only.</b> Returns a non-empty error (ZERO mutation) for
+        /// FE6/FE8 (Copilot #1184 plan review #1).</para>
+        ///
+        /// <para><b>Validate-ALL-before-mutate.</b> Every one of the 25
+        /// destinations (12 image regions, 12 header-TSA regions, the palette) is
+        /// resolved + bounds-checked BEFORE the first write; the encode is checked
+        /// for the exact expected lengths. A defensive <c>(byte[])rom.Data.Clone()</c>
+        /// snapshot + length-aware byte-identical fault restore (#885/#923) means a
+        /// FAILED import (incl. a partial-write fault) mutates ZERO bytes.</para>
+        ///
+        /// <para><b>Ambient undo only.</b> All writes go through the no-undoData
+        /// <c>rom.write_range(addr, data)</c> overload so they land in the caller's
+        /// ambient <c>ROM.BeginUndoScope</c>; this helper does NOT take an
+        /// <c>Undo.UndoData</c> (Copilot #1184 plan review #3 — avoids double
+        /// recording a range under an ambient scope).</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (FE7 only; writes 12 image + 12 TSA + 1
+        /// palette region RAW in-place — no repoint).</param>
+        /// <param name="rgba">Source pixels, 4 bytes/pixel (R,G,B,A), 1024×688.</param>
+        /// <param name="srcWidth">Source width (must be 1024).</param>
+        /// <param name="srcHeight">Source height (must be 688).</param>
+        /// <returns>"" on success; a non-empty user-facing error (with ZERO ROM
+        /// mutation) on any validation or write failure. Never throws.</returns>
+        public static string ImportFE7BigFieldMap(ROM rom, byte[] rgba, int srcWidth, int srcHeight)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+                return "ROM not loaded.";
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE7)
+                return R.Error("The world map big field map import is only supported for FE7.");
+            if (CoreState.ImageService == null)
+                return "Image service not available.";
+            if (rgba == null)
+                return "Invalid image data.";
+            if (srcWidth != FE7_BIG_WIDTH || srcHeight != FE7_BIG_HEIGHT)
+            {
+                return R.Error(
+                    "The world map big field map must be {0}x{1}.\r\n\r\nSelected image: {2}x{3}.",
+                    FE7_BIG_WIDTH, FE7_BIG_HEIGHT, srcWidth, srcHeight);
+            }
+            if ((long)rgba.Length < (long)srcWidth * srcHeight * 4)
+                return "Image pixel data is missing or too short.";
+
+            // Resolve the shared palette + the two 12-entry pointer-array bases.
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageArrayBase))
+                return R.Error("worldmap_big_image_pointer is invalid or out of ROM.");
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out uint paletteAddr))
+                return R.Error("worldmap_big_palette_pointer is invalid or out of ROM.");
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palettemap_pointer, out uint tsaArrayBase))
+                return R.Error("worldmap_big_palettemap_pointer is invalid or out of ROM.");
+
+            // The pointer arrays must be fully in-bounds before any p32 read.
+            if (!IsRegionSafe(rom, imageArrayBase, FE7_PIECE_COUNT * 4))
+                return R.Error("The world map big field map image pointer table is out of ROM.");
+            if (!IsRegionSafe(rom, tsaArrayBase, FE7_PIECE_COUNT * 4))
+                return R.Error("The world map big field map TSA pointer table is out of ROM.");
+            if (!IsRegionSafe(rom, paletteAddr, FE7_BIG_PALETTE_BYTES))
+                return R.Error("The world map big field map palette region is out of ROM.");
+
+            // Defensive snapshot for the byte-identical restore. The reduce/encode
+            // do NOT mutate the ROM, so they live INSIDE the try; the caller's
+            // ambient undo scope records the writes for UNDO. A FAILED import (incl.
+            // a partial-write fault) mutates ZERO bytes.
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                // 1. Derive a 4-bank palette from the source + assign each 8×8 tile
+                //    to the best-fitting bank, remapping pixels to local 4bpp indices.
+                //    Mirrors WF ImageToPalette(bitmap, 4) + the indexed bitmap's banks.
+                byte[] palette128 = BuildFE7Palette(rgba, srcWidth, srcHeight);
+                ImageImportCore.MultiPaletteRemapResult remap =
+                    ImageImportCore.RemapToMultiPalette(rgba, srcWidth, srcHeight,
+                        palette128, FE7_BIG_PALETTE_BANKS);
+                if (remap == null || remap.IndexedPixels == null || remap.TilePaletteIndices == null)
+                    return R.Error("Color reduction failed for the world map big field map.");
+
+                // 2. Pre-resolve + bounds-check ALL 24 piece destinations and build
+                //    the encoded payloads (NO mutation yet). validate-all-before-mutate.
+                uint[] imgDest = new uint[FE7_PIECE_COUNT];
+                uint[] tsaDest = new uint[FE7_PIECE_COUNT];
+                byte[][] imgPayload = new byte[FE7_PIECE_COUNT][];
+                byte[][] tsaPayload = new byte[FE7_PIECE_COUNT][];
+
+                int piece = 0;
+                for (int row = 0; row < FE7_PIECE_ROWS; row++)
+                {
+                    bool bottom = (row == FE7_PIECE_ROWS - 1);
+                    int expectImgBytes = bottom ? FE7_BOTTOM_PIECE_IMAGE_BYTES : FE7_PIECE_IMAGE_BYTES;
+                    for (int col = 0; col < FE7_PIECE_COLS; col++, piece++)
+                    {
+                        // Resolve + bounds-check this piece's image + TSA destination.
+                        if (!TryResolveDataOffset(rom, imageArrayBase + (uint)(piece * 4), out uint imgOff))
+                            return R.Error("World map big field map image piece {0} pointer is invalid.", piece);
+                        if (!TryResolveDataOffset(rom, tsaArrayBase + (uint)(piece * 4), out uint tsaOff))
+                            return R.Error("World map big field map TSA piece {0} pointer is invalid.", piece);
+                        if (!IsRegionSafe(rom, imgOff, expectImgBytes))
+                            return R.Error("World map big field map image piece {0} region is out of ROM.", piece);
+                        if (!IsRegionSafe(rom, tsaOff, FE7_PIECE_HEADERTSA_BYTES))
+                            return R.Error("World map big field map TSA piece {0} region is out of ROM.", piece);
+
+                        // Extract this 256×256 piece's local indices + per-tile banks
+                        // (the bottom row is still extracted at 256 for the TSA).
+                        ExtractFE7Piece(remap, srcWidth, col * FE7_PIECE_SIZE, row * FE7_PIECE_SIZE,
+                            out byte[] pieceIdx, out int[] pieceBanks);
+
+                        // Encode the piece image (plain 4bpp tiles, NO dedup — WF
+                        // isPackedImage=false) at 256×256, then slice the bottom row
+                        // to its visible height.
+                        byte[] pieceImage = ImageImportCore.EncodeDirectTiles4bpp(
+                            pieceIdx, FE7_PIECE_SIZE, FE7_PIECE_SIZE);
+                        if (pieceImage == null || pieceImage.Length != FE7_PIECE_IMAGE_BYTES)
+                            return R.Error("Failed to encode world map big field map image piece {0}.", piece);
+                        if (bottom)
+                            pieceImage = U.subrange(pieceImage, 0, (uint)FE7_BOTTOM_PIECE_IMAGE_BYTES);
+                        if (pieceImage.Length != expectImgBytes)
+                            return R.Error("World map big field map image piece {0} encoded to the wrong length.", piece);
+
+                        // Encode a PLAIN sequential per-tile-bank TSA at 256×256, then
+                        // wrap it as a header-TSA with margin 0 (WF parity).
+                        byte[] plainTsa = EncodeFE7PieceTSA(pieceBanks, FE7_PIECE_SIZE, FE7_PIECE_SIZE);
+                        byte[] headerTsa = ImageImportCore.EncodeHeaderTSA(
+                            plainTsa, FE7_PIECE_SIZE, FE7_PIECE_SIZE, 0);
+                        if (headerTsa == null || headerTsa.Length != FE7_PIECE_HEADERTSA_BYTES)
+                            return R.Error("Failed to encode world map big field map TSA piece {0}.", piece);
+
+                        imgDest[piece] = imgOff;
+                        tsaDest[piece] = tsaOff;
+                        imgPayload[piece] = pieceImage;
+                        tsaPayload[piece] = headerTsa;
+                    }
+                }
+
+                // 3. All destinations validated + all payloads encoded — NOW write
+                //    everything RAW in-place under the caller's ambient undo. A fault
+                //    at any step restores the ROM byte-identically.
+                rom.write_range(paletteAddr, palette128);
+                for (int p = 0; p < FE7_PIECE_COUNT; p++)
+                {
+                    rom.write_range(imgDest[p], imgPayload[p]);
+                    rom.write_range(tsaDest[p], tsaPayload[p]);
+                }
+                return "";
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                return "World map big field map import failed: " + ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// Build the 4-bank (128-byte) GBA palette for the FE7 big field map from
+        /// the source RGBA by sampling the first 16 unique colors per 8×8-tile
+        /// group (the cross-platform equivalent of WF
+        /// <c>ImageToPalette(bitmap, 4)</c>, which reads the indexed bitmap's 64
+        /// palette entries). Index 0 of each bank is sampled like every other entry
+        /// (WF parity). Never throws.
+        /// </summary>
+        static byte[] BuildFE7Palette(byte[] rgba, int width, int height)
+        {
+            byte[] result = new byte[FE7_BIG_PALETTE_BYTES];
+            if (CoreState.ImageService == null) return result;
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            int tilesPerBank = (tilesX * tilesY + FE7_BIG_PALETTE_BANKS - 1) / FE7_BIG_PALETTE_BANKS;
+
+            for (int bank = 0; bank < FE7_BIG_PALETTE_BANKS; bank++)
+            {
+                var seen = new System.Collections.Generic.List<uint>(16);
+                int startTile = bank * tilesPerBank;
+                int endTile = Math.Min(startTile + tilesPerBank, tilesX * tilesY);
+                for (int ti = startTile; ti < endTile && seen.Count < 16; ti++)
+                {
+                    int ty = (ti / tilesX) * 8;
+                    int tx = (ti % tilesX) * 8;
+                    for (int py = 0; py < 8 && seen.Count < 16; py++)
+                    {
+                        for (int px = 0; px < 8 && seen.Count < 16; px++)
+                        {
+                            int idx = ((ty + py) * width + (tx + px)) * 4;
+                            if (idx + 3 >= rgba.Length) continue;
+                            uint c = (uint)(rgba[idx] | (rgba[idx + 1] << 8) | (rgba[idx + 2] << 16));
+                            if (!seen.Contains(c)) seen.Add(c);
+                        }
+                    }
+                }
+                for (int ci = 0; ci < seen.Count && ci < 16; ci++)
+                {
+                    byte r = (byte)(seen[ci] & 0xFF);
+                    byte g = (byte)((seen[ci] >> 8) & 0xFF);
+                    byte b = (byte)((seen[ci] >> 16) & 0xFF);
+                    ushort gba = CoreState.ImageService.RGBAToGBAColor(r, g, b);
+                    int off = (bank * 16 + ci) * 2;
+                    result[off] = (byte)(gba & 0xFF);
+                    result[off + 1] = (byte)(gba >> 8);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Extract one 256×256 piece's local 4bpp indices + per-8×8-tile bank from
+        /// the full-image multi-palette remap result. The piece's pixels are copied
+        /// row-major into a 256×256 buffer (out-of-range source rows/cols default to
+        /// index 0 / bank 0); the per-tile banks come from the full-image
+        /// <c>TilePaletteIndices</c>. Used for ALL rows — the bottom row is still
+        /// extracted at 256 so its TSA (computed at 256) is correct (WF quirk).
+        /// </summary>
+        static void ExtractFE7Piece(ImageImportCore.MultiPaletteRemapResult remap,
+            int fullWidth, int pieceX, int pieceY,
+            out byte[] pieceIdx, out int[] pieceBanks)
+        {
+            pieceIdx = new byte[FE7_PIECE_SIZE * FE7_PIECE_SIZE];
+            int pieceTilesX = FE7_PIECE_SIZE / 8;
+            pieceBanks = new int[pieceTilesX * pieceTilesX];
+
+            int fullTilesX = fullWidth / 8;
+            for (int y = 0; y < FE7_PIECE_SIZE; y++)
+            {
+                int sy = pieceY + y;
+                for (int x = 0; x < FE7_PIECE_SIZE; x++)
+                {
+                    int sx = pieceX + x;
+                    int sIdx = sy * fullWidth + sx;
+                    if (sIdx >= 0 && sIdx < remap.IndexedPixels.Length)
+                        pieceIdx[y * FE7_PIECE_SIZE + x] = remap.IndexedPixels[sIdx];
+                }
+            }
+            for (int ty = 0; ty < pieceTilesX; ty++)
+            {
+                for (int tx = 0; tx < pieceTilesX; tx++)
+                {
+                    int fullTileIdx = ((pieceY / 8) + ty) * fullTilesX + ((pieceX / 8) + tx);
+                    int bank = 0;
+                    if (fullTileIdx >= 0 && fullTileIdx < remap.TilePaletteIndices.Length)
+                        bank = remap.TilePaletteIndices[fullTileIdx];
+                    pieceBanks[ty * pieceTilesX + tx] = bank;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Encode a PLAIN (sequential, NON-deduplicated) TSA for a piece — WF
+        /// <c>ImageToBytePlainTSA</c> (isPackedImage=false): entry N =
+        /// <c>(N &amp; 0x3FF) | (bank &lt;&lt; 12)</c>, one entry per 8×8 tile in
+        /// row-major order, where <paramref name="tileBanks"/> is the per-tile
+        /// palette bank. Output length = <c>width/4 * height/8</c> bytes
+        /// (= tilesX*tilesY*2). Used before <see cref="ImageImportCore.EncodeHeaderTSA"/>.
+        /// </summary>
+        static byte[] EncodeFE7PieceTSA(int[] tileBanks, int width, int height)
+        {
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            int total = tilesX * tilesY;
+            byte[] data = new byte[total * 2];
+            for (int n = 0; n < total; n++)
+            {
+                int bank = (n < tileBanks.Length) ? tileBanks[n] : 0;
+                ushort entry = (ushort)(((uint)n & 0x3FF) | (((uint)bank & 0xF) << 12));
+                data[n * 2] = (byte)(entry & 0xFF);
+                data[n * 2 + 1] = (byte)((entry >> 8) & 0xFF);
+            }
+            return data;
         }
 
         // ==================================================================
@@ -656,14 +1129,17 @@ namespace FEBuilderGBA
             error = "";
             if (rom == null || rom.RomInfo == null || rom.Data == null)
             { error = "ROM not loaded."; return false; }
-            // Explicit FE8-only gate BEFORE any work (matches the World Map Image
-            // editor's FE8-only scope + the CanImportEvent UI gate). FE7's
-            // worldmap_event_* pointers are ALSO nonzero/resolvable, so the pointer
-            // guard below would not reject FE7 — without this version check a
-            // programmatic FE7 caller could mutate the ROM (Copilot PR #1098
-            // review). FE6 has the pointers as 0x0 (also rejected here).
-            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
-            { error = R.Error("The world map event image import is only supported for FE8."); return false; }
+            // Explicit FE7/FE8 gate BEFORE any work. The world-map EVENT image uses
+            // the IDENTICAL ImageFormRef(...,32*8,20*8,palette_count=4) construction
+            // and the version-independent encode path (Convert/EncodeTSAMultiPalette/
+            // EncodeHeaderTSA) on BOTH FE7 and FE8 — only this gate and the error
+            // string are version-specific. FE7's worldmap_event_* pointers are
+            // nonzero/resolvable; FE6 has them as 0x0 (rejected by the pointer guard
+            // below, and by this version check) (#1184 generalizes the FE8-only #1098
+            // gate to FE7 for the World Map Image (FE7) editor's event-import parity).
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE7
+                && rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
+            { error = R.Error("The world map event image import is only supported for FE7 and FE8."); return false; }
             if (rgba == null)
             { error = "Invalid image data."; return false; }
             if (srcWidth != EVENT_SRC_WIDTH || srcHeight != EVENT_SRC_HEIGHT)

@@ -19796,6 +19796,21 @@ W94: Unknown
 :World Map Image (FE7)
 世界地图图像(FE7)
 
+:Big Field Map
+大地图
+
+:Event Image
+事件图像
+
+:Image Pointer
+图像指针
+
+:Palette Pointer
+调色板指针
+
+:TSA Pointer
+TSA指针
+
 :World Map Monster Editor
 世界地图魔物编辑器
 

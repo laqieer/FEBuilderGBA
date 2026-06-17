@@ -2,20 +2,95 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageFE7View"
-        Title="World Map Image (FE7)" Width="1047" Height="623"
+        Title="World Map Image (FE7)" Width="1100" Height="720"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImageFE7_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- World Map Image (FE7) editor (#1184) — port of WF WorldMapImageFE7Form.
+       The FE7 big field map is a 12-split (4x3) grid of 256x256 header-TSA
+       pieces composited into 1024x688 (bottom row clipped to 176). The event
+       image reuses the version-agnostic event preview/import path.
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+       Write Pointers (top) persists the 3 big + 3 event pointer slots (WF
+       WriteButton_Click + WMEvent.WritePointer) under one undo scope. -->
+  <DockPanel>
+    <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button AutomationProperties.AutomationId="WorldMapImageFE7_WriteAll_Button"
+                Name="WriteAllButton" Content="Write Pointers"
+                Click="WriteAll_Click" />
+        <Button AutomationProperties.AutomationId="WorldMapImageFE7_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                Click="Undo_Click" />
+      </StackPanel>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Spacing="10" Margin="10">
         <TextBlock Text="World Map Image (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapImageFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- ============ Pointer labels (read-only) ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
+            <Label Grid.Row="0" Grid.Column="0"
+                   AutomationProperties.AutomationId="WorldMapImageFE7_Image_Label"
+                   Content="Image Pointer" />
+            <TextBlock Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="WorldMapImageFE7_ImageValue_Label"
+                       Name="ImagePtrLabel" />
+            <Label Grid.Row="1" Grid.Column="0"
+                   AutomationProperties.AutomationId="WorldMapImageFE7_Palette_Label"
+                   Content="Palette Pointer" />
+            <TextBlock Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="WorldMapImageFE7_PaletteValue_Label"
+                       Name="PalettePtrLabel" />
+            <Label Grid.Row="2" Grid.Column="0"
+                   AutomationProperties.AutomationId="WorldMapImageFE7_Tsa_Label"
+                   Content="TSA Pointer" />
+            <TextBlock Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="WorldMapImageFE7_TsaValue_Label"
+                       Name="TsaPtrLabel" />
+          </Grid>
+        </Border>
+
+        <!-- ============ Big Field Map (12-split, 1024x688) ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Big Field Map" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE7_BigImport_Button"
+                      Name="BigImportButton" Content="Import"
+                      Click="BigImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE7_BigExport_Button"
+                      Name="BigExportButton" Content="Export"
+                      Click="BigExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="DarkGray" BorderThickness="1" Background="#202020"
+                    HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE7_BigPreview_Image"
+                                        Name="BigPreviewImage" MinWidth="512" MinHeight="344" />
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- ============ Event image (256x160) ============ -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Event Image" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="WorldMapImageFE7_EventImport_Button"
+                      Name="EventImportButton" Content="Import"
+                      Click="EventImport_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImageFE7_EventExport_Button"
+                      Name="EventExportButton" Content="Export"
+                      Click="EventExport_Click" />
+            </StackPanel>
+            <Border BorderBrush="DarkGray" BorderThickness="1" Background="#202020"
+                    HorizontalAlignment="Left">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE7_EventPreview_Image"
+                                        Name="EventPreviewImage" MinWidth="256" MinHeight="160" />
+            </Border>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
-  </Grid>
+  </DockPanel>
 </Window>
