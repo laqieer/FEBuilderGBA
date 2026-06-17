@@ -11,10 +11,22 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Final Serif (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="160,140,*" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventFinalSerifFE7_Unit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitBox" Minimum="1" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_UnitName_Label" Grid.Row="1" Grid.Column="2" Name="UnitNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventFinalSerifFE7_Text_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_TextPreview_Label" Grid.Row="2" Grid.Column="2" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
         </Grid>
+
+        <TextBlock Text="The per-character dialogue line shown in the final chapter." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button AutomationProperties.AutomationId="EventFinalSerifFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
