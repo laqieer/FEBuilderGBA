@@ -444,13 +444,16 @@ namespace FEBuilderGBA
         /// Render the road-chip palette (port of WF <c>MakePATHCHIPLIST</c>): a
         /// 5-column strip — col0 = the road strip as-is, col1 = H-flip,
         /// col2 = V-flip, col3 = HV-flip, col4 = blank (the erase column).
-        /// 40x120 px. Returns <c>null</c> on any failure. READ-ONLY.
+        /// 40x120 px. Returns <c>null</c> on any failure. READ-ONLY. FE8-only
+        /// (Copilot PR #1228 re-review): <see cref="ImageWorldMapCore.TryRenderRoad"/>
+        /// is version-agnostic, so gate here to honor the FE8-only contract.
         /// </summary>
         /// <param name="cols">The column count (always 5 on success).</param>
         public static IImage TryRenderChipPalette(ROM rom, out int cols)
         {
             cols = 0;
-            if (rom == null || CoreState.ImageService == null) return null;
+            if (rom == null || rom.RomInfo == null || CoreState.ImageService == null) return null;
+            if (rom.RomInfo.version != VERSION_FE8) return null;
 
             IImage road = ImageWorldMapCore.TryRenderRoad(rom);
             if (road == null) return null;

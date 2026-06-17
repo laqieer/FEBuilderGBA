@@ -428,6 +428,20 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryRenderChipPalette_NonFE8_ReturnsNull()
+        {
+            // FE8-only gate (Copilot PR #1228 re-review): TryRenderRoad is
+            // version-agnostic, so the palette must still be null on FE7 even if
+            // the road pointer resolves.
+            WithRomVersion(MakeFE7Rom, (rom) =>
+            {
+                PlantRoadStrip(rom);
+                Assert.Null(WorldMapPathCore.TryRenderChipPalette(rom, out int cols));
+                Assert.Equal(0, cols);
+            });
+        }
+
+        [Fact]
         public void TryRenderChipPalette_FE8_NonNull_FiveColumns()
         {
             WithRom((rom) =>
