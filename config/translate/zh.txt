@@ -24929,3 +24929,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Unit Height Adjustment
 编辑身高调整
+
+:A literal in-ROM string stored outside the main Huffman text table.
+存储在主霍夫曼文本表之外的ROM内字面字符串。
+
+:Edit Other Text
+编辑其他文本
