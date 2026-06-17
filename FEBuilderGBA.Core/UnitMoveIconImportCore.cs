@@ -64,8 +64,10 @@ namespace FEBuilderGBA.Core
             if (height <= 0 || height % 8 != 0)
                 return R._("The image height must be a positive multiple of 8 (got {0}).", height);
 
-            // The entry must be in-bounds for the +0 pointer write.
-            if (entryAddr + 8 > (uint)rom.Data.Length)
+            // The entry must be in-bounds for the +0 pointer write. ulong
+            // arithmetic so a large entryAddr can't wrap uint and bypass the
+            // guard (Copilot PR review on #1225).
+            if ((ulong)entryAddr + 8UL > (ulong)rom.Data.Length)
                 return R._("The move icon entry address is out of range.");
 
             if (indexedPixels.Length < width * height)
@@ -121,7 +123,9 @@ namespace FEBuilderGBA.Core
             if (rom == null) return R._("ROM is not loaded.");
             if (apBytes == null || apBytes.Length == 0) return R._("No AP data.");
 
-            if (entryAddr + 8 > (uint)rom.Data.Length)
+            // ulong arithmetic so a large entryAddr can't wrap uint and bypass
+            // the guard (Copilot PR review on #1225).
+            if ((ulong)entryAddr + 8UL > (ulong)rom.Data.Length)
                 return R._("The move icon entry address is out of range.");
 
             byte[] snap = (byte[])rom.Data.Clone();
