@@ -11046,3 +11046,24 @@ UPSパッチを保存
 
 :Edit World Map Ending Events (FE7)
 ワールドマップエンディングイベントの編集 (FE7)
+
+:Attacker Unit:
+攻撃ユニット:
+
+:Defender Unit:
+防御ユニット:
+
+:Map:
+マップ:
+
+:Unknown (0x05):
+不明 (0x05):
+
+:Text:
+テキスト:
+
+:A mid-battle conversation triggered when the attacker and defender units fight.
+攻撃ユニットと防御ユニットが戦うときに発生する戦闘中の会話。
+
+:Edit Battle Dialogue
+戦闘会話の編集

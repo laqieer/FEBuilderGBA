@@ -11,10 +11,45 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Dialogue Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalk_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="180,140,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalk_Addr_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Attacker Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_AttackerUnit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalk_AttackerName_Label" Grid.Row="1" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_DefenderUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalk_DefenderName_Label" Grid.Row="2" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Map:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_Map_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="MapBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x05):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_Unknown05_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown05Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_AchievementFlag_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,4" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_Text_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalk_TextPreview_Label" Grid.Row="6" Grid.Column="2" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Unknown (0x0A):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_Unknown0A_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="Unknown0ABox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Unknown (0x0B):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_Unknown0B_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="Unknown0BBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalk_EventPointer_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="A mid-battle conversation triggered when the attacker and defender units fight." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button AutomationProperties.AutomationId="EventBattleTalk_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

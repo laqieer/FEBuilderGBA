@@ -20227,3 +20227,24 @@ Edit World Map Event (FE7)
 
 :Edit World Map Ending Events (FE7)
 Edit World Map Ending Events (FE7)
+
+:Attacker Unit:
+Attacker Unit:
+
+:Defender Unit:
+Defender Unit:
+
+:Map:
+Map:
+
+:Unknown (0x05):
+Unknown (0x05):
+
+:Text:
+Text:
+
+:A mid-battle conversation triggered when the attacker and defender units fight.
+A mid-battle conversation triggered when the attacker and defender units fight.
+
+:Edit Battle Dialogue
+Edit Battle Dialogue
