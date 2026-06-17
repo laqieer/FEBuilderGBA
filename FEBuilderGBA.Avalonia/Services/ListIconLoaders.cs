@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -737,6 +738,26 @@ namespace FEBuilderGBA.Avalonia.Services
                 // W2 = palette field at row+2.
                 uint paletteIndex = rom.u16(rowAddr + 2);
                 using var img = PreviewIconHelper.LoadFE8NVer3SkillIcon((uint)index, paletteIndex);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Render the main-font glyph at the row's address into a list-row icon so
+        /// the Font editor's list reads as a visual glyph grid (#1165). The glyph
+        /// is the 16x16 2bpp bitmap at <c>addr+8</c>; <paramref name="isItemFont"/>
+        /// selects the item vs serif background tint. Returns null on any failure
+        /// (the row still shows its character label).
+        /// </summary>
+        public static Bitmap? FontGlyphLoader(List<AddrResult> items, int index, bool isItemFont)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return null;
+                using var img = FontGlyphRenderCore.RenderGlyph(rom, items[index].addr, isItemFont);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
             catch { return null; }

@@ -25162,3 +25162,90 @@ TSA数量: {0}
 
 :Animation frame imported successfully.
 动画帧导入成功。
+:Bulk
+批量
+
+:Character:
+字符:
+
+:Font:
+字体:
+
+:Failed to allocate free space.
+分配空闲空间失败。
+
+:Failed to load glyph image: {0}
+加载字形图像失败: {0}
+
+:Font bulk import failed: {0}
+字体批量导入失败: {0}
+
+:Font glyph import failed: {0}
+字体字形导入失败: {0}
+
+:No image loader.
+没有图像加载器。
+
+:No manifest data.
+没有清单数据。
+
+:The font pointer is invalid.
+字体指针无效。
+
+:The glyph entry address is out of range.
+字形条目地址超出范围。
+
+:The image size is not correct. The font glyph must be {0}x{1}. Selected: {2}x{3}
+图像尺寸不正确。字体字形必须为 {0}x{1}。已选择: {2}x{3}
+
+:The image uses colors outside the 4-color font palette. Remap it to the font palette first.
+图像使用了4色字体调色板之外的颜色。请先将其映射到字体调色板。
+
+:This character cannot be registered in the font.
+此字符无法注册到字体中。
+
+:Export All Fonts
+导出所有字体
+
+:Fonts exported successfully.
+字体导出成功。
+
+:Fonts imported successfully.
+字体导入成功。
+
+:Glyph imported successfully.
+字形导入成功。
+
+:Import All Fonts
+导入所有字体
+
+:Invalid input folder.
+输入文件夹无效。
+
+:Invalid output folder.
+输出文件夹无效。
+
+:No glyph selected.
+未选择字形。
+
+:Item Font
+物品字体
+
+:Serif Font
+对话字体
+
+
+:Cannot determine the character code from the font filename: {0}
+无法从字体文件名确定字符代码: {0}
+
+:Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}
+字体清单行无效 (需要4个制表符分隔的列: char, type, width, filename): {0}
+
+:Invalid font type in manifest (expected 'item' or 'text'): {0}
+清单中的字体类型无效 (需要 'item' 或 'text'): {0}
+
+:Invalid font manifest row (empty filename): {0}
+字体清单行无效 (文件名为空): {0}
+
+:Invalid font width in manifest (expected an integer 0..{0}): {1}
+清单中的字体宽度无效 (需要 0..{0} 的整数): {1}
