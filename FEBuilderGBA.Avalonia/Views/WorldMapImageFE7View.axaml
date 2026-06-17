@@ -64,8 +64,7 @@
                       Name="BigExportButton" Content="Export"
                       Click="BigExport_Click" />
             </StackPanel>
-            <Border BorderBrush="DarkGray" BorderThickness="1" Background="#202020"
-                    HorizontalAlignment="Left">
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
               <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE7_BigPreview_Image"
                                         Name="BigPreviewImage" MinWidth="512" MinHeight="344" />
             </Border>
@@ -84,8 +83,7 @@
                       Name="EventExportButton" Content="Export"
                       Click="EventExport_Click" />
             </StackPanel>
-            <Border BorderBrush="DarkGray" BorderThickness="1" Background="#202020"
-                    HorizontalAlignment="Left">
+            <Border BorderBrush="Gray" BorderThickness="1" HorizontalAlignment="Left">
               <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImageFE7_EventPreview_Image"
                                         Name="EventPreviewImage" MinWidth="256" MinHeight="160" />
             </Border>
