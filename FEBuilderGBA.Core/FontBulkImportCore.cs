@@ -90,15 +90,17 @@ namespace FEBuilderGBA.Core
                     }
                     bool isItemFont = (type == "item");
 
-                    // Advance width (column 3) must be a non-negative integer —
-                    // a non-numeric width is a manifest error (reject rather than
-                    // silently deriving from pixels, matching the other columns'
-                    // strictness so a bad manifest can't import "successfully").
+                    // Advance width (column 3) must be an integer in 0..16 (the
+                    // glyph is 16px wide). A non-numeric OR out-of-range width is a
+                    // manifest error (reject rather than silently deriving from
+                    // pixels or clamping, matching the other columns' strictness so
+                    // a bad manifest can't import "successfully" with wrong spacing).
                     int width = ParseWidth(sp[2]);
-                    if (width < 0)
+                    if (width < 0 || width > FontGlyphRenderCore.GLYPH_W)
                     {
                         RestoreSnapshot(rom, snap);
-                        return R._("Invalid font width in manifest (expected a non-negative integer): {0}", sp[2]);
+                        return R._("Invalid font width in manifest (expected an integer 0..{0}): {1}",
+                            FontGlyphRenderCore.GLYPH_W, sp[2]);
                     }
 
                     string pngName = sp[3].Trim();

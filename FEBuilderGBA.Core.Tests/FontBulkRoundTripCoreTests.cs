@@ -176,6 +176,28 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ImportAll_OutOfRangeWidth_AbortsAndRestores()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] snap = (byte[])rom.Data.Clone();
+                byte[] idx = new byte[16 * 16];
+
+                // Width 99 > the 16px glyph must ABORT (rejected, not clamped).
+                string manifest = "A\ttext\t99\ttext_41.png\n";
+                string err = FontBulkImportCore.ImportAll(rom, manifest, (n, t) =>
+                    new FontGlyphPixels { Indexed = idx, Width = 16, Height = 16 });
+                Assert.NotEqual("", err);
+                Assert.Equal(snap, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void ImportAll_TooFewColumns_AbortsAndRestores()
         {
             var prevRom = CoreState.ROM;

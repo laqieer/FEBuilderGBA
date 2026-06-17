@@ -69,6 +69,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        /// <summary>
+        /// Address of the glyph for <paramref name="moji"/> in the current font,
+        /// or 0 if not present. Used to re-select a glyph by char code after a
+        /// list reload (an imported glyph's address can move when newly appended).
+        /// </summary>
+        public uint FindAddrByMoji(uint moji)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            foreach (var g in FontGlyphRenderCore.EnumerateGlyphs(rom, IsItemFont))
+                if (g.Moji == moji) return g.Addr;
+            return 0;
+        }
+
         /// <summary>Render the currently-selected glyph (16x16 RGBA) or null.</summary>
         public IImage TryRenderGlyph()
         {

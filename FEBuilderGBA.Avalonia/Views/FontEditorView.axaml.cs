@@ -105,6 +105,14 @@ namespace FEBuilderGBA.Avalonia.Views
             GlyphImage.SetImage(null);
         }
 
+        // Re-select the list row whose tag (char code) == moji, after a reload.
+        // Falls back to leaving the auto-selected first row if not found.
+        void SelectByMoji(uint moji)
+        {
+            uint addr = _vm.FindAddrByMoji(moji);
+            if (addr != 0) EntryList.SelectAddress(addr);
+        }
+
         // ---- Per-glyph PNG export/import ----
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
@@ -129,6 +137,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
 
+                // Capture the edited glyph's char code BEFORE reload — LoadList()
+                // auto-selects the first row (overwriting _vm.CurrentMoji/Addr), so
+                // we re-select by the original moji afterward (the address may also
+                // move when a brand-new glyph is appended).
+                uint importedMoji = _vm.CurrentMoji;
+
                 // Remap the PNG onto the 4-color font palette (colorCount=4 so the
                 // quantized indices stay 0..3, NEVER the zeroed entries 4..15).
                 byte[] fontPal = FontGlyphRenderCore.GetFontPaletteGBA(_vm.IsItemFont);
@@ -140,16 +154,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Import Font Glyph");
                 try
                 {
-                    string err = FontGlyphRenderCore.ImportGlyph(rom, _vm.IsItemFont, _vm.CurrentMoji,
+                    string err = FontGlyphRenderCore.ImportGlyph(rom, _vm.IsItemFont, importedMoji,
                         result.IndexedPixels, result.Width, result.Height);
                     if (!string.IsNullOrEmpty(err)) { _undoService.Rollback(); CoreState.Services?.ShowError(err); return; }
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }
 
-                // Reload so the row's address + preview refresh from the new glyph.
+                // Reload, then re-select the JUST-IMPORTED glyph by its char code
+                // (not _vm.CurrentAddr, which LoadList reset to the first row).
                 LoadList();
-                EntryList.SelectAddress(_vm.CurrentAddr);
+                SelectByMoji(importedMoji);
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo(R._("Glyph imported successfully."));
             }

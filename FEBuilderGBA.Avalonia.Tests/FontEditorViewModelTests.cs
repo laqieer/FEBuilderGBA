@@ -85,6 +85,35 @@ namespace FEBuilderGBA.Avalonia.Tests
             finally { CoreState.ROM = prev; }
         }
 
+        [Fact]
+        public void FindAddrByMoji_RoundTripsAListedGlyph_FE8U()
+        {
+            if (TestRomLocator.FindRom("FE8U") == null) return;
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new FontEditorViewModel { FontTypeIndex = 0 };
+                var items = vm.LoadList();
+                Assert.NotEmpty(items);
+                // A listed glyph's tag (moji) must resolve back to its address —
+                // this is what re-selects the just-imported glyph after a reload.
+                var sample = items[items.Count / 2];
+                Assert.Equal(sample.addr, vm.FindAddrByMoji(sample.tag));
+            });
+        }
+
+        [Fact]
+        public void FindAddrByMoji_NoRom_ReturnsZero()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var vm = new FontEditorViewModel();
+                Assert.Equal(0u, vm.FindAddrByMoji(0x41));
+            }
+            finally { CoreState.ROM = prev; }
+        }
+
         // ---------------- Source-text parity (View) ----------------
 
         static string? FindRepoRoot()

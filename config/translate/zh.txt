@@ -25247,5 +25247,5 @@ TSA数量: {0}
 :Invalid font manifest row (empty filename): {0}
 字体清单行无效 (文件名为空): {0}
 
-:Invalid font width in manifest (expected a non-negative integer): {0}
-清单中的字体宽度无效 (需要非负整数): {0}
+:Invalid font width in manifest (expected an integer 0..{0}): {1}
+清单中的字体宽度无效 (需要 0..{0} 的整数): {1}
