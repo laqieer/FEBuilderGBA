@@ -26,12 +26,11 @@ namespace FEBuilderGBA
     public static class SpecialOamScanCore
     {
         /// <summary>One discovered OAMSP entry: a pointer-array block plus the
-        /// OAM12 sub-blocks it references. <see cref="Oam12"/> is the SCAN-TIME
-        /// list, deduped against a shared cache across the whole scan (matching WF's
-        /// global <c>listoam12</c> list-building) — it can OMIT a block another
-        /// entry already referenced. For a COMPLETE per-entry list (the detail dump
-        /// / OAM12 count) use <see cref="ComputeOam12Blocks"/>, which recomputes
-        /// fresh like WF's per-selection handler (#1179 Copilot review).</summary>
+        /// COMPLETE list of OAM12 sub-blocks it references. <see cref="Oam12"/> is
+        /// built with a PER-ENTRY match cache during the scan (#1179 review), so it
+        /// always holds every block this entry points at — even blocks another
+        /// entry also references. <see cref="ComputeOam12Blocks"/> recomputes the
+        /// same list fresh for callers that hold only an entry.</summary>
         public sealed class OamSpEntry
         {
             public uint Addr;
@@ -85,7 +84,6 @@ namespace FEBuilderGBA
 
                 uint borderline = rom.RomInfo.compress_image_borderline_address;
                 var alreadyMatch = new Dictionary<uint, bool>();
-                var alreadyMatch12 = new Dictionary<uint, bool>();
 
                 // ----- Pass 1: LDR-map discoveries (require length >= 4*3) -----
                 for (int i = 0; i < ldrMap.Count; i++)
@@ -104,7 +102,13 @@ namespace FEBuilderGBA
                     if (name == "") name = U.ToHexString8(ldr.ldr_data);
                     name = "OAMSP " + name;
 
+                    // alreadyMatch12 is PER-ENTRY (#1179 review): a fresh dict each
+                    // iteration so every OAMSP entry collects its OWN complete OAM12
+                    // sub-block list, even when a later entry references a block an
+                    // earlier entry already saw. A scan-wide shared cache would
+                    // silently drop those shared blocks from the later entry's data.
                     var oam12Local = new List<OamSp12Block>();
+                    var alreadyMatch12 = new Dictionary<uint, bool>();
                     uint length = CalcLengthAndCheck(rom, addr, name, oam12Local, alreadyMatch12);
                     if (length == U.NOT_FOUND || length < 4 * 3)
                     {
@@ -123,7 +127,9 @@ namespace FEBuilderGBA
                     if (alreadyMatch.ContainsKey(addr)) continue; // already known
 
                     string name = "OAMSP_ " + pair.Value;
+                    // PER-ENTRY alreadyMatch12 (see Pass 1).
                     var oam12Local = new List<OamSp12Block>();
+                    var alreadyMatch12 = new Dictionary<uint, bool>();
                     uint length = CalcLengthAndCheck(rom, addr, name, oam12Local, alreadyMatch12);
                     if (length == U.NOT_FOUND || length < 4)
                     {
@@ -245,45 +251,40 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Recompute an entry's COMPLETE OAM12 sub-block list FRESH — port of the
-        /// per-selection rebuild in WF <c>OAMSPForm.AddressList_SelectedIndexChanged</c>,
-        /// which calls <c>CalcLengthAndCheck</c> with a FRESH LOCAL <c>alreadyMatch</c>
-        /// dictionary. This is deliberately NOT the scan-time
-        /// <see cref="OamSpEntry.Oam12"/> list, which is deduped against a SHARED
-        /// <c>alreadyMatch12</c> across the whole scan (matching WF's global
-        /// <c>listoam12</c> list-building) and so can OMIT a block another entry
-        /// already referenced (#1179 Copilot review). Per-selection detail must be
-        /// complete, so it recomputes here. Never throws — returns an empty list on
-        /// a null / invalid entry or any fault.
+        /// Return an entry's COMPLETE OAM12 sub-block list. <see cref="ScanSpecialOam"/>
+        /// already populates <see cref="OamSpEntry.Oam12"/> completely (per-entry match
+        /// cache, #1179 review), so this returns that list when present; for a
+        /// hand-built entry with an empty list it recomputes fresh via
+        /// <c>CalcLengthAndCheck</c> with an entry-local match dict. Never throws —
+        /// returns an empty list on a null / invalid entry or any fault.
         /// </summary>
         public static List<OamSp12Block> ComputeOam12Blocks(ROM rom, OamSpEntry entry)
         {
-            var blocks = new List<OamSp12Block>();
-            if (rom == null || rom.Data == null || entry == null) return blocks;
+            if (rom == null || rom.Data == null || entry == null) return new List<OamSp12Block>();
+            if (entry.Oam12 != null && entry.Oam12.Count > 0) return entry.Oam12;
             try
             {
-                // Fresh, entry-local match dict so EVERY referenced OAM12 block is
-                // emitted (no cross-entry dedup) — mirrors WF's per-selection call.
+                var blocks = new List<OamSp12Block>();
                 var localMatch = new Dictionary<uint, bool>();
                 CalcLengthAndCheck(rom, entry.Addr, entry.Name ?? "", blocks, localMatch);
+                return blocks;
             }
             catch (Exception ex)
             {
                 Log.Error("SpecialOamScanCore.ComputeOam12Blocks failed: " + ex.ToString());
                 return new List<OamSp12Block>();
             }
-            return blocks;
         }
 
         /// <summary>
         /// Build the hex-dump detail string for an entry — port of WF
         /// <c>OAMSPForm.AddressList_SelectedIndexChanged</c>'s <c>X_DATA</c>
         /// text: the entry's pointer-array words, then each OAM12 sub-block's
-        /// 12-byte records. The OAM12 list is recomputed FRESH via
-        /// <see cref="ComputeOam12Blocks"/> (NOT the deduped scan-time list) so the
-        /// dump is complete for entries sharing OAM12 blocks (#1179 Copilot review).
-        /// Never throws — returns an empty string on a null / invalid entry or any
-        /// fault (keeps the selection path read-only and crash-free).
+        /// 12-byte records. The OAM12 list comes from <see cref="ComputeOam12Blocks"/>,
+        /// which is COMPLETE per-entry (#1179 review) so the dump never drops a block
+        /// shared with another entry. Never throws — returns an empty string on a
+        /// null / invalid entry or any fault (keeps the selection path read-only and
+        /// crash-free).
         /// </summary>
         public static string BuildDetailDump(ROM rom, OamSpEntry entry)
         {

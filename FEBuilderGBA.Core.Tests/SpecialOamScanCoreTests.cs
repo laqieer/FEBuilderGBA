@@ -201,8 +201,15 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(e1);
                 Assert.NotNull(e2);
 
-                // BOTH entries' FRESH recompute must include the SHARED block +
-                // their unique block (2 blocks each), regardless of scan order.
+                // The STORED scan-time Oam12 list must ALSO be complete per-entry
+                // (#1179 review: per-entry alreadyMatch12) — the 2nd entry keeps the
+                // shared block even though the 1st entry saw it first.
+                Assert.Equal(2, e1.Oam12.Count);
+                Assert.Equal(2, e2.Oam12.Count);
+                Assert.Contains(e2.Oam12, b => b.Addr == (uint)SHARED_OAM12_OFF);
+
+                // BOTH entries' recompute must also include the SHARED block + their
+                // unique block (2 blocks each), regardless of scan order.
                 var b1 = SpecialOamScanCore.ComputeOam12Blocks(rom, e1);
                 var b2 = SpecialOamScanCore.ComputeOam12Blocks(rom, e2);
                 Assert.Equal(2, b1.Count);
