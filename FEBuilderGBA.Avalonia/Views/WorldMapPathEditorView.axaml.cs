@@ -130,15 +130,40 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         const int PaletteScale = 4;
+        // The chip palette is 5 columns (0..3 flip variants + 4 erase) x 15 rows
+        // (the road-strip tile rows). Clamp clicks so an edge click can't select
+        // an out-of-grid cell.
+        const int PaletteCols = 5;
+        const int PaletteRows = 15;
+
+        /// <summary>
+        /// Pure mapping of a palette pointer position (in the Stretch=Fill,
+        /// PaletteScale-scaled <c>ChipPaletteImage</c>'s DIPs) to a (col,row)
+        /// cell, or false when outside the 5x15 grid. Extracted so the
+        /// coordinate math is unit-testable without a real PointerEventArgs
+        /// (Copilot PR #1228 review — the Stretch fix).
+        /// </summary>
+        internal static bool TryPaletteCell(double posX, double posY, out int col, out int row)
+        {
+            col = (int)(posX / PaletteScale) / GRID;
+            row = (int)(posY / PaletteScale) / GRID;
+            if (posX < 0 || posY < 0 || col < 0 || row < 0
+                || col >= PaletteCols || row >= PaletteRows)
+            {
+                col = 0; row = 0;
+                return false;
+            }
+            return true;
+        }
 
         void OnPalettePointerPressed(object? sender, PointerPressedEventArgs e)
         {
             try
             {
                 var pos = e.GetPosition(ChipPaletteImage);
-                int col = (int)(pos.X / PaletteScale) / GRID;
-                int row = (int)(pos.Y / PaletteScale) / GRID;
-                if (col < 0 || row < 0) return;
+                // Stretch=Fill scales the bitmap to the box, so pos is in scaled
+                // DIPs; /PaletteScale gives native px, /GRID gives the cell.
+                if (!TryPaletteCell(pos.X, pos.Y, out int col, out int row)) return;
                 _vm.SelectedChipCol = col;
                 _vm.SelectedChipRow = row;
                 UpdateSelectedChipLabel();

@@ -209,6 +209,37 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // =================================================================
+        // Palette click mapping (Stretch=Fill fix — Copilot PR #1228 review)
+        // =================================================================
+
+        [Theory]
+        // posX,posY are in the PaletteScale(4)-scaled, Stretch=Fill DIPs:
+        // native px = pos/4, cell = nativePx/8. So one cell = 32 scaled DIPs.
+        [InlineData(0.0, 0.0, 0, 0)]        // col 0, row 0
+        [InlineData(32.0, 0.0, 1, 0)]       // col 1 (H-flip)
+        [InlineData(96.0, 0.0, 3, 0)]       // col 3 (HV-flip)
+        [InlineData(128.0, 0.0, 4, 0)]      // col 4 (erase)
+        [InlineData(0.0, 64.0, 0, 2)]       // row 2
+        public void TryPaletteCell_MapsScaledClickToCell(double x, double y, int expCol, int expRow)
+        {
+            bool ok = global::FEBuilderGBA.Avalonia.Views.WorldMapPathEditorView
+                .TryPaletteCell(x, y, out int col, out int row);
+            Assert.True(ok);
+            Assert.Equal(expCol, col);
+            Assert.Equal(expRow, row);
+        }
+
+        [Theory]
+        [InlineData(-1.0, 0.0)]             // negative
+        [InlineData(160.0, 0.0)]           // col 5 (past the 5-col grid)
+        [InlineData(0.0, 480.0)]           // row 15 (past the 15-row grid)
+        public void TryPaletteCell_OutsideGrid_ReturnsFalse(double x, double y)
+        {
+            Assert.False(global::FEBuilderGBA.Avalonia.Views.WorldMapPathEditorView
+                .TryPaletteCell(x, y, out _, out _));
+        }
+
+        // =================================================================
         // Harness
         // =================================================================
 

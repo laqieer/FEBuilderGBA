@@ -23,8 +23,13 @@
           <StackPanel Spacing="2">
             <TextBlock Text="Chips" FontWeight="Bold" />
             <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+              <!-- Stretch=Fill (NOT None): the code-behind sets Width/Height =
+                   pixelSize * PaletteScale and the click handler divides by
+                   PaletteScale, so the bitmap MUST scale to fill that box or
+                   clicks map to the wrong cell (Copilot PR #1228 review).
+                   BitmapInterpolationMode=None keeps the upscaled pixels crisp. -->
               <Image AutomationProperties.AutomationId="WorldMapPathEditor_Palette_Image"
-                     Name="ChipPaletteImage" Stretch="None"
+                     Name="ChipPaletteImage" Stretch="Fill"
                      RenderOptions.BitmapInterpolationMode="None" />
             </Border>
             <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_SelectedChip_Label" Name="SelectedChipLabel" FontSize="11" />
