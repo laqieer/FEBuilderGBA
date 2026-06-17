@@ -384,36 +384,31 @@ Specialized utilities for different graphic types:
   BULK whole-screen import for the Battle Screen Layout editor (#988). `EncodeTSAKeep` keeps the TSA + applies
   the INVERSE per-cell flip; `ImportBattleScreenBulk` validate-all-before-mutate (5 strips LZ77-written +
   repointed, then palette, ambient undo, no partial commit). **Palette = SAFE single bank** (`BULK_MAX_COLORS=16`;
-  >16-color source REJECTED no-mutation; merges into bank 0, banks 1–15 preserved). #989.
-- `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) — SkillSystems skill-anime EXPORT: `SkipCode`
-  (FE8J direct; FE8U skips the `.dmp` program + flags defender), `ExportSkillAnimation` (walks frames
-  to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`, `GetFrameImage`
-  (bounds-checked frame accessor, #1010). Avalonia `SkillConfigAnimeExportHelper` → `.txt`+PNG or GIF
-  (FE8N Ver1 stub); `SkillConfigAnimePreview` renders the per-frame preview on the 4 SkillConfig editors
-  (pointer-cached decode + IImage disposal, #1010). #910/#912.
-- `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) — SkillSystems skill-anime IMPORT, FE8J #916 +
-  FE8U #917. `ParseScript` reads `D`/`S{hex}`/`{wait} {png}` lines; `ImportSkillAnimation` validate-all-before-mutate,
-  palette kept RAW 0x20 (never compressed), forces 240×160, repoints LAST under one undo scope, byte-identical
-  fault restore. FE8U prepends the per-skill `.dmp` template (`FE8USkillTemplate`). Old-region recycle
-  (`EnumerateOldAnimeRegions` #914); cross-slot safety (`BuildSkillAnimeRegionRefcount`: ≥2-owner region never recycled #929).
+  >16-color REJECTED; merges into bank 0, banks 1–15 kept). #989.
+- `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) — SkillSystems skill-anime EXPORT: `SkipCode` (FE8J
+  direct; FE8U skips `.dmp` + flags defender), `ExportSkillAnimation` (frames to `0xFFFF`, LZ77-decompresses
+  OBJ+TSA), `BuildScriptLines`, `GetFrameImage` (#1010). Avalonia `SkillConfigAnimeExportHelper` → `.txt`+PNG/GIF
+  (FE8N Ver1 stub); `SkillConfigAnimePreview` per-frame preview on the 4 SkillConfig editors. #910/#912/#1010.
+- `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) — SkillSystems skill-anime IMPORT (FE8J #916 / FE8U #917).
+  `ParseScript` reads `D`/`S{hex}`/`{wait} {png}`; `ImportSkillAnimation` validate-all-before-mutate, palette RAW
+  0x20, forces 240×160, repoints LAST under one undo scope, byte-identical restore. FE8U prepends `.dmp` template
+  (`FE8USkillTemplate`). Old-region recycle (`EnumerateOldAnimeRegions` #914); ≥2-owner region never recycled (#929).
 - `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) — `ExportAll` bulk-exports the
   SkillSystems skill config to `*.SkillConfig.tsv` (`textID<TAB>animePtr` rows) + per-skill anime
   dirs; `writeAnime` delegate keeps Core GUI-free. #920.
-- `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) — `ImportAll`
-  re-imports every skill as **ONE atomic transaction**: all commit (one undo record) or the ROM is
-  restored byte-identical (zero records). Length-aware restore + return-value fault detection + one
-  shared `ROM.BeginUndoScope` (per-skill `manageSnapshot:false`); validate-all-before-mutate;
-  cross-slot recycle of NON-shared regions only (#929). #923/#885.
+- `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) — `ImportAll` re-imports every
+  skill as **ONE atomic transaction**: all commit (one undo record) or byte-identical restore. Length-aware
+  restore + return-value fault detection + one shared `ROM.BeginUndoScope` (per-skill `manageSnapshot:false`);
+  validate-all-before-mutate; cross-slot recycle of NON-shared regions only (#929). #923/#885.
 - `MapPListResolverCore.cs` (Core, READ-ONLY) — map-PLIST label resolver (`MAP Ch1`, `MAPCHANGE Ch5`,
   `ANIME1/2`, `OBJ`, `NULL`, `-EMPTY-`, `UNK`) for the MapPointer/MapChange/MapTileAnimation editors,
-  via `PLists` + `ResolveLabel`. Extends (does NOT fork) `MapChangeCore.PlistType`; per-call LOCAL
-  cache. Drives the anime1 PLIST filter (`MapTileAnimation1Core.BuildPlistList` +
-  `MapTileAnimation1Core.ScanEntries`) and the anime2 filter — **anime1 schema is the inverse of anime2**
-  (`imagePointer` at `+4`, not `+0`). #952/#955/#957.
+  via `PLists` + `ResolveLabel`. Extends (does NOT fork) `MapChangeCore.PlistType`; per-call LOCAL cache. Drives
+  the anime1 filter (`MapTileAnimation1Core.BuildPlistList`/`ScanEntries`) + anime2 — **anime1 schema is the
+  inverse of anime2** (`imagePointer` at `+4`, not `+0`). #952/#955/#957.
 - `MapRenderCore.cs` (Core, READ-ONLY) — chapter-map + change-map overlay renderer (ports
-  `ImageUtilMap.DrawMap`/`DrawChangeMap`). `RenderMapImage`/`RenderChangeMap` take an optional
-  `obj2Offset` for the **FE7 obj2 dual-tileset split**: `obj_plist` high byte selects a secondary
-  tileset whose LZ77 bytes are concatenated AFTER the primary OBJ bytes (WF order). FE6/8 unchanged. #961.
+  `ImageUtilMap.DrawMap`/`DrawChangeMap`). `RenderMapImage`/`RenderChangeMap` take an optional `obj2Offset` for
+  the **FE7 obj2 dual-tileset split**: `obj_plist` high byte selects a secondary tileset whose LZ77 bytes are
+  concatenated AFTER the primary OBJ bytes (WF order). FE6/8 unchanged. #961.
 - `MapStyleEditorViewModel.TryImportObjImage` (Avalonia, ROM-MUTATING) — Map Style Editor OBJ import
   with the FE7 obj2 split: tile sheet split by BYTE length → primary OBJECT + obj2 PLISTs, each
   LZ77-compressed and written under ONE undo scope (a failed 2nd write rolls both back). #976.
@@ -459,10 +454,14 @@ Specialized utilities for different graphic types:
 - `OPClassFontImportCore.cs` (Core, ROM-MUTATING) — OP Class Font glyph PNG import (#999; wait-icon pattern).
   `Import` validates dims (%8), `EncodeDirectTiles4bpp` + LZ77-writes + repoints the D0 glyph pointer (ambient
   undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto palette.
+- `FontGlyphRenderCore`/`FontBulk{Export,Import}Core` (Core) — main game-font glyph editor (#1165; WF `FontForm`):
+  `EnumerateGlyphs`/`RenderGlyph` (2bpp-linear 16x16, fixed 4-color palette, NOT 4bpp-tiled) + `ImportGlyph`
+  (find-or-append, repoint, ambient undo, byte-identical restore) + atomic `.fontall.txt` bulk. Avalonia
+  `FontEditorView` glyph-grid icons; `.ttf`/`.otf` auto-gen deferred.
 - `ImageWorldMapCore.ImportIconStrip`/`TryGetStripPalette` (Core, ROM-MUTATING / READ-ONLY) — World Map
   Mini/Point1/Point2/Road single-LZ77 strip imports (#1000; wait-icon pattern): validate dims (%8), encode +
-  LZ77-write + repoint the ONE image pointer; palette NOT written; fault-restore.
-  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates.
+  LZ77-write + repoint the ONE image pointer; palette NOT written; fault-restore. Avalonia `WorldMapImageView`
+  4 handlers + FE8-only `CanImport{strip}` gates.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA) for a resolved table, hex

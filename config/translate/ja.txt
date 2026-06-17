@@ -11327,3 +11327,69 @@ TSA数: {0}
 
 :Animation frame imported successfully.
 アニメフレームをインポートしました。
+:Bulk
+一括
+
+:Character:
+文字:
+
+:Font:
+フォント:
+
+:Failed to allocate free space.
+空き領域の確保に失敗しました。
+
+:Failed to load glyph image: {0}
+グリフ画像の読み込みに失敗しました: {0}
+
+:Font bulk import failed: {0}
+フォントの一括インポートに失敗しました: {0}
+
+:Font glyph import failed: {0}
+フォントグリフのインポートに失敗しました: {0}
+
+:No image loader.
+画像ローダーがありません。
+
+:No manifest data.
+マニフェストデータがありません。
+
+:The font pointer is invalid.
+フォントポインタが無効です。
+
+:The glyph entry address is out of range.
+グリフエントリのアドレスが範囲外です。
+
+:The image size is not correct. The font glyph must be {0}x{1}. Selected: {2}x{3}
+画像サイズが正しくありません。フォントグリフは {0}x{1} である必要があります。選択: {2}x{3}
+
+:The image uses colors outside the 4-color font palette. Remap it to the font palette first.
+画像が4色のフォントパレット外の色を使用しています。先にフォントパレットへ変換してください。
+
+:This character cannot be registered in the font.
+この文字はフォントに登録できません。
+
+:Export All Fonts
+すべてのフォントをエクスポート
+
+:Fonts exported successfully.
+フォントをエクスポートしました。
+
+:Fonts imported successfully.
+フォントをインポートしました。
+
+:Glyph imported successfully.
+グリフをインポートしました。
+
+:Import All Fonts
+すべてのフォントをインポート
+
+:Invalid input folder.
+入力フォルダが無効です。
+
+:Invalid output folder.
+出力フォルダが無効です。
+
+:No glyph selected.
+グリフが選択されていません。
+
