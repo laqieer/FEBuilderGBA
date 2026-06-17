@@ -33,8 +33,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Enumerate every glyph in the currently-selected font into address-list
-        /// rows. Each row's tag carries the glyph index so selection can map back
-        /// to the enumerated entry.
+        /// rows. Each row's <c>addr</c> is the glyph struct address and its
+        /// <c>tag</c> carries the engine character code (moji) so selection can
+        /// re-key the glyph for import.
         /// </summary>
         public List<AddrResult> LoadList()
         {

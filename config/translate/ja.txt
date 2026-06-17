@@ -11393,3 +11393,6 @@ TSA数: {0}
 :No glyph selected.
 グリフが選択されていません。
 
+
+:Cannot determine the character code from the font filename: {0}
+フォントのファイル名から文字コードを判別できません: {0}

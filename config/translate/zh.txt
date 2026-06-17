@@ -25234,3 +25234,6 @@ TSA数量: {0}
 :Serif Font
 对话字体
 
+
+:Cannot determine the character code from the font filename: {0}
+无法从字体文件名确定字符代码: {0}

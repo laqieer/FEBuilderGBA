@@ -76,11 +76,21 @@ namespace FEBuilderGBA.Core
                     string pngName = sp[3].Trim();
                     if (pngName.Length == 0) continue;
 
+                    // WF parity: only "item" is the item font; every other type
+                    // (e.g. "text") is the serif font, so an unknown type is NOT
+                    // silently dropped.
                     bool isItemFont = (type == "item");
 
                     // Recover the engine char code from the filename hex suffix
-                    // (<type>_<mojiHex>.png). Skip rows we can't key.
-                    if (!TryParseMojiFromFilename(pngName, out uint moji)) continue;
+                    // (<type>_<mojiHex>.png). A well-formed data row whose filename
+                    // can't be keyed is a real manifest error — FAIL (atomic
+                    // restore) rather than silently omitting the glyph, so a
+                    // "successful" import never quietly drops rows.
+                    if (!TryParseMojiFromFilename(pngName, out uint moji))
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Cannot determine the character code from the font filename: {0}", pngName);
+                    }
 
                     FontGlyphPixels px = loadGlyph(pngName, type);
                     if (px == null)

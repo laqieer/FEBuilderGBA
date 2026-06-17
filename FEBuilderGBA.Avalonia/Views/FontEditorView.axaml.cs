@@ -54,8 +54,12 @@ namespace FEBuilderGBA.Avalonia.Views
         void FontTypeCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (_vm.IsLoading) return;
+            // LoadList -> SetItemsWithIcons -> SelectFirst -> OnSelected already
+            // loads the new font's first glyph + preview, so do NOT ClearPreview()
+            // here (that would wipe the freshly-loaded preview). When the new font
+            // is empty, OnSelected isn't raised, so clear only in that case.
             LoadList();
-            ClearPreview();
+            if (EntryList.SelectedItem == null) ClearPreview();
         }
 
         void OnSelected(uint addr)
