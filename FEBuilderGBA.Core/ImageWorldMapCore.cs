@@ -498,7 +498,13 @@ namespace FEBuilderGBA
                     dst[di + 0] = s[si + 0];
                     dst[di + 1] = s[si + 1];
                     dst[di + 2] = s[si + 2];
-                    dst[di + 3] = 255; // opaque
+                    // Copy the SOURCE alpha — do NOT force 255. The FE7 big map is
+                    // opaque (RemapFE7BigField → every cell alpha 255), so this is
+                    // visually identical for FE7; but forcing 255 would turn any
+                    // skipped/blank TSA cell (alpha 0 from DecodeHeaderTSA) into
+                    // opaque black, corrupting transparent regions in any shared use
+                    // (Copilot PR #1223 re-review #2).
+                    dst[di + 3] = s[si + 3];
                 }
             }
         }

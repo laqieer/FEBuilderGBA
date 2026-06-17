@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // World Map Image (FE7) editor ViewModel (#1184) — a port of WinForms
 // WorldMapImageFE7Form. Exposes two read-only IImage previews (the 12-split
-// big field map + the event image) and the FE7-only import / pointer write-back,
-// all delegating to the pure ImageWorldMapCore helpers. Mirrors the preview /
-// import / pointer idiom of the base WorldMapImageViewModel.
+// big field map + the event image), the read-only big-map pointer values shown
+// as display labels, and the FE7 big-map / event imports — all delegating to the
+// pure ImageWorldMapCore helpers. There is NO pointer write-back: the imports
+// write data RAW in-place (no repoint), so the pointer slots never change and the
+// WF "Write Pointers" button is omitted (Copilot PR #1223 review). Mirrors the
+// preview / import idiom of the base WorldMapImageViewModel.
 using System;
 using System.Collections.Generic;
 

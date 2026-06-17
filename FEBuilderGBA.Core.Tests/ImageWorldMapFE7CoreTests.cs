@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Import_RoundTrip_FE7_Succeeds_AndMutates()
+        public void Import_RoundTrip_FE7_Succeeds_WritesInPlaceUnderUndo()
         {
             WithRealRom("FE7U.gba", rom =>
             {
@@ -217,19 +217,40 @@ namespace FEBuilderGBA.Core.Tests
                 img.Dispose();
                 Assert.True(rgba.Length >= FE7_BIG_WIDTH * FE7_BIG_HEIGHT * 4);
 
+                // Resolve a known destination (the palette region) so we can prove a
+                // concrete byte mutation, not just success.
+                Assert.True(U.isPointer(rom.u32(rom.RomInfo.worldmap_big_palette_pointer)));
+                uint paletteAddr = rom.p32(rom.RomInfo.worldmap_big_palette_pointer);
+
                 byte[] before = (byte[])rom.Data.Clone();
+                var undoData = CoreState.Undo.NewUndoData("test");
 
                 // The import runs under an ambient undo scope (mirrors the View).
-                using (ROM.BeginUndoScope(CoreState.Undo.NewUndoData("test")))
+                using (ROM.BeginUndoScope(undoData))
                 {
                     string err = ImageWorldMapCore.ImportFE7BigFieldMap(
                         rom, rgba, FE7_BIG_WIDTH, FE7_BIG_HEIGHT);
                     Assert.Equal("", err); // success
                 }
 
-                // The import writes RAW in-place (24 pieces + palette), so the ROM
-                // length is unchanged but the data is re-encoded.
+                // (a) RAW in-place write: ROM length is unchanged (no realloc/repoint).
                 Assert.Equal(before.Length, rom.Data.Length);
+                // (b) the pointer slots are NOT repointed (in-place contract).
+                Assert.Equal(before[(int)rom.RomInfo.worldmap_big_palette_pointer],
+                             rom.Data[(int)rom.RomInfo.worldmap_big_palette_pointer]);
+                Assert.Equal(paletteAddr, rom.p32(rom.RomInfo.worldmap_big_palette_pointer));
+                // (c) the import actually MUTATED the ROM (the 128-byte palette region
+                //     was re-written) and the change was recorded under the ambient undo.
+                bool paletteChanged = false;
+                for (int i = 0; i < 128; i++)
+                    if (before[(int)paletteAddr + i] != rom.Data[(int)paletteAddr + i]) { paletteChanged = true; break; }
+                Assert.True(paletteChanged, "import must re-write the palette region in place");
+                Assert.NotEmpty(undoData.list);
+
+                // (d) undo restores the ROM byte-identically.
+                CoreState.Undo.Push(undoData);
+                CoreState.Undo.RunUndo();
+                Assert.Equal(before, rom.Data);
             });
         }
 

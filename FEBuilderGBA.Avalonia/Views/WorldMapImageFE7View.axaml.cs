@@ -68,7 +68,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                IImage? img = render();
+                // GbaImageControl.SetImage COPIES the pixels into its own Avalonia
+                // bitmap (IconBitmapBuilder.FromImage) — it does NOT take ownership —
+                // so the Core-rendered IImage must be disposed after SetImage returns,
+                // or every RefreshPreviews leaks the backing bitmap (Copilot PR #1223
+                // re-review #1). IImage is IDisposable.
+                using IImage? img = render();
                 target.SetImage(img);
             }
             catch (Exception ex)
