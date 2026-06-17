@@ -33,7 +33,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.IsLoading = true;
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
+                // The list label prefix is the row index, not the unit id — load the portrait from
+                // the entry's unit id (stored at +0, value <= 0xFF) instead of the label prefix.
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
             }
             catch (Exception ex)
             {

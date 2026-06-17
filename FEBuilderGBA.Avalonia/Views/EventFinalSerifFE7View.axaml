@@ -16,7 +16,7 @@
           <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventFinalSerifFE7_Unit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventFinalSerifFE7_Unit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitBox" Minimum="1" Maximum="255" Margin="0,4" />
           <TextBlock AutomationProperties.AutomationId="EventFinalSerifFE7_UnitName_Label" Grid.Row="1" Grid.Column="2" Name="UnitNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
