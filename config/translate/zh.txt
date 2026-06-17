@@ -25126,3 +25126,12 @@ AP导入成功。
 
 :World map road write failed: {0}
 世界地图道路写入失败：{0}
+
+:Special OAM
+特殊OAM
+
+:OAM12 blocks:
+OAM12 块:
+
+:Data:
+数据:

@@ -2,20 +2,40 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OAMSPView"
-        Title="OAM Sprite Editor" Width="800" Height="500"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+        Title="Special OAM" Width="860" Height="560"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="280,*" Margin="4">
     <controls:AddressListControl AutomationProperties.AutomationId="OAMSP_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="OAM Sprite Editor" FontSize="18" FontWeight="Bold" />
+    <DockPanel Grid.Column="1" Margin="8">
+      <TextBlock Text="Special OAM" FontSize="18" FontWeight="Bold" DockPanel.Dock="Top" Margin="0,0,0,8" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="OAMSP_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
+      <Grid DockPanel.Dock="Top" ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,8">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+        <TextBlock AutomationProperties.AutomationId="OAMSP_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Name:" VerticalAlignment="Center" Margin="0,2" />
+        <TextBlock AutomationProperties.AutomationId="OAMSP_Name_Label" Grid.Row="1" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" Margin="0,2" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Length:" VerticalAlignment="Center" Margin="0,2" />
+        <TextBlock AutomationProperties.AutomationId="OAMSP_Length_Label" Grid.Row="2" Grid.Column="1" Name="LengthLabel" VerticalAlignment="Center" Margin="0,2" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="OAM12 blocks:" VerticalAlignment="Center" Margin="0,2" />
+        <TextBlock AutomationProperties.AutomationId="OAMSP_Oam12Count_Label" Grid.Row="3" Grid.Column="1" Name="Oam12CountLabel" VerticalAlignment="Center" Margin="0,2" />
+      </Grid>
+
+      <TextBlock Text="Data:" DockPanel.Dock="Top" Margin="0,0,0,4" />
+
+      <Button AutomationProperties.AutomationId="OAMSP_Close_Button" Content="Close" Width="90"
+              HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,8,0,0" Click="Close_Click" />
+
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <TextBox AutomationProperties.AutomationId="OAMSP_Detail_Input" Name="DetailBox"
+                 IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas, Courier New, monospace" FontSize="12"
+                 TextWrapping="NoWrap" />
+      </ScrollViewer>
+    </DockPanel>
   </Grid>
 </Window>
