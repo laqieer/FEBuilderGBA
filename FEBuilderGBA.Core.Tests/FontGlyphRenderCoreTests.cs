@@ -277,6 +277,85 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotEqual("", err);
         }
 
+        // Build an UndoData, capture the pre-import bytes, replay the recorded
+        // UndoPositions in reverse (mirrors Undo.RollbackROM) and assert the ROM
+        // returns byte-identical — proves the import is fully undoable.
+        static Undo.UndoData NewUd(ROM rom) => new Undo.UndoData
+        {
+            time = System.DateTime.Now,
+            name = "font-test",
+            list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+            filesize = (uint)rom.Data.Length,
+        };
+
+        static void RollbackReplay(ROM rom, Undo.UndoData ud)
+        {
+            for (int i = ud.list.Count - 1; i >= 0; i--)
+            {
+                var up = ud.list[i];
+                Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
+            }
+        }
+
+        [Fact]
+        public void ImportGlyph_ExistingGlyph_UndoRestoresByteIdentical()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                byte[] idx = new byte[16 * 16];
+                for (int i = 0; i < idx.Length; i++) idx[i] = (byte)((i * 3) & 0x03);
+
+                var ud = NewUd(rom);
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.Equal("", FontGlyphRenderCore.ImportGlyph(rom, isItemFont: false, MOJI_A, idx, 16, 16));
+                }
+                Assert.NotEqual(before, rom.Data); // import mutated the ROM
+                Assert.NotEmpty(ud.list);          // and recorded undo positions
+
+                RollbackReplay(rom, ud);
+                Assert.Equal(before, rom.Data);    // undo restored it byte-identical
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ImportGlyph_NewGlyph_AppendUndoRestoresByteIdentical()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                // 'B' has no glyph -> import APPENDS a struct + chain-links the
+                // bucket. Both the appended bytes AND the bucket repoint must be in
+                // the undo record so the rollback restores the ROM byte-identical
+                // (appended region back to 0xFF, bucket pointer back to 0).
+                const uint MOJI_B = 0x42;
+                byte[] idx = new byte[16 * 16];
+                for (int i = 0; i < idx.Length; i++) idx[i] = (byte)(i & 0x03);
+
+                var ud = NewUd(rom);
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.Equal("", FontGlyphRenderCore.ImportGlyph(rom, isItemFont: false, MOJI_B, idx, 16, 16));
+                }
+                Assert.NotEqual(before, rom.Data);
+                Assert.NotEmpty(ud.list);
+
+                RollbackReplay(rom, ud);
+                Assert.Equal(before, rom.Data); // append + repoint both undone
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
         [Fact]
         public void ImportGlyph_ExplicitWidth_WinsOverDerived()
         {

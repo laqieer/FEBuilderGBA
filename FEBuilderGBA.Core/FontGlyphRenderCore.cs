@@ -503,12 +503,15 @@ namespace FEBuilderGBA.Core
                 byte[] newFontData = FontCore.MakeNewFontData(moji, fontWidth, bitmap, rom, priorityCode);
                 U.write_u32(newFontData, 0, 0); // NULL — appended at the chain tail.
 
-                // null undodata = headless free-space path (FindFreeSpace + write_range).
-                // The append IS captured for undo via the caller's AMBIENT undo scope
-                // (rom.write_range records into _ambientUndoData), so we deliberately
-                // do NOT route through the CoreState.AppendBinaryData delegate here —
-                // matching the other Core write-back seams' cross-platform pattern.
-                uint newaddr = MapEventUnitCore.AppendBinaryDataHeadless(rom, newFontData, null);
+                // Thread the caller's AMBIENT undo data through so the appended
+                // glyph bytes are part of one undoable transaction: when the
+                // CoreState.AppendBinaryData allocator is wired (WinForms) it uses
+                // ambientUndo; otherwise the headless FindFreeSpace path's
+                // rom.write_range records into the SAME ambient scope. Either way
+                // the append + the repoint below are recorded, so undo restores the
+                // ROM byte-identical (covered by ImportGlyph_*_UndoRestoresByteIdentical).
+                Undo.UndoData ambientUndo = ROM.GetAmbientUndoData();
+                uint newaddr = MapEventUnitCore.AppendBinaryDataHeadless(rom, newFontData, ambientUndo);
                 if (newaddr == U.NOT_FOUND)
                 {
                     if (manageSnapshot) RestoreSnapshot(rom, snap);
