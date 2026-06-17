@@ -11396,3 +11396,12 @@ TSA数: {0}
 
 :Cannot determine the character code from the font filename: {0}
 フォントのファイル名から文字コードを判別できません: {0}
+
+:Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}
+無効なフォントマニフェスト行です (4列のタブ区切りが必要: char, type, width, filename): {0}
+
+:Invalid font type in manifest (expected 'item' or 'text'): {0}
+マニフェストのフォント種別が無効です ('item' または 'text' が必要): {0}
+
+:Invalid font manifest row (empty filename): {0}
+無効なフォントマニフェスト行です (ファイル名が空): {0}

@@ -322,6 +322,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ImportGlyph_CorruptBucketNearEOF_NoThrow()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // Point a moji's bucket at an address 4 bytes before EOF so the
+                // glyph lookup lands on a near-EOF struct. ImportGlyph wraps the
+                // FontCore.FindFontData lookup in try/catch, so it must return a
+                // (possibly error) string WITHOUT throwing.
+                const uint MOJI_C = 0x43; // 'C'
+                uint bucket = rom.RomInfo.font_serif_address + (MOJI_C << 2);
+                U.write_u32(rom.Data, bucket, U.toPointer(ROM_LEN - 4));
+
+                byte[] idx = new byte[16 * 16];
+                var ex = Record.Exception(() =>
+                    FontGlyphRenderCore.ImportGlyph(rom, isItemFont: false, MOJI_C, idx, 16, 16));
+                Assert.Null(ex); // never throws
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void EnumerateGlyphs_CorruptChainNearEOF_NoThrow()
         {
             var prevRom = CoreState.ROM;

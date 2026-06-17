@@ -65,27 +65,43 @@ namespace FEBuilderGBA.Core
                 foreach (string raw in lines)
                 {
                     string line = raw;
-                    if (string.IsNullOrEmpty(line)) continue;
+                    // Only blank lines + // comments/header are skipped silently —
+                    // every other line is a DATA row and is validated (no silent
+                    // drop / misclassification, so a "successful" import can't omit
+                    // rows). Trim a trailing \r in case of mixed line endings.
+                    line = line.TrimEnd('\r');
+                    if (line.Trim().Length == 0) continue;
                     if (line.StartsWith("//")) continue; // comment / header
 
                     string[] sp = line.Split('\t');
-                    if (sp.Length < 4) continue;
+                    if (sp.Length < 4)
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}", line);
+                    }
 
+                    // Validate the type column (item / text) instead of silently
+                    // defaulting an unknown type to serif.
                     string type = sp[1].Trim();
-                    int width = ParseWidth(sp[2]); // manifest advance width (column 3)
-                    string pngName = sp[3].Trim();
-                    if (pngName.Length == 0) continue;
-
-                    // WF parity: only "item" is the item font; every other type
-                    // (e.g. "text") is the serif font, so an unknown type is NOT
-                    // silently dropped.
+                    if (type != "item" && type != "text")
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Invalid font type in manifest (expected 'item' or 'text'): {0}", type);
+                    }
                     bool isItemFont = (type == "item");
 
+                    int width = ParseWidth(sp[2]); // manifest advance width (column 3)
+                    string pngName = sp[3].Trim();
+                    if (pngName.Length == 0)
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Invalid font manifest row (empty filename): {0}", line);
+                    }
+
                     // Recover the engine char code from the filename hex suffix
-                    // (<type>_<mojiHex>.png). A well-formed data row whose filename
-                    // can't be keyed is a real manifest error — FAIL (atomic
-                    // restore) rather than silently omitting the glyph, so a
-                    // "successful" import never quietly drops rows.
+                    // (<type>_<mojiHex>.png). A data row whose filename can't be
+                    // keyed is a real manifest error — FAIL (atomic restore) rather
+                    // than silently omitting the glyph.
                     if (!TryParseMojiFromFilename(pngName, out uint moji))
                     {
                         RestoreSnapshot(rom, snap);

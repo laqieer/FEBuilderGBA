@@ -129,5 +129,49 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(ok, got);
             if (ok) Assert.Equal(expected, moji);
         }
+
+        [Fact]
+        public void ImportAll_MalformedDataRow_AbortsAndRestores()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] snap = (byte[])rom.Data.Clone();
+                byte[] idx = new byte[16 * 16];
+
+                // Unknown type 'bogus' on an otherwise well-formed row must ABORT
+                // (no silent skip), restoring the ROM byte-identical.
+                string manifest = "A\tbogus\t9\ttext_41.png\n";
+                string err = FontBulkImportCore.ImportAll(rom, manifest, (n, t) =>
+                    new FontGlyphPixels { Indexed = idx, Width = 16, Height = 16 });
+                Assert.NotEqual("", err);
+                Assert.Equal(snap, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ImportAll_TooFewColumns_AbortsAndRestores()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] snap = (byte[])rom.Data.Clone();
+                byte[] idx = new byte[16 * 16];
+
+                string manifest = "A\ttext\t9\n"; // missing the filename column
+                string err = FontBulkImportCore.ImportAll(rom, manifest, (n, t) =>
+                    new FontGlyphPixels { Indexed = idx, Width = 16, Height = 16 });
+                Assert.NotEqual("", err);
+                Assert.Equal(snap, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
     }
 }

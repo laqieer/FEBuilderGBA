@@ -25237,3 +25237,12 @@ TSA数量: {0}
 
 :Cannot determine the character code from the font filename: {0}
 无法从字体文件名确定字符代码: {0}
+
+:Invalid font manifest row (expected 4 tab-separated columns: char, type, width, filename): {0}
+字体清单行无效 (需要4个制表符分隔的列: char, type, width, filename): {0}
+
+:Invalid font type in manifest (expected 'item' or 'text'): {0}
+清单中的字体类型无效 (需要 'item' 或 'text'): {0}
+
+:Invalid font manifest row (empty filename): {0}
+字体清单行无效 (文件名为空): {0}

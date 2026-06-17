@@ -445,8 +445,21 @@ namespace FEBuilderGBA.Core
                 ? (uint)Math.Min(explicitWidth, GLYPH_W)
                 : ComputeGlyphWidth(indexedPixels);
 
+            // FontCore.FindFontData walks the SJIS/UTF8 hash chain reading p+4/p+6/p+7
+            // without a full struct-length guard, so a corrupted chain pointer near EOF
+            // can throw. This runs BEFORE any mutation, so a throw is just "can't locate
+            // the glyph" — convert it to a localized error to honor the never-throws
+            // contract (no restore needed; nothing was written yet).
             uint prevaddr;
-            uint fontaddr = FontCore.FindFontData(topaddress, moji, out prevaddr, rom, priorityCode);
+            uint fontaddr;
+            try
+            {
+                fontaddr = FontCore.FindFontData(topaddress, moji, out prevaddr, rom, priorityCode);
+            }
+            catch (Exception ex)
+            {
+                return R._("Font glyph import failed: {0}", ex.Message);
+            }
 
             // Defensive snapshot AFTER all validation/encode succeeded (only when
             // this call owns it). A FAILED mutation leaves ZERO surviving bytes.
