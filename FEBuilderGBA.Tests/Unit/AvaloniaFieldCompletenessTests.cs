@@ -261,6 +261,10 @@ namespace FEBuilderGBA.Tests.Unit
             ("ImageUnitWaitIconView", "ImageUnitWaitIconFrom", "ImageUnitWaitIconViewModel"),
             ("ImageUnitMoveIconView", "ImageUnitMoveIconFrom", "ImageUnitMoveIconViewModel"),
             ("TacticianAffinityFE7View", "TacticianAffinityFE7", "TacticianAffinityFE7ViewModel"),
+
+            // === #1176: In-ROM Magic Animation editor (config-table-driven, no
+            // Designer ROM fields — keyed by the romanime_ config ID). ===
+            ("ImageRomAnimeView", "ImageRomAnimeForm", "ImageRomAnimeViewModel"),
         };
 
         /// <summary>

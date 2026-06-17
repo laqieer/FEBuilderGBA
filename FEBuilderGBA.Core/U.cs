@@ -1756,6 +1756,49 @@ namespace FEBuilderGBA
             return dic;
         }
 
+        /// <summary>
+        /// Load a tab-separated config resource keyed by a hex ID into a
+        /// <c>Dictionary&lt;uint, string[]&gt;</c> where the value is every field
+        /// AFTER the key column. Ported verbatim from WinForms
+        /// <c>U.LoadTSVResource</c> (U.cs:3446); shares the same comment / other-lang
+        /// skipping and tab split as <see cref="LoadTSVResource1"/>. Used by the
+        /// In-ROM Magic Animation editor's <c>romanime_</c> table (#1176).
+        /// </summary>
+        public static Dictionary<uint, string[]> LoadTSVResource(string fullfilename, bool isRequired = true)
+        {
+            Dictionary<uint, string[]> dic = new Dictionary<uint, string[]>();
+            if (isRequired)
+            {
+                if (!U.IsRequiredFileExist(fullfilename)) return dic;
+            }
+            else
+            {
+                if (!File.Exists(fullfilename)) return dic;
+            }
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('\t');
+                        if (sp.Length < 1) continue;
+                        dic[U.atoh(sp[0])] = U.subrange(sp, 1, (uint)sp.Length);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+            return dic;
+        }
+
         public static Dictionary<uint, string> LoadTSVResource1(string fullfilename, bool isRequired = true)
         {
             Dictionary<uint, string> dic = new Dictionary<uint, string>();

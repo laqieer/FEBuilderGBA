@@ -11297,3 +11297,33 @@ OAM12 ブロック:
 
 :Data:
 データ:
+
+:In-ROM Magic Animation
+ROM内魔法アニメ
+
+:ID:
+ID:
+
+:Name: {0}
+名前: {0}
+
+:ImageWidth: {0}
+画像幅: {0}
+
+:Frames: {0}
+フレーム数: {0}
+
+:TSA count: {0}
+TSA数: {0}
+
+:Image count: {0}
+画像数: {0}
+
+:Palette count: {0}
+パレット数: {0}
+
+:No animation entry selected.
+アニメが選択されていません。
+
+:Animation frame imported successfully.
+アニメフレームをインポートしました。

@@ -25135,3 +25135,30 @@ OAM12 块:
 
 :Data:
 数据:
+
+:In-ROM Magic Animation
+ROM内魔法动画
+
+:Name: {0}
+名称: {0}
+
+:ImageWidth: {0}
+图像宽度: {0}
+
+:Frames: {0}
+帧数: {0}
+
+:TSA count: {0}
+TSA数量: {0}
+
+:Image count: {0}
+图像数量: {0}
+
+:Palette count: {0}
+调色板数量: {0}
+
+:No animation entry selected.
+未选择动画条目。
+
+:Animation frame imported successfully.
+动画帧导入成功。
