@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class UnitIncreaseHeightView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly UnitIncreaseHeightViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         // True once Opened -> LoadList() has populated EntryList. A NavigateTo
         // request that arrives BEFORE the list loads (WindowManager.Open then an
@@ -18,6 +19,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // still-empty list. Mirrors MonsterProbabilityViewerView (#1018/#1019).
         bool _listLoaded;
         uint? _pendingNavigateAddr;
+        bool _syncing;
 
         public string ViewTitle => "Unit Height Adjustment";
         public bool IsLoaded => _vm.IsLoaded;
@@ -26,6 +28,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
+
+            // "Stretch" / "Don't Stretch" map to the unit_increase_height_yes / _no marker values.
+            HeightCombo.ItemsSource = new[] { R._("Don't Stretch"), R._("Stretch") };
+            HeightCombo.SelectionChanged += OnComboChanged;
+            HeightValueBox.ValueChanged += OnHeightValueChanged;
+
             Opened += (_, _) => LoadList();
         }
 
@@ -33,13 +42,19 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
                 _listLoaded = true;
             }
             catch (Exception ex)
             {
-                Log.Error("UnitIncreaseHeightView.LoadList failed: {0}", ex.Message);
+                Log.Error("UnitIncreaseHeightView.LoadList failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
 
             // Replay a navigation requested before the list was ready.
@@ -54,18 +69,83 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
-                Log.Error("UnitIncreaseHeightView.OnSelected failed: {0}", ex.Message);
+                Log.Error("UnitIncreaseHeightView.OnSelected failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            _syncing = true;
+            try
+            {
+                AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+                HeightValueBox.Value = _vm.HeightValue;
+                HeightCombo.SelectedIndex = ComboIndexFor(_vm.HeightValue);
+            }
+            finally
+            {
+                _syncing = false;
+            }
+        }
+
+        static uint NoValue() => CoreState.ROM?.RomInfo?.unit_increase_height_no ?? 0;
+        static uint YesValue() => CoreState.ROM?.RomInfo?.unit_increase_height_yes ?? 0;
+
+        static int ComboIndexFor(uint value)
+        {
+            if (value == YesValue()) return 1;
+            if (value == NoValue()) return 0;
+            return -1;
+        }
+
+        // Picking Stretch/Don't Stretch sets the raw marker value.
+        void OnComboChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_syncing) return;
+            int idx = HeightCombo.SelectedIndex;
+            if (idx < 0) return;
+            _syncing = true;
+            try { HeightValueBox.Value = idx == 1 ? YesValue() : NoValue(); }
+            finally { _syncing = false; }
+        }
+
+        // Editing the raw value re-selects the matching combo entry (or clears it).
+        void OnHeightValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_syncing) return;
+            _syncing = true;
+            try { HeightCombo.SelectedIndex = ComboIndexFor((uint)(HeightValueBox.Value ?? 0)); }
+            finally { _syncing = false; }
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            _undoService.Begin(R._("Edit Unit Height Adjustment"));
+            try
+            {
+                _vm.HeightValue = (uint)(HeightValueBox.Value ?? 0);
+                _vm.WriteEntry();
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("UnitIncreaseHeightView.OnWrite failed: " + ex.ToString());
+            }
         }
 
         public void NavigateTo(uint address)

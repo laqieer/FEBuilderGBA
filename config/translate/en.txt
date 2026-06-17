@@ -20257,3 +20257,18 @@ The per-character dialogue line shown in the final chapter.
 
 :Edit Final Serif (FE7)
 Edit Final Serif (FE7)
+
+:Height Value:
+Height Value:
+
+:Whether this portrait is stretched taller on the status screen.
+Whether this portrait is stretched taller on the status screen.
+
+:Don't Stretch
+Don't Stretch
+
+:Stretch
+Stretch
+
+:Edit Unit Height Adjustment
+Edit Unit Height Adjustment

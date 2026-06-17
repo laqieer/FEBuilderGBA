@@ -11076,3 +11076,18 @@ UPSパッチを保存
 
 :Edit Final Serif (FE7)
 終章セリフの編集 (FE7)
+
+:Height Value:
+身長値:
+
+:Whether this portrait is stretched taller on the status screen.
+このポートレートをステータス画面で背を高く伸ばすかどうか。
+
+:Don't Stretch
+伸ばさない
+
+:Stretch
+伸ばす
+
+:Edit Unit Height Adjustment
+身長調整の編集
