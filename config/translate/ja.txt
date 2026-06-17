@@ -11067,3 +11067,6 @@ UPSパッチを保存
 
 :Edit Battle Dialogue
 戦闘会話の編集
+
+:Edit Battle Dialogue (FE6)
+戦闘会話の編集 (FE6)
