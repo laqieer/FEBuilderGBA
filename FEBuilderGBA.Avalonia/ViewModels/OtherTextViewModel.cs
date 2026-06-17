@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+// Annotation-only nullable context: lets Write(Undo.UndoData? undoData) declare the nullable
+// contract (the method is a no-op when null) without enabling whole-file null-flow warnings.
+#nullable enable annotations
+
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
@@ -39,16 +43,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string file = U.ConfigDataFilename("other_text_");
             if (!U.IsRequiredFileExist(file)) return result;
 
-            try
+            string[] lines;
+            try { lines = File.ReadAllLines(file); }
+            catch { return result; }
+
+            foreach (string raw in lines)
             {
-                foreach (string raw in File.ReadAllLines(file))
+                // Per-line guard: one malformed/EOF-adjacent entry must not abort the whole list.
+                try
                 {
                     if (U.IsComment(raw) || U.OtherLangLine(raw)) continue;
                     string line = U.ClipComment(raw).Trim();
                     if (line == "") continue;
 
                     uint addr = U.toOffset(U.atoh(line));
-                    if (!U.isSafetyOffset(addr)) continue;
+                    // p32 reads 4 bytes, so require addr+4 in bounds (isSafetyOffset only checks addr).
+                    if (!U.isSafetyOffset(addr) || (ulong)addr + 4 > (ulong)rom.Data.Length) continue;
 
                     uint pStr = rom.p32(addr);
                     string preview = U.isSafetyOffset(pStr)
@@ -56,10 +66,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         : U.ToHexString(pStr);
                     result.Add(new AddrResult(addr, preview, pStr));
                 }
-            }
-            catch
-            {
-                // A malformed config line should not crash the editor — show whatever parsed.
+                catch
+                {
+                    // Skip this line; keep parsing the rest.
+                }
             }
             return result;
         }
@@ -94,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// relocated (never overwritten in place) so a longer string can never clobber adjacent
         /// data. Returns false (no mutation) without a ROM / selection / encoder / undo scope.
         /// </summary>
-        public bool Write(Undo.UndoData undoData)
+        public bool Write(Undo.UndoData? undoData)
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return false;
