@@ -16,7 +16,7 @@
           <TextBlock Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="WorldMapPathEditor_Write_Button" Name="WriteButton" Content="Write" />
-          <TextBlock Name="StatusLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Status_Label" Name="StatusLabel" VerticalAlignment="Center" />
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Spacing="12" Margin="4">
@@ -27,7 +27,7 @@
                      Name="ChipPaletteImage" Stretch="None"
                      RenderOptions.BitmapInterpolationMode="None" />
             </Border>
-            <TextBlock Name="SelectedChipLabel" FontSize="11" />
+            <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_SelectedChip_Label" Name="SelectedChipLabel" FontSize="11" />
           </StackPanel>
           <StackPanel Spacing="2" VerticalAlignment="Top">
             <TextBlock Text="Left-click / drag: paint. Right-click: pick. Column 5: erase." FontSize="11" TextWrapping="Wrap" MaxWidth="320" />
