@@ -264,9 +264,12 @@ namespace FEBuilderGBA
         /// <para><b>Validation</b> (zero-output on any violation —
         /// <paramref name="error"/> non-empty): every chip must have
         /// <c>WorldX</c>/<c>WorldY</c> non-negative multiples of 8 with
-        /// <c>X/8 &lt;= 255</c>, <c>Y/8 &lt;= 255</c>; <c>PathX/8</c> in 0..3
-        /// (the erase column 4 is a painter sentinel and must never be stored);
-        /// <c>PathY/8</c> in 0..14 (the road strip rows).</para>
+        /// <c>X/8 &lt;= 0xFE</c> (0xFF is the terminator sentinel),
+        /// <c>Y/8 &lt;= 255</c>; <c>PathX/8</c> in 0..3 (the erase column 4 is a
+        /// painter sentinel and must never be stored); <c>PathY/8</c> in 0..14
+        /// (the road strip rows). A contiguous run longer than
+        /// <c>MAX_CHIPS_PER_ROW-1</c> is split into multiple headers so the
+        /// stored <c>count</c> always round-trips through <see cref="LoadPath"/>.</para>
         /// </summary>
         /// <returns>The packed bytes, or <c>null</c> with a non-empty
         /// <paramref name="error"/> on a validation failure.</returns>
