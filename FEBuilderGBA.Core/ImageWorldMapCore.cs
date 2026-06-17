@@ -1047,24 +1047,28 @@ namespace FEBuilderGBA
             if (!IsRegionSafe(rom, paletteSlot, 4))
                 return R.Error("worldmap_big_palette_pointer slot is invalid or out of ROM.");
 
-            // Defensive snapshot for the byte-identical restore. The encode does
-            // NOT mutate the ROM, so it lives INSIDE the try; the caller's ambient
-            // undo scope records the writes for UNDO. A FAILED import (incl. a
-            // partial-write fault between the two WriteCompressedToROM calls)
-            // mutates ZERO bytes.
+            // Encode to 256-linear index bytes + 256-color palette FIRST (a
+            // NON-mutating call). A >256-color source is rejected here with ZERO
+            // mutation — and BEFORE the rom.Data.Clone() snapshot, so a rejected
+            // import (common input) does NOT copy the whole ROM for nothing
+            // (Copilot #1224 re-review).
+            if (!ImageUtilCore.EncodeImage256Liner(rgba, srcWidth, srcHeight,
+                    out byte[] image256, out byte[] palette512)
+                || image256 == null || palette512 == null)
+            {
+                return R.Error(
+                    "The world map big field map must use 256 colors or fewer.");
+            }
+
+            // Defensive snapshot for the byte-identical restore — taken JUST BEFORE
+            // the first write (the encode above is non-mutating, so no mutation can
+            // occur between the snapshot and the writes). The caller's ambient undo
+            // scope records the writes for UNDO; a FAILED write (incl. a partial-
+            // write fault between the two WriteCompressedToROM calls) restores the
+            // ROM byte-identically -> ZERO net mutation.
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
-                // Encode to 256-linear index bytes + 256-color palette. A
-                // >256-color source is rejected here (false) with ZERO mutation.
-                if (!ImageUtilCore.EncodeImage256Liner(rgba, srcWidth, srcHeight,
-                        out byte[] image256, out byte[] palette512)
-                    || image256 == null || palette512 == null)
-                {
-                    return R.Error(
-                        "The world map big field map must use 256 colors or fewer.");
-                }
-
                 // Write the LZ77-compressed image to free space + repoint the slot.
                 uint w1 = ImageImportCore.WriteCompressedToROM(rom, image256, imageSlot);
                 if (w1 == U.NOT_FOUND)

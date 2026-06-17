@@ -36,11 +36,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        /// <summary>True when the FE6 zoom previews can render (FE6 ROM + slot-0
-        /// image pointer resolves). FE7/FE8 → false.</summary>
+        /// <summary>True when the FE6 zoom previews can render: a FE6 ROM whose
+        /// slot-0 (full map) BOTH image AND palette pointers resolve to in-bounds
+        /// offsets (rendering needs both LZ77 streams). FE7/FE8 → false. Mirrors
+        /// <see cref="ImageWorldMapCore.CanRenderFE6BigFieldMap"/>.</summary>
         public bool CanRender { get => _canRender; set => SetField(ref _canRender, value); }
 
-        // Per-zoom import gates (image + palette pointers resolve at each slot).
+        // Per-zoom import gates: FE6 ROM with the image + palette pointer SLOTS at
+        // that zoom WRITABLE (in-bounds for the write_p32 repoint, via IsRegionSafe)
+        // — NOT the currently-pointed targets resolving, so the corrupt-pointer
+        // repair case stays importable (Copilot #1183 review). Mirrors
+        // ImageWorldMapCore.CanImportFE6BigFieldMap.
         bool _canImportFull, _canImportNW, _canImportNE, _canImportSW, _canImportSE;
         public bool CanImportFull { get => _canImportFull; set => SetField(ref _canImportFull, value); }
         public bool CanImportNW { get => _canImportNW; set => SetField(ref _canImportNW, value); }
