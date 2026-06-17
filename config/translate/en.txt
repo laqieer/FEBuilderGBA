@@ -20206,3 +20206,24 @@ Pointer to the minimap tile-array graphic used for this terrain type.
 
 :Edit Mini-Map Terrain
 Edit Mini-Map Terrain
+
+:Ending 1 (Eliwood):
+Ending 1 (Eliwood):
+
+:Ending 2 (Hector):
+Ending 2 (Hector):
+
+:Event Write
+Event Write
+
+:World Map Event (FE7)
+World Map Event (FE7)
+
+:Pointer to the event run when this chapter is selected on the world map.
+Pointer to the event run when this chapter is selected on the world map.
+
+:Edit World Map Event (FE7)
+Edit World Map Event (FE7)
+
+:Edit World Map Ending Events (FE7)
+Edit World Map Ending Events (FE7)

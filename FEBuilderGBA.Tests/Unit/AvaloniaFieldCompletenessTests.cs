@@ -92,6 +92,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("WorldMapPointView", "WorldMapPointForm", "WorldMapPointViewModel"),
             ("WorldMapBGMView", "WorldMapBGMForm", "WorldMapBGMViewModel"),
             ("WorldMapEventPointerView", "WorldMapEventPointerForm", "WorldMapEventPointerViewModel"),
+            ("WorldMapEventPointerFE7View", "WorldMapEventPointerFE7Form", "WorldMapEventPointerFE7ViewModel"),
 
             // Audio
             ("SongTableView", "SongTableForm", "SongTableViewModel"),

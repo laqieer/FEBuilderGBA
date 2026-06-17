@@ -11025,3 +11025,24 @@ UPSパッチを保存
 
 :Edit Mini-Map Terrain
 ミニマップ地形の編集
+
+:Ending 1 (Eliwood):
+エンディング1 (エリウッド):
+
+:Ending 2 (Hector):
+エンディング2 (ヘクトル):
+
+:Event Write
+イベント書き込み
+
+:World Map Event (FE7)
+ワールドマップイベント (FE7)
+
+:Pointer to the event run when this chapter is selected on the world map.
+ワールドマップでこの章が選択されたときに実行されるイベントへのポインタ。
+
+:Edit World Map Event (FE7)
+ワールドマップイベントの編集 (FE7)
+
+:Edit World Map Ending Events (FE7)
+ワールドマップエンディングイベントの編集 (FE7)
