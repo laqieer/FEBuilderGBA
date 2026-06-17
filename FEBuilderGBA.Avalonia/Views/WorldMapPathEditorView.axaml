@@ -7,14 +7,42 @@
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="WorldMapPathEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Path Editor" FontSize="18" FontWeight="Bold" />
+    <ScrollViewer Grid.Column="1" Margin="4"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="8" Margin="4">
+        <TextBlock Text="Road (Path) Editor" FontSize="18" FontWeight="Bold" Margin="4" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="4">
+          <TextBlock Text="Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="WorldMapPathEditor_Write_Button" Name="WriteButton" Content="Write" />
+          <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Status_Label" Name="StatusLabel" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="4">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Chips" FontWeight="Bold" />
+            <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+              <!-- Stretch=Fill (NOT None): the code-behind sets Width/Height =
+                   pixelSize * PaletteScale and the click handler divides by
+                   PaletteScale, so the bitmap MUST scale to fill that box or
+                   clicks map to the wrong cell (Copilot PR #1228 review).
+                   BitmapInterpolationMode=None keeps the upscaled pixels crisp. -->
+              <Image AutomationProperties.AutomationId="WorldMapPathEditor_Palette_Image"
+                     Name="ChipPaletteImage" Stretch="Fill"
+                     RenderOptions.BitmapInterpolationMode="None" />
+            </Border>
+            <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_SelectedChip_Label" Name="SelectedChipLabel" FontSize="11" />
+          </StackPanel>
+          <StackPanel Spacing="2" VerticalAlignment="Top">
+            <TextBlock Text="Left-click / drag: paint. Right-click: pick. Column 5: erase." FontSize="11" TextWrapping="Wrap" MaxWidth="320" />
+          </StackPanel>
+        </StackPanel>
+
+        <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="4">
+          <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapPathEditor_Map_Image"
+                                    Name="MapImageControl" MinWidth="480" MinHeight="320" />
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

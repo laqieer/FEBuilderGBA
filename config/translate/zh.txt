@@ -25069,3 +25069,60 @@ AP导入成功。
 
 :New count ({0}) exceeds the maximum of 256 entries.
 新条目数（{0}）超过了256个条目的上限。
+
+:Road (Path) Editor
+道路（路径）编辑器
+
+:World map roads are FE8-only.
+世界地图道路仅限FE8。
+
+:No path selected.
+未选择路径。
+
+:Selected: col {0}, row {1}
+已选择：列 {0}，行 {1}
+
+:Chips
+图块
+
+:Left-click / drag: paint. Right-click: pick. Column 5: erase.
+左键单击/拖动：绘制。右键单击：取色。第5列：擦除。
+
+:Saved.
+已保存。
+
+:Path chip list is null.
+道路图块列表为空。
+
+:Chip world coordinates must be non-negative multiples of 8.
+图块的世界坐标必须是8的非负倍数。
+
+:Chip world coordinates exceed the addressable tile range.
+图块的世界坐标超出了可寻址的图块范围。
+
+:Chip flip variant is out of range (must be 0..3; the erase column cannot be stored).
+图块翻转类型超出范围（必须为0..3；擦除列无法保存）。
+
+:Chip road row is out of range (must be 0..14).
+图块的道路行超出范围（必须为0..14）。
+
+:Path run cannot be encoded (start tile or run length out of range).
+无法编码该道路连续段（起始图块或段长度超出范围）。
+
+:World map road table pointer is out of range.
+世界地图道路表指针超出范围。
+
+:World map road table is out of range.
+世界地图道路表超出范围。
+
+:Invalid path id.
+无效的道路ID。
+
+:World map road entry is out of range.
+世界地图道路条目超出范围。
+
+:Failed to write road data. Check ROM free space.
+写入道路数据失败。请检查ROM的可用空间。
+
+:World map road write failed: {0}
+世界地图道路写入失败：{0}

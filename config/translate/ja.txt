@@ -11231,3 +11231,60 @@ APのインポートに失敗しました: {0}
 
 :New count ({0}) exceeds the maximum of 256 entries.
 新しい数（{0}）は最大256エントリを超えています。
+
+:Road (Path) Editor
+道（パス）エディタ
+
+:World map roads are FE8-only.
+ワールドマップの道はFE8専用です。
+
+:No path selected.
+道が選択されていません。
+
+:Selected: col {0}, row {1}
+選択：列 {0}、行 {1}
+
+:Chips
+チップ
+
+:Left-click / drag: paint. Right-click: pick. Column 5: erase.
+左クリック／ドラッグ：描画。右クリック：スポイト。5列目：消去。
+
+:Saved.
+保存しました。
+
+:Path chip list is null.
+道チップのリストがnullです。
+
+:Chip world coordinates must be non-negative multiples of 8.
+チップのワールド座標は8の倍数（0以上）である必要があります。
+
+:Chip world coordinates exceed the addressable tile range.
+チップのワールド座標がアドレス可能なタイル範囲を超えています。
+
+:Chip flip variant is out of range (must be 0..3; the erase column cannot be stored).
+チップの反転種別が範囲外です（0〜3である必要があり、消去列は保存できません）。
+
+:Chip road row is out of range (must be 0..14).
+チップの道の行が範囲外です（0〜14である必要があります）。
+
+:Path run cannot be encoded (start tile or run length out of range).
+道のランをエンコードできません（開始タイルまたはラン長が範囲外です）。
+
+:World map road table pointer is out of range.
+ワールドマップの道テーブルのポインタが範囲外です。
+
+:World map road table is out of range.
+ワールドマップの道テーブルが範囲外です。
+
+:Invalid path id.
+無効な道IDです。
+
+:World map road entry is out of range.
+ワールドマップの道エントリが範囲外です。
+
+:Failed to write road data. Check ROM free space.
+道データの書き込みに失敗しました。ROMの空き容量を確認してください。
+
+:World map road write failed: {0}
+ワールドマップの道の書き込みに失敗しました：{0}
