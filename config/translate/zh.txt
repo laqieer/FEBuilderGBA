@@ -25045,3 +25045,24 @@ AP导入成功。
 
 :This AP is shared by other classes; a fresh copy will be written.
 此AP被其他职业共享；将写入一份新副本。
+
+:Jump to Battle Animation
+跳转到战斗动画
+
+:Add Entry
+添加条目
+
+:Cannot expand: list is empty.
+无法扩展：列表为空。
+
+:Mant animation table not found in this ROM.
+在此ROM中找不到披风动画表。
+
+:Enter the new entry count for the mant animation list (current: {0}, max: 255).
+请输入披风动画列表的新条目数（当前：{0}，最大：255）。
+
+:Expanded mant animation list to {0} entries.
+已将披风动画列表扩展为{0}个条目。
+
+:Write failed: {0}
+写入失败：{0}

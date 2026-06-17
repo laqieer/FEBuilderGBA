@@ -11,10 +11,26 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Mant Animation" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MantAnimation_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="MantAnimation_Pointer_Input"
+                         Grid.Row="1" Grid.Column="1" Name="PointerBox"
+                         FormatString="X8" Minimum="0" Maximum="4294967295"
+                         Increment="1" Margin="0,2" />
         </Grid>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Button AutomationProperties.AutomationId="MantAnimation_Write_Button"
+                  Name="WriteBtn" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="MantAnimation_JumpBattleAnime_Button"
+                  Name="JumpBattleAnimeBtn" Content="Jump to Battle Animation"
+                  Click="JumpToBattleAnime_Click" />
+          <Button AutomationProperties.AutomationId="MantAnimation_Expand_Button"
+                  Name="ExpandBtn" Content="Add Entry" Click="ListExpand_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>
