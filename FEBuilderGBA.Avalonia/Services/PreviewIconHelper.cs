@@ -592,65 +592,28 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Load a move icon for the given move icon index.
-        /// Move icon IDs are 1-based (subtracts 1 to get table index), matching WinForms DrawMoveUnitIconBitmap.
-        /// Entry structure: 8 bytes, GBA pointer at offset +0 (pic data), LZ77-compressed 4bpp.
-        /// Returns the first frame (32x32) of the move animation, or null on failure.
+        /// Move icon IDs are 1-based (subtracts 1 to get the 0-based table index),
+        /// matching WinForms DrawMoveUnitIconBitmap.
+        /// Returns the first walk frame (32x32, self palette) of the move
+        /// animation, or null on failure.
         /// </summary>
         public static IImage LoadMoveIcon(uint moveIconIndex)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null || moveIconIndex == 0) return null;
 
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+
             try
             {
-                // Move icon IDs are 1-based
+                // #1177: the decode + per-step crop pipeline moved into the
+                // cross-platform FEBuilderGBA.Core.UnitMoveIconRenderCore (single
+                // source of truth — the Avalonia Unit Move Icon editor reuses it).
+                // Move icon IDs are 1-based; the Core renderer is 0-based by table
+                // index. Render step 0 with the self palette.
                 uint tableIndex = moveIconIndex - 1;
-
-                uint ptr = rom.RomInfo.unit_move_icon_pointer;
-                if (ptr == 0) return null;
-
-                uint baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr)) return null;
-
-                // Each entry is 8 bytes: +0 = GBA pointer to LZ77 pic data, +4 = flags/animation
-                uint entryAddr = baseAddr + tableIndex * 8;
-                if (entryAddr + 8 > (uint)rom.Data.Length) return null;
-
-                uint picGba = rom.u32(entryAddr + 0);
-                if (!U.isPointer(picGba)) return null;
-
-                uint picAddr = U.toOffset(picGba);
-                if (!U.isSafetyOffset(picAddr)) return null;
-
-                // Palette: use the unit icon palette address
-                uint palAddr = rom.RomInfo.unit_icon_palette_address;
-                if (palAddr == 0 || !U.isSafetyOffset(palAddr)) return null;
-
-                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
-                if (palette == null) return null;
-
-                // Decompress and render at 4x4 tiles (32x32), first frame only (step=0)
-                byte[] imageUZ = LZ77.decompress(rom.Data, picAddr);
-                if (imageUZ == null || imageUZ.Length == 0) return null;
-
-                IImageService svc = CoreState.ImageService;
-                if (svc == null) return null;
-
-                // Render at 4 tiles wide (32px), compute height from data
-                int width = 4 * 8; // 32 pixels
-                int height = 4 * 8; // 32 pixels for first frame
-                int bytesNeeded = (width / 8) * (height / 8) * 32; // 4bpp tile data
-                if (imageUZ.Length < bytesNeeded)
-                {
-                    // If not enough data for full 32x32, use what we have
-                    int totalTiles = imageUZ.Length / 32;
-                    if (totalTiles <= 0) return null;
-                    int tilesX = 4;
-                    int tilesY = Math.Max(1, (totalTiles + tilesX - 1) / tilesX);
-                    height = tilesY * 8;
-                }
-
-                return svc.Decode4bppTiles(imageUZ, 0, width, height, palette);
+                return FEBuilderGBA.Core.UnitMoveIconRenderCore.RenderFrame(rom, tableIndex, 0, svc, 0);
             }
             catch
             {

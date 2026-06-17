@@ -2,20 +2,105 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageUnitMoveIconView"
-        Title="Unit Move Icon" Width="839" Height="412"
+        Title="Unit Move Icon" Width="900" Height="540"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageUnitMoveIcon_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="250,*" RowDefinitions="*,Auto">
+    <controls:AddressListControl AutomationProperties.AutomationId="ImageUnitMoveIcon_Entry_List"
+                                 Grid.Row="0" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Row="0" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Move Icon" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <!-- Address + Write -->
+        <Grid ColumnDefinitions="160,200,Auto" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageUnitMoveIcon_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageUnitMoveIcon_Addr_Label"
+                     Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_Write_Button"
+                  Grid.Row="0" Grid.Column="2" Content="Write" Click="Write_Click" Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Field rows: P0 (image) / P4 (AP) -->
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Image Pointer (P0):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitMoveIcon_P0_Input"
+                         Grid.Row="0" Grid.Column="1" Name="P0Box"
+                         Minimum="0" Maximum="4294967295" Increment="1" FormatString="0" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="AP Pointer (P4):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitMoveIcon_P4_Input"
+                         Grid.Row="1" Grid.Column="1" Name="P4Box"
+                         Minimum="0" Maximum="4294967295" Increment="1" FormatString="0" />
+        </Grid>
+
+        <!-- Preview controls: palette + step -->
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" />
+          <!-- Palette items are English-source TextBlocks so the shared
+               ViewTranslationHelper (run on TranslatedWindow.Opened) localizes
+               them via R._() — raw ComboBoxItem string content is NOT scanned.
+               Translations live in config/translate/{ja,zh}.txt. Read by
+               SelectedIndex (0..4 = self/ally/enemy/gray/four). No lightrune /
+               sepia for move icons (unlike wait icons). -->
+          <ComboBox AutomationProperties.AutomationId="ImageUnitMoveIcon_Palette_Combo"
+                    Grid.Row="0" Grid.Column="1" Name="PaletteCombo"
+                    SelectionChanged="Palette_Changed" HorizontalAlignment="Stretch">
+            <ComboBoxItem><TextBlock Text="Self Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Ally Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Enemy Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Gray Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Four Army" /></ComboBoxItem>
+          </ComboBox>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Walk Step:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitMoveIcon_Step_Input"
+                         Grid.Row="1" Grid.Column="1" Name="StepBox"
+                         Minimum="0" Maximum="14" Increment="1" FormatString="0"
+                         ValueChanged="Step_Changed" />
+        </Grid>
+
+        <!-- Previews: full sheet + single frame -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Full Sheet" FontWeight="Bold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinWidth="64" MinHeight="64">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageUnitMoveIcon_Sheet_Image"
+                                        Name="SheetImage" />
+            </Border>
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Frame" FontWeight="Bold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinWidth="64" MinHeight="64">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageUnitMoveIcon_Frame_Image"
+                                        Name="FrameImage" />
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Comment -->
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageUnitMoveIcon_Comment_Input"
+                   Grid.Row="0" Grid.Column="1" Name="CommentBox" />
         </Grid>
       </StackPanel>
     </ScrollViewer>
+
+    <!-- Bottom button bar -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
+        <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_Import_Button"
+                Content="Import Image" Click="Import_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_Export_Button"
+                Content="Export Image" Click="Export_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_ImportAP_Button"
+                Name="ImportAPButton" Content="Import AP" Click="ImportAP_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_ExportAP_Button"
+                Name="ExportAPButton" Content="Export AP" Click="ExportAP_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitMoveIcon_JumpWaitIcon_Button"
+                Content="Jump to Wait Icon" Click="JumpWaitIcon_Click" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

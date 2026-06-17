@@ -330,6 +330,32 @@ namespace FEBuilderGBA
             if (a > _length) _length = a;
         }
 
+        /// <summary>
+        /// Total parsed AP region length, 4-byte-padded. Byte-exact port of WF
+        /// <c>ImageUtilAP.GetLength()</c> = <c>U.Padding4(Length)</c> — feeds AP
+        /// export bytes (and any AP MD5 / dictionary matching), so the padding
+        /// MUST match WF or those drift. Call only after a successful
+        /// <see cref="Parse"/>.
+        /// </summary>
+        public uint GetLength()
+        {
+            return U.Padding4(_length);
+        }
+
+        /// <summary>
+        /// Compute the (4-byte-padded) length of the AP region at
+        /// <paramref name="apAddr"/> in <paramref name="romData"/>. Port of WF
+        /// <c>ImageUtilAP.CalcAPLength</c>: parse the AP structure and return its
+        /// padded length, or <c>0</c> when the region is unparseable / corrupt.
+        /// Never throws.
+        /// </summary>
+        public static uint CalcAPLength(byte[] romData, uint apAddr)
+        {
+            var ap = new ImageUtilAPCore();
+            if (!ap.Parse(romData, apAddr)) return 0;
+            return ap.GetLength();
+        }
+
         // =====================================================================
         // RenderFrame — mirrors WF DrawFrame (AP.cs:96-131, G4d)
         //

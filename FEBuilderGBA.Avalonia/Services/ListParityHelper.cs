@@ -2935,7 +2935,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint imgPtr = rom.u32(addr + 0);
                 if (!U.isPointer(imgPtr)) break;
 
-                string name = U.ToHexString(i) + " MoveIcon";
+                // #1177: append the owning class name (WF
+                // GetClassNameWhereNo(i) = GetClassName(i+1)). Lockstep with
+                // ImageUnitMoveIconViewModel.LoadList.
+                string className = NameResolver.GetClassName(i + 1) ?? string.Empty;
+                string name = U.ToHexString(i) + U.SA(className) + " MoveIcon";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

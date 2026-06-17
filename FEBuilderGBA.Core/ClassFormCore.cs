@@ -224,6 +224,36 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// Read the wait-icon id for class <paramref name="classId"/>
+        /// (<c>u8(classAddr + 6)</c>). Mirror of WF
+        /// <c>ClassForm.GetClassWaitIcon</c>: returns <see cref="U.NOT_FOUND"/>
+        /// for class 0, an out-of-range <paramref name="classId"/>, or an
+        /// unresolvable ROM/address. Guarded — never throws. Drives the Unit
+        /// Move Icon editor's "Jump to Wait Icon" button (#1177, the reciprocal
+        /// of the Wait Icon editor's jump-to-move-icon).
+        /// </summary>
+        public static uint GetClassWaitIcon(ROM rom, uint classId)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (classId == 0) return U.NOT_FOUND;
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint datasize = rom.RomInfo.class_datasize;
+            if (datasize == 0) return U.NOT_FOUND;
+            if (classPtr == 0 || (ulong)classPtr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            int count = GetClassCount(rom, baseAddr, datasize);
+            if (classId >= (uint)count) return U.NOT_FOUND;
+
+            ulong waitSlot64 = (ulong)baseAddr + (ulong)classId * datasize + 6UL;
+            if (waitSlot64 + 1UL > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint waitSlot = (uint)waitSlot64;
+            if (!U.isSafetyOffset(waitSlot, rom)) return U.NOT_FOUND;
+            return rom.u8(waitSlot);
+        }
+
+        /// <summary>
         /// Resolve the class NAME that owns wait-icon <paramref name="waitIconId"/>
         /// (via <see cref="GetClassIdWhereWaitIconId"/> →
         /// <see cref="NameResolver.GetClassName"/>). Mirror of WF
