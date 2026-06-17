@@ -31,11 +31,31 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteButton.Click += OnWrite;
 
             // "Stretch" / "Don't Stretch" map to the unit_increase_height_yes / _no marker values.
-            HeightCombo.ItemsSource = new[] { R._("Don't Stretch"), R._("Stretch") };
             HeightCombo.SelectionChanged += OnComboChanged;
             HeightValueBox.ValueChanged += OnHeightValueChanged;
+            RebuildHeightCombo();
+
+            // TranslatedWindow auto-translates Text/Content, but NOT ComboBox items — rebuild the
+            // combo labels ourselves on a runtime language change (preserving the selection).
+            CoreState.LanguageChanged += RebuildHeightCombo;
+            Closed += (_, _) => CoreState.LanguageChanged -= RebuildHeightCombo;
 
             Opened += (_, _) => LoadList();
+        }
+
+        void RebuildHeightCombo()
+        {
+            int sel = HeightCombo.SelectedIndex;
+            _syncing = true;
+            try
+            {
+                HeightCombo.ItemsSource = new[] { R._("Don't Stretch"), R._("Stretch") };
+                HeightCombo.SelectedIndex = sel;
+            }
+            finally
+            {
+                _syncing = false;
+            }
         }
 
         void LoadList()
