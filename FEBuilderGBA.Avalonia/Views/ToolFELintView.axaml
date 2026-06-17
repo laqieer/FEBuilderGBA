@@ -4,16 +4,47 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolFELintView"
         Title="FELint GUI" Width="1099" Height="788"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolFELint_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="320,*">
+    <DockPanel Grid.Column="0" Margin="4">
+      <Button DockPanel.Dock="Bottom"
+              AutomationProperties.AutomationId="ToolFELint_Rescan_Button"
+              Name="RescanButton"
+              Content="Rescan" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+              Click="Rescan_Click" />
+      <controls:AddressListControl
+          AutomationProperties.AutomationId="ToolFELint_Entry_List"
+          Name="EntryList" />
+    </DockPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="FELint GUI" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolFELint_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="ToolFELint_Summary_Label"
+                   Name="SummaryLabel" FontWeight="Bold"
+                   Text="{Binding SummaryText}" />
+
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Severity:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolFELint_Severity_Label"
+                     Grid.Row="0" Grid.Column="1" Name="SeverityLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedSeverityText}" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Category:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolFELint_Category_Label"
+                     Grid.Row="1" Grid.Column="1" Name="CategoryLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedCategoryText}" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolFELint_Addr_Label"
+                     Grid.Row="2" Grid.Column="1" Name="AddrLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedAddrText}" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Message:" VerticalAlignment="Top" />
+          <TextBlock AutomationProperties.AutomationId="ToolFELint_Message_Label"
+                     Grid.Row="3" Grid.Column="1" Name="MessageLabel"
+                     VerticalAlignment="Top" TextWrapping="Wrap"
+                     Text="{Binding SelectedMessage}" />
         </Grid>
       </StackPanel>
     </ScrollViewer>
