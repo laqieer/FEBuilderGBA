@@ -67,15 +67,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null)
             {
-                _errors = new List<FELintCore.ErrorSt>();
-                HasErrors = false;
-                ErrorCount = 0;
-                WarningCount = 0;
-                RefreshSummary();
-                return new List<AddrResult>();
+                // No ROM = nothing scanned: a genuinely empty list (not the "no problems" row,
+                // which means "scanned and clean"). State/detail still reset.
+                return BuildList(new List<FELintCore.ErrorSt>(), showCleanRow: false);
             }
 
-            _errors = new FELintScanner().Scan() ?? new List<FELintCore.ErrorSt>();
+            return BuildList(new FELintScanner().Scan() ?? new List<FELintCore.ErrorSt>(),
+                showCleanRow: true);
+        }
+
+        /// <summary>
+        /// Test seam (used via <c>InternalsVisibleTo</c>): build the entry list from an
+        /// injected error set instead of scanning the ROM, so detail-loading and
+        /// duplicate-address behaviour are covered deterministically even when the loaded ROM
+        /// is structurally clean (0 findings).
+        /// </summary>
+        internal List<AddrResult> LoadFromErrors(List<FELintCore.ErrorSt> errors)
+            => BuildList(errors ?? new List<FELintCore.ErrorSt>(), showCleanRow: true);
+
+        /// <summary>
+        /// Store the findings, build one row per finding, and recompute the counts/summary.
+        /// Always resets the detail panel — a fresh scan must not leave stale detail from the
+        /// previous list (the address list does not raise a selection-changed event for an empty
+        /// list). When <paramref name="showCleanRow"/> is true and there are no findings, a
+        /// single informational "no problems" row is appended (the scanned-and-clean state).
+        /// </summary>
+        List<AddrResult> BuildList(List<FELintCore.ErrorSt> errors, bool showCleanRow)
+        {
+            _errors = errors;
+            ClearDetail();
 
             int errCount = 0;
             int warnCount = 0;
@@ -95,10 +115,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             HasErrors = _errors.Count > 0;
             RefreshSummary();
 
-            if (_errors.Count == 0)
+            if (showCleanRow && _errors.Count == 0)
             {
-                // Clean ROM — show one informational row. Index 0 maps to no stored error,
-                // so LoadEntryByIndex clears the detail panel for it.
+                // Scanned and clean — show one informational row. Index 0 maps to no stored
+                // error, so LoadEntryByIndex clears the detail panel for it.
                 result.Add(new AddrResult(0, R._("No problems found."), 0));
             }
 
@@ -150,9 +170,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// True only when the row at <paramref name="index"/> is a real lint error with a
-        /// jumpable ROM address (not the <see cref="FELintCore.SYSTEM_MAP_ID"/> sentinel, not
-        /// zero, and inside the safe ROM range). Drives the double-click/Enter
-        /// jump-to-HexEditor path.
+        /// jumpable ROM byte offset — i.e. not the <see cref="FELintCore.SYSTEM_MAP_ID"/>
+        /// sentinel and inside the ROM data. The Hex Editor can display ANY in-ROM byte
+        /// (it opens at offset 0 by default), so header-region findings such as the
+        /// <c>0xB2</c> fixed-byte check are jumpable too — this deliberately does NOT use
+        /// <see cref="U.isSafetyOffset(uint, ROM)"/>, which excludes the <c>0x0–0x1FF</c>
+        /// header. Drives the double-click/Enter jump-to-HexEditor path.
         /// </summary>
         public bool TryGetJumpOffset(int index, out uint offset)
         {
@@ -163,8 +186,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return false;
 
             uint addr = _errors[index].Addr;
-            if (addr == FELintCore.SYSTEM_MAP_ID || addr == 0) return false;
-            if (!U.isSafetyOffset(addr, rom)) return false;
+            if (addr == FELintCore.SYSTEM_MAP_ID) return false;
+            if (addr >= (uint)rom.Data.Length) return false;
 
             offset = addr;
             return true;
