@@ -276,23 +276,26 @@ namespace FEBuilderGBA
         public static byte[] PackPath(IReadOnlyList<PathChip> chips, out string error)
         {
             error = "";
-            if (chips == null) { error = "Path chip list is null."; return null; }
+            if (chips == null) { error = R.Error("Path chip list is null."); return null; }
 
-            // Validate every chip BEFORE producing any output.
+            // Validate every chip BEFORE producing any output. User-facing error
+            // strings go through R.Error so the Avalonia ShowError surfaces a
+            // localized message (Copilot PR #1228 review — ShowError does NOT
+            // auto-translate).
             foreach (var c in chips)
             {
                 if (c.WorldX < 0 || c.WorldY < 0 || (c.WorldX % 8) != 0 || (c.WorldY % 8) != 0)
-                { error = "Chip world coordinates must be non-negative multiples of 8."; return null; }
+                { error = R.Error("Chip world coordinates must be non-negative multiples of 8."); return null; }
                 // X/8 == 0xFF would write a header byte LoadPath reads as the
                 // TERMINATOR (silently dropping that chip + everything after), so
                 // the X tile cap is 0xFE (Copilot PR #1228 re-review). The Y tile
                 // is never the terminator byte (offset +1), so it caps at 255.
                 if (c.WorldX / 8 >= MAX_X_TILE || c.WorldY / 8 > 255)
-                { error = "Chip world coordinates exceed the addressable tile range."; return null; }
+                { error = R.Error("Chip world coordinates exceed the addressable tile range."); return null; }
                 if (c.PathX < 0 || (c.PathX % 8) != 0 || c.PathX / 8 >= FLIP_VARIANTS)
-                { error = "Chip flip variant is out of range (must be 0..3; the erase column cannot be stored)."; return null; }
+                { error = R.Error("Chip flip variant is out of range (must be 0..3; the erase column cannot be stored)."); return null; }
                 if (c.PathY < 0 || (c.PathY % 8) != 0 || c.PathY / 8 >= ROAD_STRIP_TILES_Y)
-                { error = "Chip road row is out of range (must be 0..14)."; return null; }
+                { error = R.Error("Chip road row is out of range (must be 0..14)."); return null; }
             }
 
             // Stable sort by (Y, X).
@@ -341,7 +344,7 @@ namespace FEBuilderGBA
                 // here so PackPath NEVER emits a non-round-tripping stream.
                 if (startXTile >= MAX_X_TILE || runLength >= MAX_CHIPS_PER_ROW)
                 {
-                    error = "Path run cannot be encoded (start tile or run length out of range).";
+                    error = R.Error("Path run cannot be encoded (start tile or run length out of range).");
                     return null;
                 }
 
@@ -391,20 +394,24 @@ namespace FEBuilderGBA
         /// (with ZERO ROM mutation) on any failure. Never throws.</returns>
         public static string WritePath(ROM rom, int pathId, IReadOnlyList<PathChip> chips)
         {
-            if (rom == null || rom.RomInfo == null || rom.Data == null) return "ROM not loaded.";
-            if (rom.RomInfo.version != VERSION_FE8) return "World map roads are FE8-only.";
-            if (chips == null) return "Path chip list is null.";
+            // User-facing error strings go through R.Error so the Avalonia
+            // ShowError surfaces a localized message (Copilot PR #1228 review —
+            // ShowError does NOT auto-translate).
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return R.Error("ROM not loaded.");
+            if (rom.RomInfo.version != VERSION_FE8) return R.Error("World map roads are FE8-only.");
+            if (chips == null) return R.Error("Path chip list is null.");
 
             // Resolve the entry slot to repoint (validate before mutate).
             uint ptr = rom.RomInfo.worldmap_road_pointer;
-            if (!IsRegionSafe(rom, ptr, 4)) return "World map road table pointer is out of range.";
+            if (!IsRegionSafe(rom, ptr, 4)) return R.Error("World map road table pointer is out of range.");
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return "World map road table is out of range.";
-            if (pathId < 0) return "Invalid path id.";
+            if (!U.isSafetyOffset(baseAddr, rom)) return R.Error("World map road table is out of range.");
+            if (pathId < 0) return R.Error("Invalid path id.");
             uint entry = baseAddr + (uint)pathId * ENTRY_SIZE;
-            if (!IsRegionSafe(rom, entry, ENTRY_SIZE)) return "World map road entry is out of range.";
+            if (!IsRegionSafe(rom, entry, ENTRY_SIZE)) return R.Error("World map road entry is out of range.");
 
-            // Pack (validates every chip; zero-output on any violation).
+            // Pack (validates every chip; zero-output on any violation). packError
+            // is already localized (PackPath wraps it in R.Error).
             byte[] data = PackPath(chips, out string packError);
             if (data == null) return packError;
 
@@ -416,14 +423,14 @@ namespace FEBuilderGBA
                 if (newAddr == U.NOT_FOUND)
                 {
                     RestoreSnapshot(rom, snap);
-                    return "Failed to write road data. Check ROM free space.";
+                    return R.Error("Failed to write road data. Check ROM free space.");
                 }
                 return "";
             }
             catch (Exception ex)
             {
                 RestoreSnapshot(rom, snap);
-                return "World map road write failed: " + ex.Message;
+                return R.Error("World map road write failed: {0}", ex.Message);
             }
         }
 

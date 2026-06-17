@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public string WritePath()
         {
-            if (CurrentPathId < 0) return "No path selected.";
+            if (CurrentPathId < 0) return R._("No path selected.");
             string err = WorldMapPathCore.WritePath(CoreState.ROM, CurrentPathId, Chips);
             if (err == "") MarkClean();
             return err;
