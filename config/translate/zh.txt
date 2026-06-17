@@ -24914,3 +24914,18 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit Final Serif (FE7)
 编辑终章台词 (FE7)
+
+:Height Value:
+身高值:
+
+:Whether this portrait is stretched taller on the status screen.
+此立绘是否在状态画面中被拉高。
+
+:Don't Stretch
+不拉伸
+
+:Stretch
+拉伸
+
+:Edit Unit Height Adjustment
+编辑身高调整
