@@ -376,9 +376,15 @@ namespace FEBuilderGBA
         /// identical via the helper's <see cref="HeaderTSACells.IsValidHeader"/>
         /// bit.</para>
         /// </summary>
+        /// <param name="skipTile0">When true (the sprite/CG default), a TSA cell of
+        ///   <c>0x0000</c> is treated as blank/transparent and skipped (matching the
+        ///   pre-#1184 behavior). When false, cell 0 is a VALID tile-0 reference and
+        ///   is rendered — required by the FE7 World Map big field map (#1184), whose
+        ///   WF path <c>ByteToImage16TileInner</c> only skips <c>0xFFFF</c>, so tile 0
+        ///   is a real background tile.</param>
         public static IImage DecodeHeaderTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
             int screenWidthTiles, int screenHeightTiles, bool is4bpp = true,
-            int tsaAddend = 0, int paletteShift = 0)
+            int tsaAddend = 0, int paletteShift = 0, bool skipTile0 = true)
         {
             if (CoreState.ImageService == null) return null;
 
@@ -423,7 +429,12 @@ namespace FEBuilderGBA
                 if (x >= width) { x = 0; y += 8; if (y >= height) break; }
 
                 ushort tsatile = tile[tsaindex];
-                if (tsatile == 0xFFFF || tsatile == 0) continue;
+                // 0xFFFF is always blank. 0x0000 is blank for sprites/CG (skipTile0
+                // default) but a VALID tile-0 reference for the FE7 big-map
+                // background (skipTile0=false — WF ByteToImage16TileInner only skips
+                // 0xFFFF) (#1184).
+                if (tsatile == 0xFFFF) continue;
+                if (tsatile == 0 && skipTile0) continue;
 
                 int tileIndex = tsatile & 0x3FF;
                 bool hFlip = (tsatile & 0x400) != 0;

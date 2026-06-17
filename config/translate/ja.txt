@@ -3944,6 +3944,21 @@ WMAP画像
 :World Map Image (FE7)
 WMAP画像
 
+:Big Field Map
+フィールドマップ
+
+:Event Image
+イベント画像
+
+:Image Pointer
+画像ポインタ
+
+:Palette Pointer
+パレットポインタ
+
+:TSA Pointer
+TSAポインタ
+
 :World Map Monster Editor
 ワールドマップ Monster エディタ
 
