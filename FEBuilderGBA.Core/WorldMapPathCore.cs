@@ -172,32 +172,38 @@ namespace FEBuilderGBA
         /// <c>LoadPathLow</c> + the <c>DrawPath</c> safety guards). READ-ONLY,
         /// never throws, guards every read. Returns an empty list on
         /// null / non-FE8 / out-of-bounds / null-pointer / corrupt data.
+        ///
+        /// <para><b>All-or-nothing</b> (Copilot PR #1228 review #1): a clean
+        /// <c>0xFF</c> terminator yields the full decoded list; ANY mid-decode
+        /// corruption (out-of-bounds header/pair, <c>count &gt;= 200</c>) yields
+        /// an EMPTY list — a partial list must NOT reach the editor, since
+        /// writing it back would silently TRUNCATE the road.</para>
         /// </summary>
         public static List<PathChip> LoadPath(ROM rom, int pathId)
         {
-            var list = new List<PathChip>();
-            if (!GetPathDataOffset(rom, pathId, out uint p)) return list;
+            if (!GetPathDataOffset(rom, pathId, out uint p)) return new List<PathChip>();
 
             // WF treats u32(p)==0 as "no road data" (the first header byte is
             // always >=1 for a real path).
-            if (!IsRegionSafe(rom, p, 4)) return list;
-            if (rom.u32(p) == 0) return list;
+            if (!IsRegionSafe(rom, p, 4)) return new List<PathChip>();
+            if (rom.u32(p) == 0) return new List<PathChip>();
 
+            var list = new List<PathChip>();
             while (true)
             {
-                if (!IsRegionSafe(rom, p, 4)) return list; // header out of range
+                if (!IsRegionSafe(rom, p, 4)) return new List<PathChip>(); // header OOB -> corrupt
                 uint x8 = rom.u8(p + 0);
                 uint y8 = rom.u8(p + 1);
                 uint count = rom.u8(p + 2);
                 // p + 3 (the constant 0x01) is unused on read.
 
-                if (x8 == 0xFF) return list;            // terminator
-                if (count >= MAX_CHIPS_PER_ROW) return list; // corrupt — bail
+                if (x8 == 0xFF) return list;                  // clean terminator -> full list
+                if (count >= MAX_CHIPS_PER_ROW) return new List<PathChip>(); // corrupt -> empty
 
                 p += 4;
                 for (uint ix = 0; ix < count; ix++)
                 {
-                    if (!IsRegionSafe(rom, p, 2)) return list;
+                    if (!IsRegionSafe(rom, p, 2)) return new List<PathChip>(); // pair OOB -> corrupt
                     uint tile = rom.u8(p + 0);
                     uint flag = rom.u8(p + 1);
                     p += 2;
@@ -298,9 +304,16 @@ namespace FEBuilderGBA
                 // exactly 8 px to the right of the previous (contiguous). A gap
                 // (or a duplicate X) starts a NEW header so X reconstructs
                 // exactly on reload.
+                //
+                // CAP the run at MAX_CHIPS_PER_ROW-1 (Copilot PR #1228 review #2):
+                // the stored `count` is a u8 AND LoadPath rejects count>=200 as
+                // corrupt. A longer contiguous run is SPLIT into multiple headers
+                // (the next header's runStartX = prevX+8, so the reload still
+                // reconstructs every chip) — never a wrapped/unreadable count.
                 int n = i + 1;
                 int prevX = runStartX;
                 while (n < sorted.Count
+                       && (n - i) < MAX_CHIPS_PER_ROW - 1
                        && sorted[n].WorldY == rowY
                        && sorted[n].WorldX == prevX + 8)
                 {

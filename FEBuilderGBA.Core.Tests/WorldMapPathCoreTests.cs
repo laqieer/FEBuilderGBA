@@ -98,9 +98,57 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        [Fact]
+        public void LoadPath_CorruptCount_ReturnsEmpty_NotPartial()
+        {
+            // A header claiming count==250 (>= MAX_CHIPS_PER_ROW) is corrupt:
+            // LoadPath must return EMPTY (not the chips decoded before it), so a
+            // truncated/corrupt road can't reach the editor + be written back
+            // truncated (Copilot PR #1228 review #1).
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                var data = new List<byte>
+                {
+                    // valid first row: 1 chip
+                    0, 0, 1, 1,  0, 0,
+                    // corrupt second row: count 250
+                    1, 0, 250, 1,
+                };
+                PlantPathData(rom, 0, data.ToArray());
+                Assert.Empty(WorldMapPathCore.LoadPath(rom, 0));
+            });
+        }
+
         // =================================================================
         // PackPath — the contiguous-run fix (Copilot plan review #1)
         // =================================================================
+
+        [Fact]
+        public void PackPath_LongContiguousRun_SplitsAndRoundTrips()
+        {
+            // A 250-chip contiguous run exceeds the per-header count cap
+            // (MAX_CHIPS_PER_ROW-1 == 199). PackPath must SPLIT it into multiple
+            // headers so every count round-trips through LoadPath (which rejects
+            // count>=200) — all 250 chips reload at their exact positions
+            // (Copilot PR #1228 review #2).
+            var chips = new List<PathChip>();
+            for (int i = 0; i < 250; i++)
+                chips.Add(new PathChip(i * 8, 0, 0, 0));
+
+            byte[] packed = WorldMapPathCore.PackPath(chips, out string err);
+            Assert.Equal("", err);
+
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                PlantPathData(rom, 0, packed);
+                var reloaded = WorldMapPathCore.LoadPath(rom, 0);
+                Assert.Equal(250, reloaded.Count);
+                for (int i = 0; i < 250; i++)
+                    Assert.Equal(i * 8, reloaded[i].WorldX);
+            });
+        }
 
         [Fact]
         public void PackPath_NonContiguousRow_RoundTripsExactly()
@@ -432,7 +480,9 @@ namespace FEBuilderGBA.Core.Tests
         // Wire path-data bytes for entry `id` at a per-id offset and repoint +0.
         static void PlantPathData(ROM rom, int id, byte[] packed)
         {
-            uint dataOff = PATH_DATA_OFFSET + (uint)id * 0x100;
+            // 0x400 per id leaves room for a max-length (250-chip) packed path
+            // without colliding with the next id's region or the point table.
+            uint dataOff = PATH_DATA_OFFSET + (uint)id * 0x400;
             Array.Copy(packed, 0, rom.Data, dataOff, packed.Length);
             uint entry = ROAD_TABLE_OFFSET + (uint)id * 12;
             SetPtr(rom, entry + 0, dataOff);

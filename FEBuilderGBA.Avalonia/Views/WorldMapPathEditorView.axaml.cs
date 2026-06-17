@@ -31,8 +31,15 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) => LoadList();
 
             WriteButton.Click += OnWrite;
-            MapImageControl.PointerPressed += OnMapPointerPressed;
-            MapImageControl.PointerMoved += OnMapPointerMoved;
+            // TUNNEL (Copilot PR #1228 review #3): GbaImageControl starts a
+            // left-drag PAN at zoom>1 and marks the bubbling pointer event
+            // Handled, so a bubbling subscription would stop painting once
+            // zoomed in. Tunnelling lets the editor see + consume the pointer
+            // BEFORE GbaImageControl's drag-pan does.
+            MapImageControl.AddHandler(PointerPressedEvent, OnMapPointerPressed,
+                RoutingStrategies.Tunnel);
+            MapImageControl.AddHandler(PointerMovedEvent, OnMapPointerMoved,
+                RoutingStrategies.Tunnel);
             ChipPaletteImage.PointerPressed += OnPalettePointerPressed;
 
             UpdateSelectedChipLabel();
@@ -156,9 +163,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 var props = e.GetCurrentPoint(MapImageControl).Properties;
                 if (props.IsRightButtonPressed)
                 {
-                    // Eyedropper.
+                    // Eyedropper. Handle the tunnelled event so GbaImageControl
+                    // does not also act on it.
                     if (MapPointerToWorld(e, out int wx, out int wy) && _vm.PickChipAt(wx, wy))
                         UpdateSelectedChipLabel();
+                    e.Handled = true;
                     return;
                 }
                 if (props.IsLeftButtonPressed)
@@ -185,11 +194,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // Paint the selected chip. Marks the tunnelled pointer event Handled when
+        // a paint lands so GbaImageControl's left-drag PAN does not also fire at
+        // zoom>1 (Copilot PR #1228 review #3).
         void PaintAt(PointerEventArgs e)
         {
             if (!MapPointerToWorld(e, out int wx, out int wy)) return;
             if (_vm.PutPathChip(wx, wy))
                 RenderComposite();
+            e.Handled = true;
         }
 
         /// <summary>
