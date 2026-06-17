@@ -87,10 +87,25 @@ namespace FEBuilderGBA
             /// <summary>Resolved per-frame PALETTE data offsets.</summary>
             public List<uint> PaletteList = new List<uint>();
 
-            /// <summary>True when FRAME pointer is a real ROM offset (frame-table mode).</summary>
-            public bool IsFrameTable => U.isSafetyOffset(FramePointer);
+            /// <summary>
+            /// True when FRAME pointer is a real ROM offset (frame-table mode) vs.
+            /// a small fixed count (FIXEDCOUNT). Precomputed at <see cref="Resolve"/>
+            /// time via the explicit-ROM <c>U.isSafetyOffset(addr, rom)</c> overload
+            /// so the property is self-contained — it does NOT read
+            /// <see cref="CoreState.ROM"/> and never throws if that is unset
+            /// (Copilot PR #1231 review #2).
+            /// </summary>
+            public bool IsFrameTable;
             /// <summary>True when the single shared palette is reused for every frame.</summary>
             public bool IsCommonPalette => Option == "COMMONPALETTE";
+            /// <summary>
+            /// True when the PALETTE pointer resolved to a single shared / in-place
+            /// 32-byte block (the <see cref="GetPalettePointerListCount"/> no-pointer-
+            /// list fallback), so a per-frame palette import writes that block raw
+            /// in-place rather than repointing a list slot
+            /// (Copilot PR #1231 review #1).
+            /// </summary>
+            public bool PaletteIsInPlaceBlock;
         }
 
         /// <summary>
@@ -142,9 +157,15 @@ namespace FEBuilderGBA
             };
             if (e.ImageWidthTiles <= 0) e.ImageWidthTiles = 30; // WF default
 
+            // Precompute IsFrameTable with the explicit-ROM overload so the entry's
+            // IsFrameTable property is self-contained (no CoreState.ROM read).
+            e.IsFrameTable = U.isSafetyOffset(e.FramePointer, rom);
+
             e.TSAList = GetPointerListCount(rom, e.TSAPointer);
             e.ImageList = GetPointerListCount(rom, e.ImagePointer);
-            e.PaletteList = GetPalettePointerListCount(rom, e.PalettePointer, e.FramePointer, e.Option);
+            e.PaletteList = GetPalettePointerListCount(
+                rom, e.PalettePointer, e.FramePointer, e.Option, out bool palInPlace);
+            e.PaletteIsInPlaceBlock = palInPlace;
             return e;
         }
 
@@ -172,8 +193,14 @@ namespace FEBuilderGBA
         // Ported from WF GetPalettePointerListCount: like GetPointerListCount, but
         // the no-pointer fallback expands per-frame (COMMONPALETTE = one; small
         // FRAME count = one 32-byte palette per frame; else one).
-        static List<uint> GetPalettePointerListCount(ROM rom, uint p, uint framePointer, string option)
+        // <paramref name="inPlaceBlock"/> reports whether the result came from the
+        // no-pointer-LIST fallback (the palette is a single shared / in-place
+        // 32-byte block, NOT a list of repointable slots) — the import then writes
+        // that block raw in-place rather than repointing a slot (review #1).
+        static List<uint> GetPalettePointerListCount(ROM rom, uint p, uint framePointer,
+            string option, out bool inPlaceBlock)
         {
+            inPlaceBlock = false;
             var ret = new List<uint>();
             if (!U.isSafetyOffset(p, rom)) return ret;
             uint a = rom.p32(p);
@@ -188,6 +215,9 @@ namespace FEBuilderGBA
             }
             if (ret.Count <= 0)
             {
+                // The PALETTE pointer did NOT resolve to a pointer-LIST: the palette
+                // bytes live in-place at `a` (COMMONPALETTE / FIXEDCOUNT fallback).
+                inPlaceBlock = true;
                 if (option == "COMMONPALETTE")
                 {
                     ret.Add(U.toOffset(a));
@@ -326,8 +356,12 @@ namespace FEBuilderGBA
         /// <summary>
         /// Import a single PNG frame (the inverse of <see cref="TryRenderFrame"/>):
         /// resolve the UI frame to its stored ID and repoint THAT ID's IMAGE + TSA
-        /// list slots (and, unless <c>COMMONPALETTE</c>, its PALETTE list slot) with
-        /// the encoded image / tsa / 16-color palette. The pixels are already
+        /// list slots with the encoded image / tsa, then write the 16-color palette
+        /// to the frame's palette target — REPOINTING the per-frame pointer-list slot
+        /// when the palette is a list, or OVERWRITING the shared / per-frame 32-byte
+        /// block RAW in-place when it is not (the new palette ALWAYS lands somewhere;
+        /// a frame whose palette is not addressable is rejected with ZERO mutation —
+        /// review #1). The pixels are already
         /// QUANTIZED indexed bytes (1 palette byte/pixel) + a RAW 16-color GBA
         /// palette (32 bytes) — the caller quantizes via
         /// <c>ImageImportService.LoadAndQuantize(owner, w, h, 16)</c>, exactly like
@@ -393,10 +427,36 @@ namespace FEBuilderGBA
             if (!TryFrameListSlot(rom, e.TSAPointer, id, out uint tsaSlot))
             { error = R.Error("The animation TSA pointer slot is not addressable for this frame."); return false; }
 
-            // The palette slot: COMMONPALETTE writes the single shared palette
-            // (recolors every frame — WF semantics); otherwise repoint this frame's
-            // per-frame palette slot.
-            bool writePalette = TryPaletteSlot(rom, e, id, out uint paletteSlot);
+            // Resolve the palette write target (validate-all-before-mutate). The new
+            // 16-color palette MUST always land somewhere — silently skipping it
+            // would pair the new indices with the OLD colors (review #1). Three cases:
+            //   (a) per-frame pointer-LIST slot  -> REPOINT that slot,
+            //   (b) in-place 32-byte block       -> overwrite RAW in-place,
+            //   (c) neither addressable          -> FAIL (no mutation).
+            uint paletteSlot = 0;   // (a) the list slot to repoint
+            uint paletteInPlace = 0;// (b) the in-place offset to overwrite
+            bool paletteRepoint = TryPaletteSlot(rom, e, id, out paletteSlot);
+            bool paletteWriteRaw = false;
+            if (!paletteRepoint)
+            {
+                // (b) in-place block: the palette bytes live at the resolved offset
+                // (COMMONPALETTE id 0, else this frame's per-frame block). Confirm
+                // the full 32-byte block is in-bounds.
+                int palId = e.IsCommonPalette ? 0 : id;
+                if (e.PaletteIsInPlaceBlock
+                    && palId >= 0 && palId < e.PaletteList.Count
+                    && IsRegionSafe(rom, e.PaletteList[palId], PALETTE_BYTES))
+                {
+                    paletteInPlace = e.PaletteList[palId];
+                    paletteWriteRaw = true;
+                }
+                else
+                {
+                    // (c) no addressable palette target -> refuse (no mutation).
+                    error = R.Error("The animation palette is not addressable for this frame.");
+                    return false;
+                }
+            }
 
             // Encode (NO mutation yet). EncodeTSA wants indexed pixels (1 byte/px).
             ImageImportCore.TSAEncodeResult enc;
@@ -419,7 +479,13 @@ namespace FEBuilderGBA
                 if (tsaAddr == U.NOT_FOUND)
                 { RestoreSnapshot(rom, snap); error = R._("Failed to write TSA. Check ROM free space."); return false; }
 
-                if (writePalette)
+                // PALETTE always lands somewhere (review #1): (a) repoint a list slot
+                // to a fresh 32-byte block, or (b) overwrite the in-place block RAW.
+                if (paletteWriteRaw)
+                {
+                    rom.write_range(paletteInPlace, gbaPalette16); // ambient undo
+                }
+                else
                 {
                     uint palAddr = ImageImportCore.WriteRawToROM(rom, gbaPalette16, paletteSlot);
                     if (palAddr == U.NOT_FOUND)

@@ -162,6 +162,60 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ImportFrame_CommonPaletteInPlace_OverwritesBlockRaw()
+        {
+            // COMMONPALETTE entry whose PAL pointer dereferences to a SINGLE 32-byte
+            // block (no pointer-list) -> the import overwrites that block in-place
+            // rather than repointing a slot (review #1 case b). The PAL pointer slot
+            // value must NOT change (no repoint), but the 32 palette bytes DO change.
+            WithRom(rom =>
+            {
+                PlantCommonPaletteEntry(rom);
+                RomAnimeCore.RomAnimeEntry e = ResolveCommonPaletteEntry(rom);
+                Assert.True(e.PaletteIsInPlaceBlock);
+                Assert.True(e.IsCommonPalette);
+
+                uint palPtrBefore = rom.u32(PAL_PTR_SLOT); // the in-place block pointer
+                int w = WIDTH_TILES * 8, h = 16;
+                byte[] newPal = MakePalette(BLUE, RED);
+
+                bool ok = RomAnimeCore.ImportFrame(rom, e, 0,
+                    MakeIndexed(w, h), newPal, w, h, out string err);
+                Assert.True(ok, err);
+
+                // The PAL pointer slot is UNCHANGED (in-place overwrite, no repoint).
+                Assert.Equal(palPtrBefore, rom.u32(PAL_PTR_SLOT));
+                // The 32 palette bytes at the resolved block now equal the new palette.
+                uint palOffset = U.toOffset(palPtrBefore);
+                for (int i = 0; i < newPal.Length; i++)
+                    Assert.Equal(newPal[i], rom.Data[palOffset + i]);
+            });
+        }
+
+        [Fact]
+        public void Entry_IsFrameTable_DoesNotReadCoreStateRom()
+        {
+            // Resolve an entry, then null CoreState.ROM and read IsFrameTable: the
+            // property must be self-contained (precomputed) and never throw (review #2).
+            RomAnimeCore.RomAnimeEntry e = null;
+            WithRom(rom =>
+            {
+                PlantFixedCountEntry(rom);
+                e = ResolveEntry(rom);
+            });
+            // CoreState.ROM is restored (non-test) here; force it null to prove the
+            // property does not depend on it.
+            var saved = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                bool isFrameTable = e.IsFrameTable; // must NOT throw
+                Assert.False(isFrameTable);          // FramePointer == 1 (fixed count)
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
         public void ImportFrame_OversizedWidth_MutatesZeroBytes()
         {
             WithRom(rom =>
@@ -383,6 +437,48 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_p32(TSA_PTR_SLOT, TSA_LIST);
             rom.write_p32(IMAGE_PTR_SLOT, IMAGE_LIST);
             rom.write_p32(PAL_PTR_SLOT, PAL_LIST);
+        }
+
+        // A COMMONPALETTE entry whose PAL pointer SLOT dereferences directly to a
+        // single 32-byte palette block (NOT a pointer-list), so the palette resolves
+        // as an in-place block. TSA/IMAGE keep their per-frame pointer-lists.
+        static void PlantCommonPaletteEntry(ROM rom)
+        {
+            byte[] tsa = new byte[WIDTH_TILES * 2];
+            for (int i = 0; i < WIDTH_TILES; i++) tsa[i * 2] = (byte)(i & 0xFF);
+            byte[] image = new byte[WIDTH_TILES * 32];
+            for (int i = 0; i < image.Length; i++) image[i] = (byte)((i % 15) + 1);
+
+            PlantBytes(rom, TSA_DATA, LZ77.compress(tsa));
+            PlantBytes(rom, IMAGE_DATA, LZ77.compress(image));
+            // The palette block: 32 RAW bytes whose first u32 is NOT a valid pointer
+            // (so GetPalettePointerListCount takes the in-place fallback).
+            PlantBytes(rom, PAL_DATA, MakePalette(RED, GREEN));
+
+            rom.write_p32(TSA_LIST, TSA_DATA);
+            rom.write_p32(IMAGE_LIST, IMAGE_DATA);
+            rom.write_u32(TSA_LIST + 4, 0);
+            rom.write_u32(IMAGE_LIST + 4, 0);
+
+            rom.write_p32(TSA_PTR_SLOT, TSA_LIST);
+            rom.write_p32(IMAGE_PTR_SLOT, IMAGE_LIST);
+            // PAL pointer SLOT -> directly the 32-byte block (no intermediate list).
+            rom.write_p32(PAL_PTR_SLOT, PAL_DATA);
+        }
+
+        static RomAnimeCore.RomAnimeEntry ResolveCommonPaletteEntry(ROM rom)
+        {
+            string[] fields =
+            {
+                WIDTH_TILES.ToString(),
+                "COMMONPALETTE",
+                U.ToHexString(FRAME_COUNT),
+                U.ToHexString(TSA_PTR_SLOT),
+                U.ToHexString(IMAGE_PTR_SLOT),
+                U.ToHexString(PAL_PTR_SLOT),
+                "efxCommon",
+            };
+            return RomAnimeCore.Resolve(rom, 0x4321, fields);
         }
 
         static byte[] MakeIndexed(int w, int h)
