@@ -503,6 +503,11 @@ namespace FEBuilderGBA.Core
                 byte[] newFontData = FontCore.MakeNewFontData(moji, fontWidth, bitmap, rom, priorityCode);
                 U.write_u32(newFontData, 0, 0); // NULL — appended at the chain tail.
 
+                // null undodata = headless free-space path (FindFreeSpace + write_range).
+                // The append IS captured for undo via the caller's AMBIENT undo scope
+                // (rom.write_range records into _ambientUndoData), so we deliberately
+                // do NOT route through the CoreState.AppendBinaryData delegate here —
+                // matching the other Core write-back seams' cross-platform pattern.
                 uint newaddr = MapEventUnitCore.AppendBinaryDataHeadless(rom, newFontData, null);
                 if (newaddr == U.NOT_FOUND)
                 {

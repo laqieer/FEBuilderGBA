@@ -16,7 +16,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         uint _currentMoji;
         int _currentWidth;
-        string _currentName = "";
         bool _isLoaded;
         // 0 = Item font, 1 = Serif font (matches WinForms FontType combo order).
         int _fontTypeIndex;
@@ -24,7 +23,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint CurrentMoji { get => _currentMoji; set => SetField(ref _currentMoji, value); }
         public int CurrentWidth { get => _currentWidth; set => SetField(ref _currentWidth, value); }
-        public string CurrentName { get => _currentName; set => SetField(ref _currentName, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public int FontTypeIndex { get => _fontTypeIndex; set => SetField(ref _fontTypeIndex, value); }
 
@@ -99,7 +97,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetDataReport() => new()
         {
             ["addr"] = $"0x{CurrentAddr:X08}",
-            ["moji"] = $"0x{CurrentMoji:X04}",
+            // Moji can be a full 32-bit packed code in the UTF-8 font path, so X08
+            // (not X04, which would truncate a 4-byte UTF-8 character code).
+            ["moji"] = $"0x{CurrentMoji:X08}",
             ["width"] = CurrentWidth.ToString(),
         };
 

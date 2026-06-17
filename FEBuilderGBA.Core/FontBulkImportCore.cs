@@ -144,7 +144,9 @@ namespace FEBuilderGBA.Core
             }
         }
 
-        // Parse the manifest width column; -1 (derive from pixels) on a bad value.
+        // Parse the manifest width column; returns -1 on a non-numeric value (the
+        // caller treats -1 as a manifest error and ABORTS — it is NOT a
+        // derive-from-pixels signal in the bulk path).
         static int ParseWidth(string s)
         {
             return int.TryParse(s.Trim(), out int w) && w >= 0 ? w : -1;
