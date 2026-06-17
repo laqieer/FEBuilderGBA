@@ -24884,3 +24884,24 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Edit World Map Ending Events (FE7)
 编辑世界地图结局事件 (FE7)
+
+:Attacker Unit:
+攻击单位:
+
+:Defender Unit:
+防御单位:
+
+:Map:
+地图:
+
+:Unknown (0x05):
+未知 (0x05):
+
+:Text:
+文本:
+
+:A mid-battle conversation triggered when the attacker and defender units fight.
+当攻击单位与防御单位交战时触发的战斗中对话。
+
+:Edit Battle Dialogue
+编辑战斗对话
