@@ -16,10 +16,9 @@
           <TextBlock AutomationProperties.AutomationId="MantAnimation_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Animation Pointer:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MantAnimation_Pointer_Input"
-                         Grid.Row="1" Grid.Column="1" Name="PointerBox"
-                         FormatString="X8" Minimum="0" Maximum="4294967295"
-                         Increment="1" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="MantAnimation_Pointer_Input"
+                   Grid.Row="1" Grid.Column="1" Name="PointerBox"
+                   Watermark="0x00000000" Margin="0,2" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8">

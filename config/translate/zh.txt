@@ -25066,3 +25066,6 @@ AP导入成功。
 
 :Write failed: {0}
 写入失败：{0}
+
+:New count ({0}) exceeds the maximum of 256 entries.
+新条目数（{0}）超过了256个条目的上限。

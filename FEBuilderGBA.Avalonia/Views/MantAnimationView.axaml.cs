@@ -32,6 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadList()
         {
+            _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadList();
@@ -41,10 +42,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MantAnimationView.LoadList failed: " + ex.ToString());
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
         {
+            _vm.IsLoading = true;
             try
             {
                 _vm.LoadEntry(addr);
@@ -54,12 +57,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MantAnimationView.OnSelected failed: " + ex.ToString());
             }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            PointerBox.Value = _vm.P0;
+            PointerBox.Text = string.Format("0x{0:X08}", _vm.P0);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -68,9 +72,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Mant Animation");
             try
             {
-                _vm.P0 = (uint)(PointerBox.Value ?? 0);
+                _vm.P0 = ParseHexText(PointerBox.Text);
                 _vm.Write(_undoService.GetActiveUndoData()!);
                 _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
@@ -99,7 +104,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint baseAddr = rom.p32(listPtr);
                 if (!U.isSafetyOffset(baseAddr, rom)) return;
                 uint slotAddr = baseAddr + animeId * 4;
+                // ImageBattleAnimeView reads a u32 at slotAddr; isSafetyOffset
+                // alone does not guarantee slotAddr+4 is in-bounds, so verify
+                // the full 4-byte read fits before navigating.
                 if (!U.isSafetyOffset(slotAddr, rom)) return;
+                if ((ulong)slotAddr + 4 > (ulong)rom.Data.Length) return;
 
                 WindowManager.Instance.Navigate<ImageBattleAnimeView>(slotAddr);
             }
@@ -168,6 +177,17 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MantAnimationView.ListExpand_Click failed: " + ex.ToString());
             }
+        }
+
+        static uint ParseHexText(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            text = text.Trim();
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(2);
+            if (uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint val))
+                return val;
+            return 0;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -11228,3 +11228,6 @@ APのインポートに失敗しました: {0}
 
 :Write failed: {0}
 書き込みに失敗しました：{0}
+
+:New count ({0}) exceeds the maximum of 256 entries.
+新しい数（{0}）は最大256エントリを超えています。

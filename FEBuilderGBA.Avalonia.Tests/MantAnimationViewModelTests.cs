@@ -156,6 +156,50 @@ public class MantAnimationViewModelTests : IClassFixture<RomFixture>
     }
 
     [Fact]
+    public void ExpandList_RejectsCountAbove256_NoMutation()
+    {
+        if (Skip()) return;
+
+        // The count is stored as (newCount - 1) in a u8, so newCount > 256
+        // would wrap. ExpandList must reject WITHOUT touching the ROM.
+        var rom = new ROM();
+        bool ok = rom.Load(_fixture.RomPath!, out string _);
+        Assert.True(ok);
+
+        ROM prevRom = CoreState.ROM;
+        IEtcCache prevComment = CoreState.CommentCache;
+        IEtcCache prevLint = CoreState.LintCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.CommentCache = new HeadlessEtcCache();
+            CoreState.LintCache = new HeadlessEtcCache();
+
+            var vm = new MantAnimationViewModel();
+            vm.LoadList();
+            Assert.NotEqual(0u, vm.ReadCount);
+
+            uint pointer = rom.RomInfo.mant_command_pointer;
+            uint baseBefore = rom.p32(pointer);
+            uint countAddr = rom.RomInfo.mant_command_count_address;
+            uint countBefore = rom.u8(countAddr);
+
+            string err = vm.ExpandList(257, null);
+            Assert.False(string.IsNullOrEmpty(err));
+
+            // No mutation: table base + count u8 unchanged.
+            Assert.Equal(baseBefore, rom.p32(pointer));
+            Assert.Equal(countBefore, rom.u8(countAddr));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.CommentCache = prevComment;
+            CoreState.LintCache = prevLint;
+        }
+    }
+
+    [Fact]
     public void ExpandList_WritesCountMinusOne_ToCountAddress()
     {
         if (Skip()) return;
@@ -191,7 +235,7 @@ public class MantAnimationViewModelTests : IClassFixture<RomFixture>
             Assert.True(string.IsNullOrEmpty(err), err);
 
             // Count u8 holds newCount - 1.
-            Assert.Equal((byte)(newCount - 1), rom.u8(countAddr));
+            Assert.Equal(newCount - 1, rom.u8(countAddr));
             // Table relocated and read-config updated.
             Assert.Equal(newCount, vm.ReadCount);
             Assert.NotEqual(oldBase, vm.ReadStartAddress);

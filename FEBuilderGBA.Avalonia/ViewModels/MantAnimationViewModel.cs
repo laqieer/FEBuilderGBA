@@ -176,6 +176,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (newCount == ReadCount)
                 return ""; // no-op success
 
+            // The count is stored as (newCount - 1) in a single u8, so the max
+            // representable newCount is 256 (stores 255). Reject BEFORE any
+            // mutation — a larger count would wrap the u8 and desync the stored
+            // count from the actual table size. (newCount < 1 can't happen here:
+            // newCount > ReadCount >= 0, so newCount >= 1.)
+            if (newCount > 256)
+                return R._("New count ({0}) exceeds the maximum of 256 entries.", newCount);
+
             uint oldBase = rom.p32(pointer);
 
             var result = DataExpansionCore.ExpandTableTo(rom, pointer, SIZE, ReadCount, newCount);
