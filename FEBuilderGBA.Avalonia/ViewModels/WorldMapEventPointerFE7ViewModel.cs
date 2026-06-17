@@ -56,6 +56,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
+            // WF label is "<index> <map name>" (resolved via the map-settings table). Build the
+            // world-map-event-id -> map-name lookup once.
+            var mapNames = BuildMapNameByWorldMapEventId(rom);
+
             // Mirror WF Init(): row 0 always passes; later rows require U.isPointer; stop at the
             // first non-pointer entry past row 0.
             var result = new List<AddrResult>();
@@ -68,9 +72,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 bool include = i == 0 || U.isPointer(eventPtr);
                 if (!include) break;
 
-                result.Add(new AddrResult(addr, $"{U.ToHexString(i)} 0x{eventPtr:X08}", i));
+                // Prefer the map name (WF parity); fall back to the event pointer when no map
+                // references this world-map-event id (e.g. row 0 / unused slots).
+                string name = mapNames.TryGetValue(i, out string m) && m != "" ? m : $"0x{eventPtr:X08}";
+                result.Add(new AddrResult(addr, $"{U.ToHexString(i)} {name}", i));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Build a world-map-event-id -> map-name lookup by scanning the map-settings table
+        /// (ports WF <c>MapSettingForm.GetMapNameFromWorldMapEventID</c> as a one-pass dictionary).
+        /// </summary>
+        static Dictionary<uint, string> BuildMapNameByWorldMapEventId(ROM rom)
+        {
+            var dict = new Dictionary<uint, string>();
+            foreach (AddrResult ms in MapSettingCore.MakeMapIDList(rom))
+            {
+                uint wmId = MapPListResolverCore.GetWorldMapEventIDWhereAddr(rom, ms.addr);
+                if (wmId == U.NOT_FOUND || wmId == 0) continue;
+                if (!dict.ContainsKey(wmId))
+                    dict[wmId] = MapSettingCore.GetMapNameWhereAddr(rom, ms.addr);
+            }
+            return dict;
         }
 
         public void LoadEntry(uint addr)
