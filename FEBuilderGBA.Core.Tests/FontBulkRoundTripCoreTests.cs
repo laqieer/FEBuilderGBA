@@ -95,6 +95,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 byte[] written = rom.getBinaryData(GLYPH_OFF + 8, 64);
                 Assert.Equal(expected, written);
+                // The manifest's stored width (9) is preserved on import — NOT
+                // overwritten with a pixel-derived value (Copilot #89).
+                Assert.Equal(9u, rom.u8(GLYPH_OFF + 5));
 
                 // Now a manifest whose loader fails on the 2nd row must restore the
                 // ROM byte-identical (atomic — the 1st row's write is rolled back too).

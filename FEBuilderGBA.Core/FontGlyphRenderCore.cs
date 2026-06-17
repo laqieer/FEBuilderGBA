@@ -138,6 +138,11 @@ namespace FEBuilderGBA.Core
 
                 while (p > 0)
                 {
+                    // The 72-byte struct (next u32 + 4 header bytes + 64 bitmap) must
+                    // fit before any rom.u8/u32 read — isSafetyOffset(p) alone does
+                    // NOT guarantee p+71 is in-bounds, and ROM.u8/u32 throw on EOF.
+                    if (!GlyphStructFits(rom, p)) break;
+
                     uint moji2 = rom.u8(p + 4);
                     uint moji = (moji1 << 8) | moji2;
                     list.Add(new FontGlyphEntry
@@ -168,6 +173,8 @@ namespace FEBuilderGBA.Core
 
                 while (p > 0)
                 {
+                    if (!GlyphStructFits(rom, p)) break;
+
                     uint moji2 = rom.u8(p + 4);
                     uint moji3 = rom.u8(p + 6);
                     uint moji4 = rom.u8(p + 7);
@@ -201,6 +208,8 @@ namespace FEBuilderGBA.Core
 
                 while (p > 0)
                 {
+                    if (!GlyphStructFits(rom, p)) break;
+
                     list.Add(new FontGlyphEntry
                     {
                         Addr = p,
@@ -215,6 +224,17 @@ namespace FEBuilderGBA.Core
                     p = U.toOffset(next);
                 }
             }
+        }
+
+        /// <summary>
+        /// True when the full 72-byte glyph struct at <paramref name="p"/> is
+        /// in-bounds (so the subsequent rom.u8/u32 reads can't throw on EOF).
+        /// <see cref="U.isSafetyOffset"/> only checks the first byte.
+        /// </summary>
+        static bool GlyphStructFits(ROM rom, uint p)
+        {
+            return U.isSafetyOffset(p, rom)
+                && (ulong)p + GLYPH_STRUCT_BYTES <= (ulong)rom.Data.Length;
         }
 
         // Port of FontForm.FontChar — decode (moji1,moji2) to a display string.
@@ -373,14 +393,37 @@ namespace FEBuilderGBA.Core
 
         /// <summary>
         /// Import one glyph for <paramref name="moji"/> into the item/serif font.
+        /// The advance width is derived from the glyph pixels (single-glyph UI
+        /// path). Convenience overload of
+        /// <see cref="ImportGlyph(ROM,bool,uint,byte[],int,int,int,bool)"/> with
+        /// <c>explicitWidth=-1</c> (derive) and <c>manageSnapshot=true</c>.
+        /// </summary>
+        public static string ImportGlyph(ROM rom, bool isItemFont, uint moji, byte[] indexedPixels, int width, int height)
+        {
+            return ImportGlyph(rom, isItemFont, moji, indexedPixels, width, height,
+                explicitWidth: -1, manageSnapshot: true);
+        }
+
+        /// <summary>
+        /// Import one glyph for <paramref name="moji"/> into the item/serif font.
         /// Validate-all-before-mutate: dims must be 16x16 and every index 0..3
         /// (else localized error + ZERO mutation). Existing glyph → in-place
         /// width + bitmap update; new glyph → MakeNewFontData + append to free
-        /// space + chain-link the previous bucket. Runs under the caller's ambient
-        /// undo scope; any fault restores the ROM byte-identical. Returns "" on
-        /// success or a localized error string.
+        /// space + chain-link the previous bucket. Returns "" on success or a
+        /// localized error string.
         /// </summary>
-        public static string ImportGlyph(ROM rom, bool isItemFont, uint moji, byte[] indexedPixels, int width, int height)
+        /// <param name="explicitWidth">Advance width to write. When &lt; 0 the
+        /// width is derived from the glyph pixels (single-glyph UI path); when
+        /// &gt;= 0 the supplied value wins (bulk import preserves the manifest's
+        /// stored width column so export→import→export round-trips widths).</param>
+        /// <param name="manageSnapshot">When true, this call clones the ROM and
+        /// restores it byte-identical on any fault. When false, the CALLER owns
+        /// the snapshot/restore (bulk import keeps ONE snapshot for the whole
+        /// transaction — avoids an O(glyphCount × romSize) per-glyph clone). On a
+        /// fault with manageSnapshot=false this returns the error WITHOUT
+        /// restoring (the caller's bulk restore reverts every row).</param>
+        public static string ImportGlyph(ROM rom, bool isItemFont, uint moji, byte[] indexedPixels,
+            int width, int height, int explicitWidth, bool manageSnapshot)
         {
             if (rom?.RomInfo == null) return R._("ROM is not loaded.");
             if (indexedPixels == null) return R._("No image data.");
@@ -396,15 +439,18 @@ namespace FEBuilderGBA.Core
             uint topaddress = FontCore.GetFontPointer(isItemFont, rom);
             if (!U.isSafetyOffset(topaddress, rom)) return R._("The font pointer is invalid.");
 
-            uint fontWidth = ComputeGlyphWidth(indexedPixels);
+            // The manifest's stored width wins when supplied (>= 0); otherwise
+            // derive it from the glyph (clamp the explicit value to 0..GLYPH_W).
+            uint fontWidth = explicitWidth >= 0
+                ? (uint)Math.Min(explicitWidth, GLYPH_W)
+                : ComputeGlyphWidth(indexedPixels);
 
             uint prevaddr;
             uint fontaddr = FontCore.FindFontData(topaddress, moji, out prevaddr, rom, priorityCode);
 
-            // Defensive snapshot AFTER all validation/encode succeeded: a FAILED
-            // mutation leaves ZERO surviving bytes (the caller's ambient undo scope
-            // captures the success-path writes for UNDO).
-            byte[] snap = (byte[])rom.Data.Clone();
+            // Defensive snapshot AFTER all validation/encode succeeded (only when
+            // this call owns it). A FAILED mutation leaves ZERO surviving bytes.
+            byte[] snap = manageSnapshot ? (byte[])rom.Data.Clone() : null;
             try
             {
                 if (fontaddr != U.NOT_FOUND)
@@ -412,7 +458,7 @@ namespace FEBuilderGBA.Core
                     // In-place update of an existing glyph.
                     if ((ulong)fontaddr + GLYPH_STRUCT_BYTES > (ulong)rom.Data.Length)
                     {
-                        RestoreSnapshot(rom, snap);
+                        if (manageSnapshot) RestoreSnapshot(rom, snap);
                         return R._("The glyph entry address is out of range.");
                     }
                     rom.write_u8(fontaddr + 5, fontWidth);
@@ -423,13 +469,13 @@ namespace FEBuilderGBA.Core
                 // New glyph: needs a valid previous bucket/link to chain onto.
                 if (prevaddr == U.NOT_FOUND)
                 {
-                    RestoreSnapshot(rom, snap);
+                    if (manageSnapshot) RestoreSnapshot(rom, snap);
                     // e.g. a JP control char that the font hash rules can't register.
                     return R._("This character cannot be registered in the font.");
                 }
                 if ((ulong)prevaddr + 4 > (ulong)rom.Data.Length)
                 {
-                    RestoreSnapshot(rom, snap);
+                    if (manageSnapshot) RestoreSnapshot(rom, snap);
                     return R._("The glyph entry address is out of range.");
                 }
 
@@ -439,7 +485,7 @@ namespace FEBuilderGBA.Core
                 uint newaddr = MapEventUnitCore.AppendBinaryDataHeadless(rom, newFontData, null);
                 if (newaddr == U.NOT_FOUND)
                 {
-                    RestoreSnapshot(rom, snap);
+                    if (manageSnapshot) RestoreSnapshot(rom, snap);
                     return R._("Failed to allocate free space.");
                 }
 
@@ -449,7 +495,7 @@ namespace FEBuilderGBA.Core
             }
             catch (Exception ex)
             {
-                RestoreSnapshot(rom, snap);
+                if (manageSnapshot) RestoreSnapshot(rom, snap);
                 return R._("Font glyph import failed: {0}", ex.Message);
             }
         }

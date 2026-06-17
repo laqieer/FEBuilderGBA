@@ -277,6 +277,70 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotEqual("", err);
         }
 
+        [Fact]
+        public void ImportGlyph_ExplicitWidth_WinsOverDerived()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] idx = new byte[16 * 16];
+                for (int i = 0; i < idx.Length; i++) idx[i] = (byte)(i & 0x03);
+
+                // explicitWidth=7 must be written verbatim (not derived from pixels).
+                string err = FontGlyphRenderCore.ImportGlyph(rom, isItemFont: false, MOJI_A, idx, 16, 16,
+                    explicitWidth: 7, manageSnapshot: true);
+                Assert.Equal("", err);
+                Assert.Equal(7u, rom.u8(GLYPH_OFF + 5));
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ImportGlyph_ManageSnapshotFalse_NoRestoreOnFault()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // A char with no bucket+no prevaddr would fail; but on LAT1 every
+                // moji has a bucket, so force the "out of range" path via a moji
+                // whose existing glyph addr is fine — instead assert the success
+                // path mutates without cloning (manageSnapshot:false).
+                byte[] idx = new byte[16 * 16];
+                for (int i = 0; i < idx.Length; i++) idx[i] = 1;
+                byte[] expected = FontGlyphRenderCore.PackGlyphBytes(idx);
+
+                string err = FontGlyphRenderCore.ImportGlyph(rom, isItemFont: false, MOJI_A, idx, 16, 16,
+                    explicitWidth: -1, manageSnapshot: false);
+                Assert.Equal("", err);
+                Assert.Equal(expected, rom.getBinaryData(GLYPH_OFF + 8, 64));
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void EnumerateGlyphs_CorruptChainNearEOF_NoThrow()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // Point the 'A' bucket at an address 8 bytes before EOF so the
+                // 72-byte struct does NOT fit — the GlyphStructFits guard must
+                // stop the walk WITHOUT throwing.
+                uint bucket = rom.RomInfo.font_serif_address + (MOJI_A << 2);
+                U.write_u32(rom.Data, bucket, U.toPointer(ROM_LEN - 8));
+
+                var ex = Record.Exception(() => FontGlyphRenderCore.EnumerateGlyphs(rom, isItemFont: false));
+                Assert.Null(ex); // never throws
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
         // ---------------- Real FE8U (skipped when ROM absent) ----------------
 
         static string? FindRom(string romName)

@@ -31,7 +31,9 @@ namespace FEBuilderGBA.Core
         /// <c>font_default_end</c> (user-added) are exported — matches WF's
         /// "export only user fonts" prompt.</param>
         /// <param name="writePng">Persist one glyph PNG. Receives the rendered
-        /// image (caller disposes) + the bare filename. Returns false to abort.</param>
+        /// image (Core disposes it after the call returns) + the bare filename.
+        /// Return false to SKIP this glyph (it is omitted from the manifest and
+        /// export continues with the next glyph); return true on success.</param>
         /// <returns>The manifest text (TSV), or "" if the ROM is unusable.</returns>
         public static string ExportAll(ROM rom, bool userFontOnly,
             Func<IImage, string, bool> writePng)

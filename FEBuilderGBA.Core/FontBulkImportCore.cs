@@ -39,11 +39,14 @@ namespace FEBuilderGBA.Core
     {
         /// <summary>
         /// Parse <paramref name="manifestText"/> and import every glyph row. For
-        /// each row, <paramref name="loadGlyph"/> is invoked with the absolute
-        /// PNG path (resolved by the caller); it returns the remapped 16x16
-        /// indexed pixels or null to signal a load error (aborts + restores).
-        /// Returns "" on success or a localized error (with ZERO surviving
-        /// mutation on any failure).
+        /// each row, <paramref name="loadGlyph"/> is invoked with the manifest's
+        /// PNG filename (column 4, typically relative — the caller resolves it to
+        /// an absolute path against the manifest's directory) plus the type
+        /// string; it returns the remapped 16x16 indexed pixels or null to signal
+        /// a load error (aborts + restores). The manifest's stored advance width
+        /// (column 3) is preserved on import so export→import→export round-trips
+        /// widths. Returns "" on success or a localized error (with ZERO surviving
+        /// mutation on any failure — ONE snapshot for the whole transaction).
         /// </summary>
         public static string ImportAll(ROM rom, string manifestText,
             Func<string, string, FontGlyphPixels> loadGlyph)
@@ -53,7 +56,8 @@ namespace FEBuilderGBA.Core
             if (loadGlyph == null) return R._("No image loader.");
 
             // Single snapshot for the whole transaction: a fault on row N restores
-            // rows 0..N-1 too (BULK-ATOMIC).
+            // rows 0..N-1 too (BULK-ATOMIC). Per-glyph ImportGlyph calls run with
+            // manageSnapshot:false so they do NOT each clone the ROM.
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
@@ -68,6 +72,7 @@ namespace FEBuilderGBA.Core
                     if (sp.Length < 4) continue;
 
                     string type = sp[1].Trim();
+                    int width = ParseWidth(sp[2]); // manifest advance width (column 3)
                     string pngName = sp[3].Trim();
                     if (pngName.Length == 0) continue;
 
@@ -85,7 +90,7 @@ namespace FEBuilderGBA.Core
                     }
 
                     string err = FontGlyphRenderCore.ImportGlyph(rom, isItemFont, moji,
-                        px.Indexed, px.Width, px.Height);
+                        px.Indexed, px.Width, px.Height, explicitWidth: width, manageSnapshot: false);
                     if (!string.IsNullOrEmpty(err))
                     {
                         RestoreSnapshot(rom, snap);
@@ -99,6 +104,12 @@ namespace FEBuilderGBA.Core
                 RestoreSnapshot(rom, snap);
                 return R._("Font bulk import failed: {0}", ex.Message);
             }
+        }
+
+        // Parse the manifest width column; -1 (derive from pixels) on a bad value.
+        static int ParseWidth(string s)
+        {
+            return int.TryParse(s.Trim(), out int w) && w >= 0 ? w : -1;
         }
 
         /// <summary>
