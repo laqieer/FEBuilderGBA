@@ -1,21 +1,69 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolAllWorkSupportView"
-        Title="Work Support" Width="1280" Height="794"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolAllWorkSupport_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="All Work Support" Width="1024" Height="700"
+        WindowStartupLocation="CenterScreen"
+        SizeToContent="Manual">
+  <DockPanel Margin="12">
+    <TextBlock AutomationProperties.AutomationId="ToolAllWorkSupport_Header_Label"
+               DockPanel.Dock="Top" Name="HeaderLabel" Text="All Work Support"
+               FontSize="20" FontWeight="Bold" Margin="0,0,0,4" />
+    <TextBlock AutomationProperties.AutomationId="ToolAllWorkSupport_Hint_Label"
+               DockPanel.Dock="Top" Name="HintLabel"
+               Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,12" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Work Support" FontSize="18" FontWeight="Bold" />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
+                Margin="0,8,0,0" HorizontalAlignment="Right">
+      <TextBlock AutomationProperties.AutomationId="ToolAllWorkSupport_Status_Label"
+                 Name="StatusLabel" Foreground="Gray" VerticalAlignment="Center" />
+      <Button AutomationProperties.AutomationId="ToolAllWorkSupport_UpdateCheck_Button"
+              Name="UpdateCheckButton" Click="UpdateCheck_Click" />
+    </StackPanel>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolAllWorkSupport_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
+    <TextBlock AutomationProperties.AutomationId="ToolAllWorkSupport_Empty_Label"
+               DockPanel.Dock="Bottom" Name="EmptyLabel"
+               Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0"
+               IsVisible="False" />
+
+    <ScrollViewer>
+      <ItemsControl AutomationProperties.AutomationId="ToolAllWorkSupport_Tiles_List"
+                    Name="TilesList" ItemsSource="{Binding}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel Orientation="Horizontal" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="views:WorkProjectTileItem">
+            <Button Click="Tile_Click" Tag="{Binding}"
+                    Width="280" Margin="5"
+                    Padding="0" HorizontalContentAlignment="Stretch"
+                    Cursor="Hand">
+              <StackPanel>
+                <Grid Height="180">
+                  <Image Source="{Binding Logo}" Stretch="Uniform"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <Border Background="Black" Opacity="0.55" CornerRadius="10"
+                          Width="28" Height="28"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                          Margin="0,0,6,6"
+                          IsVisible="{Binding IsUpdateMark}"
+                          ToolTip.Tip="{Binding UpdateMarkTip}">
+                    <TextBlock Text="!" Foreground="Gold" FontWeight="Bold"
+                               FontSize="18"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                </Grid>
+                <TextBlock Text="{Binding Name}" TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding Name}"
+                           Margin="4,6,4,4" />
+              </StackPanel>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
     </ScrollViewer>
-  </Grid>
+  </DockPanel>
 </Window>

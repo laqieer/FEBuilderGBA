@@ -1,57 +1,248 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using AvImage = global::Avalonia.Media.IImage;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// All-Work-Support aggregator (#1196). READ-ONLY: renders one clickable tile
+    /// per discovered work-support project (logo + name + update mark); a click
+    /// opens that project's ROM in the main window. Mirrors WinForms
+    /// <c>ToolAllWorkSupportForm</c>.
+    /// </summary>
     public partial class ToolAllWorkSupportView : TranslatedWindow, IEditorView
     {
         readonly ToolAllWorkSupportViewModel _vm = new();
+        readonly List<WorkProjectTileItem> _tiles = new();
 
-        public string ViewTitle => "Work Support";
+        public string ViewTitle => "All Work Support";
         public bool IsLoaded => _vm.IsLoaded;
 
         public ToolAllWorkSupportView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+
+            HeaderLabel.Text = R._("All Work Support");
+            HintLabel.Text = R._("Click a project to open its ROM.");
+            UpdateCheckButton.Content = R._("Check Updates");
+
             Opened += (_, _) => LoadList();
+            Closed += (_, _) => DisposeTiles();
         }
 
         void LoadList()
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                DisposeTiles();
+
+                var projects = _vm.LoadList();
+                foreach (var p in projects)
+                {
+                    _tiles.Add(BuildTile(p));
+                }
+
+                TilesList.ItemsSource = _tiles;
+
+                bool empty = _tiles.Count == 0;
+                EmptyLabel.IsVisible = empty;
+                EmptyLabel.Text = empty
+                    ? R._("No work-support projects found. Projects are user-configured under config/etc.")
+                    : "";
             }
             catch (Exception ex)
             {
-                Log.Error("ToolAllWorkSupportView.LoadList failed: {0}", ex.Message);
+                Log.Error("ToolAllWorkSupportView.LoadList failed: " + ex.ToString());
             }
         }
 
-        void OnSelected(uint addr)
+        WorkProjectTileItem BuildTile(WorkSupportScannerCore.WorkProject p)
+        {
+            AvImage? logo = LoadLogo(p.LogoFilename);
+            return new WorkProjectTileItem
+            {
+                RomFilename = p.RomFilename,
+                Name = p.Name,
+                Logo = logo,
+                IsUpdateMark = p.IsUpdateMark,
+                UpdateMarkTip = R._("Update available"),
+            };
+        }
+
+        /// <summary>
+        /// Load a logo image from a file path, or return <c>null</c> when the path
+        /// is empty/missing/unreadable. The caller owns + disposes the result.
+        /// </summary>
+        static AvImage? LoadLogo(string logoFilename)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                if (string.IsNullOrEmpty(logoFilename) || !File.Exists(logoFilename))
+                {
+                    return null;
+                }
+                using var fs = File.OpenRead(logoFilename);
+                return new Bitmap(fs);
             }
             catch (Exception ex)
             {
-                Log.Error("ToolAllWorkSupportView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ToolAllWorkSupportView.LoadLogo failed: " + ex.ToString());
+                return null;
             }
         }
 
-        void UpdateUI()
+        void DisposeTiles()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            try
+            {
+                foreach (var t in _tiles)
+                {
+                    (t.Logo as IDisposable)?.Dispose();
+                    t.Logo = null;
+                }
+                _tiles.Clear();
+                TilesList.ItemsSource = null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolAllWorkSupportView.DisposeTiles failed: " + ex.ToString());
+            }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        void Tile_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is not Button btn || btn.Tag is not WorkProjectTileItem tile)
+                {
+                    return;
+                }
+
+                string path = tile.RomFilename;
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    _ = MessageBoxWindow.Show(this,
+                        R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                    return;
+                }
+
+                if (WindowManager.Instance.MainWindow is MainWindow mw)
+                {
+                    bool ok = mw.LoadRomFile(path);
+                    if (ok)
+                    {
+                        Close();
+                    }
+                    else
+                    {
+                        _ = MessageBoxWindow.Show(this,
+                            R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolAllWorkSupportView.Tile_Click failed: " + ex.ToString());
+            }
+        }
+
+        async void UpdateCheck_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                UpdateCheckButton.IsEnabled = false;
+                StatusLabel.Text = R._("Checking for updates...");
+
+                // The check is network-bound; run it off the UI thread.
+                int updateable = await System.Threading.Tasks.Task.Run(() =>
+                    _vm.UpdateCheckAll(url => U.HttpGet(url), HttpHeadLastModified, GetRomDateTime));
+
+                // Re-render so the marks reflect the refreshed IsUpdateMark state.
+                foreach (var p in _vm.Projects)
+                {
+                    foreach (var t in _tiles)
+                    {
+                        if (t.RomFilename == p.RomFilename)
+                        {
+                            t.IsUpdateMark = p.IsUpdateMark;
+                        }
+                    }
+                }
+                TilesList.ItemsSource = null;
+                TilesList.ItemsSource = _tiles;
+
+                StatusLabel.Text = string.Format(R._("Updates available: {0}"), updateable);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolAllWorkSupportView.UpdateCheck_Click failed: " + ex.ToString());
+                StatusLabel.Text = R._("Update check failed.");
+            }
+            finally
+            {
+                UpdateCheckButton.IsEnabled = true;
+            }
+        }
+
+        /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent).</summary>
+        static string HttpHeadLastModified(string url)
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+                using var resp = client.Send(req);
+                if (resp.Content.Headers.LastModified.HasValue)
+                {
+                    return resp.Content.Headers.LastModified.Value.ToString();
+                }
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Local ROM/UPS timestamp (the newer of the ROM file and its sibling
+        /// <c>.ups</c>). Ports WF <c>ToolWorkSupportForm.GetROMDateTime</c>.
+        /// </summary>
+        static DateTime GetRomDateTime(string romFilename)
+        {
+            DateTime dt = File.GetLastWriteTime(romFilename);
+            string ups = Path.ChangeExtension(romFilename, ".ups");
+            if (File.Exists(ups))
+            {
+                DateTime upsDt = File.GetLastWriteTime(ups);
+                if (upsDt > dt) dt = upsDt;
+            }
+            return dt;
+        }
+
+        public void NavigateTo(uint address) { }
+
+        public void SelectFirstItem()
+        {
+            // Tiles are not a selectable list; nothing to select. LoadList (on
+            // Opened) already populates the tiles for rendering/screenshot.
+        }
+    }
+
+    /// <summary>One rendered project tile (logo + name + update mark).</summary>
+    public sealed class WorkProjectTileItem
+    {
+        public string RomFilename { get; set; } = "";
+        public string Name { get; set; } = "";
+        public AvImage? Logo { get; set; }
+        public bool IsUpdateMark { get; set; }
+        public string UpdateMarkTip { get; set; } = "";
     }
 }
