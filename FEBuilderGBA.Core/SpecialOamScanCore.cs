@@ -26,7 +26,12 @@ namespace FEBuilderGBA
     public static class SpecialOamScanCore
     {
         /// <summary>One discovered OAMSP entry: a pointer-array block plus the
-        /// OAM12 sub-blocks it references.</summary>
+        /// OAM12 sub-blocks it references. <see cref="Oam12"/> is the SCAN-TIME
+        /// list, deduped against a shared cache across the whole scan (matching WF's
+        /// global <c>listoam12</c> list-building) — it can OMIT a block another
+        /// entry already referenced. For a COMPLETE per-entry list (the detail dump
+        /// / OAM12 count) use <see cref="ComputeOam12Blocks"/>, which recomputes
+        /// fresh like WF's per-selection handler (#1179 Copilot review).</summary>
         public sealed class OamSpEntry
         {
             public uint Addr;
@@ -89,7 +94,7 @@ namespace FEBuilderGBA
                     if (ldr == null) continue;
 
                     uint addr = ldr.ldr_data;
-                    if (!U.isSafetyPointer(addr)) continue;
+                    if (!U.isSafetyPointer(addr, rom)) continue;
                     addr = U.toOffset(addr);
                     if (addr < borderline) continue;
                     if (alreadyMatch.ContainsKey(addr)) continue; // already known
@@ -164,7 +169,7 @@ namespace FEBuilderGBA
                 {//OAM term — leading 7 nibble present in some entries
                     p = (p & 0x0FFFFFFFu);
                 }
-                if (!U.isSafetyPointer(p))
+                if (!U.isSafetyPointer(p, rom))
                 {
                     //unintelligible command -> not an OAM array
                     return U.NOT_FOUND;
@@ -240,12 +245,45 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Recompute an entry's COMPLETE OAM12 sub-block list FRESH — port of the
+        /// per-selection rebuild in WF <c>OAMSPForm.AddressList_SelectedIndexChanged</c>,
+        /// which calls <c>CalcLengthAndCheck</c> with a FRESH LOCAL <c>alreadyMatch</c>
+        /// dictionary. This is deliberately NOT the scan-time
+        /// <see cref="OamSpEntry.Oam12"/> list, which is deduped against a SHARED
+        /// <c>alreadyMatch12</c> across the whole scan (matching WF's global
+        /// <c>listoam12</c> list-building) and so can OMIT a block another entry
+        /// already referenced (#1179 Copilot review). Per-selection detail must be
+        /// complete, so it recomputes here. Never throws — returns an empty list on
+        /// a null / invalid entry or any fault.
+        /// </summary>
+        public static List<OamSp12Block> ComputeOam12Blocks(ROM rom, OamSpEntry entry)
+        {
+            var blocks = new List<OamSp12Block>();
+            if (rom == null || rom.Data == null || entry == null) return blocks;
+            try
+            {
+                // Fresh, entry-local match dict so EVERY referenced OAM12 block is
+                // emitted (no cross-entry dedup) — mirrors WF's per-selection call.
+                var localMatch = new Dictionary<uint, bool>();
+                CalcLengthAndCheck(rom, entry.Addr, entry.Name ?? "", blocks, localMatch);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SpecialOamScanCore.ComputeOam12Blocks failed: " + ex.ToString());
+                return new List<OamSp12Block>();
+            }
+            return blocks;
+        }
+
+        /// <summary>
         /// Build the hex-dump detail string for an entry — port of WF
         /// <c>OAMSPForm.AddressList_SelectedIndexChanged</c>'s <c>X_DATA</c>
         /// text: the entry's pointer-array words, then each OAM12 sub-block's
-        /// 12-byte records. Never throws — returns an empty string on a null /
-        /// invalid entry or any fault (keeps the selection path read-only and
-        /// crash-free, #1179 review point 3).
+        /// 12-byte records. The OAM12 list is recomputed FRESH via
+        /// <see cref="ComputeOam12Blocks"/> (NOT the deduped scan-time list) so the
+        /// dump is complete for entries sharing OAM12 blocks (#1179 Copilot review).
+        /// Never throws — returns an empty string on a null / invalid entry or any
+        /// fault (keeps the selection path read-only and crash-free).
         /// </summary>
         public static string BuildDetailDump(ROM rom, OamSpEntry entry)
         {
@@ -267,35 +305,33 @@ namespace FEBuilderGBA
                 sb.AppendLine();
                 sb.AppendLine();
 
-                if (entry.Oam12 != null)
+                var oam12 = ComputeOam12Blocks(rom, entry);
+                for (int n = 0; n < oam12.Count; n++)
                 {
-                    for (int n = 0; n < entry.Oam12.Count; n++)
+                    var block = oam12[n];
+                    if (block == null) continue;
+                    uint baddr = block.Addr;
+                    uint blen = block.Length;
+                    sb.AppendLine(U.ToHexString8(baddr) + ":");
+                    if (blen == U.NOT_FOUND)
                     {
-                        var block = entry.Oam12[n];
-                        if (block == null) continue;
-                        uint baddr = block.Addr;
-                        uint blen = block.Length;
-                        sb.AppendLine(U.ToHexString8(baddr) + ":");
-                        if (blen == U.NOT_FOUND)
+                        sb.AppendLine("-unknown-");
+                        for (uint i = 0; i < 12 * 100; i += 12, baddr += 12)
                         {
-                            sb.AppendLine("-unknown-");
-                            for (uint i = 0; i < 12 * 100; i += 12, baddr += 12)
-                            {
-                                if ((ulong)baddr + 12 > (ulong)rom.Data.Length) break;
-                                sb.Append(U.HexDump(rom.getBinaryData(baddr, 12)));
-                            }
+                            if ((ulong)baddr + 12 > (ulong)rom.Data.Length) break;
+                            sb.Append(U.HexDump(rom.getBinaryData(baddr, 12)));
                         }
-                        else
-                        {
-                            for (uint i = 0; i < blen; i += 12, baddr += 12)
-                            {
-                                if ((ulong)baddr + 12 > (ulong)rom.Data.Length) break;
-                                sb.Append(U.HexDump(rom.getBinaryData(baddr, 12)));
-                            }
-                        }
-                        sb.AppendLine();
-                        sb.AppendLine();
                     }
+                    else
+                    {
+                        for (uint i = 0; i < blen; i += 12, baddr += 12)
+                        {
+                            if ((ulong)baddr + 12 > (ulong)rom.Data.Length) break;
+                            sb.Append(U.HexDump(rom.getBinaryData(baddr, 12)));
+                        }
+                    }
+                    sb.AppendLine();
+                    sb.AppendLine();
                 }
 
                 return sb.ToString();

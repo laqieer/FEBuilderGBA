@@ -32,9 +32,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // cached and tagged with the ROM instance they were built for, so repeated
         // LoadList()/LoadEntry() calls do not re-scan. Invalidated on a ROM reload
         // (a new ROM instance fails the ReferenceEquals check).
-        List<DisassemblerTrumb.LDRPointer>? _ldrMap;
-        List<SpecialOamScanCore.OamSpEntry>? _entries;
-        ROM? _cacheRom;
+        List<DisassemblerTrumb.LDRPointer> _ldrMap;
+        List<SpecialOamScanCore.OamSpEntry> _entries;
+        ROM _cacheRom;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public List<AddrResult> LoadList()
         {
             var result = new List<AddrResult>();
-            ROM? rom = CoreState.ROM;
+            ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return result;
 
             EnsureScan(rom);
@@ -83,13 +83,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DetailText = "";
             IsLoaded = false;
 
-            ROM? rom = CoreState.ROM;
+            ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
             EnsureScan(rom);
             if (_entries == null) return;
 
-            SpecialOamScanCore.OamSpEntry? entry = null;
+            SpecialOamScanCore.OamSpEntry entry = null;
             foreach (var e in _entries)
             {
                 if (e.Addr == addr) { entry = e; break; }
@@ -98,7 +98,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             EntryName = entry.Name;
             EntryLength = string.Format("0x{0:X}", entry.Length);
-            Oam12Count = entry.Oam12.Count.ToString();
+            // Recompute the COMPLETE OAM12 list fresh (NOT the deduped scan-time
+            // entry.Oam12) so the count matches WF's per-selection detail (#1179).
+            Oam12Count = SpecialOamScanCore.ComputeOam12Blocks(rom, entry).Count.ToString();
             DetailText = SpecialOamScanCore.BuildDetailDump(rom, entry);
             IsLoaded = true;
         }

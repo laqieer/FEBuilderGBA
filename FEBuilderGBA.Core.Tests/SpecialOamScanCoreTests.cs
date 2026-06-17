@@ -131,6 +131,98 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- #1179 Copilot review: cross-entry OAM12 completeness ----
+        // Two OAMSP arrays that BOTH reference the SAME OAM12 block (plus each a
+        // unique one). The scan-time entry.Oam12 list dedups the shared block
+        // against a cache shared across the scan, so the SECOND-discovered entry's
+        // scan-time list omits it — but ComputeOam12Blocks / BuildDetailDump must
+        // recompute fresh and report the COMPLETE set for BOTH entries.
+        const int ARR1_OFF = 0xE3000;       // first OAMSP array
+        const int ARR2_OFF = 0xE4000;       // second OAMSP array
+        const int SHARED_OAM12_OFF = 0xE5000; // referenced by BOTH arrays
+        const int UNIQ1_OAM12_OFF = 0xE6000;
+        const int UNIQ2_OAM12_OFF = 0xE7000;
+        const int LDR1_OFF = 0x280;
+        const int LDR2_OFF = 0x2A0;
+
+        static void LayOam12(byte[] data, int off)
+        {
+            data[off + 0] = 0x00; data[off + 1] = 0x10; // data record
+            data[off + 12] = 0x01;                       // terminator
+        }
+
+        static void LayLdrFunc(byte[] data, int off, uint literalPointer)
+        {
+            WriteU16(data, off + 0, 0xB500);
+            WriteU16(data, off + 2, 0x4801);
+            WriteU16(data, off + 4, 0x4770);
+            WriteU16(data, off + 6, 0x46C0);
+            WritePtr(data, off + 8, literalPointer);
+        }
+
+        static ROM MakeSharedOam12Rom()
+        {
+            var data = new byte[ROM_SIZE];
+            LayOam12(data, SHARED_OAM12_OFF);
+            LayOam12(data, UNIQ1_OAM12_OFF);
+            LayOam12(data, UNIQ2_OAM12_OFF);
+
+            // Array 1: shared + uniq1 + terminator.
+            WritePtr(data, ARR1_OFF + 0, 0x08000000u + SHARED_OAM12_OFF);
+            WritePtr(data, ARR1_OFF + 4, 0x08000000u + UNIQ1_OAM12_OFF);
+            WritePtr(data, ARR1_OFF + 8, 0x80000000u);
+            // Array 2: shared + uniq2 + terminator.
+            WritePtr(data, ARR2_OFF + 0, 0x08000000u + SHARED_OAM12_OFF);
+            WritePtr(data, ARR2_OFF + 4, 0x08000000u + UNIQ2_OAM12_OFF);
+            WritePtr(data, ARR2_OFF + 8, 0x80000000u);
+
+            LayLdrFunc(data, LDR1_OFF, 0x08000000u + ARR1_OFF);
+            LayLdrFunc(data, LDR2_OFF, 0x08000000u + ARR2_OFF);
+
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("oamsp-shared.gba", data, "BE8E01"));
+            return rom;
+        }
+
+        [Fact]
+        public void ComputeOam12Blocks_SecondEntryIncludesSharedBlock()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var rom = MakeSharedOam12Rom();
+                CoreState.ROM = rom;
+
+                var ldrMap = PointerToolAutoSearchCore.BuildLdrMap(rom.Data);
+                var entries = SpecialOamScanCore.ScanSpecialOam(rom, ldrMap);
+
+                var e1 = entries.Find(e => e.Addr == (uint)ARR1_OFF);
+                var e2 = entries.Find(e => e.Addr == (uint)ARR2_OFF);
+                Assert.NotNull(e1);
+                Assert.NotNull(e2);
+
+                // BOTH entries' FRESH recompute must include the SHARED block +
+                // their unique block (2 blocks each), regardless of scan order.
+                var b1 = SpecialOamScanCore.ComputeOam12Blocks(rom, e1);
+                var b2 = SpecialOamScanCore.ComputeOam12Blocks(rom, e2);
+                Assert.Equal(2, b1.Count);
+                Assert.Equal(2, b2.Count);
+                Assert.Contains(b1, b => b.Addr == (uint)SHARED_OAM12_OFF);
+                Assert.Contains(b2, b => b.Addr == (uint)SHARED_OAM12_OFF);
+                Assert.Contains(b1, b => b.Addr == (uint)UNIQ1_OAM12_OFF);
+                Assert.Contains(b2, b => b.Addr == (uint)UNIQ2_OAM12_OFF);
+
+                // The detail dump of the SECOND entry must show the shared block too.
+                string dump2 = SpecialOamScanCore.BuildDetailDump(rom, e2);
+                Assert.Contains(U.ToHexString8((uint)SHARED_OAM12_OFF), dump2);
+                Assert.Contains(U.ToHexString8((uint)UNIQ2_OAM12_OFF), dump2);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+            }
+        }
+
         [Fact]
         public void ScanSpecialOam_NullRom_ReturnsEmpty()
         {
