@@ -11154,3 +11154,56 @@ UPSパッチを保存
 
 :Pointers
 ポインタ
+
+:Image Pointer (P0):
+画像ポインタ (P0):
+:AP Pointer (P4):
+APポインタ (P4):
+:Walk Step:
+歩行ステップ:
+:Import AP
+APインポート
+:Export AP
+APエクスポート
+:Jump to Wait Icon
+待機アイコンへジャンプ
+:No move icon selected.
+移動アイコンが選択されていません。
+:Failed to read unit icon palette.
+ユニットアイコンのパレットを読み込めませんでした。
+:Image imported successfully.
+画像のインポートに成功しました。
+:Failed to render move icon for export.
+エクスポート用の移動アイコンを描画できませんでした。
+:No AP data.
+APデータがありません。
+:No AP data to export.
+エクスポートするAPデータがありません。
+:AP imported successfully.
+APのインポートに成功しました。
+:The image width must be {0} pixels (got {1}).
+画像の幅は{0}ピクセルでなければなりません（実際は{1}）。
+:Failed to write move icon image. Check ROM free space.
+移動アイコン画像の書き込みに失敗しました。ROMの空き容量を確認してください。
+:No image data.
+画像データがありません。
+:Failed to write AP data. Check ROM free space.
+APデータの書き込みに失敗しました。ROMの空き容量を確認してください。
+:The move icon entry address is out of range.
+移動アイコンエントリのアドレスが範囲外です。
+
+:ROM is not loaded.
+ROMが読み込まれていません。
+:Move icon import failed: {0}
+移動アイコンのインポートに失敗しました: {0}
+:AP import failed: {0}
+APのインポートに失敗しました: {0}
+:Failed to encode move icon tiles.
+移動アイコンのタイルのエンコードに失敗しました。
+:Image data is too small for {0}x{1}.
+画像データが{0}x{1}には小さすぎます。
+:The image height must be a positive multiple of 8 (got {0}).
+画像の高さは8の正の倍数でなければなりません（実際は{0}）。
+
+:This AP is shared by other classes; a fresh copy will be written.
+このAPは他のクラスと共有されています。新しいコピーが書き込まれます。

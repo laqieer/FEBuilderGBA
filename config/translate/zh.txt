@@ -24992,3 +24992,56 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Pointers
 指针
+
+:ROM is not loaded.
+未加载ROM。
+:Move icon import failed: {0}
+移动图标导入失败: {0}
+:AP import failed: {0}
+AP导入失败: {0}
+:Failed to encode move icon tiles.
+移动图标图块编码失败。
+:Image data is too small for {0}x{1}.
+图像数据对于{0}x{1}来说太小。
+:The image height must be a positive multiple of 8 (got {0}).
+图像高度必须为8的正倍数（实际为{0}）。
+
+:Image Pointer (P0):
+图像指针 (P0):
+:AP Pointer (P4):
+AP指针 (P4):
+:Walk Step:
+行走步骤:
+:Import AP
+导入AP
+:Export AP
+导出AP
+:Jump to Wait Icon
+跳转到待机图标
+:No move icon selected.
+未选择移动图标。
+:Failed to read unit icon palette.
+无法读取单位图标调色板。
+:Image imported successfully.
+图像导入成功。
+:Failed to render move icon for export.
+无法渲染用于导出的移动图标。
+:No AP data.
+没有AP数据。
+:No AP data to export.
+没有可导出的AP数据。
+:AP imported successfully.
+AP导入成功。
+:The image width must be {0} pixels (got {1}).
+图像宽度必须为{0}像素（实际为{1}）。
+:Failed to write move icon image. Check ROM free space.
+写入移动图标图像失败。请检查ROM空闲空间。
+:No image data.
+没有图像数据。
+:Failed to write AP data. Check ROM free space.
+写入AP数据失败。请检查ROM空闲空间。
+:The move icon entry address is out of range.
+移动图标条目地址超出范围。
+
+:This AP is shared by other classes; a fresh copy will be written.
+此AP被其他职业共享；将写入一份新副本。
