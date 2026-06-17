@@ -11231,3 +11231,24 @@ APのインポートに失敗しました: {0}
 
 :New count ({0}) exceeds the maximum of 256 entries.
 新しい数（{0}）は最大256エントリを超えています。
+
+:Road (Path) Editor
+道（パス）エディタ
+
+:World map roads are FE8-only.
+ワールドマップの道はFE8専用です。
+
+:No path selected.
+道が選択されていません。
+
+:Selected: col {0}, row {1}
+選択：列 {0}、行 {1}
+
+:Chips
+チップ
+
+:Left-click / drag: paint. Right-click: pick. Column 5: erase.
+左クリック／ドラッグ：描画。右クリック：スポイト。5列目：消去。
+
+:Saved.
+保存しました。

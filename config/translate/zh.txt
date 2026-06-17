@@ -25069,3 +25069,24 @@ AP导入成功。
 
 :New count ({0}) exceeds the maximum of 256 entries.
 新条目数（{0}）超过了256个条目的上限。
+
+:Road (Path) Editor
+道路（路径）编辑器
+
+:World map roads are FE8-only.
+世界地图道路仅限FE8。
+
+:No path selected.
+未选择路径。
+
+:Selected: col {0}, row {1}
+已选择：列 {0}，行 {1}
+
+:Chips
+图块
+
+:Left-click / drag: paint. Right-click: pick. Column 5: erase.
+左键单击/拖动：绘制。右键单击：取色。第5列：擦除。
+
+:Saved.
+已保存。
