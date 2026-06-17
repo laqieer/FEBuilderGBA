@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class OtherTextView : TranslatedWindow, IEditorView
     {
         readonly OtherTextViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Other Text Strings";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,6 +18,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            WriteButton.Click += OnWrite;
             Opened += (_, _) => LoadList();
         }
 
@@ -29,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OtherTextView.LoadList failed: {0}", ex.Message);
+                Log.Error("OtherTextView.LoadList failed: " + ex.ToString());
             }
         }
 
@@ -42,13 +44,42 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OtherTextView.OnSelected failed: {0}", ex.Message);
+                Log.Error("OtherTextView.OnSelected failed: " + ex.ToString());
             }
         }
 
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            PointerLabel.Text = string.Format("0x{0:X08}", _vm.StringAddr);
+            LengthLabel.Text = _vm.ByteLength.ToString();
+            TextInput.Text = _vm.Text;
+        }
+
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            uint current = _vm.CurrentAddr;
+            _undoService.Begin(R._("Edit Other Text"));
+            try
+            {
+                _vm.Text = TextInput.Text ?? "";
+                if (_vm.Write(_undoService.GetActiveUndoData()))
+                    _undoService.Commit();
+                else
+                    _undoService.Rollback();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("OtherTextView.OnWrite failed: " + ex.ToString());
+                return;
+            }
+
+            // Refresh the list previews and re-select the edited entry.
+            LoadList();
+            EntryList.SelectAddress(current);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

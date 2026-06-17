@@ -11091,3 +11091,9 @@ UPSパッチを保存
 
 :Edit Unit Height Adjustment
 身長調整の編集
+
+:A literal in-ROM string stored outside the main Huffman text table.
+メインのハフマンテキストテーブルの外に格納されたROM内のリテラル文字列。
+
+:Edit Other Text
+その他テキストの編集

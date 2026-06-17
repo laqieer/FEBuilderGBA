@@ -11,10 +11,24 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Other Text Strings" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="OtherText_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="OtherText_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="String Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="OtherText_Pointer_Label" Grid.Row="1" Grid.Column="1" Name="PointerLabel" VerticalAlignment="Center" Margin="0,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Length:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="OtherText_Length_Label" Grid.Row="2" Grid.Column="1" Name="LengthLabel" VerticalAlignment="Center" Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="Text:" />
+        <TextBox AutomationProperties.AutomationId="OtherText_Text_Input" Name="TextInput"
+                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" MaxWidth="600" HorizontalAlignment="Left" />
+
+        <TextBlock Text="A literal in-ROM string stored outside the main Huffman text table." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button AutomationProperties.AutomationId="OtherText_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

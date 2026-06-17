@@ -20272,3 +20272,9 @@ Stretch
 
 :Edit Unit Height Adjustment
 Edit Unit Height Adjustment
+
+:A literal in-ROM string stored outside the main Huffman text table.
+A literal in-ROM string stored outside the main Huffman text table.
+
+:Edit Other Text
+Edit Other Text
