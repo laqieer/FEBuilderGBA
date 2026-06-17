@@ -11207,3 +11207,27 @@ APのインポートに失敗しました: {0}
 
 :This AP is shared by other classes; a fresh copy will be written.
 このAPは他のクラスと共有されています。新しいコピーが書き込まれます。
+
+:Jump to Battle Animation
+戦闘アニメへ移動する
+
+:Add Entry
+エントリーを追加
+
+:Cannot expand: list is empty.
+拡張できません：リストが空です。
+
+:Mant animation table not found in this ROM.
+このROMにマントアニメテーブルが見つかりません。
+
+:Enter the new entry count for the mant animation list (current: {0}, max: 255).
+マントアニメリストの新しいエントリ数を入力してください（現在：{0}、最大：255）。
+
+:Expanded mant animation list to {0} entries.
+マントアニメリストを{0}エントリに拡張しました。
+
+:Write failed: {0}
+書き込みに失敗しました：{0}
+
+:New count ({0}) exceeds the maximum of 256 entries.
+新しい数（{0}）は最大256エントリを超えています。
