@@ -48,8 +48,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // map_map_pointer_pointer holds the base of the MAP-arrangement PLIST
             // table the FE6 world-map-event PLIST indexes into. Guard the slot +
             // the dereferenced base so a malformed/empty RomInfo never throws.
+            // isSafetyOffset only checks the START offset; p32 reads 4 bytes, so
+            // also require the full slot in-bounds (overflow-safe), exactly as
+            // MapSettingCore.GetMapIdFromAddr does before its p32.
             uint mapPtrPtr = rom.RomInfo.map_map_pointer_pointer;
             if (mapPtrPtr == 0 || !U.isSafetyOffset(mapPtrPtr, rom)) return new List<AddrResult>();
+            if ((ulong)mapPtrPtr + 4 > (ulong)rom.Data.Length) return new List<AddrResult>();
             uint mapBase = rom.p32(mapPtrPtr);
             if (!U.isSafetyOffset(mapBase, rom)) return new List<AddrResult>();
 

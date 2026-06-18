@@ -88,6 +88,15 @@ public class WorldMapEventPointerFE6ViewModelTests : IClassFixture<RomFixture>
             return;
         }
 
+        // The fixture ROM must actually be non-FE6 for this to exercise the
+        // intended path; if the only available ROM is FE6, skip rather than
+        // mislabel an FE6 run as a non-FE6 assertion.
+        if (CoreState.ROM.RomInfo.version == 6)
+        {
+            _output.WriteLine("Fixture ROM is FE6 — non-FE6 path not exercised, skipping.");
+            return;
+        }
+
         var vm = new WorldMapEventPointerFE6ViewModel();
         var list = vm.LoadList();
         Assert.NotNull(list);
