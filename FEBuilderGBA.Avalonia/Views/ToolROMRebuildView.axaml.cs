@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
-using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -119,8 +118,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 MakeButton.IsEnabled = false;
                 StatusText.Text = R._("Analyzing…");
 
-                var progress = new Progress<string>(msg =>
-                    Dispatcher.UIThread.Post(() => StatusText.Text = msg));
+                // Progress<T> is constructed here on the UI thread, so it captures the UI
+                // SynchronizationContext and already marshals Report() callbacks back onto
+                // it — set the text directly. Wrapping in an extra Dispatcher.UIThread.Post
+                // would add a second async hop that could land a late progress update AFTER
+                // the final result status set synchronously below, overwriting it.
+                var progress = new Progress<string>(msg => StatusText.Text = msg);
 
                 // The analysis + report write are Core/headless; run them off the UI thread so
                 // a large ROM does not freeze the window (the operation can take a while).
