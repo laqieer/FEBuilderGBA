@@ -25391,3 +25391,30 @@ TSA数量: {0}
 
 :Used only when no .ttf/.otf file is loaded.
 仅在未加载 .ttf/.otf 文件时使用。
+
+:Add via Event Assembler
+通过 Event Assembler 添加
+
+:Assemble an EA event script (.event / .txt) and insert it into the ROM.
+汇编 EA 事件脚本(.event / .txt)并插入到 ROM 中。
+
+:Event file:
+事件文件:
+
+:Free area:
+空闲区域:
+
+:Store debug symbols:
+保存调试符号:
+
+:Import (compile + insert)
+导入(编译 + 插入)
+
+:Uninstall...
+卸载...
+
+:Select a .event or .txt file
+选择 .event 或 .txt 文件
+
+:Auto re-compile updated source code (.s / .asm)
+自动重新编译已更新的源代码(.s / .asm)

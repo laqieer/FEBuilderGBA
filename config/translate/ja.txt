@@ -11550,3 +11550,30 @@ GIF出力
 
 :Used only when no .ttf/.otf file is loaded.
 .ttf/.otfファイルを読み込んでいない場合のみ使用されます。
+
+:Add via Event Assembler
+Event Assemblerで追加
+
+:Assemble an EA event script (.event / .txt) and insert it into the ROM.
+EAイベントスクリプト(.event / .txt)をアセンブルしてROMに挿入します。
+
+:Event file:
+イベントファイル:
+
+:Free area:
+フリーエリア:
+
+:Store debug symbols:
+デバッグシンボルを保存:
+
+:Import (compile + insert)
+インポート(コンパイル + 挿入)
+
+:Uninstall...
+アンインストール...
+
+:Select a .event or .txt file
+.event または .txt ファイルを選択
+
+:Auto re-compile updated source code (.s / .asm)
+更新されたソースコード(.s / .asm)を自動的に再コンパイルする

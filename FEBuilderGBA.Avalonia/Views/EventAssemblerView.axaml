@@ -1,21 +1,85 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventAssemblerView"
-        Title="Event Assembler" Width="923" Height="458"
+        Title="Event Assembler" Width="640" Height="520"
+        WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventAssembler_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Add-via-Event-Assembler tool (WF EventAssemblerForm). Assembles/inserts an
+       EA .event into the ROM via ColorzCore / Event-Assembler, with free-area
+       selection (Program/Data/None), AutoReCompile, debug-symbol store, undo and
+       uninstall. The compile+insert work runs in the GUI-free Core helper
+       EventAssemblerCompileCore (shared with the CLI compile-event command). The
+       free-area / debug-symbol combo items are populated in code-behind via R._()
+       so they pick up ja/zh translations (ViewTranslationHelper does not translate
+       ComboBoxItem content). -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="10">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Event Assembler" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Add via Event Assembler" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Assemble an EA event script (.event / .txt) and insert it into the ROM."
+                 TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventAssembler_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+      <!-- Source .event/.txt file -->
+      <TextBlock Text="Event file:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="EventAssembler_Source_Input"
+                 Grid.Column="0" Name="SourceBox"
+                 Text="{Binding SourcePath}"
+                 Watermark="Select a .event or .txt file" />
+        <Button AutomationProperties.AutomationId="EventAssembler_Browse_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="Browse_Click" />
+      </Grid>
+
+      <!-- Free-area mode -->
+      <Grid ColumnDefinitions="180,*" Margin="0,6,0,0">
+        <TextBlock Grid.Column="0" Text="Free area:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="EventAssembler_FreeArea_Combo"
+                  Grid.Column="1" Name="FreeAreaCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding FreeAreaIndex}" />
+      </Grid>
+
+      <!-- Debug-symbol store -->
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Text="Store debug symbols:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="EventAssembler_DebugSymbol_Combo"
+                  Grid.Column="1" Name="DebugSymbolCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding DebugSymbolIndex}" />
+      </Grid>
+
+      <!-- AutoReCompile -->
+      <CheckBox AutomationProperties.AutomationId="EventAssembler_AutoReCompile_Check"
+                Name="AutoReCompileCheck"
+                Content="Auto re-compile updated source code (.s / .asm)"
+                IsChecked="{Binding AutoReCompile}" Margin="0,6,0,0" />
+
+      <!-- Actions -->
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+        <Button AutomationProperties.AutomationId="EventAssembler_Import_Button"
+                Name="ImportButton" Content="Import (compile + insert)"
+                Click="Import_Click" />
+        <Button AutomationProperties.AutomationId="EventAssembler_Uninstall_Button"
+                Name="UninstallButton" Content="Uninstall..."
+                Click="Uninstall_Click" />
+        <Button AutomationProperties.AutomationId="EventAssembler_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                IsVisible="{Binding CanUndo}"
+                Click="Undo_Click" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+
+      <!-- Status / result -->
+      <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
+              Padding="8" Margin="0,8,0,0" MinHeight="120">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <SelectableTextBlock AutomationProperties.AutomationId="EventAssembler_Status_Label"
+                               Name="StatusText"
+                               Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap" FontFamily="Consolas,monospace" />
+        </ScrollViewer>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
 </Window>

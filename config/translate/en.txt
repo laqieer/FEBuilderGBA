@@ -20287,3 +20287,30 @@ OAM12 blocks:
 
 :Data:
 Data:
+
+:Add via Event Assembler
+Add via Event Assembler
+
+:Assemble an EA event script (.event / .txt) and insert it into the ROM.
+Assemble an EA event script (.event / .txt) and insert it into the ROM.
+
+:Event file:
+Event file:
+
+:Free area:
+Free area:
+
+:Store debug symbols:
+Store debug symbols:
+
+:Import (compile + insert)
+Import (compile + insert)
+
+:Uninstall...
+Uninstall...
+
+:Select a .event or .txt file
+Select a .event or .txt file
+
+:Auto re-compile updated source code (.s / .asm)
+Auto re-compile updated source code (.s / .asm)

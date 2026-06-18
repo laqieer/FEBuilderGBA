@@ -3233,140 +3233,46 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            bool isColorzCore = ToolPathResolver.IsColorzCore(eaExe);
             var rom = CoreState.ROM;
             string gameCode = rom.RomInfo.TitleToFilename;
-
-            // Write current ROM to temp file for EA to modify
-            string tempRomPath = Path.Combine(Path.GetTempPath(), $"febuilder_ea_{DateTime.Now.Ticks}.gba");
-            File.WriteAllBytes(tempRomPath, rom.Data);
-
-            // Generate minimal auto-def wrapper
-            string wrapperContent = $"#include \"{Path.GetFileName(eventPath)}\"\n";
-
-            string wrapperPath = Path.Combine(Path.GetDirectoryName(eventPath),
-                $"_FBG_CLI_{DateTime.Now.Ticks}.event");
-            File.WriteAllText(wrapperPath, wrapperContent);
-
-            // Build EA arguments
-            string symFile = Path.GetTempFileName();
-            string toolDir = Path.GetDirectoryName(eaExe);
-
-            string eaArgs;
-            if (isColorzCore)
-            {
-                eaArgs = $"A {gameCode} " +
-                    $"\"-input:{wrapperPath}\" " +
-                    $"\"-output:{tempRomPath}\" " +
-                    $"\"--nocash-sym:{symFile}\"";
-            }
-            else
-            {
-                eaArgs = $"A {gameCode} " +
-                    $"\"-input:{wrapperPath}\" " +
-                    $"\"-output:{tempRomPath}\" " +
-                    $"\"-symOutput:{symFile}\"";
-            }
 
             Console.WriteLine($"Event Assembler: {eaExe}");
             Console.WriteLine($"Game: {gameCode}");
             Console.WriteLine($"Input: {eventPath}");
             Console.WriteLine($"Compiling...");
 
-            try
+            // Shared compile+insert flow (also used by the Avalonia tool). The CLI
+            // keeps FreeAreaMode.None (the original plain "#include" wrapper, no
+            // FreeSpace define) and does not need undo — pass a throwaway UndoData.
+            if (CoreState.Undo == null) CoreState.Undo = new Undo();
+            Undo.UndoData undo = CoreState.Undo.NewUndoData("compile-event");
+
+            var result = EventAssemblerCompileCore.CompileAndInsert(
+                rom, eventPath,
+                EventAssemblerCompileCore.FreeAreaMode.None,
+                undo,
+                SymbolUtil.DebugSymbol.None,
+                onRetry: Console.WriteLine);
+
+            if (!result.Success)
             {
-                string output = RunEAProcess(eaExe, eaArgs, toolDir);
-
-                // Check for compilation errors
-                bool hasError = !IsEASuccess(output);
-
-                // Fallback for older EA: retry without -symOutput if it's unsupported
-                if (hasError && !isColorzCore &&
-                    (output.Contains("symOutput doesn't exist.") || output.Contains("Unrecognized flag: symOutput")))
-                {
-                    Console.WriteLine("Retrying without -symOutput (older EA detected)...");
-                    // Re-copy ROM since first attempt may have corrupted it
-                    File.WriteAllBytes(tempRomPath, rom.Data);
-
-                    string fallbackArgs = $"A {gameCode} " +
-                        $"\"-input:{wrapperPath}\" " +
-                        $"\"-output:{tempRomPath}\"";
-
-                    output = RunEAProcess(eaExe, fallbackArgs, toolDir);
-                    hasError = !IsEASuccess(output);
-                }
-
-                if (hasError)
-                {
-                    Console.Error.WriteLine("Compilation failed:");
-                    Console.Error.WriteLine(output);
-                    return 1;
-                }
-
-                // Compilation succeeded — save the modified ROM
-                if (File.Exists(tempRomPath))
-                {
-                    File.Copy(tempRomPath, outputPath, overwrite: true);
-                    Console.WriteLine($"Compilation successful.");
-                    if (!string.IsNullOrEmpty(output.Trim()))
-                        Console.WriteLine(output.Trim());
-
-                    // Print symbol info if available
-                    if (File.Exists(symFile))
-                    {
-                        string symbols = File.ReadAllText(symFile).Trim();
-                        if (!string.IsNullOrEmpty(symbols))
-                        {
-                            int symCount = symbols.Split('\n').Length;
-                            Console.WriteLine($"Symbols: {symCount} entries");
-                        }
-                    }
-
-                    Console.WriteLine($"Output: {outputPath}");
-                }
-                else
-                {
-                    Console.Error.WriteLine("Error: EA did not produce output ROM.");
-                    return 1;
-                }
+                Console.Error.WriteLine("Compilation failed:");
+                Console.Error.WriteLine(string.IsNullOrEmpty(result.Output) ? result.ErrorMessage : result.Output);
+                return 1;
             }
-            finally
-            {
-                // Cleanup temp files
-                try { if (File.Exists(wrapperPath)) File.Delete(wrapperPath); } catch { }
-                try { if (File.Exists(tempRomPath)) File.Delete(tempRomPath); } catch { }
-                try { if (File.Exists(symFile)) File.Delete(symFile); } catch { }
-            }
+
+            // Compilation succeeded — save the modified ROM to the requested output.
+            rom.Save(outputPath, true);
+            Console.WriteLine($"Compilation successful.");
+            if (!string.IsNullOrEmpty(result.Output.Trim()))
+                Console.WriteLine(result.Output.Trim());
+
+            if (result.SymbolCount > 0)
+                Console.WriteLine($"Symbols: {result.SymbolCount} entries");
+
+            Console.WriteLine($"Output: {outputPath}");
 
             return 0;
-        }
-
-        static string RunEAProcess(string exePath, string args, string workDir)
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo(exePath, args)
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                WorkingDirectory = workDir,
-            };
-
-            var sb = new System.Text.StringBuilder();
-            using (var proc = System.Diagnostics.Process.Start(psi))
-            {
-                proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-                proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
-
-                if (!proc.WaitForExit(120_000))
-                {
-                    proc.Kill();
-                    return "Error: Event Assembler timed out after 120 seconds.";
-                }
-            }
-            return sb.ToString();
         }
 
         static int RunImportBattleAnime(Dictionary<string, string> argsDic)
@@ -3629,12 +3535,6 @@ namespace FEBuilderGBA.CLI
             GifEncoderCore.Encode(gifFrames, outputPath);
             Console.WriteLine($"  {gifFrames.Count} frames, {frames.Count} frame commands");
             return string.Empty;
-        }
-
-        static bool IsEASuccess(string output)
-        {
-            return output.IndexOf("No errors or warnings.", StringComparison.Ordinal) >= 0
-                || output.IndexOf("No errors. Please continue being awesome.", StringComparison.Ordinal) >= 0;
         }
 
         static int RunFreeSpace(Dictionary<string, string> argsDic)
