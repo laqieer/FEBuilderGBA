@@ -75,6 +75,13 @@ namespace FEBuilderGBA
             public List<string> Untraceable { get; } = new List<string>();
             /// <summary>True when every emitting block was reconstructed (no residue).</summary>
             public bool FullyTraced => Untraceable.Count == 0;
+            /// <summary>
+            /// Count of WRITE-BEARING blocks the trace could not reconstruct (a GREP
+            /// miss, the guarded PROCS, an un-hinted inline PNG raster). Empty/comment
+            /// blocks that write nothing are NOT counted — they leave no residue.
+            /// Equals <see cref="Untraceable"/>.Count.
+            /// </summary>
+            public int UntracedCount => Untraceable.Count;
         }
 
         /// <summary>Structured result of an uninstall run.</summary>
@@ -94,6 +101,14 @@ namespace FEBuilderGBA
             /// when this is false (a "success" with residue is the outcome to avoid).
             /// </summary>
             public bool FullyTraced { get; set; } = true;
+            /// <summary>
+            /// Count of WRITE-BEARING blocks the trace could not revert (a GREP miss,
+            /// the guarded PROCS, an un-hinted inline PNG raster). > 0 means the revert
+            /// is INCOMPLETE — those bytes remain patched. <see cref="Success"/> can
+            /// still be true (the traced ranges WERE reverted); the View must surface
+            /// this so the user can confirm/verify. Equals <see cref="UntraceableBlocks"/>.Count.
+            /// </summary>
+            public int UntracedCount { get; set; }
             /// <summary>Descriptions of the blocks that could not be traced (residue).</summary>
             public List<string> UntraceableBlocks { get; set; } = new List<string>();
         }
@@ -135,8 +150,12 @@ namespace FEBuilderGBA
             {
                 ea = new EAUtilCore(eaFilePath);
             }
-            catch (IOException ex)
+            catch (Exception ex)
             {
+                // The parser can throw more than IOException (UnauthorizedAccessException,
+                // ArgumentException for a bad path, parse errors). Honour the "never
+                // throws" contract: turn any failure into an untraceable note + empty
+                // trace, which the caller surfaces as a clean "could not trace" error.
                 result.Untraceable.Add("Could not read the event file: " + ex.Message);
                 return result;
             }
@@ -399,7 +418,7 @@ namespace FEBuilderGBA
             }
             if (undo == null)
             {
-                result.ErrorMessage = R._("No ROM is loaded.");
+                result.ErrorMessage = R._("Undo manager unavailable.");
                 return result;
             }
 
@@ -410,6 +429,7 @@ namespace FEBuilderGBA
             // (a "success" that leaves patch residue is the outcome to avoid).
             result.FullyTraced = trace.FullyTraced;
             result.UntraceableBlocks = trace.Untraceable;
+            result.UntracedCount = trace.UntracedCount;
 
             if (binmap.Count == 0)
             {

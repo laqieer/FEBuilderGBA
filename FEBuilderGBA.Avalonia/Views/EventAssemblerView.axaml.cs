@@ -223,13 +223,43 @@ namespace FEBuilderGBA.Avalonia.Views
             byte[] cleanRom;
             try
             {
-                cleanRom = System.IO.File.ReadAllBytes(cleanRomPath);
+                // Read off the UI thread — a full ROM from slow storage can be several
+                // MB and would otherwise freeze the window before the revert task starts.
+                cleanRom = await Task.Run(() => System.IO.File.ReadAllBytes(cleanRomPath));
             }
             catch (Exception ex)
             {
                 Log.Error("EventAssemblerView.Uninstall read clean ROM failed: " + ex.ToString());
                 _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + ex.ToString();
                 return;
+            }
+
+            // Review-BEFORE-revert (closest to the WF binmap dialog): trace first and,
+            // if any write-bearing block can't be traced, ask the user to confirm a
+            // PARTIAL uninstall — those bytes will NOT be reverted and may stay patched.
+            // Tracing is cheap (parse + GREP) relative to the revert, so doing it here to
+            // gate the confirm is fine; Uninstall() re-traces and reverts on Yes.
+            var preTrace = EventAssemblerUninstallCore.TraceEAFile(_vm.SourcePath);
+            if (preTrace.UntracedCount > 0)
+            {
+                int n = preTrace.UntracedCount;
+                int shown = Math.Min(n, 5);
+                string detail = "";
+                for (int i = 0; i < shown; i++)
+                    detail += "\r\n  - " + preTrace.Untraceable[i];
+                if (n > shown)
+                    detail += "\r\n  - " + R._("...and {0} more.", (n - shown).ToString());
+
+                string prompt = R._("{0} block(s) in this EA cannot be traced (e.g. inline image / PROCS); those bytes will NOT be reverted and may remain patched.", n.ToString())
+                    + detail + "\r\n\r\n"
+                    + R._("Proceed with a partial uninstall?");
+                var answer = await MessageBoxWindow.Show(this, prompt,
+                    R._("Partial uninstall"), MessageBoxMode.YesNo);
+                if (answer != MessageBoxResult.Yes)
+                {
+                    _vm.StatusMessage = R._("Uninstall cancelled.");
+                    return;
+                }
             }
 
             UninstallButton.IsEnabled = false;
