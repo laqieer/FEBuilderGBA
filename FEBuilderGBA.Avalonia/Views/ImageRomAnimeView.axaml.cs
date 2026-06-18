@@ -167,6 +167,111 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        async void ExportScript_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded || _vm.Entry == null)
+                {
+                    CoreState.Services?.ShowError(R._("No animation entry selected."));
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveAnimationScriptFile(this,
+                    "romanime_" + U.ToHexString(_vm.CurrentId) + ".txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string err = _vm.ExportScript(path);
+                if (!string.IsNullOrEmpty(err)) { CoreState.Services?.ShowError(err); return; }
+                CoreState.Services?.ShowInfo(R._("Animation script exported successfully."));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageRomAnimeView.ExportScript_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
+        async void ExportGif_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded || _vm.Entry == null)
+                {
+                    CoreState.Services?.ShowError(R._("No animation entry selected."));
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveFile(this,
+                    R._("Save Animation GIF"), R._("Animated GIF (.gif)"), "*.gif",
+                    "romanime_" + U.ToHexString(_vm.CurrentId) + ".gif");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string err = _vm.ExportGif(path);
+                if (!string.IsNullOrEmpty(err)) { CoreState.Services?.ShowError(err); return; }
+                CoreState.Services?.ShowInfo(R._("Animation GIF exported successfully."));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageRomAnimeView.ExportGif_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
+        async void ImportScript_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded || _vm.Entry == null)
+                {
+                    CoreState.Services?.ShowError(R._("No animation entry selected."));
+                    return;
+                }
+                string? path = await FileDialogHelper.OpenFile(this,
+                    R._("Open Animation Script"), "*.txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                int width = _vm.FrameWidthPx;
+                // Per-PNG loader: quantize each frame image to <=16 colors (the per-frame
+                // import path). strictSize:false — Core crops/pads to the canvas.
+                (byte[] indexedPixels, byte[] gbaPalette16, int width, int height)? Loader(string pngPath)
+                {
+                    var load = ImageImportService.LoadAndQuantizeFromFile(pngPath, width, 0, 16, strictSize: false);
+                    if (load == null || !load.Success) return null;
+                    return (load.IndexedPixels, load.GBAPalette, load.Width, load.Height);
+                }
+
+                _undoService.Begin("Import In-ROM Animation Script");
+                try
+                {
+                    string err = _vm.ImportScript(path, Loader);
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    // Re-resolve the entry (pointers changed) + refresh preview.
+                    _vm.IsLoading = true;
+                    try { _vm.LoadEntry(_vm.CurrentId); UpdateUI(); UpdateFrameRange(); }
+                    finally { _vm.IsLoading = false; }
+                    LoadImage();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo(R._("Animation script imported successfully."));
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImageRomAnimeView.ImportScript_Click write failed: " + ex.ToString());
+                    CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageRomAnimeView.ImportScript_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

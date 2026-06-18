@@ -329,6 +329,20 @@ namespace FEBuilderGBA
             return true;
         }
 
+        /// <summary>
+        /// Render one frame straight from its resolved TSA / IMAGE / PALETTE ROM offsets
+        /// (the WF <c>DrawImageLow</c> body), bypassing the UI-frame -&gt; stored-id
+        /// resolution. Used by the multi-frame export/GIF walk (#1230) where the stored
+        /// frame id differs from the UI frame index. Returns <c>null</c> (never throws)
+        /// on any null / out-of-bounds / corrupt input.
+        /// </summary>
+        public static IImage RenderFromOffsets(ROM rom, int imageWidthTiles, uint tsa, uint image, uint palette)
+        {
+            if (rom == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            return RenderImageLow(rom, imageWidthTiles, tsa, image, palette);
+        }
+
         // WF DrawImageLow: LZ77-decompress TSA + IMAGE, read the RAW palette, decode.
         static IImage RenderImageLow(ROM rom, int imageWidthTiles, uint tsa, uint image, uint palette)
         {

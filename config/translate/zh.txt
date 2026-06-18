@@ -25319,3 +25319,30 @@ TSA数量: {0}
 
 :The specified file does not exist.
 指定的文件不存在。
+
+:Export Script
+导出脚本
+
+:Import Script
+导入脚本
+
+:Export GIF
+导出GIF
+
+:Save Animation GIF
+保存动画GIF
+
+:Animated GIF (.gif)
+动画GIF (.gif)
+
+:Open Animation Script
+打开动画脚本
+
+:Animation script exported successfully.
+动画脚本导出成功。
+
+:Animation GIF exported successfully.
+动画GIF导出成功。
+
+:Animation script imported successfully.
+动画脚本导入成功。

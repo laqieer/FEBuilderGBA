@@ -11478,3 +11478,30 @@ report.7zについて:
 
 :The specified file does not exist.
 指定されたファイルが存在しません。
+
+:Export Script
+スクリプト出力
+
+:Import Script
+スクリプト読込
+
+:Export GIF
+GIF出力
+
+:Save Animation GIF
+アニメGIFを保存
+
+:Animated GIF (.gif)
+アニメGIF (.gif)
+
+:Open Animation Script
+アニメスクリプトを開く
+
+:Animation script exported successfully.
+アニメスクリプトを出力しました。
+
+:Animation GIF exported successfully.
+アニメGIFを出力しました。
+
+:Animation script imported successfully.
+アニメスクリプトを読み込みました。
