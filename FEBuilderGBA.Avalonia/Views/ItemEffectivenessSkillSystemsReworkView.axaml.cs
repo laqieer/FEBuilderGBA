@@ -169,11 +169,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void ClassType_TextChanged(object? sender, TextChangedEventArgs e)
         {
             if (_suppressFieldEvents) return;
-            if (TryParseHex(ClassTypeBox.Text, out uint v))
+            if (TryParseClassType(ClassTypeBox.Text, out uint v))
             {
                 _vm.ClassType = v;
                 // Live-decode the bitmask names so the user sees the effect.
                 ClassTypeNamesLabel.Text = ClassTypeDisplay(v);
+            }
+            else
+            {
+                // Out-of-range (> u16) or unparseable: don't decode names for a
+                // value the u16 write path would truncate — Write_Click surfaces
+                // the "valid hex value" error instead.
+                ClassTypeNamesLabel.Text = "";
             }
         }
 
@@ -186,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No effectiveness entry selected."));
                     return;
                 }
-                if (!TryParseHex(ClassTypeBox.Text, out uint classType))
+                if (!TryParseClassType(ClassTypeBox.Text, out uint classType))
                 {
                     CoreState.Services?.ShowError(R._("Class Type must be a valid hex value."));
                     return;
@@ -282,6 +289,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 keys[i] = R._(keys[i]);
             return string.Join(",", keys);
         }
+
+        /// <summary>
+        /// Parse the class-type field as a hex value that fits the on-ROM u16 at
+        /// entry +2. Rejects values &gt; 0xFFFF up front so the UI never decodes /
+        /// displays names for a value that <c>WriteReworkEntry</c> would silently
+        /// truncate to 16 bits.
+        /// </summary>
+        static bool TryParseClassType(string? text, out uint value)
+            => TryParseHex(text, out value) && value <= 0xFFFF;
 
         static bool TryParseHex(string? text, out uint value)
         {
