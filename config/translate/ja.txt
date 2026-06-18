@@ -11855,3 +11855,66 @@ config/translate/<lang>.txt
 :Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
 各行はワールドマップイベントPLISTが設定されたマップです。アドレスはPLISTが指すマップポインタテーブルのスロットを指します。
 
+:Weapon effectiveness class-type list (per item)
+武器の特効クラス分類リスト（アイテムごと）
+
+:Entry Address:
+エントリアドレス:
+
+:Coefficient (x2):
+係数（x2）:
+
+:Armor
+アーマー系
+
+:Cavalry
+騎兵系
+
+:Flying
+飛行系
+
+:Dragon
+ドラゴン系
+
+:Monster
+モンスター系
+
+:Sword
+ソード系
+
+:Unknown1
+不明1
+
+:Unknown2
+不明2
+
+:No effectiveness entry selected.
+特効エントリが選択されていません。
+
+:Class Type must be a valid hex value.
+クラス分類は有効な16進数値である必要があります。
+
+:Undo manager unavailable.
+アンドゥマネージャが利用できません。
+
+:Item Effectiveness data written.
+アイテムの特効データを書き込みました。
+
+:Write failed: 
+書き込みに失敗しました: 
+
+:No item owns this effectiveness list.
+この特効リストを所有するアイテムがありません。
+
+:Added a new class slot.
+新しいクラススロットを追加しました。
+
+:Expand failed: 
+拡張に失敗しました: 
+
+:Item effectiveness array forked.
+アイテムの特効配列を分離しました。
+
+:Independence failed: 
+分離独立に失敗しました: 
+
