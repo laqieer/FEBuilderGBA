@@ -593,11 +593,139 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(2, copy.Count);
                 Assert.Equal(0x01u, copy[0].ClassType);
                 Assert.Equal(0x02u, copy[1].ClassType);
+
+                // Copy-on-write: owner B's scan of the ORIGINAL array is byte-for-
+                // byte untouched (not relocated, not corrupted).
+                var ownerB = ItemClassListCore.ScanReworkEntries(rom, 96);
+                Assert.Equal(2, ownerB.Count);
+                Assert.Equal(0x01u, ownerB[0].ClassType);
+                Assert.Equal(6u, ownerB[0].Coefficient);
+                Assert.Equal(0x02u, ownerB[1].ClassType);
+                Assert.Equal(6u, ownerB[1].Coefficient);
             }
             finally
             {
                 CoreState.ROM = prev;
             }
+        }
+
+        [Fact]
+        public void ScanWriteScan_RoundTrips()
+        {
+            // scan → write → scan round-trip on the Core methods directly.
+            byte[] data = new byte[256];
+            WriteReworkEntryBytes(data, 32, 6, 0x01); // armor, coeff 6
+            WriteReworkEntryBytes(data, 36, 4, 0x08); // dragon, coeff 4
+            data[40] = data[41] = data[42] = data[43] = 0; // terminator
+
+            var rom = MakeRom(data);
+            var prev = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var before = ItemClassListCore.ScanReworkEntries(rom, 32);
+                Assert.Equal(2, before.Count);
+                Assert.Equal(0x01u, before[0].ClassType);
+                Assert.Equal(0x08u, before[1].ClassType);
+
+                var undo = new Undo.UndoData
+                {
+                    name = "test",
+                    list = new List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length,
+                };
+                // Rewrite the second entry: dragon coeff4 → flying+sword coeff 8.
+                ItemClassListCore.WriteReworkEntry(rom, before[1].Addr, coefficient: 8, classType: 0x24, undo: undo);
+
+                var after = ItemClassListCore.ScanReworkEntries(rom, 32);
+                Assert.Equal(2, after.Count);                 // count unchanged
+                Assert.Equal(0x01u, after[0].ClassType);      // first entry intact
+                Assert.Equal(6u, after[0].Coefficient);
+                Assert.Equal(0x24u, after[1].ClassType);      // second entry updated
+                Assert.Equal(8u, after[1].Coefficient);
+                Assert.Equal(0x00, rom.Data[36]);             // leading byte still 0
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+            }
+        }
+
+        [Fact]
+        public void ExpandReworkList_OnSharedArray_OtherOwnerUnchanged()
+        {
+            // Copy-on-write for Expand: owner A grows its shared array; owner B's
+            // scan still shows the ORIGINAL list (relocated array is A-only).
+            byte[] data = new byte[1024];
+            for (int i = 0; i < data.Length; i++) data[i] = 0xFF;
+            WriteReworkEntryBytes(data, 128, 6, 0x01); // armor
+            data[132] = data[133] = data[134] = data[135] = 0; // terminator
+            uint sharedPtr = 128u | 0x08000000u;
+            for (int i = 0; i < 4; i++)
+            {
+                data[0 + i] = (byte)((sharedPtr >> (i * 8)) & 0xFF); // owner A
+                data[8 + i] = (byte)((sharedPtr >> (i * 8)) & 0xFF); // owner B
+            }
+
+            var rom = MakeRom(data);
+            var prev = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var undo = new Undo.UndoData
+                {
+                    name = "test",
+                    list = new List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length,
+                };
+
+                uint newBaseA = ItemClassListCore.ExpandReworkList(rom, pointerAddr: 0, undo: undo);
+
+                // Owner A grew to 2 entries (armor + placeholder).
+                var scanA = ItemClassListCore.ScanReworkEntries(rom, newBaseA);
+                Assert.Equal(2, scanA.Count);
+                Assert.Equal(0x01u, scanA[0].ClassType);
+
+                // Owner B's pointer is unchanged and its scan still shows ONLY
+                // the original single armor entry.
+                Assert.Equal(sharedPtr, rom.u32(8));
+                var scanB = ItemClassListCore.ScanReworkEntries(rom, 128);
+                Assert.Single(scanB);
+                Assert.Equal(0x01u, scanB[0].ClassType);
+                Assert.Equal(6u, scanB[0].Coefficient);
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+            }
+        }
+
+        [Fact]
+        public void ScanReworkEntries_ReadsBuildEffectivenessTemplateLayout()
+        {
+            // Seed the array exactly the way ItemAllocCore.BuildEffectivenessTemplate
+            // (skillSystemsRework: true) does — zero-filled 12 bytes with
+            // [1]=6,[2]=1 (armor coeff6) and [5]=6,[6]=2 (cavalry coeff6) — so the
+            // test data matches the real on-ROM layout. The 12-byte template is
+            // three 4-byte slots: [armor][cavalry][terminator].
+            byte[] template = ItemAllocCore.BuildEffectivenessTemplate(skillSystemsRework: true);
+            Assert.Equal(12, template.Length);
+
+            byte[] data = new byte[64];
+            // Place the template at a non-zero offset so the null-pointer guard
+            // does not short-circuit.
+            const int baseOff = 16;
+            for (int i = 0; i < template.Length; i++) data[baseOff + i] = template[i];
+
+            var rom = MakeRom(data);
+            var list = ItemClassListCore.ScanReworkEntries(rom, baseOff);
+            Assert.Equal(2, list.Count);
+            Assert.Equal(0x01u, list[0].ClassType); // armor
+            Assert.Equal(6u, list[0].Coefficient);
+            Assert.Equal(0x02u, list[1].ClassType); // cavalry
+            Assert.Equal(6u, list[1].Coefficient);
+            Assert.Equal("Armor", ItemClassListCore.GetClassTypeNames(list[0].ClassType));
+            Assert.Equal("Cavalry", ItemClassListCore.GetClassTypeNames(list[1].ClassType));
         }
 
         [Theory]
