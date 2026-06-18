@@ -258,8 +258,11 @@ namespace FEBuilderGBA
                 string compilerExe = ResolveCompiler(toolDir, ext);
                 if (string.IsNullOrEmpty(compilerExe))
                 {
+                    // Name the platform-neutral base tool (gcc/g++/as) — the actual
+                    // binary carries .exe only on Windows, so a hard-coded "*as.exe"
+                    // would misname the searched-for tool on Linux/macOS.
                     result.ErrorMessage = R._("{0}の設定がありません。 設定->オプションから、{0}を設定してください。",
-                        "devkitpro_eabi " + CompilerGlobForExt(ext));
+                        "devkitpro_eabi " + CompilerBaseNameForExt(ext));
                     return result;
                 }
 
@@ -328,11 +331,13 @@ namespace FEBuilderGBA
         {
             var result = new CompileResult();
 
-            string asExe = ResolveCompiler(toolDir, ".S"); // *as.exe
+            string asExe = ResolveCompiler(toolDir, ".S"); // *as / *as.exe (platform-aware)
             if (string.IsNullOrEmpty(asExe))
             {
+                // Name the platform-neutral base tool ("as") — not "*as.exe", which
+                // would misname the searched-for binary on Linux/macOS.
                 result.ErrorMessage = R._("{0}の設定がありません。 設定->オプションから、{0}を設定してください。",
-                    "devkitpro_eabi *as.exe");
+                    "devkitpro_eabi " + CompilerBaseNameForExt(".S"));
                 return result;
             }
 

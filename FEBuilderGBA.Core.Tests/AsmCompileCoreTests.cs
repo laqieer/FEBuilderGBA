@@ -645,6 +645,12 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.False(result.Success);
                 Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+                // The error must name the platform-neutral base tool (gcc for a .c),
+                // NOT the Windows-only "*gcc.exe" glob — else it misnames the searched
+                // tool on Linux/macOS (Copilot #1245 follow-up).
+                Assert.Contains("gcc", result.ErrorMessage);
+                Assert.DoesNotContain("*gcc.exe", result.ErrorMessage);
+                Assert.DoesNotContain("*gcc", result.ErrorMessage);
             }
             finally
             {
