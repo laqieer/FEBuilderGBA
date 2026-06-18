@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
+using System.Collections.Generic;
 
 namespace FEBuilderGBA
 {
@@ -337,5 +338,57 @@ namespace FEBuilderGBA
         /// </summary>
         public static uint GetMapChangeAddrWhereMapID(ROM rom, uint mapId)
             => GetMapChangeAddrWhereMapID(rom, mapId, out _);
+
+        // ============================================================
+        // #1192 — per-chapter map-change flag scan.
+        //
+        // InputFormRef-free port of WinForms MapChangeForm.MakeFlagIDArray
+        // (which used N_Init's InputFormRef: a 12-byte block whose record
+        // count walks until u8(addr)==0xFF, with the flag id as the u16 at
+        // record offset +5). The WinForms path delegated to
+        // UseFlagID.AppendFlagIDFixedMapID — "FixedMapID" because every
+        // change record of the selected chapter belongs to THAT chapter, so
+        // we attribute the selected mapid directly (matching the tool's
+        // intent of listing the chapter's own map-change flags).
+        // ============================================================
+
+        /// <summary>Block stride of one map-change record (WF N_Init blocksize).</summary>
+        const uint MapChangeRecordSize = 12;
+        /// <summary>u16 flag id offset inside a map-change record (WF flagIDPlus).</summary>
+        const uint MapChangeFlagOffset = 5;
+        /// <summary>Defensive bound so a corrupt 0xFF-less table can never loop forever.</summary>
+        const int MapChangeMaxRecords = 4096;
+
+        /// <summary>
+        /// Append every map-change flag used by <paramref name="mapId"/> to
+        /// <paramref name="list"/> (lint category <see cref="FELintCore.Type.MAPCHANGE"/>).
+        /// Strictly READ-ONLY: every read is bounds-guarded, malformed data
+        /// terminates the walk and yields a (possibly empty) partial list
+        /// instead of throwing. Mirrors WF MapChangeForm.MakeFlagIDArray.
+        /// </summary>
+        public static void MakeFlagIDArray(ROM rom, uint mapId, List<UseFlagIDCore> list)
+        {
+            if (rom?.RomInfo == null || list == null) return;
+
+            uint changeAddr = GetMapChangeAddrWhereMapID(rom, mapId);
+            if (changeAddr == U.NOT_FOUND || !U.isSafetyOffset(changeAddr, rom)) return;
+
+            uint addr = changeAddr;
+            for (int i = 0; i < MapChangeMaxRecords; i++, addr += MapChangeRecordSize)
+            {
+                // Bounds-check the full record (incl. the +5 flag u16) before
+                // any read so a near-EOF table can't throw.
+                if (!U.isSafetyOffset(addr, rom)) break;
+                if (addr + MapChangeRecordSize > (uint)rom.Data.Length) break;
+
+                // WF N_Init DataCount predicate: a record whose first byte is
+                // 0xFF terminates the change table.
+                if (rom.u8(addr) == 0xFF) break;
+
+                uint flag = rom.u16(addr + MapChangeFlagOffset);
+                UseFlagIDCore.AppendUseFlagID(
+                    list, FELintCore.Type.MAPCHANGE, addr, U.ToHexString((uint)i), flag, mapId, (uint)i);
+            }
+        }
     }
 }

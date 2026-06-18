@@ -11820,3 +11820,11 @@ config/translate/<lang>.txt
 
 :Please select a valid source code folder.
 有効なソースコードフォルダを選択してください。
+:Flags Used in Chapter
+章で使用しているフラグ
+
+:Chapter
+章
+
+:Flags used
+使用フラグ数

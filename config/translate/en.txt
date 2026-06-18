@@ -20560,3 +20560,11 @@ Please select a target language (ja and auto cannot be selected).
 
 :Please select a valid source code folder.
 Please select a valid source code folder.
+:Flags Used in Chapter
+Flags Used in Chapter
+
+:Chapter
+Chapter
+
+:Flags used
+Flags used
