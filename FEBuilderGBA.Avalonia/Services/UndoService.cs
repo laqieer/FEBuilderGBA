@@ -57,6 +57,25 @@ namespace FEBuilderGBA.Avalonia.Services
             _currentUndoData = null;
         }
 
+        /// <summary>
+        /// Push an EXTERNALLY-created <see cref="Undo.UndoData"/> onto the undo buffer
+        /// and refresh the dirty indicator — for callers that cannot use the
+        /// thread-local ambient <see cref="Begin"/>/<see cref="Commit"/> scope because
+        /// the ROM writes happen on a background thread (e.g. the Event Assembler tool
+        /// runs the compile+insert inside <c>Task.Run</c> and passes the UndoData
+        /// explicitly to the Core helper, which records into it directly). No ambient
+        /// scope is opened, so an unrelated UI-thread write can't leak into this group.
+        /// Returns true if anything was recorded (and thus pushed).
+        /// </summary>
+        public virtual bool CommitExternal(Undo.UndoData undoData)
+        {
+            if (undoData == null || CoreState.Undo == null) return false;
+            if (undoData.list.Count == 0) return false;
+            CoreState.Undo.Push(undoData);
+            NotifyUnsavedChanges();
+            return true;
+        }
+
         /// <summary>Whether there's an active undo group.</summary>
         public bool HasPendingUndo => _currentUndoData != null;
 

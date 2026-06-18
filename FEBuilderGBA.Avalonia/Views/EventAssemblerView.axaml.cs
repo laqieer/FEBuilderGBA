@@ -59,8 +59,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Browse_Click(object? sender, RoutedEventArgs e)
         {
+            await BrowseForSourceAsync();
+        }
+
+        /// <summary>
+        /// Show the .event/.txt picker and store the chosen path on the VM.
+        /// Returns true if the user picked a usable file. Awaitable so Import can
+        /// pick-then-continue in the same invocation (mirrors WF ImportButton_Click).
+        /// </summary>
+        async Task<bool> BrowseForSourceAsync()
+        {
             var storage = GetTopLevel(this)?.StorageProvider;
-            if (storage == null) return;
+            if (storage == null) return false;
 
             try
             {
@@ -81,7 +91,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     string? path = files[0].TryGetLocalPath();
                     if (!string.IsNullOrEmpty(path))
+                    {
                         _vm.SourcePath = path;
+                        return true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -89,15 +102,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("EventAssemblerView.Browse failed: " + ex.ToString());
                 _vm.StatusMessage = ex.Message;
             }
+            return false;
         }
 
         async void Import_Click(object? sender, RoutedEventArgs e)
         {
-            // Prompt for a file if none chosen yet (mirrors WF ImportButton_Click).
+            // Prompt for a file if none chosen yet, then CONTINUE the import in the
+            // same action once a file is picked (mirrors WF ImportButton_Click).
             if (!_vm.SourceExists)
             {
-                Browse_Click(sender, e);
-                return;
+                if (!await BrowseForSourceAsync() || !_vm.SourceExists)
+                    return; // user cancelled / no usable file
             }
             if (!_vm.IsEventAssemblerAvailable)
             {
@@ -117,19 +132,26 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportButton.IsEnabled = false;
             _vm.StatusMessage = prefix + R._("Compiling...");
 
+            // Use an EXPLICIT UndoData passed through to the Core helper rather than
+            // the thread-local ambient ROM.BeginUndoScope: the compile+insert runs on
+            // a background thread (Task.Run), and the ambient scope is thread-local to
+            // the UI thread — so it would NOT capture the background writes AND could
+            // wrongly absorb an unrelated UI-thread ROM write. SwapNewROMData records
+            // diffs directly into this passed UndoData, so undo capture stays correct
+            // and thread-consistent. We push it (UI thread) only after a successful
+            // insert, via UndoService.CommitExternal which also refreshes the dirty bit.
+            var undo = (CoreState.Undo ??= new Undo()).NewUndoData("Event Assembler");
+
             try
             {
-                _undoService.Begin("Event Assembler");
-                var undo = _undoService.GetActiveUndoData();
-
                 // The EA process can take several seconds — run off the UI thread.
-                var result = await Task.Run(() => _vm.Import(undo!));
+                var result = await Task.Run(() => _vm.Import(undo));
 
                 if (result.Success)
                 {
-                    _undoService.Commit();
+                    if (_undoService.CommitExternal(undo))
+                        _vm.CanUndo = true;
                     _vm.HasResult = true;
-                    _vm.CanUndo = true;
 
                     string msg = R._("Compilation successful.");
                     if (result.InsertedAddr != U.NOT_FOUND)
@@ -142,14 +164,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 else
                 {
-                    _undoService.Rollback();
+                    // Compile failed → nothing was applied (fault-safe helper), so
+                    // there is nothing to undo; just surface the error.
                     _vm.StatusMessage = R._("Compilation failed.") + "\r\n" + result.ErrorMessage;
                 }
             }
             catch (Exception ex)
             {
-                try { _undoService.Rollback(); }
-                catch (Exception rbEx) { Log.Error("EventAssemblerView.Import rollback failed: " + rbEx.ToString()); }
                 Log.Error("EventAssemblerView.Import failed: " + ex.ToString());
                 _vm.StatusMessage = R._("Compilation failed.") + "\r\n" + ex.ToString();
             }
