@@ -11,7 +11,7 @@
                FontSize="20" FontWeight="Bold" Margin="0,0,0,4" />
     <TextBlock AutomationProperties.AutomationId="ToolProblemReport_Hint_Label"
                DockPanel.Dock="Top" Name="HintLabel"
-               Text="Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected)."
+               Text="Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log, your editor settings, and any emulator save data found next to the ROM."
                Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,12" />
 
     <!-- About-report URL link -->

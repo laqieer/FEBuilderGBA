@@ -3,11 +3,11 @@ using System;
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
-    /// Problem-Report tool (#1193). READ-ONLY w.r.t. the ROM — collects diagnostics
-    /// (log + per-ROM etc config + any sibling .ups) plus the user's problem text
-    /// into a <c>.report.7z</c> via <see cref="ProblemReportCore.CreateReport"/>.
-    /// No ROM mutation, so no undo scope. Mirrors WinForms <c>ToolProblemReportForm</c>
-    /// minus the deferred emulator save/backup search.
+    /// Problem-Report tool (#1193, #1235). READ-ONLY w.r.t. the ROM — collects
+    /// diagnostics (log + per-ROM etc config + any sibling .ups + emulator save-state
+    /// files next to the ROM + an optional clean-ROM .ups delta) plus the user's
+    /// problem text into a <c>.report.7z</c> via <see cref="ProblemReportCore.CreateReport"/>.
+    /// No ROM mutation, so no undo scope. Mirrors WinForms <c>ToolProblemReportForm</c>.
     /// </summary>
     public class ToolProblemReportViewModel : ViewModelBase
     {
@@ -33,7 +33,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Returns <c>""</c> on success, otherwise a localized error string. Never
         /// throws; sets <see cref="StatusMessage"/> on every path.
         /// </summary>
-        public string CreateReport(string outputPath)
+        /// <param name="cleanRomPath">
+        /// Optional clean / old backup ROM (from the interactive backup picker); when
+        /// set, a <c>.ups</c> delta from it to the current ROM is added (#1235).
+        /// </param>
+        public string CreateReport(string outputPath, string cleanRomPath = null)
         {
             try
             {
@@ -57,7 +61,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     return m;
                 }
 
-                string err = ProblemReportCore.CreateReport(rom, ProblemText, outputPath);
+                // Emulator save-state files live next to the ROM (+ no$gba BATTERY
+                // under the configured emulator dir). Passing these lets the report
+                // collect saves + an optional clean-ROM .ups delta (#1235).
+                string emulatorConfigDir = CoreState.Config?.at("emulator") ?? "";
+
+                string err = ProblemReportCore.CreateReport(
+                    rom, ProblemText, outputPath, emulatorConfigDir, cleanRomPath);
                 if (!string.IsNullOrEmpty(err))
                 {
                     StatusMessage = err;

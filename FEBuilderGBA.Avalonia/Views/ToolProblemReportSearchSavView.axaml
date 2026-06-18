@@ -23,6 +23,14 @@
       <Button AutomationProperties.AutomationId="ToolProblemReportSearchSav_Browse_Button" Grid.Column="2" Content="Browse..." Width="130" Height="31"
               Click="Browse_Click" />
     </Grid>
+    <!-- OK / Cancel row -->
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                Spacing="8" Margin="0,16,0,0">
+      <Button AutomationProperties.AutomationId="ToolProblemReportSearchSav_OK_Button"
+              Content="OK" Width="100" Height="31" Click="OK_Click" />
+      <Button AutomationProperties.AutomationId="ToolProblemReportSearchSav_Cancel_Button"
+              Content="Cancel" Width="100" Height="31" Click="Cancel_Click" />
+    </StackPanel>
   </StackPanel>
   </ScrollViewer>
 </Window>
