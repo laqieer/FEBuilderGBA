@@ -11625,3 +11625,66 @@ sym.txt を保存
 
 :Unable to write the temporary files needed for compilation.
 コンパイルに必要な一時ファイルを書き込めませんでした。
+
+:Add via ASM/C
+ASM/Cで追加
+
+:Compile a C/C++/ASM source and insert the result into the ROM.
+C/C++/ASMソースをコンパイルして、結果をROMに挿入します。
+
+:Source file:
+ソースファイル:
+
+:Select a .c / .cpp / .s / .asm file
+.c / .cpp / .s / .asm ファイルを選択
+
+:Compile method:
+コンパイル方法:
+
+:Insert method:
+挿入方法:
+
+:Hook register:
+フックレジスタ:
+
+:Stop on a reference to a missing label
+存在しないラベルを参照したら停止する
+
+:Run (compile + insert)
+実行(コンパイル + 挿入)
+
+:ELF -> raw binary (delete ELF)
+ELF -> バイナリ(ELFを削除)
+
+:ELF -> raw binary (keep ELF)
+ELF -> バイナリ(ELFを保持)
+
+:Convert to lyn.event (compile-only)
+lyn.eventに変換(コンパイルのみ)
+
+:Make file only (do not write to the ROM)
+ファイルを作成するだけ(ROMに書き込まない)
+
+:Write at the address
+アドレスに書き込む
+
+:Hook the address (jump to a free area)
+アドレスをフックする(フリーエリアにジャンプ)
+
+:Hook address:
+フックするアドレス:
+
+:Write to:
+書き込む:
+
+:Please select a source file to import.
+インポートするソースファイルを選択してください。
+
+:source file
+ソースファイル
+
+:Product: {0}
+成果物: {0}
+
+:Unable to read the compiled file.\r\nfilename:{0}
+コンパイルしたファイルを読み込めません。\r\nfilename:{0}
