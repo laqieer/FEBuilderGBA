@@ -73,6 +73,45 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("\"DevTranslateView\"", mainWindow);
         }
 
+        // --- SanitizeProgress: the status-label sanitizer (#1252 review fix) -----
+
+        [Theory]
+        [InlineData("a\r\nb", "a b")]                 // CRLF -> single space
+        [InlineData("a\nb\nc", "a b c")]              // LF -> spaces
+        [InlineData("a\tb", "a b")]                   // tab -> space
+        [InlineData("a\r\n\r\n\r\nb", "a b")]         // runs of newlines collapse to one space
+        [InlineData("  a   b  ", "a b")]              // leading/trailing + inner runs collapse
+        [InlineData("plain", "plain")]               // unchanged
+        [InlineData("", "")]                          // empty
+        public void SanitizeProgress_CollapsesWhitespaceToSingleLine(string input, string expected)
+        {
+            Assert.Equal(expected, FEBuilderGBA.Avalonia.Views.DevTranslateView.SanitizeProgress(input));
+        }
+
+        [Fact]
+        public void SanitizeProgress_TruncatesOverlongValues()
+        {
+            string input = new string('x', 500);
+            string result = FEBuilderGBA.Avalonia.Views.DevTranslateView.SanitizeProgress(input);
+            // 120 chars + the single-char ellipsis.
+            Assert.Equal(121, result.Length);
+            Assert.EndsWith("…", result);
+            Assert.StartsWith("xxxx", result);
+        }
+
+        [Fact]
+        public void SanitizeProgress_MultilineLongValue_IsSingleLineAndTruncated()
+        {
+            // A realistic worst case: a multiline untranslated target longer than
+            // the cap. Result must be one line (no newlines) and truncated.
+            string input = "line one of a very long target\r\n" + new string('y', 300) + "\r\nlast line";
+            string result = FEBuilderGBA.Avalonia.Views.DevTranslateView.SanitizeProgress(input);
+            Assert.DoesNotContain('\n', result);
+            Assert.DoesNotContain('\r', result);
+            Assert.True(result.Length <= 121, $"expected <=121 chars, got {result.Length}");
+            Assert.EndsWith("…", result);
+        }
+
         /// <summary>
         /// Parse a translate file and return the set of source keys (`:Key` lines)
         /// that have a non-empty following translation line.

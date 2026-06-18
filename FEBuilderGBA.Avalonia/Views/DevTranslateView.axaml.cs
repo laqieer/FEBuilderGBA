@@ -69,6 +69,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!ValidateSource(source)) return;
 
             SetButtonsEnabled(false);
+            ResetProgress();
             _vm.StatusMessage = R._("Translating... This may take a while.");
             try
             {
@@ -97,6 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!ValidateSource(source)) return;
 
             SetButtonsEnabled(false);
+            ResetProgress();
             _vm.StatusMessage = R._("Converting designer strings...");
             try
             {
@@ -125,6 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!ValidateSource(source)) return;
 
             SetButtonsEnabled(false);
+            ResetProgress();
             _vm.StatusMessage = R._("Reversing designer strings...");
             try
             {
@@ -144,14 +147,61 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Called from the background scan thread; marshal the status update onto
-        // the UI thread (mirrors the WF InputFormRef.DoEvents progress pump).
-        void ReportProgress(string filename)
+        // Min interval between status-label UI posts during a scan. MyTranslateBuild
+        // fires onProgress per file AND per untranslated string target, which can be
+        // many thousands of events for a large scan — posting every one would
+        // saturate the UI thread. We coalesce to at most one post per interval.
+        const long ProgressThrottleMs = 150;
+        // Max status-label length; progress targets can be very long multiline text.
+        const int ProgressMaxLength = 120;
+
+        long _lastProgressPostTicks;
+
+        // Reset the throttle gate so the first progress event of a fresh scan always
+        // shows (otherwise a quick second scan could swallow its first update).
+        void ResetProgress() => _lastProgressPostTicks = 0;
+
+        // Called from the background scan thread; marshal a sanitized + throttled
+        // status update onto the UI thread (mirrors the WF InputFormRef.DoEvents
+        // progress pump). The trailing completion message set after the awaited scan
+        // always overwrites the last in-flight progress, so the final state is exact.
+        void ReportProgress(string target)
         {
-            Dispatcher.UIThread.Post(() =>
+            long now = Environment.TickCount64;
+            // Best-effort throttle: a stale read here only means one extra/skipped
+            // post, which is harmless for a progress indicator (no lock needed).
+            if (now - _lastProgressPostTicks < ProgressThrottleMs)
+                return;
+            _lastProgressPostTicks = now;
+
+            string text = R._("Scanning: ") + SanitizeProgress(target);
+            Dispatcher.UIThread.Post(() => _vm.StatusMessage = text);
+        }
+
+        // Collapse a progress target to a single readable line: turn any newline /
+        // tab / carriage-return into a space, collapse runs of whitespace, trim, and
+        // truncate over-long values so the status label stays one short line.
+        internal static string SanitizeProgress(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "";
+
+            var sb = new System.Text.StringBuilder(value.Length);
+            bool prevSpace = false;
+            foreach (char c in value)
             {
-                _vm.StatusMessage = R._("Scanning: ") + filename;
-            });
+                char ch = (c == '\r' || c == '\n' || c == '\t') ? ' ' : c;
+                bool isSpace = ch == ' ';
+                if (isSpace && prevSpace)
+                    continue;
+                sb.Append(ch);
+                prevSpace = isSpace;
+            }
+
+            string collapsed = sb.ToString().Trim();
+            if (collapsed.Length > ProgressMaxLength)
+                collapsed = collapsed.Substring(0, ProgressMaxLength) + "…";
+            return collapsed;
         }
 
         bool ValidateLanguage(string lang)
