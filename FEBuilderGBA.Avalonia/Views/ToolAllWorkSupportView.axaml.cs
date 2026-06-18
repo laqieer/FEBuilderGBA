@@ -1,3 +1,4 @@
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -191,14 +192,21 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent).</summary>
-        static string HttpHeadLastModified(string url)
+        // One shared HttpClient for all HEAD probes (per .NET guidance — do NOT
+        // new-up an HttpClient per request) with a bounded timeout so a slow or
+        // unreachable host cannot hang the update check.
+        static readonly System.Net.Http.HttpClient s_httpClient = new System.Net.Http.HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(8),
+        };
+
+        /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent/unreachable/timed out).</summary>
+        static string? HttpHeadLastModified(string url)
         {
             try
             {
-                using var client = new System.Net.Http.HttpClient();
                 using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
-                using var resp = client.Send(req);
+                using var resp = s_httpClient.Send(req);
                 if (resp.Content.Headers.LastModified.HasValue)
                 {
                     return resp.Content.Headers.LastModified.Value.ToString();

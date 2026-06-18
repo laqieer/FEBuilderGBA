@@ -27,8 +27,9 @@
                IsVisible="False" />
 
     <ScrollViewer>
+      <!-- ItemsSource is assigned in code-behind (LoadList / DisposeTiles). -->
       <ItemsControl AutomationProperties.AutomationId="ToolAllWorkSupport_Tiles_List"
-                    Name="TilesList" ItemsSource="{Binding}">
+                    Name="TilesList">
         <ItemsControl.ItemsPanel>
           <ItemsPanelTemplate>
             <WrapPanel Orientation="Horizontal" />

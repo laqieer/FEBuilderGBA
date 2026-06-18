@@ -1,3 +1,4 @@
+#nullable enable annotations
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -34,14 +35,14 @@ namespace FEBuilderGBA
         /// </summary>
         /// <param name="lines">Parsed <c>.updateinfo.txt</c> key/value pairs.</param>
         /// <param name="httpGet">Fetches CHECK_URL HTML (throws on network error).</param>
-        /// <param name="httpHeadLastModified">Returns a URL's Last-Modified header, or null.</param>
+        /// <param name="httpHeadLastModified">Returns a URL's Last-Modified header, or null when absent/unreachable.</param>
         /// <param name="romDateTime">Returns the local ROM/UPS timestamp.</param>
         public static UpdateResult Check(
-            Dictionary<string, string> lines,
+            Dictionary<string, string>? lines,
             string romFilename,
-            Func<string, string> httpGet,
-            Func<string, string> httpHeadLastModified,
-            Func<string, DateTime> romDateTime)
+            Func<string, string>? httpGet,
+            Func<string, string?>? httpHeadLastModified,
+            Func<string, DateTime>? romDateTime)
         {
             try
             {
@@ -91,10 +92,13 @@ namespace FEBuilderGBA
 
                 if (IsUrl(match))
                 {
-                    string lastModified;
+                    // `match` is the direct download URL extracted by CHECK_REGEX,
+                    // so probe THAT url's Last-Modified (not the original CHECK_URL
+                    // listing page) for the freshness comparison.
+                    string? lastModified;
                     try
                     {
-                        lastModified = httpHeadLastModified != null ? httpHeadLastModified(url) : null;
+                        lastModified = httpHeadLastModified != null ? httpHeadLastModified(match) : null;
                     }
                     catch (Exception)
                     {
@@ -172,8 +176,13 @@ namespace FEBuilderGBA
             return DateTime.Parse(dateString);
         }
 
-        /// <summary>Ports <c>U.TryParseUnitTime</c> (unix-epoch seconds since 2010).</summary>
-        public static bool TryParseUnixTime(string date, out DateTime retDateTime)
+        /// <summary>
+        /// Ports <c>U.TryParseUnitTime</c>: parses standard Unix epoch SECONDS
+        /// (seconds since 1970-01-01 UTC) into local time, after trimming any
+        /// trailing millisecond/sub-second digits (Dropbox/Drive forms). Values
+        /// before 2010-01-01 are rejected as a sanity range check (returns false).
+        /// </summary>
+        public static bool TryParseUnixTime(string? date, out DateTime retDateTime)
         {
             date = (date ?? "").Trim();
             if (!U.isNumString(date))

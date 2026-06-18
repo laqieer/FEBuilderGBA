@@ -101,6 +101,26 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Check_ExtractedUrl_HeadProbesExtractedUrl_NotCheckUrl()
+        {
+            // CHECK_REGEX extracts a DIFFERENT direct-download URL from the page;
+            // the HEAD Last-Modified probe must target the extracted URL, not the
+            // original CHECK_URL listing page.
+            const string checkUrl = "http://example.com/list";
+            const string extractedUrl = "http://cdn.example.com/build.ups";
+            var lines = Lines(("CHECK_URL", checkUrl), ("CHECK_REGEX", @"href=""(http://cdn[^""]+)"""));
+
+            string probedUrl = "";
+            var r = WorkSupportUpdateCheckCore.Check(lines, "rom.gba",
+                httpGet: _ => $"<a href=\"{extractedUrl}\">dl</a>",
+                httpHeadLastModified: u => { probedUrl = u; return "Thu, 01 Jan 2099 00:00:00 GMT"; },
+                romDateTime: _ => new DateTime(2020, 1, 1));
+
+            Assert.Equal(extractedUrl, probedUrl);
+            Assert.Equal(WorkSupportUpdateCheckCore.UpdateResult.Updateable, r);
+        }
+
+        [Fact]
         public void TryParseUnixTime_ValidEpoch_Parses()
         {
             // 2030-01-01 UTC in unix seconds.
