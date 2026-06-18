@@ -11437,8 +11437,8 @@ TSA数: {0}
 :Update check failed.
 更新の確認に失敗しました。
 
-:Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected).
-問題点を記載してから、レポートを作成してください。質問するときに添付します。レポートには診断ログと編集設定が含まれます（セーブデータは収集しません）。
+:Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log, your editor settings, and any emulator save data found next to the ROM.
+問題点を記載してから、レポートを作成してください。質問するときに添付します。レポートには診断ログ、編集設定、およびROMの隣で見つかったエミュレータのセーブデータが含まれます。
 
 :Problem description
 問題点
@@ -11469,3 +11469,12 @@ report.7zについて:
 
 :Output path is empty.
 出力先が指定されていません。
+
+:Please specify a save file path.
+セーブファイルのパスを指定してください。
+
+:Please specify a backup ROM path.
+バックアップROMのパスを指定してください。
+
+:The specified file does not exist.
+指定されたファイルが存在しません。

@@ -72,10 +72,41 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (file == null) return;
 
                 string path = file.Path.LocalPath;
+
+                // Mirror the WinForms show-on-empty flow (CollectSaveData L350 /
+                // CollectOldUPSs L263): only surface a picker when auto-discovery
+                // found nothing — do NOT pop both modals on every report.
+
+                // (a) No emulator save next to the ROM -> ask the user to point at one.
+                string savFilePath = null;
+                if (!_vm.HasAutoSaveData())
+                {
+                    var savPicker = new ToolProblemReportSearchSavView();
+                    await savPicker.ShowDialog(this);
+                    if (savPicker.Confirmed)
+                    {
+                        savFilePath = savPicker.PickedFilename;
+                    }
+                }
+
+                // (b) No sibling .ups next to the ROM -> offer the backup picker so a
+                //     clean / old ROM can seed a fresh UPS delta.
+                string cleanRomPath = null;
+                if (!_vm.HasSiblingUps())
+                {
+                    var backupPicker = new ToolProblemReportSearchBackupView();
+                    await backupPicker.ShowDialog(this);
+                    if (backupPicker.Confirmed)
+                    {
+                        cleanRomPath = backupPicker.PickedFilename;
+                    }
+                }
+
                 CreateButton.IsEnabled = false;
                 StatusLabel.Text = R._("Creating report...");
 
-                string err = await System.Threading.Tasks.Task.Run(() => _vm.CreateReport(path));
+                string err = await System.Threading.Tasks.Task.Run(
+                    () => _vm.CreateReport(path, cleanRomPath, savFilePath));
 
                 if (!string.IsNullOrEmpty(err))
                 {

@@ -98,6 +98,45 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CreateReport_ExplicitPickedSave_LandsInArchive()
+        {
+            // The synthetic ROM has no on-disk sibling save, so auto-discovery finds
+            // none and the explicit picked save (WF CollectSaveData picker fallback)
+            // must be copied into the report (#1235).
+            ROM rom = MakeRom();
+            string problem = MakeProblemText();
+
+            string outDir = Path.Combine(Path.GetTempPath(), "febuilder_report_test_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outDir);
+            string outPath = Path.Combine(outDir, "picked.report.7z");
+            string extractDir = Path.Combine(outDir, "extract");
+
+            // A fake picked save outside the ROM dir.
+            string pickedSave = Path.Combine(outDir, "PickedHack.sav");
+            File.WriteAllBytes(pickedSave, new byte[] { 1, 2, 3, 4, 5 });
+
+            try
+            {
+                string err = ProblemReportCore.CreateReport(
+                    rom, problem, outPath,
+                    emulatorConfigDir: null, cleanRomPath: null, savFilePath: pickedSave);
+                Assert.Equal("", err);
+
+                Directory.CreateDirectory(extractDir);
+                string exErr = ArchSevenZip.Extract(outPath, extractDir, isHide: true);
+                Assert.Equal("", exErr);
+
+                string[] files = Directory.GetFiles(extractDir, "*", SearchOption.AllDirectories);
+                Assert.Contains(files, f =>
+                    string.Equals(Path.GetFileName(f), "PickedHack.sav", StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                TryDeleteDir(outDir);
+            }
+        }
+
+        [Fact]
         public void CreateReport_NullRom_ReturnsError_NoThrow()
         {
             string outDir = Path.Combine(Path.GetTempPath(), "febuilder_report_test_" + Guid.NewGuid().ToString("N"));

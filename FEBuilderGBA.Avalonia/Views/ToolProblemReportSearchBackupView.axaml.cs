@@ -20,19 +20,28 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        /// <summary>True when the user confirmed a valid backup-ROM path (DialogResult.OK).</summary>
+        public bool Confirmed => _vm.DialogConfirmed;
+
+        /// <summary>The picked clean / old backup ROM path (only meaningful when <see cref="Confirmed"/>).</summary>
+        public string PickedFilename => _vm.GetFilename();
+
         async void Browse_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
                 var dlg = new OpenFileDialog();
                 dlg.Title = R._("Select Backup File");
-                dlg.Filters?.Add(new FileDialogFilter { Name = "Backup Files", Extensions = { "7z", "gba" } });
+                // The backup is a clean / old ROM used as the UPS-delta source
+                // (read as raw bytes), so accept ROM files.
+                dlg.Filters?.Add(new FileDialogFilter { Name = "GBA ROMs", Extensions = { "gba", "bin" } });
                 var result = await dlg.ShowAsync(this);
                 if (result != null && result.Length > 0)
                 {
+                    // Populate the path; the user still confirms via OK (which
+                    // validates). Clear any stale inline error.
                     _vm.BackupFilename = result[0];
-                    _vm.DialogConfirmed = true;
-                    Close();
+                    _vm.ErrorMessage = "";
                 }
             }
             catch (Exception ex)
@@ -43,6 +52,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
+            // Keep the dialog open with an inline message when the path is invalid,
+            // so an empty/bad path can't silently confirm with no backup (#1235).
+            if (!_vm.Validate())
+            {
+                return;
+            }
             _vm.DialogConfirmed = true;
             Close();
         }

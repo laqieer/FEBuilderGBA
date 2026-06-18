@@ -16,11 +16,11 @@ namespace FEBuilderGBA
     /// Parity note: unlike the WinForms tool this does NOT archive the raw
     /// <c>.gba</c> ROM bytes (the WinForms tool only reads a clean ROM to generate
     /// UPS deltas; archiving the whole ROM would be a parity regression and a
-    /// copyright/privacy risk). The archive therefore contains only
-    /// <c>log.txt</c>, the per-ROM <c>etc/</c> config, and any already-existing
-    /// sibling <c>.ups</c> delta next to the loaded ROM. Generating fresh UPS
-    /// deltas (needs a clean-ROM input + WinForms <c>MainFormUtil.OpenROMToByte</c>)
-    /// and the emulator save/backup search are out of scope for this slice.
+    /// copyright/privacy risk). The archive therefore contains <c>log.txt</c>, the
+    /// per-ROM <c>etc/</c> config, any already-existing sibling <c>.ups</c> delta next
+    /// to the loaded ROM, the emulator save-state files discovered next to the ROM
+    /// (#1235, via <see cref="SaveDataCollectorCore"/>), and — when a clean / old
+    /// backup ROM is supplied — a fresh <c>.ups</c> delta from it to the current ROM.
     ///
     /// Never throws: every failure path returns a (localized) error string.
     /// </summary>
@@ -34,10 +34,24 @@ namespace FEBuilderGBA
         /// <paramref name="problemText"/> into a compressed report archive at
         /// <paramref name="outputPath"/>.
         /// </summary>
+        /// <param name="emulatorConfigDir">
+        /// Optional configured emulator path (WF <c>Program.Config.at("emulator")</c>);
+        /// when set, no$gba <c>BATTERY/</c> saves are also collected. May be <c>null</c>.
+        /// </param>
+        /// <param name="cleanRomPath">
+        /// Optional clean / old backup ROM path; when set, a fresh <c>.ups</c> delta
+        /// from it to the current ROM is added to the report (#1235). May be <c>null</c>.
+        /// </param>
+        /// <param name="savFilePath">
+        /// Optional explicit save-state file the user picked when auto-discovery found
+        /// none (WF <c>CollectSaveData</c> picker fallback); when set, it is copied into
+        /// the report via <see cref="SaveDataCollectorCore.PickupOneFile"/>. May be <c>null</c>.
+        /// </param>
         /// <returns>
         /// <c>""</c> on success, otherwise a localized error message. Never throws.
         /// </returns>
-        public static string CreateReport(ROM rom, string problemText, string outputPath)
+        public static string CreateReport(ROM rom, string problemText, string outputPath,
+            string emulatorConfigDir = null, string cleanRomPath = null, string savFilePath = null)
         {
             string tempDir = null;
             try
@@ -63,10 +77,31 @@ namespace FEBuilderGBA
                 // 2) Any already-existing sibling .ups delta (NOT the raw ROM).
                 CollectSiblingUps(rom, tempDir);
 
-                // 3) Per-ROM etc config (lint / comment / flag).
+                // 3) Emulator save-state files next to the ROM (+ no$gba BATTERY).
+                //    Best-effort: a missing save must never fail the report (#1235).
+                int autoSaves = 0;
+                if (!string.IsNullOrEmpty(rom.Filename))
+                {
+                    autoSaves = SaveDataCollectorCore.CollectSaveData(rom.Filename, emulatorConfigDir, tempDir).Count;
+                }
+
+                // 3b) If auto-discovery found NO save, fall back to the explicit file
+                //     the user picked in the SAV picker (WF CollectSaveData fallback).
+                if (autoSaves == 0 && !string.IsNullOrEmpty(savFilePath))
+                {
+                    SaveDataCollectorCore.PickupOneFile(tempDir, savFilePath);
+                }
+
+                // 4) Fresh .ups delta from a clean / old backup ROM (when supplied).
+                if (!string.IsNullOrEmpty(cleanRomPath))
+                {
+                    SaveDataCollectorCore.MakeBackupUps(cleanRomPath, rom.Data, tempDir);
+                }
+
+                // 5) Per-ROM etc config (lint / comment / flag).
                 CopyEtcData(rom, tempDir);
 
-                // 4) Compress (native 7-zip32.dll -> real .7z, else SharpCompress -> .zip).
+                // 6) Compress (native 7-zip32.dll -> real .7z, else SharpCompress -> .zip).
                 // checksize:1 (not the default 1024) — a minimal report (log + a tiny
                 // etc dir, highly compressible) can legitimately fall under the 1KB
                 // heuristic floor the WF tool uses to detect a failed 7z run; we have
