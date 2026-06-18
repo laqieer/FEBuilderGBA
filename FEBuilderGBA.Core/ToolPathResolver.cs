@@ -118,9 +118,11 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Resolve lyn.exe path from the Event Assembler directory.
-        /// Checks Tools/lyn.exe relative to the EA executable, then searches
-        /// the EA submodule's Event Assembler directory.
+        /// Resolve the lyn executable path from the Event Assembler directory.
+        /// Checks the <c>Tools/</c> dir relative to the EA executable (and its parents),
+        /// then the EA submodule's Event Assembler directory. The binary name is
+        /// platform-aware: <c>lyn.exe</c> on Windows, <c>lyn</c> (or <c>lyn.exe</c>) on
+        /// Linux/macOS — see <see cref="GetExeNames"/>.
         /// </summary>
         public static string ResolveLynExe(string eaExePath)
         {
@@ -160,7 +162,7 @@ namespace FEBuilderGBA
             return null;
         }
 
-        // Returns the first existing lyn binary (platform-aware names) in <paramref name="dir"/>, or null.
+        // Returns the first existing lyn binary (one of lynNames, platform-aware) in dir, or null.
         static string FindLynInDir(string dir, string[] lynNames)
         {
             foreach (string name in lynNames)
