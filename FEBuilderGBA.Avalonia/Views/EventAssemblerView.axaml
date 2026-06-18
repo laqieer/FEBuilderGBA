@@ -6,12 +6,13 @@
         SizeToContent="WidthAndHeight">
   <!-- Add-via-Event-Assembler tool (WF EventAssemblerForm). Assembles/inserts an
        EA .event into the ROM via ColorzCore / Event-Assembler, with free-area
-       selection (Program/Data/None), AutoReCompile, debug-symbol store, undo and
-       uninstall. The compile+insert work runs in the GUI-free Core helper
+       selection (Program/Data/None), AutoReCompile, debug-symbol store and undo.
+       The compile+insert work runs in the GUI-free Core helper
        EventAssemblerCompileCore (shared with the CLI compile-event command). The
        free-area / debug-symbol combo items are populated in code-behind via R._()
        so they pick up ja/zh translations (ViewTranslationHelper does not translate
-       ComboBoxItem content). -->
+       ComboBoxItem content).
+       Uninstall is deferred to a follow-up (revert an applied insert via Undo). -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="10">
 

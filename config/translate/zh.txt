@@ -25460,3 +25460,6 @@ TSA数量: {0}
 
 :Type: Program (rebuild-safe upper area)
 类型:程序(不受 rebuild 影响的高位地址)
+
+:Failed to apply the compiled ROM (size/resize limit exceeded?).
+无法应用已编译的 ROM(可能超出了大小/扩容上限)。

@@ -224,8 +224,10 @@ namespace FEBuilderGBA
                 }
                 catch (Exception ex)
                 {
-                    // Win32Exception etc. — mirror WinForms WriteEA's process-launch error.
-                    result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaFilePath, ex.ToString());
+                    // Win32Exception etc. — the process LAUNCH failed, so report the
+                    // executable being launched (a missing/permission/path issue with
+                    // the EA/ColorzCore exe), not the .event path.
+                    result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, ex.ToString());
                     return result;
                 }
 
@@ -269,9 +271,10 @@ namespace FEBuilderGBA
                 bool swapped = rom.SwapNewROMData(newRomData, "event_assembler", undo, confirmHeaderChange: false);
                 if (!swapped)
                 {
-                    // Resize failed (the only remaining non-applied path now that the
-                    // header prompt is bypassed).
-                    result.ErrorMessage = R.Notify("変更をユーザーが取り消しました");
+                    // The header prompt is bypassed here, so a false return is NOT a
+                    // user cancellation — it is a failure to APPLY the compiled ROM,
+                    // most commonly a resize/size limit (e.g. output exceeds 32 MB).
+                    result.ErrorMessage = R._("Failed to apply the compiled ROM (size/resize limit exceeded?).");
                     return result;
                 }
 

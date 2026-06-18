@@ -20359,3 +20359,6 @@ Type: Data (lower area)
 
 :Type: Program (rebuild-safe upper area)
 Type: Program (rebuild-safe upper area)
+
+:Failed to apply the compiled ROM (size/resize limit exceeded?).
+Failed to apply the compiled ROM (size/resize limit exceeded?).

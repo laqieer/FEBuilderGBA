@@ -11619,3 +11619,6 @@ sym.txt を保存
 
 :Type: Program (rebuild-safe upper area)
 種類:プログラム(rebuild非対象の上位アドレス)
+
+:Failed to apply the compiled ROM (size/resize limit exceeded?).
+コンパイルされたROMを適用できませんでした(サイズ/リサイズの上限を超えた可能性があります)。

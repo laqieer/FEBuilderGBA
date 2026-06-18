@@ -13,11 +13,14 @@ namespace FEBuilderGBA.Avalonia.Views
     /// inserts an EA event script into the ROM via the GUI-free Core helper
     /// <c>EventAssemblerCompileCore</c> (shared with the CLI <c>--compile-event</c>),
     /// with free-area selection (Program/Data/None), AutoReCompile, a debug-symbol
-    /// store choice, undo and uninstall.
+    /// store choice and undo.
     ///
     /// Free-area / debug-symbol combo items are added in code via R._() so they
     /// pick up ja/zh translations (ViewTranslationHelper does not translate
     /// ComboBoxItem content).
+    ///
+    /// Uninstall is deferred to a follow-up issue; an applied insert can be
+    /// reverted via Undo for now.
     /// </summary>
     public partial class EventAssemblerView : TranslatedWindow, IEditorView
     {
@@ -172,11 +175,10 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // NOTE: no Uninstall button. The full WinForms EventAssemblerForm uninstall
-        // (PatchForm.MakeInstantEAToPatch → UnInstallPatch) is WinForms-only and out
-        // of scope for this slice, so rather than ship a button that only opens a
-        // file picker and points at Undo (misleading), we rely on Undo to revert the
-        // last applied insert. A faithful uninstall is tracked for a later slice.
+        // Uninstall is DEFERRED to a follow-up issue. The faithful WinForms uninstall
+        // (PatchForm.MakeInstantEAToPatch → UnInstallPatch) is coupled to the WinForms
+        // patch subsystem, so it is out of scope for this slice; an applied insert can
+        // be reverted via the Undo button for now.
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
