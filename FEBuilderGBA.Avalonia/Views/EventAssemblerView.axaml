@@ -12,7 +12,9 @@
        free-area / debug-symbol combo items are populated in code-behind via R._()
        so they pick up ja/zh translations (ViewTranslationHelper does not translate
        ComboBoxItem content).
-       Uninstall is deferred to a follow-up (revert an applied insert via Undo). -->
+       Uninstall (#1242) reverts an applied EA patch in place: it traces the loaded
+       .event's written ranges via EventAssemblerUninstallCore and restores those
+       bytes from a user-supplied clean original ROM, under undo. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="10">
 
@@ -61,6 +63,9 @@
         <Button AutomationProperties.AutomationId="EventAssembler_Import_Button"
                 Name="ImportButton" Content="Import (compile + insert)"
                 Click="Import_Click" />
+        <Button AutomationProperties.AutomationId="EventAssembler_Uninstall_Button"
+                Name="UninstallButton" Content="Uninstall..."
+                Click="Uninstall_Click" />
         <Button AutomationProperties.AutomationId="EventAssembler_Undo_Button"
                 Name="UndoButton" Content="Undo"
                 IsVisible="{Binding CanUndo}"

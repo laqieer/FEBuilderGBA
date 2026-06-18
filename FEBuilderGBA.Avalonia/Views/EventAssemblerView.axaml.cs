@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -19,8 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
     /// pick up ja/zh translations (ViewTranslationHelper does not translate
     /// ComboBoxItem content).
     ///
-    /// Uninstall is deferred to a follow-up issue; an applied insert can be
-    /// reverted via Undo for now.
+    /// Uninstall (#1242) reverts an applied EA patch in place: it traces the loaded
+    /// .event's written ranges via <c>EventAssemblerUninstallCore</c> and restores
+    /// those bytes from a user-supplied clean-original ROM, under undo. (An applied
+    /// insert can still also be reverted via the Undo button.)
     /// </summary>
     public partial class EventAssemblerView : TranslatedWindow, IEditorView
     {
@@ -196,10 +199,89 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Uninstall is DEFERRED to a follow-up issue. The faithful WinForms uninstall
-        // (PatchForm.MakeInstantEAToPatch → UnInstallPatch) is coupled to the WinForms
-        // patch subsystem, so it is out of scope for this slice; an applied insert can
-        // be reverted via the Undo button for now.
+        async void Uninstall_Click(object? sender, RoutedEventArgs e)
+        {
+            // Need a loaded .event to trace, and a loaded ROM to revert in place.
+            if (!_vm.SourceExists)
+            {
+                if (!await BrowseForSourceAsync() || !_vm.SourceExists)
+                    return; // user cancelled / no usable file
+            }
+            if (CoreState.ROM == null)
+            {
+                _vm.StatusMessage = R._("No ROM is loaded.");
+                return;
+            }
+
+            // Prompt for the CLEAN ORIGINAL ROM (the ROM as it was before the patch).
+            // Faithful to WF UnInstallPatch, which asks the user for a ROM that does
+            // NOT contain the patch and restores the traced ranges from it.
+            string? cleanRomPath = await FileDialogHelper.OpenRomFile(this);
+            if (string.IsNullOrEmpty(cleanRomPath))
+                return; // cancelled
+
+            byte[] cleanRom;
+            try
+            {
+                cleanRom = System.IO.File.ReadAllBytes(cleanRomPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventAssemblerView.Uninstall read clean ROM failed: " + ex.ToString());
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + ex.ToString();
+                return;
+            }
+
+            UninstallButton.IsEnabled = false;
+            ImportButton.IsEnabled = false;
+            _vm.StatusMessage = R._("Uninstalling...");
+
+            // Same explicit-UndoData discipline as Import: the trace+revert runs off
+            // the UI thread (Task.Run), so we pass an explicit Undo.UndoData rather
+            // than the thread-local ambient scope. write_u8(addr, o, undo) records each
+            // restored byte into it; we push it (UI thread) via CommitExternal only on
+            // success, and roll it back on failure so a partial revert never sticks.
+            var undo = (CoreState.Undo ??= new Undo()).NewUndoData("Event Assembler Uninstall");
+
+            try
+            {
+                var result = await Task.Run(() =>
+                    EventAssemblerUninstallCore.Uninstall(_vm.SourcePath, cleanRom, undo));
+
+                if (result.Success)
+                {
+                    if (_undoService.CommitExternal(undo))
+                        _vm.CanUndo = true;
+                    _vm.HasResult = true;
+                    _vm.StatusMessage = R._("Uninstall successful.") + "\r\n"
+                        + R._("Reverted {0} range(s), {1} byte(s).",
+                            result.RangeCount.ToString(), result.BytesReverted.ToString());
+                }
+                else
+                {
+                    // Trace/validation failed → nothing was applied; roll back the
+                    // (empty) undo scope so it does not linger, and surface the error.
+                    CoreState.Undo.Rollback(undo);
+                    _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + result.ErrorMessage;
+                }
+            }
+            catch (Exception ex)
+            {
+                // A mid-revert exception leaves a partial write — roll it back.
+                try { CoreState.Undo?.Rollback(undo); }
+                catch (Exception rollbackEx)
+                {
+                    Log.Error("EventAssemblerView.Uninstall rollback failed: " + rollbackEx.ToString());
+                }
+                Log.Error("EventAssemblerView.Uninstall failed: " + ex.ToString());
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + ex.ToString();
+            }
+            finally
+            {
+                UninstallButton.IsEnabled = true;
+                ImportButton.IsEnabled = true;
+            }
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
