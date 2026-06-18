@@ -24,6 +24,19 @@ namespace FEBuilderGBA.Core.Tests
         const uint GLYPH_OFF = 0x00700000; // free space for the planted glyph struct
         const uint MOJI_A = 0x41;          // 'A'
 
+        // Installs the shared StubImageService so RenderGlyphBytes can decode a
+        // glyph back to RGBA for the pixel-for-pixel round-trip assertion.
+        sealed class ImageServiceScope : IDisposable
+        {
+            readonly IImageService _prev;
+            public ImageServiceScope()
+            {
+                _prev = CoreState.ImageService;
+                CoreState.ImageService = new StubImageService();
+            }
+            public void Dispose() { CoreState.ImageService = _prev; }
+        }
+
         // A stub rasterizer that returns a caller-supplied packed 64-byte tile and
         // a caller-supplied advance width. Records the last call's arguments so the
         // tests can assert the character / font / offset were threaded through.
@@ -347,6 +360,69 @@ namespace FEBuilderGBA.Core.Tests
             byte[] packed = FontGlyphRenderCore.PackGlyphBytes(idx);
             byte[] unpacked = FontAutoGenCore.UnpackGlyphBytes(packed);
             Assert.Equal(idx, unpacked);
+        }
+
+        // The real proof the 2bpp bit-order / nibble convention is right: feed the
+        // stub rasterizer a packed tile built from a DISTINCT, ASYMMETRIC index
+        // pattern (so a transposed/row-reversed/bit-swapped unpack would change the
+        // result), run AutoGenerateGlyph, then RENDER the resulting ROM glyph and
+        // map each pixel back to its palette index — it must reproduce the original
+        // pattern pixel-for-pixel. (rasterize -> unpack -> ImportGlyph -> render.)
+        [Fact]
+        public void AutoGenerateGlyph_AsymmetricPattern_RoundTripsPixelForPixel()
+        {
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Asymmetric, all-4-colors pattern: index varies with BOTH x and y
+                // and is NOT symmetric under transpose or row/column reversal.
+                byte[] original = new byte[16 * 16];
+                for (int y = 0; y < 16; y++)
+                    for (int x = 0; x < 16; x++)
+                        original[y * 16 + x] = (byte)((x + 2 * y) & 0x03);
+                // Plant a couple of unique single-pixel marks so a flip is unmissable.
+                original[0 * 16 + 1] = 3;   // top row, x=1
+                original[15 * 16 + 0] = 2;  // bottom-left corner
+                original[1 * 16 + 15] = 1;  // near top-right
+
+                byte[] packed = FontGlyphRenderCore.PackGlyphBytes(original);
+                Assert.NotNull(packed);
+
+                var stub = new StubRasterizer(packed, width: 16);
+                string err = FontAutoGenCore.AutoGenerateGlyph(rom, stub, FileFontSpec(),
+                    "A", MOJI_A, isItemFont: false, verticalOffset: 0);
+                Assert.Equal("", err);
+
+                // Render the ROM glyph and map each RGBA pixel back to its index.
+                using IImage img = FontGlyphRenderCore.RenderGlyph(rom, GLYPH_OFF, isItemFont: false);
+                Assert.NotNull(img);
+                byte[] rgba = img!.GetPixelData();
+
+                byte[] roundTripped = new byte[16 * 16];
+                for (int p = 0; p < 16 * 16; p++)
+                {
+                    byte r = rgba[p * 4 + 0];
+                    byte a = rgba[p * 4 + 3];
+                    roundTripped[p] = RgbaToFontIndex(r, a);
+                }
+                Assert.Equal(original, roundTripped);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        // Inverse of FontGlyphRenderCore's render palette (serif/text font):
+        // index 0 = transparent; 1 = Gray (R 0xA8); 2 = White (R 0xF8); 3 = Black
+        // (R 0x28). Identify by alpha first, then by the red channel.
+        static byte RgbaToFontIndex(byte r, byte a)
+        {
+            if (a == 0) return 0;
+            if (r == 0xF8) return 2;
+            if (r == 0x28) return 3;
+            return 1; // 0xA8 (Gray)
         }
     }
 }
