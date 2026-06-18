@@ -2,18 +2,60 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUseFlagView"
-        Title="Flag Usage Viewer" Width="1113" Height="854"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolUseFlag_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Flags Used in Chapter" Width="1113" Height="720"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="260,*,320">
+    <!-- Chapter (map) selector -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Chapter" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl
+          AutomationProperties.AutomationId="ToolUseFlag_Map_List"
+          Name="MapList" />
+    </DockPanel>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Flag-usage list for the selected chapter -->
+    <DockPanel Grid.Column="1" Margin="4">
+      <TextBlock DockPanel.Dock="Top"
+                 AutomationProperties.AutomationId="ToolUseFlag_Summary_Label"
+                 Name="SummaryLabel" FontWeight="Bold" Margin="0,0,0,4"
+                 Text="{Binding SummaryText}" />
+      <controls:AddressListControl
+          AutomationProperties.AutomationId="ToolUseFlag_Entry_List"
+          Name="EntryList" />
+    </DockPanel>
+
+    <!-- Detail panel for the selected flag usage -->
+    <ScrollViewer Grid.Column="2" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Flag Usage Viewer" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Flags Used in Chapter" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Flag:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Flag_Label"
+                     Grid.Row="0" Grid.Column="1" Name="FlagLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedFlagText}" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Name_Label"
+                     Grid.Row="1" Grid.Column="1" Name="NameLabel"
+                     VerticalAlignment="Center" TextWrapping="Wrap"
+                     Text="{Binding SelectedFlagName}" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Type_Label"
+                     Grid.Row="2" Grid.Column="1" Name="TypeLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedTypeText}" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Addr_Label"
+                     Grid.Row="3" Grid.Column="1" Name="AddrLabel"
+                     VerticalAlignment="Center" Text="{Binding SelectedAddrText}" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Info:" VerticalAlignment="Top" />
+          <TextBlock AutomationProperties.AutomationId="ToolUseFlag_Info_Label"
+                     Grid.Row="4" Grid.Column="1" Name="InfoLabel"
+                     VerticalAlignment="Top" TextWrapping="Wrap"
+                     Text="{Binding SelectedInfoText}" />
         </Grid>
       </StackPanel>
     </ScrollViewer>

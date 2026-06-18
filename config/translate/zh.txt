@@ -25661,3 +25661,11 @@ config/translate/<lang>.txt
 
 :Please select a valid source code folder.
 请选择有效的源代码文件夹。
+:Flags Used in Chapter
+章节中使用的旗标
+
+:Chapter
+章节
+
+:Flags used
+使用的旗标数
