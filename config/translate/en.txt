@@ -20362,3 +20362,6 @@ Type: Program (rebuild-safe upper area)
 
 :Failed to apply the compiled ROM (size/resize limit exceeded?).
 Failed to apply the compiled ROM (size/resize limit exceeded?).
+
+:Unable to write the temporary files needed for compilation.
+Unable to write the temporary files needed for compilation.

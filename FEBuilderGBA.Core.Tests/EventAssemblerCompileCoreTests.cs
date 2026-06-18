@@ -285,6 +285,64 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- Unwritable temp dir → clean localized error, never throws ----
+
+        [SkippableFact]
+        public void CompileAndInsert_UnwritableTempDir_ReturnsError_NoThrow()
+        {
+            // The temp-file writes (Path.GetTempFileName + wrapper + temp ROM) must
+            // return a structured localized error instead of throwing when the temp
+            // location is unwritable (never-throws contract). We can only reach the
+            // write step once the EA exe resolves, so gate on ColorzCore being built.
+            string exe = FindBuiltColorzCore();
+            Skip.If(exe == null, "ColorzCore.exe not built — can't reach the temp-write step (not-found check returns first).");
+
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+
+            string eaDir = Path.Combine(Path.GetTempPath(), "febuilder-ea-io-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            string eaFile = Path.Combine(eaDir, "tiny.event");
+            File.WriteAllText(eaFile, "ORG 0x100\r\nBYTE 0xAA\r\n");
+
+            // Point TMP/TEMP at a directory that does NOT exist → Path.GetTempFileName()
+            // and the temp-ROM write throw (IOException/DirectoryNotFound), which the
+            // helper must catch and convert to a clean result.
+            string badTemp = Path.Combine(Path.GetTempPath(), "fbg-nonexistent-" + Guid.NewGuid());
+            string savedTmp = Environment.GetEnvironmentVariable("TMP");
+            string savedTemp = Environment.GetEnvironmentVariable("TEMP");
+            var savedConfig = CoreState.Config;
+            var savedUndo = CoreState.Undo;
+            CoreState.Config = new Config { ["event_assembler"] = exe };
+            CoreState.Undo = new Undo();
+            Environment.SetEnvironmentVariable("TMP", badTemp);
+            Environment.SetEnvironmentVariable("TEMP", badTemp);
+
+            try
+            {
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = CoreState.Undo.NewUndoData("io");
+
+                // Must NOT throw.
+                var result = EventAssemblerCompileCore.CompileAndInsert(
+                    rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
+                    undo, SymbolUtil.DebugSymbol.None);
+
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+                Assert.Equal(before, rom.Data); // no mutation
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("TMP", savedTmp);
+                Environment.SetEnvironmentVariable("TEMP", savedTemp);
+                CoreState.Config = savedConfig;
+                CoreState.Undo = savedUndo;
+                try { Directory.Delete(eaDir, true); } catch { }
+            }
+        }
+
         // ---- Real ColorzCore round-trip (OPPORTUNISTIC — skips if EA can't compile) ----
         //
         // This is opportunistic coverage that ASSERTS where a full EA toolchain works

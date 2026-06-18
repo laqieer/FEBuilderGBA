@@ -11622,3 +11622,6 @@ sym.txt を保存
 
 :Failed to apply the compiled ROM (size/resize limit exceeded?).
 コンパイルされたROMを適用できませんでした(サイズ/リサイズの上限を超えた可能性があります)。
+
+:Unable to write the temporary files needed for compilation.
+コンパイルに必要な一時ファイルを書き込めませんでした。

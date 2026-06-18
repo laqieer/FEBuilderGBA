@@ -25463,3 +25463,6 @@ TSA数量: {0}
 
 :Failed to apply the compiled ROM (size/resize limit exceeded?).
 无法应用已编译的 ROM(可能超出了大小/扩容上限)。
+
+:Unable to write the temporary files needed for compilation.
+无法写入编译所需的临时文件。

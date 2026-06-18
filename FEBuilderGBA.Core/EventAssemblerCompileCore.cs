@@ -205,10 +205,13 @@ namespace FEBuilderGBA
             // Wrapper lives beside the target .event so EA's include search finds it.
             string wrapperPath = Path.Combine(eaDir, "_FBG_Temp_" + DateTime.Now.Ticks + ".event");
             string tempRomPath = Path.Combine(Path.GetTempPath(), "febuilder_ea_" + DateTime.Now.Ticks + ".gba");
-            string symFile = Path.GetTempFileName();
+            // symFile is created inside the guarded block below so a temp-file /
+            // disk-full failure returns a structured error instead of throwing.
+            string symFile = null;
 
             try
             {
+                symFile = Path.GetTempFileName();
                 File.WriteAllText(wrapperPath, BuildWrapper(eaName, freeArea, mode));
                 // Write the CURRENT ROM bytes for EA to patch in place.
                 File.WriteAllBytes(tempRomPath, rom.Data);
@@ -288,6 +291,18 @@ namespace FEBuilderGBA
                 SymbolUtil.ProcessSymbolByComment(eaFullPath, result.SymbolText, storeSymbol, 0);
 
                 result.Success = true;
+                return result;
+            }
+            catch (Exception ioex) when (ioex is IOException || ioex is UnauthorizedAccessException)
+            {
+                // Any temp-file write/read (wrapper, temp ROM, sym file — incl. the
+                // old-EA re-seed and the post-compile read-back) failing on a
+                // read-only dir / permission issue / full temp disk returns a
+                // localized error instead of throwing out of this method (never-throws
+                // contract; mirrors WF CompilerEventAssembler's "Unable to write").
+                result.Success = false;
+                result.ErrorMessage = R._("Unable to write the temporary files needed for compilation.")
+                    + "\r\n" + ioex.ToString();
                 return result;
             }
             finally
