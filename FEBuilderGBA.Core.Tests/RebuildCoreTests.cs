@@ -153,6 +153,35 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WriteRebuildReport_OverwritesExistingReport_AtomicReplace()
+        {
+            // Writing over an existing report must succeed (atomic File.Move overwrite)
+            // and leave the file holding the NEW content — not lose it to a
+            // delete-then-failed-move window.
+            byte[] vanilla = new byte[256];
+            byte[] modified1 = new byte[256]; modified1[20] = 0xFF;
+            byte[] modified2 = new byte[256]; modified2[20] = 0xFF; modified2[21] = 0xFF; modified2[100] = 0xAB;
+
+            string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_ovr_" + Guid.NewGuid().ToString("N") + ".rebuild");
+            try
+            {
+                var r1 = RebuildCore.WriteRebuildReport(vanilla, modified1, 0x09000000, outPath);
+                Assert.True(r1.Success);
+                Assert.True(File.Exists(outPath));
+
+                // Second write replaces the first; file still present + parseable, no temp left.
+                var r2 = RebuildCore.WriteRebuildReport(vanilla, modified2, 0x09100000, outPath);
+                Assert.True(r2.Success);
+                Assert.True(File.Exists(outPath));
+                Assert.False(File.Exists(outPath + ".tmp"));
+                string text = File.ReadAllText(outPath);
+                Assert.Contains("@_CRC32 ", text);
+                Assert.Contains("@_REBUILDADDRESS ", text);
+            }
+            finally { try { File.Delete(outPath); } catch { } }
+        }
+
+        [Fact]
         public void WriteRebuildReport_NullData_ReturnsFailure_NoFile()
         {
             string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_null_" + Guid.NewGuid().ToString("N") + ".rebuild");

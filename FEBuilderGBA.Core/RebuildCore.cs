@@ -241,12 +241,14 @@ namespace FEBuilderGBA
             {
                 string report = BuildRebuildReport(vanillaData, modifiedData, rebuildAddress);
                 File.WriteAllText(tempPath, report);
-                // Atomic-ish replace: remove any stale target, then move the fully-written temp.
-                if (File.Exists(outputPath))
-                {
-                    File.Delete(outputPath);
-                }
-                File.Move(tempPath, outputPath);
+                // Atomic replace: move the fully-written temp over the target in one
+                // operation. Unlike delete-then-move, File.Move(overwrite:true) leaves
+                // the existing report intact if the move fails (permissions / AV lock /
+                // crash), so the fault-safe guarantee holds — there is never a window
+                // where the old report is gone but the new one isn't yet in place. The
+                // temp is a sibling (.tmp in the same directory), so this stays on one
+                // volume.
+                File.Move(tempPath, outputPath, overwrite: true);
             }
             catch (Exception ex)
             {
