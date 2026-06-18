@@ -84,6 +84,10 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("No errors. Please continue being awesome.", false)]
         [InlineData("Error on line 3: something broke", true)]
         [InlineData("", true)]
+        // The null-start / timeout sentinel strings RunProcess returns must be treated
+        // as errors (no success marker), so BuildCmd surfaces them instead of loading a ROM.
+        [InlineData("Error: the custom build process could not be started. filename:x.cmd", true)]
+        [InlineData("Error: the custom build timed out after 120 seconds.", true)]
         public void IsCompilerError_MatchesEASuccessStrings(string output, bool expectedError)
         {
             Assert.Equal(expectedError, CustomBuildCore.IsCompilerError(output));

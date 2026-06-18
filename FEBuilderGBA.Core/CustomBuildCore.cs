@@ -349,8 +349,14 @@ namespace FEBuilderGBA
             };
 
             var sb = new StringBuilder();
+            // Process.Start(psi) can return null (documented) when no new process was
+            // started — e.g. the OS reused an existing process for the verb. Guard it so
+            // the build reports a clean error instead of throwing an NRE on proc.* below.
             using (var proc = Process.Start(psi))
             {
+                if (proc == null)
+                    return "Error: the custom build process could not be started. filename:" + exePath;
+
                 proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
                 proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
                 proc.BeginOutputReadLine();
@@ -358,7 +364,10 @@ namespace FEBuilderGBA
 
                 if (!proc.WaitForExit(120_000))
                 {
-                    try { proc.Kill(); } catch { }
+                    // A CUSTOM_BUILD.cmd build typically spawns CHILD processes
+                    // (make/gcc/as/etc.); killing only the parent would orphan them.
+                    // Kill the WHOLE process tree on timeout.
+                    try { proc.Kill(entireProcessTree: true); } catch { }
                     return "Error: the custom build timed out after 120 seconds.";
                 }
             }
