@@ -234,6 +234,10 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(before.Length, rom.Data.Length);
                 Assert.Equal(before, rom.Data);
+                // The fault-restore must operate on the SAME object the ambient writes
+                // mutate (CoreState.ROM) — review #1. Here rom IS CoreState.ROM.
+                Assert.Same(rom, CoreState.ROM);
+                Assert.Equal(before, CoreState.ROM.Data);
             }
             finally
             {
@@ -258,6 +262,40 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(ok);
                 Assert.False(string.IsNullOrEmpty(err));
                 Assert.Equal(before, rom.Data);
+            });
+        }
+
+        [Fact]
+        public void Import_RomNotAmbientCoreStateRom_RefusesAndLeavesCoreStateRomUntouched()
+        {
+            // review #1: the ambient writes mutate CoreState.ROM, so a `rom` that is NOT
+            // CoreState.ROM must be refused up front (else snapshot/restore would operate
+            // on the wrong object and could leave CoreState.ROM corrupted on a fault).
+            WithRom((ambient, dir) =>
+            {
+                PlantFixedCount(ambient, 2, paletteAnime: false);
+                byte[] ambientBefore = (byte[])ambient.Data.Clone();
+
+                // A DIFFERENT ROM object, resolved against itself, passed as `rom`.
+                var other = new ROM();
+                byte[] data = new byte[0x1000000];
+                Array.Copy(ambient.Data, data, ambient.Data.Length);
+                other.LoadLow("other.gba", data, "BE8E01");
+                RomAnimeCore.RomAnimeEntry e = RomAnimeCore.Resolve(other, 0x1000, new[]
+                {
+                    WIDTH_TILES.ToString(), "FIXEDCOUNT", U.ToHexString(2u),
+                    U.ToHexString(TSA_PTR_SLOT), U.ToHexString(IMAGE_PTR_SLOT), U.ToHexString(PAL_PTR_SLOT),
+                    "efxOther",
+                });
+
+                string script = WriteScript(dir, "mismatch.txt", new (uint, string)[] { (1, "f0.png"), (1, "f1.png") });
+                MakePngFiles(dir, "f0.png", "f1.png");
+
+                bool ok = RomAnimeMultiFrameCore.ImportTxt(other, e, script, Loader, out string err);
+                Assert.False(ok);
+                Assert.False(string.IsNullOrEmpty(err));
+                // CoreState.ROM (the ambient write target) is completely untouched.
+                Assert.Equal(ambientBefore, CoreState.ROM.Data);
             });
         }
 

@@ -80,10 +80,13 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(scriptPath)) return R.Error("Output path is empty.");
             if (CoreState.ImageService == null) return R.Error("Image service is not configured.");
 
-            string baseName = Path.GetFileNameWithoutExtension(scriptPath) + "_";
-            string baseDir = Path.GetDirectoryName(Path.GetFullPath(scriptPath)) ?? "";
+            // Path.GetFullPath / GetDirectoryName can throw on invalid path chars; keep
+            // them inside try/catch so the method honors its "never throws" contract.
+            string baseName, baseDir;
             try
             {
+                baseName = Path.GetFileNameWithoutExtension(scriptPath) + "_";
+                baseDir = Path.GetDirectoryName(Path.GetFullPath(scriptPath)) ?? "";
                 if (baseDir.Length > 0 && !Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
             }
             catch (Exception ex) { return R.Error("Failed to create output directory: {0}", ex.Message); }
@@ -254,8 +257,14 @@ namespace FEBuilderGBA
         /// per-frame import) or returns null when the file is missing / unreadable. Core
         /// crops/pads the indexed pixels to <c>(ImageWidthTiles*8, 128)</c> — the WF
         /// <c>ImageUtil.Copy(bitmap, 0, 0, imageWidth, imageHeight)</c> step.</para>
+        ///
+        /// <para><b>Mutates the ambient <see cref="CoreState.ROM"/>.</b> The atomic rewrite
+        /// goes through the RecycleAddress AMBIENT overloads, which write to
+        /// <see cref="CoreState.ROM"/>; <paramref name="rom"/> MUST be that same instance
+        /// (the method refuses a mismatch). The snapshot and byte-identical fault-restore
+        /// operate on <see cref="CoreState.ROM"/> accordingly (Copilot PR #1239 review #1).</para>
         /// </summary>
-        /// <param name="rom">Target ROM.</param>
+        /// <param name="rom">Target ROM — MUST be the ambient <see cref="CoreState.ROM"/>.</param>
         /// <param name="e">The resolved entry (from <see cref="RomAnimeCore.Resolve"/>).</param>
         /// <param name="scriptPath">Input <c>wait png</c> script.</param>
         /// <param name="frameLoader">PNG path -&gt; <c>(indexed, gbaPalette16, w, h)</c> or null.</param>
@@ -279,9 +288,25 @@ namespace FEBuilderGBA
             int imageWidth = e.ImageWidthTiles * 8;
             if (imageWidth <= 0) { error = R.Error("The animation frame width is invalid."); return false; }
 
-            string baseDir = Path.GetDirectoryName(Path.GetFullPath(scriptPath)) ?? "";
+            // The atomic rewrite goes through the RecycleAddress AMBIENT overloads, which
+            // are hardcoded to mutate CoreState.ROM. The snapshot + fault-restore MUST
+            // therefore operate on that SAME object — not the passed `rom` — or a caller
+            // whose `rom` differs from CoreState.ROM would leave CoreState.ROM corrupted
+            // on a fault (Copilot PR #1239 review #1). Refuse a mismatch loudly rather
+            // than silently writing to the wrong ROM.
+            if (!ReferenceEquals(rom, CoreState.ROM))
+            { error = R.Error("ROM not loaded."); return false; }
+
+            // Path.GetFullPath / GetDirectoryName can throw on invalid path chars; keep
+            // them inside try/catch so the method returns its error out-param instead of
+            // throwing (Copilot PR #1239 review #3).
+            string baseDir;
             string[] lines;
-            try { lines = File.ReadAllLines(scriptPath); }
+            try
+            {
+                baseDir = Path.GetDirectoryName(Path.GetFullPath(scriptPath)) ?? "";
+                lines = File.ReadAllLines(scriptPath);
+            }
             catch (Exception ex) { error = R.Error("Failed to read script file: {0}", ex.Message); return false; }
 
             // ---- PHASE 1: parse + encode EVERY unique image. ZERO ROM mutation. ----
@@ -333,32 +358,38 @@ namespace FEBuilderGBA
             }
 
             // ---- PHASE 2: snapshot, pool old regions, rewrite atomically. ----
-            byte[] snap = (byte[])rom.Data.Clone();
+            // Snapshot + restore the SAME object the RecycleAddress ambient writes
+            // mutate (CoreState.ROM), so the fault-restore actually undoes the writes
+            // (Copilot PR #1239 review #1). The early ReferenceEquals guard means
+            // `target` == `rom` here, but binding it explicitly keeps the snapshot,
+            // every write, and the restore provably consistent.
+            ROM target = CoreState.ROM;
+            byte[] snap = (byte[])target.Data.Clone();
             try
             {
                 var recycle = new List<Address>();
-                MakeRecycleList(rom, e, recycle);
+                MakeRecycleList(target, e, recycle);
                 var ra = new RecycleAddress(recycle);
 
                 bool ok;
                 if (!e.IsFrameTable)
                 {
                     if (e.TSAList.Count == 1 && e.PaletteList.Count >= 2)
-                        ok = WriteFixedPaletteAnime(rom, e, ra, animeList);
+                        ok = WriteFixedPaletteAnime(target, e, ra, animeList);
                     else
-                        ok = WriteFixedMultiPalette(rom, e, ra, animeList);
+                        ok = WriteFixedMultiPalette(target, e, ra, animeList);
                 }
                 else
                 {
                     if (e.TSAList.Count >= 2 && e.PaletteList.Count == 1)
-                        ok = WriteFrameTableCommonPalette(rom, e, ra, animeList, frames.ToArray());
+                        ok = WriteFrameTableCommonPalette(target, e, ra, animeList, frames.ToArray());
                     else
-                        ok = WriteFrameTableMultiPalette(rom, e, ra, animeList, frames.ToArray());
+                        ok = WriteFrameTableMultiPalette(target, e, ra, animeList, frames.ToArray());
                 }
 
                 if (!ok)
                 {
-                    RestoreSnapshot(rom, snap);
+                    RestoreSnapshot(target, snap);
                     error = R._("Failed to write animation. Check ROM free space.");
                     return false;
                 }
@@ -369,7 +400,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                RestoreSnapshot(rom, snap);
+                RestoreSnapshot(target, snap);
                 error = R.Error("Animation import failed: {0}", ex.Message);
                 return false;
             }
