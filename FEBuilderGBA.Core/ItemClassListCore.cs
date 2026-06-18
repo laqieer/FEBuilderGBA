@@ -238,5 +238,251 @@ namespace FEBuilderGBA
 
             return newBase;
         }
+
+        // =====================================================================
+        // SkillSystems "Effectiveness Rework" format (issue #1175)
+        //
+        // The classic single-byte methods above back the non-rework
+        // ItemEffectivenessForm / ItemPromotionForm (issue #368). The FE8U
+        // SkillSystems 特効リワーク variant
+        // (ItemEffectivenessSkillSystemsReworkForm) stores a DIFFERENT layout:
+        // a null-(u32)-terminated array of 4-byte entries
+        //   [0]=00, [1]=coefficient*2, [2..3]=class-type (u16 bitmask).
+        // Termination follows WinForms N_Init: an entry counts while its
+        // leading u8 is 0 AND its u32 is non-zero; the first u32==0 ends the
+        // list. Confirmed by ItemAllocCore.BuildEffectivenessTemplate(true)
+        // (zero-filled 4-byte stride seeded [1]=6,[2]=1 armor / [5]=6,[6]=2
+        // cavalry).
+        //
+        // The class-type field is the same bitmask the WinForms
+        // SkillSystemsEffectivenessReworkClassTypeForm edits
+        // (armor/cavalry/flying/dragon/monster/sword/unknown1/unknown2).
+        // =====================================================================
+
+        /// <summary>Stride, in bytes, of one Rework effectiveness entry.</summary>
+        public const uint ReworkEntrySize = 4;
+
+        /// <summary>
+        /// One decoded SkillSystems-Rework effectiveness entry. <see cref="Addr"/>
+        /// is the ROM offset of the 4-byte record; <see cref="Coefficient"/> is
+        /// the raw +1 byte (the WinForms label is "coefficient_times*2"); and
+        /// <see cref="ClassType"/> is the u16 class-type bitmask at +2.
+        /// </summary>
+        public readonly struct ReworkEntry
+        {
+            public ReworkEntry(uint addr, uint coefficient, uint classType)
+            {
+                Addr = addr;
+                Coefficient = coefficient;
+                ClassType = classType;
+            }
+            public uint Addr { get; }
+            public uint Coefficient { get; }
+            public uint ClassType { get; }
+        }
+
+        /// <summary>
+        /// Scan the null-(u32)-terminated array of 4-byte Rework entries
+        /// starting at <paramref name="baseAddr"/>. Mirrors WinForms
+        /// <c>ItemEffectivenessSkillSystemsReworkForm.N_Init</c>: an entry is
+        /// valid while its leading u8 is 0 AND its u32 is non-zero; the first
+        /// u32==0 ends the list. Returns an empty list if
+        /// <paramref name="baseAddr"/> is zero, beyond the ROM, or not even
+        /// room for one entry.
+        /// </summary>
+        public static List<ReworkEntry> ScanReworkEntries(ROM rom, uint baseAddr)
+        {
+            var result = new List<ReworkEntry>();
+            if (rom == null || rom.Data == null) return result;
+            // Address 0 is a null pointer (same convention as ScanClassList).
+            if (baseAddr == 0) return result;
+            if (baseAddr >= (uint)rom.Data.Length) return result;
+
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint a = baseAddr + i * ReworkEntrySize;
+                // Need a full 4-byte record to read the entry + its terminator.
+                if (a + ReworkEntrySize > (uint)rom.Data.Length) break;
+                // WinForms N_Init termination: leading byte must be 0 and the
+                // u32 must be non-zero. The first u32==0 (the terminator) ends
+                // the scan; a non-zero leading byte is also treated as the end
+                // (defensive — the data should never have one).
+                if (rom.u8(a) != 0) break;
+                if (rom.u32(a) == 0) break;
+                result.Add(new ReworkEntry(a, rom.u8(a + 1), rom.u16(a + 2)));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Write one Rework entry (the +1 coefficient byte and the +2 u16
+        /// class-type) at <paramref name="addr"/>, leaving the leading 0 byte
+        /// intact. Records the writes on <paramref name="undo"/>.
+        /// </summary>
+        public static void WriteReworkEntry(ROM rom, uint addr, uint coefficient, uint classType, Undo.UndoData undo)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (addr + ReworkEntrySize > (uint)rom.Data.Length)
+                throw new ArgumentOutOfRangeException(nameof(addr), "Address is out of ROM bounds.");
+            // Keep the leading byte at 0 (the format's record marker) so the
+            // entry survives the ScanReworkEntries termination check.
+            rom.write_u8(addr, 0u, undo);
+            rom.write_u8(addr + 1, coefficient & 0xFFu, undo);
+            rom.write_u16(addr + 2, classType & 0xFFFFu, undo);
+        }
+
+        /// <summary>
+        /// Expand the null-(u32)-terminated Rework array referenced by
+        /// <paramref name="pointerAddr"/> by one entry. Relocates the existing
+        /// entries to free space, appends a new editable entry (leading 0,
+        /// coefficient = <see cref="ReworkNewSlotCoefficient"/>, class-type =
+        /// <see cref="ReworkNewSlotClassType"/> so the new entry survives the
+        /// terminator scan and is visible to the UI), writes a u32==0
+        /// terminator, and repoints only the owning pointer. The original bytes
+        /// are intentionally LEFT INTACT so other owners that still point at the
+        /// old array keep working (copy-on-write, mirroring
+        /// <see cref="ExpandClassList"/>).
+        /// </summary>
+        /// <returns>The new array base offset.</returns>
+        public static uint ExpandReworkList(ROM rom, uint pointerAddr, Undo.UndoData undo)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (pointerAddr + 4 > (uint)rom.Data.Length)
+                throw new ArgumentOutOfRangeException(nameof(pointerAddr));
+
+            uint oldPtr = rom.u32(pointerAddr);
+            if (!U.isPointer(oldPtr))
+                throw new InvalidOperationException("Owner pointer does not reference a ROM address.");
+
+            uint oldBase = U.toOffset(oldPtr);
+            if (oldBase >= (uint)rom.Data.Length)
+                throw new InvalidOperationException("Owner pointer references an out-of-range address.");
+
+            var oldList = ScanReworkEntries(rom, oldBase);
+            uint oldCount = (uint)oldList.Count;
+
+            // New layout: oldCount entries + 1 new entry + 1 terminator (u32 0).
+            uint newSize = (oldCount + 1) * ReworkEntrySize + ReworkEntrySize;
+            uint newBase = rom.FindFreeSpace(oldBase, newSize);
+            if (newBase == U.NOT_FOUND)
+                newBase = rom.FindFreeSpace(0x100, newSize);
+            if (newBase == U.NOT_FOUND)
+                throw new InvalidOperationException("No free space large enough to expand rework list.");
+
+            // Copy the relocated entries.
+            for (uint i = 0; i < oldCount; i++)
+            {
+                uint dst = newBase + i * ReworkEntrySize;
+                rom.write_u8(dst, 0u, undo);
+                rom.write_u8(dst + 1, oldList[(int)i].Coefficient & 0xFFu, undo);
+                rom.write_u16(dst + 2, oldList[(int)i].ClassType & 0xFFFFu, undo);
+            }
+            // Append the new editable entry (non-zero so it is visible).
+            uint newEntry = newBase + oldCount * ReworkEntrySize;
+            rom.write_u8(newEntry, 0u, undo);
+            rom.write_u8(newEntry + 1, ReworkNewSlotCoefficient, undo);
+            rom.write_u16(newEntry + 2, ReworkNewSlotClassType, undo);
+            // Write the trailing u32==0 terminator.
+            uint term = newEntry + ReworkEntrySize;
+            rom.write_u32(term, 0u, undo);
+
+            // Repoint only the requested owner.
+            rom.write_p32(pointerAddr, newBase, undo);
+
+            // INTENTIONAL: leave the old bytes intact (shared-array safety).
+            return newBase;
+        }
+
+        /// <summary>
+        /// Fork the null-(u32)-terminated Rework array at
+        /// <paramref name="sourceAddr"/> into an independent copy and repoint
+        /// only <paramref name="ownerPointerAddr"/>. Leaves the original bytes
+        /// untouched so other owners keep working. Mirrors
+        /// <see cref="MakeIndependentCopy"/> for the 4-byte Rework format.
+        /// </summary>
+        /// <returns>The new array base offset.</returns>
+        public static uint MakeIndependentReworkCopy(ROM rom, uint sourceAddr, uint ownerPointerAddr, Undo.UndoData undo)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (ownerPointerAddr + 4 > (uint)rom.Data.Length)
+                throw new ArgumentOutOfRangeException(nameof(ownerPointerAddr));
+            if (sourceAddr >= (uint)rom.Data.Length)
+                throw new ArgumentOutOfRangeException(nameof(sourceAddr));
+
+            var list = ScanReworkEntries(rom, sourceAddr);
+            uint count = (uint)list.Count;
+
+            // New copy: count entries + 1 terminator (u32 0).
+            uint newSize = count * ReworkEntrySize + ReworkEntrySize;
+            uint newBase = rom.FindFreeSpace(sourceAddr, newSize);
+            if (newBase == U.NOT_FOUND)
+                newBase = rom.FindFreeSpace(0x100, newSize);
+            if (newBase == U.NOT_FOUND)
+                throw new InvalidOperationException("No free space large enough to fork rework list.");
+
+            for (uint i = 0; i < count; i++)
+            {
+                uint dst = newBase + i * ReworkEntrySize;
+                rom.write_u8(dst, 0u, undo);
+                rom.write_u8(dst + 1, list[(int)i].Coefficient & 0xFFu, undo);
+                rom.write_u16(dst + 2, list[(int)i].ClassType & 0xFFFFu, undo);
+            }
+            rom.write_u32(newBase + count * ReworkEntrySize, 0u, undo); // terminator
+
+            rom.write_p32(ownerPointerAddr, newBase, undo);
+            return newBase;
+        }
+
+        /// <summary>
+        /// Coefficient byte written into a new entry by
+        /// <see cref="ExpandReworkList"/>. 6 == "x3" effectiveness in the
+        /// SkillSystems rework (coefficient_times*2), matching the armor/cavalry
+        /// seed in <c>ItemAllocCore.BuildEffectivenessTemplate(true)</c>.
+        /// </summary>
+        public const uint ReworkNewSlotCoefficient = 6;
+
+        /// <summary>
+        /// Class-type bitmask written into a new entry by
+        /// <see cref="ExpandReworkList"/>. 0x01 == armor — a recognizable,
+        /// non-zero default so the new entry survives the terminator scan and
+        /// is immediately visible/editable.
+        /// </summary>
+        public const uint ReworkNewSlotClassType = 0x01;
+
+        // Class-type bit → name table (matches WinForms
+        // SkillSystemsEffectivenessReworkClassTypeForm.GetText). The display
+        // strings are localized at the Avalonia layer; Core returns the
+        // canonical English keys so the UI can run them through R._().
+        static readonly (uint Bit, string Key)[] ReworkClassTypeBits =
+        {
+            (0x01, "Armor"),
+            (0x02, "Cavalry"),
+            (0x04, "Flying"),
+            (0x08, "Dragon"),
+            (0x10, "Monster"),
+            (0x20, "Sword"),
+            (0x40, "Unknown1"),
+            (0x80, "Unknown2"),
+        };
+
+        /// <summary>
+        /// Decode a Rework class-type bitmask into its set bit names (English
+        /// keys, comma-joined), mirroring WinForms
+        /// <c>SkillSystemsEffectivenessReworkClassTypeForm.GetText</c>. Returns
+        /// an empty string when no known bit is set. The Avalonia layer runs
+        /// each key through <c>R._()</c> for localization.
+        /// </summary>
+        public static string GetClassTypeNames(uint classType)
+        {
+            var parts = new List<string>();
+            foreach (var (bit, key) in ReworkClassTypeBits)
+            {
+                if ((classType & bit) == bit) parts.Add(key);
+            }
+            return string.Join(",", parts);
+        }
     }
 }

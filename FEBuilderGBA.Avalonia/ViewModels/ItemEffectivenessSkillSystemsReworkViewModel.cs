@@ -1,14 +1,27 @@
 using System;
 using System.Collections.Generic;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ItemEffectivenessSkillSystemsReworkViewModel : ViewModelBase
     {
-        uint _currentAddr;
+        uint _currentAddr;          // effectiveness-array offset (the outer-list key)
+        uint _currentItemAddr;      // item struct that owns the selected array (for expand / independence)
+        uint _currentEntryAddr;     // 4-byte entry currently selected in the inner list
+        uint _coefficient;          // entry +1 (coefficient_times*2)
+        uint _classType;            // entry +2 (u16 class-type bitmask)
+        string _classTypeNames = "";
+        bool _hasSharedOwners;
         bool _isLoaded;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        public uint CurrentItemAddr { get => _currentItemAddr; set => SetField(ref _currentItemAddr, value); }
+        public uint CurrentEntryAddr { get => _currentEntryAddr; set => SetField(ref _currentEntryAddr, value); }
+        public uint Coefficient { get => _coefficient; set => SetField(ref _coefficient, value); }
+        public uint ClassType { get => _classType; set => SetField(ref _classType, value); }
+        public string ClassTypeNames { get => _classTypeNames; set => SetField(ref _classTypeNames, value); }
+        public bool HasSharedOwners { get => _hasSharedOwners; set => SetField(ref _hasSharedOwners, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         /// <summary>
@@ -73,13 +86,162 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>
+        /// Select an outer-list row by its effectiveness-array offset. Resolves
+        /// the owning item via <see cref="ItemClassListCore.FindItemsSharingPointer"/>
+        /// (used for the Expand / Make-Independent pointer writes) and records
+        /// the array offset as the editor's current address.
+        /// </summary>
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
             CurrentAddr = addr;
+            CurrentItemAddr = ResolveOwningItemAddr(rom, addr);
+            CurrentEntryAddr = 0;
+            Coefficient = 0;
+            ClassType = 0;
+            ClassTypeNames = "";
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// The "effective against" list — the 4-byte Rework entries at the
+        /// current effectiveness array. Each <see cref="AddrResult.addr"/> is
+        /// the entry's ROM offset; the name is the class-type bitmask decoded
+        /// to its set bit names (localized) prefixed by the raw hex value, so
+        /// it mirrors the WinForms <c>N_AddressList</c> rows.
+        /// </summary>
+        public List<AddrResult> LoadInnerEntries()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return new List<AddrResult>();
+
+            var entries = ItemClassListCore.ScanReworkEntries(rom, CurrentAddr);
+            var result = new List<AddrResult>();
+            foreach (var e in entries)
+            {
+                string names = ClassTypeDisplay(e.ClassType);
+                string label = string.IsNullOrEmpty(names)
+                    ? U.ToHexString(e.ClassType)
+                    : $"{U.ToHexString(e.ClassType)} {names}";
+                result.Add(new AddrResult(e.Addr, label, e.ClassType));
+            }
+            return result;
+        }
+
+        /// <summary>Items that point at the current effectiveness array (WF ItemListBox).</summary>
+        public List<AddrResult> LoadSharedOwners()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || CurrentAddr == 0) return new List<AddrResult>();
+
+            var owners = ItemClassListCore.FindItemsSharingPointer(rom, CurrentAddr);
+            var result = new List<AddrResult>();
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (!U.isSafetyOffset(itemBase) || dataSize == 0)
+            {
+                HasSharedOwners = false;
+                return result;
+            }
+            foreach (uint id in owners)
+            {
+                uint itemAddr = itemBase + id * dataSize;
+                string name = $"{U.ToHexString(id)} {NameResolver.GetItemName(id)}";
+                result.Add(new AddrResult(itemAddr, name, id));
+            }
+            HasSharedOwners = result.Count > 1;
+            return result;
+        }
+
+        /// <summary>Read the selected 4-byte entry (inner-list selection changed).</summary>
+        public void LoadEntryFields(uint entryAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (entryAddr + ItemClassListCore.ReworkEntrySize > (uint)rom.Data.Length) return;
+            CurrentEntryAddr = entryAddr;
+            Coefficient = rom.u8(entryAddr + 1);
+            ClassType = rom.u16(entryAddr + 2);
+            ClassTypeNames = ClassTypeDisplay(ClassType);
+        }
+
+        /// <summary>
+        /// Write the coefficient + class-type of the currently-selected entry.
+        /// The caller owns the undo group (an explicit <see cref="Undo.UndoData"/>)
+        /// so the ROM writes stay inside the editor's undo scope rather than the
+        /// thread-local ambient one.
+        /// </summary>
+        public void WriteCurrentEntry(Undo.UndoData undo)
+        {
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (CurrentEntryAddr == 0)
+                throw new InvalidOperationException("No effectiveness entry selected.");
+            ItemClassListCore.WriteReworkEntry(rom, CurrentEntryAddr, Coefficient, ClassType, undo);
+            ClassTypeNames = ClassTypeDisplay(ClassType);
+        }
+
+        /// <summary>Append a new editable Rework entry to the current array.</summary>
+        public uint ExpandCurrentList(Undo.UndoData undo)
+        {
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (CurrentItemAddr == 0)
+                throw new InvalidOperationException("No item owns this effectiveness list.");
+            uint ptrAddr = CurrentItemAddr + 16;
+            uint newAddr = ItemClassListCore.ExpandReworkList(rom, ptrAddr, undo);
+            CurrentAddr = newAddr;
+            return newAddr;
+        }
+
+        /// <summary>Fork the shared effectiveness array into an independent copy.</summary>
+        public uint MakeCurrentItemIndependent(Undo.UndoData undo)
+        {
+            ROM rom = CoreState.ROM
+                ?? throw new InvalidOperationException("No ROM loaded.");
+            if (undo == null) throw new ArgumentNullException(nameof(undo));
+            if (CurrentItemAddr == 0 || CurrentAddr == 0)
+                throw new InvalidOperationException("No item owns this effectiveness list.");
+            uint ptrAddr = CurrentItemAddr + 16;
+            uint newAddr = ItemClassListCore.MakeIndependentReworkCopy(rom, CurrentAddr, ptrAddr, undo);
+            CurrentAddr = newAddr;
+            return newAddr;
+        }
+
+        /// <summary>
+        /// Decode a class-type bitmask to its display text. The Core helper
+        /// returns canonical English keys (Armor/Cavalry/...); run each through
+        /// <c>R._()</c> so the row text is localized.
+        /// </summary>
+        static string ClassTypeDisplay(uint classType)
+        {
+            string raw = ItemClassListCore.GetClassTypeNames(classType);
+            if (string.IsNullOrEmpty(raw)) return "";
+            string[] keys = raw.Split(',');
+            for (int i = 0; i < keys.Length; i++)
+                keys[i] = R._(keys[i]);
+            return string.Join(",", keys);
+        }
+
+        /// <summary>
+        /// Find the item struct that owns <paramref name="effAddr"/> so the
+        /// pointer-write operations (Expand / Make-Independent) know which +16
+        /// slot to repoint. Returns 0 when no item owns the array.
+        /// </summary>
+        static uint ResolveOwningItemAddr(ROM rom, uint effAddr)
+        {
+            if (rom?.RomInfo == null || effAddr == 0) return 0;
+            var owners = ItemClassListCore.FindItemsSharingPointer(rom, effAddr);
+            if (owners.Count == 0) return 0;
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (!U.isSafetyOffset(itemBase) || dataSize == 0) return 0;
+            return itemBase + owners[0] * dataSize;
         }
     }
 }

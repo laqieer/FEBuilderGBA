@@ -25696,3 +25696,66 @@ config/translate/<lang>.txt
 :Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
 每行是设置了世界地图事件PLIST的地图。地址指向PLIST索引的地图指针表槽位。
 
+:Weapon effectiveness class-type list (per item)
+武器特效职业分类列表（每个物品）
+
+:Entry Address:
+条目地址:
+
+:Coefficient (x2):
+系数（x2）:
+
+:Armor
+装甲系
+
+:Cavalry
+骑兵系
+
+:Flying
+飞行系
+
+:Dragon
+龙系
+
+:Monster
+怪物系
+
+:Sword
+剑系
+
+:Unknown1
+未知1
+
+:Unknown2
+未知2
+
+:No effectiveness entry selected.
+未选择特效条目。
+
+:Class Type must be a valid hex value.
+职业分类必须是有效的十六进制值。
+
+:Undo manager unavailable.
+撤销管理器不可用。
+
+:Item Effectiveness data written.
+已写入物品特效数据。
+
+:Write failed: 
+写入失败: 
+
+:No item owns this effectiveness list.
+没有物品拥有此特效列表。
+
+:Added a new class slot.
+已添加新的职业槽位。
+
+:Expand failed: 
+扩展失败: 
+
+:Item effectiveness array forked.
+已分离物品特效数组。
+
+:Independence failed: 
+独立化失败: 
+

@@ -3,19 +3,123 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ItemEffectivenessSkillSystemsReworkView"
         Title="Effectiveness (Skill Systems Rework)" Width="1297" Height="918"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        SizeToContent="Manual">
+  <!--
+    Issue #1175: item-driven master/detail layout mirroring the WinForms
+    ItemEffectivenessSkillSystemsReworkForm. Outer EntryList = items whose +16
+    effectiveness pointer is set; InnerList = the 4-byte SkillSystems-Rework
+    entries (coefficient + class-type bitmask) that item targets; the right
+    pane edits one entry at a time and surfaces shared-pointer detection via
+    the IndependencePanel. The Rework on-ROM format differs from the classic
+    single-byte ItemEffectivenessForm (4-byte stride, u16 class-type), so it is
+    backed by the ItemClassListCore.*Rework* helpers.
+  -->
+  <Grid ColumnDefinitions="320,*">
+    <controls:AddressListControl AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Entry_List"
+                                 Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+    <Grid Grid.Column="1" Margin="8" RowDefinitions="Auto,Auto,*">
+      <!-- Header -->
+      <StackPanel Grid.Row="0" Spacing="4">
         <TextBlock Text="Effectiveness (Skill Systems Rework)" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <TextBlock Text="Weapon effectiveness class-type list (per item)" FontSize="12" Foreground="Gray" />
       </StackPanel>
-    </ScrollViewer>
+
+      <!-- Address + selection metadata -->
+      <Grid Grid.Row="1" Margin="0,8,0,8" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Addr_Label"
+                   Grid.Row="0" Grid.Column="1" Name="AddrLabel"
+                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected:" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_SelectAddress_Label"
+                   Grid.Row="1" Grid.Column="1" Name="SelectAddressLabel"
+                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+      </Grid>
+
+      <!-- Two-pane content: inner class-type list + right edit panel -->
+      <Grid Grid.Row="2" ColumnDefinitions="320,*">
+        <!-- Inner list of class-type entries for the selected item -->
+        <Grid Grid.Column="0" Margin="0,0,8,0" RowDefinitions="Auto,*,Auto">
+          <TextBlock Grid.Row="0" Text="Effective against (classes)" FontWeight="Bold" />
+          <ListBox Grid.Row="1" Name="InnerList"
+                   AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Inner_List"
+                   SelectionChanged="InnerList_SelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Button Grid.Row="2" Name="ListExpandsButton"
+                  AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_ListExpands_Button"
+                  Content="Expand List (+1 slot)" Click="ListExpands_Click"
+                  HorizontalAlignment="Stretch" Margin="0,4,0,0" />
+        </Grid>
+
+        <!-- Right edit panel (per-entry fields + shared-pointer panel) -->
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <!-- Per-entry edit fields (mirror WF N_ panel: coefficient + class-type) -->
+            <Grid Grid.Row="0" Margin="0,0,0,8" ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Entry Address:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_EntryAddr_Label"
+                         Grid.Row="0" Grid.Column="1" Name="EntryAddrLabel"
+                         VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Coefficient (x2):" VerticalAlignment="Center" Margin="0,4" />
+              <NumericUpDown AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Coefficient_Input"
+                             FormatString="0" Grid.Row="1" Grid.Column="1" Name="CoefficientBox"
+                             Minimum="0" Maximum="255" Margin="0,4" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Class Type:" VerticalAlignment="Center" Margin="0,4" />
+              <TextBox AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_ClassType_Input"
+                       Grid.Row="2" Grid.Column="1" Name="ClassTypeBox"
+                       TextChanged="ClassType_TextChanged" Margin="0,4" />
+            </Grid>
+
+            <!-- Decoded class-type names + write button -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+              <TextBlock AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_ClassTypeNames_Label"
+                         Name="ClassTypeNamesLabel" VerticalAlignment="Center" Foreground="Gray" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+              <Button Name="WriteButton"
+                      AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Write_Button"
+                      Content="Write" Click="Write_Click" />
+            </StackPanel>
+
+            <!-- Shared-pointer list (mirrors WinForms ItemListBox) -->
+            <Grid Grid.Row="3" Margin="0,8,0,8" RowDefinitions="Auto,*">
+              <TextBlock Grid.Row="0" Text="Items sharing this effectiveness list" FontWeight="Bold" />
+              <ListBox Grid.Row="1" Name="ItemListBox" Height="120"
+                       AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_SharedOwners_List"
+                       SelectionChanged="ItemListBox_SelectionChanged">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <Image Source="{Binding Icon}" Width="32" Height="32" Stretch="Fill" />
+                      <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+
+            <!-- IndependencePanel (visible when >1 item shares the list) -->
+            <Grid Grid.Row="4" Name="IndependencePanel" IsVisible="False"
+                  RowDefinitions="Auto,Auto" Margin="0,8,0,0">
+              <TextBlock Grid.Row="0" Foreground="DarkOrange"
+                         Text="This data is shared with other items. Forking will isolate the current item's edits." />
+              <Button Grid.Row="1" Name="IndependenceButton"
+                      AutomationProperties.AutomationId="ItemEffectivenessSkillSystemsRework_Independence_Button"
+                      Content="Make Independent Copy" Click="Independence_Click"
+                      HorizontalAlignment="Left" Margin="0,4,0,0" />
+            </Grid>
+          </Grid>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
   </Grid>
 </Window>
