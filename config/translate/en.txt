@@ -20365,3 +20365,63 @@ Failed to apply the compiled ROM (size/resize limit exceeded?).
 
 :Unable to write the temporary files needed for compilation.
 Unable to write the temporary files needed for compilation.
+
+:Add via ASM/C
+Add via ASM/C
+
+:Compile a C/C++/ASM source and insert the result into the ROM.
+Compile a C/C++/ASM source and insert the result into the ROM.
+
+:Source file:
+Source file:
+
+:Select a .c / .cpp / .s / .asm file
+Select a .c / .cpp / .s / .asm file
+
+:Compile method:
+Compile method:
+
+:Insert method:
+Insert method:
+
+:Hook register:
+Hook register:
+
+:Stop on a reference to a missing label
+Stop on a reference to a missing label
+
+:Run (compile + insert)
+Run (compile + insert)
+
+:ELF -> raw binary (delete ELF)
+ELF -> raw binary (delete ELF)
+
+:ELF -> raw binary (keep ELF)
+ELF -> raw binary (keep ELF)
+
+:Convert to lyn.event (compile-only)
+Convert to lyn.event (compile-only)
+
+:Make file only (do not write to the ROM)
+Make file only (do not write to the ROM)
+
+:Write at the address
+Write at the address
+
+:Hook the address (jump to a free area)
+Hook the address (jump to a free area)
+
+:Hook address:
+Hook address:
+
+:Write to:
+Write to:
+
+:Please select a source file to import.
+Please select a source file to import.
+
+:source file
+source file
+
+:Product: {0}
+Product: {0}

@@ -25466,3 +25466,63 @@ TSA数量: {0}
 
 :Unable to write the temporary files needed for compilation.
 无法写入编译所需的临时文件。
+
+:Add via ASM/C
+通过ASM/C添加
+
+:Compile a C/C++/ASM source and insert the result into the ROM.
+编译C/C++/ASM源代码并将结果插入ROM。
+
+:Source file:
+源文件:
+
+:Select a .c / .cpp / .s / .asm file
+选择 .c / .cpp / .s / .asm 文件
+
+:Compile method:
+编译方法:
+
+:Insert method:
+插入方法:
+
+:Hook register:
+钩子寄存器:
+
+:Stop on a reference to a missing label
+引用不存在的标签时停止
+
+:Run (compile + insert)
+运行(编译 + 插入)
+
+:ELF -> raw binary (delete ELF)
+ELF -> 二进制(删除ELF)
+
+:ELF -> raw binary (keep ELF)
+ELF -> 二进制(保留ELF)
+
+:Convert to lyn.event (compile-only)
+转换为lyn.event(仅编译)
+
+:Make file only (do not write to the ROM)
+仅生成文件(不写入ROM)
+
+:Write at the address
+写入到地址
+
+:Hook the address (jump to a free area)
+钩住地址(跳转到空闲区域)
+
+:Hook address:
+钩子地址:
+
+:Write to:
+写入到:
+
+:Please select a source file to import.
+请选择要导入的源文件。
+
+:source file
+源文件
+
+:Product: {0}
+成果物: {0}

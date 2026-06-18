@@ -155,6 +155,43 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve the devkitARM tool directory from the <c>devkitpro_eabi</c> config
+        /// marker (the as/gcc tree root is the marker's directory). Returns null when
+        /// the marker is unset or missing. Symmetric with
+        /// <see cref="ResolveEventAssembler"/> / <see cref="ResolveLynExe"/>.
+        /// </summary>
+        public static string ResolveDevkitArmDir()
+        {
+            string eabi = CoreState.Config?.at("devkitpro_eabi", "");
+            if (string.IsNullOrEmpty(eabi) || !File.Exists(eabi))
+                return null;
+            return Path.GetDirectoryName(eabi);
+        }
+
+        /// <summary>
+        /// Resolve a devkitARM tool (e.g. <c>*gcc.exe</c>, <c>*g++.exe</c>,
+        /// <c>*as.exe</c>) by globbing the configured devkitARM tree recursively.
+        /// Returns null when the tree or the tool is missing.
+        /// </summary>
+        public static string ResolveDevkitArmTool(string glob)
+        {
+            string dir = ResolveDevkitArmDir();
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+                return null;
+            string[] files = U.Directory_GetFiles_Safe(dir, glob, SearchOption.AllDirectories);
+            return files.Length > 0 ? files[0] : null;
+        }
+
+        /// <summary>Resolve the devkitARM C compiler (<c>*gcc.exe</c>), or null.</summary>
+        public static string ResolveDevkitArmGcc() => ResolveDevkitArmTool("*gcc.exe");
+
+        /// <summary>Resolve the devkitARM C++ compiler (<c>*g++.exe</c>), or null.</summary>
+        public static string ResolveDevkitArmGpp() => ResolveDevkitArmTool("*g++.exe");
+
+        /// <summary>Resolve the devkitARM assembler (<c>*as.exe</c>), or null.</summary>
+        public static string ResolveDevkitArmAs() => ResolveDevkitArmTool("*as.exe");
+
+        /// <summary>
         /// Check if the resolved EA path points to ColorzCore (vs classic EA Core.exe).
         /// </summary>
         public static bool IsColorzCore(string eaPath)

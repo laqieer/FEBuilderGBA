@@ -1,21 +1,123 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolASMInsertView"
-        Title="ASM Insertion Tool" Width="825" Height="497"
+        Title="Add via ASM/C" Width="640" Height="600"
+        WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolASMInsert_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Add-via-ASM/C tool (WF ToolASMInsertForm). Compiles a C/C++/ASM source via
+       the devkitARM chain (gcc/g++/as -> ELF -> raw binary, or lyn -> EA event) and
+       inserts the result into the ROM. Three insert methods: compile-only (make file
+       only), write-at-address, and hook-inject (write the routine to a free area and
+       patch a thumb jump at a hook address). The compile+insert work runs in the
+       GUI-free Core helper AsmCompileCore. The compile-method / insert-method /
+       hook-register / debug-symbol combo items are populated in code-behind via R._()
+       so they pick up ja/zh translations (ViewTranslationHelper does not translate
+       ComboBoxItem content).
+       Deferred to a follow-up: the GoldRoad assembler path and the "Make Patch" text
+       generator (both WinForms-coupled); revert an applied insert via Undo for now. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="10">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="ASM Insertion Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Add via ASM/C" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Compile a C/C++/ASM source and insert the result into the ROM."
+                 TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolASMInsert_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+      <!-- Source .c/.cpp/.s/.asm file -->
+      <TextBlock Text="Source file:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="ToolASMInsert_Source_Input"
+                 Grid.Column="0" Name="SourceBox"
+                 Text="{Binding SourcePath}"
+                 Watermark="Select a .c / .cpp / .s / .asm file" />
+        <Button AutomationProperties.AutomationId="ToolASMInsert_Browse_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="Browse_Click" />
+      </Grid>
+
+      <!-- Compile method (ELF dump / keep ELF / convert to lyn.event) -->
+      <Grid ColumnDefinitions="180,*" Margin="0,6,0,0">
+        <TextBlock Grid.Column="0" Text="Compile method:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolASMInsert_CompileMethod_Combo"
+                  Grid.Column="1" Name="CompileMethodCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding CompileMethodIndex}" />
+      </Grid>
+
+      <!-- Insert method (compile-only / write-at-address / hook-inject) -->
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Text="Insert method:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolASMInsert_InsertMethod_Combo"
+                  Grid.Column="1" Name="InsertMethodCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding InsertMethodIndex}"
+                  SelectionChanged="InsertMethod_SelectionChanged" />
+      </Grid>
+
+      <!-- Target address (write-at-address: destination; hook-inject: hook site) -->
+      <Grid ColumnDefinitions="180,*" Name="AddressRow">
+        <TextBlock AutomationProperties.AutomationId="ToolASMInsert_Address_Label"
+                   Grid.Column="0" Name="AddressLabel" Text="Address:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ToolASMInsert_Address_Input"
+                 Grid.Column="1" Name="AddressBox"
+                 Text="{Binding AddressHex}"
+                 Watermark="0x08000000" />
+      </Grid>
+
+      <!-- Free area (hook-inject only: where the routine body is written) -->
+      <Grid ColumnDefinitions="180,*" Name="FreeAreaRow">
+        <TextBlock Grid.Column="0" Text="Free area:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ToolASMInsert_FreeArea_Input"
+                 Grid.Column="1" Name="FreeAreaBox"
+                 Text="{Binding FreeAreaHex}"
+                 Watermark="0x08F00000" />
+      </Grid>
+
+      <!-- Hook register (hook-inject only) -->
+      <Grid ColumnDefinitions="180,*" Name="HookRegisterRow">
+        <TextBlock Grid.Column="0" Text="Hook register:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolASMInsert_HookRegister_Combo"
+                  Grid.Column="1" Name="HookRegisterCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding HookRegisterIndex}" />
+      </Grid>
+
+      <!-- Debug-symbol store -->
+      <Grid ColumnDefinitions="180,*">
+        <TextBlock Grid.Column="0" Text="Store debug symbols:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolASMInsert_DebugSymbol_Combo"
+                  Grid.Column="1" Name="DebugSymbolCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding DebugSymbolIndex}" />
+      </Grid>
+
+      <!-- Missing-label check -->
+      <CheckBox AutomationProperties.AutomationId="ToolASMInsert_CheckMissingLabel_Check"
+                Name="CheckMissingLabelCheck"
+                Content="Stop on a reference to a missing label"
+                IsChecked="{Binding CheckMissingLabel}" Margin="0,6,0,0" />
+
+      <!-- Actions -->
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+        <Button AutomationProperties.AutomationId="ToolASMInsert_Run_Button"
+                Name="RunButton" Content="Run (compile + insert)"
+                Click="Run_Click" />
+        <Button AutomationProperties.AutomationId="ToolASMInsert_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                IsVisible="{Binding CanUndo}"
+                Click="Undo_Click" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+
+      <!-- Status / result -->
+      <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
+              Padding="8" Margin="0,8,0,0" MinHeight="120">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <SelectableTextBlock AutomationProperties.AutomationId="ToolASMInsert_Status_Label"
+                               Name="StatusText"
+                               Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap" FontFamily="Consolas,monospace" />
+        </ScrollViewer>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
 </Window>
