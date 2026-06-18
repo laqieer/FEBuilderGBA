@@ -1021,5 +1021,169 @@ namespace FEBuilderGBA.Core.Tests
                 return sh;
             }
         }
+
+        // ---- MakePatchText (#1243) --------------------------------------------
+
+        /// <summary>
+        /// Write <paramref name="bytes"/> to a temp file and return its path, so the
+        /// MakePatchText tests can exercise the (file-reading) WriteAtAddress shape
+        /// without a real compile. The caller deletes it.
+        /// </summary>
+        static string WriteTempBin(byte[] bytes)
+        {
+            string path = Path.Combine(Path.GetTempPath(),
+                "asmpatch-" + Guid.NewGuid().ToString("N") + ".dmp");
+            File.WriteAllBytes(path, bytes);
+            return path;
+        }
+
+        [Fact]
+        public void MakePatchText_CompileOnly_ReturnsEmpty()
+        {
+            string bin = WriteTempBin(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            try
+            {
+                // Method index 0 (compile-only) produces no ROM change → no patch (WF).
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.CompileOnly, 0x08000100, 0, 3);
+                Assert.Equal("", patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
+        public void MakePatchText_MissingProduct_ReturnsEmpty()
+        {
+            string missing = Path.Combine(Path.GetTempPath(), "no-such-" + Guid.NewGuid() + ".dmp");
+            string patch = AsmCompileCore.MakePatchText(
+                missing, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3);
+            Assert.Equal("", patch);
+
+            // A null / empty product path is treated the same way.
+            Assert.Equal("", AsmCompileCore.MakePatchText(
+                "", AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
+            Assert.Equal("", AsmCompileCore.MakePatchText(
+                null, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3));
+        }
+
+        [Fact]
+        public void MakePatchText_ZeroAddress_ReturnsEmpty()
+        {
+            string bin = WriteTempBin(new byte[] { 0x01, 0x02 });
+            try
+            {
+                // A zero write address is rejected (WF CheckZeroAddressWrite).
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.WriteAtAddress, 0, 0, 3);
+                Assert.Equal("", patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
+        public void MakePatchText_WriteAtAddress_MatchesWinFormsFormat()
+        {
+            // Four bytes is short enough that the first-32-bytes hexdump dumps them all.
+            byte[] data = { 0xAB, 0xCD, 0xEF, 0x01 };
+            string bin = WriteTempBin(data);
+            try
+            {
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3);
+
+                string name = Path.GetFileName(bin);
+                // Byte-for-byte WF shape: HexDumpLiner0x prefixes EACH byte (incl. the
+                // first) with " 0x", so the value after "=" starts with a space.
+                // U.To0xHexString zero-pads to 8 hex digits (e.g. 0x08000100).
+                string expected =
+                    "NAME=<<PATCH NAME>>\r\n" +
+                    "\r\n" +
+                    "TYPE=BIN\r\n" +
+                    "PATCHED_IF:0x08000100= 0xAB 0xCD 0xEF 0x01\r\n" +
+                    "BIN:0x08000100=" + name;
+
+                Assert.Equal(expected, patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
+        public void MakePatchText_WriteAtAddress_CapsHexDumpAt32Bytes()
+        {
+            // 40 bytes — the PATCHED_IF hexdump must show only the first 32 (WF caps it).
+            byte[] data = new byte[40];
+            for (int i = 0; i < data.Length; i++) data[i] = (byte)(i + 1);
+            string bin = WriteTempBin(data);
+            try
+            {
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000200, 0, 3);
+
+                // 32 dumped bytes → 32 "0x" tokens on the PATCHED_IF line.
+                int patchedIfStart = patch.IndexOf("PATCHED_IF:", StringComparison.Ordinal);
+                int lineEnd = patch.IndexOf("\r\n", patchedIfStart, StringComparison.Ordinal);
+                string patchedIfLine = patch.Substring(patchedIfStart, lineEnd - patchedIfStart);
+                int tokenCount = patchedIfLine.Split(new[] { "0x" }, StringSplitOptions.None).Length - 1;
+                // One "0x" is the address prefix (0x8000200); the other 32 are the bytes.
+                Assert.Equal(33, tokenCount);
+
+                // The 32nd byte (value 0x20) is present; the 33rd (0x21) is NOT.
+                Assert.Contains("0x20", patchedIfLine);
+                Assert.DoesNotContain("0x21", patchedIfLine);
+                // The BIN line still references the whole product file (not truncated).
+                // U.To0xHexString zero-pads to 8 hex digits (0x08000200).
+                Assert.Contains("BIN:0x08000200=" + Path.GetFileName(bin), patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
+        public void MakePatchText_HookInject_MatchesWinFormsFormat()
+        {
+            byte[] data = { 0x11, 0x22 };
+            string bin = WriteTempBin(data);
+            try
+            {
+                uint hook = 0x08001000;   // 4-byte aligned hook site
+                uint freeArea = 0x08F00000;
+                uint reg = 4;
+
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.HookInject, hook, freeArea, reg);
+
+                string name = Path.GetFileName(bin);
+                // The PATCHED_IF guard is the inject-jump code (built the SAME way the
+                // patch consumer rebuilds it), so compute the expected dump from the
+                // shared Core builder rather than hard-coding the opcode bytes.
+                byte[] jump = DisassemblerTrumb.MakeInjectJump(hook, freeArea, reg);
+                // U.To0xHexString zero-pads to 8 hex digits (0x08001000).
+                string expected =
+                    "NAME=<<PATCH NAME>>\r\n" +
+                    "\r\n" +
+                    "TYPE=BIN\r\n" +
+                    "PATCHED_IF:0x08001000=" + U.HexDumpLiner0x(jump) + "\r\n" +
+                    "BIN:$FREEAREA=" + name + "\r\n" +
+                    "JUMP:0x08001000:r4=" + name;
+
+                Assert.Equal(expected, patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
+        public void MakePatchText_HookInject_ClampsHookRegister()
+        {
+            byte[] data = { 0x11 };
+            string bin = WriteTempBin(data);
+            try
+            {
+                // A register index past r8 is clamped to r8 (WF GetSaftyRegister).
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.HookInject, 0x08001000, 0x08F00000, 99);
+                Assert.Contains(":r8=", patch);
+                Assert.DoesNotContain(":r99=", patch);
+            }
+            finally { File.Delete(bin); }
+        }
     }
 }

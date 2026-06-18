@@ -11828,3 +11828,27 @@ config/translate/<lang>.txt
 
 :Flags used
 使用フラグ数
+:Make Patch
+パッチを作成
+
+:Make Patch...
+パッチを作成…
+
+:Save...
+保存…
+
+:Text Files
+テキストファイル
+
+:Saved to {0}
+{0} に保存しました。
+
+:Failed to save the patch file.
+パッチファイルの保存に失敗しました。
+
+:There is no compiled result, so a patch cannot be created.
+コンパイルした結果のファイルがないので、パッチを作成できません。
+
+:A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
+コンパイル結果の再配布可能なパッチ定義です。PATCH_(NAME).txt ファイルとして保存すると、パッチを共有できます。
+

@@ -28,14 +28,12 @@ namespace FEBuilderGBA
     ///          script the caller assembles via <see cref="EventAssemblerCompileCore"/>).
     ///     → insert the raw binary into the ROM (free-area / address / hook-inject).
     ///
-    /// Scope boundary (intentional — matches how <see cref="EventAssemblerCompileCore"/>
-    /// deferred MakeEAAutoDef):
+    /// Scope:
     ///   PROVIDED: .c/.cpp/.s/.asm → ELF → .dmp / .lyn.event, the GoldRoad
     ///     <c>@thumb</c> path, the three insert methods, missing-label check,
-    ///     debug-symbol store, undo.
-    ///   INTENTIONALLY DEFERRED to a follow-up (WinForms-coupled):
-    ///     - the "Make Patch" text generator (GraphicsToolPatchMakerForm) — pure WF
-    ///       patch-text UI, unrelated to the core compile/insert.
+    ///     debug-symbol store, undo, and the "Make Patch" redistributable
+    ///     patch-definition text generator (<see cref="MakePatchText"/>, #1243 — the
+    ///     GUI-free port of WF <c>ToolASMInsertForm.MakePatch</c>).
     /// </summary>
     public static class AsmCompileCore
     {
@@ -861,6 +859,102 @@ namespace FEBuilderGBA
         {
             if (reg > 8) return 8;
             return reg;
+        }
+
+        // ---- Make Patch (redistributable patch-definition text) ---------------
+
+        /// <summary>
+        /// Build the redistributable FEBuilder patch-definition TEXT for a compiled
+        /// product, mirroring WinForms <c>ToolASMInsertForm.MakePatch</c>. The text is
+        /// the <c>PATCH_(NAME).txt</c> format FEBuilder's patch loader reads, so a user
+        /// can ship the compiled <c>.dmp</c>/<c>.bin</c> alongside this text and have it
+        /// re-applied to any matching ROM.
+        ///
+        /// Pure + fault-safe: reads ONLY the compiled product file (to hex-dump its first
+        /// bytes / build the inject-jump), mutates nothing, and never throws — a missing/
+        /// unreadable product or a compile-only/invalid request returns "" (the caller
+        /// shows "nothing to make a patch from"). The <c>&lt;&lt;PATCH NAME&gt;&gt;</c>
+        /// placeholder is filled in at save time from the chosen file name (WF
+        /// <c>GraphicsToolPatchMakerForm.SaveButton_Click</c>).
+        ///
+        /// Two shapes (WF MakePatch), keyed by the insert method:
+        ///   WriteAtAddress — the binary lands verbatim at <paramref name="targetAddr"/>:
+        ///     <code>
+        ///     NAME=&lt;&lt;PATCH NAME&gt;&gt;
+        ///
+        ///     TYPE=BIN
+        ///     PATCHED_IF:0xADDR= 0x.. (first 32 product bytes)
+        ///     BIN:0xADDR=&lt;product file name&gt;
+        ///     </code>
+        ///   HookInject — the body lands in the free area and a thumb jump is patched at
+        ///   <paramref name="targetAddr"/> (the hook site):
+        ///     <code>
+        ///     NAME=&lt;&lt;PATCH NAME&gt;&gt;
+        ///
+        ///     TYPE=BIN
+        ///     PATCHED_IF:0xHOOK= 0x.. (the inject-jump code)
+        ///     BIN:$FREEAREA=&lt;product file name&gt;
+        ///     JUMP:0xHOOK:r&lt;reg&gt;=&lt;product file name&gt;
+        ///     </code>
+        ///   CompileOnly — returns "" (there is nothing to apply; WF returns "" too).
+        /// </summary>
+        /// <param name="productPath">The compiled product (the .dmp/.bin from the last
+        /// successful run). When missing/empty, returns "".</param>
+        /// <param name="insert">The insert method the patch should describe. CompileOnly
+        /// yields "".</param>
+        /// <param name="targetAddr">The write address (WriteAtAddress) or hook site
+        /// (HookInject). When zero, returns "" (WF CheckZeroAddressWrite guard).</param>
+        /// <param name="freeArea">The routine-body free area (HookInject only).</param>
+        /// <param name="hookRegister">The scratch register for the injected jump
+        /// (HookInject only); clamped to r0..r8.</param>
+        public static string MakePatchText(string productPath, InsertMethod insert,
+            uint targetAddr, uint freeArea, uint hookRegister)
+        {
+            // A patch needs a compiled product to ship (WF: "no compiled result file").
+            if (string.IsNullOrEmpty(productPath) || !File.Exists(productPath))
+                return "";
+
+            // The address must be a real write target (WF CheckZeroAddressWrite).
+            if (targetAddr == 0)
+                return "";
+
+            // Compile-only produces no ROM change, so there is nothing to patch (WF
+            // returns "" for Method index 0).
+            if (insert == InsertMethod.CompileOnly)
+                return "";
+
+            string productName = Path.GetFileName(productPath);
+
+            var sb = new StringBuilder();
+            sb.Append("NAME=<<PATCH NAME>>\r\n");
+            sb.Append("\r\n");
+            sb.Append("TYPE=BIN\r\n");
+
+            if (insert == InsertMethod.WriteAtAddress)
+            {
+                byte[] bin;
+                try { bin = File.ReadAllBytes(productPath); }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    // The product vanished/locked between the existence check and the
+                    // read — treat as "nothing to patch" rather than throwing.
+                    return "";
+                }
+
+                sb.Append("PATCHED_IF:" + U.To0xHexString(targetAddr) + "=" + U.HexDumpLiner0x(bin, 0, 32) + "\r\n");
+                sb.Append("BIN:" + U.To0xHexString(targetAddr) + "=" + productName);
+            }
+            else // HookInject
+            {
+                uint useReg = ClampHookRegister(hookRegister);
+                byte[] jumpCode = DisassemblerTrumb.MakeInjectJump(targetAddr, freeArea, useReg);
+                sb.Append("PATCHED_IF:" + U.To0xHexString(targetAddr) + "=" + U.HexDumpLiner0x(jumpCode) + "\r\n");
+
+                sb.Append("BIN:$FREEAREA=" + productName);
+                sb.Append("\r\nJUMP:" + U.To0xHexString(targetAddr) + ":r" + useReg + "=" + productName);
+            }
+
+            return sb.ToString();
         }
 
         // ---- Process runner (mirrors EventAssemblerCompileCore.RunProcess) ----

@@ -1075,6 +1075,20 @@ namespace FEBuilderGBA
             for (uint i = addr; i < max; i += 1) { r.Append(" "); r.Append(bytes[i].ToString("X02")); }
             return r.ToString();
         }
+        // The "0x"-prefixed variants used by the patch-definition writers (e.g. the
+        // Add-via-ASM/C "Make Patch" text). WinForms simply replaces every space with
+        // " 0x", so the leading space from HexDumpLiner becomes a leading " 0x" — kept
+        // byte-for-byte so the produced patch text matches the WinForms output exactly.
+        public static string HexDumpLiner0x(byte[] bytes)
+        {
+            string r = HexDumpLiner(bytes);
+            return r.Replace(" ", " 0x");
+        }
+        public static string HexDumpLiner0x(byte[] bytes, uint addr, uint length)
+        {
+            string r = HexDumpLiner(bytes, addr, length);
+            return r.Replace(" ", " 0x");
+        }
         /// <summary>
         /// Project a Dictionary&lt;uint,string&gt; to a list of its values.
         /// The order matches <see cref="Dictionary{TKey,TValue}.Values"/>'s

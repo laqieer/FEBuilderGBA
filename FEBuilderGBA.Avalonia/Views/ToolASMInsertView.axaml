@@ -15,8 +15,8 @@
        ComboBoxItem content).
        The GoldRoad assembler path (@thumb .ASM, the legacy MASM-like assembler) is
        supported via AsmCompileCore, auto-selected from the source content (#1244).
-       Deferred to a follow-up: the "Make Patch" text generator (#1243); revert an
-       applied insert via Undo for now. -->
+       "Make Patch" (#1243) turns the last successful compile into a redistributable
+       PATCH_(NAME).txt (AsmPatchTextView); revert an applied insert via Undo. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="10">
 
@@ -103,6 +103,13 @@
         <Button AutomationProperties.AutomationId="ToolASMInsert_Run_Button"
                 Name="RunButton" Content="Run (compile + insert)"
                 Click="Run_Click" />
+        <!-- Make Patch: turns the last successful compile into a redistributable
+             PATCH_(NAME).txt (WF PatchMakerButton). Enabled only when a writable
+             product exists and the insert method is write-at-address / hook-inject. -->
+        <Button AutomationProperties.AutomationId="ToolASMInsert_MakePatch_Button"
+                Name="MakePatchButton" Content="Make Patch..."
+                IsEnabled="{Binding CanMakePatch}"
+                Click="MakePatch_Click" />
         <Button AutomationProperties.AutomationId="ToolASMInsert_Undo_Button"
                 Name="UndoButton" Content="Undo"
                 IsVisible="{Binding CanUndo}"

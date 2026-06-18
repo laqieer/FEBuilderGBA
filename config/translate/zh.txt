@@ -25669,3 +25669,27 @@ config/translate/<lang>.txt
 
 :Flags used
 使用的旗标数
+:Make Patch
+制作补丁
+
+:Make Patch...
+制作补丁…
+
+:Save...
+保存…
+
+:Text Files
+文本文件
+
+:Saved to {0}
+已保存到 {0}
+
+:Failed to save the patch file.
+保存补丁文件失败。
+
+:There is no compiled result, so a patch cannot be created.
+没有编译结果文件，因此无法制作补丁。
+
+:A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
+编译结果的可再分发补丁定义。将其保存为 PATCH_(NAME).txt 文件即可分享该补丁。
+
