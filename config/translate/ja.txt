@@ -11688,3 +11688,63 @@ lyn.eventに変換(コンパイルのみ)
 
 :Unable to read the compiled file.\r\nfilename:{0}
 コンパイルしたファイルを読み込めません。\r\nfilename:{0}
+
+:Run a custom build pipeline for the project and load the built ROM.
+プロジェクトのカスタムビルドパイプラインを実行し、ビルドしたROMを読み込みます。
+
+:Build target:
+ビルドターゲット:
+
+:Select CUSTOM_BUILD.cmd or an Event Assembler target
+CUSTOM_BUILD.cmd またはイベントアセンブラのターゲットを選択
+
+:Select the un-modded base ROM
+無改造のベースROMを選択
+
+:Build method:
+ビルド方法:
+
+:Run build
+ビルドを実行
+
+:Building...
+ビルド中...
+
+:Build successful.
+ビルドに成功しました。
+
+:Build failed.
+ビルドに失敗しました。
+
+:Built ROM: {0}
+ビルドしたROM: {0}
+
+:Symbols loaded.
+シンボルを読み込みました。
+
+:Auto (by file extension)
+自動(拡張子で判定)
+
+:CUSTOM_BUILD.cmd (Windows batch)
+CUSTOM_BUILD.cmd(Windowsバッチ)
+
+:Event Assembler target
+イベントアセンブラのターゲット
+
+:Please select a build target.
+ビルドターゲットを選択してください。
+
+:build target
+ビルドターゲット
+
+:Please select the un-modded base ROM.
+無改造のベースROMを選択してください。
+
+:GBA ROM
+GBA ROM
+
+:Binary file
+バイナリファイル
+
+:CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
+CUSTOM_BUILD.cmd は Windows のバッチスクリプトで、Windows でのみ実行できます。
