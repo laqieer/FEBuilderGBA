@@ -10,14 +10,19 @@ namespace FEBuilderGBA
     /// GUI-free compile+insert flow for the "Add-via-ASM/C" tool, shared by the
     /// Avalonia <c>ToolASMInsertView</c>. Ported from the WinForms path
     /// (<c>ToolASMInsertForm.RunButton_Click</c> → <c>MainFormUtil.Compile</c> /
-    /// <c>CompilerDevkitPro</c> / <c>ConvertLYN</c>), keeping the exact devkitARM
-    /// gcc/g++/as arguments, the ELF → text-section dump, the lyn ELF→EA-event
-    /// conversion, and the three insert methods (free-area data, write-at-address,
-    /// hook-inject).
+    /// <c>CompilerDevkitPro</c> / <c>CompilerGoldRoad</c> / <c>ConvertLYN</c>), keeping
+    /// the exact devkitARM gcc/g++/as arguments, the GoldRoad assemble-then-rename
+    /// flow, the ELF → text-section dump, the lyn ELF→EA-event conversion, and the
+    /// three insert methods (free-area data, write-at-address, hook-inject).
     ///
     /// Compile chain:
     ///   C/C++/ASM source
-    ///     → devkitARM gcc/g++/as (<c>CoreState.Config.at("devkitpro_eabi")</c>) → ELF
+    ///     → assembler auto-selected from the source (WF <c>MainFormUtil.Compile</c>):
+    ///       a <c>.ASM</c> whose text contains <c>@thumb</c> (and NOT <c>.thumb</c>)
+    ///       goes to the legacy GoldRoad assembler
+    ///       (<c>CoreState.Config.at("goldroad_asm")</c>) → raw <c>.bin</c>; everything
+    ///       else goes to devkitARM gcc/g++/as
+    ///       (<c>CoreState.Config.at("devkitpro_eabi")</c>) → ELF
     ///     → (a) raw text-section dump (.dmp) via <see cref="Elf.ProgramBIN"/>, OR
     ///       (b) <c>CONVERT_LYN</c>: as → .o → lyn.exe → .lyn.event (an EA event
     ///          script the caller assembles via <see cref="EventAssemblerCompileCore"/>).
@@ -25,11 +30,10 @@ namespace FEBuilderGBA
     ///
     /// Scope boundary (intentional — matches how <see cref="EventAssemblerCompileCore"/>
     /// deferred MakeEAAutoDef):
-    ///   PROVIDED: .c/.cpp/.s/.asm → ELF → .dmp / .lyn.event, the three insert
-    ///     methods, missing-label check, debug-symbol store, undo.
+    ///   PROVIDED: .c/.cpp/.s/.asm → ELF → .dmp / .lyn.event, the GoldRoad
+    ///     <c>@thumb</c> path, the three insert methods, missing-label check,
+    ///     debug-symbol store, undo.
     ///   INTENTIONALLY DEFERRED to a follow-up (WinForms-coupled):
-    ///     - the GoldRoad assembler path (<c>@thumb</c> ASM → CompilerGoldRoad) — a
-    ///       separate legacy assembler; the devkitARM path covers .asm/.s/.c/.cpp.
     ///     - the "Make Patch" text generator (GraphicsToolPatchMakerForm) — pure WF
     ///       patch-text UI, unrelated to the core compile/insert.
     /// </summary>
@@ -175,6 +179,59 @@ namespace FEBuilderGBA
             return ToolPathResolver.ResolveLynExe(ea);
         }
 
+        // ---- GoldRoad (legacy @thumb assembler) -------------------------------
+
+        /// <summary>Resolve the legacy GoldRoad assembler from <c>goldroad_asm</c>, or
+        /// null. Delegates to <see cref="ToolPathResolver.ResolveGoldRoad"/>.</summary>
+        public static string ResolveGoldRoad() => ToolPathResolver.ResolveGoldRoad();
+
+        /// <summary>
+        /// True when the GoldRoad assembler path is configured and exists. Callers
+        /// should surface <see cref="GetGoldRoadNotFoundMessage"/> when this is false
+        /// and the source is a GoldRoad (<c>@thumb</c>) source.
+        /// </summary>
+        public static bool IsGoldRoadAvailable() => !string.IsNullOrEmpty(ResolveGoldRoad());
+
+        /// <summary>Localized "goldroad not configured" message (no throw). Reuses the
+        /// same parameterized key as the devkit message, with the tool name "goldroad"
+        /// (mirrors WF <c>CompilerGoldRoad</c>).</summary>
+        public static string GetGoldRoadNotFoundMessage() =>
+            R._("{0}の設定がありません。 設定->オプションから、{0}を設定してください。", "goldroad");
+
+        /// <summary>
+        /// Decide whether a source must be assembled with GoldRoad instead of devkitARM
+        /// — the pure source-content auto-switch from WF <c>MainFormUtil.Compile</c>: a
+        /// <c>.ASM</c> source whose (case-insensitive) text contains <c>@thumb</c> and
+        /// does NOT contain <c>.thumb</c> routes to GoldRoad; everything else
+        /// (.thumb ASM, .s/.c/.cpp, or any non-.ASM ext) routes to devkitARM. Pure: it
+        /// only inspects the extension and the file text, mutating nothing.
+        /// </summary>
+        public static bool ShouldUseGoldRoad(string sourcePath)
+        {
+            if (string.IsNullOrEmpty(sourcePath)) return false;
+            // WF keys the auto-switch on the .ASM extension only (a .S is always devkit).
+            if (U.GetFilenameExt(sourcePath) != ".ASM") return false;
+
+            string text;
+            try { text = File.ReadAllText(sourcePath); }
+            catch { return false; } // unreadable → let the devkit path report the error
+            return ShouldUseGoldRoadFromText(text);
+        }
+
+        /// <summary>
+        /// The pure text predicate behind <see cref="ShouldUseGoldRoad"/> (exposed for
+        /// unit-testing without a file): mirrors WF <c>MainFormUtil.Compile</c> — a
+        /// <c>.thumb</c> marker forces devkitARM (gnu-as) even when <c>@thumb</c> is
+        /// also present; only a bare <c>@thumb</c> (no <c>.thumb</c>) selects GoldRoad.
+        /// </summary>
+        public static bool ShouldUseGoldRoadFromText(string sourceText)
+        {
+            if (string.IsNullOrEmpty(sourceText)) return false;
+            string lower = sourceText.ToLowerInvariant();
+            if (lower.IndexOf(".thumb", StringComparison.Ordinal) >= 0) return false;
+            return lower.IndexOf("@thumb", StringComparison.Ordinal) >= 0;
+        }
+
         // ---- Argument building (pure — unit-tested without running anything) ---
 
         /// <summary>
@@ -237,6 +294,15 @@ namespace FEBuilderGBA
                 result.ErrorMessage = R._("ファイルがありません。\r\nファイル名:{0}", sourcePath ?? "");
                 return result;
             }
+
+            // Source-content auto-switch (WF MainFormUtil.Compile): a .ASM with @thumb
+            // (and no .thumb) is assembled by the legacy GoldRoad assembler, not the
+            // devkitARM chain. GoldRoad always produces a raw .bin (there is no ELF, so
+            // the ConvertLyn/KeepElf methods do not apply — it always behaves like
+            // DumpBinary, matching WF which ignores compileType for the GoldRoad path).
+            if (ShouldUseGoldRoad(sourcePath))
+                return CompileGoldRoad(sourcePath, onProgress);
+
             if (!IsDevkitProAvailable())
             {
                 result.ErrorMessage = GetNotFoundMessage();
@@ -436,6 +502,124 @@ namespace FEBuilderGBA
             return list[0];
         }
 
+        // ---- GoldRoad assemble (@thumb legacy path) ---------------------------
+
+        /// <summary>
+        /// Build the GoldRoad command-line arguments (WF <c>CompilerGoldRoad</c>):
+        /// <c>&lt;source&gt; &lt;output.gba&gt;</c>. The OUTPUT is passed as a BARE filename
+        /// (no directory) because GoldRoad is buggy and crashes on a complex output
+        /// path — WF works around this by running with the working directory set to the
+        /// GoldRoad tool dir so the bare-named product lands there. The source may be a
+        /// full path (GoldRoad tolerates that for the input). Pure: takes its inputs
+        /// explicitly so it is unit-testable without running anything.
+        /// </summary>
+        public static string BuildGoldRoadArgs(string sourceFileName, string outputGbaFileName)
+        {
+            return U.escape_shell_args(sourceFileName)
+                + " " + U.escape_shell_args(outputGbaFileName);
+        }
+
+        /// <summary>
+        /// Assemble a <c>@thumb</c> <c>.ASM</c> source with the legacy GoldRoad
+        /// assembler (WF <c>MainFormUtil.CompilerGoldRoad</c>). GoldRoad has no ELF
+        /// stage: it emits a raw <c>.gba</c> binary, which we rename to
+        /// <c>&lt;source&gt;.bin</c> (the WF product) and feed into the SAME insert
+        /// methods as the devkit path. Never throws — a missing tool / process / file
+        /// failure returns a structured, localized error with ZERO ROM mutation.
+        ///
+        /// Faithful WF quirks: GoldRoad is invoked with bare filenames and its working
+        /// directory set to the tool dir (it crashes on complex output paths), so the
+        /// product first lands as <c>&lt;tooldir&gt;/&lt;name&gt;.gba</c> and is then moved
+        /// next to the source as <c>&lt;name&gt;.bin</c> (a <c>.gba</c> extension is
+        /// avoided as "scary"). There are no EA symbols (no ELF), so
+        /// <see cref="CompileResult.SymbolText"/> stays empty.
+        /// </summary>
+        static CompileResult CompileGoldRoad(string sourcePath, Action<string> onProgress)
+        {
+            var result = new CompileResult();
+
+            string goldroad = ResolveGoldRoad();
+            if (string.IsNullOrEmpty(goldroad))
+            {
+                result.ErrorMessage = GetGoldRoadNotFoundMessage();
+                return result;
+            }
+
+            string srcFull;
+            string toolDir;
+            try
+            {
+                srcFull = Path.GetFullPath(sourcePath);
+                toolDir = Path.GetDirectoryName(Path.GetFullPath(goldroad));
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is PathTooLongException
+                || ex is NotSupportedException || ex is System.Security.SecurityException)
+            {
+                result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", goldroad, ex.ToString());
+                return result;
+            }
+            if (string.IsNullOrEmpty(toolDir) || !Directory.Exists(toolDir))
+            {
+                result.ErrorMessage = GetGoldRoadNotFoundMessage();
+                return result;
+            }
+
+            string srcDir = Path.GetDirectoryName(srcFull);
+            string nameNoExt = Path.GetFileNameWithoutExtension(srcFull);
+
+            // GoldRoad bug workaround: pass the OUTPUT as a bare ".gba" filename with the
+            // working directory set to the tool dir, so GoldRoad writes the product into
+            // its own directory. (WF passes the full source path as the first arg;
+            // GoldRoad tolerates that, but the OUTPUT must be a bare filename or it
+            // crashes.)
+            string outGbaName = nameNoExt + ".gba";
+            string args = BuildGoldRoadArgs(srcFull, outGbaName);
+
+            onProgress?.Invoke(goldroad);
+
+            string output;
+            try
+            {
+                output = RunProcess(goldroad, args, toolDir);
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", goldroad, ex.ToString());
+                return result;
+            }
+
+            string producedGba = Path.Combine(toolDir, outGbaName);
+            if (!File.Exists(producedGba) || U.GetFileSize(producedGba) <= 0)
+            {
+                // Prefix the executed command so the user can repro (matches WF).
+                result.Output = output;
+                result.ErrorMessage = goldroad + " " + args + " \r\noutput:\r\n" + output;
+                return result;
+            }
+
+            // Move the .gba product next to the source as <name>.bin (WF renames the
+            // scary .gba to .bin). Overwrite any stale product first.
+            string binPath = Path.Combine(srcDir, nameNoExt + ".bin");
+            try
+            {
+                TryDelete(binPath);
+                File.Move(producedGba, binPath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                result.Output = output;
+                result.ErrorMessage = R._("Unable to write the temporary files needed for compilation.")
+                    + "\r\n" + ex.ToString();
+                return result;
+            }
+
+            result.Output = output;
+            result.ProductPath = binPath;
+            result.SymbolText = ""; // no ELF → no EA symbols
+            result.Success = true;
+            return result;
+        }
+
         // ---- Compile + insert (the full Run flow) -----------------------------
 
         /// <summary>
@@ -461,8 +645,16 @@ namespace FEBuilderGBA
             if (rom == null)
                 return new CompileResult { ErrorMessage = R._("No ROM is loaded.") };
 
+            // A GoldRoad (@thumb .ASM) source ALWAYS produces a raw writable .bin — there
+            // is no ELF/lyn stage, so the selected CompileMethod (DumpBinary/KeepElf/
+            // ConvertLyn) does not apply to it (WF MainFormUtil.Compile routes to
+            // CompilerGoldRoad ignoring compileType). Detect it up front so the lyn-guard
+            // below does NOT reject a GoldRoad source paired with the ConvertLyn method.
+            bool isGoldRoad = ShouldUseGoldRoad(sourcePath);
+
             // A lyn.event is a script, not bytes — it cannot be written to the ROM here.
-            if (method == CompileMethod.ConvertLyn && insert != InsertMethod.CompileOnly)
+            // (GoldRoad never makes a lyn.event, so the guard skips it.)
+            if (!isGoldRoad && method == CompileMethod.ConvertLyn && insert != InsertMethod.CompileOnly)
                 return new CompileResult
                 {
                     ErrorMessage = R._("lyn.eventを作成する時は、ROMに書き込むことはできません。")
@@ -472,8 +664,10 @@ namespace FEBuilderGBA
             if (!result.Success)
                 return result;
 
-            // Store debug symbols for the compile-only / lyn product (addr 0).
-            if (insert == InsertMethod.CompileOnly || method == CompileMethod.ConvertLyn)
+            // Store debug symbols for the compile-only / lyn product (addr 0). A GoldRoad
+            // source produces a raw .bin even under the ConvertLyn method, so it is NOT
+            // treated as a non-writable lyn product here.
+            if (insert == InsertMethod.CompileOnly || (!isGoldRoad && method == CompileMethod.ConvertLyn))
             {
                 SymbolUtil.ProcessSymbolByComment(Path.GetFullPath(sourcePath), result.SymbolText, storeSymbol, 0);
                 return result;

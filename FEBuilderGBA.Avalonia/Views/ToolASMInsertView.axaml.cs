@@ -10,18 +10,19 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     /// <summary>
     /// Add-via-ASM/C tool (WF <c>ToolASMInsertForm</c>). Compiles a C/C++/ASM source
-    /// through the devkitARM chain and inserts the result into the ROM via the
-    /// GUI-free Core helper <see cref="AsmCompileCore"/>, with a compile method
-    /// (dump binary / keep ELF / convert to lyn.event), an insert method
-    /// (compile-only / write-at-address / hook-inject), a hook register, a
-    /// debug-symbol store choice, a missing-label check and undo.
+    /// through the devkitARM chain — or, for a legacy <c>@thumb</c> <c>.ASM</c> source,
+    /// the GoldRoad assembler (auto-selected from the source content, no extra UI) —
+    /// and inserts the result into the ROM via the GUI-free Core helper
+    /// <see cref="AsmCompileCore"/>, with a compile method (dump binary / keep ELF /
+    /// convert to lyn.event), an insert method (compile-only / write-at-address /
+    /// hook-inject), a hook register, a debug-symbol store choice, a missing-label
+    /// check and undo.
     ///
     /// Combo items are added in code via R._() so they pick up ja/zh translations
     /// (ViewTranslationHelper does not translate ComboBoxItem content).
     ///
-    /// The GoldRoad assembler path and the "Make Patch" text generator are deferred
-    /// to a follow-up issue (both WinForms-coupled); an applied insert can be
-    /// reverted via Undo for now.
+    /// The "Make Patch" text generator is deferred to a follow-up issue
+    /// (WinForms-coupled); an applied insert can be reverted via Undo.
     /// </summary>
     public partial class ToolASMInsertView : TranslatedWindow, IEditorView
     {
@@ -153,9 +154,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!await BrowseForSourceAsync() || !_vm.SourceExists)
                     return; // user cancelled / no usable file
             }
-            if (!_vm.IsDevkitProAvailable)
+            // The assembler is auto-selected from the source content (devkitARM, or
+            // GoldRoad for a @thumb .ASM) — surface the not-found message for whichever
+            // one this specific source requires (mirrors WF MainFormUtil.Compile).
+            if (!_vm.IsRequiredToolAvailable)
             {
-                _vm.StatusMessage = _vm.NotFoundMessage;
+                _vm.StatusMessage = _vm.RequiredToolNotFoundMessage;
                 return;
             }
 

@@ -679,5 +679,263 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.BaseDirectory = savedBaseDir;
             }
         }
+
+        // ---- GoldRoad (legacy @thumb assembler, #1244) ------------------------
+        //
+        // GoldRoad is a legacy Windows-era assembler that is NOT in CI (like devkitARM),
+        // so there is intentionally NO real-compile here. The deterministic paths ARE
+        // covered: the pure @thumb/.thumb auto-switch predicate, tool resolution
+        // (config path / directory / missing), goldroad-not-found → localized error +
+        // ZERO mutation, the pure argument builder, and that a @thumb source with no
+        // goldroad_asm fails cleanly without ever touching the ROM.
+
+        // ShouldUseGoldRoadFromText: the WF MainFormUtil.Compile auto-switch, pure.
+        [Theory]
+        [InlineData("@thumb\r\nmov r0, r0\r\n", true)]                  // bare @thumb → GoldRoad
+        [InlineData("@THUMB\r\n", true)]                               // case-insensitive
+        [InlineData(".thumb\r\nnop\r\n", false)]                       // .thumb → devkit (gnu as)
+        [InlineData(".thumb\r\n@thumb\r\n", false)]                    // .thumb WINS over @thumb
+        [InlineData("@thumb and .thumb on one line", false)]          // .thumb present anywhere → devkit
+        [InlineData("nop\r\nmov r0, r0\r\n", false)]                   // neither marker → devkit
+        [InlineData("", false)]                                        // empty → devkit
+        public void ShouldUseGoldRoadFromText_MatchesWfAutoSwitch(string text, bool expected)
+        {
+            Assert.Equal(expected, AsmCompileCore.ShouldUseGoldRoadFromText(text));
+        }
+
+        [Fact]
+        public void ShouldUseGoldRoadFromText_Null_ReturnsFalse()
+        {
+            Assert.False(AsmCompileCore.ShouldUseGoldRoadFromText(null));
+        }
+
+        // ShouldUseGoldRoad: ext gate (.ASM only) + the text predicate, with a real file.
+        [Theory]
+        [InlineData(".asm", "@thumb\r\nnop\r\n", true)]   // .ASM + @thumb → GoldRoad
+        [InlineData(".asm", ".thumb\r\nnop\r\n", false)]  // .ASM + .thumb → devkit
+        [InlineData(".s", "@thumb\r\nnop\r\n", false)]    // .S is ALWAYS devkit (WF gates on .ASM)
+        [InlineData(".c", "@thumb\r\n", false)]           // .C is ALWAYS devkit
+        public void ShouldUseGoldRoad_ExtGate_AndContent(string ext, string content, bool expected)
+        {
+            string src = Path.Combine(Path.GetTempPath(), "fbg-gr-" + Path.GetRandomFileName() + ext);
+            File.WriteAllText(src, content);
+            try
+            {
+                Assert.Equal(expected, AsmCompileCore.ShouldUseGoldRoad(src));
+            }
+            finally
+            {
+                try { File.Delete(src); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ShouldUseGoldRoad_MissingOrEmptyPath_ReturnsFalse()
+        {
+            Assert.False(AsmCompileCore.ShouldUseGoldRoad(null));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoad(""));
+            Assert.False(AsmCompileCore.ShouldUseGoldRoad(
+                Path.Combine(Path.GetTempPath(), "no-such-" + Guid.NewGuid() + ".asm")));
+        }
+
+        // BuildGoldRoadArgs: pure — <source> <output.gba> (bare names, escaped).
+        [Fact]
+        public void BuildGoldRoadArgs_BasicShape()
+        {
+            string args = AsmCompileCore.BuildGoldRoadArgs("foo.asm", "foo.gba");
+            Assert.Contains("foo.asm", args);
+            Assert.Contains("foo.gba", args);
+            // The source comes first, the .gba output second (WF order).
+            Assert.True(args.IndexOf("foo.asm", StringComparison.Ordinal)
+                < args.IndexOf("foo.gba", StringComparison.Ordinal));
+        }
+
+        // ResolveGoldRoad: config path / directory / missing.
+        [Fact]
+        public void ResolveGoldRoad_NotConfigured_ReturnsNull()
+        {
+            var savedConfig = CoreState.Config;
+            CoreState.Config = null;
+            try
+            {
+                Assert.Null(ToolPathResolver.ResolveGoldRoad());
+                Assert.Null(AsmCompileCore.ResolveGoldRoad());
+                Assert.False(AsmCompileCore.IsGoldRoadAvailable());
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+            }
+        }
+
+        [Fact]
+        public void ResolveGoldRoad_DirectExePath_ResolvesAndIsAvailable()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "fbg-goldroad-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(dir);
+            string exe = Path.Combine(dir, "goldroad.exe");
+            File.WriteAllText(exe, "stub");
+
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config { ["goldroad_asm"] = exe };
+            try
+            {
+                Assert.Equal(exe, ToolPathResolver.ResolveGoldRoad());
+                Assert.True(AsmCompileCore.IsGoldRoadAvailable());
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ResolveGoldRoad_ConfigPointsAtDirectory_FindsPlatformBinary()
+        {
+            // When the config points at a directory, the platform-aware goldroad/
+            // goldroad.exe inside it is found (so a non-Windows layout works too).
+            string dir = Path.Combine(Path.GetTempPath(), "fbg-goldroad-dir-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(dir);
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation
+                .IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            string exeName = isWindows ? "goldroad.exe" : "goldroad";
+            string exe = Path.Combine(dir, exeName);
+            File.WriteAllText(exe, "stub");
+
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config { ["goldroad_asm"] = dir };
+            try
+            {
+                Assert.Equal(exe, ToolPathResolver.ResolveGoldRoad());
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ResolveGoldRoad_ConfiguredButMissing_ReturnsNull()
+        {
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config
+            {
+                ["goldroad_asm"] = Path.Combine(Path.GetTempPath(), "no-goldroad-" + Guid.NewGuid() + ".exe")
+            };
+            try
+            {
+                Assert.Null(ToolPathResolver.ResolveGoldRoad());
+                Assert.False(AsmCompileCore.IsGoldRoadAvailable());
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+            }
+        }
+
+        // GoldRoad not-found: a @thumb .ASM with no goldroad_asm → localized error,
+        // ZERO mutation. Note the source routes to GoldRoad (not devkit) PURELY from its
+        // content, so even with devkitARM unset the error names goldroad, not devkit.
+        [Fact]
+        public void Compile_GoldRoadSource_NotConfigured_ReturnsGoldRoadError()
+        {
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config(); // no goldroad_asm, no devkitpro_eabi
+            string src = Path.Combine(Path.GetTempPath(), "gr-" + Path.GetRandomFileName() + ".asm");
+            File.WriteAllText(src, "@thumb\r\nmov r0, r0\r\n");
+            try
+            {
+                var result = AsmCompileCore.Compile(
+                    src, AsmCompileCore.CompileMethod.DumpBinary, checkMissingLabel: false);
+
+                Assert.False(result.Success);
+                Assert.Equal(AsmCompileCore.GetGoldRoadNotFoundMessage(), result.ErrorMessage);
+                // The error names goldroad (the auto-selected tool), NOT devkitpro_eabi.
+                Assert.Contains("goldroad", result.ErrorMessage);
+                Assert.DoesNotContain("devkitpro_eabi", result.ErrorMessage);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { File.Delete(src); } catch { }
+            }
+        }
+
+        [Fact]
+        public void CompileAndInsert_GoldRoadSource_NotConfigured_NoMutation()
+        {
+            var rom = CreateTestRom();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config(); // no goldroad_asm
+            string src = Path.Combine(Path.GetTempPath(), "gr-" + Path.GetRandomFileName() + ".asm");
+            File.WriteAllText(src, "@thumb\r\nmov r0, r0\r\n");
+            try
+            {
+                var undo = NewUndo(rom);
+                var result = AsmCompileCore.CompileAndInsert(
+                    rom, src, AsmCompileCore.CompileMethod.DumpBinary,
+                    AsmCompileCore.InsertMethod.WriteAtAddress, 0x100, U.NOT_FOUND, 3,
+                    SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
+
+                Assert.False(result.Success);
+                Assert.Equal(AsmCompileCore.GetGoldRoadNotFoundMessage(), result.ErrorMessage);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { File.Delete(src); } catch { }
+            }
+        }
+
+        [Fact]
+        public void CompileAndInsert_GoldRoadSource_ConvertLynMethod_NotRejectedByLynGuard_FailsAtToolResolution()
+        {
+            // A GoldRoad source ALWAYS produces a raw .bin (WF ignores compileType for
+            // it), so pairing it with the ConvertLyn method must NOT trip the
+            // "lyn.event can't be written to the ROM" guard — it should instead fall
+            // through to the GoldRoad compile and fail cleanly at tool resolution
+            // (goldroad not configured), with NO mutation.
+            var rom = CreateTestRom();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config(); // no goldroad_asm
+            string src = Path.Combine(Path.GetTempPath(), "gr-" + Path.GetRandomFileName() + ".asm");
+            File.WriteAllText(src, "@thumb\r\nmov r0, r0\r\n");
+            try
+            {
+                var undo = NewUndo(rom);
+                var result = AsmCompileCore.CompileAndInsert(
+                    rom, src, AsmCompileCore.CompileMethod.ConvertLyn,
+                    AsmCompileCore.InsertMethod.WriteAtAddress, 0x100, U.NOT_FOUND, 3,
+                    SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
+
+                Assert.False(result.Success);
+                // The error is the GoldRoad not-found message, NOT the lyn-can't-write guard.
+                Assert.Equal(AsmCompileCore.GetGoldRoadNotFoundMessage(), result.ErrorMessage);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { File.Delete(src); } catch { }
+            }
+        }
+
+        [Fact]
+        public void GetGoldRoadNotFoundMessage_NamesGoldroad_NotDevkit()
+        {
+            string msg = AsmCompileCore.GetGoldRoadNotFoundMessage();
+            Assert.False(string.IsNullOrEmpty(msg));
+            Assert.Contains("goldroad", msg);
+            Assert.DoesNotContain("devkitpro_eabi", msg);
+        }
     }
 }
