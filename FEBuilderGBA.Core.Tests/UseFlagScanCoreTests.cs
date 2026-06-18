@@ -26,7 +26,8 @@ namespace FEBuilderGBA.Core.Tests
         const int RomSize = 0x1000000; // 16MB — FE8 LoadLow minimum.
 
         // Layout (FE8U): map_setting_datasize=148, event_plist_pos=116,
-        // eventcond_tern_size=12, cond slot 0 = Turn.
+        // eventcond_tern_size=12, eventcond_talk_size=16,
+        // cond slot 0 = Turn, slot 1 = Talk.
         const uint MapTableBase   = 0x00700000u;
         const uint EventTableBase = 0x00710000u;
         const uint CondBlock      = 0x00720000u;
@@ -34,6 +35,10 @@ namespace FEBuilderGBA.Core.Tests
         const uint EventScriptAddr= 0x00740000u;
         const uint ChangeTable    = 0x00750000u;
         const uint ChangeData     = 0x00760000u;
+        // Second event-script tree, reached from the Talk cond slot — references
+        // the SAME ScriptFlag, to prove cross-TREE dedup (one EVENTSCRIPT row).
+        const uint TalkRecord      = 0x00770000u;
+        const uint EventScriptAddr2= 0x00780000u;
 
         const uint CondFlag   = 0x0011; // Turn record flag (u16 @ +2)
         const uint ScriptFlag = 0x0022; // event-script FLAG arg
@@ -101,15 +106,30 @@ namespace FEBuilderGBA.Core.Tests
                 // Next turn record header = 0 → terminates the slot walk.
                 WriteU32(rom, TurnRecord + 12, 0x00000000u);
 
-                // 4) Event script: SETFLAG ScriptFlag ; SETFLAG ScriptFlag ; ENDA.
-                //    The SAME flag is referenced TWICE (two distinct commands) so the
-                //    test can prove the WF per-tree flag-id dedup collapses it to ONE
-                //    EVENTSCRIPT row.
+                // 3b) Cond block slot 1 (Talk, stride eventcond_talk_size=16) → a
+                //     Talk record whose event ptr reaches a SECOND tree. This makes
+                //     ScriptFlag referenced from TWO DIFFERENT trees (Turn + Talk) so
+                //     the test proves CROSS-TREE dedup → still ONE EVENTSCRIPT row.
+                WriteU32(rom, CondBlock + 4, TalkRecord | 0x08000000u);
+                rom.Data[TalkRecord + 0] = 0x05; // non-zero header
+                rom.write_u16(TalkRecord + 2, 0x00); // talk record's own flag = 0 (none)
+                WriteU32(rom, TalkRecord + 4, EventScriptAddr2 | 0x08000000u);
+                // Next Talk record header word = 0 → terminates the slot walk.
+                WriteU32(rom, TalkRecord + 16, 0x00000000u);
+
+                // 4) Tree 1 (from Turn): SETFLAG ScriptFlag ; SETFLAG ScriptFlag ; ENDA.
+                //    The SAME flag is referenced TWICE within this one tree.
                 rom.write_u16(EventScriptAddr + 0, 0x0001);
                 rom.write_u16(EventScriptAddr + 2, (ushort)ScriptFlag);
                 rom.write_u16(EventScriptAddr + 4, 0x0001);
                 rom.write_u16(EventScriptAddr + 6, (ushort)ScriptFlag);
                 WriteU32(rom, EventScriptAddr + 8, 0x0000000A);
+
+                // 4b) Tree 2 (from Talk): SETFLAG ScriptFlag ; ENDA — the same flag
+                //     from a DIFFERENT tree.
+                rom.write_u16(EventScriptAddr2 + 0, 0x0001);
+                rom.write_u16(EventScriptAddr2 + 2, (ushort)ScriptFlag);
+                WriteU32(rom, EventScriptAddr2 + 4, 0x0000000A);
 
                 // 5) Map-change PLIST table: entry[3] → change data block.
                 WriteU32(rom, rom.RomInfo.map_mapchange_pointer, ChangeTable | 0x08000000u);
@@ -157,22 +177,38 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Scan_EventScriptFlag_DedupedPerTree()
+        public void Scan_EventScriptFlag_DedupedPerChapterAndType()
         {
-            // The synthetic event script references ScriptFlag from TWO distinct
-            // SETFLAG commands within one tree. WF MakeFlagIDEventScan dedups per
-            // flag id within a tree (U.FindList), so the chapter list must contain
-            // EXACTLY ONE EVENTSCRIPT row for ScriptFlag — not one per command.
+            // ScriptFlag is referenced from TWO different commands in tree 1 (Turn)
+            // AND from tree 2 (Talk). Without chapter-level dedup that would be 3
+            // EVENTSCRIPT rows (and a real chapter, with the flag across ~8 trees,
+            // showed it 8x — PR #1254). The scan collapses to ONE row per
+            // (flag id, source type), so ScriptFlag yields EXACTLY ONE EVENTSCRIPT
+            // row regardless of how many trees/commands reference it.
             WithChapter(rom =>
             {
                 var list = UseFlagScanCore.Scan(rom, 0u);
                 var scriptRows = list.FindAll(u =>
                     u.ID == ScriptFlag && u.DataType == FELintCore.Type.EVENTSCRIPT);
                 Assert.Single(scriptRows);
-                // Addr is the event-tree root (WF UseFlagID.Addr = event_addr), and
-                // Tag is the FIRST referencing command (the earlier SETFLAG).
+                // First occurrence wins (tree 1, the Turn slot's event script).
                 Assert.Equal(EventScriptAddr, scriptRows[0].Addr);
-                Assert.Equal(EventScriptAddr, scriptRows[0].Tag);
+            });
+        }
+
+        [Fact]
+        public void Scan_NoFlagRepeatsWithinASourceType()
+        {
+            // Count-sanity / dedup invariant: across the whole returned list, no
+            // (flag id, DataType) pair appears more than once — the property that
+            // keeps the flat list readable (PR #1254 regression: 0x07 x8).
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                var seen = new System.Collections.Generic.HashSet<(uint, int)>();
+                foreach (var u in list)
+                    Assert.True(seen.Add((u.ID, (int)u.DataType)),
+                        $"duplicate row for flag 0x{u.ID:X} type {u.DataType}");
             });
         }
 
@@ -261,6 +297,92 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(list, u =>
                     u.ID == ChangeFlag && u.DataType == FELintCore.Type.MAPCHANGE);
             });
+        }
+
+        // =================================================================
+        // Real-ROM regression test for the PR #1254 duplicate-row bug
+        // (skipped when the ROM is absent — e.g. CI without roms/).
+        // =================================================================
+
+        /// <summary>
+        /// PR #1254 regression guard on the REAL FE8U chapter 0: the per-tree dedup
+        /// (d23ab511e) listed flag 0x07 ~8 times (one per cond-slot event tree).
+        /// With chapter-level (flag id, source type) dedup, NO flag may repeat
+        /// within a source type, and the row count is well below the per-tree
+        /// inflated total. Asserts the invariant + that the list is non-trivial.
+        /// </summary>
+        [Fact]
+        public void RealRom_FE8U_Chapter0_NoDuplicateFlagPerType()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip when ROM absent
+
+            WithRealRomEnv(romPath, rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.NotEmpty(list); // chapter 0 uses flags — non-stub proof
+
+                // The core invariant: one row per (flag id, source type).
+                var seen = new HashSet<(uint, int)>();
+                foreach (var u in list)
+                    Assert.True(seen.Add((u.ID, (int)u.DataType)),
+                        $"duplicate row for flag 0x{u.ID:X} type {u.DataType} " +
+                        "(PR #1254 regression)");
+            });
+        }
+
+        static void WithRealRomEnv(string romPath, System.Action<ROM> body)
+        {
+            var savedRom = CoreState.ROM;
+            var savedEs = CoreState.EventScript;
+            var savedEnc = CoreState.SystemTextEncoder;
+            var savedComment = CoreState.CommentCache;
+            var savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                string asmDir = System.IO.Path.GetDirectoryName(
+                    System.Reflection.Assembly.GetExecutingAssembly().Location);
+                CoreState.BaseDirectory = asmDir;
+
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                if (CoreState.CommentCache == null)
+                    CoreState.CommentCache = new HeadlessEtcCache();
+
+                var es = new EventScript();
+                es.Load(EventScript.EventScriptType.Event);
+                CoreState.EventScript = es;
+
+                body(rom);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.EventScript = savedEs;
+                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.CommentCache = savedComment;
+                if (savedBaseDir != null)
+                    CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        static string FindRom(string romName)
+        {
+            string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string dir = System.IO.Path.GetDirectoryName(thisAssembly);
+            for (int i = 0; i < 10 && dir != null; i++)
+            {
+                if (System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
+                {
+                    string path = System.IO.Path.Combine(dir, "roms", romName);
+                    if (System.IO.File.Exists(path)) return path;
+                    break;
+                }
+                dir = System.IO.Path.GetDirectoryName(dir);
+            }
+            return null;
         }
     }
 }

@@ -42,20 +42,54 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Scan chapter <paramref name="mapId"/> and return its merged, WF-sorted
-        /// flag-usage list. Returns an empty (never null) list when the ROM is
-        /// missing/foreign or the chapter has no resolvable event data.
+        /// flag-usage list — ONE row per distinct (flag id, source type). Returns
+        /// an empty (never null) list when the ROM is missing/foreign or the
+        /// chapter has no resolvable event data.
+        ///
+        /// DEDUP RATIONALE (PR #1254 review): WinForms ToolUseFlagForm does NOT
+        /// dedup its underlying FlagList (a flag referenced from N cond-slot event
+        /// trees yields N EVENTSCRIPT entries), but its owner-draw list COLLAPSES
+        /// them visually — the flag header/name is drawn only when the id changes
+        /// (ToolUseFlagForm.Draw: <c>current.ID != FlagList[index-1].ID</c>), so the
+        /// user sees each flag's source-types grouped under one header, not the same
+        /// flag repeated. The Avalonia AddressListControl is a FLAT list with no
+        /// owner-draw grouping, so to reproduce that readable "one flag, its source
+        /// types once each" UX we collapse to one row per (flag id, DataType) here,
+        /// keeping the FIRST occurrence (its Addr/Tag). This is the right flat-list
+        /// UX AND matches what WF actually displays (a single 0x07 [EVENTSCRIPT]
+        /// line, not the same flag 8x).
         /// </summary>
         public static List<UseFlagIDCore> Scan(ROM rom, uint mapId)
         {
-            var list = new List<UseFlagIDCore>();
-            if (rom?.RomInfo == null) return list;
+            var raw = new List<UseFlagIDCore>();
+            if (rom?.RomInfo == null) return raw;
 
-            AppendEventCondFlags(rom, mapId, list);
-            AppendEventScriptFlags(rom, mapId, list);
-            MapChangeCore.MakeFlagIDArray(rom, mapId, list);
+            // Collect in WF append order (cond → event-script → map-change) so the
+            // first-occurrence kept per (id, type) is deterministic.
+            AppendEventCondFlags(rom, mapId, raw);
+            AppendEventScriptFlags(rom, mapId, raw);
+            MapChangeCore.MakeFlagIDArray(rom, mapId, raw);
 
+            var list = DedupByFlagAndType(raw);
             SortLikeWinForms(list);
             return list;
+        }
+
+        // One row per (flag id, DataType), keeping the first occurrence in scan
+        // order (its Addr/Tag — the first referencing site). A flag used by both
+        // an EVENT_COND_* record and an event script still shows BOTH rows (one
+        // per source type), so the user can tell where a flag is used; it just
+        // never repeats the SAME source type for the SAME flag.
+        static List<UseFlagIDCore> DedupByFlagAndType(List<UseFlagIDCore> raw)
+        {
+            var result = new List<UseFlagIDCore>(raw.Count);
+            var seen = new HashSet<(uint, int)>();
+            foreach (UseFlagIDCore u in raw)
+            {
+                if (seen.Add((u.ID, (int)u.DataType)))
+                    result.Add(u);
+            }
+            return result;
         }
 
         // ------------------------------------------------------------
