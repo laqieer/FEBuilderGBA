@@ -1,21 +1,113 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.DevTranslateView"
-        Title="Developer Translation Tool" Width="768" Height="380"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="DevTranslate_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Developer Translation Tool" Width="620" Height="560"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height">
+  <!-- Developer translation builder (WF DevTranslateForm / Core MyTranslateBuild).
+       Scans C# source + patches + MODs + config data and seeds the app's own
+       config/translate/<lang>.txt resource (Translate), plus the *.Designer.cs
+       convert/reverse helpers. READS source files, WRITES translation .txt files.
+       NO ROM mutation, NO Undo, NO address list — so the VM does NOT implement
+       IDataVerifiable. Language combos are bound to func_lang_ resource items. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="10">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Developer Translation Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Developer Translation Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Build the app's own translation files from source. Developer-only."
+                 TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="DevTranslate_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <!-- ============ Build (Translate) section ============ -->
+      <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+              Padding="10" Margin="0,4,0,0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Build translation resource" FontWeight="Bold" />
+          <TextBlock Text="Scans patches, MODs, data and C# source, then writes config/translate/&lt;lang&gt;.txt."
+                     TextWrapping="Wrap" />
+
+          <!-- Target language -->
+          <Grid ColumnDefinitions="140,*">
+            <TextBlock Grid.Column="0" Text="To language:" VerticalAlignment="Center" />
+            <ComboBox AutomationProperties.AutomationId="DevTranslate_BuildLang_Combo"
+                      Grid.Column="1" Name="BuildLangCombo"
+                      HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding BuildLanguages}"
+                      SelectedItem="{Binding SelectedBuildLanguage}" />
+          </Grid>
+
+          <!-- Source directory -->
+          <Grid ColumnDefinitions="140,*,Auto">
+            <TextBlock Grid.Column="0" Text="Source folder:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="DevTranslate_BuildSource_Input"
+                     Grid.Column="1" Name="BuildSourceBox"
+                     Text="{Binding BuildSourcePath}"
+                     Watermark="Select the C# source code folder" />
+            <Button AutomationProperties.AutomationId="DevTranslate_BuildSourceBrowse_Button"
+                    Grid.Column="2" Content="Browse..." Margin="6,0,0,0"
+                    Click="BuildSourceBrowse_Click" />
+          </Grid>
+
+          <CheckBox AutomationProperties.AutomationId="DevTranslate_EnglishBase_Check"
+                    Name="EnglishBaseCheck"
+                    Content="Translate from English base (en.txt) when available"
+                    IsChecked="{Binding EnglishBase}" />
+
+          <Button AutomationProperties.AutomationId="DevTranslate_Build_Button"
+                  Name="BuildButton" Content="Translate (build)"
+                  HorizontalAlignment="Left"
+                  Click="Build_Click" />
+        </StackPanel>
+      </Border>
+
+      <!-- ============ Designer string convert/reverse section ============ -->
+      <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+              Padding="10" Margin="0,4,0,0">
+        <StackPanel Spacing="8">
+          <TextBlock Text="Designer string convert / reverse" FontWeight="Bold" />
+          <TextBlock Text="Replace Japanese literals in *.Designer.cs with translations, or restore them."
+                     TextWrapping="Wrap" />
+
+          <!-- Target language -->
+          <Grid ColumnDefinitions="140,*">
+            <TextBlock Grid.Column="0" Text="To language:" VerticalAlignment="Center" />
+            <ComboBox AutomationProperties.AutomationId="DevTranslate_DesignLang_Combo"
+                      Grid.Column="1" Name="DesignLangCombo"
+                      HorizontalAlignment="Stretch"
+                      ItemsSource="{Binding DesignLanguages}"
+                      SelectedItem="{Binding SelectedDesignLanguage}" />
+          </Grid>
+
+          <!-- Source directory -->
+          <Grid ColumnDefinitions="140,*,Auto">
+            <TextBlock Grid.Column="0" Text="Source folder:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="DevTranslate_DesignSource_Input"
+                     Grid.Column="1" Name="DesignSourceBox"
+                     Text="{Binding DesignSourcePath}"
+                     Watermark="Select the C# source code folder" />
+            <Button AutomationProperties.AutomationId="DevTranslate_DesignSourceBrowse_Button"
+                    Grid.Column="2" Content="Browse..." Margin="6,0,0,0"
+                    Click="DesignSourceBrowse_Click" />
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button AutomationProperties.AutomationId="DevTranslate_DesignConvert_Button"
+                    Name="DesignConvertButton" Content="Convert (JP to lang)"
+                    Click="DesignConvert_Click" />
+            <Button AutomationProperties.AutomationId="DevTranslate_DesignReverse_Button"
+                    Name="DesignReverseButton" Content="Reverse (lang to JP)"
+                    Click="DesignReverse_Click" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Status -->
+      <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+              Padding="8" Margin="0,4,0,0">
+        <TextBlock AutomationProperties.AutomationId="DevTranslate_Status_Label"
+                   Name="StatusText" Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap" MinHeight="20" />
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
 </Window>
