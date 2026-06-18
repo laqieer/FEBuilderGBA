@@ -169,27 +169,47 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Resolve a devkitARM tool (e.g. <c>*gcc.exe</c>, <c>*g++.exe</c>,
-        /// <c>*as.exe</c>) by globbing the configured devkitARM tree recursively.
+        /// The recursive globs to try for a devkitARM tool with the given base name
+        /// (<c>gcc</c>/<c>g++</c>/<c>as</c>), platform-aware: on Windows the binaries
+        /// carry <c>.exe</c>; on Linux/macOS they do NOT (e.g. <c>arm-none-eabi-gcc</c>),
+        /// so a <c>*gcc.exe</c>-only search would silently fail there. Mirrors the
+        /// <see cref="GetExeNames"/> philosophy used for the Event Assembler resolver.
+        /// </summary>
+        public static string[] DevkitArmGlobs(string baseName)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                return new[] { "*" + baseName + ".exe" };
+            // Linux/macOS: prefer the extension-less binary, fall back to .exe in case
+            // the tree was populated by a Windows cross-build.
+            return new[] { "*" + baseName, "*" + baseName + ".exe" };
+        }
+
+        /// <summary>
+        /// Resolve a devkitARM tool by its base name (<c>gcc</c>/<c>g++</c>/<c>as</c>),
+        /// trying the platform-appropriate globs recursively under the configured tree.
         /// Returns null when the tree or the tool is missing.
         /// </summary>
-        public static string ResolveDevkitArmTool(string glob)
+        public static string ResolveDevkitArmTool(string baseName)
         {
             string dir = ResolveDevkitArmDir();
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                 return null;
-            string[] files = U.Directory_GetFiles_Safe(dir, glob, SearchOption.AllDirectories);
-            return files.Length > 0 ? files[0] : null;
+            foreach (string glob in DevkitArmGlobs(baseName))
+            {
+                string[] files = U.Directory_GetFiles_Safe(dir, glob, SearchOption.AllDirectories);
+                if (files.Length > 0) return files[0];
+            }
+            return null;
         }
 
-        /// <summary>Resolve the devkitARM C compiler (<c>*gcc.exe</c>), or null.</summary>
-        public static string ResolveDevkitArmGcc() => ResolveDevkitArmTool("*gcc.exe");
+        /// <summary>Resolve the devkitARM C compiler (gcc), or null.</summary>
+        public static string ResolveDevkitArmGcc() => ResolveDevkitArmTool("gcc");
 
-        /// <summary>Resolve the devkitARM C++ compiler (<c>*g++.exe</c>), or null.</summary>
-        public static string ResolveDevkitArmGpp() => ResolveDevkitArmTool("*g++.exe");
+        /// <summary>Resolve the devkitARM C++ compiler (g++), or null.</summary>
+        public static string ResolveDevkitArmGpp() => ResolveDevkitArmTool("g++");
 
-        /// <summary>Resolve the devkitARM assembler (<c>*as.exe</c>), or null.</summary>
-        public static string ResolveDevkitArmAs() => ResolveDevkitArmTool("*as.exe");
+        /// <summary>Resolve the devkitARM assembler (as), or null.</summary>
+        public static string ResolveDevkitArmAs() => ResolveDevkitArmTool("as");
 
         /// <summary>
         /// Check if the resolved EA path points to ColorzCore (vs classic EA Core.exe).

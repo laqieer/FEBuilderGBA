@@ -57,6 +57,35 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(expected, vm.StoreSymbol);
         }
 
+        // Copilot #2: a ComboBox reports -1 (no selection) and could be out of range;
+        // the index→enum casts must clamp to a defined enum, not produce garbage.
+        [Theory]
+        [InlineData(-1)]   // no selection
+        [InlineData(99)]   // out of range
+        public void EnumProjections_ClampOutOfRangeIndices_ToDefinedEnums(int badIdx)
+        {
+            var vm = new ToolASMInsertViewModel
+            {
+                CompileMethodIndex = badIdx,
+                InsertMethodIndex = badIdx,
+                DebugSymbolIndex = badIdx,
+                HookRegisterIndex = badIdx,
+            };
+
+            Assert.True(System.Enum.IsDefined(typeof(AsmCompileCore.CompileMethod), vm.CompileMethod));
+            Assert.True(System.Enum.IsDefined(typeof(AsmCompileCore.InsertMethod), vm.InsertMethod));
+            Assert.True(System.Enum.IsDefined(typeof(SymbolUtil.DebugSymbol), vm.StoreSymbol));
+            Assert.InRange(vm.HookRegister, 0u, 8u);
+
+            // -1 must default to the first (safe) item; 99 clamps to the max.
+            if (badIdx < 0)
+            {
+                Assert.Equal(AsmCompileCore.CompileMethod.DumpBinary, vm.CompileMethod);
+                Assert.Equal(AsmCompileCore.InsertMethod.CompileOnly, vm.InsertMethod);
+                Assert.Equal(SymbolUtil.DebugSymbol.None, vm.StoreSymbol);
+            }
+        }
+
         [Theory]
         [InlineData("0x08000000", 0x08000000u)]
         [InlineData("08000000", 0x08000000u)]

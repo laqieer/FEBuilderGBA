@@ -62,17 +62,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Result / error text shown in the status area.</summary>
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
+        /// <summary>
+        /// Clamp a ComboBox SelectedIndex into [0, max] before casting to an enum: a
+        /// ComboBox reports -1 when nothing is selected (e.g. mid-rebind), and a stray
+        /// out-of-range value would cast to an undefined enum. Defaults to 0 (the first,
+        /// safe item) in those cases.
+        /// </summary>
+        static int ClampIndex(int index, int max) => index < 0 ? 0 : (index > max ? max : index);
+
         /// <summary>The selected compile method for the Core helper.</summary>
         public AsmCompileCore.CompileMethod CompileMethod =>
-            (AsmCompileCore.CompileMethod)_compileMethodIndex;
+            (AsmCompileCore.CompileMethod)ClampIndex(_compileMethodIndex, 2);
 
         /// <summary>The selected insert method for the Core helper.</summary>
         public AsmCompileCore.InsertMethod InsertMethod =>
-            (AsmCompileCore.InsertMethod)_insertMethodIndex;
+            (AsmCompileCore.InsertMethod)ClampIndex(_insertMethodIndex, 2);
 
         /// <summary>The selected debug-symbol store for the Core helper.</summary>
         public SymbolUtil.DebugSymbol StoreSymbol =>
-            (SymbolUtil.DebugSymbol)_debugSymbolIndex;
+            (SymbolUtil.DebugSymbol)ClampIndex(_debugSymbolIndex, 3);
 
         /// <summary>True when the devkitARM EABI tool path is configured and exists.</summary>
         public bool IsDevkitProAvailable => AsmCompileCore.IsDevkitProAvailable();

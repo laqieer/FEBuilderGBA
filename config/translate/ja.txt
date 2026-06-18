@@ -11685,3 +11685,6 @@ lyn.eventに変換(コンパイルのみ)
 
 :Product: {0}
 成果物: {0}
+
+:Unable to read the compiled file.\r\nfilename:{0}
+コンパイルしたファイルを読み込めません。\r\nfilename:{0}

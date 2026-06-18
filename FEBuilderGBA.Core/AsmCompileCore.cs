@@ -121,25 +121,41 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Resolve the compiler executable in the devkitARM tree for the given source
-        /// extension. <c>.C</c> → *gcc, <c>.CPP</c> → *g++, otherwise the assembler
-        /// (*as). Mirrors WinForms <c>CompilerDevkitPro</c> + <c>U.FindFileOne</c>.
-        /// Returns null when the tool tree or the specific compiler is missing.
+        /// extension. <c>.C</c> → gcc, <c>.CPP</c> → g++, otherwise the assembler (as).
+        /// Mirrors WinForms <c>CompilerDevkitPro</c> + <c>U.FindFileOne</c>, but is
+        /// cross-platform: on Linux/macOS the binaries have NO <c>.exe</c>, so it tries
+        /// the platform-appropriate globs. Returns null when the tree or the specific
+        /// compiler is missing.
         /// </summary>
         public static string ResolveCompiler(string toolDir, string sourceExtUpper)
         {
             if (string.IsNullOrEmpty(toolDir) || !Directory.Exists(toolDir))
                 return null;
-            string pattern = CompilerGlobForExt(sourceExtUpper);
-            return FindFileOne(toolDir, pattern);
+            string baseName = CompilerBaseNameForExt(sourceExtUpper);
+            foreach (string glob in ToolPathResolver.DevkitArmGlobs(baseName))
+            {
+                string hit = FindFileOne(toolDir, glob);
+                if (hit != null) return hit;
+            }
+            return null;
         }
 
-        /// <summary>The *gcc/*g++/*as glob WinForms picks for a (dotted, upper-case) ext.</summary>
-        public static string CompilerGlobForExt(string sourceExtUpper)
+        /// <summary>The gcc/g++/as base tool name WinForms picks for a (dotted,
+        /// upper-case) ext.</summary>
+        public static string CompilerBaseNameForExt(string sourceExtUpper)
         {
-            if (sourceExtUpper == ".C") return "*gcc.exe";
-            if (sourceExtUpper == ".CPP") return "*g++.exe";
-            return "*as.exe";
+            if (sourceExtUpper == ".C") return "gcc";
+            if (sourceExtUpper == ".CPP") return "g++";
+            return "as";
         }
+
+        /// <summary>
+        /// The compiler glob WinForms picks for a (dotted, upper-case) ext, on THIS
+        /// platform (Windows → <c>*gcc.exe</c>; Linux/macOS → <c>*gcc</c>). The first
+        /// of <see cref="ToolPathResolver.DevkitArmGlobs"/> for the mapped base name.
+        /// </summary>
+        public static string CompilerGlobForExt(string sourceExtUpper) =>
+            ToolPathResolver.DevkitArmGlobs(CompilerBaseNameForExt(sourceExtUpper))[0];
 
         /// <summary>
         /// Find the first file under <paramref name="dir"/> matching the glob,
@@ -463,10 +479,20 @@ namespace FEBuilderGBA
             {
                 bin = File.ReadAllBytes(result.ProductPath);
             }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            catch (Exception ex) when (ex is FileNotFoundException || ex is DirectoryNotFoundException)
             {
+                // The compiled product vanished (deleted/moved between compile and read).
                 result.Success = false;
                 result.ErrorMessage = R._("ファイルがありません。\r\nファイル名:{0}", result.ProductPath);
+                return result;
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                // A permission/lock/IO problem reading the product (it exists but can't
+                // be read) — a DISTINCT failure from "file missing".
+                result.Success = false;
+                result.ErrorMessage = R._("Unable to read the compiled file.\r\nfilename:{0}", result.ProductPath)
+                    + "\r\n" + ex.ToString();
                 return result;
             }
             if (bin.Length <= 0)
@@ -476,18 +502,43 @@ namespace FEBuilderGBA
                 return result;
             }
 
+            // Validate the destination address(es) BEFORE mutating (the addresses come
+            // from free-form UI fields). targetAddr is the write/hook site; freeArea is
+            // the routine body for hook-inject.
+            string addrError = ValidateInsertAddresses(rom, insert, targetAddr, freeArea, (uint)bin.Length);
+            if (addrError != null)
+            {
+                result.Success = false;
+                result.ErrorMessage = addrError;
+                return result;
+            }
+
+            // Fault-safe insert: snapshot the ROM, attempt the write, and on ANY failure
+            // (resize limit, out-of-bounds, unexpected throw) restore the snapshot so the
+            // ROM is left byte-identical with NO partial mutation. The insert helpers
+            // return false (no throw) for the expected resize/bounds failures.
+            byte[] snapshot = (byte[])rom.Data.Clone();
+            int undoCountBefore = undo.list.Count;
+            bool inserted;
             try
             {
-                if (insert == InsertMethod.WriteAtAddress)
-                    InsertAtAddress(rom, targetAddr, bin, undo);
-                else // HookInject
-                    InsertHookInject(rom, targetAddr, freeArea, hookRegister, bin, undo);
+                inserted = insert == InsertMethod.WriteAtAddress
+                    ? InsertAtAddress(rom, targetAddr, bin, undo)
+                    : InsertHookInject(rom, targetAddr, freeArea, hookRegister, bin, undo);
             }
             catch (Exception ex)
             {
+                RollbackPartialInsert(rom, snapshot, undo, undoCountBefore);
                 result.Success = false;
                 result.ErrorMessage = R._("Failed to apply the compiled ROM (size/resize limit exceeded?).")
                     + "\r\n" + ex.ToString();
+                return result;
+            }
+            if (!inserted)
+            {
+                RollbackPartialInsert(rom, snapshot, undo, undoCountBefore);
+                result.Success = false;
+                result.ErrorMessage = R._("Failed to apply the compiled ROM (size/resize limit exceeded?).");
                 return result;
             }
 
@@ -504,45 +555,100 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Validate the destination address(es) for an insert. The write/hook site and
+        /// (for hook-inject) the free area must be non-zero and either a safe ROM offset
+        /// or exactly the ROM end (append). Mirrors the WF
+        /// <c>CheckZeroAddressWrite</c> + <c>isSafetyOffset</c>/append guard. Returns a
+        /// localized error string when invalid, or null when OK.
+        /// </summary>
+        public static string ValidateInsertAddresses(ROM rom, InsertMethod insert,
+            uint targetAddr, uint freeArea, uint binLength)
+        {
+            if (!IsValidWriteAddress(rom, targetAddr))
+                return R._("無効なポインタです。\r\nこの設定は危険です。") + "\r\n" + U.To0xHexString(targetAddr);
+
+            if (insert == InsertMethod.HookInject)
+            {
+                if (!IsValidWriteAddress(rom, freeArea))
+                    return R._("無効なポインタです。\r\nこの設定は危険です。") + "\r\n" + U.To0xHexString(freeArea);
+            }
+            return null;
+        }
+
+        /// <summary>True when <paramref name="addr"/> is a safe write target: non-zero
+        /// and either a safe ROM offset or exactly the ROM end (append).</summary>
+        static bool IsValidWriteAddress(ROM rom, uint addr)
+        {
+            if (addr == 0) return false;                      // CheckZeroAddressWrite
+            if (U.isSafetyOffset(addr, rom)) return true;     // inside the ROM
+            if (addr == (uint)rom.Data.Length) return true;   // append at the very end
+            return false;
+        }
+
+        /// <summary>
+        /// Restore the ROM to <paramref name="snapshot"/> and trim any undo entries the
+        /// failed insert appended, so a mid-insert failure leaves NO partial mutation.
+        /// </summary>
+        static void RollbackPartialInsert(ROM rom, byte[] snapshot, Undo.UndoData undo, int undoCountBefore)
+        {
+            rom.SwapNewROMDataDirect(snapshot);
+            if (undo.list.Count > undoCountBefore)
+                undo.list.RemoveRange(undoCountBefore, undo.list.Count - undoCountBefore);
+        }
+
+        /// <summary>
         /// Write the binary verbatim at <paramref name="addr"/> (WF Method 1),
         /// resizing the ROM if it runs past the end. The write is recorded into
-        /// <paramref name="undo"/> so it is fully undoable. Exposed for unit-testing
-        /// the insert math with a synthetic binary (no compiler needed).
+        /// <paramref name="undo"/> so it is fully undoable. Returns false (no write)
+        /// when the required resize is rejected (e.g. &gt; 32 MB) — never throws for
+        /// that expected case. Exposed for unit-testing with a synthetic binary.
         /// </summary>
-        public static void InsertAtAddress(ROM rom, uint addr, byte[] bin, Undo.UndoData undo)
+        public static bool InsertAtAddress(ROM rom, uint addr, byte[] bin, Undo.UndoData undo)
         {
             uint newLength = addr + (uint)bin.Length;
             if (newLength > (uint)rom.Data.Length)
-                rom.write_resize_data(newLength);
+            {
+                // CHECK the resize result — write_resize_data returns false at the 32 MB
+                // limit; writing afterwards would otherwise throw out of range.
+                if (!rom.write_resize_data(newLength))
+                    return false;
+            }
             rom.write_range(addr, bin, undo);
+            return true;
         }
 
         /// <summary>
         /// Write the binary into the free area and patch a thumb jump at the hook
-        /// address (WF Method 2). The hook (8 bytes) and the routine body are both
-        /// recorded into <paramref name="undo"/>. Exposed for unit-testing the
-        /// jump-code + resize math with a synthetic binary (no compiler needed).
+        /// address (WF Method 2). The hook and the routine body are both recorded into
+        /// <paramref name="undo"/>. Returns false (no partial write) when a required
+        /// resize is rejected. Exposed for unit-testing with a synthetic binary.
         /// </summary>
-        public static void InsertHookInject(ROM rom, uint hookAddr, uint freeArea, uint hookRegister,
+        public static bool InsertHookInject(ROM rom, uint hookAddr, uint freeArea, uint hookRegister,
             byte[] bin, Undo.UndoData undo)
         {
-            // Resize FIRST so the free area is within bounds before any undo snapshot
-            // is taken — UndoPostion(addr,size) reads the bytes AT CONSTRUCTION and
-            // CLAMPS to the current ROM end, so snapshotting a past-the-end free area
-            // before resizing would record a truncated/empty original and break undo.
-            uint endAddr = freeArea + (uint)bin.Length;
-            if (endAddr > (uint)rom.Data.Length)
-                rom.write_resize_data(endAddr);
-
-            // Write the routine body, then patch the thumb jump at the hook site. Both
-            // go through the EXPLICIT-undodata overload (write_range(addr,data,undo)) —
-            // never the no-undodata overload, whose [ThreadStatic] ambient scope is
-            // null on this background Task.Run thread (so it would record nothing) and
-            // could otherwise absorb an unrelated UI-thread write.
-            rom.write_range(freeArea, bin, undo);
             uint useReg = ClampHookRegister(hookRegister);
             byte[] jumpCode = DisassemblerTrumb.MakeInjectJump(hookAddr, freeArea, useReg);
+
+            // Resize ONCE to cover BOTH the routine body AND the hook-site jump-code —
+            // the hook can be near the ROM end too (#6: a body-only resize would let the
+            // jump-code write run out of bounds). Resize FIRST so the free area is in
+            // bounds before any undo snapshot (UndoPostion clamps at construction).
+            uint bodyEnd = freeArea + (uint)bin.Length;
+            uint hookEnd = hookAddr + (uint)jumpCode.Length;
+            uint needLength = Math.Max(bodyEnd, hookEnd);
+            if (needLength > (uint)rom.Data.Length)
+            {
+                if (!rom.write_resize_data(needLength))
+                    return false; // resize rejected (e.g. > 32 MB) — no partial write
+            }
+
+            // Both writes go through the EXPLICIT-undodata overload — never the
+            // no-undodata overload, whose [ThreadStatic] ambient scope is null on this
+            // background Task.Run thread (so it would record nothing) and could absorb
+            // an unrelated UI-thread write.
+            rom.write_range(freeArea, bin, undo);
             rom.write_range(hookAddr, jumpCode, undo);
+            return true;
         }
 
         /// <summary>Clamp the hook register to the valid r0..r8 range (WF GetSaftyRegister).</summary>

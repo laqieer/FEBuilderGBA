@@ -25526,3 +25526,6 @@ ELF -> 二进制(保留ELF)
 
 :Product: {0}
 成果物: {0}
+
+:Unable to read the compiled file.\r\nfilename:{0}
+无法读取编译后的文件。\r\nfilename:{0}

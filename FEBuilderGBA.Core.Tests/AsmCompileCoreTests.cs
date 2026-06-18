@@ -35,17 +35,49 @@ namespace FEBuilderGBA.Core.Tests
             filesize = (uint)rom.Data.Length,
         };
 
-        // ---- CompilerGlobForExt -----------------------------------------------
+        // ---- Compiler base-name + glob (cross-platform) ------------------------
 
         [Theory]
-        [InlineData(".C", "*gcc.exe")]
-        [InlineData(".CPP", "*g++.exe")]
-        [InlineData(".S", "*as.exe")]
-        [InlineData(".ASM", "*as.exe")]
-        [InlineData(".TXT", "*as.exe")]
-        public void CompilerGlobForExt_PicksTool(string ext, string expected)
+        [InlineData(".C", "gcc")]
+        [InlineData(".CPP", "g++")]
+        [InlineData(".S", "as")]
+        [InlineData(".ASM", "as")]
+        [InlineData(".TXT", "as")]
+        public void CompilerBaseNameForExt_PicksTool(string ext, string expected)
         {
-            Assert.Equal(expected, AsmCompileCore.CompilerGlobForExt(ext));
+            Assert.Equal(expected, AsmCompileCore.CompilerBaseNameForExt(ext));
+        }
+
+        [Theory]
+        [InlineData(".C", "gcc")]
+        [InlineData(".CPP", "g++")]
+        [InlineData(".S", "as")]
+        public void CompilerGlobForExt_IsPlatformAware(string ext, string baseName)
+        {
+            // On Windows the glob carries .exe; on Linux/macOS it does not (else
+            // devkitARM resolution silently fails there — Copilot #1/#8).
+            string glob = AsmCompileCore.CompilerGlobForExt(ext);
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation
+                .IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            Assert.Equal(isWindows ? "*" + baseName + ".exe" : "*" + baseName, glob);
+        }
+
+        [Fact]
+        public void DevkitArmGlobs_PlatformAware_IncludesExtensionlessFormOffWindows()
+        {
+            // The non-.exe form MUST be among the globs so Linux/macOS resolution works.
+            string[] globs = ToolPathResolver.DevkitArmGlobs("gcc");
+            bool isWindows = System.Runtime.InteropServices.RuntimeInformation
+                .IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows);
+            if (isWindows)
+            {
+                Assert.Equal(new[] { "*gcc.exe" }, globs);
+            }
+            else
+            {
+                Assert.Contains("*gcc", globs);     // extension-less (Linux/macOS) form
+                Assert.Contains("*gcc.exe", globs); // cross-build fallback
+            }
         }
 
         // ---- BuildAssembleArgs (pure) -----------------------------------------
@@ -221,7 +253,7 @@ namespace FEBuilderGBA.Core.Tests
             var undo = NewUndo(rom);
 
             byte[] bin = { 0xAA, 0xBB, 0xCC, 0xDD };
-            AsmCompileCore.InsertAtAddress(rom, 0x100, bin, undo);
+            Assert.True(AsmCompileCore.InsertAtAddress(rom, 0x100, bin, undo));
 
             Assert.Equal(0xAAu, rom.u8(0x100));
             Assert.Equal(0xBBu, rom.u8(0x101));
@@ -246,7 +278,7 @@ namespace FEBuilderGBA.Core.Tests
             for (int i = 0; i < bin.Length; i++) bin[i] = (byte)(i + 1);
             var undo = NewUndo(rom);
 
-            AsmCompileCore.InsertAtAddress(rom, addr, bin, undo);
+            Assert.True(AsmCompileCore.InsertAtAddress(rom, addr, bin, undo));
 
             Assert.True(rom.Data.Length >= addr + bin.Length);
             Assert.Equal(1u, rom.u8(addr));
@@ -266,7 +298,7 @@ namespace FEBuilderGBA.Core.Tests
             uint reg = 4;
             byte[] routine = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
 
-            AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, reg, routine, undo);
+            Assert.True(AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, reg, routine, undo));
 
             // Routine body landed verbatim in the free area.
             for (uint i = 0; i < routine.Length; i++)
@@ -327,11 +359,165 @@ namespace FEBuilderGBA.Core.Tests
             byte[] routine = new byte[0x20];
             for (int i = 0; i < routine.Length; i++) routine[i] = (byte)(0x80 + i);
 
-            AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, 3, routine, undo);
+            Assert.True(AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, 3, routine, undo));
 
             Assert.True(rom.Data.Length >= freeArea + routine.Length);
             Assert.Equal(0x80u, rom.u8(freeArea));
             Assert.Equal((uint)(0x80 + 0x1F), rom.u8(freeArea + 0x1F));
+        }
+
+        [Fact]
+        public void InsertHookInject_HookNearRomEnd_ResizesForJumpCodeToo()
+        {
+            // Copilot #6: the HOOK site can be near the ROM end (its jump-code is the
+            // furthest write). A body-only resize would let the jump-code write run
+            // out of bounds. Hook at the current end with a free area earlier.
+            var rom = CreateTestRom(0x400);
+            var undo = NewUndo(rom);
+
+            uint freeArea = 0x100;       // body fits inside the existing ROM
+            uint hookAddr = 0x3FC;       // 4-aligned, near the 0x400 end; jump-code = 8B → 0x404 > 0x400
+            byte[] routine = { 0x10, 0x20, 0x30, 0x40 };
+
+            Assert.True(AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, 4, routine, undo));
+
+            byte[] expectedJump = DisassemblerTrumb.MakeInjectJump(hookAddr, freeArea, 4);
+            Assert.True(rom.Data.Length >= hookAddr + expectedJump.Length); // resized for the jump-code
+            for (uint i = 0; i < expectedJump.Length; i++)
+                Assert.Equal((uint)expectedJump[i], rom.u8(hookAddr + i));
+        }
+
+        // ---- Fault-safety: a mid-insert failure leaves the ROM byte-identical ---
+        //
+        // Copilot #3/#7: a resize rejection (e.g. > 32 MB) must NOT partially mutate
+        // the ROM. The insert primitives return false (no throw) and CompileAndInsert
+        // restores a snapshot, so the ROM is byte-identical and undo stays clean.
+
+        [Fact]
+        public void InsertAtAddress_ResizeRejected_ReturnsFalse_NoMutation()
+        {
+            // A write that would push the ROM past 32 MB → write_resize_data returns
+            // false → InsertAtAddress returns false with NO write.
+            var savedServices = CoreState.Services;
+            CoreState.Services = new HeadlessAppServices();
+            try
+            {
+                var rom = CreateTestRom(0x400);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                uint addr = 0x01FFFFFC;          // a write here ends past 0x02000000
+                byte[] bin = new byte[0x40];
+                for (int i = 0; i < bin.Length; i++) bin[i] = 0xEE;
+
+                bool ok = AsmCompileCore.InsertAtAddress(rom, addr, bin, undo);
+
+                Assert.False(ok);
+                Assert.Equal(before, rom.Data);  // byte-identical — no partial write
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.Services = savedServices;
+            }
+        }
+
+        [Fact]
+        public void InsertHookInject_ResizeRejected_ReturnsFalse_NoMutation()
+        {
+            var savedServices = CoreState.Services;
+            CoreState.Services = new HeadlessAppServices();
+            try
+            {
+                var rom = CreateTestRom(0x400);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                uint hookAddr = 0x100;
+                uint freeArea = 0x01FFFFF0;      // body ends past 0x02000000 → resize rejected
+                byte[] routine = new byte[0x40];
+
+                bool ok = AsmCompileCore.InsertHookInject(rom, hookAddr, freeArea, 3, routine, undo);
+
+                Assert.False(ok);
+                Assert.Equal(before, rom.Data);  // no partial write (body or jump)
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.Services = savedServices;
+            }
+        }
+
+        // ---- Address validation (Copilot #4) -----------------------------------
+
+        [Fact]
+        public void ValidateInsertAddresses_ZeroTarget_Rejected()
+        {
+            var rom = CreateTestRom(0x1000);
+            string err = AsmCompileCore.ValidateInsertAddresses(
+                rom, AsmCompileCore.InsertMethod.WriteAtAddress, 0u, U.NOT_FOUND, 16);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void ValidateInsertAddresses_InRangeTarget_Ok()
+        {
+            var rom = CreateTestRom(0x1000);
+            string err = AsmCompileCore.ValidateInsertAddresses(
+                rom, AsmCompileCore.InsertMethod.WriteAtAddress, 0x200u, U.NOT_FOUND, 16);
+            Assert.Null(err);
+        }
+
+        [Fact]
+        public void ValidateInsertAddresses_AppendAtRomEnd_Ok()
+        {
+            var rom = CreateTestRom(0x1000);
+            string err = AsmCompileCore.ValidateInsertAddresses(
+                rom, AsmCompileCore.InsertMethod.WriteAtAddress, (uint)rom.Data.Length, U.NOT_FOUND, 16);
+            Assert.Null(err);
+        }
+
+        [Fact]
+        public void ValidateInsertAddresses_HookInject_ZeroFreeArea_Rejected()
+        {
+            var rom = CreateTestRom(0x1000);
+            string err = AsmCompileCore.ValidateInsertAddresses(
+                rom, AsmCompileCore.InsertMethod.HookInject, 0x200u, 0u, 16);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void CompileAndInsert_ZeroTargetAddress_NoMutation()
+        {
+            // Full-path guard: a zero target address must be rejected before any write.
+            // (devkitARM is absent in CI, so the compile fails first — but with a
+            // configured-but-broken devkit we still never mutate. We assert via the
+            // pure validator above; here we assert CompileAndInsert never throws and
+            // never mutates with a zero address even when the compile can't run.)
+            var rom = CreateTestRom(0x400);
+            byte[] before = (byte[])rom.Data.Clone();
+            var savedConfig = CoreState.Config;
+            CoreState.Config = null; // devkit not configured → compile fails cleanly first
+            string src = Path.Combine(Path.GetTempPath(), "asm-" + Path.GetRandomFileName() + ".s");
+            File.WriteAllText(src, ".thumb\r\nnop\r\n");
+            try
+            {
+                var undo = NewUndo(rom);
+                var result = AsmCompileCore.CompileAndInsert(
+                    rom, src, AsmCompileCore.CompileMethod.DumpBinary,
+                    AsmCompileCore.InsertMethod.WriteAtAddress, 0u, U.NOT_FOUND, 3,
+                    SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
+
+                Assert.False(result.Success);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { File.Delete(src); } catch { }
+            }
         }
 
         // ---- GetCFlags default -------------------------------------------------
