@@ -9,14 +9,18 @@ namespace FEBuilderGBA
     /// <c>ToolUseFlagForm.UpdateList</c> flag-usage roll-up).
     ///
     /// Given a chapter (map id) it collects every event-flag reference from the
-    /// PRIMARY flag-usage subsystems and returns the merged + WF-sorted list:
+    /// flag-usage subsystems and returns the merged + WF-sorted list:
     ///   (1) event-condition records   — the flag field of each Turn / Talk /
     ///       Object / Always condition record  (FELint EVENT_COND_*),
     ///   (2) event scripts              — every <see cref="EventScript.ArgType.FLAG"/>
     ///       referenced by the scripts reachable from the chapter's condition
-    ///       slots  (FELint EVENTSCRIPT), and
+    ///       slots  (FELint EVENTSCRIPT),
     ///   (3) map changes                — the flag field of each map-change record
-    ///       (FELint MAPCHANGE).
+    ///       (FELint MAPCHANGE),
+    ///   (4) death quotes (Haiku)       — the flag field of each per-version Haiku
+    ///       record scoped to this chapter  (FELint HAIKU), and
+    ///   (5) battle conversations       — the flag field of each per-version
+    ///       BattleTalk record scoped to this chapter  (FELint BATTTLE_TALK).
     ///
     /// Reuses the existing Core seams rather than re-deriving them:
     ///   <see cref="MapEventUnitCore.GetCondSlots"/>      (the per-version slot→type table),
@@ -25,11 +29,13 @@ namespace FEBuilderGBA
     ///   the <see cref="EventScript.ArgType.FLAG"/> walk, and
     ///   <see cref="MapChangeCore.MakeFlagIDArray"/>.
     ///
-    /// DEFERRED (#1253): the Haiku × {FE6,FE7,FE8} and BattleTalk × {FE6,FE7,FE8}
-    /// scanners (WinForms EventHaiku*Form.MakeFlagIDArray / EventBattleTalk*Form.MakeFlagIDArray)
-    /// are NOT included here. Each needs its subsystem's per-version data-table
-    /// layout (InputFormRef Init base-pointer / block-size / count) ported to
-    /// Core first — out of scope for this slice, tracked by follow-up issue #1253.
+    /// The Haiku/BattleTalk scanners (#1253) port the WinForms
+    /// EventHaiku*Form.MakeFlagIDArray / EventBattleTalk*Form.MakeFlagIDArray data
+    /// tables into Core — the same per-version (base-pointer / block-size /
+    /// flag-offset / chapter-offset) layouts ExportFilterCore already walks. Like
+    /// WF ToolUseFlagForm.UpdateList, the records are read table-wide then scoped to
+    /// the selected chapter (a record's chapter field at <c>chapter-offset</c>, or
+    /// every chapter when that field is the 0xF0+ "any" marker).
     ///
     /// NO ROM mutation, NO undo. Every read is bounds-guarded; malformed data
     /// truncates a sub-scan and yields a partial list rather than throwing.
@@ -64,11 +70,14 @@ namespace FEBuilderGBA
             var raw = new List<UseFlagIDCore>();
             if (rom?.RomInfo == null) return raw;
 
-            // Collect in WF append order (cond → event-script → map-change) so the
+            // Collect in WF append order (cond → event-script → map-change →
+            // haiku → battle-talk, matching ToolUseFlagForm.UpdateList) so the
             // first-occurrence kept per (id, type) is deterministic.
             AppendEventCondFlags(rom, mapId, raw);
             AppendEventScriptFlags(rom, mapId, raw);
             MapChangeCore.MakeFlagIDArray(rom, mapId, raw);
+            AppendHaikuFlags(rom, mapId, raw);
+            AppendBattleTalkFlags(rom, mapId, raw);
 
             var list = DedupByFlagAndType(raw);
             SortLikeWinForms(list);
@@ -295,6 +304,164 @@ namespace FEBuilderGBA
             for (int i = 0; i < found.Count; i++)
                 if (found[i].flag == flag) return true;
             return false;
+        }
+
+        // ------------------------------------------------------------
+        // (4) Death-quote (Haiku) record flags  +  (5) Battle-conversation
+        //     (BattleTalk) record flags.
+        //
+        // Port of the WF EventHaiku*Form.MakeFlagIDArray / EventBattleTalk*Form
+        // .MakeFlagIDArray data tables (the per-version base-pointer / block-size
+        // / flag-offset / chapter-offset that UseFlagID.AppendFlagID consumes) —
+        // the SAME tables ExportFilterCore.CollectHaiku / CollectBattleTalk walk.
+        //
+        // WF AppendFlagID reads a u16 flag at flagOffset and a u8 chapter at
+        // chapterOffset; a chapter >= 0xF0 becomes the "any chapter" marker
+        // (mapid = U.NOT_FOUND). ToolUseFlagForm.UpdateList then keeps a row when
+        // its chapter equals the selected map OR is the "any" marker. We replicate
+        // that scoping HERE (so only the selected chapter's rows are appended),
+        // because UseFlagScanCore.Scan is chapter-scoped by contract.
+        // ------------------------------------------------------------
+
+        // Defensive per-table record-walk bound (mirrors ExportFilterCore's 0x400
+        // cap — a corrupt table with no terminating record can never loop forever).
+        const int MaxHaikuBattleTalkRecords = 0x400;
+
+        static void AppendHaikuFlags(ROM rom, uint mapId, List<UseFlagIDCore> list)
+        {
+            int version = rom.RomInfo.version;
+            uint haikuPtr = rom.RomInfo.event_haiku_pointer;
+
+            if (version == 8)
+            {
+                // EventHaikuForm: blocksize 12, flag@+4, chapter@+3.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.HAIKU,
+                    haikuPtr, 12, 4, 3, TableTerm.U16Sentinel);
+            }
+            else if (version == 7)
+            {
+                // EventHaikuFE7Form main: blocksize 16, flag@+12, chapter@+1.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.HAIKU,
+                    haikuPtr, 16, 12, 1, TableTerm.U8Zero);
+                // + the two Lyn/Eliwood tutorial tables: blocksize 12, flag@+8,
+                //   chapter@+1 (WF N1_Init reused per ReInitPointer).
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.HAIKU,
+                    rom.RomInfo.event_haiku_tutorial_1_pointer, 12, 8, 1, TableTerm.U8Zero);
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.HAIKU,
+                    rom.RomInfo.event_haiku_tutorial_2_pointer, 12, 8, 1, TableTerm.U8Zero);
+            }
+            else
+            {
+                // EventHaikuFE6Form: blocksize 16, flag@+8, chapter@+1.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.HAIKU,
+                    haikuPtr, 16, 8, 1, TableTerm.U8Zero);
+            }
+        }
+
+        static void AppendBattleTalkFlags(ROM rom, uint mapId, List<UseFlagIDCore> list)
+        {
+            int version = rom.RomInfo.version;
+            uint talkPtr = rom.RomInfo.event_ballte_talk_pointer;
+            uint talk2Ptr = rom.RomInfo.event_ballte_talk2_pointer;
+
+            if (version == 8)
+            {
+                // EventBattleTalkForm: blocksize 16, flag@+6, chapter@+4.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    talkPtr, 16, 6, 4, TableTerm.U16Sentinel);
+            }
+            else if (version == 7)
+            {
+                // EventBattleTalkFE7Form main: blocksize 16, flag@+12, chapter@+2.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    talkPtr, 16, 12, 2, TableTerm.U16Sentinel);
+                // + N1 (BattleTalk2): blocksize 12, flag@+8, chapter@+1.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    talk2Ptr, 12, 8, 1, TableTerm.U8Sentinel);
+            }
+            else
+            {
+                // EventBattleTalkFE6Form main: blocksize 12, flag@+8, chapter@+2.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    talkPtr, 12, 8, 2, TableTerm.U16Sentinel);
+                // + N (BattleTalk2): blocksize 16, flag@+8, chapter@+1.
+                AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
+                    talk2Ptr, 16, 8, 1, TableTerm.U16Sentinel);
+            }
+        }
+
+        // Per-version record terminator (mirrors the WF InputFormRef Init
+        // DataCount predicate — when to stop counting records). All variants ALSO
+        // honor the WF "i>10 && IsEmpty(addr, blocksize*10)" empty-run guard.
+        enum TableTerm
+        {
+            /// <summary>Stop when the record's first u16 is 0xFFFF (FE8 Haiku/BattleTalk, FE7/FE6 BattleTalk).</summary>
+            U16Sentinel,
+            /// <summary>Stop when the record's first u8 is 0 (FE7 main Haiku, FE6 Haiku, FE7 tutorials).</summary>
+            U8Zero,
+            /// <summary>Stop when the record's first u8 is 0 or 0xFF (FE7 BattleTalk2).</summary>
+            U8Sentinel,
+        }
+
+        // Walk one InputFormRef-style flag table: deref the base pointer, then for
+        // each fixed-size record read a u16 flag (flagOffset) + u8 chapter
+        // (chapterOffset), terminate per the version predicate, and append a
+        // chapter-scoped HAIKU/BATTTLE_TALK row. Strictly READ-ONLY: every read is
+        // bounds-guarded; malformed data terminates the walk with a partial list.
+        static void AppendFlagTable(
+            ROM rom, uint mapId, List<UseFlagIDCore> list, FELintCore.Type type,
+            uint pointerField, uint blockSize, uint flagOffset, uint chapterOffset,
+            TableTerm term)
+        {
+            if (list == null) return;
+            // A 0 pointer field means this table does not exist for the version.
+            if (pointerField == 0) return;
+            if (!U.isSafetyOffset(pointerField + 3, rom)) return;
+
+            uint baseAddr = rom.p32(pointerField);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            uint romLen = (uint)rom.Data.Length;
+            uint emptyRunLen = blockSize * 10;
+            uint addr = baseAddr;
+
+            for (int i = 0; i < MaxHaikuBattleTalkRecords; i++, addr += blockSize)
+            {
+                // Bounds-check the FULL record (incl. the read offsets) before any
+                // read so a near-EOF table can never throw.
+                if (!U.isSafetyOffset(addr, rom)) break;
+                if (addr + blockSize > romLen) break;
+
+                if (IsTableTerminator(rom, addr, term)) break;
+                // WF empty-run guard: after the first 10 records, an all-0x00 /
+                // all-0xFF block of blocksize*10 ends the table.
+                if (i > 10 && addr + emptyRunLen <= romLen && rom.IsEmpty(addr, emptyRunLen)) break;
+
+                uint flag = rom.u16(addr + flagOffset);
+                if (flag == 0) continue; // WF AppendFlagID skips id == 0.
+
+                uint chapter = rom.u8(addr + chapterOffset);
+                // WF AppendFlagID: chapter >= 0xF0 → "any chapter" (U.NOT_FOUND).
+                bool anyChapter = chapter >= 0xF0;
+                if (!anyChapter && chapter != mapId) continue; // chapter scope filter
+
+                uint mapid = anyChapter ? U.NOT_FOUND : mapId;
+                UseFlagIDCore.AppendUseFlagID(
+                    list, type, addr, U.ToHexString((uint)i), flag, mapid, (uint)i);
+            }
+        }
+
+        static bool IsTableTerminator(ROM rom, uint addr, TableTerm term)
+        {
+            switch (term)
+            {
+                case TableTerm.U16Sentinel: return rom.u16(addr) == 0xFFFF;
+                case TableTerm.U8Zero:      return rom.u8(addr) == 0;
+                case TableTerm.U8Sentinel:
+                    uint v = rom.u8(addr);
+                    return v == 0 || v == 0xFF;
+                default: return false;
+            }
         }
 
         // ------------------------------------------------------------

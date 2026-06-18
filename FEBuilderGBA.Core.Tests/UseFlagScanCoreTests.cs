@@ -7,11 +7,12 @@
 //   (1) EVENT_COND_*  — the flag field (u16 @ +2) of a Turn condition record,
 //   (2) EVENTSCRIPT   — an ArgType.FLAG arg in the event script that the Turn
 //                       record's event pointer reaches, and
-//   (3) MAPCHANGE     — the flag field (u16 @ +5) of a map-change record.
+//   (3) MAPCHANGE     — the flag field (u16 @ +5) of a map-change record,
+//   (4) HAIKU         — the flag field (u16 @ +4) of a death-quote record, and
+//   (5) BATTTLE_TALK  — the flag field (u16 @ +6) of a battle-conversation record.
 // Plus guard tests: id 0 is dropped, a foreign/empty ROM yields an empty list,
-// and the result is sorted by flag id.
-//
-// DEFERRED (#1253): the Haiku/BattleTalk scanners are NOT part of this slice.
+// the result is sorted by flag id, the dedup invariant holds, and the
+// haiku/battletalk rows are scoped to the record's own chapter (#1253).
 
 using System.Collections.Generic;
 using System.Linq;
@@ -39,10 +40,18 @@ namespace FEBuilderGBA.Core.Tests
         // the SAME ScriptFlag, to prove cross-TREE dedup (one EVENTSCRIPT row).
         const uint TalkRecord      = 0x00770000u;
         const uint EventScriptAddr2= 0x00780000u;
+        // FE8 Haiku table (event_haiku_pointer → 12-byte records, flag@+4,
+        // chapter@+3) and BattleTalk table (event_ballte_talk_pointer → 16-byte
+        // records, flag@+6, chapter@+4).
+        const uint HaikuTable      = 0x00790000u;
+        const uint BattleTalkTable = 0x007A0000u;
 
-        const uint CondFlag   = 0x0011; // Turn record flag (u16 @ +2)
-        const uint ScriptFlag = 0x0022; // event-script FLAG arg
-        const uint ChangeFlag = 0x0033; // map-change record flag (u16 @ +5)
+        const uint CondFlag      = 0x0011; // Turn record flag (u16 @ +2)
+        const uint ScriptFlag    = 0x0022; // event-script FLAG arg
+        const uint ChangeFlag    = 0x0033; // map-change record flag (u16 @ +5)
+        const uint HaikuFlag     = 0x0044; // FE8 Haiku record flag (u16 @ +4)
+        const uint BattleTalkFlag= 0x0055; // FE8 BattleTalk record flag (u16 @ +6)
+        const uint HaikuOtherChapterFlag = 0x0066; // Haiku flag in a DIFFERENT chapter
 
         // A command "0100 XXXX" — opcode 0x0001 then a 2-byte FLAG arg at byte 2.
         static EventScript.Script FlagCommand()
@@ -140,6 +149,29 @@ namespace FEBuilderGBA.Core.Tests
                 rom.write_u16(ChangeData + 5, (ushort)ChangeFlag);
                 rom.Data[ChangeData + 12] = 0xFF;
 
+                // 7) FE8 Haiku table (event_haiku_pointer): 12-byte records,
+                //    flag@+4, chapter@+3. Record 0 belongs to chapter 0 (this
+                //    chapter); record 1 to chapter 5 (a DIFFERENT chapter, to prove
+                //    the chapter-scope filter excludes it); record 2 = 0xFFFF
+                //    sentinel terminates. First byte non-0xFFFF so the table starts.
+                WriteU32(rom, rom.RomInfo.event_haiku_pointer, HaikuTable | 0x08000000u);
+                rom.Data[HaikuTable + 0] = 0x01;                 // unit id (non-zero, not 0xFFFF)
+                rom.Data[HaikuTable + 3] = 0x00;                 // chapter = 0 (this chapter)
+                rom.write_u16(HaikuTable + 4, (ushort)HaikuFlag);
+                rom.Data[HaikuTable + 12 + 0] = 0x02;            // record 1 unit id
+                rom.Data[HaikuTable + 12 + 3] = 0x05;            // chapter = 5 (other chapter)
+                rom.write_u16(HaikuTable + 12 + 4, (ushort)HaikuOtherChapterFlag);
+                rom.write_u16(HaikuTable + 24 + 0, 0xFFFF);      // record 2 sentinel → terminates
+
+                // 8) FE8 BattleTalk table (event_ballte_talk_pointer): 16-byte
+                //    records, flag@+6, chapter@+4. Record 0 = chapter 0; record 1 =
+                //    0xFFFF sentinel terminates.
+                WriteU32(rom, rom.RomInfo.event_ballte_talk_pointer, BattleTalkTable | 0x08000000u);
+                rom.write_u16(BattleTalkTable + 0, 0x0101);      // unit ids (non-zero, not 0xFFFF)
+                rom.Data[BattleTalkTable + 4] = 0x00;            // chapter = 0 (this chapter)
+                rom.write_u16(BattleTalkTable + 6, (ushort)BattleTalkFlag);
+                rom.write_u16(BattleTalkTable + 16 + 0, 0xFFFF); // record 1 sentinel → terminates
+
                 CoreState.ROM = rom;
                 CoreState.EventScript = BuildEventScript(FlagCommand(), TermCommand());
                 CoreState.CommentCache = new HeadlessEtcCache();
@@ -220,6 +252,74 @@ namespace FEBuilderGBA.Core.Tests
                 var list = UseFlagScanCore.Scan(rom, 0u);
                 Assert.Contains(list, u =>
                     u.ID == ChangeFlag && u.DataType == FELintCore.Type.MAPCHANGE);
+            });
+        }
+
+        [Fact]
+        public void Scan_FindsHaikuFlag()
+        {
+            // #1253: the FE8 Haiku record for THIS chapter (chapter byte = 0)
+            // contributes a HAIKU-typed row for its flag.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == HaikuFlag && u.DataType == FELintCore.Type.HAIKU);
+            });
+        }
+
+        [Fact]
+        public void Scan_FindsBattleTalkFlag()
+        {
+            // #1253: the FE8 BattleTalk record for THIS chapter (chapter byte = 0)
+            // contributes a BATTTLE_TALK-typed row for its flag.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == BattleTalkFlag && u.DataType == FELintCore.Type.BATTTLE_TALK);
+            });
+        }
+
+        [Fact]
+        public void Scan_Haiku_OtherChapterFlag_IsExcluded()
+        {
+            // The Haiku table's record 1 belongs to chapter 5; scanning chapter 0
+            // must NOT surface its flag (WF ToolUseFlagForm scopes haiku/battletalk
+            // rows to the selected chapter).
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.DoesNotContain(list, u => u.ID == HaikuOtherChapterFlag);
+            });
+        }
+
+        [Fact]
+        public void Scan_Haiku_OtherChapterFlag_AppearsForItsOwnChapter()
+        {
+            // Conversely, scanning chapter 5 surfaces record 1's flag (with the
+            // HAIKU type) — proving the scope filter keys on the record's chapter
+            // field, not a blanket include/exclude.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 5u);
+                Assert.Contains(list, u =>
+                    u.ID == HaikuOtherChapterFlag && u.DataType == FELintCore.Type.HAIKU);
+            });
+        }
+
+        [Fact]
+        public void Scan_HaikuAndBattleTalk_RespectDedupInvariant()
+        {
+            // The #1192 dedup invariant must still hold with the new sources wired:
+            // no (flag id, source type) pair repeats across the whole list.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                var seen = new HashSet<(uint, int)>();
+                foreach (var u in list)
+                    Assert.True(seen.Add((u.ID, (int)u.DataType)),
+                        $"duplicate row for flag 0x{u.ID:X} type {u.DataType}");
             });
         }
 
