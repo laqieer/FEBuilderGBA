@@ -11966,3 +11966,48 @@ ROMRebuildレポートの作成に失敗しました。{0}
 :Failed to create the ROMRebuild report.
 ROMRebuildレポートの作成に失敗しました。
 
+:Uninstalling...
+アンインストール中...
+
+:Uninstall successful.
+アンインストールに成功しました。
+
+:Uninstall failed.
+アンインストールに失敗しました。
+
+:Uninstall cancelled.
+アンインストールをキャンセルしました。
+
+:Reverted {0} range(s), {1} byte(s).
+{0}個の範囲、{1}バイトを元に戻しました。
+
+:Event file not found: {0}
+イベントファイルが見つかりません: {0}
+
+:The selected clean ROM is empty.
+選択したクリーンROMが空です。
+
+:The selected clean ROM is too small ({0} bytes) for this patch (needs at least {1} bytes). Did you pick the wrong file?
+選択したクリーンROM({0}バイト)はこのパッチには小さすぎます(最低{1}バイト必要)。ファイルを間違えていませんか?
+
+:Could not trace any patched ranges from this event file. It may not be an applied EA patch, or it uses constructs this in-place uninstall does not support.
+このイベントファイルからパッチ範囲を追跡できませんでした。適用済みのEAパッチではないか、このインプレースアンインストールが対応していない構文を使用している可能性があります。
+
+:This event file's patched ranges cannot be traced for in-place uninstall ({0} block(s)). Uninstall it via the WinForms patch manager, or revert with a backup ROM.
+このイベントファイルのパッチ範囲はインプレースアンインストールでは追跡できません({0}ブロック)。WinFormsのパッチマネージャーでアンインストールするか、バックアップROMで元に戻してください。
+
+:WARNING: {0} block(s) in this patch could not be traced and were NOT reverted — the uninstall may be incomplete. Please verify the ROM.
+警告: このパッチの{0}個のブロックは追跡できず、元に戻されませんでした。アンインストールが不完全な可能性があります。ROMを確認してください。
+
+:{0} block(s) in this EA cannot be traced (e.g. inline image / PROCS); those bytes will NOT be reverted and may remain patched.
+このEAの{0}個のブロックは追跡できません(例: インライン画像 / PROCS)。これらのバイトは元に戻されず、パッチが残る可能性があります。
+
+:Proceed with a partial uninstall?
+部分的なアンインストールを続行しますか?
+
+:Partial uninstall
+部分的なアンインストール
+
+:...and {0} more.
+...他{0}件。
+

@@ -209,10 +209,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(result.Success, result.ErrorMessage);
                 // But the trace is NOT complete: the PNG block could not be reconstructed.
                 Assert.False(result.FullyTraced);
+                Assert.True(result.UntracedCount > 0);                 // the lead's signal
+                Assert.Equal(result.UntracedCount, result.UntraceableBlocks.Count);
                 Assert.NotEmpty(result.UntraceableBlocks);
                 Assert.Contains(result.UntraceableBlocks, s => s.Contains("img.png"));
 
-                // The traceable ORG bytes were still restored.
+                // The traceable ORG bytes were still restored (residue does not block the
+                // ranges we COULD trace).
                 Assert.Equal(clean[patchAddr], (byte)rom.u8(patchAddr));
             }
             finally { try { Directory.Delete(eaDir, true); } catch { } }
@@ -233,6 +236,8 @@ namespace FEBuilderGBA.Core.Tests
                 var trace = EventAssemblerUninstallCore.TraceEAFile(eaFile);
                 Assert.Empty(trace.Mappings);
                 Assert.False(trace.FullyTraced);
+                Assert.True(trace.UntracedCount > 0);
+                Assert.Equal(trace.UntracedCount, trace.Untraceable.Count);
                 Assert.NotEmpty(trace.Untraceable);
             }
             finally { try { Directory.Delete(eaDir, true); } catch { } }
