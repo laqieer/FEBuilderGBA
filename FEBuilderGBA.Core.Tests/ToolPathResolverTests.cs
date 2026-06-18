@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -141,6 +142,33 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.BaseDirectory = savedBaseDir;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        // #1246: on Linux/macOS the lyn binary has no .exe extension; the resolver must
+        // find the platform-appropriate name. With the old "lyn.exe"-only search this
+        // would fail on the Linux/macOS CI runners (extensionless "lyn" never matched).
+        [Fact]
+        public void ResolveLynExe_FindsPlatformAwareLynName()
+        {
+            string lynName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "lyn.exe" : "lyn";
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string eaExe = Path.Combine(tempDir, "ea", "ColorzCore.exe");
+            string lynPath = Path.Combine(tempDir, "ea", "Tools", lynName);
+            Directory.CreateDirectory(Path.GetDirectoryName(eaExe));
+            Directory.CreateDirectory(Path.GetDirectoryName(lynPath));
+            File.WriteAllText(eaExe, "mock");
+            File.WriteAllText(lynPath, "mock");
+
+            try
+            {
+                string result = ToolPathResolver.ResolveLynExe(eaExe);
+                Assert.NotNull(result);
+                Assert.Equal(lynPath, result);
+            }
+            finally
+            {
                 Directory.Delete(tempDir, true);
             }
         }

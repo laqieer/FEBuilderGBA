@@ -118,20 +118,28 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Resolve lyn.exe path from the Event Assembler directory.
-        /// Checks Tools/lyn.exe relative to the EA executable, then searches
-        /// the EA submodule's Event Assembler directory.
+        /// Resolve the lyn executable path from the Event Assembler directory.
+        /// Checks the <c>Tools/</c> dir relative to the EA executable (and its parents),
+        /// then the EA submodule's Event Assembler directory. The binary name is
+        /// platform-aware: <c>lyn.exe</c> on Windows, <c>lyn</c> (or <c>lyn.exe</c>) on
+        /// Linux/macOS — see <see cref="GetExeNames"/>.
         /// </summary>
         public static string ResolveLynExe(string eaExePath)
         {
             if (string.IsNullOrEmpty(eaExePath)) return null;
 
-            // Standard location: same dir as EA, under Tools/lyn.exe
+            // lyn carries .exe on Windows; on Linux/macOS the binary is "lyn" with no
+            // extension, so a "lyn.exe"-only search silently fails there. Try both names
+            // at every candidate location (#1246), mirroring GetExeNames for the EA/ColorzCore
+            // resolver. Benefits both the ASM/C (#1169) and Event-Assembler (#1170) chains.
+            string[] lynNames = GetExeNames("lyn");
+
+            // Standard location: same dir as EA, under Tools/
             string eaDir = Path.GetDirectoryName(eaExePath);
             if (!string.IsNullOrEmpty(eaDir))
             {
-                string standard = Path.Combine(eaDir, "Tools", "lyn.exe");
-                if (File.Exists(standard)) return standard;
+                string hit = FindLynInDir(Path.Combine(eaDir, "Tools"), lynNames);
+                if (hit != null) return hit;
 
                 // Also check parent directories (bundled layout may have deeper nesting)
                 string parent = eaDir;
@@ -139,18 +147,29 @@ namespace FEBuilderGBA
                 {
                     parent = Path.GetDirectoryName(parent);
                     if (string.IsNullOrEmpty(parent)) break;
-                    string candidate = Path.Combine(parent, "Tools", "lyn.exe");
-                    if (File.Exists(candidate)) return candidate;
+                    hit = FindLynInDir(Path.Combine(parent, "Tools"), lynNames);
+                    if (hit != null) return hit;
                 }
             }
 
             // Search from repo root
             foreach (string root in GetSearchRoots())
             {
-                string sub = Path.Combine(root, "tools", "Event-Assembler", "Event Assembler", "Tools", "lyn.exe");
-                if (File.Exists(sub)) return sub;
+                string hit = FindLynInDir(Path.Combine(root, "tools", "Event-Assembler", "Event Assembler", "Tools"), lynNames);
+                if (hit != null) return hit;
             }
 
+            return null;
+        }
+
+        // Returns the first existing lyn binary (one of lynNames, platform-aware) in dir, or null.
+        static string FindLynInDir(string dir, string[] lynNames)
+        {
+            foreach (string name in lynNames)
+            {
+                string candidate = Path.Combine(dir, name);
+                if (File.Exists(candidate)) return candidate;
+            }
             return null;
         }
 
