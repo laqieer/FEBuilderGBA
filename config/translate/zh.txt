@@ -25273,3 +25273,36 @@ TSA数量: {0}
 
 :Update check failed.
 更新检查失败。
+
+:Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected).
+请先描述问题，然后创建报告，在求助时附上。报告包含诊断日志和您的编辑器设置（不收集存档数据）。
+
+:Problem description
+问题描述
+
+:Create Report
+创建报告
+
+:About report.7z:
+关于 report.7z：
+
+:Save report
+保存报告
+
+:Report files
+报告文件
+
+:Creating report...
+正在创建报告...
+
+:Report created:
+报告已创建：
+
+:Could not create the report.
+无法创建报告。
+
+:Please describe the problem.
+请描述问题。
+
+:Output path is empty.
+未指定输出路径。

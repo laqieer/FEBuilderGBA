@@ -11432,3 +11432,36 @@ TSA数: {0}
 
 :Update check failed.
 更新の確認に失敗しました。
+
+:Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected).
+問題点を記載してから、レポートを作成してください。質問するときに添付します。レポートには診断ログと編集設定が含まれます（セーブデータは収集しません）。
+
+:Problem description
+問題点
+
+:Create Report
+レポートを作成
+
+:About report.7z:
+report.7zについて:
+
+:Save report
+レポートを保存
+
+:Report files
+レポートファイル
+
+:Creating report...
+レポートを作成中...
+
+:Report created:
+レポートを作成しました:
+
+:Could not create the report.
+レポートを作れませんでした。
+
+:Please describe the problem.
+問題点を記載してください。
+
+:Output path is empty.
+出力先が指定されていません。
