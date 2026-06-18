@@ -33,14 +33,15 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) => LoadMapList();
         }
 
-        // Populate the chapter selector and auto-select the first chapter so the
-        // flag list is non-empty on open.
+        // Populate the chapter selector. SetItems auto-selects the first row
+        // (AddressListControl.SetItems calls SelectFirst internally), which fires
+        // OnMapSelected → the flag list is non-empty on open. No explicit
+        // SelectFirst needed.
         void LoadMapList()
         {
             try
             {
                 MapList.SetItems(_vm.LoadMapList());
-                MapList.SelectFirst();
             }
             catch (Exception ex)
             {
@@ -49,12 +50,16 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // A chapter was picked — re-scan and repopulate the flag-usage list. The
-        // AddressListControl tag carries the map id (MakeMapIDList sets tag=mapid).
+        // map id is the selected row's AddrResult.tag (MapSettingCore.MakeMapIDList
+        // encodes the map id in tag), matching how the other map-selector views
+        // resolve it.
         void OnMapSelected(uint mapAddr)
         {
             try
             {
-                uint mapId = (uint)MapList.SelectedOriginalIndex;
+                AddrResult? selected = MapList.SelectedItem;
+                if (selected == null) return;
+                uint mapId = selected.tag;
                 EntryList.SetItems(_vm.LoadForChapter(mapId));
             }
             catch (Exception ex)

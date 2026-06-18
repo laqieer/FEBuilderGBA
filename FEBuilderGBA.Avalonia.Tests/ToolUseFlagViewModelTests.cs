@@ -73,6 +73,42 @@ public class ToolUseFlagViewModelTests
     }
 
     [Fact]
+    public void EventScriptRow_DetailAddress_UsesTagNotTreeRoot()
+    {
+        // For EVENTSCRIPT, Addr is the event-tree ROOT and Tag is the actual
+        // referencing COMMAND. The detail "Address" must show the command (Tag),
+        // not the tree root (Addr) — mirrors WF GotoEvent → EventScriptForm.JumpTo
+        // positioning at tag.
+        var vm = new ToolUseFlagViewModel();
+        // Addr = tree root 0x00009000, Tag = referencing command 0x00009040.
+        var usages = new List<UseFlagIDCore>
+        {
+            new(FELintCore.Type.EVENTSCRIPT, 0x00009000, "", 0x0022, 0, 0x00009040),
+        };
+        vm.LoadFromUsages(usages);
+
+        vm.LoadEntryByIndex(0);
+        Assert.Equal("0x00009040", vm.SelectedAddrText); // Tag (command), not Addr (root)
+    }
+
+    [Fact]
+    public void EventCondRow_DetailAddress_UsesAddr()
+    {
+        // For EVENT_COND_*/MAPCHANGE, Addr IS the record address and Tag is the
+        // slot index (not an address), so the detail must show Addr.
+        var vm = new ToolUseFlagViewModel();
+        var usages = new List<UseFlagIDCore>
+        {
+            // Tag = 2 (slot index) must NOT be shown as the address.
+            new(FELintCore.Type.EVENT_COND_ALWAYS, 0x0000B000, "Always", 0x0055, 0, 2),
+        };
+        vm.LoadFromUsages(usages);
+
+        vm.LoadEntryByIndex(0);
+        Assert.Equal("0x0000B000", vm.SelectedAddrText); // Addr (record), not Tag (slot idx)
+    }
+
+    [Fact]
     public void DuplicateAddressRows_ResolveByIndex_NotFirstMatch()
     {
         // Index 2 and index 3 share addr 0x0000A000 but carry different flag ids.

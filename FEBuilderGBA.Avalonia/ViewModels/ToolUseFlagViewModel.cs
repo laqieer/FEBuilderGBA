@@ -132,14 +132,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             UseFlagIDCore u = _usages[index];
-            CurrentAddr = u.Addr;
+            uint addr = EffectiveAddr(u);
+            CurrentAddr = addr;
             IsLoaded = true;
             SelectedFlagText = ToHexString(u.ID);
             SelectedFlagName = FlagNameOf(u.ID);
             SelectedTypeText = TypeText(u.DataType);
             SelectedInfoText = u.Info ?? "";
-            SelectedAddrText = string.Format("0x{0:X08}", u.Addr);
+            SelectedAddrText = string.Format("0x{0:X08}", addr);
         }
+
+        /// <summary>
+        /// The byte offset the detail panel shows and the jump targets, by source
+        /// type. For EVENTSCRIPT the row's <see cref="UseFlagIDCore.Addr"/> is the
+        /// event-script TREE ROOT and <see cref="UseFlagIDCore.Tag"/> is the actual
+        /// referencing COMMAND (mirroring WF GotoEvent → EventScriptForm.JumpTo,
+        /// which positions the cursor at <c>tag</c>), so we surface Tag — that's
+        /// the byte where the flag is referenced. For EVENT_COND_* / MAPCHANGE the
+        /// Addr IS the record address (Tag is the slot index, not an address), so
+        /// Addr is correct. Falls back to Addr if an EVENTSCRIPT Tag is unset.
+        /// </summary>
+        static uint EffectiveAddr(UseFlagIDCore u)
+            => u.DataType == FELintCore.Type.EVENTSCRIPT && u.Tag != U.NOT_FOUND
+                ? u.Tag
+                : u.Addr;
 
         /// <summary>
         /// Address-keyed detail load (FIRST stored usage whose <c>.Addr</c>
@@ -163,6 +179,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// True only when the row at <paramref name="index"/> has a real in-ROM
         /// byte offset (drives the double-click/Enter jump-to-HexEditor path).
+        /// Uses <see cref="EffectiveAddr"/> so an EVENTSCRIPT row jumps to its
+        /// referencing command (Tag), not the event-tree root.
         /// </summary>
         public bool TryGetJumpOffset(int index, out uint offset)
         {
@@ -172,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return false;
 
-            uint addr = _usages[index].Addr;
+            uint addr = EffectiveAddr(_usages[index]);
             if (!U.isSafetyOffset(addr, rom)) return false;
 
             offset = addr;
