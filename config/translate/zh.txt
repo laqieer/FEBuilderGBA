@@ -25693,3 +25693,6 @@ config/translate/<lang>.txt
 :A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
 编译结果的可再分发补丁定义。将其保存为 PATCH_(NAME).txt 文件即可分享该补丁。
 
+:Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
+每行是设置了世界地图事件PLIST的地图。地址指向PLIST索引的地图指针表槽位。
+

@@ -15,6 +15,8 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="WorldMapEventPointerFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <TextBlock Text="Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes." TextWrapping="Wrap" Foreground="Gray" Margin="0,4" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
