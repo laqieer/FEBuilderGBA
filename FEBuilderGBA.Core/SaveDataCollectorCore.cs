@@ -80,6 +80,95 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Non-mutating probe: would <see cref="CollectSaveData"/> find at least one
+        /// emulator save-state file next to the ROM (or in no$gba's BATTERY dir)?
+        /// Used by the Avalonia tool to decide whether to surface the interactive
+        /// SAV picker (mirrors WF <c>CollectSaveDataInner</c> returning false).
+        /// Reads nothing into a temp dir — pure existence checks. Never throws.
+        /// </summary>
+        public static bool HasAnySaveData(string romFullPath, string emulatorConfigDir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(romFullPath))
+                {
+                    return false;
+                }
+
+                if (SaveFileExists(romFullPath, ".sav") ||
+                    BatterySaveExists(romFullPath, emulatorConfigDir, ".sav") ||
+                    SaveFileExists(romFullPath, ".emulator.sav"))
+                {
+                    return true;
+                }
+
+                for (int i = 1; i < 13; i++)
+                {
+                    string[] exts =
+                    {
+                        ".emulator" + i + ".sgm",
+                        ".emulator" + i + ".sps",
+                        "" + i + ".sgm",
+                        ".emulator.ss" + i,
+                        ".ss" + i,
+                        ".emulator.sg" + i,
+                        ".sg" + i,
+                        ".sa" + i,
+                    };
+                    foreach (string ext in exts)
+                    {
+                        if (SaveFileExists(romFullPath, ext))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            catch (Exception e)
+            {
+                Log.Error("SaveDataCollectorCore.HasAnySaveData failed: " + e.ToString());
+                return false;
+            }
+        }
+
+        /// <summary>Existence-only variant of the <see cref="PickupSaveData"/> search (rom-dir + space→underscore).</summary>
+        static bool SaveFileExists(string romFullPath, string needExt)
+        {
+            string dir = Path.GetDirectoryName(romFullPath);
+            string file = Path.GetFileNameWithoutExtension(romFullPath);
+            if (dir == null || file == null)
+            {
+                return false;
+            }
+            if (File.Exists(Path.Combine(dir, file + needExt)))
+            {
+                return true;
+            }
+            return File.Exists(Path.Combine(dir, file.Replace(" ", "_") + needExt));
+        }
+
+        /// <summary>Existence-only variant of the no$gba <see cref="CollectNoDollSaveData"/> BATTERY search.</summary>
+        static bool BatterySaveExists(string romFullPath, string emulatorConfigDir, string needExt)
+        {
+            if (string.IsNullOrEmpty(emulatorConfigDir))
+            {
+                return false;
+            }
+            string emudir = Path.GetDirectoryName(emulatorConfigDir);
+            if (string.IsNullOrEmpty(emudir))
+            {
+                return false;
+            }
+            string file = Path.GetFileNameWithoutExtension(romFullPath);
+            if (file == null)
+            {
+                return false;
+            }
+            return File.Exists(Path.Combine(emudir, "BATTERY", file + needExt));
+        }
+
+        /// <summary>
         /// Copy <paramref name="explicitFilePath"/> into <paramref name="tempDir"/>
         /// (port of WF <c>PickupOneFile</c> — used for the interactive picker
         /// fallback when auto-discovery finds nothing). Missing file is a no-op.
@@ -114,30 +203,40 @@ namespace FEBuilderGBA
         /// </summary>
         static bool PickupSaveData(string romFullPath, string tempDir, string needExt, List<string> collected)
         {
-            string dir = Path.GetDirectoryName(romFullPath);
-            string file = Path.GetFileNameWithoutExtension(romFullPath);
-            if (dir == null || file == null)
+            try
             {
-                return false;
-            }
-
-            string savFilename = Path.Combine(dir, file + needExt);
-            if (!File.Exists(savFilename))
-            {
-                // Some emulators replace spaces with underscores in the save name.
-                file = file.Replace(" ", "_");
-                savFilename = Path.Combine(dir, file + needExt);
-                if (!File.Exists(savFilename))
+                string dir = Path.GetDirectoryName(romFullPath);
+                string file = Path.GetFileNameWithoutExtension(romFullPath);
+                if (dir == null || file == null)
                 {
                     return false;
                 }
-            }
 
-            string destName = file + needExt;
-            string destFilename = Path.Combine(tempDir, destName);
-            File.Copy(savFilename, destFilename, true);
-            collected.Add(destName);
-            return true;
+                string savFilename = Path.Combine(dir, file + needExt);
+                if (!File.Exists(savFilename))
+                {
+                    // Some emulators replace spaces with underscores in the save name.
+                    file = file.Replace(" ", "_");
+                    savFilename = Path.Combine(dir, file + needExt);
+                    if (!File.Exists(savFilename))
+                    {
+                        return false;
+                    }
+                }
+
+                string destName = file + needExt;
+                string destFilename = Path.Combine(tempDir, destName);
+                File.Copy(savFilename, destFilename, true);
+                collected.Add(destName);
+                return true;
+            }
+            catch (Exception e)
+            {
+                // Best-effort: one locked / access-denied save must not abort the
+                // rest of the collection. Log and skip this single file.
+                Log.Error("SaveDataCollectorCore.PickupSaveData skipped '" + needExt + "': " + e.ToString());
+                return false;
+            }
         }
 
         /// <summary>
@@ -147,37 +246,47 @@ namespace FEBuilderGBA
         static bool CollectNoDollSaveData(string romFullPath, string emulatorConfigDir,
             string tempDir, string needExt, List<string> collected)
         {
-            if (string.IsNullOrEmpty(emulatorConfigDir))
+            try
             {
-                return false;
-            }
-            string emudir = Path.GetDirectoryName(emulatorConfigDir);
-            if (string.IsNullOrEmpty(emudir))
-            {
-                return false;
-            }
-            string dir = Path.Combine(emudir, "BATTERY");
-            if (!Directory.Exists(dir))
-            {
-                return false;
-            }
+                if (string.IsNullOrEmpty(emulatorConfigDir))
+                {
+                    return false;
+                }
+                string emudir = Path.GetDirectoryName(emulatorConfigDir);
+                if (string.IsNullOrEmpty(emudir))
+                {
+                    return false;
+                }
+                string dir = Path.Combine(emudir, "BATTERY");
+                if (!Directory.Exists(dir))
+                {
+                    return false;
+                }
 
-            string file = Path.GetFileNameWithoutExtension(romFullPath);
-            if (file == null)
-            {
-                return false;
-            }
-            string savFilename = Path.Combine(dir, file + needExt);
-            if (!File.Exists(savFilename))
-            {
-                return false;
-            }
+                string file = Path.GetFileNameWithoutExtension(romFullPath);
+                if (file == null)
+                {
+                    return false;
+                }
+                string savFilename = Path.Combine(dir, file + needExt);
+                if (!File.Exists(savFilename))
+                {
+                    return false;
+                }
 
-            string destName = file + needExt;
-            string destFilename = Path.Combine(tempDir, destName);
-            File.Copy(savFilename, destFilename, true);
-            collected.Add(destName);
-            return true;
+                string destName = file + needExt;
+                string destFilename = Path.Combine(tempDir, destName);
+                File.Copy(savFilename, destFilename, true);
+                collected.Add(destName);
+                return true;
+            }
+            catch (Exception e)
+            {
+                // Best-effort: a locked / access-denied BATTERY save must not abort
+                // the rest of the collection. Log and skip.
+                Log.Error("SaveDataCollectorCore.CollectNoDollSaveData skipped '" + needExt + "': " + e.ToString());
+                return false;
+            }
         }
 
         /// <summary>

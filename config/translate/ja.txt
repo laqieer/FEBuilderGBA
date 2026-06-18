@@ -11469,3 +11469,12 @@ report.7zについて:
 
 :Output path is empty.
 出力先が指定されていません。
+
+:Please specify a save file path.
+セーブファイルのパスを指定してください。
+
+:Please specify a backup ROM path.
+バックアップROMのパスを指定してください。
+
+:The specified file does not exist.
+指定されたファイルが存在しません。

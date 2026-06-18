@@ -229,5 +229,82 @@ namespace FEBuilderGBA.Core.Tests
                 TryDeleteDir(tempDir);
             }
         }
+
+        [Fact]
+        public void HasAnySaveData_TrueWhenSiblingSav_FalseOtherwise()
+        {
+            string romDir = MakeTempDir();
+            try
+            {
+                string romPath = Path.Combine(romDir, "MyHack.gba");
+                File.WriteAllBytes(romPath, new byte[] { 1 });
+
+                // No save yet.
+                Assert.False(SaveDataCollectorCore.HasAnySaveData(romPath, ""));
+
+                // Add a sibling .sav -> probe true (and does NOT copy anything).
+                File.WriteAllBytes(Path.Combine(romDir, "MyHack.sav"), new byte[] { 9 });
+                Assert.True(SaveDataCollectorCore.HasAnySaveData(romPath, ""));
+
+                // Probe is read-only: only the rom + sav remain, no temp artifacts.
+                Assert.Equal(2, Directory.GetFiles(romDir).Length);
+            }
+            finally
+            {
+                TryDeleteDir(romDir);
+            }
+        }
+
+        [Fact]
+        public void HasAnySaveData_SpaceToUnderscore_AndEmulatorState()
+        {
+            string romDir = MakeTempDir();
+            try
+            {
+                string romPath = Path.Combine(romDir, "My Hack.gba");
+                File.WriteAllBytes(romPath, new byte[] { 1 });
+
+                // space->underscore .sav variant is detected by the probe.
+                File.WriteAllBytes(Path.Combine(romDir, "My_Hack.ss1"), new byte[] { 7 });
+                Assert.True(SaveDataCollectorCore.HasAnySaveData(romPath, ""));
+            }
+            finally
+            {
+                TryDeleteDir(romDir);
+            }
+        }
+
+        [Fact]
+        public void CollectSaveData_PerFileCopyFailure_DoesNotAbortRest()
+        {
+            string romDir = MakeTempDir();
+            string tempDir = MakeTempDir();
+            try
+            {
+                string romPath = Path.Combine(romDir, "MyHack.gba");
+                File.WriteAllBytes(romPath, new byte[] { 1 });
+
+                // Two discoverable saves.
+                File.WriteAllBytes(Path.Combine(romDir, "MyHack.sav"), new byte[] { 9 });
+                File.WriteAllBytes(Path.Combine(romDir, "MyHack.ss1"), new byte[] { 7 });
+
+                // Sabotage the FIRST copy target: create a DIRECTORY in tempDir with the
+                // exact destination name of MyHack.sav so File.Copy throws for it. The
+                // per-file try/catch must skip it and still copy MyHack.ss1.
+                Directory.CreateDirectory(Path.Combine(tempDir, "MyHack.sav"));
+
+                var collected = SaveDataCollectorCore.CollectSaveData(romPath, "", tempDir);
+
+                // The bad file is skipped, the good one still lands.
+                Assert.DoesNotContain("MyHack.sav", collected);
+                Assert.Contains("MyHack.ss1", collected);
+                Assert.True(File.Exists(Path.Combine(tempDir, "MyHack.ss1")));
+            }
+            finally
+            {
+                TryDeleteDir(romDir);
+                TryDeleteDir(tempDir);
+            }
+        }
     }
 }

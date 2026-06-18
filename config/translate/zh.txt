@@ -25310,3 +25310,12 @@ TSA数量: {0}
 
 :Output path is empty.
 未指定输出路径。
+
+:Please specify a save file path.
+请指定存档文件的路径。
+
+:Please specify a backup ROM path.
+请指定备份 ROM 的路径。
+
+:The specified file does not exist.
+指定的文件不存在。

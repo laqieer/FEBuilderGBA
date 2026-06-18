@@ -23,6 +23,10 @@
       <Button AutomationProperties.AutomationId="ToolProblemReportSearchBackup_Browse_Button" Grid.Column="2" Content="Browse..." Width="130" Height="31"
               Click="Browse_Click" />
     </Grid>
+    <!-- Inline validation message (kept open on invalid OK) -->
+    <TextBlock AutomationProperties.AutomationId="ToolProblemReportSearchBackup_Error_Label"
+               Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0"
+               IsVisible="{Binding HasError}" Text="{Binding ErrorMessage}" />
     <!-- OK / Cancel row -->
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
                 Spacing="8" Margin="0,16,0,0">

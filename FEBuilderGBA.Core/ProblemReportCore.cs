@@ -42,11 +42,16 @@ namespace FEBuilderGBA
         /// Optional clean / old backup ROM path; when set, a fresh <c>.ups</c> delta
         /// from it to the current ROM is added to the report (#1235). May be <c>null</c>.
         /// </param>
+        /// <param name="savFilePath">
+        /// Optional explicit save-state file the user picked when auto-discovery found
+        /// none (WF <c>CollectSaveData</c> picker fallback); when set, it is copied into
+        /// the report via <see cref="SaveDataCollectorCore.PickupOneFile"/>. May be <c>null</c>.
+        /// </param>
         /// <returns>
         /// <c>""</c> on success, otherwise a localized error message. Never throws.
         /// </returns>
         public static string CreateReport(ROM rom, string problemText, string outputPath,
-            string emulatorConfigDir = null, string cleanRomPath = null)
+            string emulatorConfigDir = null, string cleanRomPath = null, string savFilePath = null)
         {
             string tempDir = null;
             try
@@ -74,9 +79,17 @@ namespace FEBuilderGBA
 
                 // 3) Emulator save-state files next to the ROM (+ no$gba BATTERY).
                 //    Best-effort: a missing save must never fail the report (#1235).
+                int autoSaves = 0;
                 if (!string.IsNullOrEmpty(rom.Filename))
                 {
-                    SaveDataCollectorCore.CollectSaveData(rom.Filename, emulatorConfigDir, tempDir);
+                    autoSaves = SaveDataCollectorCore.CollectSaveData(rom.Filename, emulatorConfigDir, tempDir).Count;
+                }
+
+                // 3b) If auto-discovery found NO save, fall back to the explicit file
+                //     the user picked in the SAV picker (WF CollectSaveData fallback).
+                if (autoSaves == 0 && !string.IsNullOrEmpty(savFilePath))
+                {
+                    SaveDataCollectorCore.PickupOneFile(tempDir, savFilePath);
                 }
 
                 // 4) Fresh .ups delta from a clean / old backup ROM (when supplied).

@@ -28,6 +28,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True when a ROM is loaded (report needs ROM diagnostics).</summary>
         public bool HasRom => CoreState.ROM?.RomInfo != null;
 
+        /// <summary>The configured emulator path (WF <c>Program.Config.at("emulator")</c>).</summary>
+        public string EmulatorConfigDir => CoreState.Config?.at("emulator") ?? "";
+
+        /// <summary>
+        /// Non-mutating probe: would auto-discovery find an emulator save next to the
+        /// ROM? When false, the View surfaces the interactive SAV picker (#1235).
+        /// </summary>
+        public bool HasAutoSaveData()
+        {
+            string romFilename = CoreState.ROM?.Filename;
+            if (string.IsNullOrEmpty(romFilename))
+            {
+                return false;
+            }
+            return SaveDataCollectorCore.HasAnySaveData(romFilename, EmulatorConfigDir);
+        }
+
+        /// <summary>
+        /// Non-mutating probe: is there an already-existing sibling <c>.ups</c> next to
+        /// the ROM? When false, the View can offer the backup picker so the user can
+        /// supply a clean ROM for a fresh UPS delta (#1235).
+        /// </summary>
+        public bool HasSiblingUps()
+        {
+            try
+            {
+                string romFilename = CoreState.ROM?.Filename;
+                if (string.IsNullOrEmpty(romFilename) || !System.IO.File.Exists(romFilename))
+                {
+                    return false;
+                }
+                return System.IO.File.Exists(System.IO.Path.ChangeExtension(romFilename, ".ups"));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Create the report archive at <paramref name="outputPath"/>.
         /// Returns <c>""</c> on success, otherwise a localized error string. Never
@@ -37,7 +76,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Optional clean / old backup ROM (from the interactive backup picker); when
         /// set, a <c>.ups</c> delta from it to the current ROM is added (#1235).
         /// </param>
-        public string CreateReport(string outputPath, string cleanRomPath = null)
+        /// <param name="savFilePath">
+        /// Optional save-state file the user picked in the SAV picker when no save was
+        /// auto-discovered next to the ROM (#1235).
+        /// </param>
+        public string CreateReport(string outputPath, string cleanRomPath = null, string savFilePath = null)
         {
             try
             {
@@ -67,7 +110,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string emulatorConfigDir = CoreState.Config?.at("emulator") ?? "";
 
                 string err = ProblemReportCore.CreateReport(
-                    rom, ProblemText, outputPath, emulatorConfigDir, cleanRomPath);
+                    rom, ProblemText, outputPath, emulatorConfigDir, cleanRomPath, savFilePath);
                 if (!string.IsNullOrEmpty(err))
                 {
                     StatusMessage = err;
