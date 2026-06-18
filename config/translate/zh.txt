@@ -25346,3 +25346,30 @@ TSA数量: {0}
 
 :Animation script imported successfully.
 动画脚本导入成功。
+
+:No font rasterizer is available.
+字体光栅化器不可用。
+
+:No character to generate.
+没有要生成的字符。
+
+:Font auto-generation failed: {0}
+字体自动生成失败：{0}
+
+:Font auto-generation produced no glyph data.
+字体自动生成未产生字形数据。
+
+:Load Font File
+加载字体文件
+
+:Load failed: {0}
+加载失败：{0}
+
+:This glyph has no renderable character.
+此字形没有可渲染的字符。
+
+:Glyph generated successfully.
+字形生成成功。
+
+:Auto-generate failed: {0}
+自动生成失败：{0}

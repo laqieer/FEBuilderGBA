@@ -46,6 +46,33 @@
             </StackPanel>
           </StackPanel>
         </Border>
+
+        <!-- Auto-generate the selected glyph from a desktop .ttf/.otf font (#1232). -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="0,12,0,0">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Auto-Generate from Font" FontWeight="Bold" />
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="FontEditor_LoadFont_Button" Name="LoadFontButton" Content="Load .ttf/.otf" Click="LoadFont_Click" />
+              <Button AutomationProperties.AutomationId="FontEditor_ClearFont_Button" Name="ClearFontButton" Content="Clear" Click="ClearFont_Click" />
+            </StackPanel>
+            <TextBlock AutomationProperties.AutomationId="FontEditor_FontFile_Label" Name="FontFileLabel" TextWrapping="Wrap" Foreground="Gray" />
+
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Family:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="FontEditor_FontFamily_Input" Grid.Row="0" Grid.Column="1" Name="FontFamilyInput" Text="Arial" Margin="0,2"
+                       ToolTip.Tip="Used only when no .ttf/.otf file is loaded." />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Size:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="FontEditor_FontSize_Input" Grid.Row="1" Grid.Column="1" Name="FontSizeInput" Margin="0,2"
+                             Minimum="6" Maximum="32" Increment="1" Value="12" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Vertical Offset:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="FontEditor_VOffset_Input" Grid.Row="2" Grid.Column="1" Name="VOffsetInput" Margin="0,2"
+                             Minimum="-8" Maximum="8" Increment="1" Value="0" />
+            </Grid>
+
+            <Button AutomationProperties.AutomationId="FontEditor_AutoGen_Button" Name="AutoGenButton" Content="Auto-Generate" Click="AutoGen_Click" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

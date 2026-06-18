@@ -186,8 +186,15 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(Window owner, string title, string pattern)
+            => await OpenFile(owner, title, new[] { pattern });
+
+        /// <summary>
+        /// Open any file with a custom multi-pattern filter (e.g. ".ttf" + ".otf"
+        /// for the Font editor's auto-generate font picker, #1232).
+        /// </summary>
+        public static async Task<string?> OpenFile(Window owner, string title, string[] patterns)
         {
-            var fileType = new FilePickerFileType(title) { Patterns = new[] { pattern } };
+            var fileType = new FilePickerFileType(title) { Patterns = patterns };
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = title,

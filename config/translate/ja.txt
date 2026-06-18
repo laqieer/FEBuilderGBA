@@ -11505,3 +11505,30 @@ GIF出力
 
 :Animation script imported successfully.
 アニメスクリプトを読み込みました。
+
+:No font rasterizer is available.
+フォントラスタライザーが利用できません。
+
+:No character to generate.
+生成する文字がありません。
+
+:Font auto-generation failed: {0}
+フォントの自動生成に失敗しました: {0}
+
+:Font auto-generation produced no glyph data.
+フォントの自動生成でグリフデータが生成されませんでした。
+
+:Load Font File
+フォントファイルを読み込む
+
+:Load failed: {0}
+読み込みに失敗しました: {0}
+
+:This glyph has no renderable character.
+このグリフには描画可能な文字がありません。
+
+:Glyph generated successfully.
+グリフを生成しました。
+
+:Auto-generate failed: {0}
+自動生成に失敗しました: {0}

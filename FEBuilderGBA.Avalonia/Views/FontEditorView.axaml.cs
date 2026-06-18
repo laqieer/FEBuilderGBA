@@ -14,6 +14,10 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly FontEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Path of the desktop .ttf/.otf loaded for Auto-Generate (#1232). Empty
+        // => fall back to the typed font family. Set by LoadFont_Click.
+        string _fontFilePath = "";
+
         public string ViewTitle => "Font Editor";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
@@ -246,6 +250,95 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
             }
+        }
+
+        // ---- Auto-generate from a desktop .ttf/.otf font (#1232) ----
+
+        async void LoadFont_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(this,
+                    R._("Load Font File"), new[] { "*.ttf", "*.otf" });
+                if (string.IsNullOrEmpty(path)) return;
+                _fontFilePath = path;
+                FontFileLabel.Text = Path.GetFileName(path);
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Load failed: {0}", ex.Message));
+            }
+        }
+
+        void ClearFont_Click(object? sender, RoutedEventArgs e)
+        {
+            _fontFilePath = "";
+            FontFileLabel.Text = "";
+        }
+
+        void AutoGen_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
+
+                // The character to rasterize is the selected row's decoded glyph
+                // (the label is "0xXX <char>"); the moji is the target slot.
+                string character = GlyphCharacterOfSelected();
+                if (string.IsNullOrEmpty(character)) { CoreState.Services?.ShowError(R._("This glyph has no renderable character.")); return; }
+
+                // Build the cross-platform font selector: a loaded .ttf/.otf file
+                // wins; otherwise the typed family (resolved by SKTypeface).
+                var font = new FontSpec
+                {
+                    FamilyName = string.IsNullOrWhiteSpace(FontFamilyInput.Text) ? "Arial" : FontFamilyInput.Text,
+                    Size = (float)(FontSizeInput.Value is { } sz && sz > 0 ? sz : 12m),
+                    FontFilePath = string.IsNullOrEmpty(_fontFilePath) ? null : _fontFilePath,
+                };
+                int vOffset = (int)(VOffsetInput.Value ?? 0m);
+
+                // Capture the target char code BEFORE reload (LoadList re-selects
+                // the first row), so we can re-select the just-edited glyph.
+                uint targetMoji = _vm.CurrentMoji;
+
+                var rasterizer = new FEBuilderGBA.SkiaSharp.SkiaFontRasterizer();
+
+                _undoService.Begin("Auto-Generate Font Glyph");
+                try
+                {
+                    string err = FontAutoGenCore.AutoGenerateGlyph(rom, rasterizer, font,
+                        character, targetMoji, _vm.IsItemFont, vOffset);
+                    if (!string.IsNullOrEmpty(err)) { _undoService.Rollback(); CoreState.Services?.ShowError(err); return; }
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+
+                LoadList();
+                SelectByMoji(targetMoji);
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Glyph generated successfully."));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Auto-generate failed: {0}", ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// The renderable character of the selected glyph row. The list label is
+        /// "0xXX &lt;char&gt;" (hex code + decoded char); take the part after the
+        /// first space. An "@hex" fallback name (an undecodable code) yields "".
+        /// </summary>
+        string GlyphCharacterOfSelected()
+        {
+            string label = EntryList.SelectedItem?.name ?? "";
+            int sp = label.IndexOf(' ');
+            string ch = sp >= 0 ? label.Substring(sp + 1) : "";
+            // "@XXXX" is the FontGlyphRenderCore fallback for an undecodable code.
+            if (string.IsNullOrEmpty(ch) || ch.StartsWith("@")) return "";
+            return ch;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
