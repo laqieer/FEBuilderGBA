@@ -27,6 +27,12 @@
           <Button AutomationProperties.AutomationId="ImageRomAnime_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
         </StackPanel>
 
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Button AutomationProperties.AutomationId="ImageRomAnime_ExportScript_Button" Content="Export Script" Click="ExportScript_Click" />
+          <Button AutomationProperties.AutomationId="ImageRomAnime_ImportScript_Button" Content="Import Script" Click="ImportScript_Click" />
+          <Button AutomationProperties.AutomationId="ImageRomAnime_ExportGif_Button" Content="Export GIF" Click="ExportGif_Click" />
+        </StackPanel>
+
         <TextBlock AutomationProperties.AutomationId="ImageRomAnime_Info_Label" Name="InfoLabel" TextWrapping="Wrap" />
 
         <Border BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"

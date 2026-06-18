@@ -118,6 +118,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return error;
         }
 
+        /// <summary>
+        /// Export the WHOLE animation as a <c>wait png</c> script + per-frame PNGs
+        /// (multi-frame, #1230). Returns "" on success or a user-facing error.
+        /// </summary>
+        public string ExportScript(string scriptPath)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || _entry == null) return R._("No animation entry selected.");
+            return RomAnimeMultiFrameCore.ExportTxt(rom, _entry, scriptPath);
+        }
+
+        /// <summary>
+        /// Export the WHOLE animation as an animated GIF (multi-frame, #1230).
+        /// Returns "" on success or a user-facing error.
+        /// </summary>
+        public string ExportGif(string gifPath)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || _entry == null) return R._("No animation entry selected.");
+            return RomAnimeMultiFrameCore.ExportGif(rom, _entry, gifPath);
+        }
+
+        /// <summary>
+        /// Import a multi-frame <c>wait png</c> script and rebuild the WHOLE animation
+        /// as one atomic transaction (#1230). The <paramref name="frameLoader"/> turns a
+        /// resolved PNG path into a quantized <c>(indexed, gbaPalette16, w, h)</c> tuple
+        /// (or null when missing). Returns "" on success or a user-facing error (ZERO
+        /// ROM mutation on failure).
+        /// </summary>
+        public string ImportScript(string scriptPath,
+            Func<string, (byte[] indexedPixels, byte[] gbaPalette16, int width, int height)?> frameLoader)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || _entry == null) return R._("No animation entry selected.");
+            RomAnimeMultiFrameCore.ImportTxt(rom, _entry, scriptPath, frameLoader, out string error);
+            return error;
+        }
+
         // ---- IDataVerifiable ----
 
         public int GetListCount() => LoadList().Count;
