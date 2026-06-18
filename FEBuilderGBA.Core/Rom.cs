@@ -1109,14 +1109,28 @@ namespace FEBuilderGBA
 
         public bool SwapNewROMData(byte[] newROMData, string name, Undo.UndoData undodata)
         {
+            return SwapNewROMData(newROMData, name, undodata, confirmHeaderChange: true);
+        }
+
+        // confirmHeaderChange: when true (interactive callers, e.g. the WinForms
+        // EventAssemblerForm), prompt before applying a change that rewrites the
+        // 0x0–0x100 ROM header. Programmatic/automation callers (CLI --compile-event,
+        // the Avalonia tool's compile flow) pass false so header-modifying scripts
+        // still apply without an interactive ShowYesNo — headless ShowYesNo always
+        // returns false, which would silently cancel the insert.
+        public bool SwapNewROMData(byte[] newROMData, string name, Undo.UndoData undodata, bool confirmHeaderChange)
+        {
             //0x0が壊されていないかチェックする
-            byte[] romheader = this.getBinaryData(0, 0x100);
-            if (U.memcmp(U.subrange(newROMData, 0, 0x100), romheader) != 0)
+            if (confirmHeaderChange)
             {
-                bool proceed = CoreState.Services.ShowYesNo("event_assemblerが、0x0 - 0x100 の領域を書き換えました。\r\nこの領域への書き込みは危険です。\r\nこの内容を本当に適応してもよろしいですか？\r\n\r\n「はい」ならば適応します。\r\nそれ以外ならば変更を破棄します。");
-                if (!proceed)
+                byte[] romheader = this.getBinaryData(0, 0x100);
+                if (U.memcmp(U.subrange(newROMData, 0, 0x100), romheader) != 0)
                 {
-                    return false;
+                    bool proceed = CoreState.Services.ShowYesNo("event_assemblerが、0x0 - 0x100 の領域を書き換えました。\r\nこの領域への書き込みは危険です。\r\nこの内容を本当に適応してもよろしいですか？\r\n\r\n「はい」ならば適応します。\r\nそれ以外ならば変更を破棄します。");
+                    if (!proceed)
+                    {
+                        return false;
+                    }
                 }
             }
 

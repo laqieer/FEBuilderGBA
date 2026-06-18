@@ -213,12 +213,14 @@ namespace FEBuilderGBA
                 // Write the CURRENT ROM bytes for EA to patch in place.
                 File.WriteAllBytes(tempRomPath, rom.Data);
 
-                string args = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore);
+                // Track the args actually executed so a failure reports the right
+                // command (the old-EA fallback below replaces them).
+                string executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore);
 
                 string output;
                 try
                 {
-                    output = RunProcess(eaExe, args, toolDir);
+                    output = RunProcess(eaExe, executedArgs, toolDir);
                 }
                 catch (Exception ex)
                 {
@@ -237,8 +239,8 @@ namespace FEBuilderGBA
                 {
                     onRetry?.Invoke("Retrying without -symOutput (older EA detected)...");
                     File.WriteAllBytes(tempRomPath, rom.Data);
-                    string fallbackArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore, includeSym: false);
-                    output = RunProcess(eaExe, fallbackArgs, toolDir);
+                    executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore, includeSym: false);
+                    output = RunProcess(eaExe, executedArgs, toolDir);
                     hasError = !IsEASuccess(output);
                 }
 
@@ -246,8 +248,8 @@ namespace FEBuilderGBA
 
                 if (hasError)
                 {
-                    // Mirror WinForms: prefix the failed command so the user can repro.
-                    result.ErrorMessage = eaExe + " " + args + " \r\noutput:\r\n" + output;
+                    // Mirror WinForms: prefix the ACTUALLY-EXECUTED command so the user can repro.
+                    result.ErrorMessage = eaExe + " " + executedArgs + " \r\noutput:\r\n" + output;
                     return result;
                 }
 
@@ -258,11 +260,17 @@ namespace FEBuilderGBA
                 }
 
                 // Compile succeeded — NOW mutate the ROM (undoable, fault-safe).
+                // confirmHeaderChange:false — this is a programmatic/automation path
+                // (CLI --compile-event + the Avalonia tool), so apply header-modifying
+                // scripts without the interactive ShowYesNo (headless ShowYesNo always
+                // returns false and would silently cancel the insert). Matches the old
+                // CLI behaviour of emitting the patched ROM regardless.
                 byte[] newRomData = File.ReadAllBytes(tempRomPath);
-                bool swapped = rom.SwapNewROMData(newRomData, "event_assembler", undo);
+                bool swapped = rom.SwapNewROMData(newRomData, "event_assembler", undo, confirmHeaderChange: false);
                 if (!swapped)
                 {
-                    // User declined the 0x0 header overwrite, or resize failed.
+                    // Resize failed (the only remaining non-applied path now that the
+                    // header prompt is bypassed).
                     result.ErrorMessage = R.Notify("変更をユーザーが取り消しました");
                     return result;
                 }

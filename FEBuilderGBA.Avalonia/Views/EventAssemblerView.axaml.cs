@@ -172,42 +172,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        async void Uninstall_Click(object? sender, RoutedEventArgs e)
-        {
-            // Uninstall lets the user pick a .event to remove its previously
-            // inserted bytes. The full WF uninstall pipeline
-            // (PatchForm.MakeInstantEAToPatch) is WinForms-only; here we surface
-            // guidance + the chosen file (Undo reverts the last applied insert).
-            var storage = GetTopLevel(this)?.StorageProvider;
-            if (storage == null) return;
-
-            try
-            {
-                var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = R._("Please select an event file to uninstall."),
-                    AllowMultiple = false,
-                    FileTypeFilter = new[]
-                    {
-                        new FilePickerFileType(R._("event file")) { Patterns = new[] { "*.event", "*.txt" } },
-                        new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } },
-                    }
-                });
-
-                if (files.Count > 0)
-                {
-                    string? path = files[0].TryGetLocalPath();
-                    if (!string.IsNullOrEmpty(path))
-                        _vm.StatusMessage = R._("To undo a previously applied insert, use the Undo button.")
-                            + "\r\n" + path;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error("EventAssemblerView.Uninstall failed: " + ex.ToString());
-                _vm.StatusMessage = ex.Message;
-            }
-        }
+        // NOTE: no Uninstall button. The full WinForms EventAssemblerForm uninstall
+        // (PatchForm.MakeInstantEAToPatch → UnInstallPatch) is WinForms-only and out
+        // of scope for this slice, so rather than ship a button that only opens a
+        // file picker and points at Undo (misleading), we rely on Undo to revert the
+        // last applied insert. A faithful uninstall is tracked for a later slice.
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }

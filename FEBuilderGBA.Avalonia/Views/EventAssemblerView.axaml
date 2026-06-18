@@ -60,9 +60,6 @@
         <Button AutomationProperties.AutomationId="EventAssembler_Import_Button"
                 Name="ImportButton" Content="Import (compile + insert)"
                 Click="Import_Click" />
-        <Button AutomationProperties.AutomationId="EventAssembler_Uninstall_Button"
-                Name="UninstallButton" Content="Uninstall..."
-                Click="Uninstall_Click" />
         <Button AutomationProperties.AutomationId="EventAssembler_Undo_Button"
                 Name="UndoButton" Content="Undo"
                 IsVisible="{Binding CanUndo}"

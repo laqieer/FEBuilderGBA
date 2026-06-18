@@ -20306,11 +20306,56 @@ Store debug symbols:
 :Import (compile + insert)
 Import (compile + insert)
 
-:Uninstall...
-Uninstall...
-
 :Select a .event or .txt file
 Select a .event or .txt file
 
 :Auto re-compile updated source code (.s / .asm)
 Auto re-compile updated source code (.s / .asm)
+
+:Auto re-compile of .s/.asm sources is not available in this build; running Event Assembler only.
+Auto re-compile of .s/.asm sources is not available in this build; running Event Assembler only.
+
+:Compilation failed.
+Compilation failed.
+
+:Compilation successful.
+Compilation successful.
+
+:Compiling...
+Compiling...
+
+:Do not define a free area (use ORG in the EA)
+Do not define a free area (use ORG in the EA)
+
+:event file
+event file
+
+:Inserted at: {0}
+Inserted at: {0}
+
+:None
+None
+
+:Please select an event file to import.
+Please select an event file to import.
+
+:Save as comment
+Save as comment
+
+:Save both
+Save both
+
+:Save sym.txt
+Save sym.txt
+
+:Symbols: {0} entries
+Symbols: {0} entries
+
+:The last operation has been undone.
+The last operation has been undone.
+
+:Type: Data (lower area)
+Type: Data (lower area)
+
+:Type: Program (rebuild-safe upper area)
+Type: Program (rebuild-safe upper area)

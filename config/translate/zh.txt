@@ -25410,11 +25410,53 @@ TSA数量: {0}
 :Import (compile + insert)
 导入(编译 + 插入)
 
-:Uninstall...
-卸载...
-
 :Select a .event or .txt file
 选择 .event 或 .txt 文件
 
 :Auto re-compile updated source code (.s / .asm)
 自动重新编译已更新的源代码(.s / .asm)
+
+:Auto re-compile of .s/.asm sources is not available in this build; running Event Assembler only.
+此版本不支持自动重新编译 .s/.asm 源代码；仅运行 Event Assembler。
+
+:Compilation failed.
+编译失败。
+
+:Compilation successful.
+编译成功。
+
+:Compiling...
+正在编译...
+
+:Do not define a free area (use ORG in the EA)
+不定义空闲区域(在 EA 中使用 ORG)
+
+:event file
+事件文件
+
+:Inserted at: {0}
+插入位置: {0}
+
+:Please select an event file to import.
+请选择要导入的事件文件。
+
+:Save as comment
+保存为注释
+
+:Save both
+两者都保存
+
+:Save sym.txt
+保存 sym.txt
+
+:Symbols: {0} entries
+符号: {0} 个
+
+:The last operation has been undone.
+已撤销上一步操作。
+
+:Type: Data (lower area)
+类型:数据(低位地址)
+
+:Type: Program (rebuild-safe upper area)
+类型:程序(不受 rebuild 影响的高位地址)
