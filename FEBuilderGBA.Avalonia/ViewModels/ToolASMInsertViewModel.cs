@@ -17,9 +17,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// to that helper. It reads no ROM bytes for display (it only WRITES via the
     /// helper) so it is a read-no-ROM tool VM (no data-verification contract).
     ///
-    /// Scope: the "Make Patch" text generator is deferred to a follow-up (WinForms-
-    /// coupled); the devkitARM compile, the GoldRoad <c>@thumb</c> path (auto-detected,
-    /// no extra UI), and the three insert methods are the parity surface here.
+    /// Scope: the devkitARM compile, the GoldRoad <c>@thumb</c> path (auto-detected,
+    /// no extra UI), the three insert methods, and the "Make Patch" redistributable
+    /// patch-definition text (#1243 — <see cref="MakePatchText"/>, opened in
+    /// <c>AsmPatchTextView</c>) are the parity surface here.
     /// </summary>
     public class ToolASMInsertViewModel : ViewModelBase
     {
@@ -33,6 +34,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _checkMissingLabel = true;     // WF ctor: CheckMissingLabelComboBox.SelectedIndex = 1 (on)
         bool _canUndo;
         string _statusMessage = "";
+        string _lastProductPath = "";
+        bool _lastInsertWasPatchable;
 
         /// <summary>Selected C/C++/ASM source file to compile and insert.</summary>
         public string SourcePath { get => _sourcePath; set => SetField(ref _sourcePath, value); }
@@ -41,7 +44,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int CompileMethodIndex { get => _compileMethodIndex; set => SetField(ref _compileMethodIndex, value); }
 
         /// <summary>Insert method index: 0 = compile-only, 1 = write at address, 2 = hook-inject.</summary>
-        public int InsertMethodIndex { get => _insertMethodIndex; set => SetField(ref _insertMethodIndex, value); }
+        public int InsertMethodIndex
+        {
+            get => _insertMethodIndex;
+            set { if (SetField(ref _insertMethodIndex, value)) OnPropertyChanged(nameof(CanMakePatch)); }
+        }
 
         /// <summary>Target address (hex), used by write-at-address and hook-inject.</summary>
         public string AddressHex { get => _addressHex; set => SetField(ref _addressHex, value); }
@@ -136,17 +143,81 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint HookRegister => AsmCompileCore.ClampHookRegister((uint)Math.Max(0, _hookRegisterIndex));
 
         /// <summary>
+        /// The compiled product (the .dmp/.bin) from the LAST successful run. The
+        /// "Make Patch" action hex-dumps this product into the patch-definition text,
+        /// mirroring how WF keeps <c>ComplieBinFilename</c> between Run and MakePatch.
+        /// Empty until a compile succeeds.
+        /// </summary>
+        public string LastProductPath
+        {
+            get => _lastProductPath;
+            set { if (SetField(ref _lastProductPath, value)) OnPropertyChanged(nameof(CanMakePatch)); }
+        }
+
+        /// <summary>
+        /// True when the last successful run produced a raw, writable binary (i.e. NOT
+        /// a compile-only / lyn.event product). A lyn.event is a script, not bytes, so
+        /// no BIN-type patch can describe it — matching WF, where MakePatch only runs
+        /// for the write-at-address / hook-inject methods.
+        /// </summary>
+        public bool LastInsertWasPatchable
+        {
+            get => _lastInsertWasPatchable;
+            set { if (SetField(ref _lastInsertWasPatchable, value)) OnPropertyChanged(nameof(CanMakePatch)); }
+        }
+
+        /// <summary>
+        /// True when a "Make Patch" can be produced: a successful compile left a real
+        /// product on disk AND the CURRENT insert method is not compile-only (WF shows
+        /// PatchMakerButton only for Method 1/2 and MakePatch needs a compiled bin).
+        /// </summary>
+        public bool CanMakePatch =>
+            LastInsertWasPatchable
+            && !string.IsNullOrEmpty(LastProductPath)
+            && System.IO.File.Exists(LastProductPath)
+            && InsertMethod != AsmCompileCore.InsertMethod.CompileOnly;
+
+        /// <summary>
+        /// Build the redistributable patch-definition text for the last successful
+        /// compile, reading the CURRENT address / free-area / hook-register fields (WF
+        /// MakePatch reads the live UI fields + the last compiled bin). Returns "" when
+        /// there is nothing to patch (no product, compile-only, or a zero address); the
+        /// caller surfaces a localized "nothing to make a patch from" message.
+        /// </summary>
+        public string MakePatchText()
+        {
+            uint addr = U.toOffset(ParseHex(AddressHex));
+            uint freeArea = U.toOffset(ParseHex(FreeAreaHex));
+            return AsmCompileCore.MakePatchText(LastProductPath, InsertMethod, addr, freeArea, HookRegister);
+        }
+
+        /// <summary>
         /// Compile and insert <see cref="SourcePath"/> using the shared Core helper.
         /// The caller owns the undo scope and passes its active <c>Undo.UndoData</c>.
+        /// On success, records the product path + whether it is patchable so a later
+        /// "Make Patch" can reuse it (mirrors WF keeping <c>ComplieBinFilename</c>).
         /// </summary>
         public AsmCompileCore.CompileResult Run(Undo.UndoData undo)
         {
             ROM rom = CoreState.ROM;
             uint addr = U.toOffset(ParseHex(AddressHex));
             uint freeArea = U.toOffset(ParseHex(FreeAreaHex));
-            return AsmCompileCore.CompileAndInsert(
+            var result = AsmCompileCore.CompileAndInsert(
                 rom, SourcePath, CompileMethod, InsertMethod,
                 addr, freeArea, HookRegister, StoreSymbol, CheckMissingLabel, undo);
+
+            if (result.Success)
+            {
+                LastProductPath = result.ProductPath ?? "";
+                // A lyn.event product (ConvertLyn, non-GoldRoad) is a script, not raw
+                // bytes — it cannot back a BIN patch. Everything else (dump/keep-ELF, or
+                // a GoldRoad .bin even under the ConvertLyn method) is a writable binary.
+                bool isLynProduct = CompileMethod == AsmCompileCore.CompileMethod.ConvertLyn
+                    && !AsmCompileCore.ShouldUseGoldRoad(SourcePath);
+                LastInsertWasPatchable = !isLynProduct;
+            }
+
+            return result;
         }
     }
 }

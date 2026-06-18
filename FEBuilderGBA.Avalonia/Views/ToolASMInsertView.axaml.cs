@@ -21,8 +21,9 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Combo items are added in code via R._() so they pick up ja/zh translations
     /// (ViewTranslationHelper does not translate ComboBoxItem content).
     ///
-    /// The "Make Patch" text generator is deferred to a follow-up issue
-    /// (WinForms-coupled); an applied insert can be reverted via Undo.
+    /// "Make Patch" (#1243) turns the last successful compile into a redistributable
+    /// <c>PATCH_(NAME).txt</c> via <see cref="AsmCompileCore.MakePatchText"/>, shown in
+    /// <c>AsmPatchTextView</c>; an applied insert can be reverted via Undo.
     /// </summary>
     public partial class ToolASMInsertView : TranslatedWindow, IEditorView
     {
@@ -212,6 +213,32 @@ namespace FEBuilderGBA.Avalonia.Views
             finally
             {
                 RunButton.IsEnabled = true;
+            }
+        }
+
+        async void MakePatch_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Build the patch-definition text from the LAST successful compile +
+                // the current address/free-area/register fields (WF MakePatch). An
+                // empty result means there is nothing to patch (no product / compile-
+                // only / zero address) — surface it instead of opening an empty dialog.
+                string patch = _vm.MakePatchText();
+                if (string.IsNullOrEmpty(patch))
+                {
+                    _vm.StatusMessage = R._("There is no compiled result, so a patch cannot be created.");
+                    return;
+                }
+
+                var dialog = new AsmPatchTextView();
+                dialog.SetPatchText(patch);
+                await dialog.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolASMInsertView.MakePatch failed: " + ex.ToString());
+                _vm.StatusMessage = ex.Message;
             }
         }
 

@@ -20568,3 +20568,27 @@ Chapter
 
 :Flags used
 Flags used
+:Make Patch
+Make Patch
+
+:Make Patch...
+Make Patch...
+
+:Save...
+Save...
+
+:Text Files
+Text Files
+
+:Saved to {0}
+Saved to {0}
+
+:Failed to save the patch file.
+Failed to save the patch file.
+
+:There is no compiled result, so a patch cannot be created.
+There is no compiled result, so a patch cannot be created.
+
+:A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
+A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
+
