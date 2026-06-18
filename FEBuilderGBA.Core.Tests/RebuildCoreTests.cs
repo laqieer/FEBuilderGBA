@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -110,6 +112,88 @@ namespace FEBuilderGBA.Core.Tests
         public void Rebuild_NullReturnsFailure()
         {
             var result = RebuildCore.Rebuild(null, new byte[64]);
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public void BuildRebuildReport_ContainsHeaderAndRegions()
+        {
+            byte[] vanilla = new byte[128];
+            byte[] modified = new byte[128];
+            for (int i = 10; i < 15; i++) modified[i] = 0xAA;   // a modified region
+
+            string report = RebuildCore.BuildRebuildReport(vanilla, modified, 0x09000000);
+            Assert.Contains("@_CRC32 ", report);
+            Assert.Contains("@_REBUILDADDRESS 09000000", report);   // ToHexString(uint) pads to X08
+            Assert.Contains("@MOD ", report);
+            Assert.Contains("MODIFIED REGIONS:", report);
+            Assert.Contains("FREE SPACE:", report);
+        }
+
+        [Fact]
+        public void WriteRebuildReport_WritesFile_AndReportsSuccess()
+        {
+            byte[] vanilla = new byte[256];
+            byte[] modified = new byte[256];
+            modified[20] = 0xFF; modified[21] = 0xFF;
+
+            string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_" + Guid.NewGuid().ToString("N") + ".rebuild");
+            try
+            {
+                var result = RebuildCore.WriteRebuildReport(vanilla, modified, 0x09000000, outPath);
+                Assert.True(result.Success);
+                Assert.True(File.Exists(outPath));
+                string text = File.ReadAllText(outPath);
+                Assert.Contains("@_CRC32 ", text);
+                Assert.Contains(outPath, result.Message);   // message reports the output path
+                // No leftover temp artifact.
+                Assert.False(File.Exists(outPath + ".tmp"));
+            }
+            finally { try { File.Delete(outPath); } catch { } }
+        }
+
+        [Fact]
+        public void WriteRebuildReport_OverwritesExistingReport_AtomicReplace()
+        {
+            // Writing over an existing report must succeed (atomic File.Move overwrite)
+            // and leave the file holding the NEW content — not lose it to a
+            // delete-then-failed-move window.
+            byte[] vanilla = new byte[256];
+            byte[] modified1 = new byte[256]; modified1[20] = 0xFF;
+            byte[] modified2 = new byte[256]; modified2[20] = 0xFF; modified2[21] = 0xFF; modified2[100] = 0xAB;
+
+            string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_ovr_" + Guid.NewGuid().ToString("N") + ".rebuild");
+            try
+            {
+                var r1 = RebuildCore.WriteRebuildReport(vanilla, modified1, 0x09000000, outPath);
+                Assert.True(r1.Success);
+                Assert.True(File.Exists(outPath));
+
+                // Second write replaces the first; file still present + parseable, no temp left.
+                var r2 = RebuildCore.WriteRebuildReport(vanilla, modified2, 0x09100000, outPath);
+                Assert.True(r2.Success);
+                Assert.True(File.Exists(outPath));
+                Assert.False(File.Exists(outPath + ".tmp"));
+                string text = File.ReadAllText(outPath);
+                Assert.Contains("@_CRC32 ", text);
+                Assert.Contains("@_REBUILDADDRESS ", text);
+            }
+            finally { try { File.Delete(outPath); } catch { } }
+        }
+
+        [Fact]
+        public void WriteRebuildReport_NullData_ReturnsFailure_NoFile()
+        {
+            string outPath = Path.Combine(Path.GetTempPath(), "feb_rebuild_null_" + Guid.NewGuid().ToString("N") + ".rebuild");
+            var result = RebuildCore.WriteRebuildReport(null, new byte[64], 0, outPath);
+            Assert.False(result.Success);
+            Assert.False(File.Exists(outPath));
+        }
+
+        [Fact]
+        public void WriteRebuildReport_EmptyOutputPath_ReturnsFailure()
+        {
+            var result = RebuildCore.WriteRebuildReport(new byte[64], new byte[64], 0, "");
             Assert.False(result.Success);
         }
     }

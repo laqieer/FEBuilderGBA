@@ -20595,3 +20595,51 @@ A redistributable patch definition for the compiled result. Save it as a PATCH_(
 :Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
 Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
 
+:Rebuild address (hex):
+Rebuild address (hex):
+
+:Make ROMRebuild report…
+Make ROMRebuild report…
+
+:Analyze the modified ROM against the clean original and write a .rebuild report listing the modified regions and reusable free space. The full defragment (compacting Make/Apply with auto-reopen) is not yet available in this build.
+Analyze the modified ROM against the clean original and write a .rebuild report listing the modified regions and reusable free space. The full defragment (compacting Make/Apply with auto-reopen) is not yet available in this build.
+
+:This ROM does not use an extended region, so it cannot be rebuilt.
+This ROM does not use an extended region, so it cannot be rebuilt.
+
+:Data from this address onward is rebuilt. The default is {0}. Normally leave it unchanged; raise it if the rebuild fails because of custom-installed ASM.
+Data from this address onward is rebuilt. The default is {0}. Normally leave it unchanged; raise it if the rebuild fails because of custom-installed ASM.
+
+:The rebuild address is not a valid hexadecimal number.
+The rebuild address is not a valid hexadecimal number.
+
+:This address ({0}) cannot be used: it is not a multiple of 4.
+This address ({0}) cannot be used: it is not a multiple of 4.
+
+:This address ({0}) cannot be used: the address range is dangerous.
+This address ({0}) cannot be used: the address range is dangerous.
+
+:Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?
+Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?
+
+:Save ROMRebuild report
+Save ROMRebuild report
+
+:ROMRebuild report
+ROMRebuild report
+
+:Analyzing…
+Analyzing…
+
+:ROMRebuild report created. {0}
+ROMRebuild report created. {0}
+
+:The rebuild address is invalid.
+The rebuild address is invalid.
+
+:Failed to create the ROMRebuild report. {0}
+Failed to create the ROMRebuild report. {0}
+
+:Failed to create the ROMRebuild report.
+Failed to create the ROMRebuild report.
+
