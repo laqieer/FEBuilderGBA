@@ -27,9 +27,11 @@ namespace FEBuilderGBA
             int dwSize);            // Output buffer size
 
         /// <summary>
-        /// Check if native 7-zip32.dll is available
+        /// Check if native 7-zip32.dll is available. When present, <see cref="Compress"/>
+        /// writes a real <c>.7z</c> archive; when absent it falls back to SharpCompress and
+        /// writes a <c>.zip</c>. Callers can use this to pick the correct output extension.
         /// </summary>
-        private static bool IsNative7ZipAvailable()
+        public static bool IsNative7ZipAvailable()
         {
             try
             {

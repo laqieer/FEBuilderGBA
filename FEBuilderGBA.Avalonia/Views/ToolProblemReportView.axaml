@@ -7,9 +7,11 @@
   <DockPanel Margin="12">
     <TextBlock AutomationProperties.AutomationId="ToolProblemReport_Header_Label"
                DockPanel.Dock="Top" Name="HeaderLabel"
+               Text="Problem Reporter"
                FontSize="20" FontWeight="Bold" Margin="0,0,0,4" />
     <TextBlock AutomationProperties.AutomationId="ToolProblemReport_Hint_Label"
                DockPanel.Dock="Top" Name="HintLabel"
+               Text="Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected)."
                Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,12" />
 
     <!-- About-report URL link -->
@@ -18,7 +20,7 @@
                  Name="StatusLabel" Foreground="Gray" TextWrapping="Wrap" />
       <StackPanel Orientation="Horizontal" Spacing="8">
         <TextBlock AutomationProperties.AutomationId="ToolProblemReport_About_Label"
-                   Name="AboutLabel" VerticalAlignment="Center" />
+                   Name="AboutLabel" Text="About report.7z:" VerticalAlignment="Center" />
         <Button AutomationProperties.AutomationId="ToolProblemReport_AboutUrl_Button"
                 Name="AboutUrlButton" Click="AboutUrl_Click" />
       </StackPanel>
@@ -28,11 +30,12 @@
     <Button DockPanel.Dock="Bottom"
             AutomationProperties.AutomationId="ToolProblemReport_Create_Button"
             Name="CreateButton" Click="Create_Click"
+            Content="Create Report"
             HorizontalAlignment="Left" Margin="0,12,0,0" />
 
     <!-- Problem description -->
     <TextBlock AutomationProperties.AutomationId="ToolProblemReport_Problem_Label"
-               DockPanel.Dock="Top" Name="ProblemLabel" Margin="0,0,0,4" />
+               DockPanel.Dock="Top" Name="ProblemLabel" Text="Problem description" Margin="0,0,0,4" />
     <TextBox AutomationProperties.AutomationId="ToolProblemReport_Problem_Input"
              Name="ProblemTextBox"
              AcceptsReturn="True" TextWrapping="Wrap"

@@ -12,7 +12,8 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <summary>
     /// Problem-Report tool (#1193, ports WinForms <c>ToolProblemReportForm</c>).
     /// READ-ONLY w.r.t. the ROM: the user types a problem description and a
-    /// <c>.report.7z</c> archive (log + per-ROM etc config + any sibling .ups) is
+    /// <c>.report.7z</c> / <c>.report.zip</c> archive (log + per-ROM etc config + any
+    /// sibling .ups; <c>.7z</c> when native 7-zip32.dll is present, else <c>.zip</c>) is
     /// written via <see cref="ProblemReportCore.CreateReport"/>. No ROM mutation,
     /// no undo scope. The emulator save/backup search is deferred (follow-up issue).
     /// </summary>
@@ -28,11 +29,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             DataContext = _vm;
 
-            HeaderLabel.Text = R._("Problem Reporter");
-            HintLabel.Text = R._("Describe the problem, then create a report to attach when you ask for help. The report includes a diagnostic log and your editor settings (no save data is collected).");
-            ProblemLabel.Text = R._("Problem description");
-            CreateButton.Content = R._("Create Report");
-            AboutLabel.Text = R._("About report.7z:");
+            // Static labels (header / hint / button / about) are English literals in
+            // the XAML so TranslatedWindow's ViewTranslationHelper stores them as the
+            // re-translation keys and re-localizes on CoreState.LanguageChanged. Only
+            // the runtime URL value is assigned here.
             AboutUrlButton.Content = ToolProblemReportViewModel.Report7zUrl;
         }
 
@@ -54,7 +54,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 var storage = GetTopLevel(this)?.StorageProvider;
                 if (storage == null) return;
 
-                string suggested = "REPORT." + DateTime.Now.ToString("yyyyMMddHHmmss") + ".report.7z";
+                // ArchSevenZip.Compress writes a real .7z only when native 7-zip32.dll
+                // is present; otherwise it falls back to SharpCompress and writes a .zip.
+                // Suggest the extension matching what will actually be produced.
+                string reportExt = ArchSevenZip.IsNative7ZipAvailable() ? ".report.7z" : ".report.zip";
+                string suggested = "REPORT." + DateTime.Now.ToString("yyyyMMddHHmmss") + reportExt;
                 var file = await storage.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = R._("Save report"),
