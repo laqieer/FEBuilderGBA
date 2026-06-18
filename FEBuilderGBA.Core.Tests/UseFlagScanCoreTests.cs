@@ -101,10 +101,15 @@ namespace FEBuilderGBA.Core.Tests
                 // Next turn record header = 0 → terminates the slot walk.
                 WriteU32(rom, TurnRecord + 12, 0x00000000u);
 
-                // 4) Event script: SETFLAG ScriptFlag ; ENDA.
+                // 4) Event script: SETFLAG ScriptFlag ; SETFLAG ScriptFlag ; ENDA.
+                //    The SAME flag is referenced TWICE (two distinct commands) so the
+                //    test can prove the WF per-tree flag-id dedup collapses it to ONE
+                //    EVENTSCRIPT row.
                 rom.write_u16(EventScriptAddr + 0, 0x0001);
                 rom.write_u16(EventScriptAddr + 2, (ushort)ScriptFlag);
-                WriteU32(rom, EventScriptAddr + 4, 0x0000000A);
+                rom.write_u16(EventScriptAddr + 4, 0x0001);
+                rom.write_u16(EventScriptAddr + 6, (ushort)ScriptFlag);
+                WriteU32(rom, EventScriptAddr + 8, 0x0000000A);
 
                 // 5) Map-change PLIST table: entry[3] → change data block.
                 WriteU32(rom, rom.RomInfo.map_mapchange_pointer, ChangeTable | 0x08000000u);
@@ -148,6 +153,26 @@ namespace FEBuilderGBA.Core.Tests
                 var list = UseFlagScanCore.Scan(rom, 0u);
                 Assert.Contains(list, u =>
                     u.ID == ScriptFlag && u.DataType == FELintCore.Type.EVENTSCRIPT);
+            });
+        }
+
+        [Fact]
+        public void Scan_EventScriptFlag_DedupedPerTree()
+        {
+            // The synthetic event script references ScriptFlag from TWO distinct
+            // SETFLAG commands within one tree. WF MakeFlagIDEventScan dedups per
+            // flag id within a tree (U.FindList), so the chapter list must contain
+            // EXACTLY ONE EVENTSCRIPT row for ScriptFlag — not one per command.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                var scriptRows = list.FindAll(u =>
+                    u.ID == ScriptFlag && u.DataType == FELintCore.Type.EVENTSCRIPT);
+                Assert.Single(scriptRows);
+                // Addr is the event-tree root (WF UseFlagID.Addr = event_addr), and
+                // Tag is the FIRST referencing command (the earlier SETFLAG).
+                Assert.Equal(EventScriptAddr, scriptRows[0].Addr);
+                Assert.Equal(EventScriptAddr, scriptRows[0].Tag);
             });
         }
 

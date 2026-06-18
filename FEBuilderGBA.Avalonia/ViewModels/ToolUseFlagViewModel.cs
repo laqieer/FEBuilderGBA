@@ -98,8 +98,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var result = new List<AddrResult>();
             foreach (UseFlagIDCore u in _usages)
             {
-                // Row label: "0x<flag> <name>  [<type>] <info>" — built here so the
-                // localized type label is correct (no XAML StringFormat).
+                // Row label: "0x<flag> <name>  [<type>] <info>" — assembled here in
+                // the VM (not via XAML StringFormat, which Avalonia does not
+                // translate). The <type> is the raw FELint enum tag (e.g.
+                // EVENT_COND_ALWAYS / MAPCHANGE), shown untranslated to match the
+                // sibling ToolFELintViewModel.CategoryText — these tags read fine in
+                // any locale and there is no Core type→localized-name map to use.
                 string flagName = FlagNameOf(u.ID);
                 string label = ToHexString(u.ID)
                     + (flagName.Length > 0 ? " " + flagName : "")
@@ -207,6 +211,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return cache.TryGetValue(flag, out string name) ? (name ?? "") : "";
         }
 
+        // Raw FELint enum tag (e.g. "EVENT_COND_ALWAYS", "MAPCHANGE"), NOT
+        // localized — matches ToolFELintViewModel.CategoryText. The tags are
+        // locale-neutral identifiers and there is no Core type→display-name map.
         static string TypeText(FELintCore.Type type) => type.ToString();
     }
 }

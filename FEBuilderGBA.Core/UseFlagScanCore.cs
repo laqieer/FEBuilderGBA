@@ -161,21 +161,39 @@ namespace FEBuilderGBA
             if (CoreState.CommentCache == null) return;
 
             var entries = EventScriptReferenceScanner.EnumerateEventEntries(rom);
-            var tracelist = new List<uint>();
-            var seen = new HashSet<ulong>(); // (flag,cmdAddr) dedup across slots
 
             foreach (var entry in entries)
             {
                 if (entry.tag != mapId) continue; // .tag == mapid of the entry
-                ScanScriptForFlags(rom, es, entry.addr, mapId, tracelist, seen, list);
+
+                // WF MakeFlagIDArrayOne builds a FRESH (flag-id-keyed) result list
+                // PER event-script entry tree, then appends one UseFlagID per
+                // distinct flag id found in that tree. So the dedup scope is the
+                // single tree, NOT the whole chapter: a flag referenced 3x inside
+                // one tree -> ONE EVENTSCRIPT row (recording the FIRST command),
+                // while the same flag appearing in two different cond-slot trees
+                // legitimately yields one row each.
+                var found = new List<(uint flag, uint cmdAddr)>();
+                var tracelist = new List<uint>();
+                ScanScriptForFlags(rom, es, entry.addr, tracelist, found);
+
+                foreach (var (flag, cmdAddr) in found)
+                {
+                    // Mirror WF UseFlagID: Addr = the event-tree root (entry.addr),
+                    // Tag = the referencing command address (cmdAddr).
+                    UseFlagIDCore.AppendUseFlagID(
+                        list, FELintCore.Type.EVENTSCRIPT, entry.addr, "", flag, mapId, cmdAddr);
+                }
             }
         }
 
-        // Port of WF EventCondForm.MakeFlagIDEventScan (FLAG path): disassemble
-        // an event script, collect ArgType.FLAG, recurse through POINTER_EVENT.
+        // Port of WF EventCondForm.MakeFlagIDEventScan (FLAG path): disassemble an
+        // event script, collect each ArgType.FLAG ONCE per distinct flag id (WF
+        // U.FindList(list, flag) dedup — keeps the FIRST referencing command),
+        // recursing through POINTER_EVENT with a cycle guard. Strictly read-only.
         static void ScanScriptForFlags(
-            ROM rom, EventScript es, uint eventAddr, uint mapId,
-            List<uint> tracelist, HashSet<ulong> seen, List<UseFlagIDCore> list)
+            ROM rom, EventScript es, uint eventAddr,
+            List<uint> tracelist, List<(uint flag, uint cmdAddr)> found)
         {
             uint addr = eventAddr;
             uint lastBranchAddr = 0;
@@ -216,19 +234,17 @@ namespace FEBuilderGBA
                                 if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
                                 {
                                     tracelist.Add(v);
-                                    ScanScriptForFlags(rom, es, v, mapId, tracelist, seen, list);
+                                    ScanScriptForFlags(rom, es, v, tracelist, found);
                                 }
                             }
                             else if (arg.Type == EventScript.ArgType.FLAG)
                             {
                                 uint v = EventScript.GetArgValue(code, arg);
                                 if (v == 0) continue;
-                                // Dedup identical (flag id, referencing command) pairs so a
-                                // script reached from multiple slots is not double-listed.
-                                ulong key = ((ulong)v << 32) | addr;
-                                if (!seen.Add(key)) continue;
-                                UseFlagIDCore.AppendUseFlagID(
-                                    list, FELintCore.Type.EVENTSCRIPT, addr, "", v, mapId, addr);
+                                // WF U.FindList(list, v): one entry per distinct flag id
+                                // within this tree, keeping the first command seen.
+                                if (ContainsFlag(found, v)) continue;
+                                found.Add((v, addr));
                             }
                         }
                     }
@@ -238,6 +254,13 @@ namespace FEBuilderGBA
                 if (step <= 0) break;
                 addr += (uint)step;
             }
+        }
+
+        static bool ContainsFlag(List<(uint flag, uint cmdAddr)> found, uint flag)
+        {
+            for (int i = 0; i < found.Count; i++)
+                if (found[i].flag == flag) return true;
+            return false;
         }
 
         // ------------------------------------------------------------
