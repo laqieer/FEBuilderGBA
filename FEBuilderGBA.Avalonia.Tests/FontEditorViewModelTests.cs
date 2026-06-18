@@ -9,6 +9,7 @@ using System;
 using System.IO;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Core;
 using Xunit;
 
@@ -165,6 +166,52 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("_undoService.Begin", cs);
             Assert.Contains("_undoService.Commit", cs);
             Assert.Contains("_undoService.Rollback", cs);
+        }
+
+        // ---------------- #1232 auto-generate-from-font ----------------
+
+        [Fact]
+        public void Axaml_HasAutoGenAutomationIds()
+        {
+            string axaml = ReadView(".axaml");
+            Assert.Contains("FontEditor_LoadFont_Button", axaml);
+            Assert.Contains("FontEditor_ClearFont_Button", axaml);
+            Assert.Contains("FontEditor_FontFile_Label", axaml);
+            Assert.Contains("FontEditor_FontFamily_Input", axaml);
+            Assert.Contains("FontEditor_FontSize_Input", axaml);
+            Assert.Contains("FontEditor_VOffset_Input", axaml);
+            Assert.Contains("FontEditor_AutoGen_Button", axaml);
+        }
+
+        [Fact]
+        public void CodeBehind_WiresAutoGen_RasterizerCoreAndUndo()
+        {
+            string cs = ReadView(".axaml.cs");
+            // Auto-gen goes through the Core seam with a SkiaSharp rasterizer.
+            Assert.Contains("FontAutoGenCore.AutoGenerateGlyph", cs);
+            Assert.Contains("SkiaFontRasterizer", cs);
+            // FontFilePath is preferred over an installed-family name.
+            Assert.Contains("FontFilePath", cs);
+            // Undo scope around the mutation (begin/commit/rollback already
+            // asserted globally above; confirm the auto-gen label is present).
+            Assert.Contains("Auto-Generate Font Glyph", cs);
+        }
+
+        // The "@hex" undecodable fallback must be rejected, but a REAL '@'
+        // character (moji 0x40, whose decoded label is the lone "@") must
+        // rasterize normally — Copilot PR #1240 review #1.
+        [Theory]
+        [InlineData("@", false)]        // real at-sign glyph (moji 0x40)
+        [InlineData("@4140", true)]     // SJIS @hex fallback (4 hex digits)
+        [InlineData("@A0", true)]       // UTF-8 @hex fallback (2 hex digits)
+        [InlineData("@FF", true)]
+        [InlineData("A", false)]        // ordinary letter
+        [InlineData("@G", false)]       // '@' + non-hex => not the fallback marker
+        [InlineData("@@", false)]       // '@' + non-hex
+        [InlineData("", false)]
+        public void IsAtHexFallback_DistinguishesRealAtSignFromHexMarker(string input, bool expected)
+        {
+            Assert.Equal(expected, FontEditorView.IsAtHexFallback(input));
         }
     }
 }

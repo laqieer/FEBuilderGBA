@@ -34,6 +34,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Default font family (a data value, not a UI label — set here so it
+            // isn't a scanned AXAML literal the L10n gate would flag as
+            // untranslated). AutoGen_Click also falls back to "Arial" when empty.
+            FontFamilyInput.Text = "Arial";
         }
 
         void LoadList()
@@ -336,9 +341,30 @@ namespace FEBuilderGBA.Avalonia.Views
             string label = EntryList.SelectedItem?.name ?? "";
             int sp = label.IndexOf(' ');
             string ch = sp >= 0 ? label.Substring(sp + 1) : "";
-            // "@XXXX" is the FontGlyphRenderCore fallback for an undecodable code.
-            if (string.IsNullOrEmpty(ch) || ch.StartsWith("@")) return "";
+            if (string.IsNullOrEmpty(ch)) return "";
+            // Reject ONLY the FontGlyphRenderCore "@hex" fallback for an
+            // undecodable code: '@' followed by one or more hex digits (e.g.
+            // "@4140", "@A0"). A real '@' character (moji 0x40) decodes to the
+            // lone "@" and MUST rasterize normally — so don't blanket-reject
+            // everything starting with '@'.
+            if (IsAtHexFallback(ch)) return "";
             return ch;
+        }
+
+        /// <summary>
+        /// True when <paramref name="s"/> is the "@hex" fallback marker emitted by
+        /// FontGlyphRenderCore.FontChar / FontCharUTF8 for an undecodable code:
+        /// a literal '@' followed by one or more hex digits and nothing else. A
+        /// bare "@" (the real at-sign glyph, moji 0x40) is NOT a fallback.
+        /// </summary>
+        internal static bool IsAtHexFallback(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.Length < 2 || s[0] != '@') return false;
+            for (int i = 1; i < s.Length; i++)
+            {
+                if (!Uri.IsHexDigit(s[i])) return false;
+            }
+            return true;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

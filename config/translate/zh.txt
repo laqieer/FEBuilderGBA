@@ -25373,3 +25373,21 @@ TSA数量: {0}
 
 :Auto-generate failed: {0}
 自动生成失败：{0}
+
+:Auto-Generate from Font
+从字体自动生成
+
+:Load .ttf/.otf
+加载 .ttf/.otf
+
+:Family:
+字体名称:
+
+:Vertical Offset:
+垂直偏移:
+
+:Auto-Generate
+自动生成
+
+:Used only when no .ttf/.otf file is loaded.
+仅在未加载 .ttf/.otf 文件时使用。

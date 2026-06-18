@@ -11532,3 +11532,21 @@ GIF出力
 
 :Auto-generate failed: {0}
 自動生成に失敗しました: {0}
+
+:Auto-Generate from Font
+フォントから自動生成
+
+:Load .ttf/.otf
+.ttf/.otfを読み込む
+
+:Family:
+フォント名:
+
+:Vertical Offset:
+垂直オフセット:
+
+:Auto-Generate
+自動生成
+
+:Used only when no .ttf/.otf file is loaded.
+.ttf/.otfファイルを読み込んでいない場合のみ使用されます。

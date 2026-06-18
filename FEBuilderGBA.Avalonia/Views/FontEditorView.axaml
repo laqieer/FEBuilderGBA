@@ -60,7 +60,7 @@
 
             <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Family:" VerticalAlignment="Center" />
-              <TextBox AutomationProperties.AutomationId="FontEditor_FontFamily_Input" Grid.Row="0" Grid.Column="1" Name="FontFamilyInput" Text="Arial" Margin="0,2"
+              <TextBox AutomationProperties.AutomationId="FontEditor_FontFamily_Input" Grid.Row="0" Grid.Column="1" Name="FontFamilyInput" Margin="0,2"
                        ToolTip.Tip="Used only when no .ttf/.otf file is loaded." />
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Size:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="FontEditor_FontSize_Input" Grid.Row="1" Grid.Column="1" Name="FontSizeInput" Margin="0,2"
