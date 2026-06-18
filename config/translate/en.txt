@@ -20488,3 +20488,75 @@ Binary file
 
 :CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
 CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
+
+:Build the app's own translation files from source. Developer-only.
+Build the app's own translation files from source. Developer-only.
+
+:Build translation resource
+Build translation resource
+
+:To language:
+To language:
+
+:Source folder:
+Source folder:
+
+:Translate from English base (en.txt) when available
+Translate from English base (en.txt) when available
+
+:Translate (build)
+Translate (build)
+
+:Select the C# source code folder
+Select the C# source code folder
+
+:Designer string convert / reverse
+Designer string convert / reverse
+
+:Replace Japanese literals in *.Designer.cs with translations, or restore them.
+Replace Japanese literals in *.Designer.cs with translations, or restore them.
+
+:Convert (JP to lang)
+Convert (JP to lang)
+
+:Reverse (lang to JP)
+Reverse (lang to JP)
+
+:config/translate/<lang>.txt
+config/translate/<lang>.txt
+
+:Scans patches, MODs, data and C# source, then writes config/translate/<lang>.txt.
+Scans patches, MODs, data and C# source, then writes config/translate/<lang>.txt.
+
+:Could not open the folder picker.
+Could not open the folder picker.
+
+:Translating... This may take a while.
+Translating... This may take a while.
+
+:Translation complete. Please restart the tool.
+Translation complete. Please restart the tool.
+
+:Translation failed. See the log for details.
+Translation failed. See the log for details.
+
+:Converting designer strings...
+Converting designer strings...
+
+:Designer string conversion complete.
+Designer string conversion complete.
+
+:Reversing designer strings...
+Reversing designer strings...
+
+:Designer string reverse complete.
+Designer string reverse complete.
+
+:Scanning: 
+Scanning: 
+
+:Please select a target language (ja and auto cannot be selected).
+Please select a target language (ja and auto cannot be selected).
+
+:Please select a valid source code folder.
+Please select a valid source code folder.

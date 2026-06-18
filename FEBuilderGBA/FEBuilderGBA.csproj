@@ -206,6 +206,7 @@
     <Compile Remove="SystemTextEncoderTBLEncode.cs" />
     <Compile Remove="SystemTextEncoderArabianTBLEncode.cs" />
     <Compile Remove="MultiByteJPUtil.cs" />
+    <Compile Remove="MyTranslateBuild.cs" />
     <Compile Remove="MyTranslateResource.cs" />
     <Compile Remove="MyTranslateResourceLow.cs" />
     <Compile Remove="EtcCacheResource.cs" />

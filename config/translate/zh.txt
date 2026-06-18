@@ -25589,3 +25589,75 @@ GBA ROM
 
 :CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
 CUSTOM_BUILD.cmd 是 Windows 批处理脚本，只能在 Windows 上运行。
+
+:Build the app's own translation files from source. Developer-only.
+从源代码构建应用自身的翻译文件。仅供开发者使用。
+
+:Build translation resource
+构建翻译资源
+
+:To language:
+目标语言:
+
+:Source folder:
+源代码文件夹:
+
+:Translate from English base (en.txt) when available
+可用时从英文基准 (en.txt) 翻译
+
+:Translate (build)
+翻译 (构建)
+
+:Select the C# source code folder
+请选择 C# 源代码文件夹
+
+:Designer string convert / reverse
+设计器字符串转换 / 还原
+
+:Replace Japanese literals in *.Designer.cs with translations, or restore them.
+将 *.Designer.cs 中的日文字符串替换为译文，或将其还原。
+
+:Convert (JP to lang)
+转换 (日文→语言)
+
+:Reverse (lang to JP)
+还原 (语言→日文)
+
+:config/translate/<lang>.txt
+config/translate/<lang>.txt
+
+:Scans patches, MODs, data and C# source, then writes config/translate/<lang>.txt.
+扫描补丁、MOD、数据和 C# 源代码，然后写入 config/translate/<lang>.txt。
+
+:Could not open the folder picker.
+无法打开文件夹选择器。
+
+:Translating... This may take a while.
+正在翻译... 这可能需要一些时间。
+
+:Translation complete. Please restart the tool.
+翻译完成。请重启工具。
+
+:Translation failed. See the log for details.
+翻译失败。详情请查看日志。
+
+:Converting designer strings...
+正在转换设计器字符串...
+
+:Designer string conversion complete.
+设计器字符串转换完成。
+
+:Reversing designer strings...
+正在还原设计器字符串...
+
+:Designer string reverse complete.
+设计器字符串还原完成。
+
+:Scanning: 
+正在扫描: 
+
+:Please select a target language (ja and auto cannot be selected).
+请选择目标语言 (ja 和 auto 不可选择)。
+
+:Please select a valid source code folder.
+请选择有效的源代码文件夹。

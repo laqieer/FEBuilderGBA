@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
@@ -6,14 +6,24 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    class MyTranslateBuild
+    // Developer translation builder: scans C# source, patches, MODs and data files
+    // and seeds the config/translate/<lang>.txt resource (plus the Designer.cs
+    // convert/reverse helpers). Moved to Core so the Avalonia Dev Translate tool can
+    // reuse it; the only WinForms coupling was InputFormRef.DoEvents progress pumps,
+    // replaced here with an optional onProgress callback. (#1164)
+    public class MyTranslateBuild
     {
-        public MyTranslateBuild(string lang,bool isEnglishBase = false)
+        // Optional progress callback invoked per-file/per-string as the scan walks.
+        // Mirrors the WinForms InputFormRef.DoEvents(null, filename) progress pump.
+        readonly Action<string> _onProgress;
+
+        public MyTranslateBuild(string lang, bool isEnglishBase = false, Action<string> onProgress = null)
         {
+            this._onProgress = onProgress;
             this.Lang = lang;
             this.GoogleTranslateLang = lang_to_googlelang(lang);
 
-            string resoucefilename = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", lang + ".txt");
+            string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", lang + ".txt");
             this.TranslateResource = new MyTranslateResourceLow();
             this.TranslateResource.LoadResource(resoucefilename);
 
@@ -21,7 +31,7 @@ namespace FEBuilderGBA
             if (isEnglishBase && lang != "en")
             {
                 //英語から翻訳する 日本語->多言語 より、 英語->多言語の方が効率が良い場合がある.
-                string resoucefilenameEN = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", "en.txt");
+                string resoucefilenameEN = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "en.txt");
                 if (File.Exists(resoucefilenameEN))
                 {
                     this.TranslateResourceEN = new MyTranslateResourceLow();
@@ -32,8 +42,12 @@ namespace FEBuilderGBA
             //一行ずつ翻訳したものをキャッシュにいれる.
             this.TranslateCache = this.TranslateResource.ConvertOnelineSplitWord();
             //固定文の翻訳辞書
-            this.TransDic = new Dictionary<string, string>();
-            TranslateTextUtil.AppendFixedDic(this.TransDic, "ja", lang);
+            this.TransDic = TranslateTextUtilCore.LoadFixedDic("ja", lang);
+        }
+
+        void Progress(string filename)
+        {
+            this._onProgress?.Invoke(filename);
         }
 
         MyTranslateResourceLow TranslateResource;
@@ -52,7 +66,7 @@ namespace FEBuilderGBA
                 string[] files = U.Directory_GetFiles_Safe(source_path, "*.cs", SearchOption.TopDirectoryOnly);
                 foreach (string fullfilename in files)
                 {
-                    InputFormRef.DoEvents(null, fullfilename);
+                    Progress(fullfilename);
                     ScanStringForSourceCode(fullfilename);
                 }
             }
@@ -70,7 +84,7 @@ namespace FEBuilderGBA
 
             for (int next = index + 1; next < lines.Length; next++)
             {
-                //行末が " +\r\nかどうかを見る 
+                //行末が " +\r\nかどうかを見る
                 string l = U.substr(line, -3);
                 if (l != "\" +")
                 {
@@ -285,7 +299,7 @@ namespace FEBuilderGBA
 
             int eq = t.IndexOf("=");
             if (eq >= 1 && eq <= 10)
-            {//01=xxx みたいなものがあったとき 
+            {//01=xxx みたいなものがあったとき
                 t = t.Substring(eq + 1);
                 if (this.TranslateCache.ContainsKey(t))
                 {
@@ -311,7 +325,7 @@ namespace FEBuilderGBA
             return t;
         }
 
-        
+
         string OneLineTranslate(string src,string from)
         {
             if (src.Length <= 0)
@@ -346,7 +360,7 @@ namespace FEBuilderGBA
         public void TransFileWriter()
         {
             bool goolge_translate_failed = false;
-            
+
             List<string> lines = new List<string>();
 
             //ファイルに書き出す.
@@ -374,7 +388,7 @@ namespace FEBuilderGBA
                 line = "";
                 lines.Add(line);
             }
-            string resoucefilename = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", this.Lang + ".txt");
+            string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", this.Lang + ".txt");
             if (!U.CanWriteFileRetry(resoucefilename))
             {
                 return;
@@ -448,7 +462,7 @@ namespace FEBuilderGBA
             }
 
             //翻訳がない
-            InputFormRef.DoEvents(null, target);
+            Progress(target);
             if (this.IsEnglishBase())
             {
                 string tempT = this.TranslateResourceEN.str(target);
@@ -598,7 +612,7 @@ namespace FEBuilderGBA
 
         public void DesignStringConvert(string source_path)
         {
-            string resoucefilename = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", this.Lang + ".txt");
+            string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", this.Lang + ".txt");
             this.TranslateResource.LoadResource(resoucefilename);
 
             //デザインのソースコードスキャンして日本語文字列を置き換え.
@@ -606,7 +620,7 @@ namespace FEBuilderGBA
                 string[] files = U.Directory_GetFiles_Safe(source_path, "*.Designer.cs", SearchOption.TopDirectoryOnly);
                 foreach (string fullfilename in files)
                 {
-                    InputFormRef.DoEvents(null, fullfilename);
+                    Progress(fullfilename);
                     ScanStringForSourceCodeAndReplace(fullfilename);
                 }
             }
@@ -726,7 +740,7 @@ namespace FEBuilderGBA
         }
         public void DesignStringReverse(string source_path)
         {
-            string resoucefilename = System.IO.Path.Combine(Program.BaseDirectory, "config", "translate", this.Lang + ".txt");
+            string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", this.Lang + ".txt");
             this.TranslateResource.LoadResource(resoucefilename);
 
             //デザインのソースコードスキャンして英語等の言語を日本語文字列に置き換え.
@@ -734,7 +748,7 @@ namespace FEBuilderGBA
                 string[] files = U.Directory_GetFiles_Safe(source_path, "*.Designer.cs", SearchOption.TopDirectoryOnly);
                 foreach (string fullfilename in files)
                 {
-                    InputFormRef.DoEvents(null, fullfilename);
+                    Progress(fullfilename);
                     ScanStringForReverseSourceCode(fullfilename);
                 }
             }
@@ -745,7 +759,7 @@ namespace FEBuilderGBA
         //パッチの翻訳
         public void ScanPatch()
         {
-            string path = System.IO.Path.Combine(Program.BaseDirectory, "config", "patch2");
+            string path = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "patch2");
             string[] patchs = U.Directory_GetFiles_Safe(path, "PATCH_*.txt", SearchOption.AllDirectories);
             for (int i = 0; i < patchs.Length ; i++)
             {
@@ -770,7 +784,7 @@ namespace FEBuilderGBA
         //MODの翻訳
         public void ScanMOD()
         {
-            string path = System.IO.Path.Combine(Program.BaseDirectory, "config", "patch2");
+            string path = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "patch2");
             string[] mods = U.Directory_GetFiles_Safe(path, "MOD_*.txt", SearchOption.AllDirectories);
             for (int i = 0; i < mods.Length; i++)
             {
@@ -947,7 +961,7 @@ namespace FEBuilderGBA
         //データの翻訳
         public void ScanData()
         {
-            string path = System.IO.Path.Combine(Program.BaseDirectory, "config", "data");
+            string path = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "data");
             string[] data = U.Directory_GetFiles_Safe(path, "*.txt", SearchOption.TopDirectoryOnly);
             for (int i = 0; i < data.Length; i++)
             {
@@ -989,7 +1003,7 @@ namespace FEBuilderGBA
                 string line = lines[i];
                 if (U.IsComment(line))
                 {
-                    continue;   
+                    continue;
                 }
                 line = line.Trim();
 
