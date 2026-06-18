@@ -373,8 +373,9 @@ namespace FEBuilderGBA
             else if (version == 7)
             {
                 // EventBattleTalkFE7Form main: blocksize 16, flag@+12, chapter@+2.
+                // WF Init stops on u16==0 || 0xFFFF (NOT 0xFFFF only) — #1256.
                 AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
-                    talkPtr, 16, 12, 2, TableTerm.U16Sentinel);
+                    talkPtr, 16, 12, 2, TableTerm.U16ZeroOrSentinel);
                 // + N1 (BattleTalk2): blocksize 12, flag@+8, chapter@+1.
                 AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
                     talk2Ptr, 12, 8, 1, TableTerm.U8Sentinel);
@@ -382,11 +383,13 @@ namespace FEBuilderGBA
             else
             {
                 // EventBattleTalkFE6Form main: blocksize 12, flag@+8, chapter@+2.
+                // WF Init stops on u16==0 || 0xFFFF (NOT 0xFFFF only) — #1256.
                 AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
-                    talkPtr, 12, 8, 2, TableTerm.U16Sentinel);
+                    talkPtr, 12, 8, 2, TableTerm.U16ZeroOrSentinel);
                 // + N (BattleTalk2): blocksize 16, flag@+8, chapter@+1.
+                // WF N_Init stops on u16==0 || 0xFFFF (NOT 0xFFFF only) — #1256.
                 AppendFlagTable(rom, mapId, list, FELintCore.Type.BATTTLE_TALK,
-                    talk2Ptr, 16, 8, 1, TableTerm.U16Sentinel);
+                    talk2Ptr, 16, 8, 1, TableTerm.U16ZeroOrSentinel);
             }
         }
 
@@ -395,11 +398,20 @@ namespace FEBuilderGBA
         // honor the WF "i>10 && IsEmpty(addr, blocksize*10)" empty-run guard.
         enum TableTerm
         {
-            /// <summary>Stop when the record's first u16 is 0xFFFF (FE8 Haiku/BattleTalk, FE7/FE6 BattleTalk).</summary>
+            /// <summary>Stop when the record's first u16 is 0xFFFF ONLY — FE8 Haiku
+            /// + FE8 BattleTalk (WF EventHaikuForm.Init / EventBattleTalkForm.Init
+            /// stop on <c>u16==0xFFFF</c>; a u16==0 record is a LIVE record there).</summary>
             U16Sentinel,
+            /// <summary>Stop when the record's first u16 is 0 OR 0xFFFF — FE6
+            /// BattleTalk (main + N) and FE7 BattleTalk main (WF
+            /// EventBattleTalkFE{6,7}Form.Init/N(_)Init stop on
+            /// <c>unit==0 || unit==0xFFFF</c>; matches Core
+            /// TextRefTableRegistry.StopOnU16FFFFOrZero). Without the u16==0 stop the
+            /// walk OVER-READS past a zero terminator into garbage records (#1256).</summary>
+            U16ZeroOrSentinel,
             /// <summary>Stop when the record's first u8 is 0 (FE7 main Haiku, FE6 Haiku, FE7 tutorials).</summary>
             U8Zero,
-            /// <summary>Stop when the record's first u8 is 0 or 0xFF (FE7 BattleTalk2).</summary>
+            /// <summary>Stop when the record's first u8 is 0 or 0xFF (FE7 BattleTalk2 N1).</summary>
             U8Sentinel,
         }
 
@@ -455,8 +467,11 @@ namespace FEBuilderGBA
         {
             switch (term)
             {
-                case TableTerm.U16Sentinel: return rom.u16(addr) == 0xFFFF;
-                case TableTerm.U8Zero:      return rom.u8(addr) == 0;
+                case TableTerm.U16Sentinel:      return rom.u16(addr) == 0xFFFF;
+                case TableTerm.U16ZeroOrSentinel:
+                    uint w = rom.u16(addr);
+                    return w == 0 || w == 0xFFFF;
+                case TableTerm.U8Zero:           return rom.u8(addr) == 0;
                 case TableTerm.U8Sentinel:
                     uint v = rom.u8(addr);
                     return v == 0 || v == 0xFF;
