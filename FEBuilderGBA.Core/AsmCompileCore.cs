@@ -574,6 +574,16 @@ namespace FEBuilderGBA
             // crashes.)
             string outGbaName = nameNoExt + ".gba";
             string args = BuildGoldRoadArgs(srcFull, outGbaName);
+            string producedGba = Path.Combine(toolDir, outGbaName);
+            string binPath = Path.Combine(srcDir, nameNoExt + ".bin");
+
+            // Delete any STALE product from a previous run BEFORE invoking GoldRoad: the
+            // success check below keys off the presence/size of <toolDir>/<name>.gba, so
+            // a leftover .gba would make a FAILED GoldRoad run look successful and feed
+            // garbage into the ROM. Clearing it (and the .bin target) means only a
+            // freshly-produced file can count as success.
+            TryDelete(producedGba);
+            TryDelete(binPath);
 
             onProgress?.Invoke(goldroad);
 
@@ -588,7 +598,6 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            string producedGba = Path.Combine(toolDir, outGbaName);
             if (!File.Exists(producedGba) || U.GetFileSize(producedGba) <= 0)
             {
                 // Prefix the executed command so the user can repro (matches WF).
@@ -597,19 +606,16 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            // Move the .gba product next to the source as <name>.bin (WF renames the
-            // scary .gba to .bin). Overwrite any stale product first.
-            string binPath = Path.Combine(srcDir, nameNoExt + ".bin");
-            try
-            {
-                TryDelete(binPath);
-                File.Move(producedGba, binPath);
-            }
-            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            // Move the freshly-produced .gba next to the source as <name>.bin (WF renames
+            // the scary .gba to .bin). File.Move throws across volumes (the toolchain on
+            // D: and the project on C: is common), so fall back to copy+delete in that
+            // case — keeping the never-throws contract (a failure → clean localized error,
+            // ZERO ROM mutation).
+            if (!TryMoveCrossVolume(producedGba, binPath, out string moveError))
             {
                 result.Output = output;
                 result.ErrorMessage = R._("Unable to write the temporary files needed for compilation.")
-                    + "\r\n" + ex.ToString();
+                    + "\r\n" + moveError;
                 return result;
             }
 
@@ -863,6 +869,46 @@ namespace FEBuilderGBA
         {
             try { if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path); }
             catch { /* best-effort cleanup */ }
+        }
+
+        /// <summary>
+        /// Move <paramref name="src"/> to <paramref name="dest"/>, overwriting any
+        /// existing destination, in a cross-volume-safe way. <see cref="File.Move(string,string)"/>
+        /// throws an <see cref="IOException"/> when source and destination are on
+        /// DIFFERENT volumes (e.g. the toolchain on D: and the project on C:), so we fall
+        /// back to a copy + delete in that case. Returns false (never throws) with the
+        /// failure detail in <paramref name="error"/> so the caller can surface a clean,
+        /// localized error with ZERO ROM mutation.
+        /// </summary>
+        static bool TryMoveCrossVolume(string src, string dest, out string error)
+        {
+            error = "";
+            try
+            {
+                TryDelete(dest); // File.Move won't overwrite — clear the target first
+                File.Move(src, dest);
+                return true;
+            }
+            catch (IOException)
+            {
+                // Most commonly a cross-volume move — retry as copy + delete.
+                try
+                {
+                    File.Copy(src, dest, overwrite: true);
+                    TryDelete(src);
+                    return true;
+                }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    error = ex.ToString();
+                    return false;
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                error = ex.ToString();
+                return false;
+            }
         }
 
         /// <summary>

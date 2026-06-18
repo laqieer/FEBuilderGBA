@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
@@ -936,6 +937,89 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(msg));
             Assert.Contains("goldroad", msg);
             Assert.DoesNotContain("devkitpro_eabi", msg);
+        }
+
+        // Fix #1 (Copilot, #1255): a STALE <toolDir>/<name>.gba from a previous run must
+        // NOT be mistaken for a fresh success when GoldRoad FAILS. We point goldroad_asm
+        // at a no-op stub that exits 0 without producing any .gba, pre-seed a stale
+        // <toolDir>/<name>.gba, and assert the compile FAILS (the pre-delete cleared the
+        // stale file) with ZERO mutation — rather than inserting the stale garbage.
+        [Fact]
+        public void CompileAndInsert_GoldRoadStaleGba_NotMistakenForSuccess_NoMutation()
+        {
+            var rom = CreateTestRom();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            string toolDir = Path.Combine(Path.GetTempPath(), "fbg-gr-stale-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(toolDir);
+            string goldroadStub = WriteNoOpStub(toolDir, "goldroad");
+
+            string srcDir = Path.Combine(Path.GetTempPath(), "fbg-gr-src-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(srcDir);
+            string nameNoExt = "patch";
+            string src = Path.Combine(srcDir, nameNoExt + ".asm");
+            File.WriteAllText(src, "@thumb\r\nmov r0, r0\r\n");
+
+            // Pre-seed a STALE product the stub will NOT regenerate.
+            string staleGba = Path.Combine(toolDir, nameNoExt + ".gba");
+            File.WriteAllBytes(staleGba, new byte[] { 0xDE, 0xAD, 0xBE, 0xEF });
+
+            var savedConfig = CoreState.Config;
+            CoreState.Config = new Config { ["goldroad_asm"] = goldroadStub };
+            try
+            {
+                var undo = NewUndo(rom);
+                var result = AsmCompileCore.CompileAndInsert(
+                    rom, src, AsmCompileCore.CompileMethod.DumpBinary,
+                    AsmCompileCore.InsertMethod.WriteAtAddress, 0x100, U.NOT_FOUND, 3,
+                    SymbolUtil.DebugSymbol.None, checkMissingLabel: false, undo);
+
+                // The stub produced no fresh .gba and the stale one was pre-deleted, so the
+                // run must FAIL (not silently insert the 0xDEADBEEF stale bytes).
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                // The stale .gba must have been cleared before the (failed) invocation.
+                Assert.False(File.Exists(staleGba));
+            }
+            finally
+            {
+                CoreState.Config = savedConfig;
+                try { Directory.Delete(toolDir, true); } catch { }
+                try { Directory.Delete(srcDir, true); } catch { }
+            }
+        }
+
+        /// <summary>
+        /// Write a no-op executable stub (exits 0, produces nothing) named
+        /// <paramref name="baseName"/> in <paramref name="dir"/>, platform-appropriate
+        /// (a .cmd on Windows, a chmod +x shell script elsewhere). Returns the path.
+        /// </summary>
+        static string WriteNoOpStub(string dir, string baseName)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string cmd = Path.Combine(dir, baseName + ".cmd");
+                File.WriteAllText(cmd, "@echo off\r\nexit /b 0\r\n");
+                return cmd;
+            }
+            else
+            {
+                string sh = Path.Combine(dir, baseName);
+                File.WriteAllText(sh, "#!/bin/sh\nexit 0\n");
+                // chmod +x so it is executable.
+                try
+                {
+#if NET7_0_OR_GREATER
+                    File.SetUnixFileMode(sh, UnixFileMode.UserRead | UnixFileMode.UserWrite
+                        | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute
+                        | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+#endif
+                }
+                catch { /* best-effort; the test still proves the pre-delete via the assert */ }
+                return sh;
+            }
         }
     }
 }
