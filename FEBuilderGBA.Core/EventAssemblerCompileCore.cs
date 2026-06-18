@@ -13,12 +13,24 @@ namespace FEBuilderGBA
     /// and the CLI <c>RunCompileEvent</c>, keeping the exact EA arguments,
     /// success strings, and old-EA <c>-symOutput</c> fallback.
     ///
-    /// The full WinForms free-area-def wrapper (<c>EAUtil.MakeEAAutoDef</c>) pulls in
-    /// WinForms-only dependencies (PatchUtil, SkillConfigSkillSystemForm,
-    /// UnitActionPointerForm, Program.ExportFunction), so it cannot move to Core.
-    /// This helper builds the GUI-free subset: a minimal <c>#include</c> wrapper plus
-    /// a <c>#define FreeSpace</c> for the Program/Data free-area modes (computed via
-    /// <see cref="ROM.FindFreeSpace"/>, falling back to the ROM end).
+    /// Auto-def scope boundary (intentional, matches the CLI <c>--compile-event</c>
+    /// baseline — NOT a silent truncation of WinForms behaviour):
+    ///   PROVIDED by this helper's wrapper:
+    ///     - the <c>#include</c> of the chosen .event
+    ///     - <c>#define FreeSpace 0x...</c> for the Program/Data free-area modes
+    ///       (computed via <see cref="ROM.FindFreeSpace"/>, falling back to the ROM
+    ///       end); None mode defines no free area (the .event must ORG itself).
+    ///   INTENTIONALLY DEFERRED — the extra symbol auto-defs that the full WinForms
+    ///   <c>EAUtil.MakeEAAutoDef</c> emits: the ItemImage/ItemPalette/ItemTable/
+    ///   TextTable/PortraitTable/AI1Table/AI2Table table-pointer defines, the
+    ///   skill-system + SummonUnitTable defines, the magic-split (FE8N/FE8U/FE7U)
+    ///   defines, the support-action-rework define, and the
+    ///   <c>Program.ExportFunction.ExportEA</c> function defines. Those originate in
+    ///   WinForms-only types (PatchUtil, SkillConfigSkillSystemForm,
+    ///   UnitActionPointerForm, the MagicSplitUtil GUI paths, Program.ExportFunction)
+    ///   and cannot move to Core without a separate extraction. EA scripts that need
+    ///   them must define them themselves or run through the WinForms form; raw
+    ///   ORG/BYTE and FreeSpace-based scripts assemble fully here.
     /// </summary>
     public static class EventAssemblerCompileCore
     {
