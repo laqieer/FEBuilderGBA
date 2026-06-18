@@ -932,8 +932,19 @@ namespace FEBuilderGBA
 
             if (insert == InsertMethod.WriteAtAddress)
             {
-                byte[] bin;
-                try { bin = File.ReadAllBytes(productPath); }
+                // The PATCHED_IF guard only hex-dumps the FIRST 32 product bytes, so read
+                // just those (not the whole file — a compiled binary can be large). An
+                // empty product yields an empty dump, matching WF HexDumpLiner(.,0,32)
+                // which clamps to the array length (so PATCHED_IF gets nothing after "=").
+                byte[] head;
+                try
+                {
+                    using var fs = File.OpenRead(productPath);
+                    int n = (int)Math.Min(32L, fs.Length);
+                    head = new byte[n];
+                    if (n > 0)
+                        fs.ReadExactly(head, 0, n); // n <= length, so this never hits EOF
+                }
                 catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                 {
                     // The product vanished/locked between the existence check and the
@@ -941,7 +952,7 @@ namespace FEBuilderGBA
                     return "";
                 }
 
-                sb.Append("PATCHED_IF:" + U.To0xHexString(targetAddr) + "=" + U.HexDumpLiner0x(bin, 0, 32) + "\r\n");
+                sb.Append("PATCHED_IF:" + U.To0xHexString(targetAddr) + "=" + U.HexDumpLiner0x(head, 0, 32) + "\r\n");
                 sb.Append("BIN:" + U.To0xHexString(targetAddr) + "=" + productName);
             }
             else // HookInject

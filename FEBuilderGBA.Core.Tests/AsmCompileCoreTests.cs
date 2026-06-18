@@ -1108,6 +1108,31 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MakePatchText_WriteAtAddress_EmptyProduct_EmitsEmptyHexDump()
+        {
+            // A zero-byte product still produces a patch (WF HexDumpLiner clamps to the
+            // array length, so PATCHED_IF gets nothing after "="). The read path must
+            // handle a 0-length file without throwing.
+            string bin = WriteTempBin(Array.Empty<byte>());
+            try
+            {
+                string patch = AsmCompileCore.MakePatchText(
+                    bin, AsmCompileCore.InsertMethod.WriteAtAddress, 0x08000100, 0, 3);
+
+                string name = Path.GetFileName(bin);
+                string expected =
+                    "NAME=<<PATCH NAME>>\r\n" +
+                    "\r\n" +
+                    "TYPE=BIN\r\n" +
+                    "PATCHED_IF:0x08000100=\r\n" +
+                    "BIN:0x08000100=" + name;
+
+                Assert.Equal(expected, patch);
+            }
+            finally { File.Delete(bin); }
+        }
+
+        [Fact]
         public void MakePatchText_WriteAtAddress_CapsHexDumpAt32Bytes()
         {
             // 40 bytes — the PATCHED_IF hexdump must show only the first 32 (WF caps it).
