@@ -11159,6 +11159,10 @@ UPSパッチを保存
 画像ポインタ (P0):
 :AP Pointer (P4):
 APポインタ (P4):
+:AP Pattern:
+APパターン:
+:Current AP:
+現在のAP:
 :Walk Step:
 歩行ステップ:
 :Import AP

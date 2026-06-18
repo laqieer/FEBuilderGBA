@@ -1834,6 +1834,49 @@ namespace FEBuilderGBA
             return dic;
         }
 
+        /// <summary>
+        /// Load a tab-separated config resource as a <c>Dictionary&lt;string, string&gt;</c>
+        /// keyed by COLUMN 1 with COLUMN 0 as the value — the REVERSE column order
+        /// of <see cref="LoadTSVResourcePair2"/>. Ported verbatim from WinForms
+        /// <c>U.LoadTSVResourcePair</c> (U.cs:6125). The AP MD5 dictionary
+        /// (<c>config/data/ap_list_*.txt</c>, rows <c>name\tmd5</c>) uses this so
+        /// the result maps <c>{md5 → name}</c> for hash lookups (#1226).
+        /// </summary>
+        public static Dictionary<string, string> LoadTSVResourcePair(string fullfilename, bool isRequired = true)
+        {
+            Dictionary<string, string> dic = new Dictionary<string, string>();
+            if (isRequired)
+            {
+                if (!U.IsRequiredFileExist(fullfilename)) return dic;
+            }
+            else
+            {
+                if (!File.Exists(fullfilename)) return dic;
+            }
+            try
+            {
+                using (StreamReader reader = File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('\t');
+                        if (sp.Length < 2) continue;
+                        dic[sp[1]] = sp[0];
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                CoreState.Services.ShowError(string.Format(
+                    "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
+            }
+            return dic;
+        }
+
         public static Dictionary<string, string> LoadTSVResourcePair2(string fullfilename, bool isRequired = true)
         {
             Dictionary<string, string> dic = new Dictionary<string, string>();
@@ -1867,6 +1910,25 @@ namespace FEBuilderGBA
                     "Cannot read config file.\n{0}\n{1}", fullfilename, e.ToString()));
             }
             return dic;
+        }
+
+        /// <summary>
+        /// Lowercase hex MD5 of <paramref name="bin"/>. Ported verbatim from
+        /// WinForms <c>U.md5</c> (U.cs:6391) — used by the AP MD5-dictionary
+        /// selector (#1226) to identify an AP region by content hash.
+        /// </summary>
+        public static string md5(byte[] bin)
+        {
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            {
+                byte[] bs = md5.ComputeHash(bin);
+                System.Text.StringBuilder result = new System.Text.StringBuilder();
+                foreach (byte b in bs)
+                {
+                    result.Append(b.ToString("x2"));
+                }
+                return result.ToString();
+            }
         }
 
         // ---- TSV / dictionary resource savers ----

@@ -575,8 +575,119 @@ namespace FEBuilderGBA
         }
 
         // =====================================================================
+        // AP MD5-dictionary selector (#1226) — pure, READ-ONLY helpers.
+        //
+        // Ports the WinForms ImageUnitMoveIconFrom MD5-matching subsystem
+        // (CalcAPMD5 / MakeAPAddressDic / SelectAPAddresssFromAPComboLow /
+        // SearchAPHashInVanilla). NONE of these mutate the ROM — they identify an
+        // AP region by content hash and resolve a chosen catalog AP to an EXISTING
+        // ROM address (an entry's current P4 target, or a still-intact vanilla
+        // address). The View/VM does the single P4 re-point write afterwards.
+        // =====================================================================
+
+        /// <summary>
+        /// Lowercase-hex MD5 of the AP region at <paramref name="apOff"/> (a ROM
+        /// OFFSET, not a GBA pointer) in <paramref name="romData"/>. Port of WF
+        /// <c>ImageUnitMoveIconFrom.CalcAPMD5</c>: length via
+        /// <see cref="CalcAPLength"/>, then MD5 over those bytes. Returns the MD5
+        /// of an empty byte array when the region is zero-length / unparseable
+        /// (matching WF, where <c>getBinaryData(addr, 0)</c> yields an empty
+        /// array). Never throws.
+        /// </summary>
+        public static string CalcAPMD5(byte[] romData, uint apOff)
+        {
+            if (romData == null) return U.md5(Array.Empty<byte>());
+            uint length = CalcAPLength(romData, apOff);
+            byte[] apBin = U.getBinaryData(romData, apOff, length);
+            return U.md5(apBin);
+        }
+
+        /// <summary>
+        /// Build the move-icon table's <c>{AP offset → MD5}</c> map — port of WF
+        /// <c>MakeAPAddressDic</c>. For each of <paramref name="dataCount"/> 8-byte
+        /// entries starting at <paramref name="tableBaseOff"/>, reads the +4 AP
+        /// pointer (as a ROM offset) and records its <see cref="CalcAPMD5"/>.
+        /// Pure / READ-ONLY; never throws.
+        /// </summary>
+        public static Dictionary<uint, string> MakeAPAddressDic(byte[] romData, uint tableBaseOff, int dataCount)
+        {
+            var dic = new Dictionary<uint, string>();
+            if (romData == null || dataCount <= 0) return dic;
+
+            uint addr = tableBaseOff;
+            for (int i = 0; i < dataCount; i++, addr += 8)
+            {
+                if ((ulong)addr + 8UL > (ulong)romData.Length) break;
+                // WF reads ROM.p32(addr+4): the +4 pointer converted to an offset.
+                uint apOff = U.toOffset(ReadU32(romData, addr + 4));
+                if (dic.ContainsKey(apOff)) continue;
+                dic[apOff] = CalcAPMD5(romData, apOff);
+            }
+            return dic;
+        }
+
+        /// <summary>
+        /// Resolve a chosen catalog AP (identified by <paramref name="targetMd5"/>)
+        /// to an EXISTING AP ROM offset. Port of WF
+        /// <c>SelectAPAddresssFromAPComboLow</c> + <c>SearchAPHashInVanilla</c>:
+        /// <list type="number">
+        /// <item>First match against <paramref name="entryApMd5"/> (the move-icon
+        /// table's current AP offsets → MD5, from <see cref="MakeAPAddressDic"/>).</item>
+        /// <item>Else search <paramref name="vanillaAddrMd5"/> (the
+        /// <c>ap_vanilla_list_</c> <c>{offset → MD5}</c> map) for an entry whose
+        /// catalogued MD5 matches AND whose ROM bytes are STILL the vanilla AP
+        /// (header <c>u16 == 0x0004</c> and a recomputed MD5 match — guards against
+        /// the vanilla slot having been overwritten).</item>
+        /// </list>
+        /// Returns <see cref="U.NOT_FOUND"/> when the AP is not present anywhere in
+        /// this ROM (the caller then surfaces the WF "AP not in this ROM" error and
+        /// performs NO write). Pure / READ-ONLY; never throws.
+        /// </summary>
+        public static uint ResolveApOffsetByMd5(byte[] romData, string targetMd5,
+            Dictionary<uint, string> entryApMd5, Dictionary<uint, string> vanillaAddrMd5)
+        {
+            if (romData == null || string.IsNullOrEmpty(targetMd5)) return U.NOT_FOUND;
+
+            if (entryApMd5 != null)
+            {
+                foreach (var pair in entryApMd5)
+                {
+                    if (pair.Value == targetMd5) return pair.Key;
+                }
+            }
+
+            return SearchAPHashInVanilla(romData, targetMd5, vanillaAddrMd5);
+        }
+
+        // Port of WF SearchAPHashInVanilla — find a vanilla AP offset whose bytes
+        // still match targetMd5 (header 0x0004 + recomputed-MD5 re-verify).
+        static uint SearchAPHashInVanilla(byte[] romData, string targetMd5,
+            Dictionary<uint, string> vanillaAddrMd5)
+        {
+            if (vanillaAddrMd5 == null) return U.NOT_FOUND;
+            foreach (var pair in vanillaAddrMd5)
+            {
+                if (pair.Value != targetMd5) continue;
+
+                uint apOff = pair.Key;
+                if (ReadU16(romData, apOff) != 0x0004) continue; // replaced data
+                if (CalcAPMD5(romData, apOff) != targetMd5) continue; // replaced data
+
+                return apOff; // found — the vanilla AP is still intact
+            }
+            return U.NOT_FOUND;
+        }
+
+        // =====================================================================
         // Low-level ROM read helpers — operate on the passed romData array.
         // =====================================================================
+
+        static uint ReadU32(byte[] data, uint addr)
+        {
+            if ((ulong)addr + 4 > (ulong)data.Length) return 0;
+            return (uint)(data[addr] | (data[addr + 1] << 8)
+                | (data[addr + 2] << 16) | (data[addr + 3] << 24));
+        }
 
         static uint ReadU16(byte[] data, uint addr)
         {
