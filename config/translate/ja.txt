@@ -11408,3 +11408,27 @@ TSA数: {0}
 
 :Invalid font width in manifest (expected an integer 0..{0}): {1}
 マニフェストのフォント幅が無効です (0..{0} の整数が必要): {1}
+
+:All Work Support
+すべての作品支援
+
+:Click a project to open its ROM.
+プロジェクトをクリックするとROMを開きます。
+
+:Check Updates
+更新を確認
+
+:No work-support projects found. Projects are user-configured under config/etc.
+作品支援のプロジェクトが見つかりません。プロジェクトは config/etc 以下にユーザーが設定します。
+
+:Update available
+更新があります
+
+:Checking for updates...
+更新を確認しています...
+
+:Updates available: {0}
+更新があるプロジェクト: {0}
+
+:Update check failed.
+更新の確認に失敗しました。
