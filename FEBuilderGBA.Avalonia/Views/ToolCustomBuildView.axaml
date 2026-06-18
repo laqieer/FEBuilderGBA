@@ -1,21 +1,80 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolCustomBuildView"
-        Title="Custom Build Tool" Width="1037" Height="529"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolCustomBuild_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Custom Build" Width="660" Height="560"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Manual">
+  <!-- Custom Build tool (WF ToolCustomBuildForm). Runs a custom build pipeline for the
+       project: either a user CUSTOM_BUILD.cmd batch script (CMD method, Windows-only) or
+       an Event Assembler target (EA method), then loads the freshly-built ROM. The
+       build+load work runs in the GUI-free Core helper CustomBuildCore (which reuses
+       EventAssemblerCompileCore for the EA path). The build-method combo items are
+       populated in code-behind via R._() so they pick up ja/zh translations
+       (ViewTranslationHelper does not translate ComboBoxItem content).
+       Deferred to a follow-up: the WinForms MargeAndUpdate patch-merge + auto-install
+       phase (PatchForm/ToolDiffForm/PatchUtil-coupled); revert an applied build via Undo. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="10">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Custom Build Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Custom Build" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Run a custom build pipeline for the project and load the built ROM."
+                 TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolCustomBuild_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+      <!-- Build target: CUSTOM_BUILD.cmd or an EA target -->
+      <TextBlock Text="Build target:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="ToolCustomBuild_Target_Input"
+                 Grid.Column="0" Name="TargetBox"
+                 Text="{Binding TargetPath}"
+                 Watermark="Select CUSTOM_BUILD.cmd or an Event Assembler target" />
+        <Button AutomationProperties.AutomationId="ToolCustomBuild_BrowseTarget_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="BrowseTarget_Click" />
+      </Grid>
+
+      <!-- Original (un-modded) ROM, copied to FE8_clean.gba for the CMD build -->
+      <TextBlock Text="Original ROM:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="ToolCustomBuild_OriginalRom_Input"
+                 Grid.Column="0" Name="OriginalRomBox"
+                 Text="{Binding OriginalRomPath}"
+                 Watermark="Select the un-modded base ROM" />
+        <Button AutomationProperties.AutomationId="ToolCustomBuild_BrowseOriginalRom_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="BrowseOriginalRom_Click" />
+      </Grid>
+
+      <!-- Build method (auto by extension / CMD / EA) -->
+      <Grid ColumnDefinitions="180,*" Margin="0,6,0,0">
+        <TextBlock Grid.Column="0" Text="Build method:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolCustomBuild_BuildMethod_Combo"
+                  Grid.Column="1" Name="BuildMethodCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding BuildMethodIndex}" />
+      </Grid>
+
+      <!-- Actions -->
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+        <Button AutomationProperties.AutomationId="ToolCustomBuild_Run_Button"
+                Name="RunButton" Content="Run build"
+                Click="Run_Click" />
+        <Button AutomationProperties.AutomationId="ToolCustomBuild_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                IsVisible="{Binding CanUndo}"
+                Click="Undo_Click" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+
+      <!-- Status / result -->
+      <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
+              Padding="8" Margin="0,8,0,0" MinHeight="160">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <SelectableTextBlock AutomationProperties.AutomationId="ToolCustomBuild_Status_Label"
+                               Name="StatusText"
+                               Text="{Binding StatusMessage}"
+                               TextWrapping="Wrap" FontFamily="Consolas,monospace" />
+        </ScrollViewer>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
 </Window>

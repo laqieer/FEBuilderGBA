@@ -20428,3 +20428,63 @@ Product: {0}
 
 :Unable to read the compiled file.\r\nfilename:{0}
 Unable to read the compiled file.\r\nfilename:{0}
+
+:Run a custom build pipeline for the project and load the built ROM.
+Run a custom build pipeline for the project and load the built ROM.
+
+:Build target:
+Build target:
+
+:Select CUSTOM_BUILD.cmd or an Event Assembler target
+Select CUSTOM_BUILD.cmd or an Event Assembler target
+
+:Select the un-modded base ROM
+Select the un-modded base ROM
+
+:Build method:
+Build method:
+
+:Run build
+Run build
+
+:Building...
+Building...
+
+:Build successful.
+Build successful.
+
+:Build failed.
+Build failed.
+
+:Built ROM: {0}
+Built ROM: {0}
+
+:Symbols loaded.
+Symbols loaded.
+
+:Auto (by file extension)
+Auto (by file extension)
+
+:CUSTOM_BUILD.cmd (Windows batch)
+CUSTOM_BUILD.cmd (Windows batch)
+
+:Event Assembler target
+Event Assembler target
+
+:Please select a build target.
+Please select a build target.
+
+:build target
+build target
+
+:Please select the un-modded base ROM.
+Please select the un-modded base ROM.
+
+:GBA ROM
+GBA ROM
+
+:Binary file
+Binary file
+
+:CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
+CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.

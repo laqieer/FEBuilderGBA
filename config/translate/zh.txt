@@ -25529,3 +25529,63 @@ ELF -> 二进制(保留ELF)
 
 :Unable to read the compiled file.\r\nfilename:{0}
 无法读取编译后的文件。\r\nfilename:{0}
+
+:Run a custom build pipeline for the project and load the built ROM.
+运行项目的自定义构建管线并加载构建后的ROM。
+
+:Build target:
+构建目标:
+
+:Select CUSTOM_BUILD.cmd or an Event Assembler target
+选择 CUSTOM_BUILD.cmd 或事件汇编器目标
+
+:Select the un-modded base ROM
+选择未修改的基准ROM
+
+:Build method:
+构建方法:
+
+:Run build
+运行构建
+
+:Building...
+构建中...
+
+:Build successful.
+构建成功。
+
+:Build failed.
+构建失败。
+
+:Built ROM: {0}
+构建的ROM: {0}
+
+:Symbols loaded.
+已加载符号。
+
+:Auto (by file extension)
+自动(按文件扩展名)
+
+:CUSTOM_BUILD.cmd (Windows batch)
+CUSTOM_BUILD.cmd(Windows批处理)
+
+:Event Assembler target
+事件汇编器目标
+
+:Please select a build target.
+请选择构建目标。
+
+:build target
+构建目标
+
+:Please select the un-modded base ROM.
+请选择未修改的基准ROM。
+
+:GBA ROM
+GBA ROM
+
+:Binary file
+二进制文件
+
+:CUSTOM_BUILD.cmd is a Windows batch script and can only be run on Windows.
+CUSTOM_BUILD.cmd 是 Windows 批处理脚本，只能在 Windows 上运行。
