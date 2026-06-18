@@ -20592,3 +20592,6 @@ There is no compiled result, so a patch cannot be created.
 :A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
 A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
 
+:Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
+Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
+

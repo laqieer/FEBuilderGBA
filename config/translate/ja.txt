@@ -11852,3 +11852,6 @@ config/translate/<lang>.txt
 :A redistributable patch definition for the compiled result. Save it as a PATCH_(NAME).txt file to share the patch.
 コンパイル結果の再配布可能なパッチ定義です。PATCH_(NAME).txt ファイルとして保存すると、パッチを共有できます。
 
+:Each row is a map whose world-map event PLIST is set. The address points to the map-pointer table slot the PLIST indexes.
+各行はワールドマップイベントPLISTが設定されたマップです。アドレスはPLISTが指すマップポインタテーブルのスロットを指します。
+
