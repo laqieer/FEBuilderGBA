@@ -9,17 +9,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// every event-flag reference from the in-scope subsystems via the
     /// cross-platform <see cref="UseFlagScanCore"/> aggregator:
     ///   event-condition records (Turn/Talk/Object/Always), the event scripts
-    ///   those conditions reach (ArgType.FLAG), and map-change records.
+    ///   those conditions reach (ArgType.FLAG), map-change records, and — at full
+    ///   WinForms parity (#1253) — the per-version death-quote (Haiku) and
+    ///   battle-conversation (BattleTalk) records scoped to the chapter.
     ///
     /// This is a tool / aggregator that READS ROM bytes for the scan but NEVER
     /// writes — so it deliberately exposes no data-verify report contract (a
     /// no-write aggregator VM is orphan-safe by the FEBuilderGBA.Tests contract;
     /// implementing or even naming that verify interface would trip the
     /// NoOrphanVMs gate).
-    ///
-    /// DEFERRED (#1253): the Haiku x {FE6,FE7,FE8} + BattleTalk x {FE6,FE7,FE8}
-    /// scanners are not yet ported to Core; they are excluded here exactly as in
-    /// <see cref="UseFlagScanCore"/>.
     /// </summary>
     public class ToolUseFlagViewModel : ViewModelBase
     {

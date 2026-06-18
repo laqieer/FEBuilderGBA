@@ -7,11 +7,12 @@
 //   (1) EVENT_COND_*  — the flag field (u16 @ +2) of a Turn condition record,
 //   (2) EVENTSCRIPT   — an ArgType.FLAG arg in the event script that the Turn
 //                       record's event pointer reaches, and
-//   (3) MAPCHANGE     — the flag field (u16 @ +5) of a map-change record.
+//   (3) MAPCHANGE     — the flag field (u16 @ +5) of a map-change record,
+//   (4) HAIKU         — the flag field (u16 @ +4) of a death-quote record, and
+//   (5) BATTTLE_TALK  — the flag field (u16 @ +6) of a battle-conversation record.
 // Plus guard tests: id 0 is dropped, a foreign/empty ROM yields an empty list,
-// and the result is sorted by flag id.
-//
-// DEFERRED (#1253): the Haiku/BattleTalk scanners are NOT part of this slice.
+// the result is sorted by flag id, the dedup invariant holds, and the
+// haiku/battletalk rows are scoped to the record's own chapter (#1253).
 
 using System.Collections.Generic;
 using System.Linq;
@@ -39,10 +40,18 @@ namespace FEBuilderGBA.Core.Tests
         // the SAME ScriptFlag, to prove cross-TREE dedup (one EVENTSCRIPT row).
         const uint TalkRecord      = 0x00770000u;
         const uint EventScriptAddr2= 0x00780000u;
+        // FE8 Haiku table (event_haiku_pointer → 12-byte records, flag@+4,
+        // chapter@+3) and BattleTalk table (event_ballte_talk_pointer → 16-byte
+        // records, flag@+6, chapter@+4).
+        const uint HaikuTable      = 0x00790000u;
+        const uint BattleTalkTable = 0x007A0000u;
 
-        const uint CondFlag   = 0x0011; // Turn record flag (u16 @ +2)
-        const uint ScriptFlag = 0x0022; // event-script FLAG arg
-        const uint ChangeFlag = 0x0033; // map-change record flag (u16 @ +5)
+        const uint CondFlag      = 0x0011; // Turn record flag (u16 @ +2)
+        const uint ScriptFlag    = 0x0022; // event-script FLAG arg
+        const uint ChangeFlag    = 0x0033; // map-change record flag (u16 @ +5)
+        const uint HaikuFlag     = 0x0044; // FE8 Haiku record flag (u16 @ +4)
+        const uint BattleTalkFlag= 0x0055; // FE8 BattleTalk record flag (u16 @ +6)
+        const uint HaikuOtherChapterFlag = 0x0066; // Haiku flag in a DIFFERENT chapter
 
         // A command "0100 XXXX" — opcode 0x0001 then a 2-byte FLAG arg at byte 2.
         static EventScript.Script FlagCommand()
@@ -140,6 +149,29 @@ namespace FEBuilderGBA.Core.Tests
                 rom.write_u16(ChangeData + 5, (ushort)ChangeFlag);
                 rom.Data[ChangeData + 12] = 0xFF;
 
+                // 7) FE8 Haiku table (event_haiku_pointer): 12-byte records,
+                //    flag@+4, chapter@+3. Record 0 belongs to chapter 0 (this
+                //    chapter); record 1 to chapter 5 (a DIFFERENT chapter, to prove
+                //    the chapter-scope filter excludes it); record 2 = 0xFFFF
+                //    sentinel terminates. First byte non-0xFFFF so the table starts.
+                WriteU32(rom, rom.RomInfo.event_haiku_pointer, HaikuTable | 0x08000000u);
+                rom.Data[HaikuTable + 0] = 0x01;                 // unit id (non-zero, not 0xFFFF)
+                rom.Data[HaikuTable + 3] = 0x00;                 // chapter = 0 (this chapter)
+                rom.write_u16(HaikuTable + 4, (ushort)HaikuFlag);
+                rom.Data[HaikuTable + 12 + 0] = 0x02;            // record 1 unit id
+                rom.Data[HaikuTable + 12 + 3] = 0x05;            // chapter = 5 (other chapter)
+                rom.write_u16(HaikuTable + 12 + 4, (ushort)HaikuOtherChapterFlag);
+                rom.write_u16(HaikuTable + 24 + 0, 0xFFFF);      // record 2 sentinel → terminates
+
+                // 8) FE8 BattleTalk table (event_ballte_talk_pointer): 16-byte
+                //    records, flag@+6, chapter@+4. Record 0 = chapter 0; record 1 =
+                //    0xFFFF sentinel terminates.
+                WriteU32(rom, rom.RomInfo.event_ballte_talk_pointer, BattleTalkTable | 0x08000000u);
+                rom.write_u16(BattleTalkTable + 0, 0x0101);      // unit ids (non-zero, not 0xFFFF)
+                rom.Data[BattleTalkTable + 4] = 0x00;            // chapter = 0 (this chapter)
+                rom.write_u16(BattleTalkTable + 6, (ushort)BattleTalkFlag);
+                rom.write_u16(BattleTalkTable + 16 + 0, 0xFFFF); // record 1 sentinel → terminates
+
                 CoreState.ROM = rom;
                 CoreState.EventScript = BuildEventScript(FlagCommand(), TermCommand());
                 CoreState.CommentCache = new HeadlessEtcCache();
@@ -220,6 +252,74 @@ namespace FEBuilderGBA.Core.Tests
                 var list = UseFlagScanCore.Scan(rom, 0u);
                 Assert.Contains(list, u =>
                     u.ID == ChangeFlag && u.DataType == FELintCore.Type.MAPCHANGE);
+            });
+        }
+
+        [Fact]
+        public void Scan_FindsHaikuFlag()
+        {
+            // #1253: the FE8 Haiku record for THIS chapter (chapter byte = 0)
+            // contributes a HAIKU-typed row for its flag.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == HaikuFlag && u.DataType == FELintCore.Type.HAIKU);
+            });
+        }
+
+        [Fact]
+        public void Scan_FindsBattleTalkFlag()
+        {
+            // #1253: the FE8 BattleTalk record for THIS chapter (chapter byte = 0)
+            // contributes a BATTTLE_TALK-typed row for its flag.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == BattleTalkFlag && u.DataType == FELintCore.Type.BATTTLE_TALK);
+            });
+        }
+
+        [Fact]
+        public void Scan_Haiku_OtherChapterFlag_IsExcluded()
+        {
+            // The Haiku table's record 1 belongs to chapter 5; scanning chapter 0
+            // must NOT surface its flag (WF ToolUseFlagForm scopes haiku/battletalk
+            // rows to the selected chapter).
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.DoesNotContain(list, u => u.ID == HaikuOtherChapterFlag);
+            });
+        }
+
+        [Fact]
+        public void Scan_Haiku_OtherChapterFlag_AppearsForItsOwnChapter()
+        {
+            // Conversely, scanning chapter 5 surfaces record 1's flag (with the
+            // HAIKU type) — proving the scope filter keys on the record's chapter
+            // field, not a blanket include/exclude.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 5u);
+                Assert.Contains(list, u =>
+                    u.ID == HaikuOtherChapterFlag && u.DataType == FELintCore.Type.HAIKU);
+            });
+        }
+
+        [Fact]
+        public void Scan_HaikuAndBattleTalk_RespectDedupInvariant()
+        {
+            // The #1192 dedup invariant must still hold with the new sources wired:
+            // no (flag id, source type) pair repeats across the whole list.
+            WithChapter(rom =>
+            {
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                var seen = new HashSet<(uint, int)>();
+                foreach (var u in list)
+                    Assert.True(seen.Add((u.ID, (int)u.DataType)),
+                        $"duplicate row for flag 0x{u.ID:X} type {u.DataType}");
             });
         }
 
@@ -366,6 +466,167 @@ namespace FEBuilderGBA.Core.Tests
                 if (savedBaseDir != null)
                     CoreState.BaseDirectory = savedBaseDir;
             }
+        }
+
+        // =================================================================
+        // #1256 — FE6 / FE7-specific synthetic-ROM coverage.
+        //
+        // The FE8-only fixture above never exercises the FE6/FE7 BattleTalk
+        // u16==0||0xFFFF terminator nor the FE7 tutorial-Haiku tables, which is
+        // how the wrong (0xFFFF-only) terminator slipped through. These build a
+        // minimal versioned ROM with ONLY the relevant table wired — the
+        // EventCond / EventScript / MapChange sub-scans bail safely on the
+        // un-wired ROM (proven by Scan_EmptyChapter_*), so the returned list
+        // isolates the haiku/battletalk rows.
+        // =================================================================
+
+        // Minimal versioned ROM (same sizing as EventCondCoreTests.MakeMinimalRom).
+        static ROM MakeVersionedRom(int version)
+        {
+            (string vs, int ms) = version switch
+            {
+                6 => ("AFEJ01", 0x800000),
+                7 => ("AE7E01", 0x1000000),
+                _ => ("BE8E01", 0x1000000),
+            };
+            var rom = new ROM();
+            rom.LoadLow("useflag-synth.gba", new byte[ms], vs);
+            return rom;
+        }
+
+        // Run body with CoreState.ROM set to a freshly built versioned ROM, then
+        // restore. EventScript/CommentCache stay null so AppendEventScriptFlags
+        // bails (it requires CoreState.EventScript) — the scan reduces to the
+        // table-driven HAIKU/BATTTLE_TALK rows under test.
+        static void WithVersionedRom(int version, System.Action<ROM> body)
+        {
+            var prevRom = CoreState.ROM;
+            var prevEs = CoreState.EventScript;
+            var prevComment = CoreState.CommentCache;
+            try
+            {
+                var rom = MakeVersionedRom(version);
+                Assert.Equal(version, rom.RomInfo.version); // guard: the right layout loaded
+                CoreState.ROM = rom;
+                CoreState.EventScript = null;
+                CoreState.CommentCache = null;
+                body(rom);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.EventScript = prevEs;
+                CoreState.CommentCache = prevComment;
+            }
+        }
+
+        // Helper: point a RomInfo pointer field at baseOffset (as a GBA 0x08-pointer).
+        static void WirePointer(ROM rom, uint pointerField, uint baseOffset)
+            => WriteU32(rom, pointerField, baseOffset | 0x08000000u);
+
+        [Theory]
+        [InlineData(7)] // EventBattleTalkFE7Form.Init main: bs16, flag@+12, ch@+2, unit u16@+0
+        [InlineData(6)] // EventBattleTalkFE6Form.Init main: bs12, flag@+8,  ch@+2, unit u16@+0
+        public void Scan_BattleTalk_StopsOnU16ZeroTerminator(int version)
+        {
+            // #1256: the FE6/FE7 BattleTalk table terminates on unit u16 == 0
+            // (NOT only 0xFFFF). A record placed AFTER a u16==0 terminator must
+            // NOT be collected — with the old 0xFFFF-only terminator the walk
+            // over-read past the zero and harvested its garbage flag.
+            uint blockSize = (uint)(version == 7 ? 16 : 12);
+            uint flagOffset = (uint)(version == 7 ? 12 : 8);
+            const uint BaseOffset = 0x00300000u;
+            const uint BeforeFlag = 0x0071; // live record's flag (must be collected)
+            const uint AfterFlag  = 0x0072; // post-terminator flag (must NOT be collected)
+
+            WithVersionedRom(version, rom =>
+            {
+                WirePointer(rom, rom.RomInfo.event_ballte_talk_pointer, BaseOffset);
+
+                // Record 0 (live): unit u16 != 0, chapter byte @ +2 = 0, flag set.
+                rom.write_u16(BaseOffset + 0, 0x0101);
+                rom.Data[BaseOffset + 2] = 0x00; // chapter = 0 (this chapter)
+                rom.write_u16(BaseOffset + flagOffset, (ushort)BeforeFlag);
+
+                // Record 1: unit u16 == 0 → TERMINATES the table.
+                rom.write_u16(BaseOffset + blockSize + 0, 0x0000);
+
+                // Record 2 (AFTER terminator): a fully-formed record whose flag must
+                // never be reached.
+                uint rec2 = BaseOffset + 2 * blockSize;
+                rom.write_u16(rec2 + 0, 0x0202);
+                rom.Data[rec2 + 2] = 0x00;
+                rom.write_u16(rec2 + flagOffset, (ushort)AfterFlag);
+
+                var list = UseFlagScanCore.Scan(rom, 0u);
+
+                Assert.Contains(list, u =>
+                    u.ID == BeforeFlag && u.DataType == FELintCore.Type.BATTTLE_TALK);
+                Assert.DoesNotContain(list, u => u.ID == AfterFlag);
+            });
+        }
+
+        [Fact]
+        public void Scan_FE6BattleTalk_SecondaryTable_StopsOnU16ZeroTerminator()
+        {
+            // FE6 EventBattleTalkFE6Form.N_Init secondary table: bs16, flag@+8,
+            // ch@+1, unit u16@+0 — also terminates on u16==0||0xFFFF (#1256).
+            const uint Base2 = 0x00320000u;
+            const uint BeforeFlag = 0x0081;
+            const uint AfterFlag  = 0x0082;
+
+            WithVersionedRom(6, rom =>
+            {
+                WirePointer(rom, rom.RomInfo.event_ballte_talk2_pointer, Base2);
+
+                // Record 0 (live): chapter @ +1 = 0, flag @ +8.
+                rom.write_u16(Base2 + 0, 0x0303);
+                rom.Data[Base2 + 1] = 0x00;
+                rom.write_u16(Base2 + 8, (ushort)BeforeFlag);
+                // Record 1: u16 == 0 terminates.
+                rom.write_u16(Base2 + 16, 0x0000);
+                // Record 2 (after terminator): must not be collected.
+                rom.write_u16(Base2 + 32, 0x0404);
+                rom.Data[Base2 + 32 + 1] = 0x00;
+                rom.write_u16(Base2 + 32 + 8, (ushort)AfterFlag);
+
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == BeforeFlag && u.DataType == FELintCore.Type.BATTTLE_TALK);
+                Assert.DoesNotContain(list, u => u.ID == AfterFlag);
+            });
+        }
+
+        [Fact]
+        public void Scan_FE7TutorialHaiku_FlagIsCollectedAndStopsOnU8Zero()
+        {
+            // FE7 EventHaikuFE7Form.N1_Init tutorial table (event_haiku_tutorial_1):
+            // bs12, flag@+8, ch@+1, unit u8@+0 — terminates on u8==0. Proves the
+            // FE7-only tutorial-Haiku path (never reached by the FE8 fixture).
+            const uint TutBase = 0x00340000u;
+            const uint TutFlag   = 0x0091; // live tutorial-haiku flag
+            const uint AfterFlag = 0x0092; // post-terminator flag
+
+            WithVersionedRom(7, rom =>
+            {
+                WirePointer(rom, rom.RomInfo.event_haiku_tutorial_1_pointer, TutBase);
+
+                // Record 0 (live): unit u8 != 0, chapter @ +1 = 0, flag @ +8.
+                rom.Data[TutBase + 0] = 0x01;
+                rom.Data[TutBase + 1] = 0x00; // chapter = 0
+                rom.write_u16(TutBase + 8, (ushort)TutFlag);
+                // Record 1: unit u8 == 0 → terminates.
+                rom.Data[TutBase + 12] = 0x00;
+                // Record 2 (after terminator): must not be collected.
+                rom.Data[TutBase + 24 + 0] = 0x02;
+                rom.Data[TutBase + 24 + 1] = 0x00;
+                rom.write_u16(TutBase + 24 + 8, (ushort)AfterFlag);
+
+                var list = UseFlagScanCore.Scan(rom, 0u);
+                Assert.Contains(list, u =>
+                    u.ID == TutFlag && u.DataType == FELintCore.Type.HAIKU);
+                Assert.DoesNotContain(list, u => u.ID == AfterFlag);
+            });
         }
 
         static string FindRom(string romName)
