@@ -78,6 +78,12 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
+                // The outer list can hold multiple rows that share one
+                // effectiveness array (same addr, different item). Pin the
+                // current item to the actually-selected row's ID so Expand /
+                // Make-Independent act on it, not on the first owner.
+                var sel = EntryList.SelectedItem;
+                if (sel != null) _vm.SetCurrentItemById(sel.tag);
                 ReloadInnerAndShared();
                 UpdateUI();
             }
@@ -131,8 +137,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             int idx = ItemListBox.SelectedIndex;
             if (idx < 0 || idx >= _sharedData.Count) return;
-            // Jump the outer list to the picked owner's effectiveness array.
-            EntryList.SelectAddress(_vm.CurrentAddr);
+            // Jump the outer list to the picked owner BY ITEM ID. Rows sharing
+            // this effectiveness array have the same addr, so SelectAddress would
+            // just re-pick the first owner; SelectByTag highlights the actual
+            // owner and re-fires OnSelected, which pins CurrentItemAddr to it.
+            EntryList.SelectByTag(_sharedData[idx].tag);
         }
 
         void UpdateUI()

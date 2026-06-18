@@ -107,6 +107,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Pin the current owning item explicitly by item ID. When several items
+        /// share one effectiveness array, <see cref="LoadEntry"/>'s address-based
+        /// resolution can only return the first owner, so Expand / Make-Independent
+        /// would act on the wrong item when the user picked a different shared row.
+        /// The view calls this with the actually-selected row's
+        /// <see cref="AddrResult.tag"/> to correct <see cref="CurrentItemAddr"/>.
+        /// No-op (leaves the address-resolved fallback) if the ID is out of range.
+        /// </summary>
+        public void SetCurrentItemById(uint itemId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (!U.isSafetyOffset(itemBase) || dataSize == 0) return;
+            uint itemAddr = itemBase + itemId * dataSize;
+            if (itemAddr + dataSize > (uint)rom.Data.Length) return;
+            CurrentItemAddr = itemAddr;
+        }
+
+        /// <summary>
         /// The "effective against" list — the 4-byte Rework entries at the
         /// current effectiveness array. Each <see cref="AddrResult.addr"/> is
         /// the entry's ROM offset; the name is the class-type bitmask decoded

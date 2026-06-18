@@ -155,6 +155,28 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
+        /// Select the item whose <see cref="AddrResult.tag"/> equals
+        /// <paramref name="tag"/>. Unlike <see cref="SelectByIndex"/> (original
+        /// index) this matches the per-row tag — e.g. an item ID — so callers can
+        /// disambiguate multiple rows that share the same <c>addr</c>.
+        /// </summary>
+        /// <returns>True if a row with that tag was found and selected.</returns>
+        public bool SelectByTag(uint tag)
+        {
+            for (int displayIdx = 0; displayIdx < _filteredIndices.Count; displayIdx++)
+            {
+                int itemIdx = _filteredIndices[displayIdx];
+                if (itemIdx >= 0 && itemIdx < _items.Count && _items[itemIdx].tag == tag)
+                {
+                    AddressList.SelectedIndex = displayIdx;
+                    AddressList.ScrollIntoView(displayIdx);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Clear the current selection. After this call <see cref="SelectedItem"/>
         /// returns null and the inner ListBox shows nothing highlighted.
         /// Mirrors WinForms `ListBox.SelectedIndex = -1` and is used by

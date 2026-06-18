@@ -50,6 +50,40 @@ public class ItemEffectivenessSkillSystemsReworkEditTests
         });
     }
 
+    [Fact]
+    public void SetCurrentItemById_PinsOwnerByItemId_OnFE8U()
+    {
+        // Regression for the shared-array disambiguation (PR #1259 review): when
+        // multiple items share one effectiveness array, picking a shared owner
+        // must pin CurrentItemAddr to THAT item's struct, not the first owner's
+        // (else Expand / Make-Independent rewrite the wrong item's +16 pointer).
+        RomTestHelper.WithRom("FE8U", () =>
+        {
+            ROM rom = CoreState.ROM;
+            uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+            uint dataSize = rom.RomInfo.item_datasize;
+
+            var vm = new ItemEffectivenessSkillSystemsReworkViewModel();
+            var list = vm.LoadList();
+
+            foreach (var row in list)
+            {
+                vm.LoadEntry(row.addr);
+                var owners = vm.LoadSharedOwners();
+                if (owners.Count < 2) continue;
+
+                foreach (var owner in owners)
+                {
+                    vm.SetCurrentItemById(owner.tag);
+                    Assert.Equal(itemBase + owner.tag * dataSize, vm.CurrentItemAddr);
+                }
+                _output.WriteLine($"Disambiguation verified across {owners.Count} shared owners.");
+                return; // one genuinely-shared array exercises the path
+            }
+            _output.WriteLine("No shared effectiveness arrays in this ROM — path not exercised.");
+        });
+    }
+
     // -- Synthetic write/expand/independence round-trip ----------------------
 
     static ROM MakeRom(byte[] data)
