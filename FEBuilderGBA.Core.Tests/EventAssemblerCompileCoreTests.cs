@@ -25,6 +25,26 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        /// <summary>
+        /// Build a synthetic ROM that game-detection identifies as FE8U
+        /// (<c>TitleToFilename == "FE8"</c>), so a real ColorzCore run gets a valid
+        /// game code (<c>A FE8</c>) instead of the unknown <c>NAZO</c> — which EA
+        /// rejects. Detection (Rom.LoadLow) requires length >= 0x1000000 and the
+        /// 6-byte game code "BE8E01" at offset 0xAC. Does NOT depend on roms/*.gba
+        /// (gitignored / absent in CI).
+        /// </summary>
+        static ROM CreateFE8Rom()
+        {
+            var data = new byte[0x1000000]; // 16 MB — minimum for FE8U detection
+            byte[] code = System.Text.Encoding.ASCII.GetBytes("BE8E01");
+            System.Array.Copy(code, 0, data, 0xAC, code.Length);
+
+            var rom = new ROM();
+            bool ok = rom.LoadLow("synthetic-FE8.gba", data, "BE8E01");
+            CoreState.ROM = rom;
+            return ok ? rom : null;
+        }
+
         static Undo.UndoData NewUndo(ROM rom) => new Undo.UndoData
         {
             time = DateTime.Now,
@@ -192,7 +212,11 @@ namespace FEBuilderGBA.Core.Tests
             if (exe == null)
                 return; // submodule not built in this environment — skip (see ToolPathResolverTests for arg coverage)
 
-            var rom = CreateTestRom(0x800);
+            // Use an FE8-headed ROM so ColorzCore gets a valid game code ("A FE8"),
+            // not the unknown "NAZO" that EA rejects. A bare ROM has null/NAZO RomInfo.
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+            Assert.Equal("FE8", rom.RomInfo.TitleToFilename); // guard: detection must yield FE8, else the compile would fail on NAZO
             byte[] before = (byte[])rom.Data.Clone();
 
             // A tiny .event that writes 4 known bytes at offset 0x100.
