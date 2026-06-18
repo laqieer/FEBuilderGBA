@@ -253,9 +253,24 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (_undoService.CommitExternal(undo))
                         _vm.CanUndo = true;
                     _vm.HasResult = true;
-                    _vm.StatusMessage = R._("Uninstall successful.") + "\r\n"
+                    string msg = R._("Uninstall successful.") + "\r\n"
                         + R._("Reverted {0} range(s), {1} byte(s).",
                             result.RangeCount.ToString(), result.BytesReverted.ToString());
+
+                    // NEVER claim a clean uninstall when the trace left residue. Warn the
+                    // user with the block count + the first few descriptions so they can
+                    // verify the ROM (mirrors how WF surfaces partial-uninstall risk).
+                    if (!result.FullyTraced)
+                    {
+                        int n = result.UntraceableBlocks.Count;
+                        msg += "\r\n\r\n" + R._("WARNING: {0} block(s) in this patch could not be traced and were NOT reverted — the uninstall may be incomplete. Please verify the ROM.", n.ToString());
+                        int shown = Math.Min(n, 5);
+                        for (int i = 0; i < shown; i++)
+                            msg += "\r\n  - " + result.UntraceableBlocks[i];
+                        if (n > shown)
+                            msg += "\r\n  - " + R._("...and {0} more.", (n - shown).ToString());
+                    }
+                    _vm.StatusMessage = msg;
                 }
                 else
                 {

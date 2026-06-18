@@ -170,6 +170,139 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(eaFile); CoreState.Undo = null; }
         }
 
+        // ---- Untraceable blocks are SIGNALLED, never silently dropped --------------
+        //
+        // An .event with a traceable ORG range AND an un-hinted inline `#incext Png2Dmp`
+        // (no sibling .png.dmp → the Core parser cannot rasterize it) must: revert the
+        // ORG range (Success == true) BUT report FullyTraced == false with the PNG block
+        // listed in UntraceableBlocks — so the View can warn the user that the uninstall
+        // is incomplete rather than silently leaving patch residue.
+        [Fact]
+        public void Uninstall_UntraceableBlock_SignalsResidue_StillRevertsTraceable()
+        {
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+            byte[] clean = (byte[])rom.Data.Clone();
+
+            uint patchAddr = 0x800000;
+            byte[] patched = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+            for (int i = 0; i < patched.Length; i++)
+                rom.write_u8(patchAddr + (uint)i, patched[i]);
+
+            // A real (but un-hinted) PNG next to the .event so File.Exists passes but
+            // there is no .png.dmp → the Core parser records it as untraceable.
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-residue-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            string pngPath = Path.Combine(eaDir, "img.png");
+            File.WriteAllBytes(pngPath, new byte[] { 0x89, 0x50, 0x4E, 0x47 }); // PNG magic, no .dmp hint
+            string eaFile = Path.Combine(eaDir, "mix.event");
+            File.WriteAllText(eaFile,
+                "ORG 0x" + patchAddr.ToString("X") + "\r\n" +
+                "#incext Png2Dmp \"img.png\" --lz77\r\n");
+
+            var undo = NewUndo(rom);
+            try
+            {
+                var result = EventAssemblerUninstallCore.Uninstall(eaFile, clean, undo);
+
+                // The ORG range was reverted → Success.
+                Assert.True(result.Success, result.ErrorMessage);
+                // But the trace is NOT complete: the PNG block could not be reconstructed.
+                Assert.False(result.FullyTraced);
+                Assert.NotEmpty(result.UntraceableBlocks);
+                Assert.Contains(result.UntraceableBlocks, s => s.Contains("img.png"));
+
+                // The traceable ORG bytes were still restored.
+                Assert.Equal(clean[patchAddr], (byte)rom.u8(patchAddr));
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
+        // The trace API itself exposes FullyTraced + the note for a pure-untraceable EA.
+        [Fact]
+        public void TraceEAFile_UnHintedPng_RecordsUntraceable_NotFullyTraced()
+        {
+            CreateFE8Rom();
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-trace-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            File.WriteAllBytes(Path.Combine(eaDir, "x.png"), new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+            string eaFile = Path.Combine(eaDir, "only_png.event");
+            File.WriteAllText(eaFile, "#incext Png2Dmp \"x.png\"\r\n");
+            try
+            {
+                var trace = EventAssemblerUninstallCore.TraceEAFile(eaFile);
+                Assert.Empty(trace.Mappings);
+                Assert.False(trace.FullyTraced);
+                Assert.NotEmpty(trace.Untraceable);
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
+        // ---- Malformed / non-matching clean ROM: clean error, NO partial write -----
+        //
+        // The revert math must (a) restore byte-for-byte from the clean ROM where the
+        // ranges are valid, and (b) reject a clean ROM that cannot cover a traced range
+        // BEFORE writing anything — a wrong-file pick must never leave a half-reverted
+        // ROM. This complements Uninstall_CleanRomTooSmall by asserting zero mutation on
+        // a clean ROM that is non-empty but still too small for the traced offset.
+        [Fact]
+        public void Uninstall_NonMatchingSmallCleanRom_NoPartialWrite()
+        {
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+
+            uint patchAddr = 0x900000;
+            rom.write_u8(patchAddr, 0xEE);
+            byte[] beforeRevert = (byte[])rom.Data.Clone();
+
+            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            // Non-empty but far too small to cover patchAddr → must be rejected up front.
+            byte[] badClean = new byte[0x1000];
+            var undo = NewUndo(rom);
+            try
+            {
+                var result = EventAssemblerUninstallCore.Uninstall(eaFile, badClean, undo);
+
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+                Assert.Empty(undo.list);                 // nothing was written
+                Assert.Equal(beforeRevert, rom.Data);    // ROM untouched (no partial write)
+            }
+            finally { TryDelete(eaFile); }
+        }
+
+        // The revert honors the mask + restores exact bytes for a multi-byte ASM-style
+        // range whose clean ROM is LARGER than the live ROM (still well-defined).
+        [Fact]
+        public void Uninstall_RestoresExactBytes_WhenCleanRomLargerThanLive()
+        {
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+            byte[] clean = (byte[])rom.Data.Clone();
+
+            uint patchAddr = 0x810000;
+            byte[] patched = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE };
+            for (int i = 0; i < patched.Length; i++)
+                rom.write_u8(patchAddr + (uint)i, patched[i]);
+
+            // Clean ROM larger than the live ROM — the restore is still well-defined for
+            // every traced offset (highest <= clean.Length).
+            byte[] biggerClean = new byte[clean.Length + 0x1000];
+            Array.Copy(clean, biggerClean, clean.Length);
+
+            string eaFile = WriteTinyOrgEvent(patchAddr, null);
+            var undo = NewUndo(rom);
+            try
+            {
+                var result = EventAssemblerUninstallCore.Uninstall(eaFile, biggerClean, undo);
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.True(result.FullyTraced);
+                for (uint i = 0; i < patched.Length; i++)
+                    Assert.Equal(biggerClean[patchAddr + i], (byte)rom.u8(patchAddr + i));
+            }
+            finally { TryDelete(eaFile); }
+        }
+
         // ---- Real ColorzCore round-trip (OPPORTUNISTIC — skips if EA unavailable) --
         //
         // Compile+insert a tiny ORG/BYTE .event into an FE8 ROM, snapshot the

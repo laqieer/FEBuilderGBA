@@ -81,6 +81,14 @@ namespace FEBuilderGBA
 
         public List<Data> DataList { get; private set; }
         public List<string> IfNDefList { get; private set; }
+        /// <summary>
+        /// Human-readable notes about EA blocks this Core parser could NOT reconstruct
+        /// (currently: un-hinted inline <c>#incext Png2Dmp</c> rasters — see the class
+        /// doc scope boundary). Callers (e.g. the uninstall tracer) surface these so a
+        /// revert is never SILENTLY incomplete. Empty == the parser reconstructed every
+        /// emitting block it saw.
+        /// </summary>
+        public List<string> UntraceableNotes { get; private set; }
         public string Filename { get; private set; }
         public string Dir { get; private set; }
         EAUtilLynDumpMode LynDump;
@@ -96,6 +104,7 @@ namespace FEBuilderGBA
             this.Filename = filename;
             this.Dir = Path.GetDirectoryName(filename);
             this.IfNDefList = new List<string>();
+            this.UntraceableNotes = new List<string>();
 
             this.CurrentLabel = "";
             string[] lines = File.ReadAllLines(filename);
@@ -537,19 +546,12 @@ namespace FEBuilderGBA
             }
 
             DataEnum dataType = DataEnum.BIN;
-            if (orignalIine.IndexOf("--lz77") >= 0)
-            {
-                byte[] image = Png2DmpHint(fullbinname);
-                if (image.Length > 0)
-                {
-                    Data data = new Data(filename, this.Dir, image, dataType);
-                    this.DataList.Add(data);
-                    return true;
-                }
-            }
 
-            // Non-lz77 inline raster requires ImageUtil.OpenBitmap (WinForms-only);
-            // the .png.dmp hint, when present, gives the same bytes without it.
+            // Both the --lz77 and plain inline-raster paths need ImageUtil.OpenBitmap
+            // (WinForms-only) to rasterize; the sibling .png.dmp hint, when present,
+            // gives the same bytes without it. If the hint is missing we CANNOT
+            // reconstruct this block — record an untraceable note so the uninstall
+            // tracer never silently omits the range (it stays as patch residue).
             byte[] hint = Png2DmpHint(fullbinname);
             if (hint.Length > 0)
             {
@@ -558,6 +560,7 @@ namespace FEBuilderGBA
                 return true;
             }
 
+            this.UntraceableNotes.Add("Png2Dmp image (no .dmp hint): " + filename);
             return false;
         }
 

@@ -34,6 +34,13 @@ namespace FEBuilderGBA
     ///    <c>ProcsScriptForm.CalcLengthAndCheck</c>; this Core path skips a PROCS range
     ///    whose length it cannot determine — identical observable behaviour to the
     ///    WinForms tracer, which <c>continue</c>s when that returns NOT_FOUND.
+    ///
+    /// NEVER silently incomplete: any block the trace cannot reconstruct (a GREP miss,
+    /// the guarded PROCS, an un-hinted inline PNG raster) is recorded on
+    /// <see cref="TraceResult.Untraceable"/> / <see cref="UninstallResult.UntraceableBlocks"/>
+    /// and flips <see cref="UninstallResult.FullyTraced"/> to false. The View MUST warn
+    /// the user when FullyTraced is false — a revert that quietly leaves patch residue
+    /// while reporting success is the one outcome this design avoids.
     /// </summary>
     public static class EventAssemblerUninstallCore
     {
@@ -52,6 +59,24 @@ namespace FEBuilderGBA
             public bool[] mask;
         }
 
+        /// <summary>
+        /// Result of tracing an EA file: the ranges we COULD reconstruct, plus notes
+        /// about blocks we could NOT (so an uninstall is never silently incomplete).
+        /// </summary>
+        public sealed class TraceResult
+        {
+            /// <summary>The ranges the EA patch wrote that we reconstructed.</summary>
+            public List<BinMapping> Mappings { get; } = new List<BinMapping>();
+            /// <summary>
+            /// Human-readable descriptions of blocks we could NOT trace (GREP miss,
+            /// guarded PROCS length, un-hinted inline PNG raster, …). Each entry is one
+            /// piece of patch residue a revert will leave behind.
+            /// </summary>
+            public List<string> Untraceable { get; } = new List<string>();
+            /// <summary>True when every emitting block was reconstructed (no residue).</summary>
+            public bool FullyTraced => Untraceable.Count == 0;
+        }
+
         /// <summary>Structured result of an uninstall run.</summary>
         public sealed class UninstallResult
         {
@@ -63,18 +88,30 @@ namespace FEBuilderGBA
             public int RangeCount { get; set; }
             /// <summary>Total bytes written back from the clean ROM.</summary>
             public uint BytesReverted { get; set; }
+            /// <summary>
+            /// False when the trace could NOT account for every block the EA patch
+            /// wrote, so the revert may leave patch residue. The View MUST warn the user
+            /// when this is false (a "success" with residue is the outcome to avoid).
+            /// </summary>
+            public bool FullyTraced { get; set; } = true;
+            /// <summary>Descriptions of the blocks that could not be traced (residue).</summary>
+            public List<string> UntraceableBlocks { get; set; } = new List<string>();
         }
 
         /// <summary>
         /// Trace the ranges an EA file writes, against the CURRENT (patched) ROM in
         /// <see cref="CoreState.ROM"/>. Faithful port of the EA branch of
         /// <c>TraceEAPatchedMapping</c>, walking a single .event's
-        /// <see cref="EAUtilCore"/> DataList. Returns an empty list when the ROM is not
-        /// loaded or the file cannot be parsed.
+        /// <see cref="EAUtilCore"/> DataList. The result carries BOTH the reconstructed
+        /// ranges AND notes about any block that could NOT be traced (GREP miss, guarded
+        /// PROCS, un-hinted inline PNG raster) so a revert is never silently incomplete.
+        /// Returns an empty result (with one Untraceable note) when the ROM is not loaded
+        /// or the file cannot be parsed.
         /// </summary>
-        public static List<BinMapping> TraceEAFile(string eaFilePath)
+        public static TraceResult TraceEAFile(string eaFilePath)
         {
-            var binMappings = new List<BinMapping>();
+            var result = new TraceResult();
+            List<BinMapping> binMappings = result.Mappings;
             ROM rom = CoreState.ROM;
             // RomInfo is needed for the GREP search baseline
             // (compress_image_borderline_address); it is null only for a not-yet-
@@ -84,11 +121,13 @@ namespace FEBuilderGBA
             if (rom == null || rom.RomInfo == null
                 || string.IsNullOrEmpty(eaFilePath) || !File.Exists(eaFilePath))
             {
-                return binMappings;
+                result.Untraceable.Add("No identified ROM, or the event file is missing.");
+                return result;
             }
             if (EAUtilCore.IsFBGTemp(eaFilePath))
             {
-                return binMappings;
+                result.Untraceable.Add("Temporary wrapper file is not a traceable patch.");
+                return result;
             }
 
             EAUtilCore ea;
@@ -96,10 +135,14 @@ namespace FEBuilderGBA
             {
                 ea = new EAUtilCore(eaFilePath);
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                return binMappings;
+                result.Untraceable.Add("Could not read the event file: " + ex.Message);
+                return result;
             }
+
+            // Carry over parser-level untraceable blocks (un-hinted inline PNG rasters).
+            result.Untraceable.AddRange(ea.UntraceableNotes);
 
             uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
 
@@ -147,7 +190,9 @@ namespace FEBuilderGBA
                     //可変なので、maskパターンを作って検索します.
                     uint addr = U.GrepPatternMatch(rom.Data, mod, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
-                    {
+                    {//パッチが見つからなかった — 復元できない残骸として記録する.
+                        result.Untraceable.Add(data.DataType + " block not found in ROM: "
+                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
                         continue;
                     }
 
@@ -183,7 +228,9 @@ namespace FEBuilderGBA
                     //可変なので、maskパターンを作って検索します.
                     uint addr = U.GrepPatternMatch(rom.Data, data.BINData, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
-                    {
+                    {//LYN ELFが見つからなかった — 復元できない残骸として記録する.
+                        result.Untraceable.Add("LYN block not found in ROM: "
+                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -267,19 +314,24 @@ namespace FEBuilderGBA
                     // PROCS length detection (ProcsScriptForm.CalcLengthAndCheck) is
                     // WinForms-only; without it the length is unknown, so we skip this
                     // range — identical to the WinForms tracer's `continue` when that
-                    // returns NOT_FOUND. (See class doc scope note.)
+                    // returns NOT_FOUND. Record it as residue so the caller can warn.
+                    // (See class doc scope note.)
+                    result.Untraceable.Add("PROCS table (length detection is WinForms-only): "
+                        + (string.IsNullOrEmpty(data.Name) ? "(label)" : data.Name));
                     continue;
                 }
                 else
                 {
                     //展開されるものを生成して、GREP検索する必要があります.
                     if (data.BINData == null || data.BINData.Length == 0)
-                    {
+                    {//EAは何も書き込んでいない — 残骸ではない.
                         continue;
                     }
                     uint addr = U.Grep(rom.Data, data.BINData, lastMatchAddr);
                     if (addr == U.NOT_FOUND)
-                    {
+                    {//BINが見つからなかった — 復元できない残骸として記録する.
+                        result.Untraceable.Add("BIN block not found in ROM: "
+                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -309,7 +361,7 @@ namespace FEBuilderGBA
                 }
             }
 
-            return binMappings;
+            return result;
         }
 
         /// <summary>
@@ -351,10 +403,23 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            List<BinMapping> binmap = TraceEAFile(eaFilePath);
+            TraceResult trace = TraceEAFile(eaFilePath);
+            List<BinMapping> binmap = trace.Mappings;
+
+            // Surface untraceable blocks on the result so the View can warn the user
+            // (a "success" that leaves patch residue is the outcome to avoid).
+            result.FullyTraced = trace.FullyTraced;
+            result.UntraceableBlocks = trace.Untraceable;
+
             if (binmap.Count == 0)
             {
-                result.ErrorMessage = R._("Could not trace any patched ranges from this event file. It may not be an applied EA patch, or it uses constructs this in-place uninstall does not support.");
+                // Nothing reconstructible. If the trace recorded untraceable blocks,
+                // say so specifically (residue we can't revert) rather than the generic
+                // "not a patch" message.
+                result.ErrorMessage = trace.Untraceable.Count > 0
+                    ? R._("This event file's patched ranges cannot be traced for in-place uninstall ({0} block(s)). Uninstall it via the WinForms patch manager, or revert with a backup ROM.",
+                        trace.Untraceable.Count.ToString())
+                    : R._("Could not trace any patched ranges from this event file. It may not be an applied EA patch, or it uses constructs this in-place uninstall does not support.");
                 return result;
             }
 
@@ -380,6 +445,8 @@ namespace FEBuilderGBA
                 return result;
             }
 
+            // Reverted the ranges we COULD trace. Success is true, but FullyTraced may be
+            // false (residue remains) — the View MUST warn the user in that case.
             result.Success = true;
             result.RangeCount = binmap.Count;
             return result;
