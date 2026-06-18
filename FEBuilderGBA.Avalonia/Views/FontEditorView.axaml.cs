@@ -14,6 +14,10 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly FontEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Path of the desktop .ttf/.otf loaded for Auto-Generate (#1232). Empty
+        // => fall back to the typed font family. Set by LoadFont_Click.
+        string _fontFilePath = "";
+
         public string ViewTitle => "Font Editor";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
@@ -30,6 +34,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Default font family (a data value, not a UI label — set here so it
+            // isn't a scanned AXAML literal the L10n gate would flag as
+            // untranslated). AutoGen_Click also falls back to "Arial" when empty.
+            FontFamilyInput.Text = "Arial";
         }
 
         void LoadList()
@@ -246,6 +255,116 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
             }
+        }
+
+        // ---- Auto-generate from a desktop .ttf/.otf font (#1232) ----
+
+        async void LoadFont_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(this,
+                    R._("Load Font File"), new[] { "*.ttf", "*.otf" });
+                if (string.IsNullOrEmpty(path)) return;
+                _fontFilePath = path;
+                FontFileLabel.Text = Path.GetFileName(path);
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Load failed: {0}", ex.Message));
+            }
+        }
+
+        void ClearFont_Click(object? sender, RoutedEventArgs e)
+        {
+            _fontFilePath = "";
+            FontFileLabel.Text = "";
+        }
+
+        void AutoGen_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
+
+                // The character to rasterize is the selected row's decoded glyph
+                // (the label is "0xXX <char>"); the moji is the target slot.
+                string character = GlyphCharacterOfSelected();
+                if (string.IsNullOrEmpty(character)) { CoreState.Services?.ShowError(R._("This glyph has no renderable character.")); return; }
+
+                // Build the cross-platform font selector: a loaded .ttf/.otf file
+                // wins; otherwise the typed family (resolved by SKTypeface).
+                var font = new FontSpec
+                {
+                    FamilyName = string.IsNullOrWhiteSpace(FontFamilyInput.Text) ? "Arial" : FontFamilyInput.Text,
+                    Size = (float)(FontSizeInput.Value is { } sz && sz > 0 ? sz : 12m),
+                    FontFilePath = string.IsNullOrEmpty(_fontFilePath) ? null : _fontFilePath,
+                };
+                int vOffset = (int)(VOffsetInput.Value ?? 0m);
+
+                // Capture the target char code BEFORE reload (LoadList re-selects
+                // the first row), so we can re-select the just-edited glyph.
+                uint targetMoji = _vm.CurrentMoji;
+
+                var rasterizer = new FEBuilderGBA.SkiaSharp.SkiaFontRasterizer();
+
+                _undoService.Begin("Auto-Generate Font Glyph");
+                try
+                {
+                    string err = FontAutoGenCore.AutoGenerateGlyph(rom, rasterizer, font,
+                        character, targetMoji, _vm.IsItemFont, vOffset);
+                    if (!string.IsNullOrEmpty(err)) { _undoService.Rollback(); CoreState.Services?.ShowError(err); return; }
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+
+                LoadList();
+                SelectByMoji(targetMoji);
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Glyph generated successfully."));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Auto-generate failed: {0}", ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// The renderable character of the selected glyph row. The list label is
+        /// "0xXX &lt;char&gt;" (hex code + decoded char); take the part after the
+        /// first space. An "@hex" fallback name (an undecodable code) yields "".
+        /// </summary>
+        string GlyphCharacterOfSelected()
+        {
+            string label = EntryList.SelectedItem?.name ?? "";
+            int sp = label.IndexOf(' ');
+            string ch = sp >= 0 ? label.Substring(sp + 1) : "";
+            if (string.IsNullOrEmpty(ch)) return "";
+            // Reject ONLY the FontGlyphRenderCore "@hex" fallback for an
+            // undecodable code: '@' followed by one or more hex digits (e.g.
+            // "@4140", "@A0"). A real '@' character (moji 0x40) decodes to the
+            // lone "@" and MUST rasterize normally — so don't blanket-reject
+            // everything starting with '@'.
+            if (IsAtHexFallback(ch)) return "";
+            return ch;
+        }
+
+        /// <summary>
+        /// True when <paramref name="s"/> is the "@hex" fallback marker emitted by
+        /// FontGlyphRenderCore.FontChar / FontCharUTF8 for an undecodable code:
+        /// a literal '@' followed by one or more hex digits and nothing else. A
+        /// bare "@" (the real at-sign glyph, moji 0x40) is NOT a fallback.
+        /// </summary>
+        internal static bool IsAtHexFallback(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.Length < 2 || s[0] != '@') return false;
+            for (int i = 1; i < s.Length; i++)
+            {
+                if (!Uri.IsHexDigit(s[i])) return false;
+            }
+            return true;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
