@@ -25010,6 +25010,10 @@ AP导入失败: {0}
 图像指针 (P0):
 :AP Pointer (P4):
 AP指针 (P4):
+:AP Pattern:
+AP图案:
+:Current AP:
+当前AP:
 :Walk Step:
 行走步骤:
 :Import AP

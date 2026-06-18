@@ -83,6 +83,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 : 0;
 
             LoadComment();
+            RefreshCurrentApName();
             IsLoaded = true;
         }
 
@@ -287,6 +288,124 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint entryAddr = baseAddr + waitIcon * 8;
             if (entryAddr + 8 > (uint)rom.Data.Length) return null;
             return entryAddr;
+        }
+
+        // ----------------------------------------------------------------
+        // AP MD5-dictionary selector (#1226) — port of WF
+        // ImageUnitMoveIconFrom's ap_list_ / ap_vanilla_list_ combo.
+        //
+        // ap_list_ALL.txt (name\tmd5) → {md5 → name} via LoadTSVResourcePair.
+        // ap_vanilla_list_FE6/7/8.txt (offsetHex\tmd5\t{J}) → {offset → md5}
+        // via LoadTSVResource1. The combo lets the user pick a known AP pattern
+        // by name; selecting it RE-POINTS the current entry's +4 (P4) pointer to
+        // an EXISTING ROM AP region matching that pattern's MD5 (an entry's
+        // current AP, or a still-intact vanilla AP). It NEVER writes AP bytes —
+        // that's the separate ImportAP path.
+        // ----------------------------------------------------------------
+
+        // {md5 → display name} catalog (ap_list_).
+        Dictionary<string, string> _apComboDic;
+        // Display names in file order (combo item order, mirrors WF Items.Add loop).
+        List<string> _apCatalogNames;
+        // {vanilla offset → md5} (ap_vanilla_list_).
+        Dictionary<uint, string> _apVanillaDic;
+        string _currentApName = string.Empty;
+
+        void EnsureCatalogLoaded()
+        {
+            if (_apComboDic != null) return;
+
+            _apComboDic = U.LoadTSVResourcePair(U.ConfigDataFilename("ap_list_"));
+
+            _apCatalogNames = new List<string>();
+            foreach (var pair in _apComboDic)
+                _apCatalogNames.Add(pair.Value);
+
+            // Vanilla list: only keep safely-offset addresses (WF MakeAPBanillaDic).
+            _apVanillaDic = new Dictionary<uint, string>();
+            ROM rom = CoreState.ROM;
+            Dictionary<uint, string> raw = U.LoadTSVResource1(U.ConfigDataFilename("ap_vanilla_list_"));
+            foreach (var pair in raw)
+            {
+                uint apOff = pair.Key;
+                if (rom != null && !U.isSafetyOffset(apOff, rom)) continue;
+                _apVanillaDic[apOff] = pair.Value;
+            }
+        }
+
+        /// <summary>
+        /// The AP pattern display names (combo items), in resource file order.
+        /// Loaded lazily from <c>config/data/ap_list_*.txt</c>.
+        /// </summary>
+        public List<string> ApCatalogNames
+        {
+            get { EnsureCatalogLoaded(); return _apCatalogNames; }
+        }
+
+        /// <summary>
+        /// The catalog name matched to the CURRENT entry's AP (by its P4 MD5), or
+        /// "" when the AP is unknown / unparseable. Mirrors WF
+        /// <c>SelectAPComboFromAPAddresss</c> selecting the combo entry.
+        /// </summary>
+        public string CurrentApName { get => _currentApName; private set => SetField(ref _currentApName, value); }
+
+        /// <summary>
+        /// Recompute <see cref="CurrentApName"/> from the current P4 AP's MD5.
+        /// READ-ONLY — never mutates the ROM. Call after LoadEntry / a P4 change.
+        /// </summary>
+        public void RefreshCurrentApName()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || P4 == 0) { CurrentApName = string.Empty; return; }
+
+            EnsureCatalogLoaded();
+            uint apOff = U.toOffset(P4);
+            string md5 = ImageUtilAPCore.CalcAPMD5(rom.Data, apOff);
+            CurrentApName = _apComboDic.TryGetValue(md5, out string name) ? name : string.Empty;
+        }
+
+        /// <summary>
+        /// Resolve a chosen catalog AP <paramref name="name"/> to an EXISTING ROM
+        /// AP offset and re-point the current entry's in-memory P4 to it (the View
+        /// then commits the single P4 write under its ambient undo scope, byte
+        /// minimal). READ-ONLY resolution: scans the move-icon table's current AP
+        /// hashes and the still-intact vanilla APs. Returns "" on success; a
+        /// localized error string (and NO P4 change) when the chosen AP is not
+        /// present in this ROM — mirroring WF's "AP not in this ROM" stop error.
+        /// </summary>
+        public string ApplyApByName(string name)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM is not loaded.");
+            if (string.IsNullOrEmpty(name)) return string.Empty;
+
+            EnsureCatalogLoaded();
+
+            // name → md5 (WF SelectAPAddresssFromAPComboLow first loop).
+            string targetMd5 = string.Empty;
+            foreach (var pair in _apComboDic)
+            {
+                if (pair.Value == name) { targetMd5 = pair.Key; break; }
+            }
+            if (string.IsNullOrEmpty(targetMd5)) return string.Empty; // unknown name → no-op
+
+            // Already pointing at a region with this MD5 → nothing to do (avoids a
+            // redundant write / undo entry when the combo re-selects the current AP).
+            if (P4 != 0 && ImageUtilAPCore.CalcAPMD5(rom.Data, U.toOffset(P4)) == targetMd5)
+                return string.Empty;
+
+            Dictionary<uint, string> entryApMd5 =
+                ImageUtilAPCore.MakeAPAddressDic(rom.Data, TableBase, DataCount);
+
+            uint apOff = ImageUtilAPCore.ResolveApOffsetByMd5(rom.Data, targetMd5, entryApMd5, _apVanillaDic);
+            if (apOff == U.NOT_FOUND)
+            {
+                return R._("This AP pattern is not present in this ROM. Import the AP data, or enter the AP pointer manually.");
+            }
+
+            P4 = U.toPointer(apOff);
+            RefreshCurrentApName();
+            return string.Empty;
         }
 
         public int GetListCount() => LoadList().Count;

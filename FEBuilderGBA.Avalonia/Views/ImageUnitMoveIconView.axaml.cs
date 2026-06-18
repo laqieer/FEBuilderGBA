@@ -40,10 +40,31 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MoveIconLoader(items, i));
+                PopulateApCombo();
             }
             catch (Exception ex)
             {
                 Log.Error("ImageUnitMoveIconView.LoadList failed: " + ex.ToString());
+            }
+        }
+
+        // Populate the AP-pattern combo from the resource catalog (#1226). Items
+        // are RESOURCE DATA names, so they are bound here (not translatable UI).
+        void PopulateApCombo()
+        {
+            _suppressPreviewRefresh = true;
+            try
+            {
+                ApPatternCombo.ItemsSource = _vm.ApCatalogNames;
+                ApPatternCombo.SelectedItem = null;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitMoveIconView.PopulateApCombo failed: " + ex.ToString());
+            }
+            finally
+            {
+                _suppressPreviewRefresh = false;
             }
         }
 
@@ -75,6 +96,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 CommentBox.Text = _vm.Comment;
                 ExportAPButton.IsEnabled = _vm.HasAp();
                 ImportAPButton.IsEnabled = _vm.CurrentAddr != 0;
+
+                // AP MD5 selector (#1226): reflect the CURRENT entry's matched
+                // pattern. Selecting it here is programmatic (the suppress flag
+                // is set), so ApPattern_Changed is a no-op for this assignment.
+                string matched = _vm.CurrentApName;
+                ApPatternCombo.SelectedItem = string.IsNullOrEmpty(matched) ? null : matched;
+                ApMatchedLabel.Text = matched;
             }
             finally
             {
@@ -121,6 +149,63 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_initialized || _suppressPreviewRefresh) return;
             _vm.Step = (int)(StepBox.Value ?? 0);
             RefreshFramePreview();
+        }
+
+        // AP MD5 selector (#1226): user picked a known AP pattern. Resolve it to
+        // an EXISTING ROM AP region and re-point this entry's P4. ROM-mutating, so
+        // it runs under an ambient undo scope (single P4 u32 write). The resolve
+        // is READ-ONLY and validates BEFORE any mutation — an unresolvable pattern
+        // surfaces the error and writes nothing (mirrors WF SelectAPAddresssFromAPCombo).
+        void ApPattern_Changed(object? sender, SelectionChangedEventArgs e)
+        {
+            if (!_initialized || _suppressPreviewRefresh) return;
+
+            string? name = ApPatternCombo.SelectedItem as string;
+            if (string.IsNullOrEmpty(name)) return;
+            if (_vm.CurrentAddr == 0) return;
+
+            _undoService.Begin("Select Unit Move Icon AP");
+            try
+            {
+                string err = _vm.ApplyApByName(name);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    // Restore the combo to the entry's actual matched pattern.
+                    RefreshApSelectionFromVm();
+                    return;
+                }
+
+                // ApplyApByName changed _vm.P4 in memory; persist via Write().
+                _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
+                UpdateUI(); // refresh P4 box, matched label, previews
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services?.ShowError($"AP select failed: {ex.Message}");
+                RefreshApSelectionFromVm();
+            }
+        }
+
+        // Re-sync the combo selection + matched label to the VM's current AP
+        // (used to roll the UI back after a failed/aborted AP selection).
+        void RefreshApSelectionFromVm()
+        {
+            _suppressPreviewRefresh = true;
+            try
+            {
+                string matched = _vm.CurrentApName;
+                ApPatternCombo.SelectedItem = string.IsNullOrEmpty(matched) ? null : matched;
+                ApMatchedLabel.Text = matched;
+            }
+            finally
+            {
+                _suppressPreviewRefresh = false;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

@@ -34,6 +34,28 @@
                          Minimum="0" Maximum="4294967295" Increment="1" FormatString="0" />
         </Grid>
 
+        <!-- AP pattern MD5 selector (#1226). The combo lists known vanilla AP
+             (move-anime) patterns from config/data/ap_list_*.txt; the items are
+             RESOURCE DATA names (bound in code-behind), NOT translatable UI text.
+             Selecting a pattern re-points the entry's P4 to a matching EXISTING
+             ROM AP region (an entry's current AP, or a still-intact vanilla AP) —
+             it never writes AP bytes. The label below shows the pattern the
+             CURRENT entry's AP matches (mirrors WF X_APCOMBO + X_AP_MD5). The
+             "AP Pattern:" label is an English XAML literal so the shared
+             ViewTranslationHelper localizes it via R._() (ja/zh in
+             config/translate). -->
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="AP Pattern:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="ImageUnitMoveIcon_ApPattern_Combo"
+                    Grid.Row="0" Grid.Column="1" Name="ApPatternCombo"
+                    SelectionChanged="ApPattern_Changed" HorizontalAlignment="Stretch" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Current AP:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageUnitMoveIcon_ApMatched_Label"
+                     Grid.Row="1" Grid.Column="1" Name="ApMatchedLabel"
+                     VerticalAlignment="Center" TextWrapping="Wrap" />
+        </Grid>
+
         <!-- Preview controls: palette + step -->
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" />
