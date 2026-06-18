@@ -68,6 +68,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("-symOutput:", args);
         }
 
+        // #1250: the RunProcess error sentinels (process-could-not-start, timeout) must be
+        // treated as build FAILURES by IsEASuccess (no success marker) so a null Process.Start
+        // or a killed-process-tree never emits a patched ROM. Real success markers stay true.
+        [Theory]
+        [InlineData("Error: the Event Assembler process could not be started. filename:ea.exe", false)]
+        [InlineData("Error: Event Assembler timed out after 120 seconds.", false)]
+        [InlineData("Assembling...\r\nNo errors or warnings.\r\n", true)]
+        [InlineData("No errors. Please continue being awesome.", true)]
+        public void IsEASuccess_TreatsRunProcessErrorSentinelsAsFailure(string output, bool expected)
+        {
+            Assert.Equal(expected, EventAssemblerCompileCore.IsEASuccess(output));
+        }
+
         [Fact]
         public void BuildArgs_ClassicEA_UsesSymOutput()
         {

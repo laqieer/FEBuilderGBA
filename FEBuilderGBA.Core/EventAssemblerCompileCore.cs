@@ -337,6 +337,13 @@ namespace FEBuilderGBA
             var sb = new StringBuilder();
             using (var proc = Process.Start(psi))
             {
+                // Process.Start can return null (documented) — guard against an NRE and
+                // return a clean error. The string carries no EA success marker, so the
+                // caller's IsEASuccess treats it as a failure and emits nothing (#1250).
+                if (proc == null)
+                {
+                    return "Error: the Event Assembler process could not be started. filename:" + exePath;
+                }
                 proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
                 proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
                 proc.BeginOutputReadLine();
@@ -344,7 +351,9 @@ namespace FEBuilderGBA
 
                 if (!proc.WaitForExit(120_000))
                 {
-                    try { proc.Kill(); } catch { }
+                    // Kill the WHOLE tree — an EA/build invocation may spawn child processes
+                    // that killing only the parent would orphan.
+                    try { proc.Kill(entireProcessTree: true); } catch { }
                     return "Error: Event Assembler timed out after 120 seconds.";
                 }
             }
