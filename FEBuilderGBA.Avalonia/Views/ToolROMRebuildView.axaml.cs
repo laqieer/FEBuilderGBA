@@ -28,13 +28,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     bool ok = _vm.Load();
                     AddressHelpText.Text = BuildAddressHelp();
+                    // Always populate the address field with the real default so it
+                    // matches the help text — even when the ROM can't be rebuilt, where
+                    // Load() leaves RebuildAddress unset and the field would otherwise
+                    // fall back to the misleading watermark example.
+                    RebuildAddressTextBox.Text = string.Format("{0:X8}",
+                        ok ? _vm.RebuildAddress : _vm.DefaultRebuildAddress());
                     if (!ok)
                     {
                         StatusText.Text = R._("This ROM does not use an extended region, so it cannot be rebuilt.");
                         MakeButton.IsEnabled = false;
                         return;
                     }
-                    RebuildAddressTextBox.Text = string.Format("{0:X8}", _vm.RebuildAddress);
                     string found = _vm.FindOriginal();
                     if (!string.IsNullOrEmpty(found))
                         OriginalRomTextBox.Text = found;
