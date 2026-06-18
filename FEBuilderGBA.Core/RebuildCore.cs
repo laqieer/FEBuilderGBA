@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace FEBuilderGBA
 {
@@ -160,6 +161,103 @@ namespace FEBuilderGBA
                 BlocksMoved = modifiedRegions.Count,
                 BytesSaved = (int)totalFree,
             };
+        }
+
+        /// <summary>
+        /// Build the text of a <c>.rebuild</c> analysis report: a CRC32 of the vanilla
+        /// ROM, the requested rebuild address, and the lists of modified regions and free
+        /// space found in the modified ROM. The header lines (<c>@_CRC32</c> /
+        /// <c>@_REBUILDADDRESS</c>) mirror the WinForms <c>ToolROMRebuildMake</c> output so
+        /// the report is recognizable, but this is an analysis/report only — it does NOT
+        /// contain the full per-struct rebuild commands the WinForms defragment writes
+        /// (that path is WinForms-coupled; see the class summary).
+        /// </summary>
+        public static string BuildRebuildReport(byte[] vanillaData, byte[] modifiedData, uint rebuildAddress)
+        {
+            var sb = new StringBuilder();
+
+            uint vanillaCrc = vanillaData == null ? 0u : new U.CRC32().Calc(vanillaData);
+            sb.Append("@_CRC32 ").Append(U.ToHexString(vanillaCrc))
+              .AppendLine(" //vanilla ROM CRC32");
+            sb.Append("@_REBUILDADDRESS ").Append(U.ToHexString(rebuildAddress))
+              .AppendLine(" //rebuild start address");
+
+            var modifiedRegions = FindModifiedRegions(vanillaData, modifiedData);
+            var freeSpace = FindFreeSpace(modifiedData);
+
+            uint totalModified = 0;
+            foreach (var (_, length) in modifiedRegions) totalModified += length;
+            uint totalFree = 0;
+            foreach (var (_, length) in freeSpace) totalFree += length;
+
+            sb.Append("//MODIFIED REGIONS: ").Append(modifiedRegions.Count)
+              .Append(" (").Append(totalModified).AppendLine(" bytes)");
+            foreach (var (offset, length) in modifiedRegions)
+            {
+                sb.Append("@MOD ").Append(U.ToHexString8(offset))
+                  .Append(" :").Append(U.ToHexString(length)).AppendLine();
+            }
+
+            sb.Append("//FREE SPACE: ").Append(freeSpace.Count)
+              .Append(" (").Append(totalFree).AppendLine(" bytes)");
+            foreach (var (offset, length) in freeSpace)
+            {
+                sb.Append("@FREE ").Append(U.ToHexString8(offset))
+                  .Append(" :").Append(U.ToHexString(length)).AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Run the analysis and write the report to <paramref name="outputPath"/> fault-safely:
+        /// the text is written to a sibling temp file first, then atomically moved into place,
+        /// so a failure partway never leaves a corrupt half-written <c>.rebuild</c>. Never
+        /// throws — returns a <see cref="RebuildResult"/> whose <see cref="RebuildResult.Success"/>
+        /// reports the outcome.
+        /// </summary>
+        public static RebuildResult WriteRebuildReport(byte[] vanillaData, byte[] modifiedData,
+            uint rebuildAddress, string outputPath, IProgress<string> progress = null)
+        {
+            if (vanillaData == null || modifiedData == null)
+            {
+                return new RebuildResult { Success = false, Message = "Error: ROM data is null." };
+            }
+            if (string.IsNullOrEmpty(outputPath))
+            {
+                return new RebuildResult { Success = false, Message = "Error: output path is empty." };
+            }
+
+            RebuildResult analysis = Rebuild(vanillaData, modifiedData, progress);
+            if (!analysis.Success)
+            {
+                return analysis;
+            }
+
+            progress?.Report("Writing report...");
+
+            string tempPath = outputPath + ".tmp";
+            try
+            {
+                string report = BuildRebuildReport(vanillaData, modifiedData, rebuildAddress);
+                File.WriteAllText(tempPath, report);
+                // Atomic-ish replace: remove any stale target, then move the fully-written temp.
+                if (File.Exists(outputPath))
+                {
+                    File.Delete(outputPath);
+                }
+                File.Move(tempPath, outputPath);
+            }
+            catch (Exception ex)
+            {
+                // Clean up the half-written temp so no corrupt artifact is left behind.
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+                return new RebuildResult { Success = false, Message = "Error: could not write report. " + ex.Message };
+            }
+
+            progress?.Report("Report written.");
+            analysis.Message = analysis.Message + " -> " + outputPath;
+            return analysis;
         }
     }
 }

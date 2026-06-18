@@ -11918,3 +11918,51 @@ config/translate/<lang>.txt
 :Independence failed: 
 分離独立に失敗しました: 
 
+:Rebuild address (hex):
+リビルドアドレス(16進数):
+
+:Make ROMRebuild report…
+ROMRebuildレポートを作成…
+
+:Analyze the modified ROM against the clean original and write a .rebuild report listing the modified regions and reusable free space. The full defragment (compacting Make/Apply with auto-reopen) is not yet available in this build.
+改造ROMを無改造ROMと比較し、変更された領域と再利用可能な空き領域を一覧にした .rebuild レポートを書き出します。完全なデフラグ(Make/Apply による圧縮と自動再オープン)はこのビルドではまだ利用できません。
+
+:This ROM does not use an extended region, so it cannot be rebuilt.
+このROMは拡張領域を利用していないので、リビルドできません。
+
+:Data from this address onward is rebuilt. The default is {0}. Normally leave it unchanged; raise it if the rebuild fails because of custom-installed ASM.
+このアドレス以降のデータを再構築します。ディフォルトは{0}です。通常は変更しないでください。独自に追加したASMが原因でリビルドに失敗する場合は、この値を大きくしてください。
+
+:The rebuild address is not a valid hexadecimal number.
+リビルドアドレスが有効な16進数ではありません。
+
+:This address ({0}) cannot be used: it is not a multiple of 4.
+このアドレス({0})はリビルドに利用できません。アドレスが4で割り切れません。
+
+:This address ({0}) cannot be used: the address range is dangerous.
+このアドレス({0})はリビルドに利用できません。アドレスの範囲が危険です。
+
+:Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?
+拡張領域より下のアドレス({0})をリビルドするのは危険です。続行してもよろしいですか?
+
+:Save ROMRebuild report
+ROMRebuildレポートを保存
+
+:ROMRebuild report
+ROMRebuildレポート
+
+:Analyzing…
+解析中…
+
+:ROMRebuild report created. {0}
+ROMRebuildレポートを作成しました。{0}
+
+:The rebuild address is invalid.
+リビルドアドレスが無効です。
+
+:Failed to create the ROMRebuild report. {0}
+ROMRebuildレポートの作成に失敗しました。{0}
+
+:Failed to create the ROMRebuild report.
+ROMRebuildレポートの作成に失敗しました。
+

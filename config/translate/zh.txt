@@ -25759,3 +25759,51 @@ config/translate/<lang>.txt
 :Independence failed: 
 独立化失败: 
 
+:Rebuild address (hex):
+重建地址(十六进制):
+
+:Make ROMRebuild report…
+生成 ROMRebuild 报告…
+
+:Analyze the modified ROM against the clean original and write a .rebuild report listing the modified regions and reusable free space. The full defragment (compacting Make/Apply with auto-reopen) is not yet available in this build.
+将改造 ROM 与无改造原版对比，写出一份 .rebuild 报告，列出已修改的区域和可重用的空闲空间。完整的碎片整理(Make/Apply 压缩并自动重新打开)在此版本中尚不可用。
+
+:This ROM does not use an extended region, so it cannot be rebuilt.
+此 ROM 未使用扩展区域，因此无法重建。
+
+:Data from this address onward is rebuilt. The default is {0}. Normally leave it unchanged; raise it if the rebuild fails because of custom-installed ASM.
+从此地址开始的数据将被重建。默认值为 {0}。通常请勿更改；如果因自定义安装的 ASM 导致重建失败，请调大此值。
+
+:The rebuild address is not a valid hexadecimal number.
+重建地址不是有效的十六进制数。
+
+:This address ({0}) cannot be used: it is not a multiple of 4.
+无法使用此地址({0}):它不是 4 的倍数。
+
+:This address ({0}) cannot be used: the address range is dangerous.
+无法使用此地址({0}):地址范围有危险。
+
+:Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?
+重建扩展区域以下的地址({0})有危险。仍要继续吗?
+
+:Save ROMRebuild report
+保存 ROMRebuild 报告
+
+:ROMRebuild report
+ROMRebuild 报告
+
+:Analyzing…
+正在分析…
+
+:ROMRebuild report created. {0}
+已生成 ROMRebuild 报告。{0}
+
+:The rebuild address is invalid.
+重建地址无效。
+
+:Failed to create the ROMRebuild report. {0}
+生成 ROMRebuild 报告失败。{0}
+
+:Failed to create the ROMRebuild report.
+生成 ROMRebuild 报告失败。
+

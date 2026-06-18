@@ -1,21 +1,33 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolROMRebuildView"
-        Title="ROM Rebuild Tool" Width="1193" Height="582"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolROMRebuild_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="ROM Rebuild Tool" Width="760" Height="480"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="8">
+    <StackPanel Spacing="12" Margin="8">
+      <TextBlock Text="ROM Rebuild Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_Intro_Label" Name="IntroText"
+                 TextWrapping="Wrap" Opacity="0.8" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="ROM Rebuild Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Original (unmodified) ROM:" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" AutomationProperties.AutomationId="ToolROMRebuild_Original_Input"
+                 Name="OriginalRomTextBox" Watermark="Path to the clean ROM" />
+        <Button Grid.Column="1" AutomationProperties.AutomationId="ToolROMRebuild_Select_Button"
+                Name="SelectButton" Content="Select…" Click="Select_Click" Margin="6,0,0,0" />
+      </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <TextBlock Text="Rebuild address (hex):" />
+      <TextBox AutomationProperties.AutomationId="ToolROMRebuild_Address_Input"
+               Name="RebuildAddressTextBox" Watermark="08800000" Width="200" HorizontalAlignment="Left" />
+      <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_AddressHelp_Label" Name="AddressHelpText"
+                 TextWrapping="Wrap" Opacity="0.8" />
+
+      <Button AutomationProperties.AutomationId="ToolROMRebuild_Make_Button" Name="MakeButton"
+              Content="Make ROMRebuild report…" Click="Make_Click" />
+
+      <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_Status_Label" Name="StatusText"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
