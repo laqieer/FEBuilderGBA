@@ -39,8 +39,14 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MoveIconLoader(items, i));
+                // Populate the AP combo's ItemsSource BEFORE SetItemsWithIcons,
+                // which auto-selects the first entry → OnSelected → UpdateUI. If the
+                // combo's ItemsSource is not yet set, UpdateUI's SelectedItem = matched
+                // assignment cannot stick, leaving the AP combo out of sync on initial
+                // load (#1226 Copilot review). PopulateApCombo sets SelectedItem = null;
+                // the subsequent auto-select's UpdateUI then sets the matched pattern.
                 PopulateApCombo();
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MoveIconLoader(items, i));
             }
             catch (Exception ex)
             {
