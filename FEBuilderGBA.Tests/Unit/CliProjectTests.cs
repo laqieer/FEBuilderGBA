@@ -337,6 +337,15 @@ namespace FEBuilderGBA.Tests.Unit
             return System.IO.Path.Combine(dir, "FEBuilderGBA.CLI", "RomLoader.cs");
         }
 
+        private static string GetEventAssemblerCompileCorePath()
+        {
+            var dir = System.AppContext.BaseDirectory;
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir, "FEBuilderGBA.sln")))
+                dir = System.IO.Path.GetDirectoryName(dir);
+            if (dir == null) throw new System.InvalidOperationException("Cannot find solution root");
+            return System.IO.Path.Combine(dir, "FEBuilderGBA.Core", "EventAssemblerCompileCore.cs");
+        }
+
         [Fact]
         public void ParseArgs_SpaceSeparatedValue()
         {
@@ -417,9 +426,19 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void CliProgram_CompileEventUsesToolPathResolver()
         {
-            var src = System.IO.File.ReadAllText(GetCliProgramPath());
-            Assert.Contains("ToolPathResolver.ResolveEventAssembler", src);
-            Assert.Contains("ToolPathResolver.IsColorzCore", src);
+            // The compile-event tool-resolution logic was extracted into the shared
+            // Core helper EventAssemblerCompileCore (reused by the CLI --compile-event
+            // AND the Avalonia tool). The CLI now DELEGATES to that helper, and the
+            // helper is the one that resolves the EA exe via ToolPathResolver — so the
+            // guarantee (tool resolution goes through ToolPathResolver, not a hardcoded
+            // path) lives at its new location. Assert BOTH the delegation and the
+            // resolution.
+            var cliSrc = System.IO.File.ReadAllText(GetCliProgramPath());
+            Assert.Contains("EventAssemblerCompileCore", cliSrc);
+
+            var coreSrc = System.IO.File.ReadAllText(GetEventAssemblerCompileCorePath());
+            Assert.Contains("ToolPathResolver.ResolveEventAssembler", coreSrc);
+            Assert.Contains("ToolPathResolver.IsColorzCore", coreSrc);
         }
 
         [Fact]
