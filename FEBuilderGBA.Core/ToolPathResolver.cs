@@ -231,6 +231,45 @@ namespace FEBuilderGBA
         public static string ResolveDevkitArmAs() => ResolveDevkitArmTool("as");
 
         /// <summary>
+        /// Resolve the legacy GoldRoad assembler (<c>goldroad.exe</c>) from the
+        /// <c>goldroad_asm</c> config path. GoldRoad is the older MASM-like ARM
+        /// assembler used for <c>@thumb</c> sources (vs the modern devkitARM gnu-as
+        /// path). Symmetric with <see cref="ResolveDevkitArmDir"/> /
+        /// <see cref="ResolveEventAssembler"/> / <see cref="ResolveLynExe"/>.
+        ///
+        /// The config value normally points directly at the executable. To be
+        /// platform-aware (GoldRoad is Windows-era, but the resolver should not bake in
+        /// <c>.exe</c>), when the configured value is a directory we look for the
+        /// platform-appropriate <c>goldroad</c>/<c>goldroad.exe</c> inside it
+        /// (mirroring <see cref="GetExeNames"/>). Returns null when unset or missing.
+        /// </summary>
+        public static string ResolveGoldRoad()
+        {
+            string configured = CoreState.Config?.at("goldroad_asm", "");
+            if (string.IsNullOrEmpty(configured))
+                return null;
+
+            // Direct path to the executable (the normal case — OptionForm stores the
+            // full goldroad.exe path).
+            if (File.Exists(configured))
+                return configured;
+
+            // The config points at a directory → try the platform-aware binary names
+            // inside it, so a Linux/macOS layout (extension-less "goldroad") resolves
+            // too, not just "goldroad.exe".
+            if (Directory.Exists(configured))
+            {
+                foreach (string name in GetExeNames("goldroad"))
+                {
+                    string candidate = Path.Combine(configured, name);
+                    if (File.Exists(candidate)) return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Check if the resolved EA path points to ColorzCore (vs classic EA Core.exe).
         /// </summary>
         public static bool IsColorzCore(string eaPath)

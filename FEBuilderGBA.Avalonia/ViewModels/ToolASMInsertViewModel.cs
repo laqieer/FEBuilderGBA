@@ -6,7 +6,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// <summary>
     /// ViewModel for the Avalonia "Add-via-ASM/C" tool (WF
     /// <c>ToolASMInsertForm</c>). Compiles a C/C++/ASM source through the devkitARM
-    /// chain (gcc/g++/as → ELF → raw binary, or lyn → EA event) and inserts the
+    /// chain (gcc/g++/as → ELF → raw binary, or lyn → EA event) — or, for a legacy
+    /// <c>@thumb</c> <c>.ASM</c> source, the GoldRoad assembler (auto-selected from
+    /// the source content, mirroring WF <c>MainFormUtil.Compile</c>) — and inserts the
     /// result into the ROM via one of three methods (write-at-address, hook-inject,
     /// or compile-only).
     ///
@@ -15,9 +17,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// to that helper. It reads no ROM bytes for display (it only WRITES via the
     /// helper) so it is a read-no-ROM tool VM (no data-verification contract).
     ///
-    /// Scope: the GoldRoad assembler path and the "Make Patch" text generator are
-    /// deferred to a follow-up (both WinForms-coupled); the devkitARM compile +
-    /// the three insert methods are the parity surface here.
+    /// Scope: the "Make Patch" text generator is deferred to a follow-up (WinForms-
+    /// coupled); the devkitARM compile, the GoldRoad <c>@thumb</c> path (auto-detected,
+    /// no extra UI), and the three insert methods are the parity surface here.
     /// </summary>
     public class ToolASMInsertViewModel : ViewModelBase
     {
@@ -88,8 +90,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Localized "devkitpro_eabi not configured" message (for the UI).</summary>
         public string NotFoundMessage => AsmCompileCore.GetNotFoundMessage();
 
+        /// <summary>True when the legacy GoldRoad assembler path is configured and exists.</summary>
+        public bool IsGoldRoadAvailable => AsmCompileCore.IsGoldRoadAvailable();
+
+        /// <summary>Localized "goldroad not configured" message (for the UI).</summary>
+        public string GoldRoadNotFoundMessage => AsmCompileCore.GetGoldRoadNotFoundMessage();
+
         /// <summary>True when the selected source file exists on disk.</summary>
         public bool SourceExists => !string.IsNullOrEmpty(SourcePath) && File.Exists(SourcePath);
+
+        /// <summary>
+        /// True when the selected source is a legacy GoldRoad (<c>@thumb</c> <c>.ASM</c>)
+        /// source — the assembler is auto-selected from the source content (WF
+        /// <c>MainFormUtil.Compile</c>), so no compile-method UI is needed for it.
+        /// </summary>
+        public bool IsGoldRoadSource => SourceExists && AsmCompileCore.ShouldUseGoldRoad(SourcePath);
+
+        /// <summary>
+        /// The assembler the selected source will use is configured: GoldRoad for a
+        /// <c>@thumb</c> <c>.ASM</c>, otherwise devkitARM. Used by the View to surface
+        /// the right not-found message before running.
+        /// </summary>
+        public bool IsRequiredToolAvailable =>
+            IsGoldRoadSource ? IsGoldRoadAvailable : IsDevkitProAvailable;
+
+        /// <summary>The not-found message for whichever assembler the source requires.</summary>
+        public string RequiredToolNotFoundMessage =>
+            IsGoldRoadSource ? GoldRoadNotFoundMessage : NotFoundMessage;
 
         /// <summary>
         /// Parse a hex address field. Accepts "0x..." or bare hex; returns 0 on a

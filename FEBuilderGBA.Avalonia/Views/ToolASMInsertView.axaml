@@ -13,8 +13,10 @@
        hook-register / debug-symbol combo items are populated in code-behind via R._()
        so they pick up ja/zh translations (ViewTranslationHelper does not translate
        ComboBoxItem content).
-       Deferred to a follow-up: the GoldRoad assembler path and the "Make Patch" text
-       generator (both WinForms-coupled); revert an applied insert via Undo for now. -->
+       The GoldRoad assembler path (@thumb .ASM, the legacy MASM-like assembler) is
+       supported via AsmCompileCore, auto-selected from the source content (#1244).
+       Deferred to a follow-up: the "Make Patch" text generator (#1243); revert an
+       applied insert via Undo for now. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="10">
 
