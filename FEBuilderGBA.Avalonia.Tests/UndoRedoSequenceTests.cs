@@ -108,6 +108,53 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(svc.HasPendingUndo);
         }
 
+        [Fact]
+        public void UndoService_CommitExternal_PushesAndIsUndoable()
+        {
+            // Mirrors the Event Assembler tool's threading-correct flow: an EXPLICIT
+            // UndoData is filled by a Core write (SwapNewROMData records into it
+            // directly — not the thread-local ambient scope), then CommitExternal
+            // pushes it on the UI thread. Proves the resulting change is undoable.
+            if (!_fixture.IsAvailable) return;
+            if (CoreState.Undo == null) CoreState.Undo = new Undo();
+
+            var rom = CoreState.ROM;
+            uint addr = 0x100;
+            uint orig = rom.u8(addr);
+            uint changed = orig ^ 0xFFu;
+
+            var undo = CoreState.Undo.NewUndoData("ea-external");
+            var newData = (byte[])rom.Data.Clone();
+            newData[addr] = (byte)changed;
+
+            // SwapNewROMData(confirmHeaderChange:false) is the programmatic path the
+            // EA helper uses; it records the diff into `undo` directly.
+            bool ok = rom.SwapNewROMData(newData, "ea-external", undo, confirmHeaderChange: false);
+            Assert.True(ok);
+            Assert.Equal(changed, rom.u8(addr));
+            Assert.NotEmpty(undo.list);
+
+            var svc = new UndoService();
+            bool pushed = svc.CommitExternal(undo);
+            Assert.True(pushed);
+
+            // The pushed group is undoable → bytes restore.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(orig, rom.u8(addr));
+        }
+
+        [Fact]
+        public void UndoService_CommitExternal_EmptyUndoData_ReturnsFalse()
+        {
+            if (!_fixture.IsAvailable) return;
+            if (CoreState.Undo == null) CoreState.Undo = new Undo();
+
+            var svc = new UndoService();
+            var empty = CoreState.Undo.NewUndoData("empty");
+            // Nothing recorded → CommitExternal must not push and must report false.
+            Assert.False(svc.CommitExternal(empty));
+        }
+
         // =================================================================
         // Single Undo (tests 7-11) -- requires ROM
         // =================================================================

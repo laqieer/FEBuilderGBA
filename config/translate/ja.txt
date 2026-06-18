@@ -11550,3 +11550,78 @@ GIF出力
 
 :Used only when no .ttf/.otf file is loaded.
 .ttf/.otfファイルを読み込んでいない場合のみ使用されます。
+
+:Add via Event Assembler
+Event Assemblerで追加
+
+:Assemble an EA event script (.event / .txt) and insert it into the ROM.
+EAイベントスクリプト(.event / .txt)をアセンブルしてROMに挿入します。
+
+:Event file:
+イベントファイル:
+
+:Free area:
+フリーエリア:
+
+:Store debug symbols:
+デバッグシンボルを保存:
+
+:Import (compile + insert)
+インポート(コンパイル + 挿入)
+
+:Select a .event or .txt file
+.event または .txt ファイルを選択
+
+:Auto re-compile updated source code (.s / .asm)
+更新されたソースコード(.s / .asm)を自動的に再コンパイルする
+
+:Auto re-compile of .s/.asm sources is not available in this build; running Event Assembler only.
+.s/.asm ソースの自動再コンパイルはこのビルドでは利用できません。Event Assembler のみ実行します。
+
+:Compilation failed.
+コンパイルに失敗しました。
+
+:Compilation successful.
+コンパイルに成功しました。
+
+:Compiling...
+コンパイル中...
+
+:Do not define a free area (use ORG in the EA)
+フリーエリアを定義しない(EA内でORGを指定)
+
+:event file
+イベントファイル
+
+:Inserted at: {0}
+挿入先: {0}
+
+:Please select an event file to import.
+インポートするイベントファイルを選択してください。
+
+:Save as comment
+コメントとして保存
+
+:Save both
+両方保存
+
+:Save sym.txt
+sym.txt を保存
+
+:Symbols: {0} entries
+シンボル: {0} 件
+
+:The last operation has been undone.
+最後の操作を取り消しました。
+
+:Type: Data (lower area)
+種類:データ(下位アドレス)
+
+:Type: Program (rebuild-safe upper area)
+種類:プログラム(rebuild非対象の上位アドレス)
+
+:Failed to apply the compiled ROM (size/resize limit exceeded?).
+コンパイルされたROMを適用できませんでした(サイズ/リサイズの上限を超えた可能性があります)。
+
+:Unable to write the temporary files needed for compilation.
+コンパイルに必要な一時ファイルを書き込めませんでした。
