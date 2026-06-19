@@ -2173,6 +2173,46 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.SystemTextEncoder = savedEnc; }
         }
 
+        [Fact]
+        public void EmitMenuCommandSubTable_OutOfRangeAsmPointer_SkipsBlock_NoThrow()
+        {
+            // RELEASE-SAFETY (the #1261 no-divergence audit, team-lead point 2): the 6 ASM blocks call
+            // Address.AddAddress(ProgramAddrToPlain(p32(off+p)), ...) with NO pre-check (verbatim WF).
+            // A junk/out-of-range p32 must SILENTLY SKIP that block via AddAddress's early-return — no
+            // throw (in Debug OR Release), matching WF. (The producer requires rom==CoreState.ROM, so
+            // AddAddress's isSafetyOffset early-return and the Address ctor's Debug.Assert test the same
+            // Data.Length; the ctor is never reached with an unsafe addr.)
+            var rom = CreateTestRom(0x1_0000);
+            uint pointer = 0x0300;
+            uint menuTable = 0x2000;
+            rom.write_u32(pointer, Ptr(menuTable));
+            rom.write_u32(menuTable + 0xc, Ptr(0x5000) | 1); // 1 entry
+            rom.write_u32(menuTable + 36 + 0xc, 0);          // stop
+            rom.write_u32(menuTable + 0, Ptr(0x6000));       // CString target (valid)
+            rom.write_u8(0x6000, 0x00);                      // empty string
+
+            // 3 valid ASM ptrs (@12/16/20), 3 out-of-range (@24/28/32): junk that ProgramAddrToPlain
+            // cannot rescue (0x00000000, 0xFFFFFFFF, and a > ROM-length offset).
+            rom.write_u32(menuTable + 12, Ptr(0x7000) | 1);
+            rom.write_u32(menuTable + 16, Ptr(0x7100) | 1);
+            rom.write_u32(menuTable + 20, Ptr(0x7200) | 1);
+            rom.write_u32(menuTable + 24, 0x00000000);       // NULL  -> skipped
+            rom.write_u32(menuTable + 28, 0xFFFFFFFF);       // wild  -> skipped
+            rom.write_u32(menuTable + 32, 0x00FF_FFFE);      // offset > 0x1_0000 ROM -> skipped
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMenuCommandSubTable(rom, list, pointer, "MenuDef0_"));
+            Assert.Null(ex); // no throw
+
+            // Exactly the 3 in-range ASM blocks emit; the 3 out-of-range ones are skipped.
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(3, asms.Count);
+            Assert.Contains(asms, a => a.Addr == 0x7000);
+            Assert.Contains(asms, a => a.Addr == 0x7100);
+            Assert.Contains(asms, a => a.Addr == 0x7200);
+        }
+
         // ---- GetNotYetPortedForms coverage update --------------------------
 
         [Fact]

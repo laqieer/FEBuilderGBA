@@ -855,12 +855,22 @@ namespace FEBuilderGBA
             }
         }
 
-        /// <summary>One MenuDefinition per-entry ASM block: WF
+        /// <summary>One MenuDefinition/MenuCommand per-entry ASM block: WF
         /// <c>Address.AddAddress(list, DisassemblerTrumb.ProgramAddrToPlain(p32(off+p)), 0, p+off,
-        /// name, ASM)</c>. Note <c>ProgramAddrToPlain</c> is applied to the RAW <c>p32</c> result with
-        /// no prior pointer-safety check (WF behaviour); the length is 0 (the disassembler determines
-        /// the routine extent at rebuild). <see cref="Address.AddAddress"/> applies its own offset
-        /// safety guard, returning early on an unsafe resolved address.</summary>
+        /// name, ASM)</c>. Note <c>ProgramAddrToPlain</c> (= <c>U.Padding2Before</c>, clears the thumb
+        /// LSB only) is applied to the RAW <c>p32</c> result with NO prior pointer-safety check — this
+        /// is the WF behaviour, deliberately preserved (distinct from <see cref="Address.AddFunction"/>,
+        /// which DOES pre-check). The length is 0 (the disassembler determines the routine extent at
+        /// rebuild).
+        /// <para>RELEASE-SAFETY (the #1261 no-divergence audit): an out-of-range
+        /// <c>ProgramAddrToPlain</c> result does NOT throw in Release (nor Debug). Core
+        /// <see cref="Address.AddAddress"/> early-returns (<c>if (!isSafetyOffset(addr)) return;</c>)
+        /// BEFORE the <see cref="Address"/> ctor — byte-identical to WF's AddAddress. Because the
+        /// producer requires <c>rom == CoreState.ROM</c>, that early-return and the ctor's
+        /// <c>Debug.Assert(isSafetyOffset)</c> test the SAME <c>CoreState.ROM.Data.Length</c>, so the
+        /// ctor is never reached with an unsafe addr in either build. A junk/NULL <c>p32</c> therefore
+        /// silently skips that ASM block in Core exactly as it does in WF — no throw, no divergence.</para>
+        /// </summary>
         static void EmitMenuDefAsm(ROM rom, List<Address> list, uint p, uint off, string name)
         {
             uint paddr = rom.p32(off + p);
