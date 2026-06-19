@@ -970,6 +970,16 @@ namespace FEBuilderGBA
             string name = Path.GetFileNameWithoutExtension(filename);
             return Path.Combine(dir, name + appendname + ext);
         }
+
+        //https://stackoverflow.com/questions/146134/how-to-remove-illegal-characters-from-path-and-filenames
+        readonly static string s_regexSearch = "[" + System.Text.RegularExpressions.Regex.Escape(
+            new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars()))
+            + "]";
+        public static string escape_filename(string str)
+        {
+            str = RegexCache.Replace(str, s_regexSearch, "_");
+            return str;
+        }
         public static void WriteAllBytes(string path, byte[] bytes)
         {
             try
@@ -1025,6 +1035,18 @@ namespace FEBuilderGBA
                 if (a[i] != b[i]) return a[i] < b[i] ? -1 : 1;
             }
             return 0;
+        }
+        public static int GetIndexOf(uint[] list, uint need)
+        {
+            if (list == null) return -1;
+            for (int i = 0; i < list.Length; i++)
+            {
+                if (list[i] == need)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         // ---- Checksum ---------------------------------------------------------
