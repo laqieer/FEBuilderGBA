@@ -25852,3 +25852,33 @@ ROMRebuild 报告
 :...and {0} more.
 ...还有 {0} 项。
 
+:{0} block not found in ROM: {1}
+在 ROM 中找不到 {0} 块：{1}
+
+:LYN block not found in ROM: {0}
+在 ROM 中找不到 LYN 块：{0}
+
+:BIN block not found in ROM: {0}
+在 ROM 中找不到 BIN 块：{0}
+
+:PROCS table (length detection is WinForms-only): {0}
+PROCS 表（长度检测仅限 WinForms）：{0}
+
+:(label)
+（标签）
+
+:(inline)
+（内联）
+
+:No identified ROM, or the event file is missing.
+没有可识别的 ROM，或事件文件不存在。
+
+:Temporary wrapper file is not a traceable patch.
+临时包装文件不是可追踪的补丁。
+
+:Could not read the event file: {0}
+无法读取事件文件：{0}
+
+:Png2Dmp image (no .dmp hint): {0}
+Png2Dmp 图像（无 .dmp 提示）：{0}
+

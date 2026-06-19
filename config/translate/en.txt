@@ -20691,3 +20691,33 @@ Partial uninstall
 :Undo manager unavailable.
 Undo manager unavailable.
 
+:{0} block not found in ROM: {1}
+{0} block not found in ROM: {1}
+
+:LYN block not found in ROM: {0}
+LYN block not found in ROM: {0}
+
+:BIN block not found in ROM: {0}
+BIN block not found in ROM: {0}
+
+:PROCS table (length detection is WinForms-only): {0}
+PROCS table (length detection is WinForms-only): {0}
+
+:(label)
+(label)
+
+:(inline)
+(inline)
+
+:No identified ROM, or the event file is missing.
+No identified ROM, or the event file is missing.
+
+:Temporary wrapper file is not a traceable patch.
+Temporary wrapper file is not a traceable patch.
+
+:Could not read the event file: {0}
+Could not read the event file: {0}
+
+:Png2Dmp image (no .dmp hint): {0}
+Png2Dmp image (no .dmp hint): {0}
+

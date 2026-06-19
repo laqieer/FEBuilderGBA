@@ -39,7 +39,13 @@ namespace FEBuilderGBA
             , ASM //incbinされたデータ ASM
             , BIN //incbinされたデータ BIN
             , LYN //lynによってインポートされるelfファイル
-            , LYNHOOK //lynによるフック 16バイト
+            // lyn hook. The hook STUB that lyn writes at the hooked address is 16 bytes
+            // (the WF source's "16バイト" refers to that stub). The UNINSTALL TRACER
+            // reverts a 20-byte range at the hook address, matching WF
+            // PatchForm.TraceEAPatchedMapping (length = 20): it covers the 16-byte stub
+            // plus the 4-byte aligned slot lyn may also overwrite, so the revert
+            // restores the whole patched region rather than only the stub.
+            , LYNHOOK
             , POINTER_ARRAY
             , PROCS
         }
@@ -560,7 +566,7 @@ namespace FEBuilderGBA
                 return true;
             }
 
-            this.UntraceableNotes.Add("Png2Dmp image (no .dmp hint): " + filename);
+            this.UntraceableNotes.Add(R._("Png2Dmp image (no .dmp hint): {0}", filename));
             return false;
         }
 

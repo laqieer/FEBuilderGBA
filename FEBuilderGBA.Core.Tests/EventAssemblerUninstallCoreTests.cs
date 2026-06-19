@@ -212,6 +212,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(result.UntracedCount > 0);                 // the lead's signal
                 Assert.Equal(result.UntracedCount, result.UntraceableBlocks.Count);
                 Assert.NotEmpty(result.UntraceableBlocks);
+                // The notes are now localized via R._(), but the filename is a {0} param
+                // that survives translation in every locale — so this substring stays
+                // valid. The robust signal is FullyTraced/UntracedCount above.
                 Assert.Contains(result.UntraceableBlocks, s => s.Contains("img.png"));
 
                 // The traceable ORG bytes were still restored (residue does not block the

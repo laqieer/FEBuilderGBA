@@ -136,12 +136,12 @@ namespace FEBuilderGBA
             if (rom == null || rom.RomInfo == null
                 || string.IsNullOrEmpty(eaFilePath) || !File.Exists(eaFilePath))
             {
-                result.Untraceable.Add("No identified ROM, or the event file is missing.");
+                result.Untraceable.Add(R._("No identified ROM, or the event file is missing."));
                 return result;
             }
             if (EAUtilCore.IsFBGTemp(eaFilePath))
             {
-                result.Untraceable.Add("Temporary wrapper file is not a traceable patch.");
+                result.Untraceable.Add(R._("Temporary wrapper file is not a traceable patch."));
                 return result;
             }
 
@@ -156,7 +156,7 @@ namespace FEBuilderGBA
                 // ArgumentException for a bad path, parse errors). Honour the "never
                 // throws" contract: turn any failure into an untraceable note + empty
                 // trace, which the caller surfaces as a clean "could not trace" error.
-                result.Untraceable.Add("Could not read the event file: " + ex.Message);
+                result.Untraceable.Add(R._("Could not read the event file: {0}", ex.Message));
                 return result;
             }
 
@@ -210,8 +210,8 @@ namespace FEBuilderGBA
                     uint addr = U.GrepPatternMatch(rom.Data, mod, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
                     {//パッチが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add(data.DataType + " block not found in ROM: "
-                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
+                        result.Untraceable.Add(R._("{0} block not found in ROM: {1}",
+                            data.DataType.ToString(), BlockName(data.Name)));
                         continue;
                     }
 
@@ -248,8 +248,7 @@ namespace FEBuilderGBA
                     uint addr = U.GrepPatternMatch(rom.Data, data.BINData, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
                     {//LYN ELFが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add("LYN block not found in ROM: "
-                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
+                        result.Untraceable.Add(R._("LYN block not found in ROM: {0}", BlockName(data.Name)));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -273,6 +272,10 @@ namespace FEBuilderGBA
                 else if (data.DataType == EAUtilCore.DataEnum.LYNHOOK)
                 {
                     uint addr = data.ORGAddr;
+                    // 20 bytes (NOT the 16-byte hook stub): matches WF
+                    // PatchForm.TraceEAPatchedMapping, which reverts the 16-byte lyn hook
+                    // stub plus the 4-byte aligned slot lyn may also overwrite. See the
+                    // EAUtilCore.DataEnum.LYNHOOK comment.
                     uint length = (uint)20;
 
                     var b = new BinMapping
@@ -335,8 +338,8 @@ namespace FEBuilderGBA
                     // range — identical to the WinForms tracer's `continue` when that
                     // returns NOT_FOUND. Record it as residue so the caller can warn.
                     // (See class doc scope note.)
-                    result.Untraceable.Add("PROCS table (length detection is WinForms-only): "
-                        + (string.IsNullOrEmpty(data.Name) ? "(label)" : data.Name));
+                    result.Untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
+                        string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
                     continue;
                 }
                 else
@@ -349,8 +352,7 @@ namespace FEBuilderGBA
                     uint addr = U.Grep(rom.Data, data.BINData, lastMatchAddr);
                     if (addr == U.NOT_FOUND)
                     {//BINが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add("BIN block not found in ROM: "
-                            + (string.IsNullOrEmpty(data.Name) ? "(inline)" : data.Name));
+                        result.Untraceable.Add(R._("BIN block not found in ROM: {0}", BlockName(data.Name)));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -562,7 +564,6 @@ namespace FEBuilderGBA
         {
             ROM rom = CoreState.ROM;
             int length = Math.Min(rom.Data.Length, other.Length);
-            int checkpoint;
             int i;
             for (i = (int)addr; i < length; i++)
             {
@@ -570,8 +571,6 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-
-                checkpoint = i;
 
                 i++;
                 int missCount = 0;
@@ -695,6 +694,13 @@ namespace FEBuilderGBA
                 return 0;
             }
             return data[addr];
+        }
+
+        // The display name for an untraceable block: the file/label name, or a
+        // localized "(inline)" placeholder for an unnamed (inline) block.
+        static string BlockName(string name)
+        {
+            return string.IsNullOrEmpty(name) ? R._("(inline)") : name;
         }
     }
 }

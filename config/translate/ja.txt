@@ -12011,3 +12011,33 @@ ROMRebuildレポートの作成に失敗しました。
 :...and {0} more.
 ...他{0}件。
 
+:{0} block not found in ROM: {1}
+{0}ブロックがROM内に見つかりません: {1}
+
+:LYN block not found in ROM: {0}
+LYNブロックがROM内に見つかりません: {0}
+
+:BIN block not found in ROM: {0}
+BINブロックがROM内に見つかりません: {0}
+
+:PROCS table (length detection is WinForms-only): {0}
+PROCSテーブル(長さ検出はWinForms専用): {0}
+
+:(label)
+(ラベル)
+
+:(inline)
+(インライン)
+
+:No identified ROM, or the event file is missing.
+認識されたROMがないか、イベントファイルが存在しません。
+
+:Temporary wrapper file is not a traceable patch.
+一時ラッパーファイルは追跡可能なパッチではありません。
+
+:Could not read the event file: {0}
+イベントファイルを読み込めませんでした: {0}
+
+:Png2Dmp image (no .dmp hint): {0}
+Png2Dmp画像(.dmpヒントなし): {0}
+

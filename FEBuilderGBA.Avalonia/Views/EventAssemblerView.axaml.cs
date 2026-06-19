@@ -264,6 +264,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
             UninstallButton.IsEnabled = false;
             ImportButton.IsEnabled = false;
+            // Disable Undo during the revert — it may already be visible from a prior
+            // Import, and a click mid-revert would race the in-progress undo writes and
+            // corrupt the undo/history state. Capture its prior enabled state so the
+            // finally restores EXACTLY that (not a blind true).
+            bool undoWasEnabled = UndoButton.IsEnabled;
+            UndoButton.IsEnabled = false;
             _vm.StatusMessage = R._("Uninstalling...");
 
             // Same explicit-UndoData discipline as Import: the trace+revert runs off
@@ -325,6 +331,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 UninstallButton.IsEnabled = true;
                 ImportButton.IsEnabled = true;
+                // Restore Undo to its PRIOR enabled state (success or failure) so a user
+                // who had it usable before the uninstall is never left without a working
+                // Undo button — and we don't enable it if it wasn't. A successful revert
+                // sets CanUndo=true (which also drives IsVisible), so Undo stays usable.
+                UndoButton.IsEnabled = undoWasEnabled;
             }
         }
 
