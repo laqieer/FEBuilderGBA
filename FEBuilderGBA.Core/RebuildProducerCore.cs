@@ -214,13 +214,17 @@ namespace FEBuilderGBA
 
         static void EmitOne(ROM rom, List<Address> list, StructDescriptor d, uint pointer)
         {
+            // Bounds-check against the PASSED rom, not CoreState.ROM — this is a Core API that
+            // may scan a rom != CoreState.ROM. The plain U.isSafetyOffset(uint) overload is bound
+            // to CoreState.ROM.Data.Length, so on a differently-sized rom it would mis-judge the
+            // pointer and the rom.u8/u16/u32 reads in getBlockDataCount could throw OOB.
             pointer = U.toOffset(pointer);
-            if (!U.isSafetyOffset(pointer))
+            if (!U.isSafetyOffset(pointer, rom))
             {
                 return;
             }
             uint baseAddr = rom.p32(pointer);
-            if (!U.isSafetyOffset(baseAddr))
+            if (!U.isSafetyOffset(baseAddr, rom))
             {
                 return;
             }
@@ -391,16 +395,35 @@ namespace FEBuilderGBA
                 PointerIndexes = new uint[] { },
             });
 
-            // ArenaClassForm.MakeAllDataLength (3 weapon-class pointers, blockSize 1, u8!=0)
+            // ArenaClassForm.MakeAllDataLength emits THREE SEPARATE base tables (near/far/magic),
+            // each via its own ReInitPointer + AddAddress with a DISTINCT Info string — NOT one
+            // table with 3 pointer columns. So they are 3 single-pointer descriptors with the
+            // verbatim WF Info strings, in WF order (near, far, magic). Collapsing them into one
+            // multi-pointer descriptor would give all three the same Info (faithfulness break).
             l.Add(new StructDescriptor
             {
-                Name = "AreaClassForm weapon",
-                PointerFields = r => new uint[]
-                {
-                    r.RomInfo.arena_class_near_weapon_pointer,
-                    r.RomInfo.arena_class_far_weapon_pointer,
-                    r.RomInfo.arena_class_magic_weapon_pointer,
-                },
+                Name = "AreaClassForm near weapon",
+                PointerField = r => r.RomInfo.arena_class_near_weapon_pointer,
+                BlockSize = 1,
+                Rule = DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 0x00,
+                PointerIndexes = new uint[] { },
+            });
+            l.Add(new StructDescriptor
+            {
+                Name = "AreaClassForm far weapon",
+                PointerField = r => r.RomInfo.arena_class_far_weapon_pointer,
+                BlockSize = 1,
+                Rule = DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 0x00,
+                PointerIndexes = new uint[] { },
+            });
+            l.Add(new StructDescriptor
+            {
+                Name = "AreaClassForm magic weapon",
+                PointerField = r => r.RomInfo.arena_class_magic_weapon_pointer,
                 BlockSize = 1,
                 Rule = DataCountRule.U8NotEqual,
                 RuleOffset = 0,
@@ -452,7 +475,19 @@ namespace FEBuilderGBA
         /// </summary>
         public static string[] GetNotYetPortedForms()
         {
-            return new[]
+            // Defensively de-dup: duplicates would inflate the count and make the IsComplete
+            // gate ("empty == safe to wire into a real defragment") unreliable. The
+            // RebuildProducerCoreTests.GetNotYetPortedForms_HasNoDuplicates test also asserts
+            // the raw literal itself stays duplicate-free.
+            return System.Linq.Enumerable.ToArray(
+                   System.Linq.Enumerable.Distinct(NotYetPortedRaw));
+        }
+
+        /// <summary>The un-deduplicated source list (exposed so a test can assert it has no
+        /// duplicates — keeping the literal clean, not just the public dedup'd view).</summary>
+        public static string[] GetNotYetPortedFormsRaw() => (string[])NotYetPortedRaw.Clone();
+
+        static readonly string[] NotYetPortedRaw = new[]
             {
                 // event conditions / scripts
                 "EventCondForm", "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
@@ -498,14 +533,13 @@ namespace FEBuilderGBA
                 "MonsterItemForm", "MonsterProbabilityForm", "MonsterWMapProbabilityForm",
                 "EDForm", "EventBattleTalkForm", "CCBranchForm", "OPClassAlphaNameForm",
                 "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm",
-                "OPPrologueForm", "EventHaikuForm", "SoundRoomForm", "SupportTalkForm",
+                "OPPrologueForm", "EventHaikuForm", "SupportTalkForm",
                 "SupportUnitForm", "WorldMapPointForm", "MapSettingForm",
                 "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
-                "WorldMapPointForm", "TacticianAffinityFE7", "EventFinalSerifFE7Form",
+                "TacticianAffinityFE7", "EventFinalSerifFE7Form",
                 "EDSensekiCommentForm", "OPClassDemoFE7Form", "ImageCGFE7UForm",
                 // patch / procs / ASM (AppendAllASMStructPointersList)
                 "PatchForm(MakePatchStructDataList)", "ProcsScriptForm",
             };
-        }
     }
 }

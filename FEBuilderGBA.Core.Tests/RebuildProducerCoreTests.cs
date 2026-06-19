@@ -247,6 +247,78 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(list);
         }
 
+        [Fact]
+        public void WalkAndAdd_BoundsCheck_UsesPassedRom_NotCoreStateRom()
+        {
+            // CoreState.ROM is a LARGE rom; the scanned `rom` is SMALL. A pointer/table that is
+            // valid in the small rom must still be walked, and a base whose reads would exceed the
+            // SMALL rom's length must NOT throw (the bug: U.isSafetyOffset(uint) used CoreState.ROM
+            // bounds, so the rom.u8/u16/u32 reads in getBlockDataCount could throw OOB).
+            var bigRom = new ROM();
+            bigRom.SwapNewROMDataDirect(new byte[0x40000]); // large ambient rom
+            CoreState.ROM = bigRom;
+
+            // The rom we actually scan is independent and much smaller.
+            var smallRom = new ROM();
+            smallRom.SwapNewROMDataDirect(new byte[0x2000]);
+            uint pointer = 0x0240;
+            uint table = 0x1000;
+            smallRom.write_u32(pointer, Ptr(table));
+            smallRom.write_u8(table + 0, 0x01);
+            smallRom.write_u8(table + 1, 0x00); // terminator (blockSize 1, u8!=0)
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "CrossRom",
+                PointerField = _ => pointer,
+                BlockSize = 1,
+                Rule = RebuildProducerCore.DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 0x00,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            // Must not throw, and must emit the table found in the SMALL rom.
+            RebuildProducerCore.WalkAndAdd(smallRom, list, d);
+
+            Assert.Single(list);
+            Assert.Equal(table, list[0].Addr);
+            Assert.Equal(1u * (1 + 1), list[0].Length); // 1 entry -> block*(count+1)
+        }
+
+        [Fact]
+        public void WalkAndAdd_PointerPastPassedRomEnd_DoesNotThrow_EmitsNothing()
+        {
+            // A pointer slot whose VALUE is valid in the big ambient rom but points PAST the
+            // small scanned rom must be rejected by the passed-rom bounds check (no OOB throw).
+            var bigRom = new ROM();
+            bigRom.SwapNewROMDataDirect(new byte[0x40000]);
+            CoreState.ROM = bigRom;
+
+            var smallRom = new ROM();
+            smallRom.SwapNewROMDataDirect(new byte[0x2000]);
+            uint pointer = 0x0240;
+            // table offset 0x30000 is valid in bigRom but PAST smallRom's 0x2000 end.
+            smallRom.write_u32(pointer, Ptr(0x30000));
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "OOB",
+                PointerField = _ => pointer,
+                BlockSize = 4,
+                Rule = RebuildProducerCore.DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 0x00,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.WalkAndAdd(smallRom, list, d));
+            Assert.Null(ex);     // no IndexOutOfRangeException
+            Assert.Empty(list);  // base past the scanned rom -> nothing emitted
+        }
+
         // ---- plumbing: cancellation returns partial list --------------------
 
         [Fact]
@@ -282,6 +354,21 @@ namespace FEBuilderGBA.Core.Tests
             // MoveCost) the descriptor walker cannot emit yet -> must be DEFERRED, not in the batch.
             Assert.Contains("ItemForm", notYet);
             Assert.Contains("ClassForm", notYet);
+        }
+
+        [Fact]
+        public void GetNotYetPortedForms_HasNoDuplicates()
+        {
+            // Duplicates would inflate the count and make the IsComplete gate
+            // ("empty == safe to wire into a real defragment") unreliable. Assert BOTH the public
+            // (dedup'd) view AND the raw literal are duplicate-free.
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.Equal(notYet.Length, notYet.Distinct().Count());
+
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            var dups = raw.GroupBy(s => s).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
+            Assert.True(dups.Length == 0,
+                "NotYetPorted raw list has duplicate entries: " + string.Join(", ", dups));
         }
 
         [Fact]
@@ -342,7 +429,10 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 if (rom.RomInfo.version != 8) return; // this assertion is FE8U-specific
 
-                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                // Pass a progress collector through and assert reporting happens (does not throw).
+                var progressLines = new List<string>();
+                var progress = new Progress<string>(s => { lock (progressLines) progressLines.Add(s); });
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom, progress);
                 Assert.NotEmpty(list);
 
                 // SupportAttribute table (a clean single-walk batch form) must be present
@@ -361,6 +451,16 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(20u, ai3.BlockSize);
                 Assert.Equal(20u * (8 + 1), ai3.Length); // fixed 8 -> length = 20*(8+1)
 
+                // ArenaClass emits THREE separate tables with DISTINCT WF Info strings (faithfulness
+                // fix — not one collapsed multi-pointer entry). Each base must be present by its
+                // own RomInfo pointer with the matching Info label.
+                uint arNear = rom.p32(rom.RomInfo.arena_class_near_weapon_pointer);
+                Assert.Contains(list, a => a.Addr == arNear && a.Info == "AreaClassForm near weapon");
+                uint arFar = rom.p32(rom.RomInfo.arena_class_far_weapon_pointer);
+                Assert.Contains(list, a => a.Addr == arFar && a.Info == "AreaClassForm far weapon");
+                uint arMagic = rom.p32(rom.RomInfo.arena_class_magic_weapon_pointer);
+                Assert.Contains(list, a => a.Addr == arMagic && a.Info == "AreaClassForm magic weapon");
+
                 // FAITHFULNESS / COMPLETENESS-SAFETY: Item and Class are NOT emitted by this
                 // slice (embedded sub-pointer blocks). They must be absent from the list AND
                 // tracked in NotYetPorted so a rebuild does not silently drop their sub-blocks.
@@ -368,6 +468,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
                 uint classBase = rom.p32(rom.RomInfo.class_pointer);
                 Assert.DoesNotContain(list, a => a.Addr == classBase && a.Info == "Class");
+
+                // The progress collector must have received reports (per-descriptor + summary).
+                lock (progressLines)
+                {
+                    Assert.NotEmpty(progressLines);
+                    Assert.Contains(progressLines, s => s.Contains("not-yet-ported"));
+                }
             }
             finally
             {
