@@ -4120,28 +4120,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void EmitSupportUnitAt_ZeroFirstField_ButOwnedByUnit_ContinuesViaLookahead()
+        public void EmitSupportUnitAt_ZeroFirstField_NullRomInfo_TerminatesWithoutLookahead()
         {
-            // A zero-first-field row is KEPT when a unit's +44 support pointer points at it (the WF
-            // "飛び地" lookahead). Plant a unit table where unit 0's +44 points at support entry 1.
+            // With a null RomInfo (synthetic CreateTestRom), the WF "飛び地" owner-lookahead cannot fire
+            // — SupportUnitNavigation.GetUnitIdAtSupportAddr returns null when RomInfo == null — so a
+            // zero-first-field row terminates the count walk. This verifies the count rule degrades
+            // gracefully in headless/synthetic contexts (no unit table to consult). The POSITIVE
+            // lookahead path (a zero-first-field row KEPT because a unit's +44 support pointer owns it)
+            // is covered by SupportUnitNavigationTests.GetUnitIdAtSupportAddr_FindsOwnerFE8U.
             var rom = CreateTestRom(0x8000);
             uint supTable = 0x1000;
             uint supPtr = 0x0400;
             const uint block = 24;
             rom.write_u32(supPtr, Ptr(supTable));
-            // support entries: 0 has a non-zero first field; 1 has ZERO first field but is OWNED;
-            // 2 is zero + unowned -> terminator.
+            // support entries: 0 has a non-zero first field; 1 has ZERO first field — with no RomInfo
+            // it is unowned -> terminator at entry 1.
             rom.write_u16(supTable + 0 * block, 0x0011);
-            rom.write_u16(supTable + 1 * block, 0x0000); // zero, but owned below
-            rom.write_u16(supTable + 2 * block, 0x0000); // zero + unowned -> stop
+            rom.write_u16(supTable + 1 * block, 0x0000); // zero + (no RomInfo -> ) unowned -> stop
+            rom.write_u16(supTable + 2 * block, 0x0000);
 
-            // Unit table: GetUnitIdAtSupportAddr reads unit_pointer/unit_datasize/unit_maxcount from
-            // RomInfo. On a synthetic CreateTestRom RomInfo is null, so the lookahead returns null and
-            // the row would NOT be kept. Confirm: without a unit table, entry 1 terminates the walk.
             var listNoUnit = new List<Address>();
             RebuildProducerCore.EmitSupportUnitAt(rom, listNoUnit, supPtr, block, firstFieldWidth: 2, name: "SupportUnit");
             Address mainNoUnit = listNoUnit.Single();
-            // entry 0 valid, entry 1 zero+unowned -> DataCount = 1 -> length 24*2 = 48.
+            // entry 0 valid, entry 1 zero+unowned -> DataCount = 1 -> length 24*(1+1) = 48.
             Assert.Equal(block * (1 + 1), mainNoUnit.Length);
         }
 
