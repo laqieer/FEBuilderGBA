@@ -222,6 +222,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             RunButton.IsEnabled = false;
             MargeUpdateButton.IsEnabled = false;
+            // Disable Undo during the background build+install — a click mid-mutation
+            // would race the bg-thread CoreState.Undo/ROM writes and corrupt state.
+            // Restored to its prior state in the finally below.
+            bool undoWasEnabled = UndoButton.IsEnabled;
+            UndoButton.IsEnabled = false;
             _vm.StatusMessage = R._("Building...");
 
             // Same EXPLICIT-UndoData posture as Run_Click: the build AND the patch
@@ -280,6 +285,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 RunButton.IsEnabled = true;
                 MargeUpdateButton.IsEnabled = true;
+                // Restore Undo (success or failure); a successful commit above set
+                // CanUndo=true which drives IsVisible.
+                UndoButton.IsEnabled = undoWasEnabled;
             }
         }
 

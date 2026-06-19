@@ -25927,6 +25927,9 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 :Marge and Update failed.
 合并并更新失败。
 
+:MargeAndUpdate must install into the currently loaded ROM.
+合并并更新必须安装到当前加载的ROM中。
+
 :Patch: {0}
 补丁: {0}
 

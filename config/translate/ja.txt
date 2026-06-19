@@ -12086,6 +12086,9 @@ Png2Dmp画像(.dmpヒントなし): {0}
 :Marge and Update failed.
 マージと更新に失敗しました。
 
+:MargeAndUpdate must install into the currently loaded ROM.
+マージと更新は、現在読み込まれているROMにインストールする必要があります。
+
 :Patch: {0}
 パッチ: {0}
 

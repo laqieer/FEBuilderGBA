@@ -245,6 +245,17 @@ namespace FEBuilderGBA
                 result.ErrorMessage = R._("No ROM is loaded.");
                 return result;
             }
+            // The install writes through PatchInstallCore.ApplyPatch, whose undo
+            // machinery (write_resize_data / UndoPostion) snapshots pre-write bytes
+            // from — and rolls back into — CoreState.ROM. So rom MUST be exactly
+            // CoreState.ROM, or the snapshot would be taken from a different buffer and
+            // rollback would corrupt state. Fail loudly rather than apply with a broken
+            // undo.
+            if (!ReferenceEquals(rom, CoreState.ROM))
+            {
+                result.ErrorMessage = R._("MargeAndUpdate must install into the currently loaded ROM.");
+                return result;
+            }
             if (undo == null)
             {
                 result.ErrorMessage = R._("Undo data is required for MargeAndUpdate.");

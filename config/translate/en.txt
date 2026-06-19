@@ -20748,6 +20748,9 @@ Marge and Update successful.
 :Marge and Update failed.
 Marge and Update failed.
 
+:MargeAndUpdate must install into the currently loaded ROM.
+MargeAndUpdate must install into the currently loaded ROM.
+
 :Patch: {0}
 Patch: {0}
 
