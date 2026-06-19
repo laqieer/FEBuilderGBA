@@ -20643,3 +20643,81 @@ Failed to create the ROMRebuild report. {0}
 :Failed to create the ROMRebuild report.
 Failed to create the ROMRebuild report.
 
+:Uninstalling...
+Uninstalling...
+
+:Uninstall successful.
+Uninstall successful.
+
+:Uninstall failed.
+Uninstall failed.
+
+:Uninstall cancelled.
+Uninstall cancelled.
+
+:Reverted {0} range(s), {1} byte(s).
+Reverted {0} range(s), {1} byte(s).
+
+:Event file not found: {0}
+Event file not found: {0}
+
+:The selected clean ROM is empty.
+The selected clean ROM is empty.
+
+:The selected clean ROM is too small ({0} bytes) for this patch (needs at least {1} bytes). Did you pick the wrong file?
+The selected clean ROM is too small ({0} bytes) for this patch (needs at least {1} bytes). Did you pick the wrong file?
+
+:Could not trace any patched ranges from this event file. It may not be an applied EA patch, or it uses constructs this in-place uninstall does not support.
+Could not trace any patched ranges from this event file. It may not be an applied EA patch, or it uses constructs this in-place uninstall does not support.
+
+:This event file's patched ranges cannot be traced for in-place uninstall ({0} block(s)). Uninstall it via the WinForms patch manager, or revert with a backup ROM.
+This event file's patched ranges cannot be traced for in-place uninstall ({0} block(s)). Uninstall it via the WinForms patch manager, or revert with a backup ROM.
+
+:WARNING: {0} block(s) in this patch could not be traced and were NOT reverted — the uninstall may be incomplete. Please verify the ROM.
+WARNING: {0} block(s) in this patch could not be traced and were NOT reverted — the uninstall may be incomplete. Please verify the ROM.
+
+:{0} block(s) in this EA cannot be traced (e.g. inline image / PROCS); those bytes will NOT be reverted and may remain patched.
+{0} block(s) in this EA cannot be traced (e.g. inline image / PROCS); those bytes will NOT be reverted and may remain patched.
+
+:Proceed with a partial uninstall?
+Proceed with a partial uninstall?
+
+:Partial uninstall
+Partial uninstall
+
+:...and {0} more.
+...and {0} more.
+
+:Undo manager unavailable.
+Undo manager unavailable.
+
+:{0} block not found in ROM: {1}
+{0} block not found in ROM: {1}
+
+:LYN block not found in ROM: {0}
+LYN block not found in ROM: {0}
+
+:BIN block not found in ROM: {0}
+BIN block not found in ROM: {0}
+
+:PROCS table (length detection is WinForms-only): {0}
+PROCS table (length detection is WinForms-only): {0}
+
+:(label)
+(label)
+
+:(inline)
+(inline)
+
+:No identified ROM, or the event file is missing.
+No identified ROM, or the event file is missing.
+
+:Temporary wrapper file is not a traceable patch.
+Temporary wrapper file is not a traceable patch.
+
+:Could not read the event file: {0}
+Could not read the event file: {0}
+
+:Png2Dmp image (no .dmp hint): {0}
+Png2Dmp image (no .dmp hint): {0}
+

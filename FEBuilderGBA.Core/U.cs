@@ -2180,6 +2180,31 @@ namespace FEBuilderGBA
             if (i < 0) return "";
             return text.Substring(0, i);
         }
+        // Skip past the first occurrence of need, returning the remainder.
+        // Ported from the WinForms U.cs for the Core EA parser (EAUtilCore).
+        public static string skip(string text, string need)
+        {
+            int i = text.IndexOf(need);
+            if (i < 0) return "";
+            return text.Substring(i + need.Length);
+        }
+        // Append need to data only if it is not already present (case-sensitive).
+        // Ported from the WinForms U.cs for the Core EA uninstall trace.
+        public static string[] AddIfNotExist(string[] data, string need)
+        {
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (data[i] == need)
+                {
+                    return data;
+                }
+            }
+
+            string[] d = new string[data.Length + 1];
+            Array.Copy(data, 0, d, 0, data.Length);
+            d[data.Length] = need;
+            return d;
+        }
 
         public static string unhtmlspecialchars(string inStr)
         {

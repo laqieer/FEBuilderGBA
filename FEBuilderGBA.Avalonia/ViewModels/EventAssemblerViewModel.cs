@@ -7,8 +7,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// ViewModel for the Avalonia "Add-via-Event-Assembler" tool (WF
     /// <c>EventAssemblerForm</c>). Assembles/inserts an EA event script into the
     /// ROM via ColorzCore / Event-Assembler, with free-area selection
-    /// (Program / Data / None), a debug-symbol store choice and undo. (Uninstall is
-    /// deferred to a follow-up; revert an applied insert via undo for now.)
+    /// (Program / Data / None), a debug-symbol store choice and undo. In-place
+    /// Uninstall (#1242) reverts an applied EA patch from a clean-original ROM via
+    /// <c>EventAssemblerUninstallCore</c> (the View owns that flow + its file picker).
     ///
     /// The actual compile+insert work lives in the GUI-free Core helper
     /// <c>EventAssemblerCompileCore</c> (shared with the CLI
