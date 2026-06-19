@@ -17,6 +17,10 @@
         <Label AutomationProperties.AutomationId="FE8SpellMenuExtends_SelectedAddress_Label"
                Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
                FontFamily="Consolas" />
+        <Label Content="Top Address" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="FE8SpellMenuExtends_ListPointer_Input"
+                 Name="ListPointerBox" Width="120" FontFamily="Consolas"
+                 VerticalAlignment="Center" />
         <Button AutomationProperties.AutomationId="FE8SpellMenuExtends_Write_Button"
                 Name="MasterWriteButton" Content="Write" Click="MasterWriteButton_Click" />
         <Button AutomationProperties.AutomationId="FE8SpellMenuExtends_ReloadList_Button"
@@ -105,7 +109,7 @@
         <Grid ColumnDefinitions="160,80,Auto,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Spell_Label"
-                 Content="Skill" VerticalAlignment="Center" />
+                 Content="Spell" VerticalAlignment="Center" />
           <TextBox Grid.Column="1"
                    AutomationProperties.AutomationId="FE8SpellMenuExtends_N1SpellId_Input"
                    Name="N1SpellIdBox" FontFamily="Consolas" VerticalAlignment="Center" />

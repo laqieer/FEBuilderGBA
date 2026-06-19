@@ -218,14 +218,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Expand the selected unit's spell list to <paramref name="newCount"/>
         /// entries, allocating a fresh 0x0000-terminated block and repointing the
         /// unit slot. Mirrors WF N1_InputFormRef_AddressListExpandsEvent. The
-        /// caller MUST open an ambient UndoService scope first.
+        /// caller opens the UndoService scope and passes its active UndoData so
+        /// every write (to CoreState.ROM here) is recorded into that scope.
         /// </summary>
         /// <returns>True on success; false on failure (no expand performed).</returns>
-        public bool ExpandN1List(uint newCount)
+        public bool ExpandN1List(uint newCount, Undo.UndoData undodata)
         {
             ROM rom = CoreState.ROM;
             if (rom == null || _unitTableBase == 0) return false;
-            uint newAddr = FE8SpellMenuExtendsCore.ExpandSpellList(rom, _unitTableBase, SelectedUnitId, newCount);
+            uint newAddr = FE8SpellMenuExtendsCore.ExpandSpellList(rom, _unitTableBase, SelectedUnitId, newCount, undodata);
             if (newAddr == U.NOT_FOUND) return false;
             // The unit slot was already repointed by ExpandSpellList; refresh the
             // in-memory pointer + sub-list to match.

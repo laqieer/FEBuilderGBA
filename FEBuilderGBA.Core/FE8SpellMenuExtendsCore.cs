@@ -125,20 +125,24 @@ namespace FEBuilderGBA
         /// <summary>
         /// Expand a unit's spell list to <paramref name="newCount"/> entries
         /// (each B0|B1). A fresh block of (newCount * 2) + 2 bytes is allocated
-        /// in free space (the +2 is the 0x0000 terminator), the existing entries
-        /// are copied, and the unit's pointer slot is repointed at the new block.
-        /// Mirrors WF N1_InputFormRef_AddressListExpandsEvent (allocate a new
+        /// in free space of the PASSED <paramref name="rom"/> (the +2 is the
+        /// 0x0000 terminator), the existing entries are copied, and the unit's
+        /// pointer slot is repointed at the new block. Mirrors WF
+        /// N1_InputFormRef_AddressListExpandsEvent (allocate a new
         /// 0x0000-terminated block + repoint the unit slot).
         ///
-        /// The caller MUST open an ambient UndoService scope first; every write
-        /// here routes through the ambient RecycleAddress overload so the active
-        /// undo scope records each write exactly once.
+        /// All allocation and writes go to the EXPLICIT <paramref name="rom"/>
+        /// (NOT CoreState.ROM) and are recorded into the EXPLICIT
+        /// <paramref name="undodata"/> — honouring this class's "no CoreState"
+        /// contract. The View opens the UndoService scope and hands its active
+        /// UndoData here; pass null to write without undo capture.
         /// </summary>
         /// <returns>The new block OFFSET on success, or NOT_FOUND on failure
         /// (no ROM, unsafe slot, zero/oversized count, or free-space exhaustion).</returns>
-        public static uint ExpandSpellList(ROM rom, uint unitTableBase, uint unitId, uint newCount)
+        public static uint ExpandSpellList(ROM rom, uint unitTableBase, uint unitId, uint newCount,
+            Undo.UndoData undodata)
         {
-            if (rom == null) return U.NOT_FOUND;
+            if (rom == null || rom.Data == null) return U.NOT_FOUND;
             uint slot = GetUnitSlotAddr(unitTableBase, unitId);
             if (!U.isSafetyOffset(slot + 3, rom)) return U.NOT_FOUND;
             if (newCount == 0 || newCount > N1_MAX_ROWS) return U.NOT_FOUND;
@@ -171,9 +175,34 @@ namespace FEBuilderGBA
             }
             // Trailing two bytes already 0x00 0x00 → the terminator.
 
-            var ra = new RecycleAddress();
-            uint newAddr = ra.WriteAndWritePointerAmbient(slot, buffer);
-            if (newAddr == U.NOT_FOUND) return U.NOT_FOUND;
+            // Allocate against the PASSED rom (upper half, then lower half,
+            // then resize the tail) — a CoreState-free re-implementation of the
+            // RecycleAddress freespace fallback.
+            uint searchStart = (uint)(rom.Data.Length / 2);
+            uint newAddr = rom.FindFreeSpace(searchStart, (uint)buffer.Length);
+            if (newAddr == U.NOT_FOUND)
+            {
+                newAddr = rom.FindFreeSpace(0x100u, (uint)buffer.Length);
+            }
+            if (newAddr == U.NOT_FOUND)
+            {
+                uint newSize = U.Padding4((uint)rom.Data.Length + (uint)buffer.Length);
+                if (newSize > 0x02000000u) return U.NOT_FOUND;
+                uint tail = (uint)rom.Data.Length;
+                if (!rom.write_resize_data(newSize)) return U.NOT_FOUND;
+                newAddr = tail;
+            }
+
+            if (undodata != null)
+            {
+                rom.write_range(newAddr, buffer, undodata);
+                rom.write_p32(slot, newAddr, undodata);
+            }
+            else
+            {
+                rom.write_range(newAddr, buffer);
+                rom.write_p32(slot, newAddr);
+            }
             return newAddr;
         }
 

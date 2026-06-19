@@ -92,6 +92,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Content = string.Format("0x{0:X08}", _vm.CurrentAddr);
             SelectedAddressLabel.Content = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            // Editable per-unit list-base OFFSET (mirrors WF N1_ReadStartAddress).
+            // master Write repoints the unit slot at whatever the user types here.
+            ListPointerBox.Text = "0x" + U.toOffset(_vm.UnitListPointer).ToString("X08");
             UpdateZeroPointerPanel();
         }
 
@@ -166,9 +169,24 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Spell Menu Extensions Unit Pointer");
             try
             {
+                // Repoint the unit's spell-list base at the user-edited offset
+                // (mirrors WF WriteButton_Click reading N1_ReadStartAddress.Value).
+                _vm.UnitListPointer = U.atoh(ListPointerBox.Text ?? "0");
                 _vm.WriteMaster();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // Re-read the slot so UnitListPointer holds the canonical GBA
+                // pointer write_p32 stored (a bare offset fails U.isSafetyPointer
+                // in LoadSpellList), then refresh the N1 list + zero-pointer panel.
+                ROM rom = CoreState.ROM;
+                if (rom != null && U.isSafetyOffset(_vm.CurrentAddr + 3, rom))
+                {
+                    _vm.UnitListPointer = rom.u32(_vm.CurrentAddr);
+                    _vm.IsZeroPointer = !U.isSafetyPointer(_vm.UnitListPointer);
+                    _vm.LoadSpellList(rom);
+                }
+                UpdateUI();
+                if (_vm.SpellEntries.Count > 0) N1EntryList.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
@@ -231,7 +249,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Expand Spell Menu Extensions List");
                 try
                 {
-                    bool ok = _vm.ExpandN1List(newCount);
+                    bool ok = _vm.ExpandN1List(newCount, _undoService.GetActiveUndoData());
                     if (!ok)
                     {
                         _undoService.Rollback();

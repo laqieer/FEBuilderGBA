@@ -230,11 +230,12 @@ namespace FEBuilderGBA.Core.Tests
                 ROM rom = MakeFE8URom();
                 PlantPatch(rom);
                 PlantUnitList(rom, 2, ListBase, new (byte, byte)[] { (0x05, 0x10), (0x0A, 0x11) });
-                // ExpandSpellList writes via RecycleAddress -> CoreState.ROM.
-                CoreState.ROM = rom;
 
-                // Drive it inside an ambient undo scope (the editor opens one via
-                // UndoService.Begin); the writes route through it exactly once.
+                // Copilot #1: ExpandSpellList must allocate/write into the PASSED
+                // rom (NOT CoreState.ROM). Point CoreState.ROM at a DIFFERENT ROM
+                // and assert the passed rom is the one that changes.
+                CoreState.ROM = MakeFE8URom();
+
                 var ud = new Undo.UndoData
                 {
                     time = System.DateTime.Now,
@@ -242,15 +243,13 @@ namespace FEBuilderGBA.Core.Tests
                     list = new System.Collections.Generic.List<Undo.UndoPostion>(),
                     filesize = (uint)rom.Data.Length,
                 };
-                uint newBase;
-                using (ROM.BeginUndoScope(ud))
-                {
-                    newBase = FE8SpellMenuExtendsCore.ExpandSpellList(rom, UnitTableBase, 2, 4);
-                }
+                uint newBase = FE8SpellMenuExtendsCore.ExpandSpellList(rom, UnitTableBase, 2, 4, ud);
 
                 Assert.NotEqual(U.NOT_FOUND, newBase);
+                // Writes recorded into the EXPLICIT undodata (2: block + pointer).
+                Assert.Equal(2, ud.list.Count);
 
-                // The unit slot must now point at the new block.
+                // The PASSED rom's unit slot must now point at the new block.
                 uint slot = UnitTableBase + 2 * 4;
                 Assert.Equal(newBase, rom.p32(slot));
 
@@ -265,6 +264,34 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal((byte)0x01, rom.u8(newBase + 6));
                 // Terminator after 4 entries (8 bytes).
                 Assert.Equal(0x0000u, rom.u16(newBase + 8));
+            }
+            finally { CoreState.ROM = prev; }
+        }
+
+        [Fact]
+        public void ExpandSpellList_DoesNotTouchCoreStateRom_WhenDifferentRomPassed()
+        {
+            // Copilot #1 regression: the passed rom and CoreState.ROM are distinct
+            // instances; only the PASSED rom may be mutated.
+            var prev = CoreState.ROM;
+            try
+            {
+                ROM passed = MakeFE8URom();
+                PlantPatch(passed);
+                PlantUnitList(passed, 1, ListBase, new (byte, byte)[] { (0x05, 0x10) });
+
+                ROM other = MakeFE8URom();   // CoreState.ROM — must stay untouched
+                PlantPatch(other);
+                PlantUnitList(other, 1, ListBase, new (byte, byte)[] { (0x05, 0x10) });
+                CoreState.ROM = other;
+                uint otherSlotBefore = other.u32(UnitTableBase + 1 * 4);
+
+                uint newBase = FE8SpellMenuExtendsCore.ExpandSpellList(passed, UnitTableBase, 1, 3, null);
+                Assert.NotEqual(U.NOT_FOUND, newBase);
+
+                // Passed rom changed; CoreState.ROM's same slot is byte-identical.
+                Assert.Equal(newBase, passed.p32(UnitTableBase + 1 * 4));
+                Assert.Equal(otherSlotBefore, other.u32(UnitTableBase + 1 * 4));
             }
             finally { CoreState.ROM = prev; }
         }

@@ -256,7 +256,14 @@ public class FE8SpellMenuExtendsParityTests
             vm.LoadEntry(addr);
             Assert.Equal(2, vm.SpellEntries.Count);
 
-            bool ok = vm.ExpandN1List(4);
+            var ud = new Undo.UndoData
+            {
+                time = System.DateTime.Now,
+                name = "expand",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+            bool ok = vm.ExpandN1List(4, ud);
             Assert.True(ok);
             // After expand: 4 entries + re-terminated list (the first two preserved).
             Assert.Equal(4, vm.SpellEntries.Count);
@@ -355,6 +362,30 @@ public class FE8SpellMenuExtendsParityTests
     {
         string axaml = File.ReadAllText(AxamlPath());
         Assert.Contains("AutomationId=\"FE8SpellMenuExtends_N1Promoted_Check\"", axaml);
+    }
+
+    [Fact]
+    public void View_N1Label_IsSpell_NotSkill()
+    {
+        // Copilot #2: B1 is the item/spell id; WF labels it 魔法 (spell), so the
+        // Avalonia label must be "Spell" (not "Skill", which would conflate it
+        // with the SkillSystems skill editors).
+        string axaml = File.ReadAllText(AxamlPath());
+        Assert.Contains("AutomationId=\"FE8SpellMenuExtends_N1Spell_Label\"", axaml);
+        Assert.Matches(@"FE8SpellMenuExtends_N1Spell_Label[\s\S]{0,160}Content=""Spell""", axaml);
+        Assert.DoesNotContain("Content=\"Skill\"", axaml);
+    }
+
+    [Fact]
+    public void View_HasEditableListPointerField_AndMasterWriteReadsIt()
+    {
+        // Copilot #3: master Write must actually repoint the per-unit list base
+        // (WF N1_ReadStartAddress). The View needs an editable hex field, and
+        // MasterWriteButton_Click must read it before WriteMaster.
+        string axaml = File.ReadAllText(AxamlPath());
+        Assert.Contains("AutomationId=\"FE8SpellMenuExtends_ListPointer_Input\"", axaml);
+        string src = File.ReadAllText(ViewCsPath());
+        Assert.Contains("_vm.UnitListPointer = U.atoh(ListPointerBox.Text", src);
     }
 
     [Fact]
