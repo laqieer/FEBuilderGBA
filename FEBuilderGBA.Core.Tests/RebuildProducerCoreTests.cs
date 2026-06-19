@@ -1698,14 +1698,16 @@ namespace FEBuilderGBA.Core.Tests
             // Still deferred (un-ported subsystem) -> must REMAIN:
             foreach (var kept in new[]
             {
-                "EventBattleTalkForm", "EventHaikuForm", "SupportUnitForm",
-                "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm", "OPPrologueForm",
-                "MapSettingForm", "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
+                "EventBattleTalkForm", "EventHaikuForm",
+                "WorldMapEventPointerForm",
+                "MapSettingForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
                 "MonsterWMapProbabilityForm", "SoundRoomForm",
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
                 //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
-                //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.)
+                //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.
+                //  SupportUnitForm + WorldMapPathForm + EDStaffRollForm + OPPrologueForm + OPClassFontForm
+                //  ported in slice 2h -> no longer kept here.)
                 "ItemForm", "MapTerrainFloorLookupTableForm",
             })
             {
@@ -3917,6 +3919,447 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
             }
+        }
+
+        // ====================================================================
+        // slice 2h — OP/ED LZ77 stragglers (OPPrologue / EDStaffRoll / OPClassFont
+        // descriptors) + SupportUnit (owner-lookahead flat IFR) + WorldMapPath
+        // (per-entry computed-length sub-blocks). Descriptor-shape + version-gate
+        // tests, LZ77 emit tests, dedicated-emitter tests with a near-EOF no-throw
+        // case, and the NotYetPorted coverage delta.
+        // ====================================================================
+
+        // ---- OPPrologue / EDStaffRoll descriptors (FE8, version==8) ----------
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8_HasOPPrologue_Block12_TwoLz77Cols_AndPalExtra()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var d = descs.Single(x => x.Name == "OPPrologue");
+                Assert.Equal(12u, d.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.PointerAt, d.Rule);
+                Assert.Equal(0u, d.RuleOffset);
+                Assert.Equal(new uint[] { 0, 4 }, d.PointerIndexes);
+                // Two LZ77 columns: IMG @0, TSA @4.
+                Assert.Equal(2, d.SubWalks.Count);
+                Assert.All(d.SubWalks, s => Assert.Equal(RebuildProducerCore.SubKind.Lz77Pointer, s.Kind));
+                Assert.Equal(Address.DataTypeEnum.LZ77IMG, d.SubWalks[0].DataType);
+                Assert.Equal(0u, d.SubWalks[0].EmbeddedPointerOffset);
+                Assert.Equal(Address.DataTypeEnum.LZ77TSA, d.SubWalks[1].DataType);
+                Assert.Equal(4u, d.SubWalks[1].EmbeddedPointerOffset);
+                // Standalone palette ExtraFixedPointer (emitted once, type PAL, length 0x20).
+                var ep = Assert.Single(d.ExtraFixedPointers);
+                Assert.Equal(2u * 16u, ep.FixedLength);
+                Assert.Equal(Address.DataTypeEnum.PAL, ep.DataType);
+                Assert.Equal("OPPrologue Palette", ep.Name);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8_HasEDStaffRoll_Block8_PointerAtCappedAt12()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var d = descs.Single(x => x.Name == "EDStaffRoll");
+                Assert.Equal(8u, d.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.PointerAt, d.Rule);
+                // WF rule: isPointer(u32+0) && i < 12 -> PointerAt with MaxCount 12.
+                Assert.Equal(12u, d.MaxCount);
+                Assert.Equal(new uint[] { 0, 4 }, d.PointerIndexes);
+                Assert.Equal(2, d.SubWalks.Count);
+                Assert.Equal(Address.DataTypeEnum.LZ77IMG, d.SubWalks[0].DataType);
+                Assert.Equal(Address.DataTypeEnum.LZ77TSA, d.SubWalks[1].DataType);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- OPClassFont: FE8-multibyte gate ---------------------------------
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8Multibyte_HasOPClassFont_Block4_OneLz77Col()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8j = MakeVersionedRom("BE8J01"); // FE8J: version 8, is_multibyte == true
+                CoreState.ROM = fe8j;
+                Assert.True(fe8j.RomInfo.is_multibyte);
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8j);
+                var d = descs.Single(x => x.Name == "OPClassFont");
+                Assert.Equal(4u, d.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.PointerAt, d.Rule);
+                Assert.Equal(new uint[] { 0 }, d.PointerIndexes);
+                var sw = Assert.Single(d.SubWalks);
+                Assert.Equal(RebuildProducerCore.SubKind.Lz77Pointer, sw.Kind);
+                Assert.Equal(Address.DataTypeEnum.LZ77IMG, sw.DataType);
+                Assert.Equal(0u, sw.EmbeddedPointerOffset);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8U_NonMultibyte_OmitsOPClassFont()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8u = MakeVersionedRom("BE8E01"); // FE8U: version 8, is_multibyte == false
+                CoreState.ROM = fe8u;
+                Assert.False(fe8u.RomInfo.is_multibyte);
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8u);
+                // OPClassFontForm is FE8-multibyte ONLY (the FE8U path uses OPClassFontFE8UForm, deferred).
+                Assert.DoesNotContain(descs, x => x.Name == "OPClassFont");
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- LZ77 emit through WalkAndAdd: OPPrologue shape ------------------
+
+        [Fact]
+        public void OPPrologueShape_EmitsMainIfr_TwoLz77Cols_AndPalExtra()
+        {
+            // Reproduce the OPPrologue descriptor with an explicit pointer (RomInfo has no setters),
+            // plant one entry whose +0 image and +4 tsa are valid LZ77 streams, and assert the emitted
+            // Addresses: main IFR (block*(1+1)=24), LZ77IMG @ image, LZ77TSA @ tsa, plus the PAL extra.
+            var rom = CreateTestRom(0x8000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            uint palettePtr = 0x0500;
+            uint paletteData = 0x2000;
+            uint imageData = 0x3000;
+            uint tsaData = 0x3800;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(palettePtr, Ptr(paletteData));
+            // entry 0: +0 -> image pointer, +4 -> tsa pointer. Entry 1 +0 NULL terminates (PointerAt).
+            rom.write_u32(table + 0, Ptr(imageData));
+            rom.write_u32(table + 4, Ptr(tsaData));
+            uint imgLen = WriteLz77AllLiteral(rom, imageData, 80);
+            uint tsaLen = WriteLz77AllLiteral(rom, tsaData, 40);
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "OPPrologue",
+                PointerField = _ => pointer,
+                BlockSize = 12,
+                Rule = RebuildProducerCore.DataCountRule.PointerAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0, 4 },
+                ExtraFixedPointers = new[]
+                {
+                    new RebuildProducerCore.ExtraFixedPointer { PointerField = _ => palettePtr, FixedLength = 2 * 16, Name = "OPPrologue Palette", DataType = Address.DataTypeEnum.PAL },
+                },
+                SubWalks = new System.Collections.Generic.List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk { EmbeddedPointerOffset = 0, Kind = RebuildProducerCore.SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "OPPrologue image" },
+                    new RebuildProducerCore.SubWalk { EmbeddedPointerOffset = 4, Kind = RebuildProducerCore.SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77TSA, Name = (r, i) => "OPPrologue tsa" },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR: DataCount = 1 (entry 0 valid, entry 1 +0 NULL terminates) -> length 12*(1+1)=24.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPPrologue");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(24u, main.Length);
+            Assert.Equal(new uint[] { 0, 4 }, main.PointerIndexes);
+            // LZ77 columns with getCompressedSize length.
+            Address img = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+            Assert.Equal(imageData, img.Addr);
+            Assert.Equal(imgLen, img.Length);
+            Address tsa = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.LZ77TSA);
+            Assert.Equal(tsaData, tsa.Addr);
+            Assert.Equal(tsaLen, tsa.Length);
+            // PAL extra (emitted once).
+            Address pal = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.PAL);
+            Assert.Equal(paletteData, pal.Addr);
+            Assert.Equal(2u * 16u, pal.Length);
+            Assert.Equal("OPPrologue Palette", pal.Info);
+        }
+
+        // ---- EmitSupportUnitAt (owner-lookahead flat IFR) -------------------
+
+        [Fact]
+        public void EmitSupportUnitAt_FirstFieldNonZero_CountsEntries_EmitsFlatIfr()
+        {
+            // FE7/8: block 24, first-field u16. 3 entries with non-zero first u16, then a 0/unowned row
+            // terminates. No unit table planted -> the lookahead never finds an owner, so termination is
+            // purely first-field-driven. DataCount = 3 -> length = 24*(3+1) = 96; pointerIndexes {}.
+            var rom = CreateTestRom(0x8000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            const uint block = 24;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u16(table + 0 * block, 0x0011);
+            rom.write_u16(table + 1 * block, 0x0022);
+            rom.write_u16(table + 2 * block, 0x0033);
+            // entry 3: first u16 = 0 and no owner in the next 4 blocks -> terminates here.
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSupportUnitAt(rom, list, pointer, block, firstFieldWidth: 2, name: "SupportUnit");
+
+            Address main = list.Single();
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(block, main.BlockSize);
+            Assert.Equal(block * (3 + 1), main.Length);
+            Assert.Equal(new uint[] { }, main.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+            Assert.Equal("SupportUnit", main.Info);
+        }
+
+        [Fact]
+        public void EmitSupportUnitAt_ZeroFirstField_ButOwnedByUnit_ContinuesViaLookahead()
+        {
+            // A zero-first-field row is KEPT when a unit's +44 support pointer points at it (the WF
+            // "飛び地" lookahead). Plant a unit table where unit 0's +44 points at support entry 1.
+            var rom = CreateTestRom(0x8000);
+            uint supTable = 0x1000;
+            uint supPtr = 0x0400;
+            const uint block = 24;
+            rom.write_u32(supPtr, Ptr(supTable));
+            // support entries: 0 has a non-zero first field; 1 has ZERO first field but is OWNED;
+            // 2 is zero + unowned -> terminator.
+            rom.write_u16(supTable + 0 * block, 0x0011);
+            rom.write_u16(supTable + 1 * block, 0x0000); // zero, but owned below
+            rom.write_u16(supTable + 2 * block, 0x0000); // zero + unowned -> stop
+
+            // Unit table: GetUnitIdAtSupportAddr reads unit_pointer/unit_datasize/unit_maxcount from
+            // RomInfo. On a synthetic CreateTestRom RomInfo is null, so the lookahead returns null and
+            // the row would NOT be kept. Confirm: without a unit table, entry 1 terminates the walk.
+            var listNoUnit = new List<Address>();
+            RebuildProducerCore.EmitSupportUnitAt(rom, listNoUnit, supPtr, block, firstFieldWidth: 2, name: "SupportUnit");
+            Address mainNoUnit = listNoUnit.Single();
+            // entry 0 valid, entry 1 zero+unowned -> DataCount = 1 -> length 24*2 = 48.
+            Assert.Equal(block * (1 + 1), mainNoUnit.Length);
+        }
+
+        [Fact]
+        public void EmitSupportUnitAt_NearEof_NoThrow()
+        {
+            // Pointer slot resolves to a base near EOF: getBlockDataCount stops at the EOF bound, the
+            // first-field reads stay in bounds, and the owner lookahead is internally guarded.
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            // base near EOF (only a couple of 24-byte blocks fit before 0x2000).
+            rom.write_u32(pointer, Ptr(0x1FE0));
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitSupportUnitAt(rom, list, pointer, block: 24, firstFieldWidth: 2, name: "SupportUnit"));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitSupportUnitAt_ZeroBlock_EmitsNothing_AndDoesNotHang()
+        {
+            var rom = CreateTestRom();
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1000));
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSupportUnitAt(rom, list, pointer, block: 0, firstFieldWidth: 2, name: "SupportUnit");
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSupportUnit_FE6_UsesBlock32AndFE6Name()
+        {
+            // The RomInfo-driven EmitSupportUnit picks block 32 / first-field u8 / "SupportUnitFE6" for
+            // a version-6 ROM. On a fake all-zero FE6 ROM the base resolves unsafe -> emits nothing, but
+            // must run without throwing and must NOT crash on the version branch.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe6 = MakeVersionedRom("AFEJ01");
+                CoreState.ROM = fe6;
+                Assert.Equal(6, fe6.RomInfo.version);
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitSupportUnit(fe6, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitWorldMapPathAt (per-entry computed-length sub-blocks) -------
+
+        [Fact]
+        public void EmitWorldMapPathAt_EmitsMainIfr_AndPerEntryBinAndPointerSubBlocks()
+        {
+            // One entry: +0 path-data pointer, +8 path-move pointer. Plant a path-data stream
+            // (terminated by an x8==0xFF header) and a path-move stream (terminated by 0xFFFFFFFF).
+            var rom = CreateTestRom(0x8000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            uint pathData = 0x2000;
+            uint moveData = 0x3000;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0 valid (+0 is a pointer -> PointerAt continues); entry 1 +0 NULL -> terminate.
+            rom.write_u32(table + 0, Ptr(pathData));
+            rom.write_u32(table + 8, Ptr(moveData));
+
+            // path-data: one chip header (x8=1,y8=2,count=2) + 2*2 chip bytes, then a terminator header
+            // (x8=0xFF). Length = 4 + 4 + 4 = 12.
+            rom.write_u8(pathData + 0, 0x01); rom.write_u8(pathData + 1, 0x02); rom.write_u8(pathData + 2, 0x02); rom.write_u8(pathData + 3, 0x00);
+            rom.write_u8(pathData + 4, 0xAA); rom.write_u8(pathData + 5, 0xBB); rom.write_u8(pathData + 6, 0xCC); rom.write_u8(pathData + 7, 0xDD);
+            rom.write_u8(pathData + 8, 0xFF); // terminator header (x8==0xFF), consumes 4 -> total 12
+            uint expectPathLen = 12;
+
+            // path-move: two u32 then 0xFFFFFFFF terminator. Length = 4 + 4 + 4 = 12.
+            rom.write_u32(moveData + 0, 0x11111111);
+            rom.write_u32(moveData + 4, 0x22222222);
+            rom.write_u32(moveData + 8, 0xFFFFFFFF);
+            uint expectMoveLen = 12;
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitWorldMapPathAt(rom, list, pointer);
+
+            // main IFR: DataCount = 1 -> length 12*(1+1)=24, pointerIndexes {0,8}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "WorldMapPath");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(24u, main.Length);
+            Assert.Equal(new uint[] { 0, 8 }, main.PointerIndexes);
+            // path-data BIN sub-block.
+            Address bin = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Addr == pathData);
+            Assert.Equal(expectPathLen, bin.Length);
+            Assert.Equal(table + 0, bin.Pointer);
+            Assert.Equal("WorldMapPath:" + U.To0xHexString(0u), bin.Info);
+            // path-move POINTER sub-block.
+            Address ptrBlock = list.Single(a => a.DataType == Address.DataTypeEnum.POINTER && a.Addr == moveData);
+            Assert.Equal(expectMoveLen, ptrBlock.Length);
+            Assert.Equal(table + 8, ptrBlock.Pointer);
+            Assert.Equal("WorldMapPathMove:" + U.To0xHexString(0u), ptrBlock.Info);
+        }
+
+        [Fact]
+        public void EmitWorldMapPathAt_NullSubPointers_EmitOnlyMainIfr()
+        {
+            // entry 0: +0 is a pointer (so PointerAt continues) but +8 is 0 -> no move sub-block; and the
+            // +0 path-data pointer is planted but points at a 0-length (immediate-terminator) stream.
+            var rom = CreateTestRom(0x8000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            uint pathData = 0x2000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(pathData));
+            rom.write_u32(table + 8, 0); // a8 == 0 -> no POINTER sub-block
+            rom.write_u8(pathData + 0, 0xFF); // immediate terminator header -> CalcPathDataLength = 4
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitWorldMapPathAt(rom, list, pointer);
+
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.BIN); // path-data emitted
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.POINTER); // a8==0 skipped
+        }
+
+        [Fact]
+        public void EmitWorldMapPathAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FF0)); // base near EOF
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitWorldMapPathAt(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitWorldMapPath_FE8_RunsCleanly_OnEmptyFakeRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitWorldMapPath(fe8, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- CalcPath{,Move}DataLength terminator walks (verbatim) ----------
+
+        [Fact]
+        public void CalcPathDataLength_StopsAtFFHeader_CountsHeadersAndChips()
+        {
+            var rom = CreateTestRom();
+            uint addr = 0x1000;
+            // header (x8=3,y8=0,count=1) + 1*2 chips -> 4+2 ; then terminator header x8=0xFF (+4). 10 total.
+            rom.write_u8(addr + 0, 0x03); rom.write_u8(addr + 2, 0x01);
+            rom.write_u8(addr + 4, 0x12); rom.write_u8(addr + 5, 0x34);
+            rom.write_u8(addr + 6, 0xFF); // terminator header
+            Assert.Equal(10u, RebuildProducerCore.CalcPathDataLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcPathMoveDataLength_StopsAtFFFFFFFFTerminator()
+        {
+            var rom = CreateTestRom();
+            uint addr = 0x1000;
+            rom.write_u32(addr + 0, 0x12345678);
+            rom.write_u32(addr + 4, 0xFFFFFFFF); // terminator
+            Assert.Equal(8u, RebuildProducerCore.CalcPathMoveDataLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcPathMoveDataLength_UnterminatedNearEof_NoThrow_ReturnsConsumed()
+        {
+            // An unterminated u32 stream that runs to EOF: the root+3 guard returns the consumed length
+            // instead of throwing (WF's isSafetyOffset(p)-only guard would throw on the final u32).
+            var rom = CreateTestRom(0x2000);
+            uint addr = 0x1FF0; // (0x2000 - 0x1FF0) = 0x10 bytes = 4 u32 slots, all non-terminator
+            for (uint i = 0; i < 4; i++) rom.write_u32(addr + i * 4, 0x11111111);
+            uint len = 0;
+            var ex = Record.Exception(() => { len = RebuildProducerCore.CalcPathMoveDataLength(rom, addr); });
+            Assert.Null(ex);
+            // 4 in-bounds u32 reads consumed before p+3 would exceed EOF.
+            Assert.Equal(0x10u, len);
+        }
+
+        [Fact]
+        public void CalcPath_UnsafeStart_ReturnsZero()
+        {
+            var rom = CreateTestRom(0x2000);
+            Assert.Equal(0u, RebuildProducerCore.CalcPathDataLength(rom, 0x30000));     // past EOF
+            Assert.Equal(0u, RebuildProducerCore.CalcPathMoveDataLength(rom, 0x30000)); // past EOF
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2h -----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2hCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2h ported these 5 — no longer in the deferred list:
+            Assert.DoesNotContain("EDStaffRollForm", ported);
+            Assert.DoesNotContain("OPPrologueForm", ported);
+            Assert.DoesNotContain("OPClassFontForm", ported);
+            Assert.DoesNotContain("SupportUnitForm", ported);
+            Assert.DoesNotContain("WorldMapPathForm", ported);
+
+            // deferred siblings STAY (their blocking subsystem is not in Core):
+            Assert.Contains("OPClassDemoForm", ported);     // nested-IFR N1/N2 sub-table
+            Assert.Contains("OPClassDemoFE7Form", ported);  // nested-IFR N2 sub-table
+            Assert.Contains("MapSettingForm", ported);      // IsMapSettingEnd needs WF text-count cache
+            Assert.Contains("WorldMapEventPointerForm", ported); // ScanScript
+            Assert.Contains("ImageCGFE7UForm", ported);     // LZ77 CG (FE7U)
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
         }
     }
 }
