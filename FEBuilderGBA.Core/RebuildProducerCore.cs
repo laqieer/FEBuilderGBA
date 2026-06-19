@@ -682,7 +682,10 @@ namespace FEBuilderGBA
         ///   <item>The <c>foundDic</c> visited-set is SHARED across all 6 roots (a node reachable from
         ///   two roots is emitted once), and is the cycle-guard: a node already in the set is neither
         ///   re-emitted nor re-descended (stops self-referential / cyclic trees).</item>
-        ///   <item>Per node <c>p</c>: if <c>!isSafetyOffset(p + 18)</c> bail; name = "RMENU " +
+        ///   <item>Per node <c>p</c>: if <c>!isSafetyOffset(p + 27)</c> bail (full 28-byte node — WF's
+        ///   verbatim guard is <c>p + 18</c>, widened to <c>p + 27</c> to cover the u16(p+18) + the two
+        ///   AddFunction u32 reads at p+20/p+24 so malformed near-EOF nodes skip instead of throwing);
+        ///   name = "RMENU " +
         ///   <c>u16(p+18)</c>; emit a 28-byte MIX <see cref="Address"/> (pointer = NOT_FOUND, block 28,
         ///   pointerIndexes {0,4,8,12,20,24}) only if not yet visited; mark visited; then recurse into
         ///   the 4 sub-pointers at offsets 0/4/8/12 (each guarded by isSafetyOffset + not-visited);
@@ -715,7 +718,12 @@ namespace FEBuilderGBA
             var foundDic = new Dictionary<uint, bool>();
             foreach (uint root in roots)
             {
-                if (root == 0)
+                // Guard the FULL 4-byte pointer slot before p32: U.isSafetyOffset(root) alone leaves
+                // root+1..root+3 unchecked, and ROM.p32 only short-circuits when root >= Data.Length
+                // (a root in [Len-3, Len-1] still reaches u32 -> check_safety throws). Matches the
+                // Core-wide convention (MakeVarsIDArrayCore.CollectStatusRMenu). On valid ROMs roots
+                // are never near EOF, so this only hardens synthetic/corrupted ROMs (WF throws here too).
+                if (root == 0 || !U.isSafetyOffset(root + 3, rom))
                 {
                     continue;
                 }
@@ -730,7 +738,13 @@ namespace FEBuilderGBA
         public static void EmitStatusRMenuSub(ROM rom, List<Address> list, uint p, uint pointer,
             Dictionary<uint, bool> foundDic, uint[] pointerIndexes)
         {
-            if (!U.isSafetyOffset(p + 18, rom))
+            // Guard the FULL 28-byte node, not just p+18: this method reads u16(p+18) (-> p+19) and two
+            // AddFunction u32 reads at p+20/p+24 (the latter -> p+27, the deepest read). isSafetyOffset(
+            // p+18) alone leaves p+19..p+27 unchecked, so a node near EOF would throw in u16 / AddFunction
+            // -> u32 -> check_safety. On valid ROMs every 28-byte node is fully in-bounds, so this changes
+            // nothing there (WF's verbatim p+18 guard crashes on such malformed near-EOF nodes); it only
+            // hardens synthetic/corrupted ROMs to skip gracefully. p+27 covers the recursion p32 reads too.
+            if (!U.isSafetyOffset(p + 27, rom))
             {
                 return;
             }

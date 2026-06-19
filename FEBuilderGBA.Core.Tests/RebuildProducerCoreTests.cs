@@ -2104,6 +2104,42 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Single(list, a => a.DataType == Address.DataTypeEnum.MIX && a.Addr == shared);
         }
 
+        [Fact]
+        public void EmitStatusRMenuRoots_RootSlotNearEof_SkipsWithoutThrowing()
+        {
+            // Regression (PR #1276 review): a root whose 4-byte pointer slot straddles EOF must skip,
+            // not throw. ROM.p32 only short-circuits when root >= Data.Length; a root in [Len-3, Len-1]
+            // reaches u32 -> check_safety -> throw. The root+3 guard (matching MakeVarsIDArrayCore) skips.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint rootNearEof = size - 2; // 0x1FFE: < Len but root+3 = 0x2001 > Len
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitStatusRMenuRoots(rom, list, new uint[] { rootNearEof }));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitStatusRMenuSub_NodeNearEof_SkipsWithoutThrowing()
+        {
+            // Regression (PR #1276 review): a node whose 28-byte record straddles EOF must skip, not
+            // throw. The node is readable at p+18 (old guard) but its u32 reads at p+20/p+24 (-> p+27)
+            // run past EOF; the widened p+27 guard skips the whole node gracefully.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint rootPtr = 0x0300;
+            uint node = size - 20; // 0x1FEC: p+18=0x1FFE < Len (old guard passes) but p+27=0x2007 > Len
+            rom.write_u32(rootPtr, Ptr(node));
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitStatusRMenuRoots(rom, list, new uint[] { rootPtr }));
+            Assert.Null(ex);
+            Assert.Empty(list); // node straddles EOF -> not emitted
+        }
+
         // ---- EmitMenuDefinitionPointers + EmitMenuCommandSubTable -----------
 
         [Fact]
