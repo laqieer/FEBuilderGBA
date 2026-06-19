@@ -620,6 +620,27 @@ namespace FEBuilderGBA
             progress?.Report("MapPointer");
             EmitMapPointer(rom, list);
 
+            // ---- slice 2l: ItemWeaponEffect (version-agnostic) ----
+            // ItemWeaponEffectForm.MakeAllDataLength is in the WF unconditional section (NOT
+            // version/multibyte-gated). It is NOT a flat StructDescriptor walk: its main IFR (base
+            // p32(item_effect_pointer), block 16, IsDataExists = u16(addr)==0xFFFF stop / i>10 &&
+            // IsEmpty(addr,16*10) stop — both pure ROM reads) is followed by a per-entry PROCS
+            // sub-block behind the embedded pointer at +8, whose length is a PROCS-bytecode
+            // terminator walk (ProcsScriptForm.CalcLengthAndCheck — pure u16/u32/getString reads,
+            // reproduced VERBATIM as CalcProcsLengthAndCheck). A dedicated emitter reproduces it
+            // (its own cancel-check mirrors the WF DoEvents posture). AIScriptForm STAYS deferred —
+            // its main-IFR count rule caps DataCount at the config-file AI name lists
+            // (EventUnitForm.AI1/AI2.Count, NOT in Core), so the entry count is not faithfully
+            // reproducible from ROM bytes (a wrong count = wrong # of AISCRIPT/AIUnits sub-blocks =
+            // corruption); see GetNotYetPortedForms.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ItemWeaponEffect");
+            EmitItemWeaponEffect(rom, list);
+
             // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
             // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
             // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
@@ -2520,6 +2541,270 @@ namespace FEBuilderGBA
                     return p - addr;
                 }
             }
+        }
+
+        // ===================================================================
+        // slice 2l — ItemWeaponEffectForm (version-agnostic). A flat IFR (base
+        // p32(item_effect_pointer), block 16, IsDataExists = u16(addr)==0xFFFF
+        // stop / i>10 && IsEmpty(addr,16*10) stop) PLUS, per entry, a PROCS
+        // sub-block behind the embedded pointer at +8 whose length is the
+        // PROCS-bytecode terminator walk ProcsScriptForm.CalcLengthAndCheck
+        // (pure u16/u32/getString reads), reproduced VERBATIM below.
+        // ===================================================================
+
+        /// <summary>
+        /// <c>ItemWeaponEffectForm.MakeAllDataLength</c> (version-agnostic, slice 2l). Reproduces the
+        /// WF main IFR (<c>AddressWinForms.AddAddress(list, ItemWeaponEffectForm.Init, "ItemWeaponEffect",
+        /// {8})</c>) plus the per-entry PROCS sub-block:
+        /// <list type="bullet">
+        ///   <item>base = <c>p32(item_effect_pointer)</c>, block 16, pointerIndexes {8}, type
+        ///   InputFormRef, length = <c>16*(DataCount+1)</c>;</item>
+        ///   <item>count rule (<c>ItemWeaponEffectForm.Init</c> IsDataExists) = stop when
+        ///   <c>u16(addr)==0xFFFF</c>, or when <c>i>10 &amp;&amp; IsEmpty(addr,16*10)</c> — both pure ROM
+        ///   reads (<c>getBlockDataCount</c> guards <c>addr+16&lt;=Length</c>, so the u16 read is always
+        ///   in-bounds; <c>IsEmpty</c> is itself EOF-safe);</item>
+        ///   <item>per entry <c>p = base + i*16</c>: <c>mapAnime = p32(p+8)</c>; if it is a safe offset,
+        ///   <c>AddPointer(p+8, CalcProcsLengthAndCheck(mapAnime), "ItemWeaponEffect_PROC_0x&lt;itemid&gt;",
+        ///   PROCS)</c> (itemid = <c>u8(p+0)</c>; the WF label's localized item NAME is dropped — it does
+        ///   not affect relocation).</item>
+        /// </list>
+        /// The producer always scans real lengths (no isPointerOnly) and is fully bounds-guarded.
+        /// </summary>
+        public static void EmitItemWeaponEffect(ROM rom, List<Address> list)
+        {
+            EmitItemWeaponEffectAt(rom, list, rom.RomInfo.item_effect_pointer);
+        }
+
+        /// <summary>ItemWeaponEffect walk from an explicit pointer slot (test seam — lets a synthetic ROM
+        /// supply it without populating RomInfo). See <see cref="EmitItemWeaponEffect"/> for the verbatim
+        /// WF reproduction.</summary>
+        public static void EmitItemWeaponEffectAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 16;
+
+            // Main IFR: BasePointer = toOffset(slot), BaseAddress = p32(BasePointer). Guard the full
+            // slot before p32 (root+3). Matches InputFormRef.Init (toOffset then p32, both safety-checked).
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists (ItemWeaponEffectForm.Init): stop at u16(addr)==0xFFFF, or i>10 &&
+            // IsEmpty(addr, 16*10). getBlockDataCount guards addr+block(16)<=Length, so u16(addr) is
+            // always in-bounds; IsEmpty is itself EOF-safe (returns false past EOF).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                if (rom.u16(addr) == 0xFFFF)
+                {
+                    return false;
+                }
+                if (i > 10 && rom.IsEmpty(addr, block * 10))
+                {
+                    return false;
+                }
+                return true;
+            });
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "ItemWeaponEffect",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 8 }));
+
+            // Per-entry PROCS sub-blocks. getBlockDataCount guarantees p+block(16)<=Length for
+            // i<dataCount, so p32(p+8) (deepest p+11) and u8(p+0) are both in bounds.
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                uint mapAnime = rom.p32(p + 8);
+                if (!U.isSafetyOffset(mapAnime, rom))
+                {
+                    continue;
+                }
+                uint itemid = rom.u8(p + 0);
+                string procName = "ItemWeaponEffect_PROC_0x" + itemid.ToString("X");
+
+                Address.AddPointer(list, p + 8, CalcProcsLengthAndCheck(rom, mapAnime),
+                    procName, Address.DataTypeEnum.PROCS);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ProcsScriptForm.CalcLengthAndCheck</c>: walk a PROCS (map-anime)
+        /// bytecode stream of 8-byte fixed instructions <c>(code:u16, sarg:u16, parg:u32)</c> from
+        /// <paramref name="addr"/>, validating each opcode's argument contract and stopping at the EXIT
+        /// codes (0x00 / 0x800). Returns the byte length consumed, or <see cref="U.NOT_FOUND"/> when the
+        /// stream violates the contract (an odd start, an unknown opcode, or a bad arg). Pure ROM reads —
+        /// every dereference is bounds-guarded by the WF <c>while (addr + 8 &lt;= limit)</c> clamp (which
+        /// guarantees <c>addr+7 &lt; Length</c> so the u16/u16/u32 triplet is always in-bounds), plus the
+        /// inner <c>getString</c> (code 0x01) and the GOTO-0 look-ahead recursion (code 0x0C) are both
+        /// themselves EOF-safe. Line-for-line faithful to the WinForms method.</summary>
+        public static uint CalcProcsLengthAndCheck(ROM rom, uint addr)
+        {
+            if (U.IsValueOdd(addr))
+            {//奇数から始まるのはどう考えてもおかしい.
+                return U.NOT_FOUND;
+            }
+
+            uint start = addr;
+            uint limit = (uint)rom.Data.Length;
+
+            while (addr + 8 <= limit)
+            {
+                uint code = rom.u16(addr + 0);
+                uint sarg = rom.u16(addr + 2);
+                uint parg = rom.u32(addr + 4);
+
+                addr += 8; //命令は8バイト固定.
+                if (addr + 8 > limit)
+                {
+                    break;
+                }
+                if (code == 0x00)
+                {//arg all null
+                    if (sarg == 0)
+                    {
+                        if (parg != 0)
+                        {//規約違反
+                            return U.NOT_FOUND;
+                        }
+                    }
+                    else if (sarg <= 10)
+                    {//10だったときは、何か値が入ることがあるようだ
+                     //例: 0000 1000 08001800
+                        if (parg == 0)
+                        {//規約違反
+                            return U.NOT_FOUND;
+                        }
+                    }
+                }
+                else if (code == 0x10 || code == 0x11 || code == 0x12 || code == 0x13 || code == 0x15 || code == 0x17 || code == 0x19)
+                {//arg all null
+                    if (sarg != 0 || parg != 0)
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x01)
+                {//sarg is null, parg is pointer
+                    if (sarg != 0 || !U.isSafetyPointer(parg, rom))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                    //文字列参照 ASCIIである必要あり
+                    string name = rom.getString(U.toOffset(parg));
+                    if (!U.isAsciiString(name))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x02 || code == 0x03 || code == 0x04 || code == 0x14 || code == 0x16)
+                {//sarg is null, parg is pointer
+                    if (sarg != 0 || !U.isSafetyPointer(parg, rom))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                    if (U.IsValueOdd(parg) == false)
+                    {//関数呼び出しなので絶対に奇数でなければならない.
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x05 || code == 0x0D)
+                {//sarg is null, parg is pointer
+                    if (sarg != 0 || !U.isSafetyPointer(parg, rom))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                    if (U.IsValueOdd(parg))
+                    {//6C呼び出しなので絶対に偶数でなければならない.
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x06)
+                {//parg is pointer, sargは1になることがあるらしい
+                    if (!U.isPointer(parg))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                    if (U.IsValueOdd(parg))
+                    {//6C呼び出しなので絶対に偶数でなければならない.
+                        return U.NOT_FOUND;
+                    }
+                    //Debug.Assert(sarg == 1);
+                    if (sarg >= 2)
+                    {
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x07 || code == 0x08 || code == 0x09 || code == 0x0A)
+                {
+                    if (!U.isPointer(parg))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                    if (U.IsValueOdd(parg))
+                    {//6C呼び出しなので絶対に偶数でなければならない.
+                        return U.NOT_FOUND;
+                    }
+                    if (sarg != 0)
+                    {//必ずsarg引数は0
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x0B || code == 0x0E || code == 0x0F)
+                {//parg is null
+                    if (parg != 0)
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x0C)
+                {//parg is null
+                    if (sarg == 0)
+                    {//GOTO LABEL 0があった
+                        //Goto 0の時だけは、pargにゴミが入るときがある.
+
+                        //先読みをしてみる.
+                        uint sakiyomi = CalcProcsLengthAndCheck(rom, addr + 8);
+                        if (sakiyomi == U.NOT_FOUND)
+                        {//この先が壊れているなら、自分が終端.
+                            if (start == addr)
+                            {//自分が終端なのに、それが最初に出てくるのはおかしいよね.
+                                return U.NOT_FOUND;
+                            }
+                            break;
+                        }
+                    }
+                    else if (parg != 0)
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x18)
+                {// parg is pointer
+                    if (!U.isSafetyPointer(parg, rom))
+                    {//規約違反
+                        return U.NOT_FOUND;
+                    }
+                }
+                else if (code == 0x800)
+                {//EXIT その3
+                    break;
+                }
+                else
+                {
+                    return U.NOT_FOUND;
+                }
+
+                if (code == 0x00)
+                {//EXIT
+                    break;
+                }
+            }
+            return addr - start;
         }
 
         // ===================================================================
@@ -5270,9 +5555,12 @@ namespace FEBuilderGBA
                 //  and the ItemEffectiveness rework variant on SearchClassType — a wrong size would
                 //  relocate the wrong bytes, so it must wait until those detectors reach Core.)
                 "ItemForm",
-                // The other slice-2c embedded forms also stay — their sub-block LENGTH needs a
-                // subsystem not yet in Core (a wrong length relocates the wrong bytes = corruption):
-                //   ItemWeaponEffectForm— PROCS sub-block length = ProcsScriptForm.CalcLengthAndCheck (disasm).
+                // (ItemWeaponEffectForm ported in slice 2l — EmitItemWeaponEffect: a flat IFR (base
+                //  p32(item_effect_pointer), block 16, IsDataExists u16==0xFFFF / i>10 && IsEmpty(addr,160)
+                //  — both pure ROM reads) + a per-entry PROCS sub-block behind the embedded pointer at +8,
+                //  length = the PROCS-bytecode terminator walk ProcsScriptForm.CalcLengthAndCheck,
+                //  reproduced verbatim as CalcProcsLengthAndCheck — a pure u16/u32/getString walk whose
+                //  only non-ROM dep (getString + isAsciiString for opcode 0x01) is in Core.)
                 // (StatusRMenuForm [recursive 28-byte MIX tree, shared visited-set + 2 ASM AddFunction]
                 //  and MenuDefinitionForm [recursive MenuCommandForm sub-table — InputFormRef_MIX + per-entry
                 //  CString + 6 ASM ptrs — + its own 6 ASM ptrs] ported in slice 2d via dedicated recursive
@@ -5280,7 +5568,6 @@ namespace FEBuilderGBA
                 // (ItemShopForm ported in slice 2g — EmitItemShop walks ItemShopCore.MakeShopList [hensei +
                 //  FE8 worldmap + per-map event-cond OBJECT-slot shops] and emits one BIN Address per shop,
                 //  length = (count of non-zero 2-byte item entries + 1) * 2.)
-                "ItemWeaponEffectForm",
                 // UnitActionPointerForm STAYS — its base = SearchActionPointer(), gated on
                 //   PatchUtil.SearchUnitActionReworkPatch() (PatchUtil patch detection not in Core).
                 // (ItemUsagePointerForm ported in slice 2f — dedicated EmitItemUsagePointer walker over
@@ -5302,9 +5589,16 @@ namespace FEBuilderGBA
                 // AI scripts (disasm)
                 // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
-                //  slice 2f. AIScriptForm STAYS — its per-entry length is AIScriptForm.CalcLength (AI
-                //  16-byte-opcode bytecode walk) + AIUnitsForm.CalcLength + nested LZ77 sub-pointers, none
-                //  of which is in Core.)
+                //  slice 2f. AIScriptForm STAYS — its per-entry CalcLength helpers ARE pure ROM walks
+                //  (AIScriptForm.CalcLength = AI 16-byte-opcode terminator walk; AIUnitsForm.CalcLength =
+                //  u16!=0 walk), but its MAIN-IFR COUNT RULE (AIScriptForm.Init IsDataExists) is NOT a pure
+                //  ROM read: in the un-extended-ROM case (the vanilla AI tables) it caps DataCount at the
+                //  config-file AI name lists EventUnitForm.AI1.Count / AI2.Count (loaded from ai1_*/ai2_*
+                //  TSV via PreLoadResourceAI1/2, then padded up to DataCount — circular + editor session
+                //  state), neither of which is in Core. A wrong main count => wrong # of AISCRIPT/AIUnits
+                //  sub-blocks emitted => relocates the wrong bytes on rebuild = corruption. Same shape as
+                //  the MapSettingForm deferral (count rule needs a WF cached resource). Deferred until the
+                //  AI name lists + isExtrendsROMArea reach Core.)
                 "AIScriptForm",
                 // skills (version/patch dependent)
                 "SkillAssignmentClassSkillSystemForm", "SkillAssignmentUnitSkillSystemForm",
