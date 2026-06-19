@@ -68,6 +68,14 @@ namespace FEBuilderGBA
             /// <summary>Item rule: <c>u32(addr+12)</c> pointer-or-null, plus <c>u32(addr+16)</c>
             /// pointer-or-null EXCEPT on FE8U (version 8 &amp;&amp; !multibyte). Capped at i&lt;=0xFF.</summary>
             ItemRule,
+            /// <summary>Continue while <c>u32(addr+Offset) &lt; <see cref="StructDescriptor.RuleStopValue"/></c>.
+            /// Matches StatusUnitsMenuForm (<c>u32(addr+0) &lt; 0xFF</c>).</summary>
+            U32LessThan,
+            /// <summary>SoundBossBGM rule: stop when <c>u16(addr) == 0xFFFF</c>, OR when
+            /// <c>i &gt; 10 &amp;&amp; rom.IsEmpty(addr, BlockSize*10)</c>. Reproduces
+            /// <c>SoundBossBGMForm.Init</c> verbatim (the trailing-empty guard prevents the
+            /// walk from running off the end of an un-terminated table).</summary>
+            SoundBossBGMRule,
         }
 
         /// <summary>A declarative description of one simple "table walk + emit IFR Address" form.</summary>
@@ -316,6 +324,22 @@ namespace FEBuilderGBA
                         return U.isPointerOrNULL(rom.u32(addr + 12))
                             && U.isPointerOrNULL(rom.u32(addr + 16));
                     };
+                case DataCountRule.U32LessThan:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        return rom.u32(addr + d.RuleOffset) < d.RuleStopValue;
+                    };
+                case DataCountRule.SoundBossBGMRule:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // SoundBossBGMForm.Init: stop at the 0xFFFF terminator, and (after the
+                        // first 10 entries) stop once a run of 10 empty blocks is hit.
+                        if (rom.u16(addr) == 0xFFFF) return false;
+                        if (i > 10 && rom.IsEmpty(addr, d.BlockSize * 10)) return false;
+                        return true;
+                    };
                 default:
                     // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
                     // not a 0-entry table. Returning always-false would silently emit a 1-block
@@ -475,6 +499,110 @@ namespace FEBuilderGBA
             // (ClassForm is NOT here — see the embedded-sub-pointer note above; it stays in
             //  GetNotYetPortedForms until its MoveCost sub-walk is ported.)
 
+            // SoundBossBGMForm.MakeAllDataLength — called UNCONDITIONALLY in WinForms
+            // (before the version branches). Info label "BossBGM". The Init IsDataExists is a
+            // 0xFFFF terminator PLUS a trailing-empty guard (see DataCountRule.SoundBossBGMRule).
+            l.Add(new StructDescriptor
+            {
+                Name = "BossBGM",
+                PointerField = r => r.RomInfo.sound_boss_bgm_pointer,
+                BlockSize = 8,
+                Rule = DataCountRule.SoundBossBGMRule,
+                PointerIndexes = new uint[] { },
+            });
+
+            // ---- version==8 (FE8) section ----
+            // These forms are called ONLY inside the WinForms `if (version == 8)` branch, in this
+            // order. Their data pointers are 0 on FE6/FE7 (EmitOne skips a 0/unsafe pointer), but
+            // we gate them to match the WF call structure exactly and avoid scanning junk on a
+            // non-FE8 ROM.
+            //
+            // MapTileAnimation1/2Form, MonsterWMapProbabilityForm, CCBranchForm, and the
+            // MapTerrain*LookupTable forms are deliberately NOT here:
+            //   * MapTileAnimation1/2 expand a per-entry embedded IMG/BIN sub-block (rule 3).
+            //   * MonsterWMapProbabilityForm also runs an EventScriptForm.ScanScript event-scan
+            //     in the same MakeAllDataLength (event-scan expansion, not a pure table walk).
+            //   * CCBranchForm's entry count is ClassForm.DataCount() (a dynamic class-table walk),
+            //     not a RomInfo field.
+            //   * MapTerrain{Floor,BG}LookupTableForm enumerate a PatchUtil-dependent GetPointers()
+            //     set (extends-battle-BG patch detection), not a fixed RomInfo table.
+            // They stay in GetNotYetPortedForms for a later slice.
+            if (rom.RomInfo.version == 8)
+            {
+                // StatusUnitsMenuForm.MakeAllDataLength — Info "UnitsMenu", block 16,
+                // IsDataExists = u32(addr+0) < 0xFF.
+                l.Add(new StructDescriptor
+                {
+                    Name = "UnitsMenu",
+                    PointerField = r => r.RomInfo.status_units_menu_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.U32LessThan,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFF,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // LinkArenaDenyUnitForm.MakeAllDataLength — Info "LinkAreaDenyUnitForm" (WF typo
+                // preserved verbatim), block 2, IsDataExists = u8(addr) != 0x00.
+                l.Add(new StructDescriptor
+                {
+                    Name = "LinkAreaDenyUnitForm",
+                    PointerField = r => r.RomInfo.link_arena_deny_unit_pointer,
+                    BlockSize = 2,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0x00,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // MonsterItemForm.MakeAllDataLength — THREE tables (Init / N1_Init / N2_Init),
+                // each its own AddAddress with a distinct Info string, in this order. All
+                // IsDataExists = u8(addr) != 0xFF.
+                l.Add(new StructDescriptor
+                {
+                    Name = "MonsterItemForm",
+                    PointerField = r => r.RomInfo.monster_item_item_pointer,
+                    BlockSize = 5,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFF,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "MonsterItemFormProbability",
+                    PointerField = r => r.RomInfo.monster_item_probability_pointer,
+                    BlockSize = 5,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFF,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "MonsterItemFormTable",
+                    PointerField = r => r.RomInfo.monster_item_table_pointer,
+                    BlockSize = 32,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFF,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // MonsterProbabilityForm.MakeAllDataLength — Info "MonsterProbabilityForm",
+                // block 12, IsDataExists = u8(addr) != 0xFF.
+                l.Add(new StructDescriptor
+                {
+                    Name = "MonsterProbabilityForm",
+                    PointerField = r => r.RomInfo.monster_probability_pointer,
+                    BlockSize = 12,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFF,
+                    PointerIndexes = new uint[] { },
+                });
+            }
+
             // ---- trailing is_multibyte branch: MapTerrainName(Eng) ----
             // WinForms: is_multibyte -> MapTerrainNameForm (embedded CString sub-walk, deferred);
             //           else        -> MapTerrainNameEngForm (clean u16!=0 table).
@@ -550,8 +678,9 @@ namespace FEBuilderGBA
                 "SkillConfigSkillSystemForm", "SkillConfigFE8NSkillForm",
                 "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer3SkillForm",
                 // status / menu definition / misc tables needing extra logic
-                "StatusOptionForm", "StatusOptionOrderForm", "StatusUnitsMenuForm",
-                "LinkArenaDenyUnitForm", "MantAnimationForm", "MapTileAnimation1Form",
+                // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.)
+                "StatusOptionForm", "StatusOptionOrderForm",
+                "MantAnimationForm", "MapTileAnimation1Form",
                 "MapTileAnimation2Form", "MapTerrainFloorLookupTableForm",
                 "MapTerrainBGLookupTableForm",
                 // units / classes per-version with extra reads
@@ -559,7 +688,10 @@ namespace FEBuilderGBA
                 "ExtraUnitForm", "ExtraUnitFE8UForm", "SummonUnitForm", "SummonsDemonKingForm",
                 "EventUnitForm(RecycleReserveUnits)", "EventForceSortieForm",
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
-                "MonsterItemForm", "MonsterProbabilityForm", "MonsterWMapProbabilityForm",
+                // (MonsterItemForm + MonsterProbabilityForm ported in slice 2b.
+                //  MonsterWMapProbabilityForm stays — it runs an EventScriptForm.ScanScript
+                //  event-scan in the same MakeAllDataLength, not a pure table walk.)
+                "MonsterWMapProbabilityForm",
                 "EDForm", "EventBattleTalkForm", "CCBranchForm", "OPClassAlphaNameForm",
                 "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm",
                 "OPPrologueForm", "EventHaikuForm", "SupportTalkForm",
