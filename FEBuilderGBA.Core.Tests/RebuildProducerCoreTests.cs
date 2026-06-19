@@ -248,65 +248,41 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void WalkAndAdd_BoundsCheck_UsesPassedRom_NotCoreStateRom()
+        public void MakeAllStructPointers_RejectsRomThatIsNotCoreStateRom()
         {
-            // CoreState.ROM is a LARGE rom; the scanned `rom` is SMALL. A pointer/table that is
-            // valid in the small rom must still be walked, and a base whose reads would exceed the
-            // SMALL rom's length must NOT throw (the bug: U.isSafetyOffset(uint) used CoreState.ROM
-            // bounds, so the rom.u8/u16/u32 reads in getBlockDataCount could throw OOB).
-            var bigRom = new ROM();
-            bigRom.SwapNewROMDataDirect(new byte[0x40000]); // large ambient rom
-            CoreState.ROM = bigRom;
+            // The producer must scan the LOADED CoreState.ROM — Address length/offset validation
+            // is bound to CoreState.ROM, so a different instance cannot be scanned correctly.
+            var loaded = new ROM();
+            loaded.SwapNewROMDataDirect(new byte[0x2000]);
+            CoreState.ROM = loaded;
 
-            // The rom we actually scan is independent and much smaller.
-            var smallRom = new ROM();
-            smallRom.SwapNewROMDataDirect(new byte[0x2000]);
-            uint pointer = 0x0240;
-            uint table = 0x1000;
-            smallRom.write_u32(pointer, Ptr(table));
-            smallRom.write_u8(table + 0, 0x01);
-            smallRom.write_u8(table + 1, 0x00); // terminator (blockSize 1, u8!=0)
+            var other = new ROM();
+            other.SwapNewROMDataDirect(new byte[0x2000]);
 
-            var d = new RebuildProducerCore.StructDescriptor
-            {
-                Name = "CrossRom",
-                PointerField = _ => pointer,
-                BlockSize = 1,
-                Rule = RebuildProducerCore.DataCountRule.U8NotEqual,
-                RuleOffset = 0,
-                RuleStopValue = 0x00,
-                PointerIndexes = new uint[] { },
-            };
+            var ex = Assert.Throws<ArgumentException>(
+                () => RebuildProducerCore.MakeAllStructPointers(other));
+            Assert.Equal("rom", ex.ParamName);
 
-            var list = new List<Address>();
-            // Must not throw, and must emit the table found in the SMALL rom.
-            RebuildProducerCore.WalkAndAdd(smallRom, list, d);
-
-            Assert.Single(list);
-            Assert.Equal(table, list[0].Addr);
-            Assert.Equal(1u * (1 + 1), list[0].Length); // 1 entry -> block*(count+1)
+            // The list-returning overload guards the same way.
+            Assert.Throws<ArgumentException>(
+                () => RebuildProducerCore.MakeAllStructPointersList(other));
         }
 
         [Fact]
-        public void WalkAndAdd_PointerPastPassedRomEnd_DoesNotThrow_EmitsNothing()
+        public void WalkAndAdd_BlockSizeZero_EmitsNothing_AndDoesNotHang()
         {
-            // A pointer slot whose VALUE is valid in the big ambient rom but points PAST the
-            // small scanned rom must be rejected by the passed-rom bounds check (no OOB throw).
-            var bigRom = new ROM();
-            bigRom.SwapNewROMDataDirect(new byte[0x40000]);
-            CoreState.ROM = bigRom;
-
-            var smallRom = new ROM();
-            smallRom.SwapNewROMDataDirect(new byte[0x2000]);
+            // BlockSize 0 would make getBlockDataCount loop forever (addr += 0). EmitOne must
+            // skip it (a zero block is a descriptor bug, not a hang).
+            var rom = CreateTestRom();
             uint pointer = 0x0240;
-            // table offset 0x30000 is valid in bigRom but PAST smallRom's 0x2000 end.
-            smallRom.write_u32(pointer, Ptr(0x30000));
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
 
             var d = new RebuildProducerCore.StructDescriptor
             {
-                Name = "OOB",
+                Name = "ZeroBlock",
                 PointerField = _ => pointer,
-                BlockSize = 4,
+                BlockSize = 0, // bug
                 Rule = RebuildProducerCore.DataCountRule.U8NotEqual,
                 RuleOffset = 0,
                 RuleStopValue = 0x00,
@@ -314,9 +290,33 @@ namespace FEBuilderGBA.Core.Tests
             };
 
             var list = new List<Address>();
-            var ex = Record.Exception(() => RebuildProducerCore.WalkAndAdd(smallRom, list, d));
-            Assert.Null(ex);     // no IndexOutOfRangeException
-            Assert.Empty(list);  // base past the scanned rom -> nothing emitted
+            RebuildProducerCore.WalkAndAdd(rom, list, d); // must return (not hang)
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void WalkAndAdd_UnhandledDataCountRule_ThrowsLoudly()
+        {
+            // An out-of-range DataCountRule is a programming error — MakeIsDataExists must throw,
+            // not silently treat the table as 0 entries.
+            var rom = CreateTestRom();
+            uint pointer = 0x0240;
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0, 0x01);
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "BadRule",
+                PointerField = _ => pointer,
+                BlockSize = 1,
+                Rule = (RebuildProducerCore.DataCountRule)999, // invalid
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => RebuildProducerCore.WalkAndAdd(rom, list, d));
         }
 
         // ---- plumbing: cancellation returns partial list --------------------

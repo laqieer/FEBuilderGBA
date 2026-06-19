@@ -132,10 +132,11 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Build the known-struct <see cref="Address"/> list for <paramref name="rom"/>.
+        /// Build the known-struct <see cref="Address"/> list for the loaded <paramref name="rom"/>.
         /// Port of <c>U.MakeAllStructPointersList</c> (the batch ported so far; see class remarks).
         /// </summary>
-        /// <param name="rom">The ROM to scan (was <c>Program.ROM</c>).</param>
+        /// <param name="rom">The ROM to scan. MUST be the loaded <see cref="CoreState.ROM"/>
+        /// (see <see cref="MakeAllStructPointers"/> for why).</param>
         /// <param name="progress">Optional progress reporter (was the <c>DoEvents</c> messages).</param>
         /// <param name="ct">Cancellation token; on cancel the partial list is returned (was the
         /// <c>DoEvents</c> early-<c>return list</c>).</param>
@@ -150,9 +151,26 @@ namespace FEBuilderGBA
         /// also surfaces the coverage state (<see cref="ProducerResult.NotYetPorted"/> /
         /// <see cref="ProducerResult.IsComplete"/>) so a future wiring slice can gate the rebuild.
         /// </summary>
+        /// <param name="rom">
+        /// The ROM to scan. MUST be the same instance as <see cref="CoreState.ROM"/>. The emitted
+        /// <see cref="Address"/> objects validate their length via <c>U.isSafetyLength</c>, which is
+        /// bound to <c>CoreState.ROM.Data.Length</c> (as is the <see cref="Address"/> ctor's
+        /// <c>Debug.Assert</c>), so a <paramref name="rom"/> that is not <see cref="CoreState.ROM"/>
+        /// cannot be scanned correctly. The producer's job is to enumerate the LOADED ROM being
+        /// rebuilt — which is always <see cref="CoreState.ROM"/> (same posture as the
+        /// patch/custom-build cores that require the loaded ROM for their undo). Passing any other
+        /// instance throws <see cref="ArgumentException"/>.
+        /// </param>
         public static ProducerResult MakeAllStructPointers(ROM rom, IProgress<string> progress = null, CancellationToken ct = default)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (!ReferenceEquals(rom, CoreState.ROM))
+            {
+                throw new ArgumentException(
+                    "RebuildProducerCore must scan the loaded CoreState.ROM (Address length/offset "
+                    + "validation is bound to CoreState.ROM, so a different ROM cannot be scanned "
+                    + "safely).", nameof(rom));
+            }
 
             var list = new List<Address>(50000);
             string[] notYet = GetNotYetPortedForms();
@@ -214,10 +232,17 @@ namespace FEBuilderGBA
 
         static void EmitOne(ROM rom, List<Address> list, StructDescriptor d, uint pointer)
         {
-            // Bounds-check against the PASSED rom, not CoreState.ROM — this is a Core API that
-            // may scan a rom != CoreState.ROM. The plain U.isSafetyOffset(uint) overload is bound
-            // to CoreState.ROM.Data.Length, so on a differently-sized rom it would mis-judge the
-            // pointer and the rom.u8/u16/u32 reads in getBlockDataCount could throw OOB.
+            // BlockSize 0 (e.g. an uninitialized descriptor) would make getBlockDataCount loop
+            // forever (addr += 0 never advances). A zero block is a descriptor bug, not data —
+            // skip it rather than hang. (DataCountRule.FixedCount is fine with block 0 in theory,
+            // but every real table has a positive block, so reject defensively.)
+            if (d.BlockSize == 0)
+            {
+                return;
+            }
+
+            // rom is guaranteed == CoreState.ROM by the MakeAllStructPointers guard, so the
+            // (addr, rom) safety overloads agree with the Address ctor's CoreState.ROM-bound checks.
             pointer = U.toOffset(pointer);
             if (!U.isSafetyOffset(pointer, rom))
             {
@@ -292,7 +317,11 @@ namespace FEBuilderGBA
                             && U.isPointerOrNULL(rom.u32(addr + 16));
                     };
                 default:
-                    return (i, addr) => false;
+                    // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
+                    // not a 0-entry table. Returning always-false would silently emit a 1-block
+                    // Address and hide the bug — fail loudly instead.
+                    throw new ArgumentOutOfRangeException(nameof(d),
+                        "Unhandled DataCountRule: " + d.Rule);
             }
         }
 
