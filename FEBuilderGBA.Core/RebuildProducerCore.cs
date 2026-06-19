@@ -1284,7 +1284,12 @@ namespace FEBuilderGBA
                     continue;
                 }
                 uint pointer = U.toOffset(t.Pointer(rom));
-                if (!U.isSafetyOffset(pointer, rom))
+                // Guard the FULL 4-byte slot before p32: isSafetyOffset(pointer) alone leaves
+                // pointer+1..pointer+3 unchecked, and ROM.p32 only short-circuits when pointer >=
+                // Data.Length (a pointer in [Len-3, Len-1] still reaches u32 -> check_safety throws).
+                // Mirrors EmitUnitFE6At / the StatusRMenu root+3 guard. On valid ROMs the RomInfo slot
+                // is never near EOF, so this only hardens synthetic/corrupted ROMs.
+                if (!U.isSafetyOffset(pointer + 3, rom))
                 {
                     continue; // p32(pointer) below would read junk; WF's ReInitPointer->p32 needs a safe slot.
                 }

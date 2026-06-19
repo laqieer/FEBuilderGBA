@@ -3350,6 +3350,25 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitItemUsagePointer_PointerSlotNearEof_SkipsWithoutThrowing()
+        {
+            // Regression (PR #1278 review): a usage data-pointer SLOT whose 4 bytes straddle EOF must
+            // skip, not throw. isSafetyOffset(pointer) alone passes (pointer < Len) but p32(pointer)
+            // reads pointer..pointer+3 -> u32 -> check_safety throws. The pointer+3 guard skips it.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint switch2Addr = 0x0300;
+            uint pointerNearEof = size - 2; // 0x1FFE: < Len (old guard passes) but pointer+3 = 0x2001 > Len
+            PlantSwitch2(rom, switch2Addr, count: 2); // Switch2 enabled so we reach the pointer guard
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitItemUsagePointerTables(rom, list, OneUsageTable(pointerNearEof, switch2Addr, "ItemUsageP0")));
+            Assert.Null(ex);
+            Assert.Empty(list); // pointer slot straddles EOF -> usage skipped
+        }
+
+        [Fact]
         public void EmitItemUsagePointer_AllTenUsages_PresentInRomInfoDrivenPath()
         {
             // The public RomInfo-driven EmitItemUsagePointer must not throw on a real RomInfo (FE8U).
