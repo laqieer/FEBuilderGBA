@@ -633,13 +633,19 @@ namespace FEBuilderGBA
                     // Width selects the read; one or two stop values terminate; the empty-guard is
                     // optional. Reproduces SupportTalk*/EventBattleTalkFE6/EventHaikuFE6/SoundRoom*.
                     uint width = d.RuleWidth;
+                    // Only 1/2/4 are valid read widths; anything else (0/3/...) is a
+                    // descriptor bug — fail loudly rather than silently treat it as u16.
+                    if (width != 1 && width != 2 && width != 4)
+                        throw new ArgumentOutOfRangeException(
+                            nameof(d) + "." + nameof(d.RuleWidth), width,
+                            "RuleWidth must be 1, 2, or 4.");
                     return (i, addr) =>
                     {
                         if (i >= d.MaxCount) return false;
                         uint v;
                         if (width == 1) v = rom.u8(addr + d.RuleOffset);
                         else if (width == 4) v = rom.u32(addr + d.RuleOffset);
-                        else v = rom.u16(addr + d.RuleOffset);
+                        else v = rom.u16(addr + d.RuleOffset); // width == 2
                         if (v == d.RuleStopValue) return false;
                         if (d.RuleStopValue2.HasValue && v == d.RuleStopValue2.Value) return false;
                         if (d.HasEmptyGuard && i > 10 && rom.IsEmpty(addr, d.BlockSize * 10)) return false;
