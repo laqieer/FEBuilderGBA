@@ -714,6 +714,15 @@ We would like to thank our hacking predecessors who have publicly shared any ana
 Details (There is a commentary at the bottom of the page, and the wiki provides other instructions)
 https://dw.ngmansion.xyz/doku.php?id=en:guide:febuildergba:index
 
+### FE8 Skill Systems
+
+Several FE8 editors — **FE8 Spell Menu Extends**, the **Skill** editors, and **Item Effectiveness (SkillSystems Rework)** — only show data once a community **Skill System** is installed on the ROM. Recommended sources:
+
+- **FE8U** (US/International): [FireEmblemUniverse/SkillSystem_FE8](https://github.com/FireEmblemUniverse/SkillSystem_FE8) (the canonical Event Assembler buildfile) or [MokhaLeee/fe8u-cskillsys-kernel](https://github.com/MokhaLeee/fe8u-cskillsys-kernel) (a modern C kernel).
+- **FE8J** (Japan): [ngmansion/FE8N](https://github.com/ngmansion/FE8N) (the de-facto-standard FE8J hacking base).
+
+These projects distribute **patches / source**, not the game — apply them to a clean FE8 ROM you dumped yourself. See the [Skill Systems (FE8) wiki page](https://github.com/laqieer/FEBuilderGBA/wiki/Skill-Systems) for installation details.
+
 Some poorly designed anti-virus software may misidentify FEBuilderGBA as a virus.
 This is because FEBuilderGBA uses the WindowsDebugAPI to communicate with the emulator.
 Please configure your anti-virus to exclude the FEBuilderGBA directory.
