@@ -547,6 +547,97 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Theory]
+        [InlineData((byte)0xB2)]   // repointer: needs +4 payload
+        [InlineData((byte)0xBB)]   // single-byte-arg family
+        [InlineData((byte)0xB9)]   // MEMACC: needs +3
+        public void Make_TruncatedSongScore_EmitsGracefully_NoOverrun(byte truncCmd)
+        {
+            // Copilot finding 2-5: a SONGSCORE struct whose data is truncated mid-command must
+            // NOT throw IndexOutOfRange. The struct runs to the VERY END of the ROM array, and
+            // a multi-byte command sits as the LAST byte — so an unguarded read genuinely
+            // indexes past the array. The emitter must stop at the boundary instead.
+            const uint scoreOff = 0x1000;          // in the rebuild region
+            uint scoreLen = 0x20;
+            uint romLen = scoreOff + scoreLen;     // struct ends exactly at ROM end
+            byte[] mod = new byte[romLen];
+            mod[scoreOff + 0] = 0x90;              // a normal note byte
+            mod[scoreOff + 1] = 0x40;
+            // The truncating command is the LAST byte of the ROM: its payload would overrun.
+            mod[romLen - 1] = truncCmd;
+
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var romObj = new ROM();
+                romObj.SwapNewROMDataDirect((byte[])mod.Clone());
+                CoreState.ROM = romObj;
+
+                // vanilla = small base so the struct (in the rebuild region) always differs.
+                var vanilla = new ROM();
+                vanilla.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var structList = new List<Address>
+                {
+                    new Address(scoreOff, scoreLen, U.NOT_FOUND, "SCORE", Address.DataTypeEnum.SONGSCORE),
+                };
+
+                using (var tmp = new TempDir())
+                {
+                    string manifestPath = Path.Combine(tmp.Path, "score.rebuild");
+                    // Must NOT throw (pre-fix: IndexOutOfRangeException past the array end).
+                    var ex = Record.Exception(() =>
+                        RebuildMakeCore.Make(mod, vanilla, 0x1000, structList, manifestPath));
+                    Assert.Null(ex);
+                    Assert.True(File.Exists(manifestPath));
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        [Fact]
+        public void Make_BareFilenameManifestPath_DoesNotThrow()
+        {
+            // Copilot finding 6: a manifest path with no directory component ("foo.rebuild")
+            // makes Path.GetDirectoryName return null; the guarded code must treat it as the
+            // current directory instead of throwing in Path.Combine. Run inside a temp cwd so
+            // the sidecar folders land somewhere disposable.
+            byte[] modified = BuildModified();
+            ROM vanilla = BuildVanilla();
+
+            var prevRom = CoreState.ROM;
+            string prevCwd = Directory.GetCurrentDirectory();
+            try
+            {
+                var modifiedRom = new ROM();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                using (var tmp = new TempDir())
+                {
+                    Directory.SetCurrentDirectory(tmp.Path);
+                    var structList = BuildStructList();
+
+                    var ex = Record.Exception(() =>
+                        RebuildMakeCore.Make(modified, vanilla, REBUILD_ADDR, structList, "bare.rebuild"));
+                    Assert.Null(ex);
+                    Assert.True(File.Exists(Path.Combine(tmp.Path, "bare.rebuild")));
+
+                    // The applier must equally tolerate a bare manifest filename.
+                    var result = RebuildApplyCore.Apply(vanilla, "bare.rebuild", 0x09000000);
+                    Assert.True(result.Success, "bare-filename Apply log:\n" + result.Log);
+                }
+            }
+            finally
+            {
+                Directory.SetCurrentDirectory(prevCwd);
+                CoreState.ROM = prevRom;
+            }
+        }
+
         static string ReadAllSidecars(string dir)
         {
             var sb = new System.Text.StringBuilder();

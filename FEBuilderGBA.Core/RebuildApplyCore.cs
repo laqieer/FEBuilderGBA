@@ -173,7 +173,9 @@ namespace FEBuilderGBA
                 // (and exercised when callers raise it) but the public API leaves it off.
                 this.UseShareSameData = 0;
 
-                string dir = Path.GetDirectoryName(filename);
+                //ディレクトリ成分が無いマニフェスト名 ("foo.rebuild") では GetDirectoryName が
+                //null を返すので、カレントディレクトリ ("") として扱う (Path.Combine が投げない).
+                string dir = Path.GetDirectoryName(filename) ?? "";
 
                 string[] lines;
                 try
@@ -479,9 +481,17 @@ namespace FEBuilderGBA
                     return U.NOT_FOUND;
                 }
 
-                if (this.IsReserved != null && this.IsReserved(foundAddr))
-                {//SkillSystemsのエリアがある場合は再検索.
-                    foundAddr = U.Grep(this.WriteROMData32MB, bin, foundAddr, this.WriteOffset, 4);
+                //SkillSystemsなどの予約領域にヒットした場合は、その先から再検索する.
+                //U.Grep の start は inclusive なので、必ず foundAddr+4 から再開しないと
+                //同じ予約済みヒットを永久に返してしまう (4 = ARMアライメント).
+                while (this.IsReserved != null && this.IsReserved(foundAddr))
+                {
+                    uint nextStart = foundAddr + 4;
+                    if (nextStart >= this.WriteOffset)
+                    {
+                        return U.NOT_FOUND;
+                    }
+                    foundAddr = U.Grep(this.WriteROMData32MB, bin, nextStart, this.WriteOffset, 4);
                     if (foundAddr == U.NOT_FOUND)
                     {
                         return U.NOT_FOUND;

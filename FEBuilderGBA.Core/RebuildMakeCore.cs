@@ -175,7 +175,10 @@ namespace FEBuilderGBA
 
             public void Run(string manifestPath)
             {
-                this.BaseDir = Path.GetDirectoryName(manifestPath);
+                //GetDirectoryName は manifestPath にディレクトリ成分が無い (例 "foo.rebuild")
+                //場合 null を返し、続く Path.Combine が ArgumentNullException を投げる.
+                //ディレクトリ無し = カレントディレクトリ ("") として扱う.
+                this.BaseDir = Path.GetDirectoryName(manifestPath) ?? "";
                 Directory.CreateDirectory(Path.Combine(this.BaseDir, "rebuild_ifr"));
                 Directory.CreateDirectory(Path.Combine(this.BaseDir, "rebuild_mix"));
                 Directory.CreateDirectory(Path.Combine(this.BaseDir, "rebuild_bin"));
@@ -600,8 +603,12 @@ namespace FEBuilderGBA
                     }
                     else if (b == 0xB2 || b == 0xB3)
                     {
+                        //repointer (4-byte payload). 切り詰められたデータで end を跨がないよう確認.
+                        if (position + 4 > end)
+                        {
+                            break;
+                        }
                         infsb.Append(' ');
-                        //repointer
                         bool r = IsRegistAddr(refCmd, infsb, romdata, startaddr, end, position, ASMC_Delect.NONE);
                         if (!r)
                         {
@@ -612,12 +619,20 @@ namespace FEBuilderGBA
                     else if (b == 0xBD || b == 0xBB || b == 0xBC || b == 0xBE || b == 0xBF || b == 0xC0 || b == 0xC1)
                     {
                         // These commands take a data byte that must not be processed.
+                        if (position >= end)
+                        {
+                            break;
+                        }
                         infsb.Append(' ');
                         infsb.Append(U.ToHexString(romdata[position]));
                         position++;
                     }
                     else if (b == 0xb9)
                     {//MEMACC 4バイト命令. 最初の1バイトはコピー済みなので、残りの3バイトコピーする.
+                        if (position + 3 > end)
+                        {
+                            break;
+                        }
                         infsb.Append(' ');
                         infsb.Append(U.ToHexString(romdata[position]));
                         position++;
@@ -630,7 +645,7 @@ namespace FEBuilderGBA
                     }
                     else if (percussion != 0 && b < 0x80)
                     {
-                        while (romdata[position] < 0x80)
+                        while (position < end && romdata[position] < 0x80)
                         {// Volume marker
                             infsb.Append(' ');
                             infsb.Append(U.ToHexString(romdata[position]));
