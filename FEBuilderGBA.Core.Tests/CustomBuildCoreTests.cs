@@ -302,5 +302,352 @@ namespace FEBuilderGBA.Core.Tests
             }
             return null;
         }
+
+        // ====================================================================
+        //  MargeAndUpdate (#1248 slice 2) — synthetic end-to-end glue + filter
+        // ====================================================================
+
+        // Build a CoreState ROM around bytes (so the Undo machinery snapshots/rolls
+        // back into CoreState.ROM, like PatchInstallCoreTests).
+        static ROM MakeCoreRom(byte[] data)
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect((byte[])data.Clone());
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            return rom;
+        }
+
+        // Stage a minimal parent SkillSystem patch dir under <baseDir>/config/patch2/
+        // FE8U/skill20220703/ so GetParentPatchPath resolves to a real file. The text
+        // carries one line of each kind MargePatch filters, so a test can assert the
+        // filter dropped them and kept the rest.
+        static void StageParentPatch(string baseDir)
+        {
+            string dir = Path.Combine(baseDir, "config", "patch2", "FE8U", "skill20220703");
+            Directory.CreateDirectory(dir);
+            File.WriteAllLines(Path.Combine(dir, "PATCH_Skill20220703.txt"), new[]
+            {
+                "TYPE=SKILL",
+                "NAME=SkillSystem",
+                "INFO=parent",
+                "PATCHED_IF:0x100=0x1 0x2",
+                "BINF:0x800=00000800.bin",
+                "BIN:0x900=00000900.bin",
+                "AFTER_TRY_EXECUTE:0=x.event",
+                "TEXTADV:0=y",
+                "EXTENDS:0=z",
+                "UPDATE_METHOD=SKILLSYSTEM",
+                "EDIT_PATCH:0=p",
+                "KEEPME=1",                  // a non-filtered line — must survive
+            });
+            // A sidecar the CopyDirectoryShallow would copy (and DeleteFile 0*.bin nukes).
+            File.WriteAllBytes(Path.Combine(dir, "00000800.bin"), new byte[] { 0xAA });
+        }
+
+        // ---- MargePatch (pure string filter) -------------------------------
+
+        [Fact]
+        public void MargePatch_FiltersParentMetadata_KeepsOthers_TakeoverOn()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cb-marge-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string parent = Path.Combine(dir, "PATCH_Parent.txt");
+                File.WriteAllLines(parent, new[]
+                {
+                    "TYPE=SKILL", "NAME=Sys", "INFO=x",
+                    "PATCHED_IF:0x100=0x1", "BINF:0x800=a.bin", "BIN:0x900=b.bin",
+                    "AFTER_TRY_EXECUTE:0=e", "TEXTADV:0=t", "EXTENDS:0=z",
+                    "UPDATE_METHOD=SKILLSYSTEM", "EDIT_PATCH:0=p", "KEEPME=1",
+                });
+                string custombuild = Path.Combine(dir, CustomBuildCore.CustomBuildPatchLeafName);
+                File.WriteAllText(custombuild, "BINF:0xABCD=00ABCD00.bin\r\n");
+
+                CustomBuildCore.MargePatch(custombuild, parent, takeoverSkillAssignment: 1);
+                string merged = File.ReadAllText(custombuild);
+
+                // Header: UPDATE_UNINSTALL of the parent.
+                Assert.Contains("UPDATE_UNINSTALL:0=" + parent, merged);
+                // Filtered-out parent lines are gone.
+                Assert.DoesNotContain("PATCHED_IF:", merged);
+                Assert.DoesNotContain("BIN:0x900", merged);
+                Assert.DoesNotContain("AFTER_TRY_EXECUTE:", merged);
+                Assert.DoesNotContain("TEXTADV:", merged);
+                Assert.DoesNotContain("EXTENDS:", merged);
+                Assert.DoesNotContain("\nNAME", merged.Replace("\r", ""));
+                Assert.DoesNotContain("\nINFO", merged.Replace("\r", ""));
+                // With takeover ON, the skill-assignment lines are KEPT.
+                Assert.Contains("UPDATE_METHOD=SKILLSYSTEM", merged);
+                Assert.Contains("EDIT_PATCH:0=p", merged);
+                // A non-filtered parent line survives.
+                Assert.Contains("KEEPME=1", merged);
+                // The freshly-generated CustomBuild diff text is appended.
+                Assert.Contains("BINF:0xABCD=00ABCD00.bin", merged);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        [Fact]
+        public void MargePatch_TakeoverOff_DropsSkillAssignmentLines()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "cb-marge-off-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string parent = Path.Combine(dir, "PATCH_Parent.txt");
+                File.WriteAllLines(parent, new[]
+                {
+                    "TYPE=SKILL", "KEEPME=1",
+                    "UPDATE_METHOD=SKILLSYSTEM", "EDIT_PATCH:0=p",
+                });
+                string custombuild = Path.Combine(dir, CustomBuildCore.CustomBuildPatchLeafName);
+                File.WriteAllText(custombuild, "BINF:0x1=x.bin\r\n");
+
+                CustomBuildCore.MargePatch(custombuild, parent, takeoverSkillAssignment: 0);
+                string merged = File.ReadAllText(custombuild);
+
+                Assert.DoesNotContain("UPDATE_METHOD=SKILLSYSTEM", merged);
+                Assert.DoesNotContain("EDIT_PATCH:0=p", merged);
+                Assert.Contains("KEEPME=1", merged);
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
+        // ---- MargeAndUpdate end-to-end (synthetic) -------------------------
+
+        [Fact]
+        public void MargeAndUpdate_SyntheticRoundTrip_InstallsBinDiff_RomEqualsBuilt()
+        {
+            string prevBase = CoreState.BaseDirectory;
+            string prevLang = CoreState.Language;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            CoreState.Language = "en";
+            try
+            {
+                StageParentPatch(baseDir);
+
+                // Vanilla (the diff baseline) and the "built" ROM (= vanilla + edits).
+                // The working ROM starts as a CLONE of vanilla, so installing the
+                // vanilla→built diff must drive it to equal the built bytes.
+                byte[] vanilla = new byte[0x400];
+                for (int i = 0; i < vanilla.Length; i++) vanilla[i] = 0xFF;
+                byte[] built = (byte[])vanilla.Clone();
+                for (int i = 0x110; i < 0x118; i++) built[i] = 0xAB;
+                for (int i = 0x250; i < 0x270; i++) built[i] = (byte)(i & 0xFF);
+
+                string origRomPath = Path.Combine(baseDir, "vanilla.gba");
+                string builtRomPath = Path.Combine(baseDir, "SkillsTest.gba");
+                File.WriteAllBytes(origRomPath, vanilla);
+                File.WriteAllBytes(builtRomPath, built);
+                // A build target whose directory holds the (absent) .sym/.dmp sidecars.
+                string targetPath = Path.Combine(baseDir, "CUSTOM_BUILD.cmd");
+                File.WriteAllText(targetPath, "echo hi\r\n");
+
+                var rom = MakeCoreRom(vanilla);  // working ROM = vanilla clone
+                var undo = NewUndo(rom);
+
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, origRomPath, builtRomPath, targetPath,
+                    takeoverSkillAssignment: 1, undo: undo);
+
+                Assert.True(r.Success, "MargeAndUpdate failed: " + r.ErrorMessage);
+                Assert.True(File.Exists(r.PatchPath), "the CustomBuild patch should exist on disk");
+                // The install drove the working ROM to the built bytes.
+                Assert.Equal(built, rom.Data);
+                Assert.NotEmpty(undo.list);
+
+                // The generated patch merged the parent text (UPDATE_UNINSTALL header)
+                // and kept a non-filtered parent line, then appended the BIN diff.
+                string patchText = File.ReadAllText(r.PatchPath);
+                Assert.Contains("UPDATE_UNINSTALL:0=", patchText);
+                Assert.Contains("KEEPME=1", patchText);
+                Assert.Contains("BINF:", patchText);
+
+                // The cache dir was rebuilt and the parent's own 0*.bin / PATCH_*.txt
+                // were dropped (only our generated patch + symbol-less copy remain).
+                string cacheDir = CustomBuildCore.GetCustomBuildCacheDir();
+                Assert.True(Directory.Exists(cacheDir));
+                Assert.Empty(Directory.GetFiles(cacheDir, "00000800.bin"));
+
+                // Undo restores the working ROM to vanilla.
+                CoreState.Undo.Push(undo);
+                CoreState.Undo.RunUndo();
+                Assert.Equal(vanilla, rom.Data);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.Language = prevLang;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MargeAndUpdate_BuiltEqualsVanilla_NoBinEntries_SkipsInstall_StillWritesArtifact()
+        {
+            // Built ROM identical to vanilla → MakeDiff emits a TYPE=BIN header but NO
+            // BIN/BINF lines, so the install is skipped (ROM untouched) yet the merged
+            // patch artifact is still written and the result is success.
+            string prevBase = CoreState.BaseDirectory;
+            string prevLang = CoreState.Language;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-eq-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            CoreState.Language = "en";
+            try
+            {
+                StageParentPatch(baseDir);
+
+                byte[] vanilla = new byte[0x400];
+                for (int i = 0; i < vanilla.Length; i++) vanilla[i] = 0xFF;
+                byte[] built = (byte[])vanilla.Clone();   // IDENTICAL → no diff
+
+                string origRomPath = Path.Combine(baseDir, "vanilla.gba");
+                string builtRomPath = Path.Combine(baseDir, "SkillsTest.gba");
+                File.WriteAllBytes(origRomPath, vanilla);
+                File.WriteAllBytes(builtRomPath, built);
+                string targetPath = Path.Combine(baseDir, "CUSTOM_BUILD.cmd");
+                File.WriteAllText(targetPath, "echo hi\r\n");
+
+                var rom = MakeCoreRom(vanilla);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, origRomPath, builtRomPath, targetPath,
+                    takeoverSkillAssignment: 1, undo: undo);
+
+                Assert.True(r.Success, "MargeAndUpdate failed: " + r.ErrorMessage);
+                // No BIN entries → nothing installed → ROM untouched, undo empty.
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                // The merged artifact is still written (valid on-disk patch).
+                Assert.True(File.Exists(r.PatchPath));
+                string patchText = File.ReadAllText(r.PatchPath);
+                Assert.Contains("UPDATE_UNINSTALL:0=", patchText);
+                Assert.DoesNotContain("BINF:", patchText);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.Language = prevLang;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MargeAndUpdate_NullUndo_ReturnsUndoRequiredError()
+        {
+            string prevBase = CoreState.BaseDirectory;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-nu-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            try
+            {
+                var rom = MakeCoreRom(new byte[0x200]);
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, "ignored.gba", "ignored-built.gba", "ignored.cmd",
+                    takeoverSkillAssignment: 1, undo: null);
+
+                Assert.False(r.Success);
+                // The null-undo message must NOT be the rom==null "No ROM is loaded." string.
+                Assert.Equal(R._("Undo data is required for MargeAndUpdate."), r.ErrorMessage);
+                Assert.NotEqual(R._("No ROM is loaded."), r.ErrorMessage);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MargeAndUpdate_MissingBuiltRom_ReturnsError_NoMutation()
+        {
+            string prevBase = CoreState.BaseDirectory;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-nb-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            try
+            {
+                StageParentPatch(baseDir);
+                byte[] vanilla = new byte[0x200];
+                string origRomPath = Path.Combine(baseDir, "vanilla.gba");
+                File.WriteAllBytes(origRomPath, vanilla);
+
+                var rom = MakeCoreRom(vanilla);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, origRomPath,
+                    builtRomPath: Path.Combine(baseDir, "no-such-built.gba"),
+                    targetPath: Path.Combine(baseDir, "CUSTOM_BUILD.cmd"),
+                    takeoverSkillAssignment: 1, undo: undo);
+
+                Assert.False(r.Success);
+                Assert.False(string.IsNullOrEmpty(r.ErrorMessage));
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MargeAndUpdate_MissingParentPatch_ReturnsError_NoMutation()
+        {
+            string prevBase = CoreState.BaseDirectory;
+            // A base dir WITHOUT the parent patch staged → GetParentPatchPath misses.
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-np-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            try
+            {
+                byte[] vanilla = new byte[0x200];
+                byte[] built = (byte[])vanilla.Clone();
+                built[0x110] = 0x11;
+                string origRomPath = Path.Combine(baseDir, "vanilla.gba");
+                string builtRomPath = Path.Combine(baseDir, "built.gba");
+                File.WriteAllBytes(origRomPath, vanilla);
+                File.WriteAllBytes(builtRomPath, built);
+
+                var rom = MakeCoreRom(vanilla);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, origRomPath, builtRomPath,
+                    Path.Combine(baseDir, "CUSTOM_BUILD.cmd"),
+                    takeoverSkillAssignment: 1, undo: undo);
+
+                Assert.False(r.Success);
+                Assert.False(string.IsNullOrEmpty(r.ErrorMessage));
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
     }
 }

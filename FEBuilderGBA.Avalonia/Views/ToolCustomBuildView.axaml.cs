@@ -18,9 +18,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Combo items are added in code via R._() so they pick up ja/zh translations
     /// (ViewTranslationHelper does not translate ComboBoxItem content).
     ///
-    /// The WinForms <c>MargeAndUpdate</c> patch-merge + auto-install phase is deferred
-    /// to a follow-up issue (PatchForm/ToolDiffForm/PatchUtil-coupled); an applied
-    /// build can be reverted via Undo for now.
+    /// "Marge and Update" (issue #1248) runs the build, diffs the built ROM against the
+    /// vanilla ROM, assembles a CustomBuild patch under
+    /// <c>config/patch2/FE8U/skill_CustomBuild</c>, and auto-installs it via
+    /// <see cref="PatchInstallCore"/> (the <see cref="ToolCustomBuildViewModel.RunAndMarge"/>
+    /// orchestration). Any applied operation can be reverted via Undo.
     /// </summary>
     public partial class ToolCustomBuildView : TranslatedWindow, IEditorView
     {
@@ -40,6 +42,12 @@ namespace FEBuilderGBA.Avalonia.Views
             BuildMethodCombo.Items.Add(R._("CUSTOM_BUILD.cmd (Windows batch)"));
             BuildMethodCombo.Items.Add(R._("Event Assembler target"));
             BuildMethodCombo.SelectedIndex = _vm.BuildMethodIndex;
+
+            // Take-over-skill-assignment (WF TakeoverSkillAssignmentComboBox; default
+            // index 1 = carry over the parent patch's skill assignment).
+            TakeoverSkillCombo.Items.Add(R._("Do not carry over the skill assignment"));
+            TakeoverSkillCombo.Items.Add(R._("Carry over the skill assignment"));
+            TakeoverSkillCombo.SelectedIndex = _vm.TakeoverSkillAssignmentIndex;
 
             Opened += (_, _) =>
             {
@@ -195,6 +203,91 @@ namespace FEBuilderGBA.Avalonia.Views
             finally
             {
                 RunButton.IsEnabled = true;
+            }
+        }
+
+        async void MargeUpdate_Click(object? sender, RoutedEventArgs e)
+        {
+            // Prompt for a target if none chosen yet, then CONTINUE in the same action.
+            if (!_vm.TargetExists)
+            {
+                if (!await BrowseForTargetAsync() || !_vm.TargetExists)
+                    return; // user cancelled / no usable file
+            }
+            if (!_vm.OriginalRomExists)
+            {
+                _vm.StatusMessage = R._("無改造ROM({0})が見つかりませんでした", _vm.OriginalRomPath);
+                return;
+            }
+
+            RunButton.IsEnabled = false;
+            MargeUpdateButton.IsEnabled = false;
+            // Disable Undo during the background build+install — a click mid-mutation
+            // would race the bg-thread CoreState.Undo/ROM writes and corrupt state.
+            // Restored to its prior state in the finally below.
+            bool undoWasEnabled = UndoButton.IsEnabled;
+            UndoButton.IsEnabled = false;
+            _vm.StatusMessage = R._("Building...");
+
+            // Same EXPLICIT-UndoData posture as Run_Click: the build AND the patch
+            // install run on a background thread (Task.Run), where the thread-local
+            // ambient undo scope is null. Both phases record into this passed UndoData,
+            // which we commit (UI thread) via UndoService.CommitExternal only on success.
+            var undo = (CoreState.Undo ??= new Undo()).NewUndoData("Custom Build (Marge and Update)");
+
+            try
+            {
+                // No onProgress callback: it would fire on the background thread and a
+                // bound StatusMessage mutation must stay on the UI thread (Run_Click uses
+                // the same no-progress posture). The final status is set below on the UI
+                // thread once the awaited Task completes.
+                var (build, marge) = await Task.Run(() => _vm.RunAndMarge(undo));
+
+                if (!build.Success)
+                {
+                    // Build failed → nothing applied (fault-safe helper); surface the error.
+                    _vm.StatusMessage = R._("Build failed.") + "\r\n" + build.ErrorMessage;
+                    return;
+                }
+
+                if (marge != null && !marge.Success)
+                {
+                    // The build wrote into the ROM before the marge step failed, so there
+                    // ARE recorded writes — commit them so the user can Undo, then report.
+                    bool builtMutated = undo.list.Count > 0;
+                    if (builtMutated && _undoService.CommitExternal(undo))
+                        _vm.CanUndo = true;
+                    _vm.StatusMessage = R._("Marge and Update failed.") + "\r\n" + marge.ErrorMessage;
+                    return;
+                }
+
+                bool mutated = undo.list.Count > 0;
+                if (mutated && _undoService.CommitExternal(undo))
+                    _vm.CanUndo = true;
+
+                string msg = (marge != null)
+                    ? R._("Marge and Update successful.")
+                    : R._("Build successful.");
+                if (marge != null && !string.IsNullOrEmpty(marge.PatchPath))
+                    msg += "\r\n" + R._("Patch: {0}", marge.PatchPath);
+                else if (!string.IsNullOrEmpty(build.BuiltRomPath))
+                    msg += "\r\n" + R._("Built ROM: {0}", build.BuiltRomPath);
+                if (!string.IsNullOrEmpty(build.Output.Trim()))
+                    msg += "\r\n" + build.Output.Trim();
+                _vm.StatusMessage = msg;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolCustomBuildView.MargeUpdate failed: " + ex.ToString());
+                _vm.StatusMessage = R._("Marge and Update failed.") + "\r\n" + ex.ToString();
+            }
+            finally
+            {
+                RunButton.IsEnabled = true;
+                MargeUpdateButton.IsEnabled = true;
+                // Restore Undo (success or failure); a successful commit above set
+                // CanUndo=true which drives IsVisible.
+                UndoButton.IsEnabled = undoWasEnabled;
             }
         }
 

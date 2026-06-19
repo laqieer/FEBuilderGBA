@@ -20721,3 +20721,42 @@ Could not read the event file: {0}
 :Png2Dmp image (no .dmp hint): {0}
 Png2Dmp image (no .dmp hint): {0}
 
+:Marge and Update
+Marge and Update
+
+:Skill assignment:
+Skill assignment:
+
+:Do not carry over the skill assignment
+Do not carry over the skill assignment
+
+:Carry over the skill assignment
+Carry over the skill assignment
+
+:Preparing the CustomBuild patch...
+Preparing the CustomBuild patch...
+
+:Generating the patch diff...
+Generating the patch diff...
+
+:Installing the patch...
+Installing the patch...
+
+:Marge and Update successful.
+Marge and Update successful.
+
+:Marge and Update failed.
+Marge and Update failed.
+
+:MargeAndUpdate must install into the currently loaded ROM.
+MargeAndUpdate must install into the currently loaded ROM.
+
+:Patch: {0}
+Patch: {0}
+
+:Unable to write the compiled file: {0}
+Unable to write the compiled file: {0}
+
+:Undo data is required for MargeAndUpdate.
+Undo data is required for MargeAndUpdate.
+
