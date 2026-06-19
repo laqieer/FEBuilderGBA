@@ -69,5 +69,34 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.OriginalRomPath = "Z:\\does\\not\\exist\\base.gba";
             Assert.False(vm.OriginalRomExists);
         }
+
+        // ---- TakeoverSkillAssignment (Marge and Update, #1248 slice 2) ----------
+
+        [Fact]
+        public void TakeoverSkillAssignment_DefaultsToCarryOver()
+        {
+            // Matches the WF form (TakeoverSkillAssignmentComboBox.SelectedIndex = 1).
+            var vm = new ToolCustomBuildViewModel();
+            Assert.Equal(1, vm.TakeoverSkillAssignmentIndex);
+            Assert.Equal(1u, vm.TakeoverSkillAssignment);
+        }
+
+        [Theory]
+        [InlineData(0, 0u)]   // do not carry over
+        [InlineData(1, 1u)]   // carry over
+        public void TakeoverSkillAssignment_MapsFromIndex(int idx, uint expected)
+        {
+            var vm = new ToolCustomBuildViewModel { TakeoverSkillAssignmentIndex = idx };
+            Assert.Equal(expected, vm.TakeoverSkillAssignment);
+        }
+
+        [Theory]
+        [InlineData(-1, 0u)]  // no selection → 0 (do not carry over)
+        [InlineData(99, 1u)]  // out of range → clamps to 1 (carry over)
+        public void TakeoverSkillAssignment_ClampsOutOfRangeIndices(int badIdx, uint expected)
+        {
+            var vm = new ToolCustomBuildViewModel { TakeoverSkillAssignmentIndex = badIdx };
+            Assert.Equal(expected, vm.TakeoverSkillAssignment);
+        }
     }
 }

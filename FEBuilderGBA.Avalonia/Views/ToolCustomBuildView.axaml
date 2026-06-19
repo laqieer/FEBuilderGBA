@@ -8,11 +8,12 @@
        project: either a user CUSTOM_BUILD.cmd batch script (CMD method, Windows-only) or
        an Event Assembler target (EA method), then loads the freshly-built ROM. The
        build+load work runs in the GUI-free Core helper CustomBuildCore (which reuses
-       EventAssemblerCompileCore for the EA path). The build-method combo items are
-       populated in code-behind via R._() so they pick up ja/zh translations
+       EventAssemblerCompileCore for the EA path). The build-method + take-over combo
+       items are populated in code-behind via R._() so they pick up ja/zh translations
        (ViewTranslationHelper does not translate ComboBoxItem content).
-       Deferred to a follow-up: the WinForms MargeAndUpdate patch-merge + auto-install
-       phase (PatchForm/ToolDiffForm/PatchUtil-coupled); revert an applied build via Undo. -->
+       "Marge and Update" (issue #1248) runs the build, diffs the built ROM against the
+       vanilla ROM, assembles a CustomBuild patch under config/patch2/FE8U/skill_CustomBuild,
+       and auto-installs it via PatchInstallCore. Any applied operation reverts via Undo. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="10">
 
@@ -53,11 +54,23 @@
                   SelectedIndex="{Binding BuildMethodIndex}" />
       </Grid>
 
+      <!-- Take over the parent patch's skill assignment when merging (Marge and Update) -->
+      <Grid ColumnDefinitions="180,*" Margin="0,6,0,0">
+        <TextBlock Grid.Column="0" Text="Skill assignment:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="ToolCustomBuild_TakeoverSkill_Combo"
+                  Grid.Column="1" Name="TakeoverSkillCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding TakeoverSkillAssignmentIndex}" />
+      </Grid>
+
       <!-- Actions -->
       <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
         <Button AutomationProperties.AutomationId="ToolCustomBuild_Run_Button"
                 Name="RunButton" Content="Run build"
                 Click="Run_Click" />
+        <Button AutomationProperties.AutomationId="ToolCustomBuild_MargeUpdate_Button"
+                Name="MargeUpdateButton" Content="Marge and Update"
+                Click="MargeUpdate_Click" />
         <Button AutomationProperties.AutomationId="ToolCustomBuild_Undo_Button"
                 Name="UndoButton" Content="Undo"
                 IsVisible="{Binding CanUndo}"

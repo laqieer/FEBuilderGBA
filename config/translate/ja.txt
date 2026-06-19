@@ -12059,3 +12059,36 @@ Png2Dmp画像(.dmpヒントなし): {0}
 :No font glyphs were exported.
 エクスポートするフォントがありませんでした。
 
+:Marge and Update
+マージして更新
+
+:Skill assignment:
+スキル割り当て:
+
+:Do not carry over the skill assignment
+スキル割り当てを引き継がない
+
+:Carry over the skill assignment
+スキル割り当てを引き継ぐ
+
+:Preparing the CustomBuild patch...
+カスタムビルドパッチを準備しています...
+
+:Generating the patch diff...
+パッチの差分を生成しています...
+
+:Installing the patch...
+パッチをインストールしています...
+
+:Marge and Update successful.
+マージと更新に成功しました。
+
+:Marge and Update failed.
+マージと更新に失敗しました。
+
+:Patch: {0}
+パッチ: {0}
+
+:Unable to write the compiled file: {0}
+コンパイル済みファイルを書き込めません: {0}
+

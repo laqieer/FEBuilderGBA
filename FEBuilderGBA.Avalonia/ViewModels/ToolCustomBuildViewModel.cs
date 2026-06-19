@@ -15,15 +15,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// It reads no ROM bytes for display (it only WRITES via the helper) so it is a
     /// read-no-ROM tool VM (no data-verification contract).
     ///
-    /// Scope: the WinForms <c>MargeAndUpdate</c> patch-merge + auto-install phase is
-    /// deferred to a follow-up (WinForms-coupled: PatchForm/ToolDiffForm/PatchUtil); the
-    /// build + ROM load is the parity surface here.
+    /// "Marge and Update" (issue #1248 slice 2) runs the build, then
+    /// <see cref="CustomBuildCore.MargeAndUpdate"/>: it diffs the built ROM against the
+    /// vanilla ROM, assembles a CustomBuild patch under
+    /// <c>config/patch2/FE8U/skill_CustomBuild</c>, and auto-installs it via
+    /// <see cref="PatchInstallCore"/> (a CustomBuild patch is literal-offset BIN-diffs,
+    /// so the slice-1 install — not the full PatchForm dependency-resolution engine — is
+    /// what it needs).
     /// </summary>
     public class ToolCustomBuildViewModel : ViewModelBase
     {
         string _targetPath = "";
         string _originalRomPath = "";
         int _buildMethodIndex;              // 0 Auto, 1 CMD, 2 EA (CustomBuildCore.BuildMethod)
+        int _takeoverSkillAssignmentIndex = 1; // 0 = don't carry over, 1 = carry over (WF default)
         bool _canUndo;
         string _statusMessage = "";
 
@@ -35,6 +40,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>Build-method index: 0 = auto (by extension), 1 = CMD, 2 = Event Assembler.</summary>
         public int BuildMethodIndex { get => _buildMethodIndex; set => SetField(ref _buildMethodIndex, value); }
+
+        /// <summary>
+        /// Take-over-skill-assignment index (WF TakeoverSkillAssignmentComboBox):
+        /// 0 = do not carry over the parent patch's skill assignment, 1 = carry it over.
+        /// Defaults to 1 to match the WinForms form (SelectedIndex = 1).
+        /// </summary>
+        public int TakeoverSkillAssignmentIndex
+        {
+            get => _takeoverSkillAssignmentIndex;
+            set => SetField(ref _takeoverSkillAssignmentIndex, value);
+        }
+
+        /// <summary>The take-over flag passed to <see cref="CustomBuildCore.MargeAndUpdate"/> (0 or 1).</summary>
+        public uint TakeoverSkillAssignment => (uint)ClampIndex(_takeoverSkillAssignmentIndex, 1);
 
         /// <summary>True when an applied build can be undone.</summary>
         public bool CanUndo { get => _canUndo; set => SetField(ref _canUndo, value); }
@@ -123,6 +142,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             return CustomBuildCore.Build(rom, TargetPath, OriginalRomPath, BuildMethod, undo);
+        }
+
+        /// <summary>
+        /// The full WF <c>ToolCustomBuildForm.Run</c> flow (issue #1248): build the
+        /// target, then — on success and when the build produced a ROM file — diff it
+        /// against the vanilla ROM and auto-install the merged CustomBuild patch via
+        /// <see cref="CustomBuildCore.MargeAndUpdate"/>. Both phases record their ROM
+        /// writes into the caller-owned <paramref name="undo"/> (no thread-local ambient
+        /// undo), so the caller commits/rolls back the whole operation as one unit.
+        ///
+        /// Returns the build result plus the marge result (null when the build failed or
+        /// produced no on-disk ROM to diff — e.g. the EA in-place path, which has nothing
+        /// to MargeAndUpdate from).
+        /// </summary>
+        public (CustomBuildCore.BuildResult build, CustomBuildCore.MargeResult marge) RunAndMarge(
+            Undo.UndoData undo, Action<string> onProgress = null)
+        {
+            ROM rom = CoreState.ROM;
+            var build = CustomBuildCore.Build(rom, TargetPath, OriginalRomPath, BuildMethod, undo, onProgress);
+            if (!build.Success)
+                return (build, null);
+
+            // MargeAndUpdate needs an on-disk built ROM to diff against vanilla; the
+            // CMD path produces SkillsTest.gba (BuiltRomPath). The EA in-place path has
+            // no separate ROM file, so there is nothing to marge (the build already
+            // wrote into the ROM directly).
+            if (string.IsNullOrEmpty(build.BuiltRomPath))
+                return (build, null);
+
+            var marge = CustomBuildCore.MargeAndUpdate(
+                rom, OriginalRomPath, build.BuiltRomPath, TargetPath,
+                TakeoverSkillAssignment, undo, onProgress);
+            return (build, marge);
         }
     }
 }

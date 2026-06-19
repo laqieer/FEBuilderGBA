@@ -24,19 +24,17 @@ namespace FEBuilderGBA
     ///            more complete than the WinForms form).
     ///     → replace the current ROM with the built bytes (undoable, fault-safe).
     ///
-    /// Scope boundary (intentional — matches how <see cref="EventAssemblerCompileCore"/>
-    /// deferred MakeEAAutoDef and <see cref="AsmCompileCore"/> deferred GoldRoad/MakePatch):
+    /// Scope (issue #1248 slice 2 wired the MargeAndUpdate auto-install):
     ///   PROVIDED: CMD build (run CUSTOM_BUILD.cmd → SkillsTest.gba), EA build (via
     ///     EventAssemblerCompileCore), the EA-error detection, the vanilla FE8_clean copy,
-    ///     loading the built ROM (undoable), reading SkillsTest.sym.
-    ///   INTENTIONALLY DEFERRED to a follow-up (WinForms-coupled): the WinForms
-    ///     <c>MargeAndUpdate</c> phase — diffing vanilla vs built ROM, copying the
-    ///     symbol/dump files into <c>config/patch2/FE8U/skill_CustomBuild</c>, generating
-    ///     a <c>PATCH_SkillSystem_CustomBuild.txt</c>, and AUTO-INSTALLING it via
-    ///     <c>PatchForm.UpdatePatch</c>. That pipeline depends on WinForms-only types
-    ///     (<c>PatchForm</c>, <c>ToolDiffForm</c>, <c>PatchUtil.SearchSkillSystem</c>)
-    ///     that cannot move to Core without a separate extraction. The user re-installs
-    ///     the built ROM's custom patch via the existing patch tooling for now.
+    ///     loading the built ROM (undoable), reading SkillsTest.sym, AND the
+    ///     <see cref="MargeAndUpdate"/> phase — diffing vanilla vs the built ROM,
+    ///     copying the symbol/dump files into <c>config/patch2/FE8U/skill_CustomBuild</c>,
+    ///     generating a <c>PATCH_SkillSystem_CustomBuild.txt</c>, merging the parent
+    ///     SkillSystem patch text, and AUTO-INSTALLING it via <see cref="PatchInstallCore"/>
+    ///     (a CustomBuild patch is literal-offset BIN-diffs, so the slice-1
+    ///     <c>PatchInstallCore.ApplyPatch</c> install — not the full
+    ///     <c>PatchForm.UpdatePatch</c> dependency-resolution engine — is what it needs).
     ///
     /// Platform boundary (the #1169 lesson): <c>CUSTOM_BUILD.cmd</c> is a Windows batch
     /// script. On Linux/macOS the CMD build path surfaces a clear localized
@@ -157,6 +155,310 @@ namespace FEBuilderGBA
             if (effective == BuildMethod.Cmd)
                 return BuildCmd(rom, targetPath, originalRomPath, undo, onProgress);
             return BuildEA(rom, targetPath, undo, onProgress);
+        }
+
+        // ===================================================================
+        //  MargeAndUpdate — the patch-merge + auto-install phase (#1248 slice 2)
+        // ===================================================================
+
+        /// <summary>The relative path of the parent SkillSystem patch under BaseDirectory.</summary>
+        public static readonly string[] ParentPatchRelativeParts =
+            { "config", "patch2", "FE8U", "skill20220703", "PATCH_Skill20220703.txt" };
+
+        /// <summary>The relative path of the CustomBuild cache directory under BaseDirectory.</summary>
+        public static readonly string[] CustomBuildCacheRelativeParts =
+            { "config", "patch2", "FE8U", "skill_CustomBuild" };
+
+        /// <summary>The generated CustomBuild patch leaf name.</summary>
+        public const string CustomBuildPatchLeafName = "PATCH_SkillSystem_CustomBuild.txt";
+
+        /// <summary>Structured result of a <see cref="MargeAndUpdate"/> run.</summary>
+        public sealed class MargeResult
+        {
+            /// <summary>True when the merged patch was generated and installed.</summary>
+            public bool Success { get; set; }
+            /// <summary>Path of the generated CustomBuild patch on disk, when one was produced.</summary>
+            public string PatchPath { get; set; } = "";
+            /// <summary>Localized human-readable error (set when <see cref="Success"/> is false).</summary>
+            public string ErrorMessage { get; set; } = "";
+        }
+
+        /// <summary>
+        /// Resolve <see cref="ParentPatchRelativeParts"/> against
+        /// <see cref="CoreState.BaseDirectory"/> (empty BaseDirectory → relative path).
+        /// </summary>
+        public static string GetParentPatchPath() =>
+            CombineUnderBase(ParentPatchRelativeParts);
+
+        /// <summary>
+        /// Resolve <see cref="CustomBuildCacheRelativeParts"/> against
+        /// <see cref="CoreState.BaseDirectory"/>.
+        /// </summary>
+        public static string GetCustomBuildCacheDir() =>
+            CombineUnderBase(CustomBuildCacheRelativeParts);
+
+        static string CombineUnderBase(string[] parts)
+        {
+            string baseDir = CoreState.BaseDirectory ?? "";
+            string[] all = new string[parts.Length + 1];
+            all[0] = baseDir;
+            Array.Copy(parts, 0, all, 1, parts.Length);
+            return Path.Combine(all);
+        }
+
+        /// <summary>
+        /// Port of the WinForms <c>ToolCustomBuildForm.MargeAndUpdate</c>, MINUS the
+        /// WinForms UI and the <c>PatchForm.UpdatePatch</c> dependency-resolution engine.
+        ///
+        /// Diff the built ROM against the vanilla ROM, assemble a self-contained
+        /// CustomBuild patch in <c>config/patch2/FE8U/skill_CustomBuild</c> (the parent
+        /// SkillSystem patch's text minus its own BIN/BINF/metadata lines + the fresh
+        /// vanilla→built BIN-diff), then auto-install it via
+        /// <see cref="PatchInstallCore"/>. A CustomBuild patch is literal-offset
+        /// BIN-diffs only, so the slice-1 install (not the full PatchForm engine) is
+        /// what it needs; <c>UPDATE_UNINSTALL</c> of a prior patch is a no-op here (the
+        /// fresh-install case), so the install applies the BIN diffs directly.
+        ///
+        /// Fault-safety: validates inputs up front (no throw, no ROM mutation on a bad
+        /// path); the install writes go through <see cref="PatchInstallCore.ApplyPatch"/>
+        /// into <paramref name="undo"/> (so the caller commits/rolls back on the UI
+        /// thread). A mid-install failure leaves whatever ApplyPatch already wrote
+        /// recorded in <paramref name="undo"/> for the caller to roll back.
+        /// </summary>
+        /// <param name="rom">The working ROM to install the CustomBuild patch into (CoreState.ROM).</param>
+        /// <param name="originalRomPath">The un-modded (vanilla) ROM path — the diff baseline.</param>
+        /// <param name="builtRomPath">The freshly-built ROM path (SkillsTest.gba).</param>
+        /// <param name="targetPath">The build target path (its directory holds the .sym/.dmp sidecars).</param>
+        /// <param name="takeoverSkillAssignment">
+        /// 0 = do not carry over the parent patch's skill assignment (drops
+        /// UPDATE_METHOD=SKILLSYSTEM / EDIT_PATCH lines); non-zero = carry it over.
+        /// </param>
+        /// <param name="undo">Explicit undo scope the install writes into (NOT thread-local).</param>
+        public static MargeResult MargeAndUpdate(ROM rom, string originalRomPath,
+            string builtRomPath, string targetPath, uint takeoverSkillAssignment,
+            Undo.UndoData undo, Action<string> onProgress = null)
+        {
+            var result = new MargeResult();
+
+            if (rom == null)
+            {
+                result.ErrorMessage = R._("No ROM is loaded.");
+                return result;
+            }
+            if (undo == null)
+            {
+                result.ErrorMessage = R._("No ROM is loaded.");
+                return result;
+            }
+            if (string.IsNullOrEmpty(originalRomPath) || !File.Exists(originalRomPath))
+            {
+                result.ErrorMessage = R._("無改造ROM({0})が見つかりませんでした", originalRomPath ?? "");
+                return result;
+            }
+            if (string.IsNullOrEmpty(builtRomPath) || !File.Exists(builtRomPath))
+            {
+                result.ErrorMessage = R._("ターゲット({0})が見つかりませんでした。", builtRomPath ?? "");
+                return result;
+            }
+
+            string parentPatch = GetParentPatchPath();
+            if (!File.Exists(parentPatch))
+            {
+                result.ErrorMessage = R._("ベースとなるシステム({0})が見つかりませんでした", parentPatch);
+                return result;
+            }
+
+            byte[] originalBin, builtBin;
+            try
+            {
+                originalBin = File.ReadAllBytes(originalRomPath);
+                builtBin = File.ReadAllBytes(builtRomPath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                result.ErrorMessage = R._("Unable to read the compiled file.\r\nfilename:{0}", builtRomPath)
+                    + "\r\n" + ex.ToString();
+                return result;
+            }
+
+            string cacheDir = GetCustomBuildCacheDir();
+            try
+            {
+                // Rebuild the CustomBuild cache directory from the parent patch dir,
+                // dropping the parent's own diffs + patch text (we regenerate them).
+                onProgress?.Invoke(R._("Preparing the CustomBuild patch..."));
+                if (!DelTree(cacheDir))
+                {
+                    result.ErrorMessage = R._(
+                        "カスタムビルドのキャッシュを削除できませんでした。\r\n以下のディレクトリを手動で消去してください。\r\n{0}",
+                        cacheDir);
+                    return result;
+                }
+                Directory.CreateDirectory(cacheDir);
+
+                string parentDir = Path.GetDirectoryName(parentPatch) ?? "";
+                CopyDirectoryShallow(parentDir, cacheDir);
+                DeleteFilesByPattern(cacheDir, "0*.bin");
+                DeleteFilesByPattern(cacheDir, "PATCH_*.txt");
+
+                // Copy the symbol + dump sidecars produced beside the build target.
+                string targetDir = string.IsNullOrEmpty(targetPath)
+                    ? "" : (Path.GetDirectoryName(Path.GetFullPath(targetPath)) ?? "");
+                CopySYM(targetDir, cacheDir);
+                CopySomeDumpFiles(targetDir, cacheDir);
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = R._(
+                    "Unable to write the temporary files needed for compilation.")
+                    + "\r\n" + ex.ToString();
+                return result;
+            }
+
+            // The CustomBuild tool targets FE8 (the view gates on version==8), so default
+            // to FE8U when RomInfo is unavailable; otherwise honour the loaded ROM's
+            // version/multibyte so the free-area span in MakeDiff matches FE8U vs FE8J.
+            int diffVersion = rom.RomInfo?.version ?? 8;
+            bool diffMultibyte = rom.RomInfo?.is_multibyte ?? false;
+
+            string custombuild = Path.Combine(cacheDir, CustomBuildPatchLeafName);
+            PatchInstallCore.PatchSt diffPatch;
+            try
+            {
+                // Diff the built ROM against vanilla → the CustomBuild BIN-diff patch.
+                // MakeDiff writes ONLY the pure literal-offset BIN subset (TYPE=BIN +
+                // BINF: lines + .bin sidecars), which is exactly what PatchInstallCore
+                // installs. We load THIS pre-merge diff for the fresh install (below),
+                // then overwrite the file with the parent-merged text as the on-disk
+                // artifact the full PatchForm engine consumes on a later re-install.
+                onProgress?.Invoke(R._("Generating the patch diff..."));
+                DiffToolCore.MakeDiff(custombuild, originalBin, builtBin,
+                    patchedIfMinSize: 10, collectFreeSpace: true,
+                    version: diffVersion, isMultibyte: diffMultibyte);
+                diffPatch = PatchInstallCore.LoadPatch(custombuild);
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = R._("Unable to write the compiled file: {0}", custombuild)
+                    + "\r\n" + ex.ToString();
+                return result;
+            }
+
+            // Auto-install the fresh CustomBuild diff (slice-1 BIN install). This is a
+            // FRESH install: a CustomBuild patch is BIN-diffs, and the parent's
+            // UPDATE_UNINSTALL is a no-op on first run, so applying the diff's BIN lines
+            // is all the install needs (no full PatchForm dependency-resolution engine).
+            if (diffPatch == null)
+            {
+                // MakeDiff produced no diff (built ROM == vanilla) → nothing to install.
+                // Still write the merged artifact below so the on-disk patch is valid.
+            }
+            else
+            {
+                try
+                {
+                    onProgress?.Invoke(R._("Installing the patch..."));
+                    PatchInstallCore.ApplyPatch(diffPatch, rom, undo);
+                }
+                catch (PatchInstallException pex)
+                {
+                    result.ErrorMessage = pex.Message;
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    result.ErrorMessage = R._("Failed to apply the compiled ROM (size/resize limit exceeded?).")
+                        + "\r\n" + ex.ToString();
+                    return result;
+                }
+            }
+
+            // Write the parent-merged patch text as the on-disk CustomBuild artifact
+            // (UPDATE_UNINSTALL of the parent + the carried-over parent lines + the diff).
+            // This overwrites the pure-diff file we just installed from.
+            try
+            {
+                MargePatch(custombuild, parentPatch, takeoverSkillAssignment);
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = R._("Unable to write the compiled file: {0}", custombuild)
+                    + "\r\n" + ex.ToString();
+                return result;
+            }
+            result.PatchPath = custombuild;
+
+            result.Success = true;
+            return result;
+        }
+
+        /// <summary>
+        /// Port of the WinForms <c>ToolCustomBuildForm.MargePatch</c>: build the merged
+        /// CustomBuild patch text by emitting an <c>UPDATE_UNINSTALL</c> of the parent
+        /// patch, then every parent line EXCEPT the parent's own diffs/metadata
+        /// (PATCHED_IF/BINF/BIN/AFTER_TRY_EXECUTE/NAME/INFO/TEXTADV/EXTENDS), and finally
+        /// the freshly-generated CustomBuild diff text. When
+        /// <paramref name="takeoverSkillAssignment"/> is 0 the skill-assignment lines
+        /// (UPDATE_METHOD=SKILLSYSTEM / EDIT_PATCH) are dropped too. Pure string filter —
+        /// no ROM, no UI.
+        /// </summary>
+        public static void MargePatch(string custombuild, string currentPatchFileName,
+            uint takeoverSkillAssignment)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("UPDATE_UNINSTALL:0=" + currentPatchFileName);
+            string[] lines = File.ReadAllLines(currentPatchFileName);
+            foreach (string line in lines)
+            {
+                if (line.IndexOf("PATCHED_IF") == 0) continue;
+                if (line.IndexOf("BINF:") == 0) continue;
+                if (line.IndexOf("BIN:") == 0) continue;
+                if (line.IndexOf("AFTER_TRY_EXECUTE:") == 0) continue;
+                if (line.IndexOf("NAME") == 0) continue;
+                if (line.IndexOf("INFO") == 0) continue;
+                if (line.IndexOf("TEXTADV:") == 0) continue;
+                if (line.IndexOf("EXTENDS:") == 0) continue;
+                if (takeoverSkillAssignment == 0)
+                {
+                    // Do not carry the parent's skill assignment over.
+                    if (line.IndexOf("UPDATE_METHOD=SKILLSYSTEM") == 0) continue;
+                    if (line.IndexOf("EDIT_PATCH:") == 0) continue;
+                }
+
+                sb.AppendLine(line);
+            }
+
+            sb.AppendLine(File.ReadAllText(custombuild));
+            File.WriteAllText(custombuild, sb.ToString());
+        }
+
+        /// <summary>Copy <c>SkillsTest.sym</c> from the build dir → <c>symbol.sym</c> in the cache.</summary>
+        static void CopySYM(string buildDir, string cacheDir)
+        {
+            if (string.IsNullOrEmpty(buildDir)) return;
+            string src = Path.Combine(buildDir, BuiltSymLeafName);
+            string dest = Path.Combine(cacheDir, "symbol.sym");
+            CopyFileIfExists(src, dest);
+        }
+
+        /// <summary>Copy the optional ASMC/skill dump sidecars from the build dir into the cache.</summary>
+        static void CopySomeDumpFiles(string buildDir, string cacheDir)
+        {
+            if (string.IsNullOrEmpty(buildDir)) return;
+            CopySomeDumpFile(buildDir, cacheDir, "ASMC_ForgetSkill.dmp", "ASMC_ForgetSkill.bin");
+            CopySomeDumpFile(buildDir, cacheDir, "ASMC_HasSkill.dmp", "ASMC_HasSkill.bin");
+            CopySomeDumpFile(buildDir, cacheDir, "ASMC_LearnSkill.dmp", "ASMC_LearnSkill.bin");
+            CopySomeDumpFile(buildDir, cacheDir, "GetSkills.dmp", "GetSkills.dmp");
+            CopySomeDumpFile(buildDir, cacheDir, "nihilTester.dmp", "nihilTester.dmp");
+            CopySomeDumpFile(buildDir, cacheDir, "rtextloop.dmp", "rtextloop.dmp");
+            CopySomeDumpFile(buildDir, cacheDir, "skillDescGetter.dmp", "skillDescGetter.dmp");
+        }
+
+        static void CopySomeDumpFile(string srcdir, string destdir, string srcfilename, string destfilename)
+        {
+            string src = FindFileOne(srcdir, srcfilename);
+            if (src == "") return;
+            CopyFileIfExists(src, Path.Combine(destdir, destfilename));
         }
 
         /// <summary>
@@ -372,6 +674,101 @@ namespace FEBuilderGBA
                 }
             }
             return sb.ToString();
+        }
+
+        // ===================================================================
+        //  File helpers — Core-local ports of the WinForms U.* directory ops
+        //  (U.DelTree / U.CopyDirectory / U.DeleteFile / U.CopyFile /
+        //  U.FindFileOne live in FEBuilderGBA/U.cs, which is WinForms-only;
+        //  these are the headless, no-Log.localization equivalents this tool
+        //  needs, mirroring AsmCompileCore's local FindFileOne precedent).
+        // ===================================================================
+
+        /// <summary>
+        /// Recursively delete <paramref name="dir"/> with a bounded retry (a build tool
+        /// may still hold a handle briefly). Returns true when the directory is gone (or
+        /// never existed). Mirrors WinForms <c>U.DelTree</c>.
+        /// </summary>
+        static bool DelTree(string dir, int retry = 10)
+        {
+            if (!Directory.Exists(dir))
+                return true;
+
+            for (int i = 0; i < retry; i++)
+            {
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                    return true;
+                }
+                catch (Exception e)
+                {
+                    Log.Error("CustomBuildCore.DelTree: " + e.ToString());
+                }
+                System.Threading.Thread.Sleep(500);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Recursively copy <paramref name="sourceDir"/> into <paramref name="destDir"/>
+        /// (files overwrite, empty sub-dirs are skipped). Headless port of WinForms
+        /// <c>U.CopyDirectory</c> minus the timestamp/attribute copy + localized Log calls.
+        /// </summary>
+        static void CopyDirectoryShallow(string sourceDir, string destDir)
+        {
+            if (!Directory.Exists(sourceDir))
+                return;
+
+            Directory.CreateDirectory(destDir);
+
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                string destFile = Path.Combine(destDir, Path.GetFileName(file));
+                File.Copy(file, destFile, overwrite: true);
+            }
+
+            foreach (string sub in Directory.GetDirectories(sourceDir))
+            {
+                // Skip empty sub-dirs (matches WF, which short-circuits IsEmptyDirectory).
+                if (Directory.GetFiles(sub).Length == 0 &&
+                    Directory.GetDirectories(sub).Length == 0)
+                    continue;
+                CopyDirectoryShallow(sub, Path.Combine(destDir, Path.GetFileName(sub)));
+            }
+        }
+
+        /// <summary>
+        /// Delete every top-level file in <paramref name="dir"/> matching
+        /// <paramref name="pattern"/>. Mirrors WinForms <c>U.DeleteFile</c> (top-dir only).
+        /// </summary>
+        static void DeleteFilesByPattern(string dir, string pattern)
+        {
+            if (!Directory.Exists(dir))
+                return;
+            foreach (string file in Directory.GetFiles(dir, pattern, SearchOption.TopDirectoryOnly))
+                File.Delete(file);
+        }
+
+        /// <summary>Copy <paramref name="src"/>→<paramref name="dest"/> only when the source exists (WF <c>U.CopyFile</c>).</summary>
+        static void CopyFileIfExists(string src, string dest)
+        {
+            if (!File.Exists(src))
+                return;
+            File.Copy(src, dest, overwrite: true);
+        }
+
+        /// <summary>
+        /// First file under <paramref name="path"/> (recursive) matching
+        /// <paramref name="name"/>, or "" when none. Mirrors WinForms <c>U.FindFileOne</c>
+        /// (same shape as <c>AsmCompileCore</c>'s local helper).
+        /// </summary>
+        static string FindFileOne(string path, string name)
+        {
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+                return "";
+            string[] files = U.Directory_GetFiles_Safe(path, name, SearchOption.AllDirectories);
+            return files.Length > 0 ? files[0] : "";
         }
     }
 }

@@ -25900,3 +25900,36 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 :No font glyphs were exported.
 没有可导出的字体字形。
 
+:Marge and Update
+合并并更新
+
+:Skill assignment:
+技能分配:
+
+:Do not carry over the skill assignment
+不继承技能分配
+
+:Carry over the skill assignment
+继承技能分配
+
+:Preparing the CustomBuild patch...
+正在准备自定义构建补丁...
+
+:Generating the patch diff...
+正在生成补丁差异...
+
+:Installing the patch...
+正在安装补丁...
+
+:Marge and Update successful.
+合并并更新成功。
+
+:Marge and Update failed.
+合并并更新失败。
+
+:Patch: {0}
+补丁: {0}
+
+:Unable to write the compiled file: {0}
+无法写入已编译的文件: {0}
+
