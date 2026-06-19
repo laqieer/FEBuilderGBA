@@ -162,6 +162,11 @@ namespace FEBuilderGBA
             /// the slice-2a/2b flat descriptors). Applied to every table entry AFTER the main IFR
             /// <see cref="Address"/> is emitted.</summary>
             public List<SubWalk> SubWalks;
+            /// <summary>First entry index the <see cref="SubWalks"/> apply to (default 0 = every
+            /// entry). <c>ClassFE6Form.MakeAllDataLength</c> SKIPS class 0 (its MoveCost loop starts
+            /// at <c>cid=1, addr=BaseAddress+BlockSize</c>), so its descriptor sets this to 1. Does
+            /// NOT affect the main IFR <see cref="Address"/> length (still block×(count+1)).</summary>
+            public uint SubWalkStartIndex = 0;
             /// <summary>Optional standalone fixed-size BIN pointers emitted ONCE per descriptor
             /// (not per entry). Each is a <c>RomInfo</c> pointer whose target is a fixed-length
             /// BIN block — reproduces <c>ClassForm</c>'s three全クラス共通 terrain pointers
@@ -377,7 +382,18 @@ namespace FEBuilderGBA
         /// </summary>
         static void EmitSubWalks(ROM rom, List<Address> list, StructDescriptor d, uint baseAddr, uint dataCount)
         {
-            for (uint i = 0; i < dataCount; i++)
+            // The string-decoding sub-walks (CString/BinString) read ROM.getString, which needs a
+            // CoreState.SystemTextEncoder. In the real app + CLI InitFull it is always set, but the
+            // producer must NOT NewReferenceException if a caller scans without one. Skip those
+            // sub-walks gracefully (the BinFixed/fixed-length kinds do not decode strings, so they
+            // still run). NOTE: skipping leaves those embedded string blocks un-tracked — the
+            // ProducerResult is already IsComplete==false in any partial scan, so the wiring slice
+            // must not feed such a list to a real defragment.
+            bool hasEncoder = CoreState.SystemTextEncoder != null;
+
+            // Most forms walk every entry from 0. ClassFE6Form skips class 0 (its MoveCost loop
+            // starts at cid=1, addr=BaseAddress+BlockSize) — SubWalkStartIndex models that verbatim.
+            for (uint i = d.SubWalkStartIndex; i < dataCount; i++)
             {
                 uint p = baseAddr + i * d.BlockSize;
                 foreach (SubWalk sw in d.SubWalks)
@@ -388,6 +404,11 @@ namespace FEBuilderGBA
                         case SubKind.CString:
                             // StatusParamForm: Address.AddCString(list, p + 12). AddCString does its
                             // own pointer-safety + getString and adds (len + 1, CSTRING) verbatim.
+                            // Needs an encoder; skip (don't NRE) if none is loaded.
+                            if (!hasEncoder)
+                            {
+                                continue;
+                            }
                             Address.AddCString(list, pfield);
                             break;
 
@@ -395,6 +416,11 @@ namespace FEBuilderGBA
                         {
                             // MapTerrainNameForm/OtherTextForm: read the embedded pointer, decode the
                             // string, and add a BIN block of length == strlen (NO trailing-NUL +1).
+                            // Needs an encoder; skip (don't NRE) if none is loaded.
+                            if (!hasEncoder)
+                            {
+                                continue;
+                            }
                             uint nameAddr = rom.p32(pfield);
                             if (!U.isSafetyOffset(nameAddr))
                             {
@@ -675,39 +701,86 @@ namespace FEBuilderGBA
                 PointerIndexes = new uint[] { },
             });
 
-            // ClassForm.MakeAllDataLength (slice 2c) — main IFR (block class_datasize,
-            // U8NotZeroIndex0Always @+4, max 0x100, pointerIndexes {52,56,60,64,68,72,76}) PLUS a
-            // per-entry MoveCost sub-walk: six 66-byte BIN blocks behind the embedded pointers at
-            // offsets 56/60/64/68/72/76. Offset 52 is IN pointerIndexes (the battle-animation
-            // pointer FIELD is relocated) but is NOT a MoveCost sub-walk — its TARGET is tracked by
-            // the battle-anime form, so adding a 52 sub-walk here would double-track it. After the
-            // per-entry loop, three 全クラス共通 terrain pointers (66-byte BIN each) are emitted once.
-            l.Add(new StructDescriptor
+            // ClassForm vs ClassFE6Form (slice 2c) — VERSION-SPECIFIC. The WinForms
+            // MakeAllStructPointersList calls ClassForm.MakeAllDataLength ONLY inside the version==8
+            // and version==7 branches, and ClassFE6Form.MakeAllDataLength inside version==6. The two
+            // forms have DIFFERENT MoveCost offsets/lengths and pointerIndexes, so running the FE7/8
+            // descriptor on a FE6 ROM would relocate the wrong bytes (silent corruption). We mirror
+            // the WF version branch exactly.
+            if (rom.RomInfo.version != 6)
             {
-                Name = "Class",
-                PointerField = r => r.RomInfo.class_pointer,
-                FixedCountField = null,
-                BlockSize = rom.RomInfo.class_datasize,
-                Rule = DataCountRule.U8NotZeroIndex0Always,
-                RuleOffset = 4,
-                MaxCount = 0x100,
-                PointerIndexes = new uint[] { 52, 56, 60, 64, 68, 72, 76 },
-                SubWalks = new List<SubWalk>
+                // ClassForm (FE7/FE8).MakeAllDataLength — main IFR (block class_datasize,
+                // U8NotZeroIndex0Always @+4, max 0x100, pointerIndexes {52,56,60,64,68,72,76}) PLUS a
+                // per-entry MoveCost sub-walk: six 66-byte BIN blocks behind the embedded pointers at
+                // offsets 56/60/64/68/72/76. Offset 52 is IN pointerIndexes (the battle-animation
+                // pointer FIELD is relocated) but is NOT a MoveCost sub-walk — its TARGET is tracked
+                // by the battle-anime form, so adding a 52 sub-walk here would double-track it. After
+                // the per-entry loop, three 全クラス共通 terrain pointers (66-byte BIN each) are emitted once.
+                l.Add(new StructDescriptor
                 {
-                    new SubWalk { EmbeddedPointerOffset = 56, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Clear" },
-                    new SubWalk { EmbeddedPointerOffset = 60, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Rain" },
-                    new SubWalk { EmbeddedPointerOffset = 64, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Snow" },
-                    new SubWalk { EmbeddedPointerOffset = 68, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost avoid" },
-                    new SubWalk { EmbeddedPointerOffset = 72, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost def" },
-                    new SubWalk { EmbeddedPointerOffset = 76, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost ref" },
-                },
-                ExtraFixedPointers = new[]
+                    Name = "Class",
+                    PointerField = r => r.RomInfo.class_pointer,
+                    FixedCountField = null,
+                    BlockSize = rom.RomInfo.class_datasize,
+                    Rule = DataCountRule.U8NotZeroIndex0Always,
+                    RuleOffset = 4,
+                    MaxCount = 0x100,
+                    PointerIndexes = new uint[] { 52, 56, 60, 64, 68, 72, 76 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 56, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Clear" },
+                        new SubWalk { EmbeddedPointerOffset = 60, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Rain" },
+                        new SubWalk { EmbeddedPointerOffset = 64, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost Snow" },
+                        new SubWalk { EmbeddedPointerOffset = 68, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost avoid" },
+                        new SubWalk { EmbeddedPointerOffset = 72, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost def" },
+                        new SubWalk { EmbeddedPointerOffset = 76, Kind = SubKind.BinFixed, FixedLength = 66, Name = (r, i) => "MoveCost ref" },
+                    },
+                    ExtraFixedPointers = new[]
+                    {
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_recovery_pointer, FixedLength = 66, Name = "MoveCost ref" },
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_bad_status_recovery_pointer, FixedLength = 66, Name = "MoveCost recovery bad status" },
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_show_infomation_pointer, FixedLength = 66, Name = "MoveCost show infomation" },
+                    },
+                });
+            }
+            else
+            {
+                // ClassFE6Form.MakeAllDataLength — SAME main IFR Init (block class_datasize, base
+                // class_pointer, U8NotZeroIndex0Always @+4, max 0x100) but FE6-specific:
+                //   * pointerIndexes {48,52,56,60,64} (NOT {52..76}).
+                //   * MoveCost sub-walk: FOUR 52-byte BIN blocks @ off {48,52,56,60}, names
+                //     "MoveCost Clear/avoid/def/ref" (FE7/8 are SIX 66-byte @ {56..76}).
+                //   * The MoveCost loop SKIPS class 0 (cid starts at 1) -> SubWalkStartIndex = 1.
+                //   * Off 64 is in pointerIndexes (pointer FIELD relocated) but is NOT a MoveCost
+                //     sub-walk (target owned by another form) — same don't-double-track posture as
+                //     the FE7/8 off-52.
+                //   * Three 全クラス共通 terrain pointers are 52-byte BIN (NOT 66), same names.
+                l.Add(new StructDescriptor
                 {
-                    new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_recovery_pointer, FixedLength = 66, Name = "MoveCost ref" },
-                    new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_bad_status_recovery_pointer, FixedLength = 66, Name = "MoveCost recovery bad status" },
-                    new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_show_infomation_pointer, FixedLength = 66, Name = "MoveCost show infomation" },
-                },
-            });
+                    Name = "Class",
+                    PointerField = r => r.RomInfo.class_pointer,
+                    FixedCountField = null,
+                    BlockSize = rom.RomInfo.class_datasize,
+                    Rule = DataCountRule.U8NotZeroIndex0Always,
+                    RuleOffset = 4,
+                    MaxCount = 0x100,
+                    PointerIndexes = new uint[] { 48, 52, 56, 60, 64 },
+                    SubWalkStartIndex = 1, // FE6 skips class 0
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 48, Kind = SubKind.BinFixed, FixedLength = 52, Name = (r, i) => "MoveCost Clear" },
+                        new SubWalk { EmbeddedPointerOffset = 52, Kind = SubKind.BinFixed, FixedLength = 52, Name = (r, i) => "MoveCost avoid" },
+                        new SubWalk { EmbeddedPointerOffset = 56, Kind = SubKind.BinFixed, FixedLength = 52, Name = (r, i) => "MoveCost def" },
+                        new SubWalk { EmbeddedPointerOffset = 60, Kind = SubKind.BinFixed, FixedLength = 52, Name = (r, i) => "MoveCost ref" },
+                    },
+                    ExtraFixedPointers = new[]
+                    {
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_recovery_pointer, FixedLength = 52, Name = "MoveCost ref" },
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_bad_status_recovery_pointer, FixedLength = 52, Name = "MoveCost recovery bad status" },
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.terrain_show_infomation_pointer, FixedLength = 52, Name = "MoveCost show infomation" },
+                    },
+                });
+            }
 
             // StatusParamForm.MakeAllDataLength (slice 2c) — FOUR pointers (param1/2/3w/3m), block
             // 16, IsDataExists = U.isPointer(u32(addr+12)) (NULL terminates -> DataCountRule.PointerAt
