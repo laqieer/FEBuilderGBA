@@ -510,6 +510,32 @@ namespace FEBuilderGBA
             progress?.Report("MapTileAnimation2");
             EmitMapTileAnimation2(rom, list);
 
+            // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
+            // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
+            // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
+            // per-version block/first-field/name. Its count rule needs the owner-lookahead
+            // (UnitForm.GetUnitIDWhereSupportAddr), reproduced via SupportUnitNavigation, so it is a
+            // dedicated emitter rather than a flat descriptor. WorldMapPathForm is version==8-only and
+            // has per-entry computed-length sub-blocks (CalcPath{,Move}DataLength, pure ROM walks).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("SupportUnit");
+            EmitSupportUnit(rom, list);
+
+            if (rom.RomInfo.version == 8)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("WorldMapPath");
+                EmitWorldMapPath(rom, list);
+            }
+
             if (rom.RomInfo.version == 7)
             {
                 if (ct.IsCancellationRequested)
@@ -1433,6 +1459,235 @@ namespace FEBuilderGBA
             uint length = block * (dataCount + 1);
             list.Add(new Address(baseAddr, length, U.NOT_FOUND, "Unit",
                 Address.DataTypeEnum.InputFormRef, block, new uint[] { 44 }));
+        }
+
+        // ===================================================================
+        // slice 2h — flat IFR stragglers whose count rule needs a Core helper
+        // (SupportUnit's owner-lookahead; WorldMapPath's per-entry computed-length
+        // sub-blocks). Each gets a dedicated emitter + an explicit-address test
+        // seam that supplies the resolved work items without RomInfo.
+        // ===================================================================
+
+        /// <summary>
+        /// <c>SupportUnitForm.MakeAllDataLength</c> (FE7/FE8, block 24) and
+        /// <c>SupportUnitFE6Form.MakeAllDataLength</c> (FE6, block 32) — slice 2h. Both are a PLAIN flat
+        /// IFR emit (<c>AddAddress(ifr, name, {})</c>, no per-entry sub-walk), but their
+        /// <c>InputFormRef.Init</c> IsDataExists is the "owner-lookahead" terminator that a flat
+        /// <see cref="StructDescriptor"/> rule cannot express: continue while the first field is
+        /// non-zero (<c>u16(addr)!=0</c> for FE7/8, <c>u8(addr)!=0</c> for FE6) OR — even when it is
+        /// zero — any of the entry + next 3 blocks is OWNED, i.e. some unit's <c>+44</c> support
+        /// pointer points at it (<c>UnitForm.GetUnitIDWhereSupportAddr != NOT_FOUND</c>, reproduced by
+        /// <see cref="SupportUnitNavigation.GetUnitIdAtSupportAddr"/>). The owner lookahead is a pure
+        /// ROM walk of the unit table, so this is faithfully headless.
+        /// <para>This emits the SAME single IFR <see cref="Address"/> as
+        /// <c>AddressWinForms.AddAddress(list, ifr, name, {})</c>: base = <c>p32(support_unit_pointer)</c>,
+        /// length = <c>block × (DataCount + 1)</c>, pointer = <c>support_unit_pointer</c> (the RomInfo
+        /// slot), pointerIndexes = <c>{}</c>, type InputFormRef — driven by the SAME
+        /// <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> every other form uses, so
+        /// the count is byte-identical to WF's IFR walk.</para>
+        /// </summary>
+        public static void EmitSupportUnit(ROM rom, List<Address> list)
+        {
+            // FE7/FE8: block 24, first-field u16, Info "SupportUnit". FE6: block 32, first-field u8,
+            // Info "SupportUnitFE6". The pointer slot is support_unit_pointer in all versions.
+            bool fe6 = rom.RomInfo.version == 6;
+            EmitSupportUnitAt(rom, list, rom.RomInfo.support_unit_pointer,
+                block: fe6 ? 32u : 24u,
+                firstFieldWidth: fe6 ? 1u : 2u,
+                name: fe6 ? "SupportUnitFE6" : "SupportUnit");
+        }
+
+        /// <summary>SupportUnit walk from an explicit pointer slot / block / first-field width / name
+        /// (test seam — lets a synthetic ROM supply them without populating RomInfo, which has no
+        /// public setters). See <see cref="EmitSupportUnit"/> for the verbatim WF reproduction.</summary>
+        public static void EmitSupportUnitAt(ROM rom, List<Address> list, uint rawPointer,
+            uint block, uint firstFieldWidth, string name)
+        {
+            if (block == 0)
+            {
+                return; // a zero block would make getBlockDataCount spin; not real data.
+            }
+
+            // AddAddress(ifr): addr = ifr.BaseAddress = p32(toOffset(BasePointer)); pointer = BasePointer.
+            // Guard the full pointer slot before p32 (root+3) so a near-EOF slot skips, not throws.
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // AddAddress early-returns when !isSafetyOffset(addr).
+            }
+
+            // WF SupportUnit*Form.Init IsDataExists (owner-lookahead), driven by the SAME getBlockDataCount.
+            // getBlockDataCount only fires the callback while addr+block<=Length, so the first-field read
+            // (u8/u16 @ addr) is always in bounds. The owner lookahead reads the unit table via
+            // GetUnitIdAtSupportAddr, which is itself fully bounds-checked.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                bool firstFieldNonZero = firstFieldWidth == 1
+                    ? rom.u8(addr) != 0
+                    : rom.u16(addr) != 0;
+                if (firstFieldNonZero)
+                {
+                    return true; // 0ではないのでまだデータがある.
+                }
+                // 飛び地になっていることがあるらしい — 4ブロックほど検索してみる (WF: n=0..3, found+=block).
+                uint found = addr;
+                for (int n = 0; n < 4; n++, found += block)
+                {
+                    if (SupportUnitNavigation.GetUnitIdAtSupportAddr(rom, found) != null)
+                    {
+                        return true; // 発見!
+                    }
+                }
+                return false; // 見つからない.
+            });
+
+            // AddAddress(ifr, name, {}): length = block × (DataCount + 1); pointer = the RomInfo slot.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, name,
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+        }
+
+        /// <summary>
+        /// <c>WorldMapPathForm.MakeAllDataLength</c> (FE8-only, slice 2h). A flat IFR (base
+        /// <c>worldmap_road_pointer</c>, block 12, IsDataExists = <c>isPointer(u32(addr+0))</c> →
+        /// PointerAt @0, pointerIndexes {0,8}) PLUS a per-entry pair of variable-length sub-blocks
+        /// behind the embedded pointers at +0 and +8, whose lengths come from two pure terminator
+        /// walks (<see cref="CalcPathDataLength"/> / <see cref="CalcPathMoveDataLength"/>). Those
+        /// length walks are pure ROM reads (no PatchUtil/disasm/config), so they are reproduced
+        /// VERBATIM here rather than in a separate Core helper. Reproduced per entry (<c>p = base +
+        /// i*12</c>):
+        /// <list type="bullet">
+        ///   <item><c>a0 = p32(p+0)</c>; if <c>a0 &gt; 0</c>: <c>AddAddress(a0, CalcPathDataLength(a0),
+        ///   p+0, "WorldMapPath:0x&lt;i&gt;", BIN)</c>;</item>
+        ///   <item><c>a8 = p32(p+8)</c>; if <c>a8 &gt; 0</c>: <c>AddAddress(a8, CalcPathMoveDataLength(a8),
+        ///   p+8, "WorldMapPathMove:0x&lt;i&gt;", POINTER)</c>.</item>
+        /// </list>
+        /// The main IFR Address uses pointerIndexes {0,8} (the two embedded pointer FIELDS are
+        /// relocated by the rebuild's pointer-index pass; their DATA is relocated by the two
+        /// sub-Addresses here).
+        /// </summary>
+        public static void EmitWorldMapPath(ROM rom, List<Address> list)
+        {
+            EmitWorldMapPathAt(rom, list, rom.RomInfo.worldmap_road_pointer);
+        }
+
+        /// <summary>WorldMapPath walk from an explicit pointer slot (test seam — lets a synthetic ROM
+        /// supply it without populating RomInfo). See <see cref="EmitWorldMapPath"/> for the verbatim
+        /// WF reproduction.</summary>
+        public static void EmitWorldMapPathAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 12;
+
+            // Main IFR (AddAddress(ifr, "WorldMapPath", {0,8})): base = p32(toOffset(slot)),
+            // pointer = slot. Guard the full slot before p32 (root+3).
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists = isPointer(u32(addr+0)) — PointerAt @0.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                U.isPointer(rom.u32(addr + 0)));
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "WorldMapPath",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 8 }));
+
+            // Per-entry sub-blocks. getBlockDataCount guarantees p+block(12)<=Length for i<dataCount,
+            // so p32(p+0) (deepest p+3) and p32(p+8) (deepest p+11) are both in bounds.
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                uint a0 = rom.p32(p + 0);
+                if (a0 > 0)
+                {
+                    Address.AddAddress(list, a0, CalcPathDataLength(rom, a0), p + 0,
+                        "WorldMapPath:" + U.To0xHexString(i), Address.DataTypeEnum.BIN);
+                }
+
+                uint a8 = rom.p32(p + 8);
+                if (a8 > 0)
+                {
+                    Address.AddAddress(list, a8, CalcPathMoveDataLength(rom, a8), p + 8,
+                        "WorldMapPathMove:" + U.To0xHexString(i), Address.DataTypeEnum.POINTER);
+                }
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>WorldMapPathForm.CalcPathDataLength</c>: walk a path-chip stream
+        /// from <paramref name="addr"/> — each 4-byte header is <c>(x8,y8,count,?)</c> followed by
+        /// <c>count*2</c> chip bytes; stop at the first header whose <c>x8 == 0xFF</c> (consuming that
+        /// header), or when the next 4-byte header would run past a safe offset. Returns the byte length
+        /// consumed (0 on an unsafe start). Pure ROM reads — every dereference is bounds-guarded.</summary>
+        public static uint CalcPathDataLength(ROM rom, uint addr)
+        {
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint p = addr;
+            while (true)
+            {
+                if (!U.isSafetyOffset(p + 4, rom))
+                {
+                    return p - addr;
+                }
+
+                uint x8 = rom.u8(p + 0);
+                // y8 (p+1) and count (p+2) are read in WF; count drives the advance.
+                uint count = rom.u8(p + 2);
+
+                p += 4;
+                if (x8 == 0xFF)
+                {
+                    return p - addr;
+                }
+                p += count * 2;
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>WorldMapPathForm.CalcPathMoveDataLength</c>: walk a u32 list from
+        /// <paramref name="addr"/>, stopping at (and consuming) the first <c>0xFFFFFFFF</c> terminator,
+        /// or when the next u32 would run past a safe offset. Returns the byte length consumed (0 on an
+        /// unsafe start). Pure ROM reads — every dereference is bounds-guarded.</summary>
+        public static uint CalcPathMoveDataLength(ROM rom, uint addr)
+        {
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint p = addr;
+            while (true)
+            {
+                // WF guards only `isSafetyOffset(p)` (p < Length) before `u32(p)`, which would THROW
+                // when p is in [Length-3, Length-1] (u32 needs p+4 <= Length). Guard the FULL 4-byte
+                // read (root+3) so a malformed/unterminated stream near EOF returns the length consumed
+                // so far instead of throwing — never changes the result on a well-formed (0xFFFFFFFF-
+                // terminated) stream, where the terminator is always reached before EOF. (WF has a
+                // Debug.Assert(false) on the unsafe path; headless returns p - addr.)
+                if (!U.isSafetyOffset(p + 3, rom))
+                {
+                    return p - addr;
+                }
+                uint a = rom.u32(p);
+
+                p += 4;
+                if (a == 0xFFFFFFFF)
+                {
+                    return p - addr;
+                }
+            }
         }
 
         // ===================================================================
@@ -2933,6 +3188,77 @@ namespace FEBuilderGBA
                         new SubWalk { EmbeddedPointerOffset = 8, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "ChapterTitleImage_Title" },
                     },
                 });
+
+                // EDStaffRollForm.MakeAllDataLength (FE8, slice 2h) — Info "EDStaffRoll", block 8, base
+                // ed_staffroll_image_pointer, IsDataExists = isPointer(u32(addr+0)) && i < 12. The WF
+                // lambda returns false on a non-pointer OR once i reaches 12, so this is PointerAt @0
+                // with MaxCount 12 (the PointerAt rule checks `i >= MaxCount` before the pointer, so the
+                // combined result is `i < 12 && isPointer(u32+0)` — identical to WF). pointerIndexes
+                // {0,4}. Per entry: LZ77IMG @0, LZ77TSA @4 (both labelled "EDStaffRoll" verbatim — WF
+                // reuses the single `name` string for the main IFR and both columns).
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDStaffRoll",
+                    PointerField = r => r.RomInfo.ed_staffroll_image_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.PointerAt,
+                    RuleOffset = 0,
+                    MaxCount = 12,
+                    PointerIndexes = new uint[] { 0, 4 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "EDStaffRoll" },
+                        new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77TSA, Name = (r, i) => "EDStaffRoll" },
+                    },
+                });
+
+                // OPPrologueForm.MakeAllDataLength (FE8, slice 2h) — Info "OPPrologue", block 12, base
+                // op_prologue_image_pointer, IsDataExists = isPointer(u32(addr+0)) (PointerAt @0),
+                // pointerIndexes {0,4}. ALSO a standalone palette pointer: AddPointer(
+                // op_prologue_palette_color_pointer, 2*16=0x20, "OPPrologue Palette", PAL) emitted ONCE
+                // (not per entry) — modelled as an ExtraFixedPointer (DataType override PAL). Per entry:
+                // LZ77IMG @0 ("OPPrologue image"), LZ77TSA @4 ("OPPrologue tsa").
+                l.Add(new StructDescriptor
+                {
+                    Name = "OPPrologue",
+                    PointerField = r => r.RomInfo.op_prologue_image_pointer,
+                    BlockSize = 12,
+                    Rule = DataCountRule.PointerAt,
+                    RuleOffset = 0,
+                    PointerIndexes = new uint[] { 0, 4 },
+                    ExtraFixedPointers = new[]
+                    {
+                        new ExtraFixedPointer { PointerField = r => r.RomInfo.op_prologue_palette_color_pointer, FixedLength = 2 * 16, Name = "OPPrologue Palette", DataType = Address.DataTypeEnum.PAL },
+                    },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "OPPrologue image" },
+                        new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77TSA, Name = (r, i) => "OPPrologue tsa" },
+                    },
+                });
+
+                if (rom.RomInfo.is_multibyte)
+                {
+                    // OPClassFontForm.MakeAllDataLength (FE8, slice 2h) — called in the WF version==8
+                    // branch ONLY inside `if (is_multibyte)` (the FE8U non-multibyte path uses
+                    // OPClassFontFE8UForm, which is a different — still-deferred — form). Gated
+                    // identically here. Info "OPClassFont", block 4, base op_class_font_pointer,
+                    // IsDataExists = isPointer(u32(addr+0)) (PointerAt @0), pointerIndexes {0}. Per entry:
+                    // ONE LZ77IMG column at 0, labelled "OPClassFont 0x<i>" (U.To0xHexString) verbatim.
+                    l.Add(new StructDescriptor
+                    {
+                        Name = "OPClassFont",
+                        PointerField = r => r.RomInfo.op_class_font_pointer,
+                        BlockSize = 4,
+                        Rule = DataCountRule.PointerAt,
+                        RuleOffset = 0,
+                        PointerIndexes = new uint[] { 0 },
+                        SubWalks = new List<SubWalk>
+                        {
+                            new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "OPClassFont " + U.To0xHexString((uint)i) },
+                        },
+                    });
+                }
             }
             else if (rom.RomInfo.version == 7)
             {
@@ -3078,8 +3404,11 @@ namespace FEBuilderGBA
                 // Forms called ONLY inside the WF `else if (version == 6)` branch. UnitFE6Form is ported
                 // in slice 2f via the dedicated EmitUnitFE6 walker (its base is p32(unit_pointer)+
                 // unit_datasize with a NOT_FOUND pointer slot, which the pointer-slot descriptor model
-                // cannot express). WorldMapEventPointerFE6Form (PLIST event-scan), MapSettingFE6Form
-                // (IsMapSettingEnd + CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay deferred.
+                // cannot express). SupportUnitFE6Form is ported in slice 2h via the version-aware
+                // EmitSupportUnit walker (FE6 block 32, first-field u8, name "SupportUnitFE6"; its
+                // owner-lookahead count rule = SupportUnitNavigation.GetUnitIdAtSupportAddr).
+                // WorldMapEventPointerFE6Form (PLIST event-scan) and MapSettingFE6Form (IsMapSettingEnd +
+                // CString — needs the WF cached text count, not in Core) stay deferred.
                 // ImagePortraitFE6Form STAYS too — its Init has a stateful nullContinuousCount
                 // terminator + GetFEditorLengthHint, not faithfully reproducible by the stateless
                 // descriptor rule model. The clean tables below are ported; ImageChapterTitleFE7Form
@@ -3287,6 +3616,10 @@ namespace FEBuilderGBA
         static readonly string[] NotYetPortedRaw = new[]
             {
                 // event conditions / scripts
+                // (EventCondForm: EventScriptForm.ScanScript event-scan, not in Core.
+                //  EventScript(MakeEventASMMAPList), EventFunctionPointerForm, Command85PointerForm are
+                //  OUT OF SCOPE: emitted by U.AppendAllASMStructPointersList — the ASM/LDR-map path, NOT
+                //  this producer's U.MakeAllStructPointersList data path.)
                 "EventCondForm", "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
                 "Command85PointerForm",
                 // text (Huffman)
@@ -3415,25 +3748,46 @@ namespace FEBuilderGBA
                 //  [FE8, count = ClassDataCount] + OPClassAlphaNameFE6Form [FE6 string-BIN sub-walk],
                 //  WorldMapPointForm [FE8], SupportTalkForm/FE6/FE7, EventBattleTalkFE6Form [FE6 ×2],
                 //  EventHaikuFE6Form [FE6], TacticianAffinityFE7, EventFinalSerifFE7Form.
-                //  STILL deferred (event-scan / LZ77 / recursive / GetUnitIDWhereSupportAddr / dynamic
-                //  base): MonsterWMapProbabilityForm STAYS — although its 5 IFR probability/stage tables
+                //  slice 2h ported the OP/ED LZ77 stragglers + the SupportUnit / WorldMapPath flat-IFR
+                //  forms whose only blocker was a count rule needing a Core helper:
+                //    EDStaffRollForm [FE8] / OPPrologueForm [FE8] / OPClassFontForm [FE8-multibyte] —
+                //      StructDescriptor PointerAt@0 (EDStaffRoll caps at MaxCount 12) + Lz77Pointer
+                //      SubWalks (IMG/TSA) (+ OPPrologue's standalone PAL via ExtraFixedPointer).
+                //    SupportUnitForm [FE7/8] + SupportUnitFE6Form [FE6] — EmitSupportUnit, a flat IFR
+                //      whose owner-lookahead count rule (UnitForm.GetUnitIDWhereSupportAddr) is
+                //      reproduced via SupportUnitNavigation.GetUnitIdAtSupportAddr (pure unit-table walk).
+                //    WorldMapPathForm [FE8] — EmitWorldMapPath, main IFR PointerAt@0/{0,8} + per-entry
+                //      BIN/POINTER sub-blocks whose lengths are the pure CalcPath{,Move}DataLength
+                //      terminator walks (reproduced verbatim, EOF-hardened on the u32 read).
+                //  STILL deferred (event-scan / LZ77+nested-IFR / recursive / dynamic base):
+                //  MonsterWMapProbabilityForm STAYS — although its 5 IFR probability/stage tables
                 //    are flat ROM reads, its MakeAllDataLength ALSO emits EventScriptForm.ScanScript over
                 //    the two skirmish start/end event pointers (no Core ScanScript primitive yet);
                 //    porting only the flat tables would drop those skirmish-event regions = corruption.
                 //  WorldMapEventPointerForm [ScanScript],
-                //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry], SupportUnitForm
-                //  [GetUnitIDWhereSupportAddr], WorldMapPathForm [CalcPathDataLength], EDStaffRollForm +
-                //  OPPrologueForm + OPClassFontForm + OPClassDemoForm/FE7Form [LZ77], MapSettingForm
-                //  [IsMapSettingEnd + CString], FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer],
-                //  ImageCGFE7UForm [LZ77].)
+                //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry],
+                //  OPClassDemoForm [FE8-multibyte] + OPClassDemoFE7Form [FE7-multibyte] STAY — both run
+                //    a per-entry NESTED IFR sub-table (N1/N2 ReInitPointer'd at an embedded pointer, each
+                //    with its OWN getBlockDataCount-walked variable count: OPClassDemo N1 u8!=0xFF&&i<16
+                //    @+8 / N2 u8!=0 @+24; OPClassDemoFE7 N2 u8!=0 @+28). The SubKind machinery emits ONE
+                //    Address per sub-walk, not a nested count-walked IFR table, so they need a new
+                //    nested-IFR SubKind (plus OPClassDemo's u8(+15)<=4 main rule) — a later slice.
+                //  MapSettingForm [FE8] STAYS — its count rule (IsMapSettingEnd) needs the WF cached
+                //    text count (TextForm.GetDataCount() / g_GetDataCount_Cache, NOT in Core); the
+                //    extracted MapSettingCore.IsMapSettingValid diverges (its `if (textmax>0)` guard
+                //    returns true when textmax==0, where WF returns false), so the per-entry CString
+                //    count is not yet faithfully reproducible — a wrong count = silent corruption.
+                //  FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer], ImageCGFE7UForm [LZ77].)
                 "MonsterWMapProbabilityForm",
                 "EventBattleTalkForm",
-                "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm",
-                "OPPrologueForm", "EventHaikuForm",
-                "SupportUnitForm", "MapSettingForm",
-                "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
+                "WorldMapEventPointerForm",
+                "EventHaikuForm",
+                "MapSettingForm",
+                "OPClassDemoForm", "FE8SpellMenuExtendsForm",
                 "OPClassDemoFE7Form", "ImageCGFE7UForm",
-                // patch / procs / ASM (AppendAllASMStructPointersList)
+                // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
+                // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
+                // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
                 "PatchForm(MakePatchStructDataList)", "ProcsScriptForm",
             };
     }
