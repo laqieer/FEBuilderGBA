@@ -1142,7 +1142,8 @@ namespace FEBuilderGBA.Core.Tests
             // StatusRMenuForm were the recursive-tree siblings here; slice 2d ports them via dedicated
             // recursive walkers, so they are now covered — see GetNotYetPortedForms_DropsSlice2dCoveredForms.)
             Assert.Contains("ItemForm", notYet);          // StatBooster size needs PatchUtil detection
-            Assert.Contains("ItemWeaponEffectForm", notYet); // PROCS length needs ProcsScript disasm
+            // (ItemWeaponEffectForm was a deferred sibling here; slice 2l ports it via
+            //  EmitItemWeaponEffect — see GetNotYetPortedForms_DropsSlice2lCoveredForms.)
             Assert.Contains("OtherTextForm", notYet);        // config-file (U.ConfigDataFilename) driven
         }
 
@@ -2302,7 +2303,7 @@ namespace FEBuilderGBA.Core.Tests
             // sibling forms that genuinely still need un-ported subsystems STAY.
             Assert.Contains("ItemForm", notYet);
             Assert.Contains("SoundRoomForm", notYet);
-            Assert.Contains("ItemWeaponEffectForm", notYet);
+            // (ItemWeaponEffectForm ported in slice 2l — see GetNotYetPortedForms_DropsSlice2lCoveredForms.)
         }
 
         // ---- real ROM: the new tables are found --------------------------
@@ -5663,6 +5664,200 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Single(list);
             // dataCount = 2 -> length = 8 * (2 + 1) = 24.
             Assert.Equal(24u, list[0].Length);
+        }
+
+        // ---- slice 2l: EmitItemWeaponEffect + CalcProcsLengthAndCheck --------
+
+        // Plant a minimal valid PROCS stream at `addr`: one 0x0B instruction (parg must be 0) then a
+        // 0x00 EXIT instruction. Length consumed = 16. Returns the planted byte length.
+        static uint PlantProcsStream(ROM rom, uint addr)
+        {
+            // instr 0: code 0x0B, sarg 0, parg 0 (parg-is-null contract).
+            rom.write_u16(addr + 0, 0x000B);
+            rom.write_u16(addr + 2, 0x0000);
+            rom.write_u32(addr + 4, 0x00000000);
+            // instr 1: code 0x00 EXIT (sarg 0, parg 0 -> arg-all-null OK, then EXIT break).
+            rom.write_u16(addr + 8, 0x0000);
+            rom.write_u16(addr + 10, 0x0000);
+            rom.write_u32(addr + 12, 0x00000000);
+            return 16;
+        }
+
+        [Fact]
+        public void EmitItemWeaponEffectAt_EmitsMainIfr_AndPerEntryProcsSubBlocks()
+        {
+            // Two entries, each with a valid +8 PROCS pointer; the 3rd row is a 0xFFFF terminator.
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            uint procs0 = 0x2000;
+            uint procs1 = 0x3000;
+            rom.write_u32(pointer, Ptr(table));
+
+            // entry 0: item id 0x10, mapAnime -> procs0.
+            rom.write_u8(table + 0, 0x10);
+            rom.write_u32(table + 8, Ptr(procs0));
+            // entry 1: item id 0x2A, mapAnime -> procs1.
+            rom.write_u8(table + 16 + 0, 0x2A);
+            rom.write_u32(table + 16 + 8, Ptr(procs1));
+            // entry 2: u16(addr)==0xFFFF -> count terminates at 2.
+            rom.write_u16(table + 32, 0xFFFF);
+
+            uint expect0 = PlantProcsStream(rom, procs0);
+            uint expect1 = PlantProcsStream(rom, procs1);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemWeaponEffectAt(rom, list, pointer);
+
+            // main IFR: DataCount 2 -> length 16*(2+1)=48, pointerIndexes {8}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "ItemWeaponEffect");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(48u, main.Length);
+            Assert.Equal(new uint[] { 8 }, main.PointerIndexes);
+
+            // PROCS sub-block for entry 0.
+            Address p0 = list.Single(a => a.DataType == Address.DataTypeEnum.PROCS && a.Addr == procs0);
+            Assert.Equal(expect0, p0.Length);
+            Assert.Equal(table + 8, p0.Pointer);
+            Assert.Equal("ItemWeaponEffect_PROC_0x10", p0.Info);
+
+            // PROCS sub-block for entry 1.
+            Address p1 = list.Single(a => a.DataType == Address.DataTypeEnum.PROCS && a.Addr == procs1);
+            Assert.Equal(expect1, p1.Length);
+            Assert.Equal(table + 16 + 8, p1.Pointer);
+            Assert.Equal("ItemWeaponEffect_PROC_0x2A", p1.Info);
+        }
+
+        [Fact]
+        public void EmitItemWeaponEffectAt_NullMapAnime_EmitsOnlyMainIfr()
+        {
+            // entry 0 has +8 == 0 (not a safe offset) -> no PROCS sub-block; then terminator.
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0, 0x05);
+            rom.write_u32(table + 8, 0); // mapAnime == 0 -> not isSafetyOffset -> skipped
+            rom.write_u16(table + 16, 0xFFFF); // count terminates at 1
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemWeaponEffectAt(rom, list, pointer);
+
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.PROCS);
+        }
+
+        [Fact]
+        public void EmitItemWeaponEffectAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FF0)); // base near EOF
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitItemWeaponEffectAt(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitItemWeaponEffect_RunsCleanly_OnEmptyFakeRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitItemWeaponEffect(fe8, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- CalcProcsLengthAndCheck (verbatim PROCS terminator walk) --------
+
+        [Fact]
+        public void CalcProcsLengthAndCheck_StopsAtExit00_ReturnsLength()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            uint expect = PlantProcsStream(rom, addr); // 0x0B then 0x00 EXIT -> 16
+            Assert.Equal(expect, RebuildProducerCore.CalcProcsLengthAndCheck(rom, addr));
+        }
+
+        [Fact]
+        public void CalcProcsLengthAndCheck_OddStart_ReturnsNotFound()
+        {
+            var rom = CreateTestRom(0x10000);
+            // An odd start address is rejected up-front (IsValueOdd).
+            Assert.Equal(U.NOT_FOUND, RebuildProducerCore.CalcProcsLengthAndCheck(rom, 0x1001));
+        }
+
+        [Fact]
+        public void CalcProcsLengthAndCheck_UnknownOpcode_ReturnsNotFound()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            // code 0x07FF is not a known opcode (and not 0x800) -> contract violation -> NOT_FOUND.
+            rom.write_u16(addr + 0, 0x07FF);
+            rom.write_u16(addr + 2, 0x0000);
+            rom.write_u32(addr + 4, 0x00000000);
+            Assert.Equal(U.NOT_FOUND, RebuildProducerCore.CalcProcsLengthAndCheck(rom, addr));
+        }
+
+        [Fact]
+        public void CalcProcsLengthAndCheck_BadArgContract_ReturnsNotFound()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            // code 0x0B requires parg == 0; plant a non-zero parg -> contract violation.
+            rom.write_u16(addr + 0, 0x000B);
+            rom.write_u16(addr + 2, 0x0000);
+            rom.write_u32(addr + 4, 0x12345678);
+            Assert.Equal(U.NOT_FOUND, RebuildProducerCore.CalcProcsLengthAndCheck(rom, addr));
+        }
+
+        [Fact]
+        public void CalcProcsLengthAndCheck_UnterminatedNearEof_NoThrow_ReturnsBounded()
+        {
+            // An unterminated valid-opcode stream that runs to EOF: the while (addr+8<=limit) clamp
+            // returns the consumed length instead of throwing on any read.
+            var rom = CreateTestRom(0x2000);
+            uint addr = 0x1FE0; // (0x2000 - 0x1FE0) = 0x20 bytes = 4 PROCS slots
+            for (uint i = 0; i < 4; i++)
+            {
+                rom.write_u16(addr + i * 8 + 0, 0x000B); // valid opcode, parg-is-null
+                rom.write_u16(addr + i * 8 + 2, 0x0000);
+                rom.write_u32(addr + i * 8 + 4, 0x00000000);
+            }
+            uint len = 0;
+            var ex = Record.Exception(() => { len = RebuildProducerCore.CalcProcsLengthAndCheck(rom, addr); });
+            Assert.Null(ex);
+            Assert.True(len != U.NOT_FOUND); // bounded, no throw (exact value not asserted)
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2l -----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2lCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2l ports ItemWeaponEffectForm (PROCS sub-block via CalcProcsLengthAndCheck).
+            Assert.DoesNotContain("ItemWeaponEffectForm", notYet);
+
+            // AIScriptForm STAYS — its main-IFR count rule needs the config-file AI name lists
+            // (EventUnitForm.AI1/AI2.Count), not in Core.
+            Assert.Contains("AIScriptForm", notYet);
+            // ProcsScriptForm itself STAYS — it is an ASM-path form (MakePatchStructDataList), out of
+            // scope for this data-path producer; only its CalcLengthAndCheck length helper is reused.
+            Assert.Contains("ProcsScriptForm", notYet);
+            // ItemForm STAYS — StatBooster sub-block size needs un-ported PatchUtil detection.
+            Assert.Contains("ItemForm", notYet);
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
         }
     }
 }
