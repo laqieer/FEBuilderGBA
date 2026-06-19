@@ -1134,13 +1134,13 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("StatusParamForm", notYet);
             Assert.DoesNotContain("MapTerrainNameForm", notYet);
 
-            // The deferred siblings (un-ported patch detection / PROCS disasm / recursive ASM tree /
-            // config-file driven) MUST stay tracked — porting only some embedded forms while leaving
-            // these un-tracked would dangle their sub-block pointers during a rebuild.
+            // The deferred siblings (un-ported patch detection / PROCS disasm / config-file driven)
+            // MUST stay tracked — porting only some embedded forms while leaving these un-tracked
+            // would dangle their sub-block pointers during a rebuild. (MenuDefinitionForm and
+            // StatusRMenuForm were the recursive-tree siblings here; slice 2d ports them via dedicated
+            // recursive walkers, so they are now covered — see GetNotYetPortedForms_DropsSlice2dCoveredForms.)
             Assert.Contains("ItemForm", notYet);          // StatBooster size needs PatchUtil detection
             Assert.Contains("ItemWeaponEffectForm", notYet); // PROCS length needs ProcsScript disasm
-            Assert.Contains("MenuDefinitionForm", notYet);   // recursive MenuCommand + ASM ptrs
-            Assert.Contains("StatusRMenuForm", notYet);      // recursive 28-byte tree + ASM funcs
             Assert.Contains("OtherTextForm", notYet);        // config-file (U.ConfigDataFilename) driven
         }
 
@@ -1700,7 +1700,8 @@ namespace FEBuilderGBA.Core.Tests
                 "UnitFE6Form", "EventBattleTalkForm", "EventHaikuForm", "SupportUnitForm",
                 "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm", "OPPrologueForm",
                 "MapSettingForm", "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
-                "MonsterWMapProbabilityForm", "StatusOptionForm", "SoundRoomForm",
+                "MonsterWMapProbabilityForm", "SoundRoomForm",
+                // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.)
                 "ItemForm", "MapTileAnimation1Form", "MapTerrainFloorLookupTableForm",
             })
             {
@@ -1804,6 +1805,493 @@ namespace FEBuilderGBA.Core.Tests
                 // FE8/FE7-only tables must NOT have been emitted on FE6.
                 Assert.DoesNotContain(list, a => a.Info == "CCBranch");
                 Assert.DoesNotContain(list, a => a.Info == "SupportTalk"); // FE8 variant
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ==================================================================
+        // slice 2d: ASM-function SubKind + recursive walkers
+        // ==================================================================
+
+        // ---- SubKind.AsmFunction (StatusOptionForm per-entry ASM) -----------
+
+        [Fact]
+        public void WalkAndAdd_AsmFunctionSubWalk_EmitsAsmAddressAtResolvedTarget()
+        {
+            // A descriptor with a SubKind.AsmFunction sub-walk must, for each table entry, emit an
+            // ASM Address whose Addr is ProgramAddrToPlain(u32(p + off)) — the thumb LSB cleared, the
+            // GBA prefix stripped by the Address ctor. This is the StatusOptionForm @40 shape.
+            var rom = CreateTestRom();
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            const uint block = 44;
+            rom.write_u32(pointer, Ptr(table));
+
+            // 2 entries: PointerAt @40 (U.isPointer terminates on NULL). Entry 0/1 have a valid ASM
+            // pointer @40 (thumb bit set); entry 2's @40 is NULL -> stop.
+            uint asm0 = 0x2000, asm1 = 0x2100;
+            rom.write_u32(table + block * 0 + 40, Ptr(asm0) | 1); // thumb bit
+            rom.write_u32(table + block * 1 + 40, Ptr(asm1) | 1);
+            rom.write_u32(table + block * 2 + 40, 0); // NULL -> PointerAt stops
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "GameOption",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerAt,
+                RuleOffset = 40,
+                PointerIndexes = new uint[] { 40 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 40,
+                        Kind = RebuildProducerCore.SubKind.AsmFunction,
+                        Name = (r, i) => "GameOption",
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR Address + 2 ASM functions.
+            Address main = list.Single(a => a.Info == "GameOption" && a.BlockSize == block);
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(2u * block, main.Length - block); // length = block*(count+1), count=2
+
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(2, asms.Count);
+            Assert.Contains(asms, a => a.Addr == asm0); // thumb bit cleared by ProgramAddrToPlain
+            Assert.Contains(asms, a => a.Addr == asm1);
+            Assert.All(asms, a => Assert.Equal(0u, a.Length)); // ASM length 0 (disasm at rebuild)
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8_EmitsStatusOptionWithAsmFunctionSubWalk()
+        {
+            // StatusOptionForm must be in the v8 batch with a PointerAt@40 main rule + an AsmFunction
+            // sub-walk @40 (the WF per-entry Address.AddFunction(p+40)).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+
+                var go = descs.Single(d => d.Name == "GameOption" && d.BlockSize == 44);
+                Assert.Equal(RebuildProducerCore.DataCountRule.PointerAt, go.Rule);
+                Assert.Equal(40u, go.RuleOffset);
+                Assert.Equal(new uint[] { 40 }, go.PointerIndexes);
+                Assert.NotNull(go.SubWalks);
+                var sw = go.SubWalks.Single();
+                Assert.Equal(40u, sw.EmbeddedPointerOffset);
+                Assert.Equal(RebuildProducerCore.SubKind.AsmFunction, sw.Kind);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE6_OmitsStatusOption()
+        {
+            // StatusOptionForm is called ONLY in the WF v8 + v7 branches, never v6. The descriptor
+            // must be gated accordingly (its data pointer is junk on FE6).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe6 = MakeVersionedRom("AFEJ01");
+                CoreState.ROM = fe6;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe6);
+                Assert.DoesNotContain(descs, d => d.Name == "GameOption" && d.BlockSize == 44);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitSoundFootStepsAt (Switch2-gated dedicated walker) ----------
+
+        // Plant a valid Switch2 byte pattern at switch2Addr so IsSwitch2Enable returns true:
+        //   u8(+1) (subOp) in [0x38,0x3D]; u8(+3) (cmpOp) in [0x28,0x2D]; u16(+2) != 0x9A00.
+        // The count is read from u8(switch2Addr+2). entries = count + 1.
+        static void PlantSwitch2(ROM rom, uint switch2Addr, byte count)
+        {
+            rom.write_u8(switch2Addr + 0, 0x00);
+            rom.write_u8(switch2Addr + 1, 0x3A); // subOp in range
+            rom.write_u8(switch2Addr + 2, count); // also the count byte
+            rom.write_u8(switch2Addr + 3, 0x2A); // cmpOp in range (u16(+2)=0x2A?? != 0x9A00)
+        }
+
+        [Fact]
+        public void EmitSoundFootStepsAt_Switch2Enabled_EmitsAsmFunctionPerEntry()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400;       // RomInfo sound_foot_steps_pointer slot
+            uint table = 0x1000;         // base = p32(pointer)
+            PlantSwitch2(rom, switch2Addr, count: 2); // entries = 3
+            rom.write_u32(pointer, Ptr(table));
+
+            // 3 entries, block 4; each 4-byte slot is an ASM-routine pointer (thumb bit set).
+            uint a0 = 0x2000, a1 = 0x2100, a2 = 0x2200;
+            rom.write_u32(table + 0, Ptr(a0) | 1);
+            rom.write_u32(table + 4, Ptr(a1) | 1);
+            rom.write_u32(table + 8, Ptr(a2) | 1);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSoundFootStepsAt(rom, list, switch2Addr, pointer);
+
+            // main IFR Address: type InputFormRef_ASM, length = 4*(3+1)=16, pointerIndexes {0}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Assert.Equal(table, main.Addr);
+            // BasePointer is NOT_FOUND: WF's IFR BasePointer is 0 (Init's 3rd arg), so AddAddress
+            // sets pointer = NOT_FOUND. The base is reached via the Switch2 LDR, not a RomInfo slot.
+            Assert.Equal(U.NOT_FOUND, main.Pointer);
+            Assert.Equal(4u, main.BlockSize);
+            Assert.Equal(16u, main.Length);
+            Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+            // one ASM function per entry at the entry block address itself.
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(3, asms.Count);
+            Assert.Contains(asms, a => a.Addr == a0);
+            Assert.Contains(asms, a => a.Addr == a1);
+            Assert.Contains(asms, a => a.Addr == a2);
+        }
+
+        [Fact]
+        public void EmitSoundFootStepsAt_Switch2Disabled_EmitsNothing()
+        {
+            // The WF ReInit returns NOT_FOUND (no emit) when IsSwitch2Enable is false. An all-zero
+            // switch2 region (subOp/cmpOp out of range) is disabled.
+            var rom = CreateTestRom();
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(0x2000) | 1);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSoundFootStepsAt(rom, list, switch2Addr, pointer);
+            Assert.Empty(list);
+        }
+
+        // ---- EmitStatusRMenuRoots / EmitStatusRMenuSub (recursive MIX tree) -
+
+        // Plant a 28-byte RMENU node at addr with child sub-pointers at 0/4/8/12 and ASM ptrs at
+        // 20/24 (thumb-bit set). u16(+18) is the node's preview id (drives the name).
+        static void PlantRMenuNode(ROM rom, uint addr, uint child0, uint child4, uint child8, uint child12,
+            uint asm20, uint asm24, ushort previewId)
+        {
+            rom.write_u32(addr + 0, child0 == 0 ? 0u : Ptr(child0));
+            rom.write_u32(addr + 4, child4 == 0 ? 0u : Ptr(child4));
+            rom.write_u32(addr + 8, child8 == 0 ? 0u : Ptr(child8));
+            rom.write_u32(addr + 12, child12 == 0 ? 0u : Ptr(child12));
+            rom.write_u16(addr + 18, previewId);
+            rom.write_u32(addr + 20, asm20 == 0 ? 0u : Ptr(asm20) | 1);
+            rom.write_u32(addr + 24, asm24 == 0 ? 0u : Ptr(asm24) | 1);
+        }
+
+        [Fact]
+        public void EmitStatusRMenuRoots_WalksTree_VisitsEachNodeOnce_EmitsAsmAt2024()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint rootPtr = 0x0300;   // RomInfo rmenu pointer slot
+            uint nodeA = 0x1000;     // root node = p32(rootPtr)
+            uint nodeB = 0x1100;     // child @ +0 of A
+            uint nodeC = 0x1200;     // child @ +4 of A
+            rom.write_u32(rootPtr, Ptr(nodeA));
+
+            // A -> B (off0), C (off4); B and C are leaves. ASM ptrs at 20/24 on each.
+            PlantRMenuNode(rom, nodeA, child0: nodeB, child4: nodeC, child8: 0, child12: 0,
+                asm20: 0x3000, asm24: 0x3100, previewId: 0x00AA);
+            PlantRMenuNode(rom, nodeB, 0, 0, 0, 0, asm20: 0x3200, asm24: 0x3300, previewId: 0x00BB);
+            PlantRMenuNode(rom, nodeC, 0, 0, 0, 0, asm20: 0x3400, asm24: 0x3500, previewId: 0x00CC);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitStatusRMenuRoots(rom, list, new uint[] { rootPtr });
+
+            // 3 MIX nodes, each emitted exactly once at its address, block 28, pointerIndexes {0,4,8,12,20,24}.
+            var mix = list.Where(a => a.DataType == Address.DataTypeEnum.MIX).ToList();
+            Assert.Equal(3, mix.Count);
+            foreach (uint n in new[] { nodeA, nodeB, nodeC })
+            {
+                Address node = mix.Single(a => a.Addr == n);
+                Assert.Equal(28u, node.Length);
+                Assert.Equal(28u, node.BlockSize);
+                Assert.Equal(new uint[] { 0, 4, 8, 12, 20, 24 }, node.PointerIndexes);
+            }
+
+            // 2 ASM functions per node = 6 total.
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(6, asms.Count);
+            foreach (uint t in new[] { 0x3000u, 0x3100u, 0x3200u, 0x3300u, 0x3400u, 0x3500u })
+            {
+                Assert.Contains(asms, a => a.Addr == t);
+            }
+        }
+
+        [Fact]
+        public void EmitStatusRMenuRoots_CycleGuard_StopsSelfReferentialNode()
+        {
+            // A node whose +0 sub-pointer points back to ITSELF must be emitted once and NOT recursed
+            // into again (the foundDic visited-set is the cycle-guard). Without it this infinite-loops.
+            var rom = CreateTestRom(0x8000);
+            uint rootPtr = 0x0300;
+            uint node = 0x1000;
+            rom.write_u32(rootPtr, Ptr(node));
+            // +0 points to itself; +4/+8/+12 NULL.
+            PlantRMenuNode(rom, node, child0: node, child4: 0, child8: 0, child12: 0,
+                asm20: 0x3000, asm24: 0x3100, previewId: 0x0001);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitStatusRMenuRoots(rom, list, new uint[] { rootPtr });
+
+            // exactly one MIX node (self-cycle did not re-emit / infinite-loop).
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.MIX);
+            Assert.Equal(2, list.Count(a => a.DataType == Address.DataTypeEnum.ASM));
+        }
+
+        [Fact]
+        public void EmitStatusRMenuRoots_SharedVisitedSet_DedupsNodeReachableFromTwoRoots()
+        {
+            // A node reachable from two distinct roots must be emitted ONCE (the foundDic is shared
+            // across all roots — verbatim WF). Two roots both point at the same node.
+            var rom = CreateTestRom(0x8000);
+            uint root1 = 0x0300, root2 = 0x0304;
+            uint shared = 0x1000;
+            rom.write_u32(root1, Ptr(shared));
+            rom.write_u32(root2, Ptr(shared));
+            PlantRMenuNode(rom, shared, 0, 0, 0, 0, asm20: 0x3000, asm24: 0x3100, previewId: 0x0002);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitStatusRMenuRoots(rom, list, new uint[] { root1, root2 });
+
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.MIX && a.Addr == shared);
+        }
+
+        // ---- EmitMenuDefinitionPointers + EmitMenuCommandSubTable -----------
+
+        [Fact]
+        public void EmitMenuDefinitionPointers_WalksTable_RecursesIntoMenuCommandSubTable()
+        {
+            var rom = CreateTestRom(0x1_0000);
+            uint defPtr = 0x0300;     // RomInfo menu_definiton pointer slot
+            uint defTable = 0x1000;   // base = p32(defPtr), block 36
+            rom.write_u32(defPtr, Ptr(defTable));
+
+            // 1 MenuDef entry: IsDataExists = isPointer(u32(addr+8)); entry 0 has a valid +8 menu ptr,
+            // entry 1's +8 is NULL -> table stops at count 1.
+            uint menuTable = 0x2000;  // the MenuCommand sub-table behind +8
+            rom.write_u32(defTable + 0 * 36 + 8, Ptr(menuTable));
+            rom.write_u32(defTable + 1 * 36 + 8, 0); // stop
+
+            // 6 ASM ptrs on the MenuDef entry @ {12,16,20,24,28,32}.
+            uint dbase = 0x4000;
+            for (uint k = 0; k < 6; k++)
+            {
+                rom.write_u32(defTable + 0 * 36 + 12 + k * 4, Ptr(dbase + k * 0x100) | 1);
+            }
+
+            // MenuCommand sub-table: block 36, IsDataExists = isPointer(u32(addr+0xc)); 1 entry.
+            rom.write_u32(menuTable + 0 * 36 + 0xc, Ptr(0x5000) | 1); // entry 0 valid
+            rom.write_u32(menuTable + 1 * 36 + 0xc, 0);               // stop
+            // entry 0: a CString @ +0 + 6 ASM @ {12,16,20,24,28,32}.
+            uint cstr = 0x6000;
+            rom.write_u32(menuTable + 0, Ptr(cstr));
+            rom.write_u8(cstr + 0, (byte)'A');
+            rom.write_u8(cstr + 1, (byte)'B');
+            rom.write_u8(cstr + 2, 0x00); // NUL
+            uint mbase = 0x7000;
+            for (uint k = 0; k < 6; k++)
+            {
+                rom.write_u32(menuTable + 0 * 36 + 12 + k * 4, Ptr(mbase + k * 0x100) | 1);
+            }
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMenuDefinitionPointers(rom, list, new uint[] { defPtr });
+
+            // MenuDefinition main table: type InputFormRef_1, length = 36*1 (NO +1), pointerIndexes 7-wide.
+            Address defMain = list.Single(a => a.Info == "MenuDefinition");
+            Assert.Equal(defTable, defMain.Addr);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef_1, defMain.DataType);
+            Assert.Equal(36u, defMain.Length); // block * DataCount (no +1)
+            Assert.Equal(new uint[] { 8, 12, 16, 20, 24, 28, 32 }, defMain.PointerIndexes);
+
+            // MenuCommand sub-table main: type InputFormRef_MIX, length = 36*(1+1) (the +1 form).
+            Address menuMain = list.Single(a => a.Info == "MENU");
+            Assert.Equal(menuTable, menuMain.Addr);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef_MIX, menuMain.DataType);
+            Assert.Equal(72u, menuMain.Length);
+            Assert.Equal(new uint[] { 0, 12, 16, 20, 24, 28, 32 }, menuMain.PointerIndexes);
+
+            // 6 (MenuDef entry) + 6 (MenuCommand entry) = 12 ASM blocks.
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(12, asms.Count);
+            for (uint k = 0; k < 6; k++)
+            {
+                Assert.Contains(asms, a => a.Addr == dbase + k * 0x100);
+                Assert.Contains(asms, a => a.Addr == mbase + k * 0x100);
+            }
+
+            // the menu-name CString behind +0 (length strlen+1 = 3, type CSTRING).
+            Assert.Contains(list, a => a.Addr == cstr && a.DataType == Address.DataTypeEnum.CSTRING);
+        }
+
+        [Fact]
+        public void EmitMenuCommandSubTable_NoEncoder_SkipsCStringButStillEmitsAsm()
+        {
+            // The +0 CString needs a SystemTextEncoder; without one it is gracefully skipped (no NRE)
+            // while the 6 ASM blocks still emit (the wiring slice gates on IsComplete anyway).
+            var savedEnc = CoreState.SystemTextEncoder;
+            var rom = CreateTestRom(0x1_0000);
+            CoreState.SystemTextEncoder = null; // force the no-encoder path
+            try
+            {
+                uint pointer = 0x0300;
+                uint menuTable = 0x2000;
+                rom.write_u32(pointer, Ptr(menuTable));
+                rom.write_u32(menuTable + 0xc, Ptr(0x5000) | 1); // 1 entry
+                rom.write_u32(menuTable + 36 + 0xc, 0);          // stop
+                rom.write_u32(menuTable + 0, Ptr(0x6000));       // a +0 pointer (CString target)
+                uint mbase = 0x7000;
+                for (uint k = 0; k < 6; k++)
+                {
+                    rom.write_u32(menuTable + 12 + k * 4, Ptr(mbase + k * 0x100) | 1);
+                }
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMenuCommandSubTable(rom, list, pointer, "MenuDef0_");
+
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.CSTRING);
+                Assert.Equal(6, list.Count(a => a.DataType == Address.DataTypeEnum.ASM));
+                Assert.Contains(list, a => a.Info == "MENU"); // main table still emitted
+            }
+            finally { CoreState.SystemTextEncoder = savedEnc; }
+        }
+
+        // ---- GetNotYetPortedForms coverage update --------------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2dCoveredForms()
+        {
+            var ported = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.DoesNotContain("StatusOptionForm", ported);
+            Assert.DoesNotContain("SoundFootStepsForm", ported);
+            Assert.DoesNotContain("StatusRMenuForm", ported);
+            Assert.DoesNotContain("MenuDefinitionForm", ported);
+            // sibling forms that genuinely still need un-ported subsystems STAY.
+            Assert.Contains("ItemForm", ported);
+            Assert.Contains("SoundRoomForm", ported);
+            Assert.Contains("ItemWeaponEffectForm", ported);
+        }
+
+        // ---- real ROM: the new tables are found --------------------------
+
+        [Fact]
+        public void MakeAllStructPointersList_FE8U_FindsStatusRMenuMenuDefAndStatusOption()
+        {
+            string romPath = FindTestRomNamed("FE8U.gba");
+            if (romPath == null) return; // env-only
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 8) return;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // StatusOptionForm (v8): main IFR at p32(status_game_option_pointer), block 44.
+                uint goBase = rom.p32(rom.RomInfo.status_game_option_pointer);
+                Assert.Contains(list, a => a.Addr == goBase && a.Info == "GameOption" && a.BlockSize == 44);
+
+                // StatusRMenu: at least one 28-byte MIX node from a non-0 root.
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.MIX && a.BlockSize == 28
+                    && a.Info.StartsWith("RMENU"));
+
+                // MenuDefinition main table (InputFormRef_1) + a MenuCommand sub-table (InputFormRef_MIX).
+                Assert.Contains(list, a => a.Info == "MenuDefinition"
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_1);
+                Assert.Contains(list, a => a.Info == "MENU"
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_MIX);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void MakeAllStructPointersList_FE7_FindsStatusOptionAndMenuDef()
+        {
+            string romPath = FindTestRomNamed("FE7U.gba");
+            if (romPath == null) return; // env-only
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 7) return;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // StatusOptionForm is called in the WF v7 branch too.
+                uint goBase = rom.p32(rom.RomInfo.status_game_option_pointer);
+                Assert.Contains(list, a => a.Addr == goBase && a.Info == "GameOption" && a.BlockSize == 44);
+
+                // MenuDefinition is unconditional.
+                Assert.Contains(list, a => a.Info == "MenuDefinition"
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_1);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void MakeAllStructPointersList_FE6_FindsMenuDefAndStatusRMenu_ButNoStatusOption()
+        {
+            string romPath = FindTestRomNamed("FE6.gba");
+            if (romPath == null) return; // env-only
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 6) return;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // MenuDefinition + StatusRMenu are unconditional (version-agnostic).
+                Assert.Contains(list, a => a.Info == "MenuDefinition"
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_1);
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.MIX && a.BlockSize == 28
+                    && a.Info.StartsWith("RMENU"));
+
+                // StatusOptionForm is NOT called on FE6 -> no "GameOption" block-44 IFR.
+                Assert.DoesNotContain(list, a => a.Info == "GameOption" && a.BlockSize == 44);
             }
             finally
             {

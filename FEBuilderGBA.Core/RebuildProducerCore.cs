@@ -142,6 +142,14 @@ namespace FEBuilderGBA
             /// <summary>A fixed-size BIN block (type <see cref="Address.DataTypeEnum.BIN"/>).
             /// Matches <c>ClassForm</c> MoveCost (<c>AddPointer(p + 56, 66, "MoveCost ...", BIN)</c>).</summary>
             BinFixed,
+            /// <summary>An embedded ASM-routine pointer. Emits via <see cref="Address.AddFunction"/>
+            /// verbatim (reads <c>u32(p + EmbeddedPointerOffset)</c>, <c>ProgramAddrToPlain</c>s it, and
+            /// adds a length-0 <see cref="Address.DataTypeEnum.ASM"/> block whose extent the
+            /// disassembler determines at rebuild time). Matches <c>StatusOptionForm</c>
+            /// (<c>Address.AddFunction(list, p + 40, name)</c>). The label is non-load-bearing for
+            /// relocation, so a static name is used (the WinForms <c>isPointerOnly</c> flag only swaps
+            /// the label between <c>""</c> and a Huffman-decoded string — neither affects addr/length).</summary>
+            AsmFunction,
         }
 
         /// <summary>One per-entry embedded-data sub-walk applied to every entry of a
@@ -345,6 +353,37 @@ namespace FEBuilderGBA
                 WalkAndAdd(rom, list, d);
             }
 
+            // ---- slice 2d: forms that are NOT a flat descriptor walk ----
+            // SoundFootStepsForm, StatusRMenuForm, MenuDefinitionForm are called UNCONDITIONALLY in
+            // the WinForms producer (version-agnostic section), but none fit the StructDescriptor
+            // pointer-slot model: SoundFootSteps is Switch2-gated with a count read from a RomInfo
+            // *address*; StatusRMenu is a recursive 28-byte MIX tree with a visited-set; MenuDefinition
+            // recurses into a MenuCommand sub-table. They get dedicated walkers, each with its own
+            // cancel-check (mirroring the WF DoEvents checkpoints) so a cancel returns the partial list.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("SoundFootStepsPointer");
+            EmitSoundFootSteps(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MenuDefinition");
+            EmitMenuDefinition(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("RMENU");
+            EmitStatusRMenuTree(rom, list);
+
             // Surface — never silently drop — the statics this slice does not yet cover.
             progress?.Report("MakeAllStructPointersList: ported batch=" + batch.Count
                 + " descriptors; not-yet-ported=" + notYet.Length + " forms (deferred to later slices)");
@@ -507,6 +546,15 @@ namespace FEBuilderGBA
                             break;
                         }
 
+                        case SubKind.AsmFunction:
+                            // StatusOptionForm: Address.AddFunction(list, p + 40, name). AddFunction
+                            // reads u32(pfield), isSafetyPointer-checks, ProgramAddrToPlain-resolves,
+                            // and adds a length-0 ASM block (extent determined by the disassembler at
+                            // rebuild). No encoder needed — the label is static (see SubKind.AsmFunction).
+                            Address.AddFunction(list, pfield,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name);
+                            break;
+
                         default:
                             // A new/bad SubKind is a programming error — fail loudly rather than
                             // silently skip an embedded block (which would dangle on rebuild).
@@ -539,6 +587,349 @@ namespace FEBuilderGBA
                 if (i > 0xff) return false;
                 return rom.u8(addr + 4) != 0;
             });
+        }
+
+        /// <summary>
+        /// <c>SoundFootStepsForm.MakeAllDataLength</c> (slice 2d). This is NOT a flat RomInfo
+        /// pointer-slot table: the WinForms <c>ReInit</c> derives the base + count from a Switch2
+        /// jump-table, gated by a patch detector. Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>base = <c>p32(sound_foot_steps_pointer)</c>; block = 4;</item>
+        ///   <item>count = <c>u8(sound_foot_steps_switch2_address + 2)</c>; entries = count + 1;</item>
+        ///   <item>GATE: only if <c>IsSwitch2Enable(sound_foot_steps_switch2_address)</c> AND the base
+        ///   is a safe offset (else WF's <c>ReInit</c> returns <c>NOT_FOUND</c> and emits nothing).</item>
+        /// </list>
+        /// Then: the main IFR <see cref="Address"/> (block × (entries + 1), type
+        /// <see cref="Address.DataTypeEnum.InputFormRef_ASM"/>, pointerIndexes {0}) + one
+        /// <see cref="Address.AddFunction"/> per entry at the entry block address itself (offset 0 —
+        /// each 4-byte slot is an ASM-routine pointer; the WF <c>AddFunctions(list, MakeList(), 0,
+        /// name)</c>). The per-entry label is the class name (Huffman) in WF; a static
+        /// "SoundFootStepsPointer" label is used here (non-load-bearing for relocation; headless-safe).
+        /// <para>The Switch2-enable byte pattern + the count read are pure ROM reads
+        /// (<see cref="ItemUsagePointerCore.IsSwitch2Enable"/>), so this is faithfully headless.</para>
+        /// </summary>
+        public static void EmitSoundFootSteps(ROM rom, List<Address> list)
+        {
+            EmitSoundFootStepsAt(rom, list,
+                rom.RomInfo.sound_foot_steps_switch2_address,
+                rom.RomInfo.sound_foot_steps_pointer);
+        }
+
+        /// <summary>SoundFootSteps walk from explicit switch2 + base-pointer addresses (test seam —
+        /// lets a synthetic ROM supply the addresses without populating RomInfo). See
+        /// <see cref="EmitSoundFootSteps"/> for the verbatim WF reproduction.</summary>
+        public static void EmitSoundFootStepsAt(ROM rom, List<Address> list, uint switch2Addr, uint rawPointer)
+        {
+            // WF ReInit: enable-gate FIRST, then base-safety. Either failing => NOT_FOUND => no emit.
+            if (!ItemUsagePointerCore.IsSwitch2Enable(rom, switch2Addr))
+            {
+                return;
+            }
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF ReInit: !isSafetyOffset(addr) -> NOT_FOUND.
+            }
+
+            const uint block = 4;
+            uint count = rom.u8(switch2Addr + 2);
+            uint dataCount = count + 1; // WF: ifr.ReInit(addr, count + 1) -> DataCount = count + 1.
+
+            // Main IFR Address: AddressWinForms.AddAddress(ifr, name, {0}, InputFormRef_ASM) ->
+            // length = BlockSize * (DataCount + 1). CRITICAL: the IFR's BasePointer is the Init's 3rd
+            // arg = 0 (SoundFootStepsForm.Init passes basepointer 0; ReInit(addr,count) sets only
+            // BaseAddress, NOT BasePointer). So in AddAddress, `pointer = BasePointer = 0` is not a
+            // safe offset -> it becomes U.NOT_FOUND. The base is reached via the Switch2 LDR, NOT a
+            // plain RomInfo pointer slot, so the table's pointer FIELD is intentionally untracked
+            // (NOT_FOUND); only the per-entry +0 ASM columns (pointerIndexes {0}) are relocated.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, U.NOT_FOUND, "SoundFootStepsPointer",
+                Address.DataTypeEnum.InputFormRef_ASM, block, new uint[] { 0 }));
+
+            // AddFunctions(list, ifr.MakeList(), 0, name): one ASM function per entry at the entry
+            // block address itself (offset 0). ifr.MakeList() yields one AddrResult per entry at
+            // baseAddr + i*block. AddFunction reads u32(entryAddr), isSafetyPointer-checks, and
+            // ProgramAddrToPlain-resolves — identical to the BinFixed/AsmFunction sub-walks.
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint entryAddr = baseAddr + i * block;
+                Address.AddFunction(list, entryAddr, "SoundFootStepsPointer");
+            }
+        }
+
+        /// <summary>
+        /// <c>StatusRMenuForm.MakeAllDataLength</c> (slice 2d) — a recursive 28-byte MIX-tree walk
+        /// with a shared visited-set. Reproduced VERBATIM from the WinForms
+        /// <c>MakeAllDataLength</c> + <c>MakeAllDataLengthSub</c>:
+        /// <list type="bullet">
+        ///   <item>6 roots (<c>status_rmenu_unit/game/3/4/5/6_pointer</c>); for each non-0 root
+        ///   <c>pointer</c>, walk from <c>p = p32(pointer)</c> with the root <c>pointer</c> as the
+        ///   incoming pointer slot.</item>
+        ///   <item>The <c>foundDic</c> visited-set is SHARED across all 6 roots (a node reachable from
+        ///   two roots is emitted once), and is the cycle-guard: a node already in the set is neither
+        ///   re-emitted nor re-descended (stops self-referential / cyclic trees).</item>
+        ///   <item>Per node <c>p</c>: if <c>!isSafetyOffset(p + 18)</c> bail; name = "RMENU " +
+        ///   <c>u16(p+18)</c>; emit a 28-byte MIX <see cref="Address"/> (pointer = NOT_FOUND, block 28,
+        ///   pointerIndexes {0,4,8,12,20,24}) only if not yet visited; mark visited; then recurse into
+        ///   the 4 sub-pointers at offsets 0/4/8/12 (each guarded by isSafetyOffset + not-visited);
+        ///   then 2 ASM functions at offsets 20/24.</item>
+        /// </list>
+        /// The visited-check is keyed on the NODE ADDRESS <c>p</c> (matching WF's
+        /// <c>foundDic.ContainsKey(p)</c>), so the emit-once + cycle-guard are byte-faithful.
+        /// </summary>
+        public static void EmitStatusRMenuTree(ROM rom, List<Address> list)
+        {
+            uint[] roots = new uint[]
+            {
+                rom.RomInfo.status_rmenu_unit_pointer,
+                rom.RomInfo.status_rmenu_game_pointer,
+                rom.RomInfo.status_rmenu3_pointer,
+                rom.RomInfo.status_rmenu4_pointer,
+                rom.RomInfo.status_rmenu5_pointer,
+                rom.RomInfo.status_rmenu6_pointer,
+            };
+            EmitStatusRMenuRoots(rom, list, roots);
+        }
+
+        /// <summary>Walk the StatusRMenu MIX tree from an explicit set of root RomInfo pointers
+        /// (test seam — lets a synthetic ROM supply roots without populating RomInfo). The
+        /// <c>foundDic</c> visited-set is SHARED across all roots (dedup + cycle-guard, verbatim WF);
+        /// each non-0 root <c>pointer</c> starts the walk at <c>p = p32(pointer)</c>.</summary>
+        public static void EmitStatusRMenuRoots(ROM rom, List<Address> list, uint[] roots)
+        {
+            uint[] pointerIndexes = new uint[] { 0, 4, 8, 12, 20, 24 };
+            var foundDic = new Dictionary<uint, bool>();
+            foreach (uint root in roots)
+            {
+                if (root == 0)
+                {
+                    continue;
+                }
+                uint p = rom.p32(root + 0);
+                EmitStatusRMenuSub(rom, list, p, root, foundDic, pointerIndexes);
+            }
+        }
+
+        /// <summary>One recursive node of <see cref="EmitStatusRMenuTree"/> — the Core port of
+        /// <c>StatusRMenuForm.MakeAllDataLengthSub</c>. <paramref name="pointer"/> is the incoming
+        /// pointer slot (the +0/4/8/12 field of the parent, or the root RomInfo pointer).</summary>
+        public static void EmitStatusRMenuSub(ROM rom, List<Address> list, uint p, uint pointer,
+            Dictionary<uint, bool> foundDic, uint[] pointerIndexes)
+        {
+            if (!U.isSafetyOffset(p + 18, rom))
+            {
+                return;
+            }
+
+            string name = "RMENU " + U.To0xHexString(rom.u16(p + 18));
+            if (!foundDic.ContainsKey(p))
+            {
+                // WF: new Address(p, 28, NOT_FOUND, name, MIX, 28, pointerIndexes). Note the incoming
+                // `pointer` slot is NOT recorded on the node itself (WF passes NOT_FOUND); the parent's
+                // pointer FIELD is relocated via the parent node's pointerIndexes {0,4,8,12}.
+                list.Add(new Address(p, 28, U.NOT_FOUND, name,
+                    Address.DataTypeEnum.MIX, 28, pointerIndexes));
+            }
+            foundDic[p] = true;
+
+            // Recurse the 4 child sub-pointers at offsets 0/4/8/12 (verbatim guard order).
+            uint pp;
+            pp = rom.p32(p + 0);
+            if (U.isSafetyOffset(pp, rom) && !foundDic.ContainsKey(pp))
+            {
+                EmitStatusRMenuSub(rom, list, pp, p + 0, foundDic, pointerIndexes);
+            }
+            pp = rom.p32(p + 4);
+            if (U.isSafetyOffset(pp, rom) && !foundDic.ContainsKey(pp))
+            {
+                EmitStatusRMenuSub(rom, list, pp, p + 4, foundDic, pointerIndexes);
+            }
+            pp = rom.p32(p + 8);
+            if (U.isSafetyOffset(pp, rom) && !foundDic.ContainsKey(pp))
+            {
+                EmitStatusRMenuSub(rom, list, pp, p + 8, foundDic, pointerIndexes);
+            }
+            pp = rom.p32(p + 12);
+            if (U.isSafetyOffset(pp, rom) && !foundDic.ContainsKey(pp))
+            {
+                EmitStatusRMenuSub(rom, list, pp, p + 12, foundDic, pointerIndexes);
+            }
+
+            // 2 ASM functions at offsets 20/24 (extent determined by the disassembler at rebuild).
+            Address.AddFunction(list, p + 20, name + "+P20");
+            Address.AddFunction(list, p + 24, name + "+P24");
+        }
+
+        /// <summary>
+        /// <c>MenuDefinitionForm.MakeAllDataLength</c> (slice 2d). Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>6 pointers (<c>menu_definiton</c>, <c>menu_promotion</c>,
+        ///   <c>menu_promotion_branch</c>, <c>menu_definiton_split</c>,
+        ///   <c>menu_definiton_worldmap</c>, <c>menu_definiton_worldmap_shop</c>); skip 0.</item>
+        ///   <item>Per pointer: <c>ReInitPointer</c> the main IFR (block 36, base = <c>p32(pointer)</c>,
+        ///   IsDataExists = <c>isPointer(u32(addr+8))</c>), emit it with length <b>NOT +1</b>
+        ///   (<c>AddAddressButDoNotLengthPuls1</c> = block × DataCount), type
+        ///   <see cref="Address.DataTypeEnum.InputFormRef_1"/>, pointerIndexes {8,12,16,20,24,28,32}.</item>
+        ///   <item>Per entry (<c>p = base + i*36</c>): if <c>!isSafetyOffset(p32(8+p))</c> skip; else
+        ///   recurse into a MenuCommand sub-table at <c>8+p</c> (<see cref="EmitMenuCommandSubTable"/>),
+        ///   then 6 ASM <see cref="Address"/>es at offsets 12/16/20/24/28/32 (each
+        ///   <c>AddAddress(ProgramAddrToPlain(p32(off+p)), 0, p+off, name, ASM)</c>).</item>
+        /// </list>
+        /// </summary>
+        public static void EmitMenuDefinition(ROM rom, List<Address> list)
+        {
+            uint[] pointers = new uint[]
+            {
+                rom.RomInfo.menu_definiton_pointer,
+                rom.RomInfo.menu_promotion_pointer,
+                rom.RomInfo.menu_promotion_branch_pointer,
+                rom.RomInfo.menu_definiton_split_pointer,
+                rom.RomInfo.menu_definiton_worldmap_pointer,
+                rom.RomInfo.menu_definiton_worldmap_shop_pointer,
+            };
+            EmitMenuDefinitionPointers(rom, list, pointers);
+        }
+
+        /// <summary>MenuDefinition walk from an explicit set of RomInfo table pointers (test seam —
+        /// lets a synthetic ROM supply pointers without populating RomInfo). See
+        /// <see cref="EmitMenuDefinition"/> for the verbatim WF reproduction.</summary>
+        public static void EmitMenuDefinitionPointers(ROM rom, List<Address> list, uint[] pointers)
+        {
+            const uint block = 36;
+            foreach (uint rawPointer in pointers)
+            {
+                if (rawPointer == 0)
+                {
+                    continue;
+                }
+                uint pointer = U.toOffset(rawPointer);
+                if (!U.isSafetyOffset(pointer, rom))
+                {
+                    continue;
+                }
+                uint baseAddr = rom.p32(pointer);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    continue;
+                }
+
+                // Main IFR IsDataExists = U.isPointer(u32(addr+8)) -> a NULL slot terminates.
+                uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                    U.isPointer(rom.u32(addr + 8)));
+
+                // AddAddressButDoNotLengthPuls1: length = block * DataCount (NO +1), type
+                // InputFormRef_1, pointerIndexes {8,12,16,20,24,28,32}.
+                uint length = block * dataCount;
+                list.Add(new Address(baseAddr, length, pointer, "MenuDefinition",
+                    Address.DataTypeEnum.InputFormRef_1, block,
+                    new uint[] { 8, 12, 16, 20, 24, 28, 32 }));
+
+                for (uint i = 0; i < dataCount; i++)
+                {
+                    uint p = baseAddr + i * block;
+                    string name = "MenuDef" + i + "_";
+
+                    uint paddr = rom.p32(8 + p);
+                    if (!U.isSafetyOffset(paddr, rom))
+                    {
+                        continue;
+                    }
+                    // Recurse into the MenuCommand sub-table behind the +8 pointer.
+                    EmitMenuCommandSubTable(rom, list, 8 + p, name);
+
+                    // 6 ASM blocks at offsets 12/16/20/24/28/32. WF does NOT pre-check isSafetyPointer
+                    // before ProgramAddrToPlain here (unlike AddFunction); Address.AddAddress applies
+                    // the safety guard AFTER (return-early on an unsafe resolved addr) — byte-faithful.
+                    EmitMenuDefAsm(rom, list, p, 12, name + "_HandleBPress");
+                    EmitMenuDefAsm(rom, list, p, 16, name + "_HandleRPress");
+                    EmitMenuDefAsm(rom, list, p, 20, name + "_Construction");
+                    EmitMenuDefAsm(rom, list, p, 24, name + "_Destruction");
+                    EmitMenuDefAsm(rom, list, p, 28, name + "_UnkP28");
+                    EmitMenuDefAsm(rom, list, p, 32, name + "_Unk32");
+                }
+            }
+        }
+
+        /// <summary>One MenuDefinition per-entry ASM block: WF
+        /// <c>Address.AddAddress(list, DisassemblerTrumb.ProgramAddrToPlain(p32(off+p)), 0, p+off,
+        /// name, ASM)</c>. Note <c>ProgramAddrToPlain</c> is applied to the RAW <c>p32</c> result with
+        /// no prior pointer-safety check (WF behaviour); the length is 0 (the disassembler determines
+        /// the routine extent at rebuild). <see cref="Address.AddAddress"/> applies its own offset
+        /// safety guard, returning early on an unsafe resolved address.</summary>
+        static void EmitMenuDefAsm(ROM rom, List<Address> list, uint p, uint off, string name)
+        {
+            uint paddr = rom.p32(off + p);
+            Address.AddAddress(list, DisassemblerTrumb.ProgramAddrToPlain(paddr), 0,
+                p + off, name, Address.DataTypeEnum.ASM);
+        }
+
+        /// <summary>
+        /// <c>MenuCommandForm.MakeAllDataLengthP</c> (slice 2d) — the MenuDefinition sub-table.
+        /// Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>base = <c>p32(pointer)</c>; block = <c>MENU_SIZE</c> = 36; IsDataExists =
+        ///   <c>isPointer(u32(addr+0xc))</c>.</item>
+        ///   <item>Main IFR <see cref="Address"/>: length +1 (block × (DataCount+1)), type
+        ///   <see cref="Address.DataTypeEnum.InputFormRef_MIX"/>, pointerIndexes
+        ///   {0,12,16,20,24,28,32}, Info "MENU".</item>
+        ///   <item>Per entry: a CString behind the embedded pointer at offset 0
+        ///   (<c>AddCString(0+p)</c>; needs an encoder — gracefully skipped if none, like the other
+        ///   string sub-walks), then 6 ASM blocks at offsets 12/16/20/24/28/32 (same
+        ///   <c>AddAddress(ProgramAddrToPlain(...), 0, ...)</c> shape as MenuDefinition).</item>
+        /// </list>
+        /// This is the only nesting under MenuDefinition and it bottoms out cleanly (no further
+        /// un-ported recursion). The WF per-entry ASM labels are localized strings; static labels are
+        /// used here (non-load-bearing for relocation).
+        /// </summary>
+        public static void EmitMenuCommandSubTable(ROM rom, List<Address> list, uint pointer, string name)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            const uint block = 36; // MenuCommandForm.MENU_SIZE
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                U.isPointer(rom.u32(addr + 0xc)));
+
+            // Main IFR: AddAddress(ifr, "MENU", {0,12,16,20,24,28,32}, InputFormRef_MIX) ->
+            // length = block * (DataCount + 1) (the +1 form).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "MENU",
+                Address.DataTypeEnum.InputFormRef_MIX, block,
+                new uint[] { 0, 12, 16, 20, 24, 28, 32 }));
+
+            bool hasEncoder = CoreState.SystemTextEncoder != null;
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint p = baseAddr + i * block;
+
+                // AddCString(0+p): the menu-name C string behind the +0 pointer. Needs an encoder;
+                // skip (don't NRE) if none is loaded (the wiring slice gates on IsComplete anyway).
+                if (hasEncoder)
+                {
+                    Address.AddCString(list, 0 + p);
+                }
+
+                // 6 ASM blocks at offsets 12/16/20/24/28/32 (verbatim WF, raw ProgramAddrToPlain).
+                EmitMenuDefAsm(rom, list, p, 12, name + "_p12");
+                EmitMenuDefAsm(rom, list, p, 16, name + "_p16");
+                EmitMenuDefAsm(rom, list, p, 20, name + "_p20");
+                EmitMenuDefAsm(rom, list, p, 24, name + "_p24");
+                EmitMenuDefAsm(rom, list, p, 28, name + "_p28");
+                EmitMenuDefAsm(rom, list, p, 32, name + "_p32");
+            }
         }
 
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
@@ -1008,6 +1399,29 @@ namespace FEBuilderGBA
             // pointer is 0 elsewhere). Emit it for both; EmitOne skips a 0/unsafe pointer.
             if (rom.RomInfo.version == 8 || rom.RomInfo.version == 7)
             {
+                // StatusOptionForm.MakeAllDataLength (slice 2d) — called in the WF version==8 AND
+                // version==7 branches (right before StatusOptionOrderForm), so it is gated to v7||8
+                // here in the same order. Main IFR: base status_game_option_pointer, block 44,
+                // IsDataExists = U.isPointer(u32(addr+40)) -> DataCountRule.PointerAt @ off 40,
+                // pointerIndexes {40}, DataType InputFormRef (default). Per entry: an ASM-function
+                // sub-walk behind the embedded pointer at offset 40 (Address.AddFunction(p+40, name)).
+                // The WF per-entry label is "GameOption " + GetNameFast(p) when !isPointerOnly (Huffman
+                // text) or "" when isPointerOnly — neither affects addr/length, so a static
+                // "GameOption" label is used (headless-safe, relocation-identical).
+                l.Add(new StructDescriptor
+                {
+                    Name = "GameOption",
+                    PointerField = r => r.RomInfo.status_game_option_pointer,
+                    BlockSize = 44,
+                    Rule = DataCountRule.PointerAt,
+                    RuleOffset = 40,
+                    PointerIndexes = new uint[] { 40 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 40, Kind = SubKind.AsmFunction, Name = (r, i) => "GameOption" },
+                    },
+                });
+
                 // StatusOptionOrderForm.MakeAllDataLength — Info "GameOptionOrder", block 1,
                 // IsDataExists = i < u8(status_game_option_order_count_address).
                 l.Add(new StructDescriptor
@@ -1618,9 +2032,11 @@ namespace FEBuilderGBA
                 "MapMiniMapTerrainImageForm", "WorldMapImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
-                //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundRoomForm STAYS — its FE7
+                //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundFootStepsForm ported in
+                //  slice 2d — Switch2-gated dedicated walker (base/count from sound_foot_steps_switch2_address,
+                //  IsSwitch2Enable gate) + per-entry ASM AddFunction. SoundRoomForm STAYS — its FE7
                 //  path adds a per-entry getString C-string sub-walk + InputFormRef_MIX type.)
-                "SongTableForm", "SoundFootStepsForm", "SoundRoomForm",
+                "SongTableForm", "SoundRoomForm",
                 // embedded sub-pointer / event-scan / CString expansion
                 // (ClassForm + StatusParamForm ported in slice 2c — per-entry MoveCost / CString
                 //  sub-walks. ItemForm STAYS: its StatBooster sub-block SIZE depends on un-ported
@@ -1630,10 +2046,12 @@ namespace FEBuilderGBA
                 "ItemForm",
                 // The other slice-2c embedded forms also stay — their sub-block LENGTH needs a
                 // subsystem not yet in Core (a wrong length relocates the wrong bytes = corruption):
-                //   StatusRMenuForm     — recursive 28-byte MIX tree (visited-set) + ASM AddFunction (disasm).
-                //   MenuDefinitionForm  — recursive MenuCommandForm sub-table + 6 ASM ptrs (disasm).
                 //   ItemWeaponEffectForm— PROCS sub-block length = ProcsScriptForm.CalcLengthAndCheck (disasm).
-                "ItemShopForm", "StatusRMenuForm", "MenuDefinitionForm",
+                // (StatusRMenuForm [recursive 28-byte MIX tree, shared visited-set + 2 ASM AddFunction]
+                //  and MenuDefinitionForm [recursive MenuCommandForm sub-table — InputFormRef_MIX + per-entry
+                //  CString + 6 ASM ptrs — + its own 6 ASM ptrs] ported in slice 2d via dedicated recursive
+                //  walkers; MenuCommandForm.MakeAllDataLengthP is reproduced by EmitMenuCommandSubTable.)
+                "ItemShopForm",
                 "ItemWeaponEffectForm", "ItemUsagePointerForm", "UnitActionPointerForm",
                 "MapChangeForm", "MapExitPointForm", "MapPointerForm", "FontForm",
                 // AI scripts (disasm)
@@ -1646,8 +2064,10 @@ namespace FEBuilderGBA
                 // status / menu definition / misc tables needing extra logic
                 // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.
                 //  StatusOptionOrderForm [v7+v8, count-address fixed table] ported in this sweep.
-                //  StatusOptionForm STAYS — its per-entry AddFunction is an ASM disasm sub-walk.)
-                "StatusOptionForm",
+                //  StatusOptionForm ported in slice 2d [v7+v8, PointerAt@40 main IFR + per-entry
+                //  SubKind.AsmFunction @40]. NOTE: "MapMiniMapTerrainForm" does NOT exist as a distinct
+                //  ASM form — the only file is MapMiniMapTerrainImageForm (an LZ77 image form, already
+                //  listed above), so there is nothing extra to port for it.)
                 "MantAnimationForm", "MapTileAnimation1Form",
                 "MapTileAnimation2Form", "MapTerrainFloorLookupTableForm",
                 "MapTerrainBGLookupTableForm",
