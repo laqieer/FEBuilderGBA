@@ -333,11 +333,20 @@ namespace FEBuilderGBA
                 }
                 else if (data.DataType == EAUtilCore.DataEnum.PROCS)
                 {
+                    // Advance the GREP baseline BEFORE skipping — exactly as WF
+                    // PatchForm.TraceEAPatchedMapping does (lastMatchAddr += Append;
+                    // Padding4) at the TOP of its PROCS branch, before the
+                    // CalcLengthAndCheck==NOT_FOUND `continue`. Omitting this would leave
+                    // lastMatchAddr pointing BEFORE the PROCS region, so the next block's
+                    // GREP could match an earlier address and revert the WRONG bytes.
+                    lastMatchAddr += data.Append;
+                    lastMatchAddr = U.Padding4(lastMatchAddr);
+
                     // PROCS length detection (ProcsScriptForm.CalcLengthAndCheck) is
-                    // WinForms-only; without it the length is unknown, so we skip this
-                    // range — identical to the WinForms tracer's `continue` when that
-                    // returns NOT_FOUND. Record it as residue so the caller can warn.
-                    // (See class doc scope note.)
+                    // WinForms-only; without it the length is unknown, so we skip the
+                    // range itself — identical to the WinForms tracer's `continue` when
+                    // CalcLengthAndCheck returns NOT_FOUND. Record it as residue so the
+                    // caller can warn. (See class doc scope note.)
                     result.Untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
                         string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
                     continue;

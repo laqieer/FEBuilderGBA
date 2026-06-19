@@ -237,9 +237,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // Review-BEFORE-revert (closest to the WF binmap dialog): trace first and,
             // if any write-bearing block can't be traced, ask the user to confirm a
             // PARTIAL uninstall — those bytes will NOT be reverted and may stay patched.
-            // Tracing is cheap (parse + GREP) relative to the revert, so doing it here to
-            // gate the confirm is fine; Uninstall() re-traces and reverts on Yes.
-            var preTrace = EventAssemblerUninstallCore.TraceEAFile(_vm.SourcePath);
+            // The trace (EA parse + repeated GREP over the full ROM) can be slow for
+            // large scripts/ROMs, so run it OFF the UI thread to keep the window
+            // responsive. It is read-only here (only used to gate the confirm); the real
+            // revert re-traces and writes inside the guarded Task.Run below.
+            var preTrace = await Task.Run(() => EventAssemblerUninstallCore.TraceEAFile(_vm.SourcePath));
             if (preTrace.UntracedCount > 0)
             {
                 int n = preTrace.UntracedCount;

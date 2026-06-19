@@ -224,6 +224,58 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(eaDir, true); } catch { } }
         }
 
+        // PROCS advances the GREP baseline (lastMatchAddr += Append; Padding4) BEFORE it
+        // skips, matching WF PatchForm.TraceEAPatchedMapping. This is a CORRECTNESS guard:
+        // a block AFTER an untraceable PROCS must match at the ADVANCED baseline, not an
+        // earlier (decoy) address — otherwise we'd revert the wrong bytes.
+        [Fact]
+        public void TraceEAFile_ProcsSkip_AdvancesGrepBaseline_NextBlockMatchesAfterProcs()
+        {
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+
+            // A unique 8-byte pattern for the BIN block after the PROCS.
+            byte[] pattern = { 0xDE, 0xAD, 0xC0, 0xDE, 0xFE, 0xED, 0xFA, 0xCE };
+
+            const uint orgAddr = 0x800000;   // ORG anchor → lastMatchAddr = 0x800000
+            const uint procsAdd = 0x1000;    // PROCS ADD → advances to Padding4(0x801000)
+            const uint advanced = orgAddr + procsAdd;       // 0x801000
+            const uint decoyAddr = orgAddr + 0x100;          // 0x800100 — BEFORE advanced
+            const uint realAddr = advanced + 0x1000;         // 0x802000 — AT/AFTER advanced
+
+            // DECOY copy (would be matched if the baseline were NOT advanced) + REAL copy
+            // (matched only from the advanced baseline).
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                rom.write_u8(decoyAddr + (uint)i, pattern[i]);
+                rom.write_u8(realAddr + (uint)i, pattern[i]);
+            }
+
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-procs-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            File.WriteAllBytes(Path.Combine(eaDir, "blk.bin"), pattern);
+            string eaFile = Path.Combine(eaDir, "procs.event");
+            // ORG anchor, a PROCS hint (skipped — no length detection in Core), then a BIN.
+            // ADD= is parsed via U.atoi (DECIMAL, faithful to WF EAUtil.ParseAdd), so the
+            // hint value must be decimal — emit procsAdd in decimal, not hex.
+            File.WriteAllText(eaFile,
+                "ORG 0x" + orgAddr.ToString("X") + "\r\n" +
+                "procs_label: // HINT=PROCS ADD=" + procsAdd.ToString() + "\r\n" +
+                "#incbin \"blk.bin\" // HINT=BIN\r\n");
+            try
+            {
+                var trace = EventAssemblerUninstallCore.TraceEAFile(eaFile);
+
+                // PROCS is recorded as untraceable (skipped) ...
+                Assert.True(trace.UntracedCount > 0);
+                // ... but the BIN AFTER it matched at the ADVANCED address, NOT the decoy.
+                var bin = trace.Mappings.Find(m => m.addr == realAddr);
+                Assert.NotNull(bin); // would be null (matched decoyAddr) if the baseline weren't advanced
+                Assert.DoesNotContain(trace.Mappings, m => m.addr == decoyAddr);
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
         // The trace API itself exposes FullyTraced + the note for a pure-untraceable EA.
         [Fact]
         public void TraceEAFile_UnHintedPng_RecordsUntraceable_NotFullyTraced()
