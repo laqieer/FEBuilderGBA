@@ -345,7 +345,7 @@ Editors for game text, fonts, translation, and text utilities.
 | 202 | OtherTextView | OtherTextViewModel | Other text data editor |
 | 203 | CStringView | CStringViewModel | C-style string editor |
 | 204 | FontEditorView | FontEditorViewModel | Font tile editor |
-| 205 | FontZHView | FontZHViewModel | Chinese font editor |
+| 205 | FontZHView | FontZHViewModel | Chinese font editor (per-glyph + bulk export/import + .ttf auto-generate) |
 | 206 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
 | 207 | TextScriptCategorySelectView | TextScriptCategorySelectViewModel | Text script category picker |
 | 208 | TextDicView | TextDicViewModel | Text dictionary editor |

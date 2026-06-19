@@ -25894,3 +25894,6 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 
 :Spell
 魔法
+:Invalid font glyph image size: {0}
+字体图像尺寸无效: {0}
+

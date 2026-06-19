@@ -12053,3 +12053,6 @@ Png2Dmp画像(.dmpヒントなし): {0}
 
 :Spell
 魔法
+:Invalid font glyph image size: {0}
+フォント画像のサイズが正しくありません: {0}
+
