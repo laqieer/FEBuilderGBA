@@ -1272,6 +1272,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("TextMain")]
         [InlineData("CString")]
         [InlineData("FontEditor")]
+        [InlineData("FontZH")]
         [InlineData("PatchManager")]
         [InlineData("SkillAssignmentUnitSkillSystem")]
         [InlineData("SkillConfigSkillSystem")]

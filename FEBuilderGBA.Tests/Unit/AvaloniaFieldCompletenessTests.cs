@@ -132,6 +132,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("OPClassDemoViewerView", "OPClassDemoForm", "OPClassDemoViewerViewModel"),
             ("OPClassFontViewerView", "OPClassFontForm", "OPClassFontViewerViewModel"),
             ("FontEditorView", "FontForm", "FontEditorViewModel"),
+            ("FontZHView", "FontZHForm", "FontZHViewModel"),
             ("OPPrologueViewerView", "OPPrologueForm", "OPPrologueViewerViewModel"),
             ("SystemIconViewerView", "ImageSystemIconForm", "SystemIconViewerViewModel"),
             ("SystemHoverColorViewerView", "ImageSystemHoverColorForm", "SystemHoverColorViewerViewModel"),

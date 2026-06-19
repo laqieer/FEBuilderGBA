@@ -762,5 +762,25 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Render the Chinese (ZH) font glyph at the row's address into a list-row
+        /// icon so the ZH Font editor's list reads as a visual glyph grid (#1166).
+        /// The glyph is the 16x13 2bpp bitmap at <c>addr+4</c>; <paramref name="isItemFont"/>
+        /// selects the item vs serif background tint. Returns null on any failure
+        /// (the row still shows its character label).
+        /// </summary>
+        public static Bitmap? FontGlyphZHLoader(List<AddrResult> items, int index, bool isItemFont)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return null;
+                using var img = FontGlyphZHCore.RenderGlyphZH(rom, items[index].addr, isItemFont);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }
