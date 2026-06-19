@@ -384,7 +384,7 @@ namespace FEBuilderGBA
         {
             // The string-decoding sub-walks (CString/BinString) read ROM.getString, which needs a
             // CoreState.SystemTextEncoder. In the real app + CLI InitFull it is always set, but the
-            // producer must NOT NewReferenceException if a caller scans without one. Skip those
+            // producer must NOT NullReferenceException if a caller scans without one. Skip those
             // sub-walks gracefully (the BinFixed/fixed-length kinds do not decode strings, so they
             // still run). NOTE: skipping leaves those embedded string blocks un-tracked — the
             // ProducerResult is already IsComplete==false in any partial scan, so the wiring slice
@@ -452,8 +452,8 @@ namespace FEBuilderGBA
                         default:
                             // A new/bad SubKind is a programming error — fail loudly rather than
                             // silently skip an embedded block (which would dangle on rebuild).
-                            throw new ArgumentOutOfRangeException(nameof(sw),
-                                "Unhandled SubKind: " + sw.Kind);
+                            throw new ArgumentOutOfRangeException(nameof(sw) + "." + nameof(sw.Kind),
+                                sw.Kind, "Unhandled SubKind.");
                     }
                 }
             }
