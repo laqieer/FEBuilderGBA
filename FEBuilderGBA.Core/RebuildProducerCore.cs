@@ -23,9 +23,11 @@ namespace FEBuilderGBA
     ///   <item>A first batch of the <b>simplest</b> <c>MakeAllDataLength</c> statics
     ///   — the ones that are a pure "walk a <c>RomInfo</c> pointer table of
     ///   N entries × blockSize, emit one IFR <see cref="Address"/>" with a
-    ///   small data-driven <c>IsDataExists</c> rule and no Form/Drawing/event-scan
-    ///   dependency. They are expressed as a declarative <see cref="StructDescriptor"/>
-    ///   table walked by <see cref="WalkAndAdd"/> — one table replaces ~16 hand-ports.</item>
+    ///   small data-driven <c>IsDataExists</c> rule, no Form/Drawing/event-scan
+    ///   dependency AND <b>no embedded per-entry sub-pointer expansion</b>
+    ///   (ItemForm/ClassForm are excluded for exactly that reason — see
+    ///   <see cref="BuildBatchDescriptors"/>). They are expressed as a declarative
+    ///   <see cref="StructDescriptor"/> table walked by <see cref="WalkAndAdd"/>.</item>
     /// </list>
     /// <para><b>What is intentionally deferred</b></para>
     /// <para>
@@ -98,6 +100,38 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Result of <see cref="MakeAllStructPointers"/>: the produced <see cref="Address"/> list
+        /// plus the explicit coverage state so a future wiring slice can gate on it.
+        /// </summary>
+        /// <remarks>
+        /// COMPLETENESS-SAFETY: a producer that omits forms (<see cref="IsComplete"/> false) must NOT
+        /// be fed to <see cref="RebuildMakeCore.Make"/> for a real defragment — relocating only SOME
+        /// structs while leaving others un-tracked would leave the un-tracked pointers dangling
+        /// (silent ROM corruption). The wiring slice MUST refuse (or loudly warn on) a rebuild while
+        /// <see cref="IsComplete"/> is false / <see cref="NotYetPorted"/> is non-empty.
+        /// </remarks>
+        public sealed class ProducerResult
+        {
+            /// <summary>The accumulated known-struct list (may be partial if <see cref="Cancelled"/>).</summary>
+            public List<Address> List { get; }
+            /// <summary>The <c>MakeAllDataLength</c> statics NOT yet ported (see <see cref="GetNotYetPortedForms"/>).</summary>
+            public IReadOnlyList<string> NotYetPorted { get; }
+            /// <summary>True only when every WinForms producer static has a Core equivalent
+            /// (<see cref="NotYetPorted"/> empty). While false the result is UNSAFE to feed to a
+            /// real <see cref="RebuildMakeCore.Make"/> defragment.</summary>
+            public bool IsComplete => NotYetPorted.Count == 0;
+            /// <summary>True if cancellation was observed mid-run (the list is partial).</summary>
+            public bool Cancelled { get; }
+
+            public ProducerResult(List<Address> list, IReadOnlyList<string> notYetPorted, bool cancelled)
+            {
+                List = list;
+                NotYetPorted = notYetPorted;
+                Cancelled = cancelled;
+            }
+        }
+
+        /// <summary>
         /// Build the known-struct <see cref="Address"/> list for <paramref name="rom"/>.
         /// Port of <c>U.MakeAllStructPointersList</c> (the batch ported so far; see class remarks).
         /// </summary>
@@ -108,16 +142,27 @@ namespace FEBuilderGBA
         /// <returns>The accumulated <see cref="Address"/> list.</returns>
         public static List<Address> MakeAllStructPointersList(ROM rom, IProgress<string> progress = null, CancellationToken ct = default)
         {
+            return MakeAllStructPointers(rom, progress, ct).List;
+        }
+
+        /// <summary>
+        /// Like <see cref="MakeAllStructPointersList"/> but returns a <see cref="ProducerResult"/> that
+        /// also surfaces the coverage state (<see cref="ProducerResult.NotYetPorted"/> /
+        /// <see cref="ProducerResult.IsComplete"/>) so a future wiring slice can gate the rebuild.
+        /// </summary>
+        public static ProducerResult MakeAllStructPointers(ROM rom, IProgress<string> progress = null, CancellationToken ct = default)
+        {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
 
             var list = new List<Address>(50000);
+            string[] notYet = GetNotYetPortedForms();
 
             // A pre-cancelled token short-circuits before any work (mirrors the WinForms
             // first DoEvents returning the empty list).
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
-                return list;
+                return new ProducerResult(list, notYet, cancelled: true);
             }
 
             // The WinForms producer interleaves DoEvents checkpoints between groups of
@@ -129,18 +174,17 @@ namespace FEBuilderGBA
                 if (ct.IsCancellationRequested)
                 {
                     progress?.Report("MakeAllStructPointersList cancelled");
-                    return list;
+                    return new ProducerResult(list, notYet, cancelled: true);
                 }
                 progress?.Report(d.Name);
                 WalkAndAdd(rom, list, d);
             }
 
             // Surface — never silently drop — the statics this slice does not yet cover.
-            string[] notYet = GetNotYetPortedForms();
             progress?.Report("MakeAllStructPointersList: ported batch=" + batch.Count
                 + " descriptors; not-yet-ported=" + notYet.Length + " forms (deferred to later slices)");
 
-            return list;
+            return new ProducerResult(list, notYet, cancelled: false);
         }
 
         /// <summary>
@@ -259,17 +303,14 @@ namespace FEBuilderGBA
             var l = new List<StructDescriptor>();
 
             // ---- version-agnostic section (called unconditionally in WinForms) ----
-
-            // ItemForm.MakeAllDataLength
-            l.Add(new StructDescriptor
-            {
-                Name = "Item",
-                PointerField = r => r.RomInfo.item_pointer,
-                BlockSize = rom.RomInfo.item_datasize,
-                Rule = DataCountRule.ItemRule,
-                MaxCount = 0x100,
-                PointerIndexes = new uint[] { 12, 16 },
-            });
+            //
+            // NOTE: ItemForm and ClassForm are deliberately NOT here. Their MakeAllDataLength
+            // does the main IFR AddAddress AND an embedded per-entry sub-pointer expansion
+            // (Item: StatBooster + ItemEffectiveness BIN blocks; Class: 7 MoveCost BIN blocks
+            // behind offsets 56/60/64/68/72/76). A descriptor only emits the main table — porting
+            // the main walk alone would leave those embedded blocks un-tracked, dangling their
+            // pointers during a rebuild (silent ROM corruption). They stay in GetNotYetPortedForms
+            // until the sub-walk is extracted to Core (a later slice).
 
             // ItemPromotionForm.MakeAllDataLength (10 cc_* pointers, blockSize 1, u8!=0)
             l.Add(new StructDescriptor
@@ -327,10 +368,10 @@ namespace FEBuilderGBA
                 PointerIndexes = new uint[] { },
             });
 
-            // AITargetForm.MakeAllDataLength (fixed 8)
+            // AITargetForm.MakeAllDataLength (fixed 8) — WinForms Info label is "AI3"
             l.Add(new StructDescriptor
             {
-                Name = "AITarget",
+                Name = "AI3",
                 PointerField = r => r.RomInfo.ai3_pointer,
                 BlockSize = 20,
                 Rule = DataCountRule.FixedCount,
@@ -379,18 +420,8 @@ namespace FEBuilderGBA
                 PointerIndexes = new uint[] { },
             });
 
-            // ---- per-version Class table (same descriptor for v6/7/8) ----
-            // ClassForm.MakeAllDataLength: i==0 -> true, else u8(addr+4)!=0, cap 0xFF.
-            l.Add(new StructDescriptor
-            {
-                Name = "Class",
-                PointerField = r => r.RomInfo.class_pointer,
-                BlockSize = rom.RomInfo.class_datasize,
-                Rule = DataCountRule.U8NotZeroIndex0Always,
-                RuleOffset = 4,
-                MaxCount = 0x100,
-                PointerIndexes = new uint[] { },
-            });
+            // (ClassForm is NOT here — see the embedded-sub-pointer note above; it stays in
+            //  GetNotYetPortedForms until its MoveCost sub-walk is ported.)
 
             // ---- trailing is_multibyte branch: MapTerrainName(Eng) ----
             // WinForms: is_multibyte -> MapTerrainNameForm (embedded CString sub-walk, deferred);
@@ -440,6 +471,10 @@ namespace FEBuilderGBA
                 "SongTableForm", "SoundFootStepsForm", "SoundRoomForm", "SoundRoomCGForm",
                 "WorldMapBGMForm",
                 // embedded sub-pointer / event-scan / CString expansion
+                // (ItemForm = main IFR + per-entry StatBooster/ItemEffectiveness BIN sub-blocks;
+                //  ClassForm = main IFR + per-entry 7x MoveCost BIN sub-blocks @ off 56..76 —
+                //  the main walk is trivial but the sub-blocks need porting before either is safe.)
+                "ItemForm", "ClassForm",
                 "ItemShopForm", "StatusParamForm", "StatusRMenuForm", "MenuDefinitionForm",
                 "ItemWeaponEffectForm", "ItemUsagePointerForm", "UnitActionPointerForm",
                 "MapChangeForm", "MapExitPointForm", "MapPointerForm", "FontForm",

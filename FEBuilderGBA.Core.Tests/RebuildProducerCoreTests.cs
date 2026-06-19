@@ -278,12 +278,58 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("TextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
             Assert.Contains("SongTableForm", notYet);
+            // Item/Class have embedded per-entry sub-pointer blocks (StatBooster/effectiveness,
+            // MoveCost) the descriptor walker cannot emit yet -> must be DEFERRED, not in the batch.
+            Assert.Contains("ItemForm", notYet);
+            Assert.Contains("ClassForm", notYet);
+        }
+
+        [Fact]
+        public void MakeAllStructPointers_Cancelled_ReportsIncompleteAndCancelled()
+        {
+            var rom = CreateTestRom();
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null, cts.Token);
+            // Pre-cancel returns before the descriptor walk (no RomInfo needed) and still
+            // surfaces the coverage state.
+            Assert.True(result.Cancelled);
+            Assert.False(result.IsComplete);   // NotYetPorted is non-empty regardless of cancel
+            Assert.NotEmpty(result.NotYetPorted);
+            Assert.Empty(result.List);
+        }
+
+        [Fact]
+        public void MakeAllStructPointers_FE8U_ReportsIncomplete_WhileFormsRemain()
+        {
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip when no ROM available (env-only)
+
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+
+                RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
+                // COMPLETENESS-SAFETY: while any form is un-ported the result must report incomplete
+                // so a future wiring slice refuses to feed a partial list to a real defragment.
+                Assert.False(result.IsComplete);
+                Assert.NotEmpty(result.NotYetPorted);
+                Assert.False(result.Cancelled);
+                Assert.NotEmpty(result.List);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
 
         // ---- real-FE8U parity: the batch finds the known tables -------------
 
         [Fact]
-        public void MakeAllStructPointersList_FE8U_FindsKnownItemAndClassTables()
+        public void MakeAllStructPointersList_FE8U_FindsBatchTables_AndDefersItemClass()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
@@ -296,31 +342,32 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = rom;
                 if (rom.RomInfo.version != 8) return; // this assertion is FE8U-specific
 
-                var progressLines = new List<string>();
-                var progress = new Progress<string>(s => progressLines.Add(s));
                 List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
-
                 Assert.NotEmpty(list);
 
-                // The item table must be present at the RomInfo.item_pointer target,
-                // with the {12,16} pointer columns and a sane FE8U item count (~0x9F).
-                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
-                Address item = list.FirstOrDefault(a => a.Addr == itemBase && a.Info == "Item");
-                Assert.NotNull(item);
-                Assert.Equal(rom.RomInfo.item_datasize, item.BlockSize);
-                Assert.Equal(new uint[] { 12, 16 }, item.PointerIndexes);
-                uint itemCount = item.Length / item.BlockSize - 1; // length = block*(count+1)
-                Assert.True(itemCount >= 0x80 && itemCount <= 0x100,
-                    "FE8U item count out of expected range: 0x" + itemCount.ToString("X"));
+                // SupportAttribute table (a clean single-walk batch form) must be present
+                // with the correct block size and a terminator-bounded count.
+                uint saBase = rom.p32(rom.RomInfo.support_attribute_pointer);
+                Address sa = list.FirstOrDefault(a => a.Addr == saBase && a.Info == "SupportAttribute");
+                Assert.NotNull(sa);
+                Assert.Equal(8u, sa.BlockSize);
+                uint saCount = sa.Length / sa.BlockSize - 1; // length = block*(count+1)
+                Assert.True(saCount >= 1, "SupportAttribute count should be positive");
 
-                // The class table must be present too.
+                // AI3 (fixed-8) table must be present with the expected 9-block length.
+                uint ai3Base = rom.p32(rom.RomInfo.ai3_pointer);
+                Address ai3 = list.FirstOrDefault(a => a.Addr == ai3Base && a.Info == "AI3");
+                Assert.NotNull(ai3);
+                Assert.Equal(20u, ai3.BlockSize);
+                Assert.Equal(20u * (8 + 1), ai3.Length); // fixed 8 -> length = 20*(8+1)
+
+                // FAITHFULNESS / COMPLETENESS-SAFETY: Item and Class are NOT emitted by this
+                // slice (embedded sub-pointer blocks). They must be absent from the list AND
+                // tracked in NotYetPorted so a rebuild does not silently drop their sub-blocks.
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
                 uint classBase = rom.p32(rom.RomInfo.class_pointer);
-                Address cls = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
-                Assert.NotNull(cls);
-                Assert.Equal(rom.RomInfo.class_datasize, cls.BlockSize);
-                uint classCount = cls.Length / cls.BlockSize - 1;
-                Assert.True(classCount >= 0x40 && classCount <= 0x100,
-                    "FE8U class count out of expected range: 0x" + classCount.ToString("X"));
+                Assert.DoesNotContain(list, a => a.Addr == classBase && a.Info == "Class");
             }
             finally
             {
