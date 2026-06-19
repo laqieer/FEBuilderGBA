@@ -84,6 +84,44 @@ namespace FEBuilderGBA
             /// <c>MapTerrainNameForm.Init</c> (<c>U.isPointerOrNULL(u32(addr+0))</c>). NULL is
             /// accepted (unlike <see cref="PointerAt"/>).</summary>
             PointerOrNullAt,
+            /// <summary>General "terminator value(s) + trailing-empty guard" rule. Reads a
+            /// <see cref="StructDescriptor.RuleWidth"/>-byte value at <c>addr + RuleOffset</c>; stops
+            /// when it equals <see cref="StructDescriptor.RuleStopValue"/> (or, when set, also
+            /// <see cref="StructDescriptor.RuleStopValue2"/>); and, when
+            /// <see cref="StructDescriptor.HasEmptyGuard"/> is set, ALSO stops once
+            /// <c>i &gt; 10 &amp;&amp; rom.IsEmpty(addr, BlockSize*10)</c>. Reproduces the common
+            /// <c>SupportTalk*/EventBattleTalk*/EventHaikuFE6/SoundRoom*</c> "read until 0xFFFF /
+            /// 0x0000 / 0xFFFFFFFF, but ignore stray 0x00 holes" idiom VERBATIM. The width selects the
+            /// read: 1 = <c>u8</c>, 2 = <c>u16</c>, 4 = <c>u32</c>. This is the generalization of
+            /// <see cref="SoundBossBGMRule"/> (which is the width=2, stop=0xFFFF, guard=on special
+            /// case at offset 0; kept distinct for back-compat / its existing tests).</summary>
+            TerminatorWithEmptyGuard,
+            /// <summary>Fixed count read from a <c>RomInfo</c> <i>count address</i> (NOT a count field):
+            /// <c>count = rom.u8(CountAddressField(rom))</c>, then <c>i &lt; count</c>. Matches
+            /// <c>StatusOptionOrderForm.Init</c>
+            /// (<c>i &lt; u8(status_game_option_order_count_address)</c>).</summary>
+            FixedCountU8Address,
+            /// <summary>SummonsDemonKing rule: <c>max = u8(CountAddressField(rom)); if (max &gt;= 100)
+            /// stop; return i &lt;= max</c>. Reproduces <c>SummonsDemonKingForm.Init</c> verbatim
+            /// (note the <c>&lt;=</c>, i.e. count = max+1, and the &gt;=100 sanity cap).</summary>
+            SummonsDemonKingRule,
+            /// <summary>Continue while <c>u32(addr+Offset)</c> is in the inclusive range
+            /// [<see cref="StructDescriptor.RuleRangeLo"/>, <see cref="StructDescriptor.RuleRangeHi"/>].
+            /// Matches <c>EventFinalSerifFE7Form.Init</c>
+            /// (<c>u32(addr+0) &lt;= 0xff &amp;&amp; &gt;= 0x1</c>).</summary>
+            U32InRangeAt,
+            /// <summary>Triple pointer-or-NULL AND: continue while
+            /// <c>isPointerOrNULL(u32(addr+12)) &amp;&amp; isPointerOrNULL(u32(addr+16)) &amp;&amp;
+            /// isPointerOrNULL(u32(addr+20))</c>. Matches <c>WorldMapPointForm.Init</c> (the offsets
+            /// are fixed at 12/16/20, mirroring the WF lambda).</summary>
+            TripleU32PointerOrNullAt121620,
+            /// <summary>WorldMapBGM rule: stop when the two u16 song ids at <c>addr+0</c>/<c>addr+2</c>
+            /// are <c>(1,0)</c> or <c>(0,0)</c>; otherwise continue (no terminator record exists).
+            /// Reproduces <c>WorldMapBGMForm.Init</c> verbatim.</summary>
+            WorldMapBGMRule,
+            /// <summary>TextDic main rule: stop when <c>u16(addr+2) &lt;= 0 || u16(addr+4) &lt;= 0</c>.
+            /// Reproduces <c>TextDicForm.Init</c> (the <c>dic_main</c> table) verbatim.</summary>
+            DicMainRule,
         }
 
         /// <summary>How a <see cref="SubWalk"/> reproduces the per-entry embedded-data
@@ -158,6 +196,26 @@ namespace FEBuilderGBA
             public Address.DataTypeEnum DataType = Address.DataTypeEnum.InputFormRef;
             /// <summary>Optional safety cap on entry count (the WinForms <c>i &gt; 0xff</c> guards).</summary>
             public uint MaxCount = 0x10000;
+            /// <summary>For <see cref="DataCountRule.TerminatorWithEmptyGuard"/>: the read width in
+            /// bytes (1 = u8, 2 = u16, 4 = u32). Default 2 (the most common, u16).</summary>
+            public uint RuleWidth = 2;
+            /// <summary>For <see cref="DataCountRule.TerminatorWithEmptyGuard"/>: an OPTIONAL SECOND
+            /// terminator value (e.g. EventBattleTalkFE6: stop on <c>0x0000</c> OR <c>0xFFFF</c>).
+            /// <c>null</c> = only <see cref="RuleStopValue"/> terminates.</summary>
+            public uint? RuleStopValue2;
+            /// <summary>For <see cref="DataCountRule.TerminatorWithEmptyGuard"/>: whether to ALSO apply
+            /// the <c>i &gt; 10 &amp;&amp; IsEmpty(addr, BlockSize*10)</c> trailing-empty guard. Some
+            /// terminator tables have it (SupportTalk*, SoundRoomFE6), some do not (SoundRoomCG).</summary>
+            public bool HasEmptyGuard;
+            /// <summary>For <see cref="DataCountRule.FixedCountU8Address"/> /
+            /// <see cref="DataCountRule.SummonsDemonKingRule"/>: resolves the <c>RomInfo</c> COUNT
+            /// ADDRESS (a ROM address holding a u8 count, e.g.
+            /// <c>status_game_option_order_count_address</c>), NOT a count value.</summary>
+            public Func<ROM, uint> CountAddressField;
+            /// <summary>For <see cref="DataCountRule.U32InRangeAt"/>: inclusive lower bound.</summary>
+            public uint RuleRangeLo;
+            /// <summary>For <see cref="DataCountRule.U32InRangeAt"/>: inclusive upper bound.</summary>
+            public uint RuleRangeHi;
             /// <summary>Optional per-entry embedded-data sub-walks (null = none, back-compat with
             /// the slice-2a/2b flat descriptors). Applied to every table entry AFTER the main IFR
             /// <see cref="Address"/> is emitted.</summary>
@@ -459,6 +517,30 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// The class-table entry count = <c>ClassForm.DataCount()</c> (WinForms). Several forms
+        /// (<c>CCBranchForm</c>, <c>OPClassAlphaNameForm</c>) size their table by it. Computed
+        /// VERBATIM from <c>ClassForm.Init</c>: walk <c>class_pointer</c>'s table with block
+        /// <c>class_datasize</c> and the <see cref="DataCountRule.U8NotZeroIndex0Always"/> rule
+        /// (<c>i==0 -&gt; true; i&gt;0xff -&gt; false; else u8(addr+4)!=0</c>). Returns 0 on an
+        /// unsafe/zero pointer (so a missing table yields an empty count, not a throw).
+        /// </summary>
+        public static uint ClassDataCount(ROM rom)
+        {
+            uint pointer = U.toOffset(rom.RomInfo.class_pointer);
+            if (!U.isSafetyOffset(pointer, rom)) return 0;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint block = rom.RomInfo.class_datasize;
+            if (block == 0) return 0;
+            return rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                if (i == 0) return true;
+                if (i > 0xff) return false;
+                return rom.u8(addr + 4) != 0;
+            });
+        }
+
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
         /// <c>is_data_exists_callback</c> that <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> expects.</summary>
         static Func<int, uint, bool> MakeIsDataExists(ROM rom, StructDescriptor d)
@@ -544,6 +626,79 @@ namespace FEBuilderGBA
                         if (i >= d.MaxCount) return false;
                         // MapTerrainNameForm.Init: U.isPointerOrNULL(u32(addr+0)) — NULL is accepted.
                         return U.isPointerOrNULL(rom.u32(addr + d.RuleOffset));
+                    };
+                case DataCountRule.TerminatorWithEmptyGuard:
+                {
+                    // General "read until terminator value(s), but ignore stray empty holes" idiom.
+                    // Width selects the read; one or two stop values terminate; the empty-guard is
+                    // optional. Reproduces SupportTalk*/EventBattleTalkFE6/EventHaikuFE6/SoundRoom*.
+                    uint width = d.RuleWidth;
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        uint v;
+                        if (width == 1) v = rom.u8(addr + d.RuleOffset);
+                        else if (width == 4) v = rom.u32(addr + d.RuleOffset);
+                        else v = rom.u16(addr + d.RuleOffset);
+                        if (v == d.RuleStopValue) return false;
+                        if (d.RuleStopValue2.HasValue && v == d.RuleStopValue2.Value) return false;
+                        if (d.HasEmptyGuard && i > 10 && rom.IsEmpty(addr, d.BlockSize * 10)) return false;
+                        return true;
+                    };
+                }
+                case DataCountRule.FixedCountU8Address:
+                    return (i, addr) =>
+                    {
+                        // StatusOptionOrderForm.Init: count = u8(status_game_option_order_count_address).
+                        uint count = rom.u8(d.CountAddressField(rom));
+                        return i < count;
+                    };
+                case DataCountRule.SummonsDemonKingRule:
+                    return (i, addr) =>
+                    {
+                        // SummonsDemonKingForm.Init: max = u8(count_addr); if (max>=100) stop;
+                        // return i <= max (note <=, so count = max+1).
+                        uint max = rom.u8(d.CountAddressField(rom));
+                        if (max >= 100) return false;
+                        return i <= max;
+                    };
+                case DataCountRule.U32InRangeAt:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // EventFinalSerifFE7Form.Init: u32(addr+0) <= 0xff && >= 0x1.
+                        uint v = rom.u32(addr + d.RuleOffset);
+                        return v >= d.RuleRangeLo && v <= d.RuleRangeHi;
+                    };
+                case DataCountRule.TripleU32PointerOrNullAt121620:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // WorldMapPointForm.Init: the 12/16/20 fields are each pointer-or-NULL.
+                        return U.isPointerOrNULL(rom.u32(addr + 12))
+                            && U.isPointerOrNULL(rom.u32(addr + 16))
+                            && U.isPointerOrNULL(rom.u32(addr + 20));
+                    };
+                case DataCountRule.WorldMapBGMRule:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // WorldMapBGMForm.Init: stop on (song1,song2) == (1,0) or (0,0).
+                        uint song1 = rom.u16(addr + 0);
+                        uint song2 = rom.u16(addr + 2);
+                        if (song1 == 1 && song2 == 0) return false;
+                        if (song1 == 0 && song2 == 0) return false;
+                        return true;
+                    };
+                case DataCountRule.DicMainRule:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // TextDicForm.Init (dic_main): stop when u16(+2) <= 0 || u16(+4) <= 0.
+                        uint text1 = rom.u16(addr + 2);
+                        uint text2 = rom.u16(addr + 4);
+                        if (text1 <= 0 || text2 <= 0) return false;
+                        return true;
                     };
                 default:
                     // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
@@ -833,16 +988,33 @@ namespace FEBuilderGBA
             // we gate them to match the WF call structure exactly and avoid scanning junk on a
             // non-FE8 ROM.
             //
-            // MapTileAnimation1/2Form, MonsterWMapProbabilityForm, CCBranchForm, and the
-            // MapTerrain*LookupTable forms are deliberately NOT here:
+            // MapTileAnimation1/2Form, MonsterWMapProbabilityForm, and the MapTerrain*LookupTable
+            // forms are deliberately NOT here:
             //   * MapTileAnimation1/2 expand a per-entry embedded IMG/BIN sub-block (rule 3).
             //   * MonsterWMapProbabilityForm also runs an EventScriptForm.ScanScript event-scan
             //     in the same MakeAllDataLength (event-scan expansion, not a pure table walk).
-            //   * CCBranchForm's entry count is ClassForm.DataCount() (a dynamic class-table walk),
-            //     not a RomInfo field.
             //   * MapTerrain{Floor,BG}LookupTableForm enumerate a PatchUtil-dependent GetPointers()
             //     set (extends-battle-BG patch detection), not a fixed RomInfo table.
-            // They stay in GetNotYetPortedForms for a later slice.
+            // They stay in GetNotYetPortedForms for a later slice. (CCBranchForm IS ported below now
+            // — its ClassForm.DataCount() count is reproduced by ClassDataCount(rom), a pure walk.)
+            //
+            // StatusOptionOrderForm is called in the WF version==8 AND version==7 branches (its data
+            // pointer is 0 elsewhere). Emit it for both; EmitOne skips a 0/unsafe pointer.
+            if (rom.RomInfo.version == 8 || rom.RomInfo.version == 7)
+            {
+                // StatusOptionOrderForm.MakeAllDataLength — Info "GameOptionOrder", block 1,
+                // IsDataExists = i < u8(status_game_option_order_count_address).
+                l.Add(new StructDescriptor
+                {
+                    Name = "GameOptionOrder",
+                    PointerField = r => r.RomInfo.status_game_option_order_pointer,
+                    BlockSize = 1,
+                    Rule = DataCountRule.FixedCountU8Address,
+                    CountAddressField = r => r.RomInfo.status_game_option_order_count_address,
+                    PointerIndexes = new uint[] { },
+                });
+            }
+
             if (rom.RomInfo.version == 8)
             {
                 // StatusUnitsMenuForm.MakeAllDataLength — Info "UnitsMenu", block 16,
@@ -917,6 +1089,443 @@ namespace FEBuilderGBA
                     RuleStopValue = 0xFF,
                     PointerIndexes = new uint[] { },
                 });
+
+                // EDForm.MakeAllDataLength (FE8) — FOUR tables in WF order, each its own AddAddress
+                // with a distinct Info suffix, empty pointerIndexes. The ed_* tables terminate on a
+                // zero word/byte (NOT a pointer test), so the generic terminator rule (no empty-guard)
+                // reproduces each lambda's count exactly:
+                //   ed_1 (block 4, u32(addr)!=0)   "_1"   -> width 4, stop 0
+                //   ed_2 (block 8, u8(addr)!=0)    "_2"   -> width 1, stop 0   (N1_Init)
+                //   ed_3a(block 8, u32(addr)!=0)   "_3a"  -> width 4, stop 0   (N2_Init)
+                //   ed_3b(block 8, u32(addr)!=0)   "_3b"  -> width 4, stop 0   (N2_Init ReInit ed_3b)
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDForm_1",
+                    PointerField = r => r.RomInfo.ed_1_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDForm_2",
+                    PointerField = r => r.RomInfo.ed_2_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 1, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDForm_3a",
+                    PointerField = r => r.RomInfo.ed_3a_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDForm_3b",
+                    PointerField = r => r.RomInfo.ed_3b_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // CCBranchForm.MakeAllDataLength — Info "CCBranch", block 2, base ccbranch_pointer,
+                // IsDataExists = i < ClassForm.DataCount(). Reproduced via ClassDataCount(rom).
+                l.Add(new StructDescriptor
+                {
+                    Name = "CCBranch",
+                    PointerField = r => r.RomInfo.ccbranch_pointer,
+                    BlockSize = 2,
+                    Rule = DataCountRule.FixedCount,
+                    FixedCountField = r => ClassDataCount(r),
+                    PointerIndexes = new uint[] { },
+                });
+
+                // OPClassAlphaNameForm.MakeAllDataLength — Info "CCClassAlphaName", block 20, base
+                // class_alphaname_pointer, IsDataExists = i < ClassForm.DataCount().
+                l.Add(new StructDescriptor
+                {
+                    Name = "CCClassAlphaName",
+                    PointerField = r => r.RomInfo.class_alphaname_pointer,
+                    BlockSize = 20,
+                    Rule = DataCountRule.FixedCount,
+                    FixedCountField = r => ClassDataCount(r),
+                    PointerIndexes = new uint[] { },
+                });
+
+                // WorldMapPointForm.MakeAllDataLength — Info "WorldMapPoint", block 32, base
+                // worldmap_point_pointer, IsDataExists = isPointerOrNULL(u32+12)&&(+16)&&(+20),
+                // pointerIndexes {12,16,20}.
+                l.Add(new StructDescriptor
+                {
+                    Name = "WorldMapPoint",
+                    PointerField = r => r.RomInfo.worldmap_point_pointer,
+                    BlockSize = 32,
+                    Rule = DataCountRule.TripleU32PointerOrNullAt121620,
+                    PointerIndexes = new uint[] { 12, 16, 20 },
+                });
+
+                // WorldMapBGMForm.MakeAllDataLength — Info "WorldMapBGM", block 4, base
+                // worldmap_bgm_pointer, IsDataExists = WorldMapBGMRule.
+                l.Add(new StructDescriptor
+                {
+                    Name = "WorldMapBGM",
+                    PointerField = r => r.RomInfo.worldmap_bgm_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.WorldMapBGMRule,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // TextDicForm.MakeAllDataLength — THREE tables in WF order:
+                //   dic_main   (block 12, DicMainRule)        "dic_main"
+                //   dic_chaptor(block 4,  i < 9)              "dic_chaptor"
+                //   dic_title  (block 2,  i < 12)             "dic_title"
+                l.Add(new StructDescriptor
+                {
+                    Name = "dic_main",
+                    PointerField = r => r.RomInfo.dic_main_pointer,
+                    BlockSize = 12,
+                    Rule = DataCountRule.DicMainRule,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "dic_chaptor",
+                    PointerField = r => r.RomInfo.dic_chaptor_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.FixedCount,
+                    RuleFixedCount = 9,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "dic_title",
+                    PointerField = r => r.RomInfo.dic_title_pointer,
+                    BlockSize = 2,
+                    Rule = DataCountRule.FixedCount,
+                    RuleFixedCount = 12,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // EventForceSortieForm.MakeAllDataLength (FE8) — Info "ForceSorite" (WF spelling),
+                // block 4, base event_force_sortie_pointer, IsDataExists = u16(addr) != 0xFFFF.
+                l.Add(new StructDescriptor
+                {
+                    Name = "ForceSorite",
+                    PointerField = r => r.RomInfo.event_force_sortie_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.U16NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0xFFFF,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // SummonUnitForm.MakeAllDataLength — Info "Summon", block 2, base summon_unit_pointer,
+                // IsDataExists = u8(addr) != 0x00.
+                l.Add(new StructDescriptor
+                {
+                    Name = "Summon",
+                    PointerField = r => r.RomInfo.summon_unit_pointer,
+                    BlockSize = 2,
+                    Rule = DataCountRule.U8NotEqual,
+                    RuleOffset = 0,
+                    RuleStopValue = 0x00,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // SummonsDemonKingForm.MakeAllDataLength — Info "Summons", block 20, base
+                // summons_demon_king_pointer, IsDataExists = SummonsDemonKingRule
+                // (max = u8(summons_demon_king_count_address); if max>=100 stop; i <= max).
+                l.Add(new StructDescriptor
+                {
+                    Name = "Summons",
+                    PointerField = r => r.RomInfo.summons_demon_king_pointer,
+                    BlockSize = 20,
+                    Rule = DataCountRule.SummonsDemonKingRule,
+                    CountAddressField = r => r.RomInfo.summons_demon_king_count_address,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // UnitForm.MakeAllDataLength (FE8) — Info "UnitForm", block unit_datasize, base
+                // unit_pointer, IsDataExists = i < unit_maxcount, pointerIndexes {44}. PLUS a per-entry
+                // support sub-pointer: behind the embedded pointer at offset 44, a fixed-size BIN block
+                // whose length is the support-struct size (24 on FE8 — the version==6 path that uses 32
+                // is never hit here, this descriptor is FE8-only). WF guards `unitSupport>0`; BinFixed's
+                // isSafetyOffset(target) guard is equivalent (a 0/NULL pointer is not a safe offset).
+                l.Add(new StructDescriptor
+                {
+                    Name = "UnitForm",
+                    PointerField = r => r.RomInfo.unit_pointer,
+                    BlockSize = rom.RomInfo.unit_datasize,
+                    Rule = DataCountRule.FixedCount,
+                    FixedCountField = r => r.RomInfo.unit_maxcount,
+                    PointerIndexes = new uint[] { 44 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 44, Kind = SubKind.BinFixed, FixedLength = 24, Name = (r, i) => "unitSupport " + U.To0xHexString((uint)i) },
+                    },
+                });
+
+                // SupportTalkForm.MakeAllDataLength (FE8) — Info "SupportTalk", block 16, base
+                // support_talk_pointer, IsDataExists = u16(addr)==0xFFFF terminator + empty-guard.
+                l.Add(new StructDescriptor
+                {
+                    Name = "SupportTalk",
+                    PointerField = r => r.RomInfo.support_talk_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0xFFFF, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+            }
+            else if (rom.RomInfo.version == 7)
+            {
+                // ---- version==7 (FE7) section ----
+                // These forms are called ONLY inside the WF `else if (version == 7)` branch. Their
+                // data pointers are 0 elsewhere (EmitOne skips a 0/unsafe pointer), but we gate per the
+                // WF call structure exactly. Forms in that branch needing un-ported subsystems
+                // (EDFE7Form's N3 has pointer 0 -> emitted as a 0-skip; the LZ77/Demo/ScanScript ones)
+                // stay deferred.
+
+                // EDSensekiCommentForm.MakeAllDataLength — see the shared v6+v7 block below.
+
+                // EDFE7Form.MakeAllDataLength — FOUR tables in WF order:
+                //   N3 (pointer 0 — "ポインタ指定ができない", block 12, u32!=0)  "_1"  -> a 0 pointer,
+                //       EmitOne skips it (faithful: WF's AddAddress on a base-0 IFR adds nothing useful).
+                //   N1 (ed_2,  block 8, u32!=0)  "_2"
+                //   N2 (ed_3a, block 8, u32!=0)  "_3a"  + ed_3b ReInitPointer  "_3b"
+                //   N4 (ed_1,  block 4, u32!=0)  "_4"
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE7Form_1",
+                    PointerField = r => 0u, // N3: WF passes pointer 0 ("ポインタ指定ができない")
+                    BlockSize = 12,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE7Form_2",
+                    PointerField = r => r.RomInfo.ed_2_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE7Form_3a",
+                    PointerField = r => r.RomInfo.ed_3a_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE7Form_3b",
+                    PointerField = r => r.RomInfo.ed_3b_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE7Form_4",
+                    PointerField = r => r.RomInfo.ed_1_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // UnitFE7Form.MakeAllDataLength — Info "Unit", block unit_datasize, base unit_pointer,
+                // IsDataExists = i < unit_maxcount, pointerIndexes {44}. FLAT table — NO support
+                // sub-walk (unlike the FE8 UnitForm). The FE6 variant (UnitFE6Form) is DEFERRED: its
+                // base is p32(unit_pointer)+unit_datasize (skip class 0 via a direct ReInit), which the
+                // pointer-slot descriptor model cannot express faithfully.
+                l.Add(new StructDescriptor
+                {
+                    Name = "Unit",
+                    PointerField = r => r.RomInfo.unit_pointer,
+                    BlockSize = rom.RomInfo.unit_datasize,
+                    Rule = DataCountRule.FixedCount,
+                    FixedCountField = r => r.RomInfo.unit_maxcount,
+                    PointerIndexes = new uint[] { 44 },
+                });
+
+                // SupportTalkFE7Form.MakeAllDataLength — Info "SupportTalkFE7", block 20, base
+                // support_talk_pointer, IsDataExists = u16(addr)==0x0000 terminator + empty-guard.
+                l.Add(new StructDescriptor
+                {
+                    Name = "SupportTalkFE7",
+                    PointerField = r => r.RomInfo.support_talk_pointer,
+                    BlockSize = 20,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0x0000, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // SoundRoomCGForm.MakeAllDataLength — Info "SoundRoomCG", block 4, base
+                // sound_room_cg_pointer, IsDataExists = u32(addr)==0xFFFFFFFF terminator (NO guard).
+                l.Add(new StructDescriptor
+                {
+                    Name = "SoundRoomCG",
+                    PointerField = r => r.RomInfo.sound_room_cg_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0xFFFFFFFF, HasEmptyGuard = false,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // TacticianAffinityFE7.MakeAllDataLength — Info "TacticianAffinity", block 4, base
+                // tactician_affinity_pointer, IsDataExists = i < (is_multibyte ? 48 : 12).
+                l.Add(new StructDescriptor
+                {
+                    Name = "TacticianAffinity",
+                    PointerField = r => r.RomInfo.tactician_affinity_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.FixedCount,
+                    FixedCountField = r => r.RomInfo.is_multibyte ? 48u : 12u,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // EventFinalSerifFE7Form.MakeAllDataLength — Info "EventFinalserif", block 8, base
+                // event_final_serif_pointer, IsDataExists = u32(addr+0) >= 1 && <= 0xff.
+                l.Add(new StructDescriptor
+                {
+                    Name = "EventFinalserif",
+                    PointerField = r => r.RomInfo.event_final_serif_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.U32InRangeAt,
+                    RuleOffset = 0,
+                    RuleRangeLo = 0x1,
+                    RuleRangeHi = 0xff,
+                    PointerIndexes = new uint[] { },
+                });
+            }
+            else if (rom.RomInfo.version == 6)
+            {
+                // ---- version==6 (FE6) section ----
+                // Forms called ONLY inside the WF `else if (version == 6)` branch. UnitFE6Form,
+                // WorldMapEventPointerFE6Form (PLIST event-scan), ImagePortraitFE6Form (LZ77),
+                // ImageChapterTitleFE7Form (LZ77), WorldMapImageFE6Form (LZ77), MapSettingFE6Form
+                // (IsMapSettingEnd + CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay
+                // deferred. The clean tables below are ported.
+
+                // EDFE6Form.MakeAllDataLength — Info "EDFE6Form", single table N2 (ed_3a, block 8),
+                // IsDataExists = i < 0x42 (fixed cap).
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDFE6Form",
+                    PointerField = r => r.RomInfo.ed_3a_pointer,
+                    BlockSize = 8,
+                    Rule = DataCountRule.FixedCount,
+                    RuleFixedCount = 0x42,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // EventBattleTalkFE6Form.MakeAllDataLength — TWO tables in WF order:
+                //   Init  (event_ballte_talk_pointer,  block 12) "EventBattleTalkFE6Form"
+                //   N_Init(event_ballte_talk2_pointer, block 16) "EventBattleTalkFE6Form_2"
+                // Both: u16(addr)==0x0 || ==0xFFFF terminator + empty-guard.
+                l.Add(new StructDescriptor
+                {
+                    Name = "EventBattleTalkFE6Form",
+                    PointerField = r => r.RomInfo.event_ballte_talk_pointer,
+                    BlockSize = 12,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0x0, RuleStopValue2 = 0xFFFF, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+                l.Add(new StructDescriptor
+                {
+                    Name = "EventBattleTalkFE6Form_2",
+                    PointerField = r => r.RomInfo.event_ballte_talk2_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0x0, RuleStopValue2 = 0xFFFF, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // EventHaikuFE6Form.MakeAllDataLength — Info "Haiku", single table event_haiku_pointer,
+                // block 16, IsDataExists = u8(addr)==0x0 terminator + empty-guard.
+                l.Add(new StructDescriptor
+                {
+                    Name = "Haiku",
+                    PointerField = r => r.RomInfo.event_haiku_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 1, RuleOffset = 0, RuleStopValue = 0x0, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // SupportTalkFE6Form.MakeAllDataLength — Info "SupportTalkFE6", block 16, base
+                // support_talk_pointer, IsDataExists = u16(addr)==0x0000 terminator + empty-guard.
+                l.Add(new StructDescriptor
+                {
+                    Name = "SupportTalkFE6",
+                    PointerField = r => r.RomInfo.support_talk_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0x0000, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { },
+                });
+
+                // SoundRoomFE6Form.MakeAllDataLength — Info "SoundRoomFE6", block sound_room_datasize,
+                // base sound_room_pointer, IsDataExists = u32(addr)==0xFFFFFFFF terminator + empty-guard,
+                // pointerIndexes {4,8}.
+                l.Add(new StructDescriptor
+                {
+                    Name = "SoundRoomFE6",
+                    PointerField = r => r.RomInfo.sound_room_pointer,
+                    BlockSize = rom.RomInfo.sound_room_datasize,
+                    Rule = DataCountRule.TerminatorWithEmptyGuard,
+                    RuleWidth = 4, RuleOffset = 0, RuleStopValue = 0xFFFFFFFF, HasEmptyGuard = true,
+                    PointerIndexes = new uint[] { 4, 8 },
+                });
+
+                // OPClassAlphaNameFE6Form.MakeAllDataLength — Info "OPClassAlphaName", block 4, base
+                // class_alphaname_pointer, IsDataExists = isPointerOrNULL(u32(addr+0)) -> PointerOrNullAt
+                // @ off 0, pointerIndexes {0}. Per entry: a string-BIN block (length == strlen, NO +1)
+                // behind the embedded pointer at offset 0 (same shape as MapTerrainNameForm).
+                l.Add(new StructDescriptor
+                {
+                    Name = "OPClassAlphaName",
+                    PointerField = r => r.RomInfo.class_alphaname_pointer,
+                    BlockSize = 4,
+                    Rule = DataCountRule.PointerOrNullAt,
+                    RuleOffset = 0,
+                    PointerIndexes = new uint[] { 0 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.BinString },
+                    },
+                });
+            }
+
+            // EDSensekiCommentForm.MakeAllDataLength — called in the WF version==7 AND version==6
+            // branches (NOT version==8). Info "EDSensekiForm", block 16, base senseki_comment_pointer,
+            // IsDataExists = u16(addr) != 0x0.
+            if (rom.RomInfo.version == 7 || rom.RomInfo.version == 6)
+            {
+                l.Add(new StructDescriptor
+                {
+                    Name = "EDSensekiForm",
+                    PointerField = r => r.RomInfo.senseki_comment_pointer,
+                    BlockSize = 16,
+                    Rule = DataCountRule.U16NotZero,
+                    RuleOffset = 0,
+                    PointerIndexes = new uint[] { },
+                });
             }
 
             // ---- trailing is_multibyte branch: MapTerrainName(Eng) ----
@@ -988,10 +1597,11 @@ namespace FEBuilderGBA
                 "EventCondForm", "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
                 "Command85PointerForm",
                 // text (Huffman)
-                // (MapTerrainNameForm ported in slice 2c — per-entry string-BIN sub-walk; OtherTextForm
-                //  STAYS: it iterates a config file `other_text_*` (U.ConfigDataFilename), not a
-                //  RomInfo table, so it has a headless config-file dependency, not ROM-derived data.)
-                "TextForm", "TextCharCodeForm", "TextDicForm", "OtherTextForm",
+                // (MapTerrainNameForm ported in slice 2c — per-entry string-BIN sub-walk; TextDicForm
+                //  ported in this sweep — 3 clean tables (dic_main/chaptor/title). OtherTextForm STAYS:
+                //  it iterates a config file `other_text_*` (U.ConfigDataFilename), not a RomInfo table,
+                //  so it has a headless config-file dependency, not ROM-derived data.)
+                "TextForm", "TextCharCodeForm", "OtherTextForm",
                 // images (LZ77/TSA length calc)
                 "ImageBattleAnimeForm", "ImageBattleBGForm", "ImageBattleTerrainForm", "ImageBGForm",
                 "ImageMagicFEditorForm", "ImageMagicCSACreatorForm", "ImageBattleScreenForm",
@@ -1001,8 +1611,10 @@ namespace FEBuilderGBA
                 "ImageTSAAnime2Form", "ImageChapterTitleForm", "ImagePortraitForm", "ImageCGForm",
                 "MapMiniMapTerrainImageForm", "WorldMapImageForm",
                 // songs / sound (recycle, embedded inst)
-                "SongTableForm", "SoundFootStepsForm", "SoundRoomForm", "SoundRoomCGForm",
-                "WorldMapBGMForm",
+                // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
+                //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundRoomForm STAYS — its FE7
+                //  path adds a per-entry getString C-string sub-walk + InputFormRef_MIX type.)
+                "SongTableForm", "SoundFootStepsForm", "SoundRoomForm",
                 // embedded sub-pointer / event-scan / CString expansion
                 // (ClassForm + StatusParamForm ported in slice 2c — per-entry MoveCost / CString
                 //  sub-walks. ItemForm STAYS: its StatBooster sub-block SIZE depends on un-ported
@@ -1026,27 +1638,43 @@ namespace FEBuilderGBA
                 "SkillConfigSkillSystemForm", "SkillConfigFE8NSkillForm",
                 "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer3SkillForm",
                 // status / menu definition / misc tables needing extra logic
-                // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.)
-                "StatusOptionForm", "StatusOptionOrderForm",
+                // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.
+                //  StatusOptionOrderForm [v7+v8, count-address fixed table] ported in this sweep.
+                //  StatusOptionForm STAYS — its per-entry AddFunction is an ASM disasm sub-walk.)
+                "StatusOptionForm",
                 "MantAnimationForm", "MapTileAnimation1Form",
                 "MapTileAnimation2Form", "MapTerrainFloorLookupTableForm",
                 "MapTerrainBGLookupTableForm",
                 // units / classes per-version with extra reads
-                "UnitForm", "UnitFE7Form", "UnitFE6Form", "UnitCustomBattleAnimeForm",
-                "ExtraUnitForm", "ExtraUnitFE8UForm", "SummonUnitForm", "SummonsDemonKingForm",
-                "EventUnitForm(RecycleReserveUnits)", "EventForceSortieForm",
+                // (UnitForm [FE8, flat + 24-byte support BinFixed sub-walk @44] and UnitFE7Form
+                //  [FE7, flat, no sub-walk] ported in this sweep; SummonUnitForm + SummonsDemonKingForm
+                //  + EventForceSortieForm [FE8 clean tables] ported too. UnitFE6Form STAYS — its base is
+                //  p32(unit_pointer)+unit_datasize via a direct ReInit, which the pointer-slot descriptor
+                //  model cannot express faithfully.)
+                "UnitFE6Form", "UnitCustomBattleAnimeForm",
+                "ExtraUnitForm", "ExtraUnitFE8UForm",
+                "EventUnitForm(RecycleReserveUnits)",
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
                 // (MonsterItemForm + MonsterProbabilityForm ported in slice 2b.
-                //  MonsterWMapProbabilityForm stays — it runs an EventScriptForm.ScanScript
-                //  event-scan in the same MakeAllDataLength, not a pure table walk.)
+                //  This sweep ported the CLEAN per-version tables: EDForm [FE8 ×4], EDFE7Form [FE7 ×5],
+                //  EDFE6Form [FE6], EDSensekiCommentForm [v6+v7], CCBranchForm + OPClassAlphaNameForm
+                //  [FE8, count = ClassDataCount] + OPClassAlphaNameFE6Form [FE6 string-BIN sub-walk],
+                //  WorldMapPointForm [FE8], SupportTalkForm/FE6/FE7, EventBattleTalkFE6Form [FE6 ×2],
+                //  EventHaikuFE6Form [FE6], TacticianAffinityFE7, EventFinalSerifFE7Form.
+                //  STILL deferred (event-scan / LZ77 / recursive / GetUnitIDWhereSupportAddr / dynamic
+                //  base): MonsterWMapProbabilityForm + WorldMapEventPointerForm [ScanScript],
+                //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry], SupportUnitForm
+                //  [GetUnitIDWhereSupportAddr], WorldMapPathForm [CalcPathDataLength], EDStaffRollForm +
+                //  OPPrologueForm + OPClassFontForm + OPClassDemoForm/FE7Form [LZ77], MapSettingForm
+                //  [IsMapSettingEnd + CString], FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer],
+                //  ImageCGFE7UForm [LZ77].)
                 "MonsterWMapProbabilityForm",
-                "EDForm", "EventBattleTalkForm", "CCBranchForm", "OPClassAlphaNameForm",
+                "EventBattleTalkForm",
                 "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm",
-                "OPPrologueForm", "EventHaikuForm", "SupportTalkForm",
-                "SupportUnitForm", "WorldMapPointForm", "MapSettingForm",
+                "OPPrologueForm", "EventHaikuForm",
+                "SupportUnitForm", "MapSettingForm",
                 "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
-                "TacticianAffinityFE7", "EventFinalSerifFE7Form",
-                "EDSensekiCommentForm", "OPClassDemoFE7Form", "ImageCGFE7UForm",
+                "OPClassDemoFE7Form", "ImageCGFE7UForm",
                 // patch / procs / ASM (AppendAllASMStructPointersList)
                 "PatchForm(MakePatchStructDataList)", "ProcsScriptForm",
             };

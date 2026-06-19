@@ -473,7 +473,9 @@ namespace FEBuilderGBA.Core.Tests
             // pointer set) must STAY tracked — porting only some forms while leaving these
             // un-tracked would dangle their pointers during a rebuild.
             Assert.Contains("MonsterWMapProbabilityForm", notYet); // EventScriptForm.ScanScript
-            Assert.Contains("CCBranchForm", notYet);               // count == ClassForm.DataCount()
+            // (CCBranchForm is now PORTED in the #1261 producer sweep via ClassDataCount — it is no
+            //  longer a deferred sibling; EventBattleTalkForm stays deferred for its ScanScript.)
+            Assert.Contains("EventBattleTalkForm", notYet);        // per-entry EventScriptForm.ScanScript
             Assert.Contains("MapTileAnimation1Form", notYet);      // embedded IMG sub-block
             Assert.Contains("MapTileAnimation2Form", notYet);      // embedded BIN sub-block
             Assert.Contains("MapTerrainFloorLookupTableForm", notYet); // PatchUtil GetPointers()
@@ -631,8 +633,11 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain("MonsterItemForm", notYet2b);
                 Assert.DoesNotContain("MonsterProbabilityForm", notYet2b);
                 // Deferred sibling forms MUST remain tracked (event-scan / dynamic count / patch).
+                // (CCBranchForm is now PORTED in the #1261 producer sweep — count = ClassDataCount —
+                //  so it is no longer asserted-present here; EventBattleTalkForm stays deferred for its
+                //  per-entry EventScriptForm.ScanScript expansion.)
                 Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
-                Assert.Contains("CCBranchForm", notYet2b);
+                Assert.Contains("EventBattleTalkForm", notYet2b);
                 Assert.Contains("MapTileAnimation1Form", notYet2b);
                 Assert.Contains("MapTerrainFloorLookupTableForm", notYet2b);
 
@@ -1254,6 +1259,551 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(len52 > 0, "expected at least one 52-byte FE6 MoveCost BIN sub-block");
                 Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN
                     && a.Length == 66 && a.Info != null && a.Info.StartsWith("MoveCost"));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ==== producer sweep (#1261): new DataCountRules ====================
+
+        [Fact]
+        public void TerminatorWithEmptyGuard_U16_StopsAtTerminator()
+        {
+            var rom = CreateTestRom();
+            // block 16, u16(addr)==0xFFFF terminator (SupportTalk FE8 shape), 2 valid entries.
+            uint table = 0x1000, pointer = 0x0240, block = 16;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u16(table + 0 * block, 0x1234);
+            rom.write_u16(table + 1 * block, 0x5678);
+            rom.write_u16(table + 2 * block, 0xFFFF); // terminator
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "SupportTalk",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.TerminatorWithEmptyGuard,
+                RuleWidth = 2,
+                RuleOffset = 0,
+                RuleStopValue = 0xFFFF,
+                HasEmptyGuard = true,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            // count 2 -> length = block*(2+1) = 48
+            Assert.Equal(block * 3, list[0].Length);
+        }
+
+        [Fact]
+        public void TerminatorWithEmptyGuard_TwoStopValues_EitherTerminates()
+        {
+            var rom = CreateTestRom();
+            // EventBattleTalkFE6 shape: u16==0x0 OR 0xFFFF terminates. Here entry 1 is 0x0000.
+            uint table = 0x1000, pointer = 0x0240, block = 12;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u16(table + 0 * block, 0x00AB); // valid (non-zero, non-FFFF)
+            rom.write_u16(table + 1 * block, 0x0000); // terminator via stop value 0
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "EventBattleTalkFE6Form",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.TerminatorWithEmptyGuard,
+                RuleWidth = 2,
+                RuleOffset = 0,
+                RuleStopValue = 0x0,
+                RuleStopValue2 = 0xFFFF,
+                HasEmptyGuard = true,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (1 + 1), list[0].Length); // 1 valid entry
+        }
+
+        [Fact]
+        public void TerminatorWithEmptyGuard_U32_NoGuard()
+        {
+            var rom = CreateTestRom();
+            // SoundRoomCG shape: u32==0xFFFFFFFF terminator, no empty-guard.
+            uint table = 0x1000, pointer = 0x0240, block = 4;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0 * block, 0x08001000);
+            rom.write_u32(table + 1 * block, 0x08002000);
+            rom.write_u32(table + 2 * block, 0x08003000);
+            rom.write_u32(table + 3 * block, 0xFFFFFFFF); // terminator
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "SoundRoomCG",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.TerminatorWithEmptyGuard,
+                RuleWidth = 4,
+                RuleOffset = 0,
+                RuleStopValue = 0xFFFFFFFF,
+                HasEmptyGuard = false,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (3 + 1), list[0].Length);
+        }
+
+        [Fact]
+        public void FixedCountU8Address_CountFromRomAddress()
+        {
+            var rom = CreateTestRom();
+            uint table = 0x1000, pointer = 0x0240, countAddr = 0x0300;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(countAddr, 5); // count = 5
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "GameOptionOrder",
+                PointerField = _ => pointer,
+                BlockSize = 1,
+                Rule = RebuildProducerCore.DataCountRule.FixedCountU8Address,
+                CountAddressField = _ => countAddr,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(1u * (5 + 1), list[0].Length);
+        }
+
+        [Fact]
+        public void SummonsDemonKingRule_CountIsMaxPlusOne_AndCapsAt100()
+        {
+            var rom = CreateTestRom();
+            uint table = 0x1000, pointer = 0x0240, countAddr = 0x0300, block = 20;
+            rom.write_u32(pointer, Ptr(table));
+
+            // max = 3 -> i <= 3 -> 4 entries -> length block*(4+1).
+            rom.write_u8(countAddr, 3);
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Summons",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.SummonsDemonKingRule,
+                CountAddressField = _ => countAddr,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (4 + 1), list[0].Length);
+
+            // max >= 100 -> 0 entries -> length block*(0+1).
+            rom.write_u8(countAddr, 200);
+            var list2 = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list2, d);
+            Assert.Single(list2);
+            Assert.Equal(block * (0 + 1), list2[0].Length);
+        }
+
+        [Fact]
+        public void U32InRangeAt_OnlyCountsInclusiveRange()
+        {
+            var rom = CreateTestRom();
+            // EventFinalSerifFE7 shape: u32(addr+0) in [1, 0xff].
+            uint table = 0x1000, pointer = 0x0240, block = 8;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0 * block, 0x01);   // in range
+            rom.write_u32(table + 1 * block, 0xFF);   // in range (upper bound)
+            rom.write_u32(table + 2 * block, 0x100);  // out of range -> stop
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "EventFinalserif",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U32InRangeAt,
+                RuleOffset = 0,
+                RuleRangeLo = 0x1,
+                RuleRangeHi = 0xff,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (2 + 1), list[0].Length);
+        }
+
+        [Fact]
+        public void TripleU32PointerOrNull_AllThreeMustBePointerOrNull()
+        {
+            var rom = CreateTestRom();
+            // WorldMapPoint shape: 12/16/20 each pointer-or-NULL. Entry 0 valid (all NULL),
+            // entry 1 has +16 = junk (not pointer, not 0) -> stop.
+            uint table = 0x1000, pointer = 0x0240, block = 32;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0: 12/16/20 all zero (NULL accepted)
+            // entry 1: +12 NULL, +16 = 0x12345678 junk (not pointer-or-null) -> terminates
+            rom.write_u32(table + 1 * block + 16, 0x12345678);
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "WorldMapPoint",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.TripleU32PointerOrNullAt121620,
+                PointerIndexes = new uint[] { 12, 16, 20 },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (1 + 1), list[0].Length); // 1 valid entry
+        }
+
+        [Fact]
+        public void WorldMapBGMRule_StopsOnSentinelSongPairs()
+        {
+            var rom = CreateTestRom();
+            uint table = 0x1000, pointer = 0x0240, block = 4;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0: (5, 6) valid
+            rom.write_u16(table + 0 * block + 0, 5);
+            rom.write_u16(table + 0 * block + 2, 6);
+            // entry 1: (1, 0) -> stop
+            rom.write_u16(table + 1 * block + 0, 1);
+            rom.write_u16(table + 1 * block + 2, 0);
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "WorldMapBGM",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.WorldMapBGMRule,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (1 + 1), list[0].Length);
+        }
+
+        [Fact]
+        public void DicMainRule_StopsWhenEitherTextIdZero()
+        {
+            var rom = CreateTestRom();
+            uint table = 0x1000, pointer = 0x0240, block = 12;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0: u16(+2)=10, u16(+4)=20 valid
+            rom.write_u16(table + 0 * block + 2, 10);
+            rom.write_u16(table + 0 * block + 4, 20);
+            // entry 1: u16(+2)=0 -> stop
+            rom.write_u16(table + 1 * block + 4, 99);
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "dic_main",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.DicMainRule,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+            Assert.Single(list);
+            Assert.Equal(block * (1 + 1), list[0].Length);
+        }
+
+        // ==== producer sweep (#1261): version-gated descriptor presence ======
+
+        [Fact]
+        public void BuildBatchDescriptors_FE8_HasFE8OnlyForms_NotFE6OrFE7Forms()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var names = RebuildProducerCore.BuildBatchDescriptors(fe8).Select(d => d.Name).ToList();
+
+                // FE8-only forms ported this sweep:
+                Assert.Contains("EDForm_1", names);
+                Assert.Contains("EDForm_3b", names);
+                Assert.Contains("CCBranch", names);
+                Assert.Contains("CCClassAlphaName", names);
+                Assert.Contains("WorldMapPoint", names);
+                Assert.Contains("WorldMapBGM", names);
+                Assert.Contains("dic_main", names);
+                Assert.Contains("dic_chaptor", names);
+                Assert.Contains("dic_title", names);
+                Assert.Contains("ForceSorite", names);
+                Assert.Contains("Summon", names);
+                Assert.Contains("Summons", names);
+                Assert.Contains("UnitForm", names);
+                Assert.Contains("SupportTalk", names);
+                // StatusOptionOrder is shared v8+v7:
+                Assert.Contains("GameOptionOrder", names);
+
+                // FE6/FE7-only forms must be ABSENT on FE8 (version-divergence guard):
+                Assert.DoesNotContain("EDFE6Form", names);
+                Assert.DoesNotContain("EDFE7Form_1", names);
+                Assert.DoesNotContain("SupportTalkFE6", names);
+                Assert.DoesNotContain("SupportTalkFE7", names);
+                Assert.DoesNotContain("TacticianAffinity", names);
+                Assert.DoesNotContain("EventFinalserif", names);
+                Assert.DoesNotContain("EDSensekiForm", names); // v6+v7 only
+                Assert.DoesNotContain("SoundRoomFE6", names);
+                Assert.DoesNotContain("OPClassAlphaName", names); // FE6 string-BIN variant
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE7_HasFE7OnlyForms_NotFE8OrFE6Forms()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe7 = MakeVersionedRom("AE7E01"); // FE7U
+                CoreState.ROM = fe7;
+                Assert.Equal(7, fe7.RomInfo.version);
+                var names = RebuildProducerCore.BuildBatchDescriptors(fe7).Select(d => d.Name).ToList();
+
+                // FE7-only forms ported this sweep:
+                Assert.Contains("EDFE7Form_1", names);
+                Assert.Contains("EDFE7Form_4", names);
+                Assert.Contains("Unit", names);          // UnitFE7Form (flat, "Unit")
+                Assert.Contains("SupportTalkFE7", names);
+                Assert.Contains("SoundRoomCG", names);
+                Assert.Contains("TacticianAffinity", names);
+                Assert.Contains("EventFinalserif", names);
+                Assert.Contains("EDSensekiForm", names); // shared v6+v7
+                Assert.Contains("GameOptionOrder", names); // shared v8+v7
+
+                // FE8/FE6-only forms must be ABSENT on FE7:
+                Assert.DoesNotContain("EDForm_1", names);
+                Assert.DoesNotContain("CCBranch", names);
+                Assert.DoesNotContain("UnitForm", names); // FE8 support-sub-walk variant
+                Assert.DoesNotContain("SupportTalk", names);
+                Assert.DoesNotContain("SupportTalkFE6", names);
+                Assert.DoesNotContain("EDFE6Form", names);
+                Assert.DoesNotContain("SoundRoomFE6", names);
+
+                // UnitFE7Form is flat (no support BinFixed sub-walk), unlike FE8 UnitForm.
+                var unit = RebuildProducerCore.BuildBatchDescriptors(fe7).Single(d => d.Name == "Unit");
+                Assert.Null(unit.SubWalks);
+                Assert.Equal(new uint[] { 44 }, unit.PointerIndexes);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_FE6_HasFE6OnlyForms_NotFE8OrFE7Forms()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe6 = MakeVersionedRom("AFEJ01");
+                CoreState.ROM = fe6;
+                var names = RebuildProducerCore.BuildBatchDescriptors(fe6).Select(d => d.Name).ToList();
+
+                // FE6-only forms ported this sweep:
+                Assert.Contains("EDFE6Form", names);
+                Assert.Contains("EventBattleTalkFE6Form", names);
+                Assert.Contains("EventBattleTalkFE6Form_2", names);
+                Assert.Contains("Haiku", names);           // EventHaikuFE6Form
+                Assert.Contains("SupportTalkFE6", names);
+                Assert.Contains("SoundRoomFE6", names);
+                Assert.Contains("OPClassAlphaName", names); // FE6 string-BIN variant
+                Assert.Contains("EDSensekiForm", names);    // shared v6+v7
+
+                // FE8/FE7-only forms must be ABSENT on FE6:
+                Assert.DoesNotContain("EDForm_1", names);
+                Assert.DoesNotContain("EDFE7Form_1", names);
+                Assert.DoesNotContain("CCBranch", names);
+                Assert.DoesNotContain("UnitForm", names);
+                Assert.DoesNotContain("SupportTalk", names);
+                Assert.DoesNotContain("SupportTalkFE7", names);
+                Assert.DoesNotContain("TacticianAffinity", names);
+                Assert.DoesNotContain("GameOptionOrder", names); // v8+v7 only, not v6
+
+                // FE6 OPClassAlphaName carries a string-BIN sub-walk (block 4, @+0), distinct from
+                // the FE8 "CCClassAlphaName" fixed-count table.
+                var op = RebuildProducerCore.BuildBatchDescriptors(fe6).Single(d => d.Name == "OPClassAlphaName");
+                Assert.Equal(4u, op.BlockSize);
+                Assert.NotNull(op.SubWalks);
+                Assert.Single(op.SubWalks);
+                Assert.Equal(RebuildProducerCore.SubKind.BinString, op.SubWalks[0].Kind);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        [Fact]
+        public void ClassDataCount_MatchesClassTableWalk()
+        {
+            var rom = CreateTestRom(0x8000);
+            // Build a class table: block 'block', U8NotZeroIndex0Always @+4, base via class_pointer.
+            // We cannot set RomInfo on the bare ROM, so test ClassDataCount via a versioned ROM with a
+            // synthetic class table at the RomInfo.class_pointer location.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                uint block = fe8.RomInfo.class_datasize;
+                Assert.True(block > 0);
+                uint pointerLoc = U.toOffset(fe8.RomInfo.class_pointer);
+                uint table = 0x100000;
+                fe8.write_u32(pointerLoc, Ptr(table));
+                // entry 0 always counts; entry1 u8(+4)=1; entry2 u8(+4)=2; entry3 u8(+4)=0 -> stop.
+                fe8.write_u8(table + 1 * block + 4, 1);
+                fe8.write_u8(table + 2 * block + 4, 2);
+                uint count = RebuildProducerCore.ClassDataCount(fe8);
+                Assert.Equal(3u, count); // entries 0,1,2
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        // ==== producer sweep (#1261): NotYetPorted coverage bookkeeping =======
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSweepCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // Ported this sweep -> must be GONE:
+            foreach (var gone in new[]
+            {
+                "EDForm", "CCBranchForm", "OPClassAlphaNameForm", "WorldMapPointForm",
+                "WorldMapBGMForm", "TextDicForm", "EventForceSortieForm", "SummonUnitForm",
+                "SummonsDemonKingForm", "UnitForm", "UnitFE7Form", "StatusOptionOrderForm",
+                "SupportTalkForm", "SoundRoomCGForm", "TacticianAffinityFE7",
+                "EventFinalSerifFE7Form", "EDSensekiCommentForm",
+            })
+            {
+                Assert.DoesNotContain(gone, notYet);
+            }
+
+            // Still deferred (un-ported subsystem) -> must REMAIN:
+            foreach (var kept in new[]
+            {
+                "UnitFE6Form", "EventBattleTalkForm", "EventHaikuForm", "SupportUnitForm",
+                "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm", "OPPrologueForm",
+                "MapSettingForm", "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
+                "MonsterWMapProbabilityForm", "StatusOptionForm", "SoundRoomForm",
+                "ItemForm", "MapTileAnimation1Form", "MapTerrainFloorLookupTableForm",
+            })
+            {
+                Assert.Contains(kept, notYet);
+            }
+        }
+
+        [Fact]
+        public void GetNotYetPortedForms_StillHasNoDuplicates_AfterSweep()
+        {
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ==== producer sweep (#1261): real-ROM coverage =======================
+
+        [Fact]
+        public void MakeAllStructPointersList_FE8U_FindsSweepTables()
+        {
+            string romPath = FindTestRom();
+            if (romPath == null) return; // env-only
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 8) return;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // CCBranch (count = ClassForm.DataCount) present with block 2.
+                uint ccBase = rom.p32(rom.RomInfo.ccbranch_pointer);
+                Assert.Contains(list, a => a.Addr == ccBase && a.Info == "CCBranch" && a.BlockSize == 2);
+
+                // WorldMapPoint present, block 32, with the 12/16/20 pointer columns relocated.
+                uint wmpBase = rom.p32(rom.RomInfo.worldmap_point_pointer);
+                Address wmp = list.FirstOrDefault(a => a.Addr == wmpBase && a.Info == "WorldMapPoint");
+                Assert.NotNull(wmp);
+                Assert.Equal(32u, wmp.BlockSize);
+
+                // SupportTalk (FE8 0xFFFF terminator) present, block 16.
+                uint stBase = rom.p32(rom.RomInfo.support_talk_pointer);
+                Assert.Contains(list, a => a.Addr == stBase && a.Info == "SupportTalk" && a.BlockSize == 16);
+
+                // UnitForm present with block unit_datasize and the {44} support pointer column.
+                uint unitBase = rom.p32(rom.RomInfo.unit_pointer);
+                Address unit = list.FirstOrDefault(a => a.Addr == unitBase && a.Info == "UnitForm");
+                Assert.NotNull(unit);
+                Assert.Equal(rom.RomInfo.unit_datasize, unit.BlockSize);
+
+                // TextDic three tables present.
+                Assert.Contains(list, a => a.Info == "dic_main" && a.BlockSize == 12);
+                Assert.Contains(list, a => a.Info == "dic_chaptor" && a.BlockSize == 4);
+                Assert.Contains(list, a => a.Info == "dic_title" && a.BlockSize == 2);
+
+                // Coverage bookkeeping reflects reality.
+                string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+                Assert.DoesNotContain("CCBranchForm", notYet);
+                Assert.DoesNotContain("WorldMapPointForm", notYet);
+                Assert.Contains("EventBattleTalkForm", notYet); // still deferred (ScanScript)
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void MakeAllStructPointersList_FE6_FindsSweepTables()
+        {
+            string romPath = FindTestRomNamed("FE6.gba");
+            if (romPath == null) return; // env-only
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 6) return;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // EDFE6Form (ed_3a, block 8, fixed 0x42) present.
+                uint edBase = rom.p32(rom.RomInfo.ed_3a_pointer);
+                Assert.Contains(list, a => a.Addr == edBase && a.Info == "EDFE6Form" && a.BlockSize == 8);
+
+                // SupportTalkFE6 (block 16) present.
+                uint stBase = rom.p32(rom.RomInfo.support_talk_pointer);
+                Assert.Contains(list, a => a.Addr == stBase && a.Info == "SupportTalkFE6" && a.BlockSize == 16);
+
+                // FE8/FE7-only tables must NOT have been emitted on FE6.
+                Assert.DoesNotContain(list, a => a.Info == "CCBranch");
+                Assert.DoesNotContain(list, a => a.Info == "SupportTalk"); // FE8 variant
             }
             finally
             {
