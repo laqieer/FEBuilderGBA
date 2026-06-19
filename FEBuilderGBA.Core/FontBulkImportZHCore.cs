@@ -60,9 +60,10 @@ namespace FEBuilderGBA.Core
             if (loadGlyph == null) return R._("No image loader.");
 
             // Single snapshot for the whole transaction: a fault on row N restores
-            // rows 0..N-1 too (BULK-ATOMIC). Per-glyph ImportGlyphZH calls each
-            // clone the ROM too, but the OUTER snapshot is what guarantees the
-            // whole-batch atomic restore.
+            // rows 0..N-1 too (BULK-ATOMIC). Per-glyph ImportGlyphZH calls run with
+            // manageSnapshot:false so they do NOT each clone the ROM — a real ZH ROM
+            // has thousands of glyphs, so a per-row clone would be O(N × romSize) and
+            // OOM. The OUTER snapshot is what guarantees the whole-batch atomic restore.
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
@@ -140,8 +141,12 @@ namespace FEBuilderGBA.Core
                         return R._("Invalid font glyph image size: {0}", pngName);
                     }
 
+                    // manageSnapshot:false — the per-row import must NOT clone the ROM
+                    // (the OUTER snapshot above already covers the atomic rollback). On
+                    // a per-row error we restore the whole batch here.
                     string err = FontGlyphZHCore.ImportGlyphZH(rom, isItemFont, moji,
-                        indexed13, FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, explicitWidth: width);
+                        indexed13, FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H,
+                        explicitWidth: width, manageSnapshot: false);
                     if (!string.IsNullOrEmpty(err))
                     {
                         RestoreSnapshot(rom, snap);

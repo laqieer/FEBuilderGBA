@@ -14,6 +14,7 @@ using System;
 using System.IO;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
 using Xunit;
 
@@ -71,17 +72,53 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("SizeToContent=\"Manual\"", ax);
         }
 
-        // ---------------- Translation parity (Core-only R._ literal) ----------------
+        [Fact]
+        public void ZHView_ExportAll_GuardsEmptyManifest()
+        {
+            // Copilot #2: ExportAll must NOT write an empty file / claim success when
+            // nothing was exported. The View checks the data-row count first.
+            string cs = ReadRepoFile("FEBuilderGBA.Avalonia", "Views", "FontZHView.axaml.cs");
+            Assert.Contains("FontBulkExportZHCore.CountManifestDataRows(manifest) == 0", cs);
+            Assert.Contains("No font glyphs were exported.", cs);
+        }
+
+        [Fact]
+        public void ZHView_AutoGen_UsesVmCharNotTrimmedLabel()
+        {
+            // Copilot #3: the auto-gen char must come from the VM (carried verbatim),
+            // NOT a trimmed re-parse of the label (which kills a whitespace glyph).
+            string cs = ReadRepoFile("FEBuilderGBA.Avalonia", "Views", "FontZHView.axaml.cs");
+            Assert.Contains("_vm.CurrentChar", cs);
+            // The fragile trimmed-substring helper is gone.
+            Assert.DoesNotContain("GlyphCharacterOfSelected", cs);
+        }
+
+        // ---------------- Translation parity (Core-only R._ literals) ----------------
 
         [Theory]
         [InlineData("ja")]
         [InlineData("zh")]
-        public void NewCoreLiteral_HasTranslation(string lang)
+        public void NewCoreLiterals_HaveTranslation(string lang)
         {
-            // The L10n gate only scans AXAML literals; this Core-only R._() string
-            // (FontBulkImportZHCore) needs an explicit ja/zh parity check.
+            // The L10n gate only scans AXAML literals; these code-behind / Core R._()
+            // strings need an explicit ja/zh parity check.
             string tx = ReadRepoFile("config", "translate", lang + ".txt");
             Assert.Contains(":Invalid font glyph image size: {0}", tx);
+            Assert.Contains(":No font glyphs were exported.", tx);
+        }
+
+        // ---------------- CharFromLabel: whitespace glyph char survives (Copilot #3) ----------------
+
+        [Theory]
+        [InlineData("8181 、", "、")]        // normal CJK char after the first space
+        [InlineData("8140  ", " ")]          // a SPACE glyph: char part is a single space, preserved
+        [InlineData("8181 ", "")]            // nothing after the space -> ""
+        [InlineData("8181", "")]             // no space at all -> ""
+        [InlineData("", "")]                 // empty label
+        [InlineData("40 @", "@")]            // the literal '@' char (not a fallback) survives
+        public void CharFromLabel_PreservesWhitespaceChar(string label, string expected)
+        {
+            Assert.Equal(expected, FontZHViewModel.CharFromLabel(label));
         }
 
         // ---------------- Functional: 16x16 vanilla-size PNG bulk-imports ----------------

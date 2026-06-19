@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var item = EntryList.SelectedItem;
                 uint moji = item?.tag ?? 0;
-                _vm.LoadEntry(addr, moji);
+                _vm.LoadEntry(addr, moji, item?.name ?? "");
                 UpdateUI();
                 LoadImage();
             }
@@ -211,6 +211,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     catch (Exception ex) { Log.Error("FontZHView.ExportAll writePng failed: " + ex.ToString()); return false; }
                 });
 
+                // ExportAll returns "" on a hard failure (non-ZH ROM / no ImageService)
+                // and a header-only manifest when no glyph was exported. Treat both as a
+                // failure: do NOT write an empty file or claim success.
+                if (FontBulkExportZHCore.CountManifestDataRows(manifest) == 0)
+                {
+                    CoreState.Services?.ShowError(R._("No font glyphs were exported."));
+                    return;
+                }
+
                 File.WriteAllText(path, manifest);
                 CoreState.Services?.ShowInfo(R._("Fonts exported successfully."));
             }
@@ -298,9 +307,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
 
-                // The character to rasterize is the selected row's decoded glyph
-                // (the label is "0xXX <char>"); the moji is the target slot.
-                string character = GlyphCharacterOfSelected();
+                // The character to rasterize is the selected row's decoded glyph,
+                // carried verbatim on the VM (NOT re-parsed/trimmed) so a whitespace
+                // glyph character survives; the moji is the target slot.
+                string character = _vm.CurrentChar;
                 if (string.IsNullOrEmpty(character)) { CoreState.Services?.ShowError(R._("This glyph has no renderable character.")); return; }
 
                 // Build the cross-platform font selector: a loaded .ttf/.otf file
@@ -338,19 +348,6 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.Services?.ShowError(R._("Auto-generate failed: {0}", ex.Message));
             }
-        }
-
-        /// <summary>
-        /// The renderable character of the selected glyph row. The list label is
-        /// "&lt;hex&gt; &lt;char&gt;" (hex code + decoded char); take the part after
-        /// the first space. An empty / hex-only fallback name yields "".
-        /// </summary>
-        string GlyphCharacterOfSelected()
-        {
-            string label = EntryList.SelectedItem?.name ?? "";
-            int sp = label.IndexOf(' ');
-            string ch = sp >= 0 ? label.Substring(sp + 1).Trim() : "";
-            return ch;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

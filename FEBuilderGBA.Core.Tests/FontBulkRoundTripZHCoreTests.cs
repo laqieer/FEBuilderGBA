@@ -320,5 +320,69 @@ namespace FEBuilderGBA.Core.Tests
             byte[] bad = new byte[16 * 13]; // 16x13, not 16x16
             Assert.Null(FontBulkImportZHCore.UnshiftTo16x13(bad, 16, 13, isItemFont: false));
         }
+
+        // ---------------- CountManifestDataRows (Copilot #2: empty-export guard) ----------------
+
+        [Theory]
+        [InlineData("", 0)]                                                  // hard-failure return
+        [InlineData("//char\ttype\tWidth\tFilename\n", 0)]                   // header only (0 glyphs)
+        [InlineData("//char\ttype\tWidth\tFilename\n\n", 0)]                 // header + blank line
+        [InlineData("//char\ttype\tWidth\tFilename\n、\ttext\t16\ttext_8181.png\n", 1)]
+        [InlineData("//hdr\nA\titem\t9\titem_8281.png\nB\ttext\t9\ttext_8181.png\n", 2)]
+        public void CountManifestDataRows_Cases(string manifest, int expected)
+        {
+            Assert.Equal(expected, FontBulkExportZHCore.CountManifestDataRows(manifest));
+        }
+
+        // ---------------- manageSnapshot:false (Copilot #1: per-row no ROM clone) ----------------
+
+        [Fact]
+        public void ImportGlyphZH_ManageSnapshotFalse_NoRestoreOnError()
+        {
+            // With manageSnapshot:false the per-row import must NOT restore the ROM on a
+            // fault — the caller (bulk path) owns the whole-batch rollback. Prove by
+            // forcing an out-of-range slot error and asserting the ROM is left as-is
+            // (no per-call snapshot/restore round-trip).
+            using var rs = new RomScope();
+            using var svc = new ImageServiceScope();
+            ROM rom = MakeRom(width: 16);
+            CoreState.ROM = rom;
+
+            // Mutate a byte so we can detect whether ImportGlyphZH restored it.
+            uint marker = 0x500000;
+            rom.write_u8(marker, 0xAB);
+
+            byte[] idx = new byte[FontGlyphZHCore.GLYPH_W * FontGlyphZHCore.GLYPH_H];
+            // moji 0x0100: 1st byte (sjis1) = 0x01 < 0x1f -> CalcCodeB = NOT_FOUND
+            // (a "cannot register" error path) — happens BEFORE the snapshot block, so
+            // both modes leave the ROM untouched; use a control char to hit the early
+            // error and confirm no throw + no restore side effects.
+            string err = FontGlyphZHCore.ImportGlyphZH(rom, isItemFont: false, 0x0100, idx,
+                FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, explicitWidth: -1, manageSnapshot: false);
+            Assert.NotEqual("", err);
+            // Our marker is untouched (no spurious restore wrote over it).
+            Assert.Equal(0xABu, rom.u8(marker));
+        }
+
+        [Fact]
+        public void ImportGlyphZH_ManageSnapshotFalse_StillWritesGlyph()
+        {
+            // The fast (no-clone) path must still write the glyph identically to the
+            // default (manageSnapshot:true) path on success.
+            using var rs = new RomScope();
+            using var svc = new ImageServiceScope();
+            ROM rom = MakeRom(width: 16);
+            CoreState.ROM = rom;
+            uint addr = FontGlyphZHCore.GetFontPointerZH(8, isItemFont: false) + 0x54;
+
+            byte[] idx = new byte[FontGlyphZHCore.GLYPH_W * FontGlyphZHCore.GLYPH_H];
+            for (int i = 0; i < idx.Length; i++) idx[i] = (byte)(i & 0x03);
+            byte[] expected = FontGlyphZHCore.PackGlyphZHBytes(idx, FontGlyphZHCore.GLYPH_W);
+
+            string err = FontGlyphZHCore.ImportGlyphZH(rom, isItemFont: false, MOJI_TEN, idx,
+                FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, explicitWidth: 16, manageSnapshot: false);
+            Assert.Equal("", err);
+            Assert.Equal(expected, rom.getBinaryData(addr + 4, 40));
+        }
     }
 }

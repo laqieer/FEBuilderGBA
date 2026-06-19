@@ -25897,3 +25897,6 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 :Invalid font glyph image size: {0}
 字体图像尺寸无效: {0}
 
+:No font glyphs were exported.
+没有可导出的字体字形。
+

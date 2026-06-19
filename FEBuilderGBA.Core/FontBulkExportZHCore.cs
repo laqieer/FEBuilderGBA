@@ -67,6 +67,26 @@ namespace FEBuilderGBA.Core
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Count the DATA rows in a `.fontall.txt` manifest (non-blank, non-comment
+        /// lines). The View uses this to detect a "nothing was exported" result — a
+        /// "" return (hard failure) OR a header-only manifest both yield 0, so the
+        /// caller can refuse to write an empty file / claim false success.
+        /// </summary>
+        public static int CountManifestDataRows(string manifest)
+        {
+            if (string.IsNullOrEmpty(manifest)) return 0;
+            int count = 0;
+            foreach (string raw in manifest.Replace("\r\n", "\n").Split('\n'))
+            {
+                string line = raw.TrimEnd('\r');
+                if (line.Trim().Length == 0) continue;
+                if (line.StartsWith("//")) continue; // comment / header
+                count++;
+            }
+            return count;
+        }
+
         static void ExportOne(ROM rom, bool isItemFont, bool userFontOnly,
             Func<IImage, string, bool> writePng, StringBuilder sb)
         {
