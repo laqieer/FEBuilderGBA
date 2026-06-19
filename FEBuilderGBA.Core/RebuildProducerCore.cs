@@ -641,6 +641,22 @@ namespace FEBuilderGBA
             progress?.Report("ItemWeaponEffect");
             EmitItemWeaponEffect(rom, list);
 
+            // ---- slice 2m: TextForm (Huffman text; version-agnostic) ----
+            // TextForm.MakeAllDataLength is in the WF unconditional section (NOT version-gated). It is NOT
+            // a flat StructDescriptor walk: its main IFR has a multi-branch IsDataExists (isPointer ||
+            // IsUnHuffmanPatchPointer || Is_RAMPointerArea) with a text_recover_address ReInit fallback,
+            // and each entry's BIN length is a Huffman/UnHuffman decode (FETextDecode.huffman_decode /
+            // UnHffmanPatchDecode — both headless Core methods, called directly, internally EOF-hardened).
+            // A dedicated emitter reproduces it (its own cancel-check mirrors the WF DoEvents posture).
+            // TextCharCodeForm is a flat U8NotEqual descriptor in BuildBatchDescriptors (version-agnostic).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("Text");
+            EmitText(rom, list);
+
             // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
             // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
             // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
@@ -709,6 +725,21 @@ namespace FEBuilderGBA
                     }
                     progress?.Report("ExtraUnitFE8U");
                     EmitExtraUnitFE8U(rom, list);
+
+                    // ---- slice 2m: FE8SpellMenuExtends (FE8U ONLY) ----
+                    // WF calls FE8SpellMenuExtendsForm.MakeAllDataLength inside `version==8 &&
+                    // !is_multibyte` (alongside OPClassDemoFE8U/ExtraUnitFE8U). Its base is resolved by a
+                    // patch-signature scan (FE8SpellMenuPatchScanner — the Core port of WF
+                    // FindFE8SpellPatchPointer; both OldSystem .dmp grep + hard-coded SkillSystems202201
+                    // signature, version/multibyte-gated, NOT_FOUND on a non-patched ROM). Per entry it
+                    // emits a NestedIfr (the slice-2i primitive). Gate EXACTLY as WF.
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("FE8SpellMenuExtends");
+                    EmitFE8SpellMenuExtends(rom, list);
                 }
 
                 // ---- slice 2k: WorldMapImageForm + ImageCGForm (FE8) ----
@@ -2813,6 +2844,242 @@ namespace FEBuilderGBA
         }
 
         // ===================================================================
+        // slice 2m — now-tractable subsystem forms: Huffman text (TextForm) +
+        // the FE8U Gaiden-style spell-menu (FE8SpellMenuExtendsForm). Both are
+        // dedicated emitters: TextForm's main IFR has a custom multi-branch
+        // IsDataExists + a text_recover_address ReInit fallback and a per-entry
+        // Huffman/UnHuffman length sub-walk; FE8SpellMenuExtends resolves its base
+        // via a patch-signature scan (FE8SpellMenuPatchScanner) and emits a
+        // NestedIfr per entry. (TextCharCodeForm is a flat U8NotEqual descriptor
+        // in BuildBatchDescriptors.)
+        // ===================================================================
+
+        /// <summary>
+        /// <c>TextForm.MakeAllDataLength</c> (slice 2m, version-agnostic call site). The Huffman text
+        /// pointer table. Reproduces <c>TextForm.Init</c> + the per-entry length expansion VERBATIM:
+        /// <list type="bullet">
+        ///   <item>Main IFR: base = <c>p32(text_pointer)</c> (or, when that is an unsafe offset,
+        ///   <c>text_recover_address</c> — the WF <c>Init</c> ReInit fallback for a broken text pointer),
+        ///   block 4, pointer = the <c>text_pointer</c> slot, type
+        ///   <see cref="Address.DataTypeEnum.TEXTPOINTERS"/>, pointerIndexes <c>{0}</c>. IsDataExists =
+        ///   <c>isPointer(u32(addr)) || FETextEncode.IsUnHuffmanPatchPointer(u32(addr)) ||
+        ///   TextForm.Is_RAMPointerArea(u32(addr))</c> (reproduced via <see cref="IsTextEntryExists"/>).</item>
+        ///   <item>Per entry <c>i</c> at slot <c>arlistAddr = base + i*4</c>: read
+        ///   <c>paddr = u32(arlistAddr)</c>. If <c>IsUnHuffmanPatchPointer(paddr)</c> -&gt; the BIN block at
+        ///   <c>toOffset(ConvertUnHuffmanPatchToPointer(paddr))</c> with length =
+        ///   <c>FETextDecode.UnHffmanPatchDecode(addr, out size)</c>; else if <c>isPointer(paddr)</c> -&gt;
+        ///   the BIN block at <c>toOffset(paddr)</c> with length =
+        ///   <c>FETextDecode.huffman_decode(addr, out size)</c>. Both via
+        ///   <c>Address.AddAddress(list, addr, size, arlistAddr, "Text " + ToHexString(i), BIN)</c>
+        ///   VERBATIM. (The WF <c>Is_RAMPointerArea</c> branch in IsDataExists has no matching AddAddress
+        ///   in the per-entry loop — a RAM-pointer slot counts toward DataCount but its target lives in RAM,
+        ///   not ROM, so nothing is relocated. Reproduced exactly: counted, not emitted.)</item>
+        /// </list>
+        /// The length helpers (<c>huffman_decode</c> / <c>UnHffmanPatchDecode</c>) are CALLED directly
+        /// (both are headless Core methods, batch 10) — not reproduced. They are both internally
+        /// EOF-hardened (each <c>isSafetyOffset</c>-checks the addr and guards every raw read against
+        /// <c>Data.Length</c>) and return a truncated size near EOF rather than throwing. They DO decode
+        /// the string into text (via <c>SystemTextEncoder</c>) as a side effect of computing the size, so
+        /// when no encoder is loaded the producer falls back to a pointer-only emit (size 0) — exactly the
+        /// WF <c>isPointerOnly</c> branch (which sets <c>size = 0</c> but still emits the AddAddress). A
+        /// pointer-only emit still relocates the text-pointer slot AND records the target addr; the wiring
+        /// slice's <see cref="ProducerResult.IsComplete"/> gate already refuses a partial scan, so a
+        /// no-encoder run is never fed to a real defragment.
+        /// </summary>
+        public static void EmitText(ROM rom, List<Address> list)
+        {
+            EmitTextAt(rom, list, rom.RomInfo.text_pointer);
+        }
+
+        /// <summary>TextForm walk from an explicit <c>text_pointer</c> slot (test seam — lets a synthetic
+        /// ROM supply it without populating RomInfo). See <see cref="EmitText"/> for the verbatim WF
+        /// reproduction.</summary>
+        public static void EmitTextAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 4;
+
+            // Main IFR: BasePointer = toOffset(slot), BaseAddress = p32(BasePointer). Guard the full
+            // slot before p32 (root+3). Matches InputFormRef.Init (toOffset then p32, both safety-checked).
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                // WF TextForm.Init: a broken text pointer ReInits to text_recover_address.
+                baseAddr = U.toOffset(rom.RomInfo.text_recover_address);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    return;
+                }
+            }
+
+            // IsDataExists (TextForm.Init): isPointer(u32(addr)) || IsUnHuffmanPatchPointer(u32(addr)) ||
+            // Is_RAMPointerArea(u32(addr)). getBlockDataCount guards addr+block(4)<=Length, so u32(addr)
+            // is always in-bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => IsTextEntryExists(rom, rom.u32(addr)));
+
+            // AddressWinForms.AddAddress(list, IFR, "Text", {0}, TEXTPOINTERS): length = block*(count+1).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "Text",
+                Address.DataTypeEnum.TEXTPOINTERS, block, new uint[] { 0 }));
+
+            // Per-entry expansion. getBlockDataCount guarantees addr+block(4)<=Length for i<dataCount,
+            // so u32(arlistAddr) (deepest arlistAddr+3) is in bounds. The decoders compute the size only
+            // when an encoder is loaded (they decode the string as a side effect of sizing); without one
+            // the WF isPointerOnly path is taken (size 0). The slot is relocated either way.
+            bool hasEncoder = CoreState.SystemTextEncoder != null;
+            FETextDecode textdecoder = hasEncoder ? new FETextDecode(rom, CoreState.SystemTextEncoder) : null;
+
+            uint arlistAddr = baseAddr;
+            for (uint i = 0; i < dataCount; i++, arlistAddr += block)
+            {
+                uint paddr = rom.u32(arlistAddr);
+                if (FETextEncode.IsUnHuffmanPatchPointer(paddr))
+                {//un-huffman patch?
+                    uint unhuffmanAddr = U.toOffset(FETextEncode.ConvertUnHuffmanPatchToPointer(paddr));
+                    int size = 0;
+                    if (hasEncoder)
+                    {
+                        textdecoder.UnHffmanPatchDecode(unhuffmanAddr, out size);
+                    }
+                    Address.AddAddress(list, unhuffmanAddr, (uint)size, arlistAddr,
+                        "Text " + U.ToHexString(i), Address.DataTypeEnum.BIN);
+                }
+                else if (U.isPointer(paddr))
+                {
+                    uint addr = U.toOffset(paddr);
+                    int size = 0;
+                    if (hasEncoder)
+                    {
+                        textdecoder.huffman_decode(addr, out size);
+                    }
+                    Address.AddAddress(list, addr, (uint)size, arlistAddr,
+                        "Text " + U.ToHexString(i), Address.DataTypeEnum.BIN);
+                }
+                // else (Is_RAMPointerArea-only): counted toward DataCount but target is in RAM — WF emits
+                // no AddAddress for it, so neither do we (nothing to relocate in ROM).
+            }
+        }
+
+        /// <summary>VERBATIM port of the <c>TextForm.Init</c> IsDataExists predicate + the
+        /// <c>TextForm.Is_RAMPointerArea</c> helper it calls: a text-table slot value <paramref name="p"/>
+        /// "exists" when it is a ROM pointer, an un-Huffman patch pointer, OR a RAM-pointer-area value
+        /// (<c>is_03RAMPointer || IsUnHuffmanPatch_IW_RAMPointer || is_02RAMPointer ||
+        /// IsUnHuffmanPatch_EW_RAMPointer</c>). All pure value tests (no ROM read), so EOF-safe.</summary>
+        public static bool IsTextEntryExists(ROM rom, uint p)
+        {
+            if (U.isPointer(p))
+            {
+                return true;
+            }
+            if (FETextEncode.IsUnHuffmanPatchPointer(p))
+            {//海外改造によくある unHuffman patch
+                return true;
+            }
+            // TextForm.Is_RAMPointerArea(p): RAM-resident text data.
+            return U.is_03RAMPointer(p)
+                || FETextEncode.IsUnHuffmanPatch_IW_RAMPointer(p)
+                || U.is_02RAMPointer(p)
+                || FETextEncode.IsUnHuffmanPatch_EW_RAMPointer(p);
+        }
+
+        /// <summary>
+        /// <c>FE8SpellMenuExtendsForm.MakeAllDataLength</c> (slice 2m; FE8U ONLY — gated at the WF
+        /// <c>version == 8 &amp;&amp; !is_multibyte</c> call site, alongside OPClassDemoFE8U/ExtraUnitFE8U).
+        /// The Gaiden-style per-unit spell (level-up) menu. The table base is NOT a RomInfo slot: it is
+        /// resolved by a patch-signature scan, reproduced by
+        /// <see cref="FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer"/> (the Core port of WF
+        /// <c>FindFE8SpellPatchPointer</c> — both the OldSystem <c>SpellsGetter.dmp</c> grep and the
+        /// hard-coded SkillSystems202201 signature; it also reproduces WF's version/multibyte gate and
+        /// returns <see cref="U.NOT_FOUND"/> when neither path matches, so a non-patched ROM emits
+        /// nothing). VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>assignLevelUpP = FindFE8SpellPatchPointer()</c>; if NOT_FOUND return.</item>
+        ///   <item><c>assignLevelUpAddr = p32(assignLevelUpP)</c>; if NOT_FOUND return.</item>
+        ///   <item>Main IFR: base <c>assignLevelUpP</c>, block 4, IsDataExists = <c>i &lt; 0xFF</c>, name
+        ///   "SkillAssignmentUnitSkillSystem", pointerIndexes EMPTY (WF <c>new uint[] {}</c>).</item>
+        ///   <item>Per main entry <c>i &lt; DataCount</c>, <c>assignLevelUpAddr += 4</c>: if
+        ///   <c>!isSafetyOffset(assignLevelUpAddr)</c> BREAK; <c>levelupList = p32(assignLevelUpAddr)</c>;
+        ///   if <c>!isSafetyOffset(levelupList)</c> CONTINUE; else a nested IFR @ <c>assignLevelUpAddr</c>
+        ///   (the N1 table: block 2, IsDataExists = <c>u16(addr) != 0xFFFF &amp;&amp; u16(addr) != 0</c>),
+        ///   name "SkillAssignmentUnitSkillSystem.Levelup" + i.</item>
+        /// </list>
+        /// The nested IFR is emitted via <see cref="EmitNestedIfrSub"/> (the slice-2i primitive). The WF
+        /// loop's break/continue order is reproduced exactly (note: the break tests
+        /// <c>assignLevelUpAddr</c> AFTER it was advanced, mirroring the WF <c>for</c> increment).
+        /// </summary>
+        public static void EmitFE8SpellMenuExtends(ROM rom, List<Address> list)
+        {
+            uint assignLevelUpP = FE8SpellMenuPatchScanner.FindFE8SpellPatchPointer(rom, CoreState.BaseDirectory);
+            EmitFE8SpellMenuExtendsAt(rom, list, assignLevelUpP);
+        }
+
+        /// <summary>FE8SpellMenuExtends walk from an explicit <c>assignLevelUpP</c> pointer slot (test
+        /// seam — lets a synthetic ROM supply it without the patch-signature scan / RomInfo). See
+        /// <see cref="EmitFE8SpellMenuExtends"/> for the verbatim WF reproduction.</summary>
+        public static void EmitFE8SpellMenuExtendsAt(ROM rom, List<Address> list, uint assignLevelUpP)
+        {
+            const uint block = 4;
+
+            if (assignLevelUpP == U.NOT_FOUND)
+            {
+                return;
+            }
+            // WF reads p32(assignLevelUpP) directly after the NOT_FOUND check. p32 toOffsets + reads; guard
+            // the full slot (root+3) first so a near-EOF pointer emits nothing instead of throwing.
+            uint slot = U.toOffset(assignLevelUpP);
+            if (!U.isSafetyOffset(slot + 3, rom))
+            {
+                return;
+            }
+            uint assignLevelUpAddr = rom.p32(slot);
+            if (assignLevelUpAddr == U.NOT_FOUND)
+            {
+                return;
+            }
+
+            // Main IFR: base = p32(assignLevelUpP) (already in assignLevelUpAddr — but Init's BaseAddress is
+            // ALSO p32(slot); WF AddAddress uses the IFR BaseAddress). IsDataExists = i < 0xFF (a pure
+            // count, no ROM read). pointerIndexes EMPTY. Skip if the resolved base is unsafe.
+            if (!U.isSafetyOffset(assignLevelUpAddr, rom))
+            {
+                return;
+            }
+            uint dataCount = rom.getBlockDataCount(assignLevelUpAddr, block, (i, addr) => i < 0xFF);
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(assignLevelUpAddr, length, slot, "SkillAssignmentUnitSkillSystem",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+
+            // Per main entry: advance assignLevelUpAddr by 4 FIRST (WF for-increment), then the break/
+            // continue guards. The nested N1 table (block 2, u16 != 0xFFFF && != 0) is emitted via the
+            // slice-2i NestedIfr primitive (ReInitPointer(assignLevelUpAddr) + AddAddress(N1, ..., {})).
+            for (uint i = 0; i < dataCount; i++, assignLevelUpAddr += block)
+            {
+                if (!U.isSafetyOffset(assignLevelUpAddr, rom))
+                {
+                    break;
+                }
+                uint levelupList = rom.p32(assignLevelUpAddr);
+                if (!U.isSafetyOffset(levelupList, rom))
+                {
+                    continue;
+                }
+                // N1_Init: block 2, IsDataExists = u16(addr) != 0xFFFF && u16(addr) != 0.
+                EmitNestedIfrSub(rom, list, assignLevelUpAddr, 2,
+                    (j, addr) =>
+                    {
+                        uint a = rom.u16(addr);
+                        return a != 0xFFFF && a != 0;
+                    },
+                    "SkillAssignmentUnitSkillSystem.Levelup" + i);
+            }
+        }
+
+        // ===================================================================
         // slice 2i — nested count-walked IFR sub-table (SubKind.NestedIfr) +
         // the OPClassDemo / OPClassDemoFE7 forms (version-gated multibyte).
         // Each form runs, per main-table entry, one or two N_IFR sub-tables
@@ -4714,6 +4981,24 @@ namespace FEBuilderGBA
                 PointerIndexes = new uint[] { },
             });
 
+            // TextCharCodeForm.MakeAllDataLength (slice 2m) — the Huffman char-code (mask) table.
+            // WF Init: base mask_pointer, block 4, IsDataExists = u8(addr) != 255, then
+            // AddAddress(list, IFR, "TextCharCode", new uint[] {}) — EMPTY pointerIndexes, default
+            // (InputFormRef) DataType. This is a flat single-table walk with no embedded sub-pointer,
+            // so it maps 1:1 onto the DataCountRule.U8NotEqual descriptor (@ offset 0, stop 255).
+            // The per-entry getString/FETextEncode name in WF's display callback is non-load-bearing
+            // for relocation (the producer needs only addr/length/pointer), so it is not reproduced.
+            l.Add(new StructDescriptor
+            {
+                Name = "TextCharCode",
+                PointerField = r => r.RomInfo.mask_pointer,
+                BlockSize = 4,
+                Rule = DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 255,
+                PointerIndexes = new uint[] { },
+            });
+
             // ---- version==8 (FE8) section ----
             // These forms are called ONLY inside the WinForms `if (version == 8)` branch, in this
             // order. Their data pointers are 0 on FE6/FE7 (EmitOne skips a 0/unsafe pointer), but
@@ -5495,10 +5780,22 @@ namespace FEBuilderGBA
                 "Command85PointerForm",
                 // text (Huffman)
                 // (MapTerrainNameForm ported in slice 2c — per-entry string-BIN sub-walk; TextDicForm
-                //  ported in this sweep — 3 clean tables (dic_main/chaptor/title). OtherTextForm STAYS:
-                //  it iterates a config file `other_text_*` (U.ConfigDataFilename), not a RomInfo table,
-                //  so it has a headless config-file dependency, not ROM-derived data.)
-                "TextForm", "TextCharCodeForm", "OtherTextForm",
+                //  ported in this sweep — 3 clean tables (dic_main/chaptor/title).
+                //  TextForm + TextCharCodeForm ported in slice 2m:
+                //    TextCharCodeForm — a flat U8NotEqual descriptor (base mask_pointer, block 4, stop
+                //      255, pointerIndexes {}).
+                //    TextForm — a dedicated emitter (EmitText): main IFR (base p32(text_pointer) with the
+                //      text_recover_address ReInit fallback, block 4, multi-branch IsDataExists =
+                //      isPointer || IsUnHuffmanPatchPointer || Is_RAMPointerArea via IsTextEntryExists,
+                //      TEXTPOINTERS, {0}) + a per-entry BIN sub-walk whose length is the Huffman/UnHuffman
+                //      decode (FETextDecode.huffman_decode / UnHffmanPatchDecode — both headless Core
+                //      methods, batch 10, called directly and internally EOF-hardened). The decoders need
+                //      a SystemTextEncoder to size (they decode the string as a side effect); without one
+                //      the producer falls back to the WF isPointerOnly side (size 0) — the slot is still
+                //      relocated and the target addr recorded, and IsComplete already gates a partial scan.
+                //  OtherTextForm STAYS: it iterates a config file `other_text_*` (U.ConfigDataFilename),
+                //  not a RomInfo table, so it has a headless config-file dependency, not ROM-derived data.)
+                "OtherTextForm",
                 // images (LZ77/TSA length calc)
                 // (slice 2e ported the FLAT LZ77-image + palette forms whose every length is
                 //  LZ77.getCompressedSize (EOF-safe) or a CONSTANT palette/image size:
@@ -5688,15 +5985,19 @@ namespace FEBuilderGBA
                 //    extracted MapSettingCore.IsMapSettingValid diverges (its `if (textmax>0)` guard
                 //    returns true when textmax==0, where WF returns false), so the per-entry CString
                 //    count is not yet faithfully reproducible — a wrong count = silent corruption.
-                //  FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer]. (ImageCGFE7UForm ported in slice 2k —
-                //  EmitImageCGFE7U, the FE7U 16-byte big-CG IFR with the per-entry flag@+0 16-color-vs-
-                //  10-split + HEADER-TSA.))
+                //  (FE8SpellMenuExtendsForm ported in slice 2m — EmitFE8SpellMenuExtends, FE8U-only: the
+                //   base is resolved by the patch-signature scan FE8SpellMenuPatchScanner.FindFE8Spell-
+                //   PatchPointer (the Core port of WF FindFE8SpellPatchPointer — OldSystem .dmp grep +
+                //   hard-coded SkillSystems202201 signature, version/multibyte-gated, NOT_FOUND on a
+                //   non-patched ROM), main IFR (block 4, rule i<0xFF, PI {}), per entry a NestedIfr @
+                //   assignLevelUpAddr (block 2, u16 != 0xFFFF && != 0) via the slice-2i primitive.)
+                //  (ImageCGFE7UForm ported in slice 2k — EmitImageCGFE7U, the FE7U 16-byte big-CG IFR
+                //   with the per-entry flag@+0 16-color-vs-10-split + HEADER-TSA.))
                 "MonsterWMapProbabilityForm",
                 "EventBattleTalkForm",
                 "WorldMapEventPointerForm",
                 "EventHaikuForm",
                 "MapSettingForm",
-                "FE8SpellMenuExtendsForm",
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
