@@ -12044,3 +12044,12 @@ PROCSテーブル(長さ検出はWinForms専用): {0}
 :Png2Dmp image (no .dmp hint): {0}
 Png2Dmp画像(.dmpヒントなし): {0}
 
+
+:Promoted
+上級職
+
+:This editor requires the FE8 SkillSystems Gaiden-style spell menu patch to be installed.
+このエディタを使用するには、FE8 SkillSystemsのガイデン式呪文メニューパッチがインストールされている必要があります。
+
+:Spell
+魔法

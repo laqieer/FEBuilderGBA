@@ -25885,3 +25885,12 @@ PROCS 表（长度检测仅限 WinForms）：{0}
 :Png2Dmp image (no .dmp hint): {0}
 Png2Dmp 图像（无 .dmp 提示）：{0}
 
+
+:Promoted
+高级职业
+
+:This editor requires the FE8 SkillSystems Gaiden-style spell menu patch to be installed.
+此编辑器需要安装 FE8 SkillSystems 外传式魔法菜单补丁才能使用。
+
+:Spell
+魔法

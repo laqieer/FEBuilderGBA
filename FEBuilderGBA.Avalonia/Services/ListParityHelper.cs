@@ -376,7 +376,6 @@ namespace FEBuilderGBA.Avalonia.Services
             "TextViewerView", "TextMainView", "OtherTextView",
             "TextEscapeEditorView", "TextCharCodeView",
             "OAMSPView",
-            "FE8SpellMenuExtendsView",
             "EDFE6View", "EDFE7View",
             "WorldMapPathEditorView",
             "WorldMapImageView", "WorldMapImageFE6View", "WorldMapImageFE7View",
@@ -425,6 +424,9 @@ namespace FEBuilderGBA.Avalonia.Services
             "SkillConfigFE8NSkillView", "SkillConfigFE8NVer2SkillView",
             "SkillConfigFE8NVer3SkillView", "SkillConfigFE8UCSkillSys09xView",
             "SkillSystemsEffectivenessReworkClassTypeView",
+            // FE8 SkillSystems spell-menu (Gaiden-style spell list) — patch-dependent;
+            // empty on vanilla FE8U until the FE8SpellMenu patch is installed (#1167).
+            "FE8SpellMenuExtendsView",
             // Image sub-editors (need parent context or specific address)
             "ImageBattleAnimePalletView",
             // Patch-dependent stat bonuses editors (need SkillSystem/Venno patch installed)
