@@ -183,6 +183,24 @@ namespace FEBuilderGBA
             /// data type is configurable (PAL / IMG / LZ77PAL), not hard-wired to BIN. Matches the
             /// per-entry <c>AddPointer(p + N, 0x20*K, name, PAL)</c> palette/image columns.</summary>
             FixedPointer,
+            /// <summary>A NESTED count-walked IFR sub-table behind an embedded pointer. Reproduces the
+            /// WinForms <c>N_IFR.ReInitPointer(p + EmbeddedPointerOffset) + AddAddress(N_IFR, name, {})</c>
+            /// idiom: resolves <c>subBase = p32(p + EmbeddedPointerOffset)</c>, walks it with
+            /// <see cref="SubWalk.SubBlockSize"/> and <see cref="SubWalk.SubRule"/> via
+            /// <c>getBlockDataCount</c>, and emits ONE IFR <see cref="Address"/> whose length is
+            /// <c>SubBlockSize × (subCount + 1)</c>, whose pointer is the embedded FIELD (the
+            /// <c>p + EmbeddedPointerOffset</c>, or <see cref="U.NOT_FOUND"/> if that is not a safe
+            /// offset — matching <c>AddressWinForms.AddAddress</c>'s <c>BasePointer</c> fallback), whose
+            /// type is <see cref="Address.DataTypeEnum.InputFormRef"/>, whose blockSize is
+            /// <see cref="SubWalk.SubBlockSize"/>, and whose pointerIndexes are EMPTY (the WinForms
+            /// <c>new uint[] {}</c>). Unlike every other <see cref="SubKind"/> (which emits a flat block of
+            /// a known length), this one runs its OWN inner <c>getBlockDataCount</c>. Used by the
+            /// OPClassDemo forms (N1/N2 sub-tables); EOF-safe (the embedded-pointer read and the inner
+            /// walk are both bounds-guarded, never throw). IS handled by the flat <see cref="SubWalk"/>
+            /// loop in <see cref="EmitSubWalks"/> (available to any future single-nested-sub-table form);
+            /// the OPClassDemo forms, however, have form-specific per-entry guard ordering, so they call
+            /// <see cref="EmitNestedIfrSub"/> directly from a dedicated emitter rather than the flat loop.</summary>
+            NestedIfr,
         }
 
         /// <summary>One per-entry embedded-data sub-walk applied to every entry of a
@@ -214,6 +232,19 @@ namespace FEBuilderGBA
             /// label is taken from the decoded string itself (matching
             /// <see cref="Address.AddCString"/>), so this is only used by the BIN kinds.</summary>
             public Func<ROM, uint, string> Name;
+            /// <summary>For <see cref="SubKind.NestedIfr"/>: the nested sub-table's block size (the
+            /// WinForms <c>N_IFR.Init</c> BlockSize, e.g. OPClassDemo N1 = 1, N2 = 2). Drives both the
+            /// inner <c>getBlockDataCount</c> stride and the emitted length <c>SubBlockSize × (count + 1)</c>.
+            /// Ignored by the non-nested kinds.</summary>
+            public uint SubBlockSize;
+            /// <summary>For <see cref="SubKind.NestedIfr"/>: the nested sub-table's <c>IsDataExists</c>
+            /// callback (the WinForms <c>N_IFR.Init</c> rule lambda), reproduced VERBATIM as a
+            /// <c>(i, addr) =&gt; bool</c> over the SUB-table (e.g. OPClassDemo N1 =
+            /// <c>i &gt;= 16 ? false : u8(addr) != 0xFF</c>, N2 = <c>u8(addr) != 0</c>). The inner
+            /// <c>getBlockDataCount</c> only fires this while <c>addr + SubBlockSize &lt;= Length</c>, so
+            /// a read of width &lt;= <see cref="SubBlockSize"/> at <c>addr</c> is always in bounds.
+            /// Ignored by the non-nested kinds.</summary>
+            public Func<int, uint, bool> SubRule;
         }
 
         /// <summary>A declarative description of one simple "table walk + emit IFR Address" form.</summary>
@@ -534,6 +565,22 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapPath");
                 EmitWorldMapPath(rom, list);
+
+                // ---- slice 2i: OPClassDemo (FE8-multibyte ONLY) ----
+                // WF calls OPClassDemoForm.MakeAllDataLength inside `version==8 && is_multibyte` (the
+                // FE8U non-multibyte path uses OPClassDemoFE8UForm, still deferred). Per-entry nested
+                // N1/N2 IFR sub-tables (block 1/2) reached via embedded pointers @ +8/+24 — a dedicated
+                // emitter (EmitOPClassDemo) reproduces the form-specific dual-guard ordering.
+                if (rom.RomInfo.is_multibyte)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("OPClassDemo");
+                    EmitOPClassDemo(rom, list);
+                }
             }
 
             if (rom.RomInfo.version == 7)
@@ -545,6 +592,22 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE7");
                 EmitWorldMapImageFE7(rom, list);
+
+                // ---- slice 2i: OPClassDemoFE7 (FE7-multibyte ONLY) ----
+                // WF calls OPClassDemoFE7Form.MakeAllDataLength inside `version==7 && is_multibyte` (the
+                // FE7U non-multibyte path uses OPClassDemoFE7UForm, still deferred). ONE nested N2 IFR
+                // sub-table @ +28 (block 2), an LZ77 column @ +8, and a trailing absolute common-palette
+                // pointer — a dedicated emitter (EmitOPClassDemoFE7) reproduces the shape verbatim.
+                if (rom.RomInfo.is_multibyte)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("OPClassDemoFE7");
+                    EmitOPClassDemoFE7(rom, list);
+                }
             }
             else if (rom.RomInfo.version == 6)
             {
@@ -771,6 +834,18 @@ namespace FEBuilderGBA
                             Address.AddPointer(list, pfield, sw.FixedLength,
                                 sw.Name != null ? sw.Name(rom, i) : d.Name,
                                 sw.DataType);
+                            break;
+
+                        case SubKind.NestedIfr:
+                            // A nested count-walked IFR sub-table behind the embedded pointer
+                            // (N_IFR.ReInitPointer(pfield) + AddAddress(N_IFR, name, {})). EmitNestedIfrSub
+                            // resolves p32(pfield), walks it with SubBlockSize/SubRule, and emits one IFR
+                            // Address (length = SubBlockSize*(count+1), pointer = pfield, pointerIndexes {}).
+                            // EOF-safe; the OPClassDemo forms drive this from a dedicated emitter (their
+                            // per-entry guard ordering differs from this flat loop), but it is available to
+                            // the flat SubWalk loop for any future single-nested-sub-table form.
+                            EmitNestedIfrSub(rom, list, pfield, sw.SubBlockSize, sw.SubRule,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name);
                             break;
 
                         default:
@@ -1688,6 +1763,267 @@ namespace FEBuilderGBA
                     return p - addr;
                 }
             }
+        }
+
+        // ===================================================================
+        // slice 2i — nested count-walked IFR sub-table (SubKind.NestedIfr) +
+        // the OPClassDemo / OPClassDemoFE7 forms (version-gated multibyte).
+        // Each form runs, per main-table entry, one or two N_IFR sub-tables
+        // reached via an embedded pointer, each with its OWN getBlockDataCount-
+        // walked variable count — a shape no flat block-length SubKind expresses.
+        // The per-entry guard ordering is form-specific (FE8 guards BOTH embedded
+        // pointers before emitting EITHER nested table), so each form gets a
+        // dedicated emitter rather than the flat EmitSubWalks loop.
+        // ===================================================================
+
+        /// <summary>
+        /// Emit ONE nested count-walked IFR <see cref="Address"/> for the embedded pointer at
+        /// <paramref name="pfield"/>. Reproduces the WinForms
+        /// <c>N_IFR.ReInitPointer(pfield); AddressWinForms.AddAddress(list, N_IFR, name, new uint[] {})</c>
+        /// VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>subBase = p32(pfield)</c> — the nested table's base
+        ///   (<c>ReInitPointer</c> -&gt; <c>ReInit(p32(pfield))</c>);</item>
+        ///   <item><c>subCount = getBlockDataCount(subBase, subBlock, subRule)</c> — the inner walk
+        ///   (<c>ReInit</c>'s <c>getBlockDataCount</c>);</item>
+        ///   <item>length = <c>subBlock × (subCount + 1)</c>; pointer = <paramref name="pfield"/>
+        ///   (the embedded FIELD = <c>N_IFR.BasePointer</c>), or <see cref="U.NOT_FOUND"/> if that is
+        ///   not a safe offset (matching <c>AddAddress</c>'s <c>BasePointer</c> fallback); type
+        ///   <see cref="Address.DataTypeEnum.InputFormRef"/>; blockSize <paramref name="subBlock"/>;
+        ///   pointerIndexes EMPTY (the WinForms <c>new uint[] {}</c>).</item>
+        /// </list>
+        /// EOF-safe: emits nothing when <paramref name="subBlock"/> is 0, when the embedded-pointer slot
+        /// is near EOF (<c>!isSafetyOffset(pfield+3)</c>, guarded before <c>p32</c>), or when <c>subBase</c>
+        /// is unsafe (mirroring <c>AddAddress</c>'s <c>!isSafetyOffset(addr)</c> early-return). A
+        /// <paramref name="pfield"/> that is in-bounds for the read but not itself a safe BasePointer does
+        /// NOT suppress emission — it only makes the emitted Address pointer <see cref="U.NOT_FOUND"/>
+        /// (matching <c>AddAddress</c>'s BasePointer fallback). <c>getBlockDataCount</c>'s own callback
+        /// reads are <c>addr+subBlock</c>-bounded. Requires a non-null <paramref name="subRule"/> — a
+        /// misconfigured <see cref="SubKind.NestedIfr"/> with a null rule throws
+        /// <see cref="System.ArgumentNullException"/> (a programming error, not a ROM-data condition).
+        /// </summary>
+        public static void EmitNestedIfrSub(ROM rom, List<Address> list, uint pfield,
+            uint subBlock, Func<int, uint, bool> subRule, string name)
+        {
+            if (subRule == null)
+            {
+                // A NestedIfr SubWalk with no SubRule is a descriptor misconfiguration; fail loudly here
+                // rather than NRE deep inside getBlockDataCount's callback invocation (consistent with the
+                // producer treating other invalid SubKind/DataCountRule configs as programming errors).
+                throw new System.ArgumentNullException(nameof(subRule),
+                    "SubKind.NestedIfr requires a non-null SubRule (the nested IsDataExists walk).");
+            }
+            if (subBlock == 0)
+            {
+                return; // a zero block would make getBlockDataCount spin; not real data.
+            }
+            // ReInitPointer reads p32(pfield); guard the FULL 4-byte field (root+3) before the read so a
+            // near-EOF embedded pointer emits nothing instead of throwing.
+            uint field = U.toOffset(pfield);
+            if (!U.isSafetyOffset(field + 3, rom))
+            {
+                return;
+            }
+            uint subBase = rom.p32(field);
+            if (!U.isSafetyOffset(subBase, rom))
+            {
+                return; // AddAddress early-returns when !isSafetyOffset(addr).
+            }
+
+            uint subCount = rom.getBlockDataCount(subBase, subBlock, subRule);
+            uint length = subBlock * (subCount + 1);
+
+            // AddAddress's BasePointer fallback: pointer = BasePointer if a safe offset else NOT_FOUND.
+            uint pointer = U.isSafetyOffset(field, rom) ? field : U.NOT_FOUND;
+            list.Add(new Address(subBase, length, pointer, name,
+                Address.DataTypeEnum.InputFormRef, subBlock, new uint[] { }));
+        }
+
+        /// <summary>
+        /// <c>OPClassDemoForm.MakeAllDataLength</c> (slice 2i; FE8-multibyte ONLY — gated at the
+        /// <c>version == 8 &amp;&amp; is_multibyte</c> call site, like OPClassFont; the FE8U non-multibyte
+        /// path is <c>OPClassDemoFE8UForm</c>, still deferred). Main IFR: base
+        /// <c>op_class_demo_pointer</c>, block 28, IsDataExists = <c>u8(addr+0xF) &lt;= 4</c>,
+        /// emitted via <c>AddAddress(list, IFR, "OPClassDemo", {0, 8, 24})</c>. Per main-table entry
+        /// (<c>addr = base + i*28</c>, <c>i &lt; DataCount</c>), VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>AddCString(list, addr + 0)</c> — the entry's class-name pointer at +0;</item>
+        ///   <item>guard <c>jpName = p32(addr + 8)</c>; if <c>!isSafetyOffset(jpName)</c> -&gt; continue
+        ///   (skips BOTH nested tables);</item>
+        ///   <item>guard <c>anime = p32(addr + 24)</c>; if <c>!isSafetyOffset(anime)</c> -&gt; continue
+        ///   (the WF order: jpName guard FIRST, anime guard SECOND, then BOTH nested tables);</item>
+        ///   <item>N1 nested IFR @ <c>addr + 8</c>: block 1, rule <c>i &gt;= 16 ? false : u8(addr) != 0xFF</c>,
+        ///   name "OPClassDemo_JPName";</item>
+        ///   <item>N2 nested IFR @ <c>addr + 24</c>: block 2, rule <c>u8(addr) != 0</c>,
+        ///   name "OPClassDemo_Anime".</item>
+        /// </list>
+        /// The main IFR's pointerIndexes {0, 8, 24} relocate the three embedded pointer FIELDS; the two
+        /// nested-IFR sub-Addresses (and the CString) relocate the pointed-at DATA.
+        /// </summary>
+        public static void EmitOPClassDemo(ROM rom, List<Address> list)
+        {
+            EmitOPClassDemoAt(rom, list, rom.RomInfo.op_class_demo_pointer);
+        }
+
+        /// <summary>OPClassDemo (FE8-multibyte) walk from an explicit pointer slot (test seam — lets a
+        /// synthetic ROM supply it without populating RomInfo). See <see cref="EmitOPClassDemo"/> for the
+        /// verbatim WF reproduction.</summary>
+        public static void EmitOPClassDemoAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 28;
+
+            // Main IFR (AddAddress(ifr, "OPClassDemo", {0,8,24})): base = p32(toOffset(slot)),
+            // pointer = slot. Guard the full slot before p32 (root+3).
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists = u8(addr+0xF) <= 4. getBlockDataCount only fires while addr+28<=Length, so
+            // the +0xF read is always in bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                rom.u8(addr + 0xF) <= 4);
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "OPClassDemo",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 8, 24 }));
+
+            // Per-entry expansion. getBlockDataCount guarantees addr+block(28)<=Length for i<dataCount,
+            // so p32(addr+8) (deepest addr+11) and p32(addr+24) (deepest addr+27) are both in bounds.
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                // Address.AddCString(list, 0 + addr): the class-name CString pointer at entry offset +0.
+                Address.AddCString(list, p + 0);
+
+                // WF guards BOTH embedded pointers (jpName @ +8, anime @ +24) before emitting EITHER
+                // nested table; a NULL/unsafe either one skips both N1 and N2 for this entry.
+                uint jpName = rom.p32(p + 8);
+                if (!U.isSafetyOffset(jpName, rom))
+                {
+                    continue;
+                }
+                uint anime = rom.p32(p + 24);
+                if (!U.isSafetyOffset(anime, rom))
+                {
+                    continue;
+                }
+
+                // N1_InputFormRef.ReInitPointer(addr + 8); AddAddress(N1, "OPClassDemo_JPName", {}).
+                // N1_Init: block 1, IsDataExists = i >= 16 ? false : u8(addr) != 0xFF.
+                EmitNestedIfrSub(rom, list, p + 8, 1,
+                    (j, addr) => j >= 16 ? false : rom.u8(addr) != 0xFF,
+                    "OPClassDemo_JPName");
+
+                // N2_InputFormRef.ReInitPointer(addr + 24); AddAddress(N2, "OPClassDemo_Anime", {}).
+                // N2_Init: block 2, IsDataExists = u8(addr) != 0x00.
+                EmitNestedIfrSub(rom, list, p + 24, 2,
+                    (j, addr) => rom.u8(addr) != 0x00,
+                    "OPClassDemo_Anime");
+            }
+        }
+
+        /// <summary>
+        /// <c>OPClassDemoFE7Form.MakeAllDataLength</c> (slice 2i; FE7-multibyte ONLY — gated at the
+        /// <c>version == 7 &amp;&amp; is_multibyte</c> call site; the FE7U non-multibyte path is
+        /// <c>OPClassDemoFE7UForm</c>, still deferred). Differs from the FE8 form: ONE nested table (N2),
+        /// an LZ77 column at +8 (not a nested table), a FIXED main count (<c>i &lt;= 0x41</c>), and a
+        /// trailing standalone common-palette pointer. Main IFR: base <c>op_class_demo_pointer</c>,
+        /// block 32, IsDataExists = <c>i &lt;= 0x41</c>, emitted via
+        /// <c>AddAddress(list, IFR, "OPClassDemo", {0, 8, 28})</c>. Per main-table entry
+        /// (<c>addr = base + i*32</c>, <c>i &lt; DataCount</c>), VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>AddCString(list, addr + 0)</c> — class-name pointer at +0;</item>
+        ///   <item><c>AddLZ77Pointer(list, addr + 8, "OPClassDemo_Anime_&lt;i&gt;_JP_NAME_IMG", false,
+        ///   LZ77IMG)</c> — the JP-name image (producer always scans real lengths, isPointerOnly=false);</item>
+        ///   <item>guard <c>anime = p32(addr + 28)</c>; if <c>!isSafetyOffset(anime)</c> -&gt; continue;</item>
+        ///   <item>N2 nested IFR @ <c>addr + 28</c>: block 2, rule <c>u8(addr) != 0</c>,
+        ///   name "OPClassDemo_Anime_&lt;i&gt;_Anime".</item>
+        /// </list>
+        /// AFTER the loop (once): <c>AddPointer(list, 0x0B0038, 2*16, "OPClassDemo_CommonPalette", PAL)</c>
+        /// — the absolute <c>JP_FONT_PALETTE_POINTER</c> common-palette pointer (a fixed ROM location, NOT
+        /// a RomInfo field; its DATA is a 32-byte palette). The main IFR's pointerIndexes {0, 8, 28}
+        /// relocate the three embedded pointer FIELDS.
+        /// </summary>
+        public static void EmitOPClassDemoFE7(ROM rom, List<Address> list)
+        {
+            EmitOPClassDemoFE7At(rom, list, rom.RomInfo.op_class_demo_pointer);
+        }
+
+        /// <summary>OPClassDemo (FE7-multibyte) walk from an explicit pointer slot (test seam). See
+        /// <see cref="EmitOPClassDemoFE7"/> for the verbatim WF reproduction.</summary>
+        public static void EmitOPClassDemoFE7At(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 32;
+            // WF OPClassDemoFE7Form: const uint JP_FONT_PALETTE_POINTER = 0x0B0038.
+            const uint JP_FONT_PALETTE_POINTER = 0x0B0038;
+
+            // Main IFR (AddAddress(ifr, "OPClassDemo", {0,8,28})): base = p32(toOffset(slot)),
+            // pointer = slot. Guard the full slot before p32 (root+3).
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                // Even on a missing main table, WF still emits the trailing common-palette pointer
+                // (it is outside the `{ ... }` block but unconditional). Reproduce that.
+                Address.AddPointer(list, JP_FONT_PALETTE_POINTER, 2 * 16,
+                    "OPClassDemo_CommonPalette", Address.DataTypeEnum.PAL);
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                Address.AddPointer(list, JP_FONT_PALETTE_POINTER, 2 * 16,
+                    "OPClassDemo_CommonPalette", Address.DataTypeEnum.PAL);
+                return;
+            }
+
+            // IsDataExists = i <= 0x41 (a pure fixed count; addr is ignored). DataCount caps at 0x42
+            // entries (i = 0..0x41) or sooner if addr+32 runs past EOF (getBlockDataCount's own guard).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) => i <= 0x41);
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "OPClassDemo",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 8, 28 }));
+
+            // Per-entry expansion. getBlockDataCount guarantees addr+block(32)<=Length for i<dataCount,
+            // so p32(addr+28) (deepest addr+31) is in bounds. AddCString/AddLZ77Pointer self-guard.
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "OPClassDemo_Anime_" + U.ToHexString(i);
+
+                // Address.AddCString(list, 0 + addr): class-name CString pointer at +0.
+                Address.AddCString(list, p + 0);
+
+                // Address.AddLZ77Pointer(list, addr + 8, name + "_JP_NAME_IMG", isPointerOnly, LZ77IMG).
+                // The producer always scans real lengths (isPointerOnly: false). Self-guards + EOF-safe.
+                Address.AddLZ77Pointer(list, p + 8, name + "_JP_NAME_IMG", false,
+                    Address.DataTypeEnum.LZ77IMG);
+
+                // WF guards anime @ +28 before emitting the N2 nested table.
+                uint anime = rom.p32(p + 28);
+                if (!U.isSafetyOffset(anime, rom))
+                {
+                    continue;
+                }
+
+                // N2_InputFormRef.ReInitPointer(addr + 28); AddAddress(N2, name + "_Anime", {}).
+                // N2_Init: block 2, IsDataExists = u8(addr) != 0x00.
+                EmitNestedIfrSub(rom, list, p + 28, 2,
+                    (j, addr) => rom.u8(addr) != 0x00,
+                    name + "_Anime");
+            }
+
+            // After the loop, unconditional (outside the `{ ... }` block in WF):
+            // Address.AddPointer(list, JP_FONT_PALETTE_POINTER, 2*16, "OPClassDemo_CommonPalette", PAL).
+            Address.AddPointer(list, JP_FONT_PALETTE_POINTER, 2 * 16,
+                "OPClassDemo_CommonPalette", Address.DataTypeEnum.PAL);
         }
 
         // ===================================================================
@@ -3759,19 +4095,24 @@ namespace FEBuilderGBA
                 //    WorldMapPathForm [FE8] — EmitWorldMapPath, main IFR PointerAt@0/{0,8} + per-entry
                 //      BIN/POINTER sub-blocks whose lengths are the pure CalcPath{,Move}DataLength
                 //      terminator walks (reproduced verbatim, EOF-hardened on the u32 read).
-                //  STILL deferred (event-scan / LZ77+nested-IFR / recursive / dynamic base):
+                //  slice 2i ported the two OPClassDemo forms via the new SubKind.NestedIfr mechanism
+                //  (EmitNestedIfrSub: an embedded pointer whose target is ITSELF a getBlockDataCount-
+                //  walked variable-count IFR sub-table, length = subBlock*(subCount+1), pointer = field,
+                //  pointerIndexes {}):
+                //    OPClassDemoForm [FE8-multibyte] — EmitOPClassDemo: main block 28, rule u8(+0xF)<=4,
+                //      PI {0,8,24}; per entry CString@+0, dual-guard (jpName@+8 AND anime@+24), then N1
+                //      NestedIfr@+8 (block 1, i>=16?false:u8!=0xFF) + N2 NestedIfr@+24 (block 2, u8!=0).
+                //    OPClassDemoFE7Form [FE7-multibyte] — EmitOPClassDemoFE7: main block 32, rule i<=0x41,
+                //      PI {0,8,28}; per entry CString@+0, Lz77@+8 (LZ77IMG), anime-guard@+28, then N2
+                //      NestedIfr@+28 (block 2, u8!=0); + a trailing absolute AddPointer(0x0B0038, 0x20,
+                //      PAL) common-palette pointer. (FE8U/FE7U non-multibyte variants STAY deferred.)
+                //  STILL deferred (event-scan / recursive / dynamic base / LZ77 CG):
                 //  MonsterWMapProbabilityForm STAYS — although its 5 IFR probability/stage tables
                 //    are flat ROM reads, its MakeAllDataLength ALSO emits EventScriptForm.ScanScript over
                 //    the two skirmish start/end event pointers (no Core ScanScript primitive yet);
                 //    porting only the flat tables would drop those skirmish-event regions = corruption.
                 //  WorldMapEventPointerForm [ScanScript],
                 //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry],
-                //  OPClassDemoForm [FE8-multibyte] + OPClassDemoFE7Form [FE7-multibyte] STAY — both run
-                //    a per-entry NESTED IFR sub-table (N1/N2 ReInitPointer'd at an embedded pointer, each
-                //    with its OWN getBlockDataCount-walked variable count: OPClassDemo N1 u8!=0xFF&&i<16
-                //    @+8 / N2 u8!=0 @+24; OPClassDemoFE7 N2 u8!=0 @+28). The SubKind machinery emits ONE
-                //    Address per sub-walk, not a nested count-walked IFR table, so they need a new
-                //    nested-IFR SubKind (plus OPClassDemo's u8(+15)<=4 main rule) — a later slice.
                 //  MapSettingForm [FE8] STAYS — its count rule (IsMapSettingEnd) needs the WF cached
                 //    text count (TextForm.GetDataCount() / g_GetDataCount_Cache, NOT in Core); the
                 //    extracted MapSettingCore.IsMapSettingValid diverges (its `if (textmax>0)` guard
@@ -3783,8 +4124,8 @@ namespace FEBuilderGBA
                 "WorldMapEventPointerForm",
                 "EventHaikuForm",
                 "MapSettingForm",
-                "OPClassDemoForm", "FE8SpellMenuExtendsForm",
-                "OPClassDemoFE7Form", "ImageCGFE7UForm",
+                "FE8SpellMenuExtendsForm",
+                "ImageCGFE7UForm",
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
