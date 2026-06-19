@@ -242,6 +242,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("SkillAssignmentUnitSkillSystemView", "SkillAssignmentUnitSkillSystemForm", "SkillAssignmentUnitSkillSystemViewModel"),
             ("SkillAssignmentClassSkillSystemView", "SkillAssignmentClassSkillSystemForm", "SkillAssignmentClassSkillSystemViewModel"),
             ("SkillConfigSkillSystemView", "SkillConfigSkillSystemForm", "SkillConfigSkillSystemViewModel"),
+            ("FE8SpellMenuExtendsView", "FE8SpellMenuExtendsForm", "FE8SpellMenuExtendsViewModel"),
             ("Command85PointerView", "Command85PointerForm", "Command85PointerViewModel"),
             ("MantAnimationView", "MantAnimationForm", "MantAnimationViewModel"),
 

@@ -3,18 +3,130 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.FE8SpellMenuExtendsView"
         Title="Spell Menu Extensions" Width="1189" Height="849"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="FE8SpellMenuExtends_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="250,250,*" RowDefinitions="Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: master-write bar (spans all columns) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="Gray" BorderThickness="1" Margin="4,4,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="FE8SpellMenuExtends_Addr_Label"
+               Name="AddrLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="FE8SpellMenuExtends_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="FE8SpellMenuExtends_Write_Button"
+                Name="MasterWriteButton" Content="Write" Click="MasterWriteButton_Click" />
+        <Button AutomationProperties.AutomationId="FE8SpellMenuExtends_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1 col 0: Unit master list -->
+    <Border Grid.Row="1" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="FE8SpellMenuExtends_FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="FE8SpellMenuExtends_Entry_List"
+            Name="EntryList" />
+      </DockPanel>
+    </Border>
+
+    <!-- Row 1 col 1: N1 spell sub-list -->
+    <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="0,4,4,4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="FE8SpellMenuExtends_N1FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="FE8SpellMenuExtends_N1ListExpand_Button"
+                Name="N1ListExpandButton" Content="Expand List"
+                Margin="2" Click="N1ListExpand_Click" />
+        <ListBox AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Entry_List"
+                 Name="N1EntryList" ItemsSource="{Binding SpellEntries}"
+                 SelectionChanged="N1EntryList_SelectionChanged">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Name}"
+                         ToolTip.Tip="{Binding Name}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <!-- Row 1 col 2: N1 detail panel -->
+    <ScrollViewer Grid.Row="1" Grid.Column="2" Margin="0,4,4,4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Spell Menu Extensions" FontSize="18" FontWeight="Bold" />
+        <Label Content="Spell Menu Extensions" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="FE8SpellMenuExtends_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Border Background="{DynamicResource WarningBackgroundBrush}"
+                BorderBrush="{DynamicResource WarningBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="12">
+          <TextBlock AutomationProperties.AutomationId="FE8SpellMenuExtends_Status_Label"
+                     TextWrapping="Wrap" Name="StatusText"
+                     Text="This editor requires the FE8 SkillSystems Gaiden-style spell menu patch to be installed." />
+        </Border>
+
+        <!-- N1 address bar -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Label Content="Address:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="FE8SpellMenuExtends_N1SelectedAddress_Label"
+                   Name="N1SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+                   FontFamily="Consolas" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="FE8SpellMenuExtends_N1BlockSize_Label"
+                   Name="N1BlockSizeLabel" Width="40" VerticalAlignment="Center"
+                   FontFamily="Consolas" />
+            <Button AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Write_Button"
+                    Name="N1WriteButton" Content="Write" Click="N1WriteButton_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Acquisition level + promoted -->
+        <Grid ColumnDefinitions="160,80,160,*" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Level_Label"
+                 Content="Acquisition Level" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1"
+                         AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Level_Input"
+                         FormatString="0" Name="N1LevelBox" Minimum="0" Maximum="127" />
+          <CheckBox Grid.Column="2"
+                    AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Promoted_Check"
+                    Name="N1PromotedCheck" Content="Promoted" Margin="6,0,0,0" />
         </Grid>
+
+        <!-- Spell id (hex TextBox) + item icon + name -->
+        <Grid ColumnDefinitions="160,80,Auto,*" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="FE8SpellMenuExtends_N1Spell_Label"
+                 Content="Skill" VerticalAlignment="Center" />
+          <TextBox Grid.Column="1"
+                   AutomationProperties.AutomationId="FE8SpellMenuExtends_N1SpellId_Input"
+                   Name="N1SpellIdBox" FontFamily="Consolas" VerticalAlignment="Center" />
+          <Border Grid.Column="2" BorderBrush="DarkGray" BorderThickness="1"
+                  Padding="2" Width="48" Height="48" Margin="6,0,0,0">
+            <Image AutomationProperties.AutomationId="FE8SpellMenuExtends_N1SpellIcon_Image"
+                   Name="N1SpellIconImage" Width="40" Height="40" Stretch="Uniform" />
+          </Border>
+          <TextBox Grid.Column="3"
+                   AutomationProperties.AutomationId="FE8SpellMenuExtends_N1SpellName_Input"
+                   Name="N1SpellNameBox" IsReadOnly="True" Margin="8,0,0,0"
+                   VerticalAlignment="Center" />
+        </Grid>
+
+        <Border AutomationProperties.AutomationId="FE8SpellMenuExtends_ZeroPointerPanel"
+                Name="ZeroPointerPanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                IsVisible="False">
+          <TextBlock AutomationProperties.AutomationId="FE8SpellMenuExtends_ZeroPointerText_Label"
+                     TextWrapping="Wrap" Name="ZeroPointerText" />
+        </Border>
+
       </StackPanel>
     </ScrollViewer>
   </Grid>
