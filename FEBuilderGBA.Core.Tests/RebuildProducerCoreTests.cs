@@ -3053,15 +3053,18 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageUnitPaletteForm", notYet);
             Assert.DoesNotContain("ImageGenericEnemyPortraitForm", notYet);
             Assert.DoesNotContain("ImageChapterTitleForm", notYet);
-            // still deferred (need ImageUtil / config / runtime-inspection subsystems):
-            Assert.Contains("ImageBGForm", notYet);
-            Assert.Contains("ImageCGForm", notYet);
-            Assert.Contains("ImageSystemIconForm", notYet);
+            // ported in slice 2k (header-TSA image forms; CalcHeaderTsaLength + EmitHeaderTsaPointer +
+            // CalcRomTcsLength now in Core) -> removed from the deferred list:
+            Assert.DoesNotContain("ImageBGForm", notYet);
+            Assert.DoesNotContain("ImageCGForm", notYet);
+            Assert.DoesNotContain("ImageSystemIconForm", notYet);
+            Assert.DoesNotContain("WorldMapImageForm", notYet);
+            // still deferred (need ImageUtil OAM / config-file / runtime-inspection subsystems):
             Assert.Contains("ImageBattleAnimeForm", notYet);
             Assert.Contains("ImagePortraitForm", notYet);
-            Assert.Contains("WorldMapImageForm", notYet); // the FE8 form stays (AddHeaderTSAPointer)
             Assert.Contains("ImageItemIconForm", notYet);
             Assert.Contains("ImageTSAAnimeForm", notYet);
+            Assert.Contains("ImageTSAAnime2Form", notYet); // config-file "tsaanime2_" TSV, not RomInfo
         }
 
         // ===================================================================
@@ -4363,7 +4366,8 @@ namespace FEBuilderGBA.Core.Tests
             //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there.)
             Assert.Contains("MapSettingForm", notYet);      // IsMapSettingEnd needs WF text-count cache
             Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
-            Assert.Contains("ImageCGFE7UForm", notYet);     // LZ77 CG (FE7U)
+            // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
+            Assert.DoesNotContain("ImageCGFE7UForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -4758,7 +4762,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("MapSettingForm", notYet);           // IsMapSettingEnd needs WF text-count cache
             Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
             Assert.Contains("MonsterWMapProbabilityForm", notYet); // ScanScript skirmish events
-            Assert.Contains("ImageCGFE7UForm", notYet);          // LZ77 CG (FE7U)
+            // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
+            Assert.DoesNotContain("ImageCGFE7UForm", notYet);
             Assert.Contains("FE8SpellMenuExtendsForm", notYet);  // FindFE8SpellPatchPointer
 
             // the no-duplicates invariant still holds after the edits.
@@ -5212,6 +5217,452 @@ namespace FEBuilderGBA.Core.Tests
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // =====================================================================
+        // slice 2k — header-TSA image forms
+        // =====================================================================
+
+        /// <summary>Plant a 2-byte {x,y} header-TSA stream at <paramref name="offset"/>; returns the
+        /// expected byte length 2 + (x+1)*(y+1)*2 (the body cells are left zero — only the length is
+        /// asserted).</summary>
+        static uint WriteHeaderTsa(ROM rom, uint offset, byte x, byte y)
+        {
+            rom.write_u8(offset + 0, x);
+            rom.write_u8(offset + 1, y);
+            return 2u + ((uint)x + 1) * ((uint)y + 1) * 2;
+        }
+
+        [Fact]
+        public void CalcHeaderTsaLength_PlantedHeader_MatchesWFFormula()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pos = 0x1000;
+            uint expected = WriteHeaderTsa(rom, pos, 0x07, 0x03); // (7+1)*(3+1) = 32 cells -> 2 + 32*2 = 66
+            Assert.Equal(66u, expected);
+            Assert.Equal(expected, RebuildProducerCore.CalcHeaderTsaLength(rom, pos));
+        }
+
+        [Fact]
+        public void CalcHeaderTsaLength_NearEOF_ReturnsZero_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            // pos + 2 >= Length -> degenerate (WF returns 0). Length == 0x8000.
+            Assert.Equal(0u, RebuildProducerCore.CalcHeaderTsaLength(rom, 0x8000 - 2)); // pos+2 == Length -> >= -> 0
+            Assert.Equal(0u, RebuildProducerCore.CalcHeaderTsaLength(rom, 0x8000 - 1));
+            // A header ending one byte before EOF is still valid (pos+2 < Length).
+            uint expected = WriteHeaderTsa(rom, 0x8000 - 3, 0x00, 0x00); // 2 + 1*1*2 = 4
+            Assert.Equal(4u, expected);
+            Assert.Equal(4u, RebuildProducerCore.CalcHeaderTsaLength(rom, 0x8000 - 3));
+        }
+
+        [Fact]
+        public void EmitHeaderTsaPointer_EmitsHEADERTSA_WithCalcLength()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint tsaData = 0x2000;
+            uint expected = WriteHeaderTsa(rom, tsaData, 0x0F, 0x01); // (15+1)*(1+1)=32 -> 2 + 32*2 = 66
+            Assert.Equal(66u, expected);
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, Ptr(tsaData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitHeaderTsaPointer(rom, list, pointerSlot, "BG 0x00 TSA");
+
+            Assert.Single(list);
+            Address a = list[0];
+            Assert.Equal(tsaData, a.Addr);
+            Assert.Equal(expected, a.Length);
+            Assert.Equal(pointerSlot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.HEADERTSA, a.DataType);
+            Assert.Equal("BG 0x00 TSA", a.Info);
+        }
+
+        [Fact]
+        public void EmitHeaderTsaPointer_PointerSlotNearEOF_EmitsNothing_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            var list = new List<Address>();
+            // pointer slot in the last 3 bytes: u32(pointer) would read past EOF -> guarded, emits nothing.
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitHeaderTsaPointer(rom, list, 0x8000 - 2, "X"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitHeaderTsaPointer_UnsafeTarget_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, 0x00000000); // NULL target -> isSafetyPointer false
+            var list = new List<Address>();
+            RebuildProducerCore.EmitHeaderTsaPointer(rom, list, pointerSlot, "X");
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void CalcRomTcsLength_PlantedTerminator_MatchesWFFormula()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint addr = 0x1000;
+            // Plant the shortest terminator pattern (index 4: {00 00 FF FF 10 00}, plusOffset 4) at +0x40.
+            byte[] term = new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x00 };
+            for (int i = 0; i < term.Length; i++) rom.write_u8(addr + 0x40 + (uint)i, term[i]);
+            // length = (matchAddr + plusOffset) - addr = (addr+0x40 + 4) - addr = 0x44.
+            Assert.Equal(0x44u, RebuildProducerCore.CalcRomTcsLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcRomTcsLength_NoTerminator_ReturnsZero()
+        {
+            var rom = CreateTestRom(0x8000);
+            // A region of all-0xAA never matches any terminator pattern -> 0.
+            uint addr = 0x1000;
+            for (uint i = 0; i < 0x100; i++) rom.write_u8(addr + i, 0xAA);
+            Assert.Equal(0u, RebuildProducerCore.CalcRomTcsLength(rom, addr));
+        }
+
+        [Fact]
+        public void EmitRomTcsPointer_EmitsROMTCS_WithCalcLength()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint romtcsData = 0x2000;
+            byte[] term = new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x00 };
+            for (int i = 0; i < term.Length; i++) rom.write_u8(romtcsData + 0x10 + (uint)i, term[i]);
+            uint expected = (0x10u + 4u); // (match + plusOffset) - addr = (data+0x10 + 4) - data = 0x14
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, Ptr(romtcsData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitRomTcsPointer(rom, list, pointerSlot, "Border ROMTCS");
+
+            Assert.Single(list);
+            Address a = list[0];
+            Assert.Equal(romtcsData, a.Addr);
+            Assert.Equal(expected, a.Length);
+            Assert.Equal(pointerSlot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.ROMTCS, a.DataType);
+        }
+
+        [Fact]
+        public void EmitRomTcsPointer_PointerSlotNearEOF_EmitsNothing_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitRomTcsPointer(rom, list, 0x8000 - 1, "X"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitImageBGAt_NormalEntry_EmitsMainIfrAndPerEntryColumns()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // One valid entry (block 12) + a terminator row (both pointers 0 -> NULL is pointerOrNULL,
+            // so IsValidEntry passes; we end the table with a non-pointer-or-NULL +0 to stop the walk).
+            // Entry 0: +0 LZ77 image, +4 HEADER-TSA, +8 palette.
+            uint img = 0x2000;
+            uint lz77len = WriteLz77AllLiteral(rom, img, 64);
+            uint tsa = 0x3000;
+            uint tsaLen = WriteHeaderTsa(rom, tsa, 0x07, 0x03); // 66
+            uint pal = 0x4000;
+            rom.write_u32(table + 0, Ptr(img));
+            rom.write_u32(table + 4, Ptr(tsa));
+            rom.write_u32(table + 8, Ptr(pal));
+            // Terminator entry 1: +0 a non-pointer-non-NULL value (0x00000005) -> isPointerOrNULL false.
+            rom.write_u32(table + 12 + 0, 0x00000005);
+            rom.write_u32(table + 12 + 4, 0x00000005);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitImageBGAt(rom, list, pointer);
+
+            // Main IFR: base=table, block 12, count 1 -> length 12*(1+1)=24, PI {0,4,8}.
+            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "BG");
+            Assert.NotNull(main);
+            Assert.Equal(24u, main.Length);
+            Assert.Equal(12u, main.BlockSize);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+
+            // Per-entry columns.
+            Assert.Contains(list, a => a.Addr == img && a.Length == lz77len
+                && a.DataType == Address.DataTypeEnum.LZ77IMG && a.Info == "BG 0x00 IMAGE");
+            Assert.Contains(list, a => a.Addr == tsa && a.Length == tsaLen
+                && a.DataType == Address.DataTypeEnum.HEADERTSA && a.Info == "BG 0x00 TSA");
+            Assert.Contains(list, a => a.Addr == pal && a.Length == 0x20 * 8
+                && a.DataType == Address.DataTypeEnum.PAL && a.Info == "BG 0x00 PALETTE");
+        }
+
+        [Fact]
+        public void EmitImageCGAt_TenSplitEntry_EmitsImageArrayHeaderTsaAndPalette()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Entry 0 (block 12): +0 -> a 10-image-pointer array (each a valid LZ77 image), +4 HEADER-TSA,
+            // +8 palette. The NestedPointer rule needs u32(addr+0)=ptr AND u32(toOffset(ptr))=ptr.
+            uint imgArray = 0x2000;       // the 10-pointer array
+            uint firstImg = 0x3000;
+            uint lz0 = WriteLz77AllLiteral(rom, firstImg, 32);
+            // Point each of the 10 array slots somewhere valid; slot 0 must itself be a pointer (the rule
+            // reads u32(toOffset(u32(addr+0))) = u32(imgArray) and wants a pointer).
+            for (int n = 0; n < 10; n++)
+            {
+                rom.write_u32(imgArray + (uint)n * 4, Ptr(firstImg)); // all point at the same valid LZ77
+            }
+            uint tsa = 0x4000;
+            uint tsaLen = WriteHeaderTsa(rom, tsa, 0x0F, 0x0F); // (16*16)=256 -> 2 + 256*2 = 514
+            uint pal = 0x5000;
+            rom.write_u32(table + 0, Ptr(imgArray));
+            rom.write_u32(table + 4, Ptr(tsa));
+            rom.write_u32(table + 8, Ptr(pal));
+            // Terminator entry 1: +0 not a pointer -> rule false.
+            rom.write_u32(table + 12 + 0, 0x00000000);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitImageCGAt(rom, list, pointer);
+
+            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
+            Assert.NotNull(main);
+            Assert.Equal(24u, main.Length); // block 12 * (1 + 1)
+            Assert.Equal(12u, main.BlockSize);
+
+            // 10 LZ77 image columns (all at firstImg here), the 4*10 POINTER header, the HEADER-TSA, the PAL.
+            int lzCount = list.Count(a => a.Addr == firstImg && a.DataType == Address.DataTypeEnum.LZ77IMG
+                && a.Info.StartsWith("CG 0x00 IMAGE@"));
+            Assert.Equal(10, lzCount);
+            Assert.Contains(list, a => a.Addr == imgArray && a.Length == 4 * 10
+                && a.DataType == Address.DataTypeEnum.POINTER && a.Info == "CG 0x00 IMAGE_HEADER");
+            Assert.Contains(list, a => a.Addr == tsa && a.Length == tsaLen
+                && a.DataType == Address.DataTypeEnum.HEADERTSA && a.Info == "CG 0x00 TSA");
+            Assert.Contains(list, a => a.Addr == pal && a.Length == 0x20 * 8
+                && a.DataType == Address.DataTypeEnum.PAL && a.Info == "CG 0x00 PALETTE");
+        }
+
+        [Fact]
+        public void EmitImageCGFE7UAt_16Color_And_10Split_PerEntryShapes()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Block 16, rule u16(addr+2)==0. Entry 0: flag(+0)!=1 -> 16-color (LZ77@+4, HEADER-TSA@+8,
+            // 0x20*1 PAL@+12). Entry 1: flag==1 -> 10-split. Terminator entry 2: u16(+2)!=0.
+            uint img0 = 0x2000;
+            uint lz0 = WriteLz77AllLiteral(rom, img0, 32);
+            uint tsa0 = 0x3000;
+            uint tsa0Len = WriteHeaderTsa(rom, tsa0, 0x03, 0x01); // (4*2)=8 -> 2 + 8*2 = 18
+            uint pal0 = 0x4000;
+            rom.write_u8(table + 0 + 0, 0x00);   // flag != 1
+            rom.write_u16(table + 0 + 2, 0x0000); // valid row
+            rom.write_u32(table + 0 + 4, Ptr(img0));
+            rom.write_u32(table + 0 + 8, Ptr(tsa0));
+            rom.write_u32(table + 0 + 12, Ptr(pal0));
+
+            uint imgArray = 0x5000;
+            uint firstImg = 0x6000;
+            uint lzS = WriteLz77AllLiteral(rom, firstImg, 16);
+            for (int n = 0; n < 10; n++) rom.write_u32(imgArray + (uint)n * 4, Ptr(firstImg));
+            uint tsa1 = 0x7000;
+            uint tsa1Len = WriteHeaderTsa(rom, tsa1, 0x01, 0x01); // 2 + 4*2 = 10
+            uint pal1 = 0x7800;
+            rom.write_u8(table + 16 + 0, 0x01);   // flag == 1 -> 10-split
+            rom.write_u16(table + 16 + 2, 0x0000);
+            rom.write_u32(table + 16 + 4, Ptr(imgArray));
+            rom.write_u32(table + 16 + 8, Ptr(tsa1));
+            rom.write_u32(table + 16 + 12, Ptr(pal1));
+
+            // Terminator entry 2: u16(+2) != 0.
+            rom.write_u16(table + 32 + 2, 0x0001);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitImageCGFE7UAt(rom, list, pointer);
+
+            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "CG");
+            Assert.NotNull(main);
+            Assert.Equal(16u * (2u + 1u), main.Length); // block 16 * (count 2 + 1) = 48
+            Assert.Equal(16u, main.BlockSize);
+
+            // Entry 0 (16-color): one LZ77 @+4, HEADER-TSA @+8, 0x20*1 PAL @+12.
+            Assert.Contains(list, a => a.Addr == img0 && a.DataType == Address.DataTypeEnum.LZ77IMG
+                && a.Info == "CG 0x00 IMAGE");
+            Assert.Contains(list, a => a.Addr == tsa0 && a.Length == tsa0Len
+                && a.DataType == Address.DataTypeEnum.HEADERTSA && a.Info == "CG 0x00 TSA");
+            Assert.Contains(list, a => a.Addr == pal0 && a.Length == 0x20 * 1
+                && a.DataType == Address.DataTypeEnum.PAL && a.Info == "CG 0x00 PALETTE");
+
+            // Entry 1 (10-split): 10 LZ77 columns, the POINTER header, HEADER-TSA, 0x20*8 PAL.
+            int lzCount = list.Count(a => a.Addr == firstImg && a.DataType == Address.DataTypeEnum.LZ77IMG
+                && a.Info == "CG 0x01 IMAGE");
+            Assert.Equal(10, lzCount);
+            Assert.Contains(list, a => a.Addr == imgArray && a.Length == 4 * 10
+                && a.DataType == Address.DataTypeEnum.POINTER && a.Info == "CG 0x01 IMAGE_HEADER");
+            Assert.Contains(list, a => a.Addr == tsa1 && a.Length == tsa1Len
+                && a.DataType == Address.DataTypeEnum.HEADERTSA && a.Info == "CG 0x01 TSA");
+            Assert.Contains(list, a => a.Addr == pal1 && a.Length == 0x20 * 8
+                && a.DataType == Address.DataTypeEnum.PAL && a.Info == "CG 0x01 PALETTE");
+        }
+
+        [Fact]
+        public void EmitWorldMapCountyBorder_PerEntry_EmitsPointerLZ77AndROMTCS()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Block 12, rule isPointer(u32+0) && isPointer(u32+4). Entry 0: +0 -> LZ77 image (POINTER type)
+            // AND -> ROMTCS (length via CalcRomTcsLength). +4 just needs to be a pointer for the rule.
+            uint borderData = 0x2000;
+            uint lz = WriteLz77AllLiteral(rom, borderData, 48);
+            // Plant a ROMTCS terminator AFTER the LZ77 stream so CalcRomTcsLength finds it.
+            byte[] term = new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x00 };
+            uint termAt = borderData + 0x80;
+            for (int i = 0; i < term.Length; i++) rom.write_u8(termAt + (uint)i, term[i]);
+            uint romtcsLen = (termAt + 4) - borderData;
+            rom.write_u32(table + 0 + 0, Ptr(borderData));
+            rom.write_u32(table + 0 + 4, Ptr(0x3000));
+            rom.write_u32(0x3000, Ptr(0x3100)); // make +4's target irrelevant; just a valid pointer target
+
+            // Terminator entry 1: +0 not a pointer.
+            rom.write_u32(table + 12 + 0, 0x00000000);
+            rom.write_u32(table + 12 + 4, 0x00000000);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitWorldMapCountyBorder(rom, list, pointer);
+
+            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldmapCountyBorder");
+            Assert.NotNull(main);
+            Assert.Equal(12u * (1u + 1u), main.Length);
+            Assert.Equal(12u, main.BlockSize);
+
+            // POINTER-typed LZ77 column @+0.
+            Assert.Contains(list, a => a.Addr == borderData && a.DataType == Address.DataTypeEnum.POINTER
+                && a.Info == "WorldmapCountyBorder 0x00 IMAGE");
+            // ROMTCS column @+0.
+            Assert.Contains(list, a => a.Addr == borderData && a.Length == romtcsLen
+                && a.DataType == Address.DataTypeEnum.ROMTCS
+                && a.Info == "WorldmapCountyBorder 0x00 ROMTCS");
+        }
+
+        [Fact]
+        public void EmitWorldMapIconData_EmitsMainIfr()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Block 16, rule isPointer(u32+4). Two valid entries then a terminator (+4 not a pointer).
+            rom.write_u32(table + 0 + 4, Ptr(0x2000));
+            rom.write_u32(table + 16 + 4, Ptr(0x2000));
+            rom.write_u32(table + 32 + 4, 0x00000000); // terminator
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitWorldMapIconData(rom, list, pointer);
+
+            Address main = list.FirstOrDefault(a => a.Addr == table && a.Info == "WorldMapIconData");
+            Assert.NotNull(main);
+            Assert.Equal(16u * (2u + 1u), main.Length);
+            Assert.Equal(16u, main.BlockSize);
+            Assert.Equal(new uint[] { 4 }, main.PointerIndexes);
+        }
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2kCoveredForms_KeepsDeferredSiblings()
+        {
+            // slice 2k ports the header-TSA image forms -> no longer deferred.
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.DoesNotContain("ImageBGForm", notYet);
+            Assert.DoesNotContain("ImageSystemIconForm", notYet);
+            Assert.DoesNotContain("ImageCGForm", notYet);
+            Assert.DoesNotContain("ImageCGFE7UForm", notYet);
+            Assert.DoesNotContain("WorldMapImageForm", notYet);
+
+            // ImageTSAAnime2Form STAYS deferred — its g_TSAAnime table is a config-FILE TSV resource
+            // (U.LoadTSVResource("tsaanime2_")), not a RomInfo table.
+            Assert.Contains("ImageTSAAnime2Form", notYet);
+            // Other header-less image forms blocked on a different subsystem still stay tracked.
+            Assert.Contains("ImageBattleAnimeForm", notYet);      // ImageUtilOAM OAM frame walk
+            Assert.Contains("ImageTSAAnimeForm", notYet);         // config-file "tsaanime_" table
+            Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        [Fact]
+        public void NestedPointerAt_Rule_RequiresDoubleIndirectionPointer()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Entry 0: +0 is a pointer whose target's first u32 is ALSO a pointer -> valid.
+            uint inner = 0x2000;
+            rom.write_u32(inner, Ptr(0x3000)); // target's first u32 is a pointer
+            rom.write_u32(table + 0, Ptr(inner));
+            // Entry 1: +0 is a pointer but its target's first u32 is NOT a pointer (0) -> terminator.
+            uint inner2 = 0x4000;
+            rom.write_u32(inner2, 0x00000000);
+            rom.write_u32(table + 4, Ptr(inner2));
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "NP",
+                PointerField = _ => pointer,
+                BlockSize = 4,
+                Rule = RebuildProducerCore.DataCountRule.NestedPointerAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Assert.Single(list);
+            // dataCount = 1 -> length = 4 * (1 + 1) = 8.
+            Assert.Equal(8u, list[0].Length);
+        }
+
+        [Fact]
+        public void U16EqualAt_Rule_ContinuesWhileValueMatches()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+
+            // Block 8, continue while u16(addr+2)==0. Two valid rows, then a row with u16(+2)!=0.
+            rom.write_u16(table + 0 + 2, 0x0000);
+            rom.write_u16(table + 8 + 2, 0x0000);
+            rom.write_u16(table + 16 + 2, 0x0099); // terminator
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "U16Eq",
+                PointerField = _ => pointer,
+                BlockSize = 8,
+                Rule = RebuildProducerCore.DataCountRule.U16EqualAt,
+                RuleOffset = 2,
+                RuleStopValue = 0,
+                PointerIndexes = new uint[] { },
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Assert.Single(list);
+            // dataCount = 2 -> length = 8 * (2 + 1) = 24.
+            Assert.Equal(24u, list[0].Length);
         }
     }
 }
