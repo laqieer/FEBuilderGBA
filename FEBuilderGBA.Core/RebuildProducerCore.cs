@@ -1727,17 +1727,17 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                // WF: a = p32(exit_addr); if (a == U.NOT_FOUND) continue. p32 strips 0x08000000 so it is
-                // never literally NOT_FOUND; reproduced for structural fidelity (the real gate is the
-                // N base-safety below, exactly as WF's N_ReInitPointer -> AddAddress early-return).
-                uint a = rom.p32(exitAddr);
-                if (a == U.NOT_FOUND)
+                // WF: a = p32(exit_addr); if (a == U.NOT_FOUND) continue; then N_ReInitPointer(exit_addr)
+                // (N BasePointer = exit_addr, N BaseAddress = p32(exit_addr)). Read p32 ONCE into nBase
+                // and use it for both. ROM.p32 DOES return U.NOT_FOUND (0xFFFFFFFF) when the dword is
+                // 0xFFFFFFFF — toOffset leaves it as-is (0xFFFFFFFF is not a valid 0x08-pointer) — i.e.
+                // an unset/empty exit slot, so this check meaningfully skips those maps (matching WF —
+                // it is NOT merely structural).
+                uint nBase = rom.p32(exitAddr);
+                if (nBase == U.NOT_FOUND)
                 {
                     continue;
                 }
-
-                // N_ReInitPointer(exit_addr): N BasePointer = exit_addr, N BaseAddress = p32(exit_addr).
-                uint nBase = rom.p32(exitAddr);
                 // N_Init IsDataExists = u8(addr) != 0xFF. AddAddress early-returns on an unsafe N base.
                 if (!U.isSafetyOffset(nBase, rom))
                 {
