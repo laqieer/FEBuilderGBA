@@ -495,6 +495,24 @@ namespace FEBuilderGBA.Core
         public static string ImportGlyphZH(ROM rom, bool isItemFont, uint moji,
             byte[] indexedPixels, int width, int height, int explicitWidth = -1)
         {
+            return ImportGlyphZH(rom, isItemFont, moji, indexedPixels, width, height,
+                explicitWidth, manageSnapshot: true);
+        }
+
+        /// <summary>
+        /// Import one glyph (see <see cref="ImportGlyphZH(ROM,bool,uint,byte[],int,int,int)"/>),
+        /// with explicit control of the snapshot/restore ownership.
+        /// </summary>
+        /// <param name="manageSnapshot">When true, this call clones the ROM and
+        /// restores it byte-identical on any fault. When false, the CALLER owns the
+        /// snapshot/restore (bulk import keeps ONE snapshot for the whole
+        /// transaction — avoids an O(glyphCount × romSize) per-glyph clone that would
+        /// OOM on a real ZH ROM's thousands of glyphs). On a fault with
+        /// manageSnapshot=false this returns the error WITHOUT restoring (the caller's
+        /// bulk restore reverts every row).</param>
+        public static string ImportGlyphZH(ROM rom, bool isItemFont, uint moji,
+            byte[] indexedPixels, int width, int height, int explicitWidth, bool manageSnapshot)
+        {
             if (rom?.RomInfo == null) return R._("ROM is not loaded.");
             if (!IsZHRom(rom)) return R._("This is not a Chinese ROM.");
             if (indexedPixels == null) return R._("No image data.");
@@ -532,9 +550,11 @@ namespace FEBuilderGBA.Core
 
             uint slotaddr = topaddress + codeB;
 
-            // Defensive snapshot AFTER all validation/encode succeeded. A FAILED
-            // mutation leaves ZERO surviving bytes.
-            byte[] snap = (byte[])rom.Data.Clone();
+            // Defensive snapshot AFTER all validation/encode succeeded (only when this
+            // call owns it). A FAILED mutation leaves ZERO surviving bytes; the bulk
+            // path passes manageSnapshot=false so it keeps ONE snapshot for the whole
+            // batch instead of cloning the ROM per glyph.
+            byte[] snap = manageSnapshot ? (byte[])rom.Data.Clone() : null;
             try
             {
                 // ZH is a DIRECT-reference array: the slot at topaddress+codeB IS the
@@ -543,7 +563,7 @@ namespace FEBuilderGBA.Core
                 // pre-sized; out-of-range means the table is too small for this char.)
                 if (!GlyphStructFits(rom, slotaddr))
                 {
-                    RestoreSnapshot(rom, snap);
+                    if (manageSnapshot) RestoreSnapshot(rom, snap);
                     return R._("The glyph entry address is out of range.");
                 }
 
@@ -557,7 +577,7 @@ namespace FEBuilderGBA.Core
             }
             catch (Exception ex)
             {
-                RestoreSnapshot(rom, snap);
+                if (manageSnapshot) RestoreSnapshot(rom, snap);
                 return R._("Font glyph import failed: {0}", ex.Message);
             }
         }

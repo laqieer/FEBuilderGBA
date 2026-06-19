@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -18,6 +20,10 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly FontZHViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Path of the desktop .ttf/.otf loaded for Auto-Generate (#1268). Empty
+        // => fall back to the typed font family. Set by LoadFont_Click.
+        string _fontFilePath = "";
+
         public string ViewTitle => "Font Editor (Chinese)";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
@@ -34,6 +40,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // Default font family (a data value, not a UI label — set here so it
+            // isn't a scanned AXAML literal the L10n gate would flag as
+            // untranslated). AutoGen_Click also falls back to "SimSun" when empty.
+            FontFamilyInput.Text = "SimSun";
         }
 
         void LoadList()
@@ -73,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var item = EntryList.SelectedItem;
                 uint moji = item?.tag ?? 0;
-                _vm.LoadEntry(addr, moji);
+                _vm.LoadEntry(addr, moji, item?.name ?? "");
                 UpdateUI();
                 LoadImage();
             }
@@ -175,6 +186,167 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+        }
+
+        // ---- Bulk export / import ----
+
+        async void ExportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                string? path = await FileDialogHelper.SaveFile(this,
+                    R._("Export All Fonts"), "fontall.txt", "*.fontall.txt", "font.fontall.txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string? dir = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(dir)) { CoreState.Services?.ShowError(R._("Invalid output folder.")); return; }
+
+                string manifest = FontBulkExportZHCore.ExportAll(rom, userFontOnly: false, (img, pngName) =>
+                {
+                    try { img.Save(Path.Combine(dir, pngName)); return true; }
+                    catch (Exception ex) { Log.Error("FontZHView.ExportAll writePng failed: " + ex.ToString()); return false; }
+                });
+
+                // ExportAll returns "" on a hard failure (non-ZH ROM / no ImageService)
+                // and a header-only manifest when no glyph was exported. Treat both as a
+                // failure: do NOT write an empty file or claim success.
+                if (FontBulkExportZHCore.CountManifestDataRows(manifest) == 0)
+                {
+                    CoreState.Services?.ShowError(R._("No font glyphs were exported."));
+                    return;
+                }
+
+                File.WriteAllText(path, manifest);
+                CoreState.Services?.ShowInfo(R._("Fonts exported successfully."));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
+        async void ImportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                string? path = await FileDialogHelper.OpenFile(this,
+                    R._("Import All Fonts"), "*.fontall.txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string? dir = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(dir)) { CoreState.Services?.ShowError(R._("Invalid input folder.")); return; }
+
+                string manifest = File.ReadAllText(path);
+
+                _undoService.Begin("Import All Chinese Fonts");
+                try
+                {
+                    string err = FontBulkImportZHCore.ImportAll(rom, manifest, (pngName, type) =>
+                    {
+                        bool isItemFont = (type == "item");
+                        // Bulk PNGs are the 16x16 vanilla-size export geometry (a multiple
+                        // of 8), so the default tile-multiple guard is fine here — the
+                        // 16x13 native size is only used by the per-glyph import path.
+                        byte[] fontPal = FontGlyphZHCore.GetFontPaletteGBA(isItemFont);
+                        var r = ImageImportService.LoadAndRemapFromFile(Path.Combine(dir, pngName),
+                            FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_W, fontPal, 4, strictSize: true);
+                        if (r == null || !r.Success) return null;
+                        return new FontGlyphZHPixels { Indexed = r.IndexedPixels, Width = r.Width, Height = r.Height };
+                    });
+                    if (!string.IsNullOrEmpty(err)) { _undoService.Rollback(); CoreState.Services?.ShowError(err); return; }
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+
+                LoadList();
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Fonts imported successfully."));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+        }
+
+        // ---- Auto-generate from a desktop .ttf/.otf font (#1268) ----
+
+        async void LoadFont_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(this,
+                    R._("Load Font File"), new[] { "*.ttf", "*.otf" });
+                if (string.IsNullOrEmpty(path)) return;
+                _fontFilePath = path;
+                FontFileLabel.Text = Path.GetFileName(path);
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Load failed: {0}", ex.Message));
+            }
+        }
+
+        void ClearFont_Click(object? sender, RoutedEventArgs e)
+        {
+            _fontFilePath = "";
+            FontFileLabel.Text = "";
+        }
+
+        void AutoGen_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No glyph selected.")); return; }
+
+                // The character to rasterize is the selected row's decoded glyph,
+                // carried verbatim on the VM (NOT re-parsed/trimmed) so a whitespace
+                // glyph character survives; the moji is the target slot.
+                string character = _vm.CurrentChar;
+                if (string.IsNullOrEmpty(character)) { CoreState.Services?.ShowError(R._("This glyph has no renderable character.")); return; }
+
+                // Build the cross-platform font selector: a loaded .ttf/.otf file
+                // wins; otherwise the typed family (resolved by SKTypeface).
+                var font = new FontSpec
+                {
+                    FamilyName = string.IsNullOrWhiteSpace(FontFamilyInput.Text) ? "SimSun" : FontFamilyInput.Text,
+                    Size = (float)(FontSizeInput.Value is { } sz && sz > 0 ? sz : 12m),
+                    FontFilePath = string.IsNullOrEmpty(_fontFilePath) ? null : _fontFilePath,
+                };
+                int vOffset = (int)(VOffsetInput.Value ?? 0m);
+
+                // Capture the target char code BEFORE reload (LoadList re-selects
+                // the first row), so we can re-select the just-edited glyph.
+                uint targetMoji = _vm.CurrentMoji;
+
+                var rasterizer = new FEBuilderGBA.SkiaSharp.SkiaFontRasterizer();
+
+                _undoService.Begin("Auto-Generate Chinese Font Glyph");
+                try
+                {
+                    string err = FontAutoGenZHCore.AutoGenerateGlyphZH(rom, rasterizer, font,
+                        character, targetMoji, _vm.IsItemFont, vOffset);
+                    if (!string.IsNullOrEmpty(err)) { _undoService.Rollback(); CoreState.Services?.ShowError(err); return; }
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+
+                LoadList();
+                SelectByMoji(targetMoji);
+                _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Glyph generated successfully."));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Auto-generate failed: {0}", ex.Message));
             }
         }
 

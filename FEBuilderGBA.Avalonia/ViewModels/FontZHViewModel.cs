@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         uint _currentMoji;
         int _currentWidth;
+        string _currentChar = "";
         bool _isLoaded;
         // 0 = Item font, 1 = Serif font (matches the WinForms FontZHForm FontType combo).
         int _fontTypeIndex;
@@ -24,6 +25,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint CurrentMoji { get => _currentMoji; set => SetField(ref _currentMoji, value); }
         public int CurrentWidth { get => _currentWidth; set => SetField(ref _currentWidth, value); }
+        /// <summary>
+        /// The decoded character of the selected glyph (for auto-generate). Carried
+        /// from the row label rather than re-parsed at the call site so a WHITESPACE
+        /// character (e.g. a space glyph) survives — the label is "&lt;hex&gt; &lt;char&gt;"
+        /// and the char part is taken verbatim, NOT trimmed.
+        /// </summary>
+        public string CurrentChar { get => _currentChar; set => SetField(ref _currentChar, value ?? ""); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public int FontTypeIndex { get => _fontTypeIndex; set => SetField(ref _fontTypeIndex, value); }
 
@@ -54,18 +62,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Load the glyph at <paramref name="addr"/> (the row's address). The row tag
         /// holds the character code, so we read the width from the struct (byte @ +1).
+        /// <paramref name="label"/> is the row's display label ("&lt;hex&gt; &lt;char&gt;");
+        /// the decoded character is carried into <see cref="CurrentChar"/> so the
+        /// auto-generate path uses it directly (no fragile re-parse — preserves a
+        /// whitespace glyph character).
         /// </summary>
-        public void LoadEntry(uint addr, uint moji)
+        public void LoadEntry(uint addr, uint moji, string label = "")
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
             CurrentAddr = addr;
             CurrentMoji = moji;
+            CurrentChar = CharFromLabel(label);
             CurrentWidth = U.isSafetyOffset(addr, rom) && (ulong)addr + 2 <= (ulong)rom.Data.Length
                 ? (int)rom.u8(addr + 1)
                 : 0;
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// The decoded character from a "&lt;hex&gt; &lt;char&gt;" row label: everything
+        /// after the FIRST space, taken VERBATIM (NOT trimmed) so a whitespace
+        /// character (e.g. a space glyph) is preserved. A label with no space (or
+        /// nothing after it) yields "". Public + static for direct unit testing.
+        /// </summary>
+        public static string CharFromLabel(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return "";
+            int sp = label.IndexOf(' ');
+            return sp >= 0 ? label.Substring(sp + 1) : "";
         }
 
         /// <summary>
