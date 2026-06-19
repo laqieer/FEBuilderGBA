@@ -716,10 +716,10 @@ https://dw.ngmansion.xyz/doku.php?id=en:guide:febuildergba:index
 
 ### FE8 Skill Systems
 
-Several FE8 editors — **FE8 Spell Menu Extends**, the **Skill** editors, and **Item Effectiveness (SkillSystems Rework)** — only show data once a community **Skill System** is installed on the ROM. Recommended sources:
+Several FE8 editors — **Spell Menu Extensions**, the **Skill** editors, and **Effectiveness (Skill Systems Rework)** — only show data once a community **Skill System** is installed on the ROM. Recommended sources:
 
 - **FE8U** (US/International): [FireEmblemUniverse/SkillSystem_FE8](https://github.com/FireEmblemUniverse/SkillSystem_FE8) (the canonical Event Assembler buildfile) or [MokhaLeee/fe8u-cskillsys-kernel](https://github.com/MokhaLeee/fe8u-cskillsys-kernel) (a modern C kernel).
-- **FE8J** (Japan): [ngmansion/FE8N](https://github.com/ngmansion/FE8N) (the de-facto-standard FE8J hacking base).
+- **FE8J** (Japan): [ngmansion/FE8N](https://github.com/ngmansion/FE8N) (the de facto standard FE8J hacking base).
 
 These projects distribute **patches / source**, not the game — apply them to a clean FE8 ROM you dumped yourself. See the [Skill Systems (FE8) wiki page](https://github.com/laqieer/FEBuilderGBA/wiki/Skill-Systems) for installation details.
 
