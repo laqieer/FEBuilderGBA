@@ -2637,11 +2637,16 @@ namespace FEBuilderGBA
         /// bytecode stream of 8-byte fixed instructions <c>(code:u16, sarg:u16, parg:u32)</c> from
         /// <paramref name="addr"/>, validating each opcode's argument contract and stopping at the EXIT
         /// codes (0x00 / 0x800). Returns the byte length consumed, or <see cref="U.NOT_FOUND"/> when the
-        /// stream violates the contract (an odd start, an unknown opcode, or a bad arg). Pure ROM reads —
-        /// every dereference is bounds-guarded by the WF <c>while (addr + 8 &lt;= limit)</c> clamp (which
-        /// guarantees <c>addr+7 &lt; Length</c> so the u16/u16/u32 triplet is always in-bounds), plus the
-        /// inner <c>getString</c> (code 0x01) and the GOTO-0 look-ahead recursion (code 0x0C) are both
-        /// themselves EOF-safe. Line-for-line faithful to the WinForms method.</summary>
+        /// stream violates the contract (an odd start, an unknown opcode, or a bad arg). NOTE (verbatim
+        /// WF): after advancing <c>addr += 8</c> the loop breaks on <c>if (addr + 8 &gt; limit) break;</c>
+        /// BEFORE the opcode-specific contract switch, so the final 8-byte slot that sits within
+        /// <c>[limit-8, limit)</c> is counted into the length WITHOUT running its contract/terminator
+        /// check — i.e. the per-opcode validation covers every slot except a trailing one at EOF (WF does
+        /// the same). Pure ROM reads — every dereference is bounds-guarded by the WF
+        /// <c>while (addr + 8 &lt;= limit)</c> clamp (which guarantees <c>addr+7 &lt; Length</c> so the
+        /// u16/u16/u32 triplet is always in-bounds), plus the inner <c>getString</c> (code 0x01) and the
+        /// GOTO-0 look-ahead recursion (code 0x0C) are both themselves EOF-safe. Line-for-line faithful
+        /// to the WinForms method.</summary>
         public static uint CalcProcsLengthAndCheck(ROM rom, uint addr)
         {
             if (U.IsValueOdd(addr))
