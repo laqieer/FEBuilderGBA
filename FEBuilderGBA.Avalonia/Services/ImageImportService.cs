@@ -153,24 +153,38 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Used for editors that share a global palette (e.g. item icons, system icons).
         /// Returns null if user cancels.
         /// </summary>
+        /// <param name="requireTileMultiple">
+        /// When <c>true</c> (default), the image width and height must both be
+        /// multiples of 8 - required for tile-based sprite/graphic import. Pass
+        /// <c>false</c> for editors whose glyph is NOT a whole number of 8x8 tiles
+        /// (e.g. the 16x13 Chinese font glyph, #1166) - the closest-color remap in
+        /// <c>ImageImportCore.RemapToExistingPalette</c> handles arbitrary dims.
+        /// Does NOT override <paramref name="strictSize"/> - both flags apply
+        /// independently.
+        /// </param>
         public static async Task<LoadResult> LoadAndRemapToExistingPalette(Window owner,
             int expectedWidth, int expectedHeight, byte[] existingGBAPalette, int colorCount,
-            bool strictSize = false)
+            bool strictSize = false, bool requireTileMultiple = true)
         {
             string filePath = await FileDialogHelper.OpenImageFile(owner);
             if (string.IsNullOrEmpty(filePath))
                 return null;
 
             return LoadAndRemapFromFile(filePath, expectedWidth, expectedHeight,
-                existingGBAPalette, colorCount, strictSize);
+                existingGBAPalette, colorCount, strictSize, requireTileMultiple);
         }
 
         /// <summary>
         /// Load image from file, validate, remap pixels to existing palette by closest color match.
         /// </summary>
+        /// <param name="requireTileMultiple">
+        /// When <c>true</c> (default), the image width and height must both be
+        /// multiples of 8. Pass <c>false</c> for non-tile glyphs (e.g. the 16x13
+        /// Chinese font glyph, #1166). See the overload above.
+        /// </param>
         public static LoadResult LoadAndRemapFromFile(string filePath,
             int expectedWidth, int expectedHeight, byte[] existingGBAPalette, int colorCount,
-            bool strictSize = false)
+            bool strictSize = false, bool requireTileMultiple = true)
         {
             var result = new LoadResult();
             var imgService = CoreState.ImageService;
@@ -199,7 +213,9 @@ namespace FEBuilderGBA.Avalonia.Services
                     return result;
                 }
 
-                if (image.Width % 8 != 0 || image.Height % 8 != 0)
+                // Skip the tile-size check for non-tile glyphs (e.g. the 16x13 ZH font
+                // glyph, #1166). RemapToExistingPalette handles arbitrary dims.
+                if (requireTileMultiple && (image.Width % 8 != 0 || image.Height % 8 != 0))
                 {
                     result.Error = $"Image dimensions must be multiples of 8 (got {image.Width}x{image.Height})";
                     return result;

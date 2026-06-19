@@ -483,6 +483,40 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(hit);
                 Assert.Equal(9, hit!.Width);
                 Assert.Equal(CHAR_TEN, hit.Name); // '、' decoded from the ZH TBL
+                Assert.Equal(MOJI_TEN, hit.Moji); // moji carried straight from the TBL map
+
+                // The TBL-carried Moji must equal the per-char re-encode it replaced
+                // (EncodeMoji == the old MojiFromChar path) — the #1166 perf fix builds
+                // the encoder ONCE per enumeration instead of once per glyph, with
+                // identical results.
+                Assert.Equal(FontGlyphZHCore.EncodeMoji(rom, hit.Name), hit.Moji);
+            }
+            finally { CoreState.BaseDirectory = prevBase; }
+        }
+
+        [Fact]
+        public void EnumerateGlyphsZH_MojiRoundTripsToCorrectCodeB()
+        {
+            // The Moji carried in each entry MUST re-derive the SAME slot address it was
+            // enumerated at — proving the once-built-encoder optimization keeps the moji
+            // usable for re-import (ImportGlyphZH(moji) -> CalcCodeB(moji) -> same slot).
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return; // skip
+            string tbl = System.IO.Path.Combine(repoRoot, "config", "translate", "zh_tbl", "FE8.tbl");
+            if (!System.IO.File.Exists(tbl)) return; // skip when the TBL is absent
+
+            using var _ = NewStub();
+            var prevBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                var list = FontGlyphZHCore.EnumerateGlyphsZH(rom, isItemFont: false);
+                Assert.NotEmpty(list);
+                foreach (var g in list)
+                    Assert.Equal(g.Addr, FontGlyphZHCore.FindGlyphZH(rom, isItemFont: false, g.Moji));
             }
             finally { CoreState.BaseDirectory = prevBase; }
         }

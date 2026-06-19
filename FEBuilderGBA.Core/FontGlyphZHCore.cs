@@ -24,9 +24,10 @@
 //   * PackGlyphZHBytes(indexedPixels,width) — port of ImageUtil.Image4ToByteZH
 //     (16-wide 2bpp pack capped at 40 bytes).
 //   * ImportGlyphZH(...) — ROM-MUTATING port of FontZHForm.WriteButton_Click:
-//     validate-all-before-mutate, in-place update if the slot exists, else append a
-//     44-byte struct + repoint. Byte-identical fault restore (#885/#923) + ambient
-//     undo threading, mirroring FontGlyphRenderCore.ImportGlyph.
+//     validate-all-before-mutate, then update the directly-referenced slot at
+//     topaddress+codeB IN PLACE (the ZH table is pre-sized; an out-of-range slot is
+//     an error, never an append — every glyph has a fixed slot). Byte-identical fault
+//     restore (#885/#923) + ambient undo threading, mirroring FontGlyphRenderCore.ImportGlyph.
 //
 // The ZH glyph struct is 44 bytes:
 //   byte0 unk1 (0xD) | byte1 width | byte2 height (0xD) | byte3 0x00 | 40-byte bitmap
@@ -244,23 +245,27 @@ namespace FEBuilderGBA.Core
                 list.Add(new FontGlyphZHEntry
                 {
                     Addr = addr,
-                    Moji = MojiFromChar(rom, p.Value),
+                    // Moji comes straight from the TBL map (it is the engine code
+                    // CalcCodeB already consumed) — no per-glyph re-encode.
+                    Moji = p.Value.Moji,
                     Width = (int)rom.u8(addr + OFF_WIDTH),
-                    Name = p.Value,
+                    Name = p.Value.Name,
                 });
             }
             return list;
         }
 
         /// <summary>
-        /// Build the { codeB -> char } map from the ZH TBL encoder, mirroring
-        /// FontZHForm.MakeCodeBMap. Builds its OWN ZH_TBL encoder on demand so the
-        /// list is populated even when the app's CoreState encoder is Auto. Returns
-        /// an empty map when the ZH TBL can't be loaded.
+        /// Build the { codeB -> (char, moji) } map from the ZH TBL encoder, mirroring
+        /// FontZHForm.MakeCodeBMap. Builds the ZH_TBL encoder ONCE (the TBL is parsed a
+        /// single time per enumeration — on a CN ROM the map has thousands of entries,
+        /// so re-parsing per glyph was the #1166 hot path). The moji is carried in the
+        /// value so the enumeration never re-encodes. Returns an empty map when the ZH
+        /// TBL can't be loaded.
         /// </summary>
-        static Dictionary<uint, string> BuildCodeBMap(ROM rom)
+        static Dictionary<uint, (string Name, uint Moji)> BuildCodeBMap(ROM rom)
         {
-            var codeBMap = new Dictionary<uint, string>();
+            var codeBMap = new Dictionary<uint, (string, uint)>();
             ISystemTextEncoder encoder = GetZHEncoder(rom);
             if (encoder == null) return codeBMap;
 
@@ -271,24 +276,29 @@ namespace FEBuilderGBA.Core
             {
                 uint codeB = CalcCodeB(p.Value);
                 if (codeB == U.NOT_FOUND) continue;
-                codeBMap[codeB] = p.Key; // last char for a colliding codeB wins (as WF)
+                // last char for a colliding codeB wins (as WF); p.Value is the moji.
+                codeBMap[codeB] = (p.Key, p.Value);
             }
             return codeBMap;
         }
 
         /// <summary>
-        /// A ZH_TBL encoder for this ROM. Reuses CoreState.SystemTextEncoder when it
-        /// is already a ZH encoder (CLI path); otherwise builds a fresh one from
-        /// config/translate/zh_tbl/{FE6,FE7,FE8}.tbl (Avalonia path, encoding=Auto).
-        /// Returns null when the TBL can't be loaded.
+        /// A fresh ZH_TBL encoder for this ROM, built from
+        /// config/translate/zh_tbl/{FE6,FE7,FE8}.tbl. Always constructs a NEW
+        /// SystemTextEncoder (independent of CoreState.SystemTextEncoder, since the
+        /// Avalonia app keeps encoding=Auto). SystemTextEncoder.LoadTBL FALLS BACK
+        /// rather than throwing when the TBL is missing, so this normally does NOT
+        /// return null — a missing TBL yields an encoder whose GetTBLEncodeDicLow() is
+        /// empty (the enumeration then produces an empty list, no crash). Returns null
+        /// only if the constructor itself throws.
         /// </summary>
         static ISystemTextEncoder GetZHEncoder(ROM rom)
         {
             try
             {
                 var enc = new SystemTextEncoder(TextEncodingEnum.ZH_TBL, rom);
-                // GetTBLEncodeDicLow returns empty for a non-TBL encoder; an empty
-                // map just yields an empty list (no crash), so this is safe.
+                // A missing/unparseable TBL yields an empty GetTBLEncodeDicLow(); an
+                // empty map just yields an empty list (no crash), so this is safe.
                 return enc;
             }
             catch
@@ -472,11 +482,13 @@ namespace FEBuilderGBA.Core
         /// <summary>
         /// Import one glyph for <paramref name="moji"/> into the item/serif ZH font.
         /// Validate-all-before-mutate: dims must be 16x13 and every consumed index
-        /// 0..3 (else localized error + ZERO mutation). Existing glyph → in-place
-        /// width + bitmap update; new glyph → build a 44-byte struct + append to free
-        /// space + repoint the directly-referenced slot. This call clones the ROM and
-        /// restores it byte-identical on any fault (#885/#923). Returns "" on success
-        /// or a localized error string; never throws.
+        /// 0..3 (else localized error + ZERO mutation). The ZH table is a DIRECT-reference
+        /// array (every glyph has a fixed slot at topaddress+codeB), so this always
+        /// updates that slot IN PLACE — width + bitmap; there is no append/repoint path.
+        /// A slot that does not fit in-bounds returns an out-of-range error (the table is
+        /// too small for this char). This call clones the ROM and restores it
+        /// byte-identical on any fault (#885/#923). Returns "" on success or a localized
+        /// error string; never throws.
         /// </summary>
         /// <param name="explicitWidth">Advance width to write. When &lt; 0 it is
         /// derived from the glyph pixels; when &gt;= 0 the supplied value wins.</param>

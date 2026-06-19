@@ -146,10 +146,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint importedMoji = _vm.CurrentMoji;
 
                 // Remap the PNG onto the 4-color ZH font palette (colorCount=4 so the
-                // quantized indices stay 0..3). ZH glyphs are 16x13.
+                // quantized indices stay 0..3). ZH glyphs are 16x13 — height 13 is NOT a
+                // multiple of 8, so requireTileMultiple MUST be false or strictSize-correct
+                // 16x13 PNGs would be rejected by the tile-size guard (#1166 import bug).
                 byte[] fontPal = FontGlyphZHCore.GetFontPaletteGBA(_vm.IsItemFont);
                 var result = await ImageImportService.LoadAndRemapToExistingPalette(this,
-                    FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, fontPal, 4, strictSize: true);
+                    FontGlyphZHCore.GLYPH_W, FontGlyphZHCore.GLYPH_H, fontPal, 4,
+                    strictSize: true, requireTileMultiple: false);
                 if (result == null) return;                                  // cancelled
                 if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; } // BEFORE the undo scope
 
