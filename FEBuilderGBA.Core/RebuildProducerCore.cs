@@ -137,6 +137,20 @@ namespace FEBuilderGBA
             /// +0 name-NULL tie-break, distinct from <see cref="PointerAt"/> which terminates on any
             /// non-pointer).</summary>
             UnitPaletteRule,
+            /// <summary><c>ImageCGForm.Init</c> rule (the 10-split big-CG table): continue while the entry's
+            /// <c>+0</c> field is a ROM pointer AND the FIRST u32 at its target is ALSO a ROM pointer
+            /// (<c>p = u32(addr+0); isPointer(p) &amp;&amp; isSafetyPointer(p); p2 = u32(toOffset(p));
+            /// isPointer(p2) &amp;&amp; isSafetyPointer(p2)</c>). The double-indirection is how WF
+            /// distinguishes the 10-image-pointer-array CG entries from stray pointers. EOF-hardened on the
+            /// inner <c>u32(toOffset(p))</c> read. <see cref="StructDescriptor.RuleOffset"/> selects the
+            /// entry field (ImageCGForm uses 0).</summary>
+            NestedPointerAt,
+            /// <summary><c>ImageCGFE7UForm.Init</c> rule: continue while <c>u16(addr + RuleOffset) ==
+            /// <see cref="StructDescriptor.RuleStopValue"/></c> (NOT "!="). Distinct from
+            /// <see cref="U16NotEqual"/> (which CONTINUES while the value differs); this CONTINUES while the
+            /// value MATCHES (ImageCGFE7U: <c>u16(addr+2) == 0</c> — entries are 16-byte-aligned so the
+            /// padding u16 at +2 stays 0 within the table).</summary>
+            U16EqualAt,
         }
 
         /// <summary>How a <see cref="SubWalk"/> reproduces the per-entry embedded-data
@@ -201,6 +215,17 @@ namespace FEBuilderGBA
             /// the OPClassDemo forms, however, have form-specific per-entry guard ordering, so they call
             /// <see cref="EmitNestedIfrSub"/> directly from a dedicated emitter rather than the flat loop.</summary>
             NestedIfr,
+            /// <summary>An embedded HEADER-TSA pointer (a 2-byte <c>{x,y}</c> master-header stream behind a
+            /// pointer). Emits via <see cref="EmitHeaderTsaPointer"/> VERBATIM (reads <c>u32(p +
+            /// EmbeddedPointerOffset)</c>, <c>isSafetyPointer</c>-checks, then adds a
+            /// <see cref="Address.DataTypeEnum.HEADERTSA"/> block whose length is
+            /// <see cref="CalcHeaderTsaLength"/> over the dereferenced target). Matches the per-entry
+            /// <c>AddHeaderTSAPointer(list, p + N, name, isPointerOnly)</c> in the header-TSA image forms
+            /// (ImageBGForm / ImageCGForm / ImageCGFE7UForm). The label is taken from
+            /// <see cref="SubWalk.Name"/>; <see cref="SubWalk.FixedLength"/> / <see cref="SubWalk.DataType"/>
+            /// are unused (the type is fixed HEADERTSA, the length is computed). EOF-safe (the dereference is
+            /// full-extent-guarded; the length calc rejects a header that does not fit).</summary>
+            HeaderTsaPointer,
         }
 
         /// <summary>One per-entry embedded-data sub-walk applied to every entry of a
@@ -470,9 +495,9 @@ namespace FEBuilderGBA
 
             // ---- slice 2e: flat LZ77-image + palette forms that are NOT a descriptor walk ----
             // ImageBattleScreenForm is version-agnostic (called in the WF unconditional section);
-            // WorldMapImageFE6Form / WorldMapImageFE7Form are version-gated (the FE8 WorldMapImageForm
-            // is DEFERRED — it uses AddHeaderTSAPointer / AddROMTCSPointer, both ImageUtil-backed and
-            // not yet in Core). Each gets its own cancel-check, mirroring the WF DoEvents checkpoints.
+            // WorldMapImageFE6Form / WorldMapImageFE7Form are version-gated (the FE8 WorldMapImageForm is
+            // ported in slice 2k — EmitWorldMapImageFE8, now that CalcRomTcsLength is in Core).
+            // Each gets its own cancel-check, mirroring the WF DoEvents checkpoints.
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -480,6 +505,29 @@ namespace FEBuilderGBA
             }
             progress?.Report("ImageBattleScreen");
             EmitImageBattleScreen(rom, list);
+
+            // ---- slice 2k: header-TSA image forms (version-agnostic call site) ----
+            // ImageBGForm (BG256-aware per-entry HEADER-TSA branch) and ImageSystemIconForm (flat
+            // version-gated LZ77/PAL/HEADER-TSA sequence) are both called in the WF unconditional section.
+            // The FE8/FE7-multibyte ImageCGForm, FE7U ImageCGFE7UForm, and FE8 WorldMapImageForm are
+            // version-gated and wired into their respective version branches below. Each gets its own
+            // cancel-check, mirroring the WF DoEvents posture. ImageTSAAnime2Form STAYS deferred — its
+            // g_TSAAnime table is a config-FILE TSV (U.LoadTSVResource("tsaanime2_")), not a RomInfo table.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageBG");
+            EmitImageBG(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageSystemIcon");
+            EmitImageSystemIcon(rom, list);
 
             // ---- slice 2f: ItemUsagePointerForm (version-agnostic) ----
             // ItemUsagePointerForm.MakeAllDataLength is NOT a flat descriptor walk: it loops the 10
@@ -641,6 +689,27 @@ namespace FEBuilderGBA
                     progress?.Report("ExtraUnitFE8U");
                     EmitExtraUnitFE8U(rom, list);
                 }
+
+                // ---- slice 2k: WorldMapImageForm + ImageCGForm (FE8) ----
+                // WF (version==8) calls WorldMapImageForm.MakeAllDataLength and ImageCGForm.MakeAllDataLength
+                // UNCONDITIONALLY within the version==8 branch (NOT multibyte-gated). EmitWorldMapImageFE8 is
+                // the FE8 big-map/event/mini/icon/border(ROMTCS)/icondata sequence; EmitImageCG is the
+                // 12-byte big-CG IFR with the per-entry 10-image-pointer array + HEADER-TSA.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("WorldMapImageFE8");
+                EmitWorldMapImageFE8(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImageCG");
+                EmitImageCG(rom, list);
             }
 
             if (rom.RomInfo.version == 7)
@@ -658,6 +727,12 @@ namespace FEBuilderGBA
                 // FE7U non-multibyte path uses OPClassDemoFE7UForm, still deferred). ONE nested N2 IFR
                 // sub-table @ +28 (block 2), an LZ77 column @ +8, and a trailing absolute common-palette
                 // pointer — a dedicated emitter (EmitOPClassDemoFE7) reproduces the shape verbatim.
+                // ---- slice 2k: ImageCGForm (FE7-multibyte) / ImageCGFE7UForm (FE7U non-multibyte) ----
+                // WF (version==7) calls ImageCGForm.MakeAllDataLength inside `is_multibyte` and
+                // ImageCGFE7UForm.MakeAllDataLength inside `!is_multibyte` — a version/multibyte split (the
+                // two forms differ in block size + per-entry shape: ImageCG = block 12, NestedPointer rule,
+                // always-10-split; ImageCGFE7U = block 16, u16(+2)==0 rule, per-entry flag@+0 16-color-vs-
+                // 10-split). Gate EXACTLY as WF (a wrong-shape port corrupts; cf. the #1274 FE6 bug).
                 if (rom.RomInfo.is_multibyte)
                 {
                     if (ct.IsCancellationRequested)
@@ -667,6 +742,24 @@ namespace FEBuilderGBA
                     }
                     progress?.Report("OPClassDemoFE7");
                     EmitOPClassDemoFE7(rom, list);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("ImageCG");
+                    EmitImageCG(rom, list);
+                }
+                else
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("ImageCGFE7U");
+                    EmitImageCGFE7U(rom, list);
                 }
             }
             else if (rom.RomInfo.version == 6)
@@ -905,6 +998,16 @@ namespace FEBuilderGBA
                             // per-entry guard ordering differs from this flat loop), but it is available to
                             // the flat SubWalk loop for any future single-nested-sub-table form.
                             EmitNestedIfrSub(rom, list, pfield, sw.SubBlockSize, sw.SubRule,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name);
+                            break;
+
+                        case SubKind.HeaderTsaPointer:
+                            // The header-TSA image forms' per-entry TSA column:
+                            // Address.AddHeaderTSAPointer(list, p + N, name, isPointerOnly). Reads
+                            // u32(pfield), isSafetyPointer-checks, then adds a HEADERTSA block whose length
+                            // is CalcHeaderTsaLength over the dereferenced target. No encoder needed (no
+                            // string decode). EOF-safe (full-extent-guarded dereference).
+                            EmitHeaderTsaPointer(rom, list, pfield,
                                 sw.Name != null ? sw.Name(rom, i) : d.Name);
                             break;
 
@@ -1419,6 +1522,600 @@ namespace FEBuilderGBA
             Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_image_pointer, "worldmap_event_image", false, Address.DataTypeEnum.LZ77IMG);
             Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_tsa_pointer, "worldmap_event_tsa", false, Address.DataTypeEnum.LZ77TSA);
             Address.AddPointer(list, rom.RomInfo.worldmap_event_palette_pointer, 0x20 * 4, "worldmap_event_palette", Address.DataTypeEnum.PAL);
+        }
+
+        // -------------------------------------------------------------------------------------------
+        // slice 2k: header-TSA image primitives (the header-TSA image forms)
+        // -------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Byte-exact port of WinForms <c>ImageUtil.CalcByteLengthForHeaderTSAData(data, pos)</c>: a
+        /// header-TSA stream begins with a 2-byte <c>{x, y}</c> master-header (each stored value is the
+        /// dimension minus one), and the body is <c>(x+1) * (y+1)</c> 16-bit cells; total length =
+        /// <c>2 + (x+1)*(y+1)*2</c>. Returns 0 (degenerate / "no data") when the 2-byte header itself does
+        /// not fit (<c>pos + 2 &gt;= Length</c>) — VERBATIM, including the WF <c>&gt;=</c> (so a header
+        /// ending exactly at <c>Length</c> is rejected), which keeps the producer's emitted lengths
+        /// byte-identical to the WF rebuild manifest. EOF-safe: never reads past the 2-byte header.
+        /// </summary>
+        public static uint CalcHeaderTsaLength(ROM rom, uint pos)
+        {
+            // WF: if (pos + 2 >= data.Length) return 0;  (the 2-byte header must fit AND not end at EOF)
+            if (pos + 2 >= (uint)rom.Data.Length)
+            {
+                return 0;
+            }
+            uint master_headerx = rom.u8(pos) + 1;
+            uint master_headery = rom.u8(pos + 1) + 1;
+            return 2 + (master_headerx * master_headery * 2);
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>Address.AddHeaderTSAPointer(list, pointer, info, isPointerOnly)</c>: the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a header-TSA stream; emit a
+        /// <see cref="Address.DataTypeEnum.HEADERTSA"/> block whose length is
+        /// <see cref="CalcHeaderTsaLength"/> over the dereferenced target. The producer always scans real
+        /// lengths (a defragment is never <c>isPointerOnly</c>), so the WF <c>isPointerOnly ? 0 : …</c>
+        /// branch is fixed to the real-length side.
+        /// <para>EOF-HARDENING: WF reads <c>u32(pointer)</c> after only a single-byte
+        /// <c>isSafetyOffset(pointer)</c> check, so a <paramref name="pointer"/> in the last 3 bytes would
+        /// throw inside <c>u32</c>. The producer guards the FULL 4-byte read extent (<c>pointer + 4 &lt;=
+        /// Length</c>) before dereferencing — valid-ROM-equivalent (WF would throw there on a malformed
+        /// near-EOF ROM), matching the established producer discipline on every raw computed read.</para>
+        /// </summary>
+        public static void EmitHeaderTsaPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            // EOF-harden: u32(pointer) reads pointer..pointer+3 — guard the full extent (WF relies on a
+            // valid ROM where isSafetyOffset(pointer) implies the 4 bytes are present).
+            if (pointer + 4 > (uint)rom.Data.Length)
+            {
+                return;
+            }
+            uint addr = rom.u32(pointer);
+            if (!U.isSafetyPointer(addr, rom))
+            {
+                return;
+            }
+            uint length = CalcHeaderTsaLength(rom, U.toOffset(addr));
+            list.Add(new Address(addr, length, pointer, info, Address.DataTypeEnum.HEADERTSA));
+        }
+
+        /// <summary>
+        /// Byte-exact port of WinForms <c>ImageUtilAP.CalcROMTCSLength(addr, rom)</c>: a ROMTCS (worldmap
+        /// county-border AP) stream's length is found by <c>U.Grep</c>-scanning forward from
+        /// <paramref name="addr"/> (capped at <c>addr + 20000</c> or EOF) for the EARLIEST of five known
+        /// terminator byte-patterns; the length is <c>(matchAddr + plusOffset) - addr</c> using that
+        /// pattern's trailer size. Returns 0 when no terminator is found (no data to relocate). All reads
+        /// are pure ROM byte-pattern <c>U.Grep</c>s — no System.Drawing / disasm / PatchUtil — so this is
+        /// faithfully headless. EOF-safe (the scan is clamped to <c>rom.Data.Length</c>).
+        /// </summary>
+        public static uint CalcRomTcsLength(ROM rom, uint addr)
+        {
+            byte[][] needArray = new byte[][]
+            {
+                 new byte[] { 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF }
+                ,new byte[] { 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF, 0xFF }
+                ,new byte[] { 0x05, 0x00, 0x00, 0x00, 0xFF, 0xFF }
+                ,new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x10, 0x00 }
+                ,new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x00 }
+            };
+            uint[] plusOffsetArray = new uint[] { 14, 8, 6, 6, 4 };
+
+            uint limit = addr + 20000;
+            if (limit > (uint)rom.Data.Length)
+            {
+                limit = (uint)rom.Data.Length;
+            }
+
+            uint endAddr = U.NOT_FOUND;
+            uint plusOffset = 0;
+            for (int i = 0; i < needArray.Length; i++)
+            {
+                uint a = U.Grep(rom.Data, needArray[i], addr, limit, 2);
+                if (endAddr > a)
+                {
+                    endAddr = a;
+                    plusOffset = plusOffsetArray[i];
+                }
+            }
+
+            if (endAddr == U.NOT_FOUND)
+            {
+                return 0;
+            }
+            uint apLen = (endAddr + plusOffset) - addr;
+            return apLen;
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>Address.AddROMTCSPointer(list, pointer, info, isPointerOnly)</c>: the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a ROMTCS AP stream; emit a
+        /// <see cref="Address.DataTypeEnum.ROMTCS"/> block whose length is <see cref="CalcRomTcsLength"/>
+        /// over the dereferenced target. As with <see cref="EmitHeaderTsaPointer"/>, the producer always
+        /// scans real lengths. EOF-HARDENING: guard the full 4-byte <c>u32(pointer)</c> read extent before
+        /// dereferencing (WF reads it after only a single-byte <c>isSafetyOffset(pointer)</c> check).
+        /// </summary>
+        public static void EmitRomTcsPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (pointer + 4 > (uint)rom.Data.Length)
+            {
+                return;
+            }
+            uint addr = rom.u32(pointer);
+            if (!U.isSafetyPointer(addr, rom))
+            {
+                return;
+            }
+            // WF AddROMTCSPointer(pointer-slot form) -> AddROMTCSPointer(addr, pointer, ...): addr is
+            // toOffset'd + isSafetyOffset-checked inside, then length = CalcROMTCSLength(addr).
+            uint target = U.toOffset(addr);
+            if (!U.isSafetyOffset(target, rom))
+            {
+                return;
+            }
+            uint length = CalcRomTcsLength(rom, target);
+            list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.ROMTCS));
+        }
+
+        // -------------------------------------------------------------------------------------------
+        // slice 2k: the header-TSA image form emitters
+        // -------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// <c>ImageSystemIconForm.MakeAllDataLength</c> (slice 2k, version-agnostic call site; internally
+        /// version-gated). A long FLAT sequence of system-icon LZ77 images + PALs + HEADER-TSA pointers,
+        /// reading RomInfo pointers directly (each <c>image = p32(pointer)</c>, then
+        /// <see cref="Address.AddAddress"/> with the precomputed addr). The <c>version &gt;= 7</c>,
+        /// <c>version == 8</c>, and <c>version &gt;= 8</c> internal gates are reproduced VERBATIM. All reads
+        /// are pure ROM (<c>p32</c> / <c>LZ77.getCompressedSize</c> via AddAddress/AddLZ77Pointer /
+        /// <see cref="EmitHeaderTsaPointer"/>); the producer always computes real lengths (isPointerOnly
+        /// false), so the WF <c>isPointerOnly ? 0 : getCompressedSize</c> branch is fixed to the real side.
+        /// </summary>
+        public static void EmitImageSystemIcon(ROM rom, List<Address> list)
+        {
+            uint image, palette;
+
+            image = rom.p32(rom.RomInfo.system_icon_pointer);
+            palette = rom.p32(rom.RomInfo.system_icon_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.system_icon_pointer, "system_icon image", Address.DataTypeEnum.LZ77IMG);
+            Address.AddAddress(list, palette, 0x20 * 2,
+                rom.RomInfo.system_icon_palette_pointer, "system_icon pal", Address.DataTypeEnum.PAL);
+
+            image = rom.p32(rom.RomInfo.system_move_allowicon_pointer);
+            palette = rom.p32(rom.RomInfo.system_move_allowicon_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.system_move_allowicon_pointer, "system_icon image", Address.DataTypeEnum.LZ77IMG);
+            Address.AddAddress(list, palette, 0x20,
+                rom.RomInfo.system_move_allowicon_palette_pointer, "system_move_allowicon pal", Address.DataTypeEnum.LZ77PAL);
+
+            image = rom.p32(rom.RomInfo.system_weapon_icon_pointer);
+            palette = rom.p32(rom.RomInfo.system_weapon_icon_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.system_weapon_icon_pointer, "system_weapon image", Address.DataTypeEnum.LZ77IMG);
+            Address.AddAddress(list, palette, 0x20,
+                rom.RomInfo.system_weapon_icon_palette_pointer, "system_weapon pal", Address.DataTypeEnum.PAL);
+
+            image = rom.p32(rom.RomInfo.system_music_icon_pointer);
+            palette = rom.p32(rom.RomInfo.system_music_icon_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.system_music_icon_pointer, "system_music image", Address.DataTypeEnum.LZ77IMG);
+            Address.AddAddress(list, palette, 0x20,
+                rom.RomInfo.system_music_icon_palette_pointer, "system_music pal", Address.DataTypeEnum.PAL);
+
+            Address.AddAddress(list, rom.RomInfo.unit_icon_palette_address, 0x20,
+                U.NOT_FOUND, "unit_icon_play pal", Address.DataTypeEnum.PAL);
+            Address.AddAddress(list, rom.RomInfo.unit_icon_enemey_palette_address, 0x20,
+                U.NOT_FOUND, "unit_icon_enemey pal", Address.DataTypeEnum.PAL);
+            Address.AddAddress(list, rom.RomInfo.unit_icon_npc_palette_address, 0x20,
+                U.NOT_FOUND, "unit_icon_npc pal", Address.DataTypeEnum.PAL);
+            Address.AddAddress(list, rom.RomInfo.unit_icon_gray_palette_address, 0x20,
+                U.NOT_FOUND, "unit_icon_gray pal", Address.DataTypeEnum.PAL);
+            Address.AddAddress(list, rom.RomInfo.unit_icon_four_palette_address, 0x20,
+                U.NOT_FOUND, "unit_icon_for pal", Address.DataTypeEnum.PAL);
+
+            if (rom.RomInfo.version >= 7)
+            {
+                image = rom.p32(rom.RomInfo.systemmenu_common_image_pointer);
+                palette = rom.p32(rom.RomInfo.systemmenu_common_palette_pointer);
+                Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                    rom.RomInfo.systemmenu_common_image_pointer, "systemmenu_goal image", Address.DataTypeEnum.LZ77IMG);
+                EmitHeaderTsaPointer(rom, list, rom.RomInfo.systemmenu_goal_tsa_pointer, "systemmenu_goal tsa");
+                Address.AddAddress(list, palette, 0x20 * 4,
+                    rom.RomInfo.systemmenu_common_palette_pointer, "systemmenu_goal pal", Address.DataTypeEnum.PAL);
+            }
+
+            image = rom.p32(rom.RomInfo.systemmenu_common_image_pointer);
+            palette = rom.p32(rom.RomInfo.systemmenu_common_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.systemmenu_common_image_pointer, "systemmenu_common image", Address.DataTypeEnum.LZ77IMG);
+            EmitHeaderTsaPointer(rom, list, rom.RomInfo.systemmenu_terrain_tsa_pointer, "systemmenu_common tsa");
+            Address.AddAddress(list, palette, 0x20 * 4,
+                rom.RomInfo.systemmenu_common_palette_pointer, "systemmenu_common", Address.DataTypeEnum.LZ77IMG);
+
+            EmitHeaderTsaPointer(rom, list, rom.RomInfo.systemmenu_name_tsa_pointer, "systemmenu_name tsa");
+
+            image = rom.p32(rom.RomInfo.systemmenu_battlepreview_image_pointer);
+            palette = rom.p32(rom.RomInfo.systemmenu_battlepreview_palette_pointer);
+            Address.AddAddress(list, image, LZ77.getCompressedSize(rom.Data, image),
+                rom.RomInfo.systemmenu_battlepreview_image_pointer, "systemmenu_battlepreview image", Address.DataTypeEnum.LZ77IMG);
+            EmitHeaderTsaPointer(rom, list, rom.RomInfo.systemmenu_battlepreview_tsa_pointer, "systemmenu_battlepreview tsa");
+            Address.AddAddress(list, palette, 0x20 * 4,
+                rom.RomInfo.systemmenu_battlepreview_palette_pointer, "systemmenu_battlepreview pal", Address.DataTypeEnum.PAL);
+            if (rom.RomInfo.version == 8)
+            {//FE8の場合、画像イメージは4つのポインタがあります。
+                uint other_image_p = rom.RomInfo.systemmenu_battlepreview_image_pointer;
+                Address.AddLZ77Pointer(list, other_image_p + 4, "systemmenu_battlepreview_enemy", false, Address.DataTypeEnum.LZ77IMG);
+                Address.AddLZ77Pointer(list, other_image_p + 8, "systemmenu_battlepreview_npc", false, Address.DataTypeEnum.LZ77IMG);
+                Address.AddLZ77Pointer(list, other_image_p + 12, "systemmenu_battlepreview_4th", false, Address.DataTypeEnum.LZ77IMG);
+            }
+
+            palette = rom.p32(rom.RomInfo.systemarea_move_gradation_palette_pointer);
+            Address.AddAddress(list, palette, 0x20 * 3,
+                rom.RomInfo.systemarea_move_gradation_palette_pointer, "systemarea_move_gradation", Address.DataTypeEnum.PAL);
+            palette = rom.p32(rom.RomInfo.systemarea_attack_gradation_palette_pointer);
+            Address.AddAddress(list, palette, 0x20 * 3,
+                rom.RomInfo.systemarea_attack_gradation_palette_pointer, "systemarea_attack_gradation", Address.DataTypeEnum.PAL);
+            palette = rom.p32(rom.RomInfo.systemarea_staff_gradation_palette_pointer);
+            Address.AddAddress(list, palette, 0x20 * 3,
+                rom.RomInfo.systemarea_staff_gradation_palette_pointer, "systemarea_staff_gradation", Address.DataTypeEnum.PAL);
+
+            if (rom.RomInfo.version >= 8)
+            {//FE8
+                image = rom.p32(rom.RomInfo.systemmenu_badstatus_image_pointer);
+                Address.AddAddress(list, image, 40 * (8 * 9) / 2,
+                    rom.RomInfo.systemmenu_badstatus_image_pointer, "systemmenu_badstatus", Address.DataTypeEnum.LZ77IMG);
+            }
+            else if (rom.RomInfo.version >= 7)
+            {//FE7
+                image = rom.p32(rom.RomInfo.systemmenu_badstatus_image_pointer);
+                Address.AddAddress(list, image, 40 * (8 * 4) / 2,
+                    rom.RomInfo.systemmenu_badstatus_image_pointer, "systemmenu_badstatus", Address.DataTypeEnum.LZ77IMG);
+            }
+            else
+            {//FE6
+            }
+
+            palette = rom.p32(rom.RomInfo.systemmenu_badstatus_palette_pointer);
+            Address.AddAddress(list, palette, 0x20,
+                rom.RomInfo.systemmenu_badstatus_palette_pointer, "systemmenu_badstatus_palette", Address.DataTypeEnum.PAL);
+
+            EmitHeaderTsaPointer(rom, list, rom.RomInfo.system_tsa_16color_304x240_pointer, "system_tsa_16color_304x240");
+        }
+
+        /// <summary>
+        /// <c>ImageBGForm.MakeAllDataLength</c> (slice 2k, version-agnostic). A 12-byte IFR table at
+        /// <c>bg_pointer</c> (rule <see cref="DataCountRule.NestedPointerAt"/>'s sibling — actually
+        /// <c>ImageBGCore.IsValidEntry</c>, the BG256-aware pointer-or-NULL rule), PI <c>{0,4,8}</c>. Per
+        /// entry the WF emits one of three shapes depending on the <c>+4</c> field under the
+        /// <c>BG256Color</c> patch: a 255-color cutscene (<c>tsa==0</c>) / 224-color (<c>tsa==1</c>) entry
+        /// is LZ77 image + a 0x20*16 PAL (NO TSA); a normal entry is LZ77 image + a HEADER-TSA + a 0x20*8
+        /// PAL. Reproduced VERBATIM (the per-entry branch matches WF, NOT the renderer).
+        /// </summary>
+        public static void EmitImageBG(ROM rom, List<Address> list)
+        {
+            EmitImageBGAt(rom, list, rom.RomInfo.bg_pointer);
+        }
+
+        /// <summary>ImageBG walk from an explicit pointer slot (test seam — lets a synthetic ROM supply it
+        /// without populating RomInfo). See <see cref="EmitImageBG"/>.</summary>
+        public static void EmitImageBGAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 12;
+
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists = ImageBGForm.Init (the BG256-aware pointer-or-NULL rule). getBlockDataCount
+            // only fires while addr+block(12)<=Length, so the +0/+4 u32 reads are always in bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                ImageBGCore.IsValidEntry(rom, rom.u32(addr + 0), rom.u32(addr + 4)));
+
+            // Main IFR: AddAddress(IFR, "BG", {0,4,8}).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "BG",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 4, 8 }));
+
+            bool isBG256ColorPatch = PatchDetection.HasBG256ColorPatch(rom);
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "BG " + U.To0xHexString((int)i);
+                uint tsa = rom.u32(p + 4);
+                if (isBG256ColorPatch)
+                {
+                    if (tsa == 0)
+                    {//255色画像
+                        Address.AddLZ77Pointer(list, p + 0, name + " 255 color IMAGE", false, Address.DataTypeEnum.LZ77IMG);
+                        Address.AddPointer(list, p + 8, 0x20 * 16, name + " PALETTE", Address.DataTypeEnum.PAL);
+                        continue;
+                    }
+                    else if (tsa == 1)
+                    {//224色画像
+                        Address.AddLZ77Pointer(list, p + 0, name + " 224 color IMAGE", false, Address.DataTypeEnum.LZ77IMG);
+                        Address.AddPointer(list, p + 8, 0x20 * 16, name + " PALETTE", Address.DataTypeEnum.PAL);
+                        continue;
+                    }
+                }
+
+                {//普通の画像
+                    Address.AddLZ77Pointer(list, p + 0, name + " IMAGE", false, Address.DataTypeEnum.LZ77IMG);
+                    EmitHeaderTsaPointer(rom, list, p + 4, name + " TSA");
+                    Address.AddPointer(list, p + 8, 0x20 * 8, name + " PALETTE", Address.DataTypeEnum.PAL);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>ImageCGForm.MakeAllDataLength</c> (slice 2k; FE8 always, FE7-multibyte). A 12-byte IFR table
+        /// at <c>bigcg_pointer</c> (rule <see cref="DataCountRule.NestedPointerAt"/>@0, PI <c>{0,4,8}</c>).
+        /// Per entry: a 10-image-pointer array behind the <c>+0</c> pointer (ten <see cref="Address.AddLZ77Pointer"/>
+        /// LZ77IMG, then a 4*10 POINTER header block via <see cref="Address.AddAddress"/>), then a
+        /// HEADER-TSA at <c>+4</c> and a 0x20*8 PAL at <c>+8</c>. Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitImageCG(ROM rom, List<Address> list)
+        {
+            EmitImageCGAt(rom, list, rom.RomInfo.bigcg_pointer);
+        }
+
+        /// <summary>ImageCG walk from an explicit pointer slot (test seam). See <see cref="EmitImageCG"/>.</summary>
+        public static void EmitImageCGAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 12;
+
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists = ImageCGForm.Init: +0 pointer whose target's first u32 is also a pointer.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                uint pp = rom.u32(addr + 0);
+                if (!U.isPointer(pp) || !U.isSafetyPointer(pp, rom)) return false;
+                uint ppOff = U.toOffset(pp);
+                if (ppOff + 4 > (uint)rom.Data.Length) return false;
+                uint p2 = rom.u32(ppOff);
+                if (!U.isPointer(p2) || !U.isSafetyPointer(p2, rom)) return false;
+                return true;
+            });
+
+            // Main IFR: AddAddress(IFR, "CG", {0,4,8}).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "CG",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 4, 8 }));
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "CG " + U.To0xHexString((int)i);
+
+                // image = p32(0 + addr): the 10-image-pointer array base.
+                uint image = rom.p32(p + 0);
+                {
+                    uint imageSPZ = image;
+                    for (int n = 0; n < 10; n++, imageSPZ += 4)
+                    {
+                        Address.AddLZ77Pointer(list, imageSPZ, name + " IMAGE@" + n, false, Address.DataTypeEnum.LZ77IMG);
+                    }
+                }
+                Address.AddAddress(list, image, 4 * 10, p + 0, name + " IMAGE_HEADER", Address.DataTypeEnum.POINTER);
+
+                EmitHeaderTsaPointer(rom, list, p + 4, name + " TSA");
+                Address.AddPointer(list, p + 8, 0x20 * 8, name + " PALETTE", Address.DataTypeEnum.PAL);
+            }
+        }
+
+        /// <summary>
+        /// <c>ImageCGFE7UForm.MakeAllDataLength</c> (slice 2k; FE7 non-multibyte ONLY). A 16-byte IFR table
+        /// at <c>bigcg_pointer</c> (rule <see cref="DataCountRule.U16EqualAt"/> @2 == 0, PI <c>{4,8,12}</c>).
+        /// Per entry a <c>flag = u8(+0)</c> selects: <c>flag != 1</c> -&gt; 16-color (LZ77 image @+4, HEADER-TSA
+        /// @+8, 0x20*1 PAL @+12); <c>flag == 1</c> -&gt; 10-split (a 10-image-pointer array behind <c>+4</c>,
+        /// a 4*10 POINTER header, HEADER-TSA @+8, 0x20*8 PAL @+12). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitImageCGFE7U(ROM rom, List<Address> list)
+        {
+            EmitImageCGFE7UAt(rom, list, rom.RomInfo.bigcg_pointer);
+        }
+
+        /// <summary>ImageCGFE7U walk from an explicit pointer slot (test seam). See <see cref="EmitImageCGFE7U"/>.</summary>
+        public static void EmitImageCGFE7UAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 16;
+
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // IsDataExists = ImageCGFE7UForm.Init: u16(addr+2) == 0. getBlockDataCount fires while
+            // addr+16<=Length, so the +2 u16 read is always in bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                rom.u16(addr + 2) == 0x00);
+
+            // Main IFR: AddAddress(IFR, "CG", {4,8,12}).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "CG",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 4, 8, 12 }));
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "CG " + U.To0xHexString((int)i);
+                uint flag = rom.u8(p + 0);
+
+                uint image = rom.p32(p + 4);
+                if (flag != 1)
+                {//16色
+                    Address.AddLZ77Pointer(list, p + 4, name + " IMAGE", false, Address.DataTypeEnum.LZ77IMG);
+                    EmitHeaderTsaPointer(rom, list, p + 8, name + " TSA");
+                    Address.AddPointer(list, p + 12, 0x20 * 1, name + " PALETTE", Address.DataTypeEnum.PAL);
+                }
+                else
+                {//10分割
+                    {
+                        uint imageSPZ = image;
+                        for (int n = 0; n < 10; n++, imageSPZ += 4)
+                        {
+                            Address.AddLZ77Pointer(list, imageSPZ, name + " IMAGE", false, Address.DataTypeEnum.LZ77IMG);
+                        }
+                    }
+                    Address.AddAddress(list, image, 4 * 10, p + 4, name + " IMAGE_HEADER", Address.DataTypeEnum.POINTER);
+                    EmitHeaderTsaPointer(rom, list, p + 8, name + " TSA");
+                    Address.AddPointer(list, p + 12, 0x20 * 8, name + " PALETTE", Address.DataTypeEnum.PAL);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>WorldMapImageForm.MakeAllDataLength</c> (slice 2k; FE8 ONLY — the FE6/FE7 siblings are the
+        /// slice-2e <see cref="EmitWorldMapImageFE6"/>/<see cref="EmitWorldMapImageFE7"/>). A flat sequence of
+        /// the big-map BIN image + two PAL + LZ77 palettemap, the event image/tsa/palette, the mini image +
+        /// PAL, two icon images + PAL, the road tile, then a 12-byte <c>WorldmapCountyBorder</c> IFR (rule
+        /// <see cref="DataCountRule.TwoU32PointerAt04"/>, PI <c>{0,4}</c>) whose per-entry columns are a
+        /// POINTER LZ77 @+0 and a ROMTCS @+0, and finally a 16-byte <c>WorldMapIconData</c> IFR (rule
+        /// <see cref="DataCountRule.PointerAt"/> @4, PI <c>{4}</c>). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitWorldMapImageFE8(ROM rom, List<Address> list)
+        {
+            {
+                uint image = rom.u32(rom.RomInfo.worldmap_big_image_pointer);
+                uint palette = rom.u32(rom.RomInfo.worldmap_big_palette_pointer);
+                uint dpalette = rom.u32(rom.RomInfo.worldmap_big_dpalette_pointer);
+
+                Address.AddAddress(list, image, (uint)(480 / 2 * 320),
+                    rom.RomInfo.worldmap_big_image_pointer, "worldmap_big_image", Address.DataTypeEnum.BIN);
+                Address.AddAddress(list, palette, 0x20 * 4,
+                    rom.RomInfo.worldmap_big_palette_pointer, "worldmap_big_palette", Address.DataTypeEnum.PAL);
+                Address.AddAddress(list, dpalette, 0x20 * 4,
+                    rom.RomInfo.worldmap_big_dpalette_pointer, "worldmap_big_dpalette", Address.DataTypeEnum.PAL);
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_big_palettemap_pointer,
+                    "worldmap_big_palettemap", false, Address.DataTypeEnum.LZ77IMG);
+            }
+            {
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_image_pointer,
+                    "worldmap_event_image", false, Address.DataTypeEnum.LZ77IMG);
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_tsa_pointer,
+                    "worldmap_event_image", false, Address.DataTypeEnum.LZ77TSA);
+                Address.AddPointer(list, rom.RomInfo.worldmap_event_palette_pointer, 0x20 * 4,
+                    "worldmap_event_palette", Address.DataTypeEnum.PAL);
+            }
+            {
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_mini_image_pointer,
+                    "worldmap_mini_image", false, Address.DataTypeEnum.LZ77IMG);
+                Address.AddPointer(list, rom.RomInfo.worldmap_mini_palette_pointer, 0x20 * 1,
+                    "worldmap_mini_palette", Address.DataTypeEnum.PAL);
+            }
+            {
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_icon1_pointer,
+                    "worldmap_icon1", false, Address.DataTypeEnum.LZ77IMG);
+                Address.AddPointer(list, rom.RomInfo.worldmap_icon_palette_pointer, 0x20 * 2,
+                    "worldmap_icon_palette", Address.DataTypeEnum.PAL);
+            }
+            {
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_icon2_pointer,
+                    "worldmap_icon2", false, Address.DataTypeEnum.LZ77IMG);
+            }
+            {
+                Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_road_tile_pointer,
+                    "worldmap_road_tile_image", false, Address.DataTypeEnum.LZ77IMG);
+            }
+            EmitWorldMapCountyBorder(rom, list, rom.RomInfo.worldmap_county_border_pointer);
+            EmitWorldMapIconData(rom, list, rom.RomInfo.worldmap_icon_data_pointer);
+        }
+
+        /// <summary>The WorldmapCountyBorder IFR (FE8) walk from an explicit pointer slot (test seam): a
+        /// 12-byte IFR (rule <c>isPointer(u32+0) &amp;&amp; isPointer(u32+4)</c>, PI <c>{0,4}</c>); per entry
+        /// a POINTER LZ77 column @+0 and a ROMTCS column @+0. See <see cref="EmitWorldMapImageFE8"/>.</summary>
+        public static void EmitWorldMapCountyBorder(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 12;
+
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // Border_Init rule: isPointer(u32(addr)) && isPointer(u32(addr+4)).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                U.isPointer(rom.u32(addr + 0)) && U.isPointer(rom.u32(addr + 4)));
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "WorldmapCountyBorder",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 4 }));
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "WorldmapCountyBorder " + U.To0xHexString((int)i);
+                // WF: AddLZ77Pointer(0 + addr, name + " IMAGE", isPointerOnly, POINTER) — note the POINTER
+                // DataType (a LZ77 length over a POINTER-typed block), reproduced VERBATIM.
+                Address.AddLZ77Pointer(list, p + 0, name + " IMAGE", false, Address.DataTypeEnum.POINTER);
+                EmitRomTcsPointer(rom, list, p + 0, name + " ROMTCS");
+            }
+        }
+
+        /// <summary>The WorldMapIconData IFR (FE8) walk from an explicit pointer slot (test seam): a 16-byte
+        /// IFR (rule <c>isPointer(u32+4)</c>, PI <c>{4}</c>), main IFR only (no per-entry columns). See
+        /// <see cref="EmitWorldMapImageFE8"/>.</summary>
+        public static void EmitWorldMapIconData(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 16;
+
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // ICON_Init rule: isPointer(u32(addr+4)) (no terminator data exists otherwise).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                U.isPointer(rom.u32(addr + 4)));
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "WorldMapIconData",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 4 }));
         }
 
         /// <summary>One ItemUsage usage-table descriptor (the 10 Switch2-gated usage arrays). Captures
@@ -3223,6 +3920,27 @@ namespace FEBuilderGBA
                         }
                         return true; // any other value -> valid
                     };
+                case DataCountRule.NestedPointerAt:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // ImageCGForm.Init verbatim: +RuleOffset is a pointer whose target's first u32 is
+                        // ALSO a pointer (the 10-image-pointer-array signature). EOF-harden the inner read.
+                        uint p = rom.u32(addr + d.RuleOffset);
+                        if (!U.isPointer(p) || !U.isSafetyPointer(p, rom)) return false;
+                        uint pOff = U.toOffset(p);
+                        if (pOff + 4 > (uint)rom.Data.Length) return false;
+                        uint p2 = rom.u32(pOff);
+                        if (!U.isPointer(p2) || !U.isSafetyPointer(p2, rom)) return false;
+                        return true;
+                    };
+                case DataCountRule.U16EqualAt:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // ImageCGFE7UForm.Init verbatim: continue while u16(addr+RuleOffset) == StopValue.
+                        return rom.u16(addr + d.RuleOffset) == (ushort)d.RuleStopValue;
+                    };
                 default:
                     // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
                     // not a 0-entry table. Returning always-false would silently emit a 1-block
@@ -4498,12 +5216,21 @@ namespace FEBuilderGBA
                 //    ImageUnitPaletteForm, ImageGenericEnemyPortraitForm, ImageChapterTitleForm [FE8]
                 //    + ImageChapterTitleFE7Form [FE7-multibyte/FE6] (StructDescriptor + Lz77Pointer/
                 //    FixedPointer SubWalks); ImageBattleScreenForm, WorldMapImageFE6Form [FE6],
-                //    WorldMapImageFE7Form [FE7] (dedicated flat emitters). The FE8 WorldMapImageForm
-                //    STAYS (AddHeaderTSAPointer + AddROMTCSPointer — both ImageUtil-backed, not in Core).
+                //    WorldMapImageFE7Form [FE7] (dedicated flat emitters).
+                //  slice 2k ported the header-TSA image forms (now CalcHeaderTsaLength =
+                //  ImageUtil.CalcByteLengthForHeaderTSAData + EmitHeaderTsaPointer = Address.AddHeaderTSAPointer
+                //  are in Core; CalcRomTcsLength = ImageUtilAP.CalcROMTCSLength too):
+                //    ImageBGForm [version-agnostic, BG256-aware per-entry HEADER-TSA branch],
+                //    ImageSystemIconForm [version-agnostic, flat version-gated LZ77/PAL/HEADER-TSA],
+                //    ImageCGForm [FE8 + FE7-multibyte, 12-byte IFR + per-entry 10-image-pointer array +
+                //      HEADER-TSA], ImageCGFE7UForm [FE7U, 16-byte IFR + per-entry flag@+0 16-color-vs-
+                //      10-split + HEADER-TSA], WorldMapImageForm [FE8, big-map BIN/PAL + event/mini/icon
+                //      LZ77 + WorldmapCountyBorder IFR with per-entry ROMTCS + WorldMapIconData IFR].
                 //  The rest STAY, each blocked on a subsystem not yet in Core (a wrong length relocates
                 //  the wrong bytes = silent corruption):
-                //    ImageBGForm/ImageCGForm/ImageSystemIconForm/ImageTSAAnime2Form/WorldMapImageForm —
-                //      AddHeaderTSAPointer (ImageUtil.CalcByteLengthForHeaderTSAData).
+                //    ImageTSAAnime2Form — its g_TSAAnime table is a config-FILE TSV resource
+                //      (U.LoadTSVResource(U.ConfigDataFilename("tsaanime2_"))) + IFR ReInit/ReInitPointer
+                //      machinery, NOT a RomInfo table (same class of blocker as ImageTSAAnimeForm).
                 //    ImageMagicFEditorForm/ImageMagicCSACreatorForm/ImageMapActionAnimationForm —
                 //      ImageUtil*.RecycleOldAnime (ImageUtil anime length helpers).
                 //    ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (LZ77-embedded OAM pointers).
@@ -4516,13 +5243,13 @@ namespace FEBuilderGBA
                 //      image / palette to relocate) whose count rule reads a hardcoded FE7U magic addr.
                 //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
-                "ImageBattleAnimeForm", "ImageBGForm",
+                "ImageBattleAnimeForm",
                 "ImageMagicFEditorForm", "ImageMagicCSACreatorForm",
                 "ImageItemIconForm", "ImageUnitMoveIconFrom",
-                "ImageSystemIconForm", "ImageRomAnimeForm",
+                "ImageRomAnimeForm",
                 "ImageMapActionAnimationForm", "ImageTSAAnimeForm",
-                "ImageTSAAnime2Form", "ImagePortraitForm", "ImageCGForm",
-                "MapMiniMapTerrainImageForm", "WorldMapImageForm",
+                "ImageTSAAnime2Form", "ImagePortraitForm",
+                "MapMiniMapTerrainImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
                 //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundFootStepsForm ported in
@@ -4662,14 +5389,15 @@ namespace FEBuilderGBA
                 //    extracted MapSettingCore.IsMapSettingValid diverges (its `if (textmax>0)` guard
                 //    returns true when textmax==0, where WF returns false), so the per-entry CString
                 //    count is not yet faithfully reproducible — a wrong count = silent corruption.
-                //  FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer], ImageCGFE7UForm [LZ77].)
+                //  FE8SpellMenuExtendsForm [FindFE8SpellPatchPointer]. (ImageCGFE7UForm ported in slice 2k —
+                //  EmitImageCGFE7U, the FE7U 16-byte big-CG IFR with the per-entry flag@+0 16-color-vs-
+                //  10-split + HEADER-TSA.))
                 "MonsterWMapProbabilityForm",
                 "EventBattleTalkForm",
                 "WorldMapEventPointerForm",
                 "EventHaikuForm",
                 "MapSettingForm",
                 "FE8SpellMenuExtendsForm",
-                "ImageCGFE7UForm",
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
