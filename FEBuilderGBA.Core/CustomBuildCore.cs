@@ -247,7 +247,7 @@ namespace FEBuilderGBA
             }
             if (undo == null)
             {
-                result.ErrorMessage = R._("No ROM is loaded.");
+                result.ErrorMessage = R._("Undo data is required for MargeAndUpdate.");
                 return result;
             }
             if (string.IsNullOrEmpty(originalRomPath) || !File.Exists(originalRomPath))
@@ -348,12 +348,12 @@ namespace FEBuilderGBA
             // FRESH install: a CustomBuild patch is BIN-diffs, and the parent's
             // UPDATE_UNINSTALL is a no-op on first run, so applying the diff's BIN lines
             // is all the install needs (no full PatchForm dependency-resolution engine).
-            if (diffPatch == null)
-            {
-                // MakeDiff produced no diff (built ROM == vanilla) → nothing to install.
-                // Still write the merged artifact below so the on-disk patch is valid.
-            }
-            else
+            //
+            // MakeDiff always writes a TYPE=BIN header, so LoadPatch never returns null;
+            // the meaningful "no actual changes" case is when the built ROM equals the
+            // vanilla ROM, which emits NO BIN/BINF entries. Skip the install in that case
+            // (nothing to apply) but still write the merged artifact below.
+            if (PatchHasBinEntries(diffPatch))
             {
                 try
                 {
@@ -430,6 +430,28 @@ namespace FEBuilderGBA
 
             sb.AppendLine(File.ReadAllText(custombuild));
             File.WriteAllText(custombuild, sb.ToString());
+        }
+
+        /// <summary>
+        /// True when <paramref name="patch"/> carries at least one BIN/BINF write entry.
+        /// A vanilla→built diff with NO actual byte changes produces a TYPE=BIN header
+        /// but no BIN/BINF lines, so this distinguishes a real diff from an empty one.
+        /// </summary>
+        static bool PatchHasBinEntries(PatchInstallCore.PatchSt patch)
+        {
+            if (patch?.Param == null)
+            {
+                return false;
+            }
+            foreach (string key in patch.Param.Keys)
+            {
+                if (key.StartsWith("BINF:", StringComparison.Ordinal)
+                    || key.StartsWith("BIN:", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>Copy <c>SkillsTest.sym</c> from the build dir → <c>symbol.sym</c> in the cache.</summary>

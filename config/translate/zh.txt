@@ -25933,3 +25933,6 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 :Unable to write the compiled file: {0}
 无法写入已编译的文件: {0}
 
+:Undo data is required for MargeAndUpdate.
+MargeAndUpdate 需要撤销数据。
+

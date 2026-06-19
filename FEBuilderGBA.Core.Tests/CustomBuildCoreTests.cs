@@ -489,6 +489,89 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MargeAndUpdate_BuiltEqualsVanilla_NoBinEntries_SkipsInstall_StillWritesArtifact()
+        {
+            // Built ROM identical to vanilla → MakeDiff emits a TYPE=BIN header but NO
+            // BIN/BINF lines, so the install is skipped (ROM untouched) yet the merged
+            // patch artifact is still written and the result is success.
+            string prevBase = CoreState.BaseDirectory;
+            string prevLang = CoreState.Language;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-eq-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            CoreState.Language = "en";
+            try
+            {
+                StageParentPatch(baseDir);
+
+                byte[] vanilla = new byte[0x400];
+                for (int i = 0; i < vanilla.Length; i++) vanilla[i] = 0xFF;
+                byte[] built = (byte[])vanilla.Clone();   // IDENTICAL → no diff
+
+                string origRomPath = Path.Combine(baseDir, "vanilla.gba");
+                string builtRomPath = Path.Combine(baseDir, "SkillsTest.gba");
+                File.WriteAllBytes(origRomPath, vanilla);
+                File.WriteAllBytes(builtRomPath, built);
+                string targetPath = Path.Combine(baseDir, "CUSTOM_BUILD.cmd");
+                File.WriteAllText(targetPath, "echo hi\r\n");
+
+                var rom = MakeCoreRom(vanilla);
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = NewUndo(rom);
+
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, origRomPath, builtRomPath, targetPath,
+                    takeoverSkillAssignment: 1, undo: undo);
+
+                Assert.True(r.Success, "MargeAndUpdate failed: " + r.ErrorMessage);
+                // No BIN entries → nothing installed → ROM untouched, undo empty.
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                // The merged artifact is still written (valid on-disk patch).
+                Assert.True(File.Exists(r.PatchPath));
+                string patchText = File.ReadAllText(r.PatchPath);
+                Assert.Contains("UPDATE_UNINSTALL:0=", patchText);
+                Assert.DoesNotContain("BINF:", patchText);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.Language = prevLang;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void MargeAndUpdate_NullUndo_ReturnsUndoRequiredError()
+        {
+            string prevBase = CoreState.BaseDirectory;
+            string baseDir = Path.Combine(Path.GetTempPath(), "cb-mau-nu-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(baseDir);
+            CoreState.BaseDirectory = baseDir;
+            try
+            {
+                var rom = MakeCoreRom(new byte[0x200]);
+                var r = CustomBuildCore.MargeAndUpdate(
+                    rom, "ignored.gba", "ignored-built.gba", "ignored.cmd",
+                    takeoverSkillAssignment: 1, undo: null);
+
+                Assert.False(r.Success);
+                // The null-undo message must NOT be the rom==null "No ROM is loaded." string.
+                Assert.Equal(R._("Undo data is required for MargeAndUpdate."), r.ErrorMessage);
+                Assert.NotEqual(R._("No ROM is loaded."), r.ErrorMessage);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                CoreState.ROM = null;
+                CoreState.Undo = null;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void MargeAndUpdate_MissingBuiltRom_ReturnsError_NoMutation()
         {
             string prevBase = CoreState.BaseDirectory;
