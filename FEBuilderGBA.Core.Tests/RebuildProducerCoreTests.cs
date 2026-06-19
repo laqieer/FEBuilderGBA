@@ -1697,11 +1697,13 @@ namespace FEBuilderGBA.Core.Tests
             // Still deferred (un-ported subsystem) -> must REMAIN:
             foreach (var kept in new[]
             {
-                "UnitFE6Form", "EventBattleTalkForm", "EventHaikuForm", "SupportUnitForm",
+                "EventBattleTalkForm", "EventHaikuForm", "SupportUnitForm",
                 "WorldMapPathForm", "WorldMapEventPointerForm", "EDStaffRollForm", "OPPrologueForm",
                 "MapSettingForm", "OPClassFontForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
                 "MonsterWMapProbabilityForm", "SoundRoomForm",
-                // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.)
+                // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
+                //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
+                //  ported in slice 2f -> no longer kept here.)
                 "ItemForm", "MapTileAnimation1Form", "MapTerrainFloorLookupTableForm",
             })
             {
@@ -3053,6 +3055,418 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("WorldMapImageForm", ported); // the FE8 form stays (AddHeaderTSAPointer)
             Assert.Contains("ImageItemIconForm", ported);
             Assert.Contains("ImageTSAAnimeForm", ported);
+        }
+
+        // ===================================================================
+        // slice 2f: AI / Arena / Mant flat descriptors + ItemUsage / UnitFE6
+        // dedicated emitters.
+        // ===================================================================
+
+        // ---- AIMapSetting / AIPerformStaff / AIPerformItem / Mant / Arena descriptors ----
+
+        [Fact]
+        public void BuildBatchDescriptors_HasAIMapSetting_FlatU8NotEqualFF()
+        {
+            // AIMapSettingForm: base ai_map_setting_pointer, block 4, u8!=0xFF, pointerIndexes {},
+            // no sub-walk. Version-agnostic (called unconditionally in WF).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var d = descs.Single(x => x.Name == "AIMapSetting");
+                Assert.Equal(4u, d.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.U8NotEqual, d.Rule);
+                Assert.Equal(0u, d.RuleOffset);
+                Assert.Equal(0xFFu, d.RuleStopValue);
+                Assert.Equal(new uint[] { }, d.PointerIndexes);
+                Assert.Null(d.SubWalks);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_HasAIPerformStaffAndItem_WithAsmFunctionSubWalkAt4()
+        {
+            // AIPerformStaff/AIPerformItem: block 8, u16!=0, pointerIndexes {4}, + AsmFunction sub-walk
+            // @4 (WF AddFunctions(MakeList(), 4, ...)). Version-agnostic.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+
+                foreach (string name in new[] { "AIPerformStaff", "AIPerformItem" })
+                {
+                    var d = descs.Single(x => x.Name == name);
+                    Assert.Equal(8u, d.BlockSize);
+                    Assert.Equal(RebuildProducerCore.DataCountRule.U16NotZero, d.Rule);
+                    Assert.Equal(new uint[] { 4 }, d.PointerIndexes);
+                    Assert.NotNull(d.SubWalks);
+                    var sw = d.SubWalks.Single();
+                    Assert.Equal(4u, sw.EmbeddedPointerOffset);
+                    Assert.Equal(RebuildProducerCore.SubKind.AsmFunction, sw.Kind);
+                }
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_HasMant_PointerAt0_WithFixedPointer0x10SubWalk()
+        {
+            // MantAnimationForm: block 4, PointerAt @0, pointerIndexes {0}, + FixedPointer sub-walk @0
+            // (0x10-byte POINTER block). Version-agnostic.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var d = descs.Single(x => x.Name == "Mant");
+                Assert.Equal(4u, d.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.PointerAt, d.Rule);
+                Assert.Equal(0u, d.RuleOffset);
+                Assert.Equal(new uint[] { 0 }, d.PointerIndexes);
+                var sw = d.SubWalks.Single();
+                Assert.Equal(0u, sw.EmbeddedPointerOffset);
+                Assert.Equal(RebuildProducerCore.SubKind.FixedPointer, sw.Kind);
+                Assert.Equal(0x10u, sw.FixedLength);
+                Assert.Equal(Address.DataTypeEnum.POINTER, sw.DataType);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void BuildBatchDescriptors_HasArenaEnemyWeapon_EmittedTwice_BothBasic()
+        {
+            // VERBATIM QUIRK: WF ArenaEnemyWeaponForm.MakeAllDataLength emits the descriptor TWICE,
+            // and BOTH read the BASIC table (Init(null), i<8) — the second is a copy/paste of the
+            // basic, NOT the rankup table. So there must be EXACTLY 2 identical "ArenaEnemyWeapon"
+            // descriptors, both FixedCount=8 on arena_enemy_weapon_basic_pointer.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var arena = descs.Where(x => x.Name == "ArenaEnemyWeapon").ToList();
+                Assert.Equal(2, arena.Count);
+                Assert.All(arena, d =>
+                {
+                    Assert.Equal(1u, d.BlockSize);
+                    Assert.Equal(RebuildProducerCore.DataCountRule.FixedCount, d.Rule);
+                    Assert.Equal(8u, d.RuleFixedCount);
+                    Assert.Equal(new uint[] { }, d.PointerIndexes);
+                });
+                // both resolve to the SAME basic pointer field (not the rankup pointer).
+                Assert.Equal(arena[0].PointerField(fe8), arena[1].PointerField(fe8));
+                Assert.Equal(fe8.RomInfo.arena_enemy_weapon_basic_pointer, arena[0].PointerField(fe8));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void WalkAndAdd_AIPerformStaffShape_EmitsMainPlusAsmFunctionPerEntry()
+        {
+            // Synthetic: base block 8, u16!=0 terminator, AsmFunction @4. 2 valid entries -> main IFR
+            // (length 8*(2+1)=24) + 2 ASM blocks at ProgramAddrToPlain(u32(p+4)).
+            var rom = CreateTestRom();
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            const uint block = 8;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u16(table + block * 0, 0x0001); // entry 0 valid (u16!=0)
+            rom.write_u16(table + block * 1, 0x0002); // entry 1 valid
+            rom.write_u16(table + block * 2, 0x0000); // entry 2 -> stop
+            uint asm0 = 0x2000, asm1 = 0x2100;
+            rom.write_u32(table + block * 0 + 4, Ptr(asm0) | 1); // thumb bit
+            rom.write_u32(table + block * 1 + 4, Ptr(asm1) | 1);
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "AIPerformStaff",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U16NotZero,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 4 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk { EmbeddedPointerOffset = 4, Kind = RebuildProducerCore.SubKind.AsmFunction, Name = (r, i) => "AIPerformStaff_ASM_" },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(24u, main.Length); // 8*(2+1)
+            Assert.Equal(new uint[] { 4 }, main.PointerIndexes);
+
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(2, asms.Count);
+            Assert.Contains(asms, a => a.Addr == asm0); // thumb bit cleared by ProgramAddrToPlain
+            Assert.Contains(asms, a => a.Addr == asm1);
+            Assert.All(asms, a => Assert.Equal(0u, a.Length));
+        }
+
+        [Fact]
+        public void WalkAndAdd_MantShape_EmitsFixedPointer0x10BehindEachEntry()
+        {
+            // Synthetic: base block 4, PointerAt @0, FixedPointer @0 (0x10 POINTER). 2 valid entries.
+            var rom = CreateTestRom();
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            const uint block = 4;
+            rom.write_u32(pointer, Ptr(table));
+            uint t0 = 0x2000, t1 = 0x2100;
+            rom.write_u32(table + block * 0, Ptr(t0)); // entry 0: valid pointer
+            rom.write_u32(table + block * 1, Ptr(t1)); // entry 1: valid pointer
+            rom.write_u32(table + block * 2, 0);       // entry 2: NULL -> PointerAt stops
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Mant",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk { EmbeddedPointerOffset = 0, Kind = RebuildProducerCore.SubKind.FixedPointer, FixedLength = 0x10, DataType = Address.DataTypeEnum.POINTER, Name = (r, i) => "MANT_P:" + U.To0xHexString((int)i) },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR + 2 POINTER sub-blocks of 0x10 bytes each.
+            var ptrs = list.Where(a => a.DataType == Address.DataTypeEnum.POINTER).ToList();
+            Assert.Equal(2, ptrs.Count);
+            Address p0 = ptrs.Single(a => a.Addr == t0);
+            Assert.Equal(0x10u, p0.Length);
+            Assert.Equal(table + block * 0, p0.Pointer);
+            Address p1 = ptrs.Single(a => a.Addr == t1);
+            Assert.Equal(0x10u, p1.Length);
+            Assert.Equal(table + block * 1, p1.Pointer);
+        }
+
+        // ---- EmitItemUsagePointerTables (Switch2-gated dedicated walker) ----
+
+        // Build a single-usage table array with an explicit pointer + switch2 address.
+        static RebuildProducerCore.ItemUsageTable[] OneUsageTable(uint pointer, uint switch2Addr, string name)
+        {
+            return new[]
+            {
+                new RebuildProducerCore.ItemUsageTable
+                {
+                    Pointer = _ => pointer,
+                    Switch2Address = _ => switch2Addr,
+                    Name = name,
+                },
+            };
+        }
+
+        [Fact]
+        public void EmitItemUsagePointer_Switch2Enabled_EmitsMainAsmIfrPlusAsmPerEntry()
+        {
+            // Switch2 enabled, count byte = 2 -> DataCount = 3. Main InputFormRef_ASM Address
+            // (length 4*(3+1)=16, pointer = the RomInfo slot, pointerIndexes {0}) + 3 ASM AddFunctions
+            // at offset 0 (the entry block address itself).
+            var rom = CreateTestRom(0x8000);
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400; // the usage data-pointer slot
+            uint table = 0x1000;   // base = p32(pointer)
+            PlantSwitch2(rom, switch2Addr, count: 2); // DataCount = count + 1 = 3
+            rom.write_u32(pointer, Ptr(table));
+            uint a0 = 0x2000, a1 = 0x2100, a2 = 0x2200;
+            rom.write_u32(table + 0, Ptr(a0) | 1);
+            rom.write_u32(table + 4, Ptr(a1) | 1);
+            rom.write_u32(table + 8, Ptr(a2) | 1);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemUsagePointerTables(rom, list, OneUsageTable(pointer, switch2Addr, "ItemUsageP0"));
+
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            Assert.Equal(table, main.Addr);
+            // BasePointer IS the RomInfo slot here (safe offset), unlike SoundFootSteps (NOT_FOUND).
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(4u, main.BlockSize);
+            Assert.Equal(16u, main.Length); // 4*(3+1)
+            Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(3, asms.Count);
+            Assert.Contains(asms, a => a.Addr == a0);
+            Assert.Contains(asms, a => a.Addr == a1);
+            Assert.Contains(asms, a => a.Addr == a2);
+        }
+
+        [Fact]
+        public void EmitItemUsagePointer_Switch2Disabled_EmitsNothingForThatUsage()
+        {
+            // WF ReInit returns NOT_FOUND (continue) when IsSwitch2Enable is false. An all-zero
+            // switch2 region (subOp/cmpOp out of range) is disabled.
+            var rom = CreateTestRom();
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(0x2000) | 1);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemUsagePointerTables(rom, list, OneUsageTable(pointer, switch2Addr, "ItemUsageP0"));
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitItemUsagePointer_CountRunsPastEof_TruncatesWithoutThrowing()
+        {
+            // A corrupted/too-large count near EOF must TRUNCATE (like WF MakeList breaking on
+            // addr + BlockSize > Data.Length), NOT throw (AddFunction's u32 read would throw past EOF).
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400;
+            uint table = size - 8; // 0x1FF8 — exactly 2 of the 4-byte entries fit before EOF.
+            PlantSwitch2(rom, switch2Addr, count: 5); // claims 6 entries; only 2 fit
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(0x1000) | 1);
+            rom.write_u32(table + 4, Ptr(0x1100) | 1);
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitItemUsagePointerTables(rom, list, OneUsageTable(pointer, switch2Addr, "ItemUsageP0")));
+            Assert.Null(ex);
+
+            // main IFR still emitted; only the 2 in-bounds entries become ASM (the rest truncated).
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(2, asms.Count);
+        }
+
+        [Fact]
+        public void EmitItemUsagePointer_AllTenUsages_PresentInRomInfoDrivenPath()
+        {
+            // The public RomInfo-driven EmitItemUsagePointer must not throw on a real RomInfo (FE8U).
+            // It is gated per-usage on IsSwitch2Enable; on an all-zero 32MB fake ROM none are enabled,
+            // so it emits nothing — but it must run cleanly (no NRE / no throw).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitItemUsagePointer(fe8, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitUnitFE6At (FE6-only dynamic-base dedicated walker) ----
+
+        [Fact]
+        public void EmitUnitFE6At_BaseIsOneBlockPastTableStart_PointerIsNotFound()
+        {
+            // WF UnitFE6Form: base = p32(unit_pointer) + unit_datasize (skip unit 0), BasePointer 0 ->
+            // NOT_FOUND, i < unit_maxcount, pointerIndexes {44}.
+            var rom = CreateTestRom(0x8000);
+            uint unitPointerSlot = 0x0400;
+            uint tableStart = 0x1000;
+            const uint block = 0x34; // unit_datasize (> 44 so offset 44 fits)
+            const uint maxcount = 3;
+            rom.write_u32(unitPointerSlot, Ptr(tableStart));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitUnitFE6At(rom, list, unitPointerSlot, block, maxcount);
+
+            Address main = list.Single();
+            // base = tableStart + block (one block past), pointer = NOT_FOUND.
+            Assert.Equal(tableStart + block, main.Addr);
+            Assert.Equal(U.NOT_FOUND, main.Pointer);
+            Assert.Equal(block, main.BlockSize);
+            // length = block * (DataCount + 1); DataCount = maxcount (i < maxcount).
+            Assert.Equal(block * (maxcount + 1), main.Length);
+            Assert.Equal(new uint[] { 44 }, main.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+        }
+
+        [Fact]
+        public void EmitUnitFE6At_ZeroBlock_EmitsNothing_AndDoesNotHang()
+        {
+            var rom = CreateTestRom();
+            uint unitPointerSlot = 0x0400;
+            rom.write_u32(unitPointerSlot, Ptr(0x1000));
+            var list = new List<Address>();
+            RebuildProducerCore.EmitUnitFE6At(rom, list, unitPointerSlot, block: 0, maxcount: 5);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitUnitFE6At_UnsafeBase_EmitsNothing_NoThrow()
+        {
+            // If p32(unit_pointer)+block is not a safe offset, WF's ReInit -> AddAddress early-returns.
+            var rom = CreateTestRom(0x2000);
+            uint unitPointerSlot = 0x0400;
+            // table start points past EOF -> base unsafe.
+            rom.write_u32(unitPointerSlot, Ptr(0x1FFF0));
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitUnitFE6At(rom, list, unitPointerSlot, block: 0x34, maxcount: 3));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitUnitFE6_FE6_RunsCleanly_FE8UDoesNotEmitUnitViaThisPath()
+        {
+            // The public RomInfo-driven EmitUnitFE6 reads unit_pointer/unit_datasize/unit_maxcount.
+            // On a fake all-zero FE6 ROM it must run without throwing (base resolves to a zero region).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe6 = MakeVersionedRom("AFEJ01");
+                CoreState.ROM = fe6;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitUnitFE6(fe6, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2f ----
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2fCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2f ported these 7 — no longer in the deferred list:
+            Assert.DoesNotContain("AIMapSettingForm", ported);
+            Assert.DoesNotContain("AIPerformStaffForm", ported);
+            Assert.DoesNotContain("AIPerformItemForm", ported);
+            Assert.DoesNotContain("MantAnimationForm", ported);
+            Assert.DoesNotContain("ArenaEnemyWeaponForm", ported);
+            Assert.DoesNotContain("ItemUsagePointerForm", ported);
+            Assert.DoesNotContain("UnitFE6Form", ported);
+
+            // deferred siblings STAY (their blocking subsystem is not in Core):
+            Assert.Contains("AIScriptForm", ported);              // AI bytecode CalcLength + nested LZ77
+            Assert.Contains("UnitActionPointerForm", ported);     // PatchUtil SearchUnitActionReworkPatch
+            Assert.Contains("MonsterWMapProbabilityForm", ported);// EventScriptForm.ScanScript skirmish
+            Assert.Contains("MapChangeForm", ported);             // deferred for slice size (map-PLIST)
+            Assert.Contains("MapExitPointForm", ported);          // deferred for slice size (map-PLIST)
+            Assert.Contains("MapTileAnimation1Form", ported);     // deferred for slice size (map-PLIST)
+            Assert.Contains("MapTileAnimation2Form", ported);     // deferred for slice size (map-PLIST)
+            Assert.Contains("ItemShopForm", ported);              // deferred for slice size (map-PLIST)
+            Assert.Contains("EventCondForm", ported);             // EventScriptForm.ScanScript
+            // and the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
         }
     }
 }

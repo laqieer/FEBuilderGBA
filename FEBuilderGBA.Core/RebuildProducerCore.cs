@@ -450,6 +450,20 @@ namespace FEBuilderGBA
             progress?.Report("ImageBattleScreen");
             EmitImageBattleScreen(rom, list);
 
+            // ---- slice 2f: ItemUsagePointerForm (version-agnostic) ----
+            // ItemUsagePointerForm.MakeAllDataLength is NOT a flat descriptor walk: it loops the 10
+            // usage tables, each Switch2-gated with its base/count read from a RomInfo *address* (the
+            // count is u8(switch2_address+2), the base is p32(usage_pointer)), then emits a main
+            // InputFormRef_ASM Address + one ASM AddFunction per entry. A dedicated walker reproduces it
+            // verbatim (its own cancel-check mirrors the WF DoEvents posture).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ItemUsagePointer");
+            EmitItemUsagePointer(rom, list);
+
             if (rom.RomInfo.version == 7)
             {
                 if (ct.IsCancellationRequested)
@@ -469,6 +483,19 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE6");
                 EmitWorldMapImageFE6(rom, list);
+
+                // ---- slice 2f: UnitFE6Form (FE6-only) ----
+                // UnitFE6Form.MakeAllDataLength is FE6-only (the WF version==6 branch). Its IFR base is
+                // p32(unit_pointer)+unit_datasize (one block past the table start — class 0 is skipped via
+                // a direct ReInit), and its BasePointer is 0 (-> NOT_FOUND). The pointer-slot descriptor
+                // model assumes baseAddr = p32(PointerField), so this needs a dedicated emitter.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("UnitFE6");
+                EmitUnitFE6(rom, list);
             }
 
             // Surface — never silently drop — the statics this slice does not yet cover.
@@ -1187,6 +1214,176 @@ namespace FEBuilderGBA
             Address.AddPointer(list, rom.RomInfo.worldmap_event_palette_pointer, 0x20 * 4, "worldmap_event_palette", Address.DataTypeEnum.PAL);
         }
 
+        /// <summary>One ItemUsage usage-table descriptor (the 10 Switch2-gated usage arrays). Captures
+        /// the WF <c>ReInit(n, ...)</c> case verbatim: the RomInfo data pointer, the Switch2 enable/count
+        /// address, and the WF Info name "ItemUsageP&lt;n&gt;". Public so a synthetic-ROM test can supply
+        /// explicit addresses (the RomInfo fields are not settable in tests).</summary>
+        public sealed class ItemUsageTable
+        {
+            public Func<ROM, uint> Pointer;
+            public Func<ROM, uint> Switch2Address;
+            public string Name;
+        }
+
+        /// <summary>
+        /// <c>ItemUsagePointerForm.MakeAllDataLength</c> (slice 2f). NOT a flat RomInfo pointer-slot
+        /// table: the WF <c>MakeAllDataLength</c> loops the 10 usage tables, each re-initialized by
+        /// <c>ReInit(n, ifr)</c> which derives its base + count from a Switch2-gated RomInfo *address*.
+        /// Reproduced VERBATIM per usage <c>n</c>:
+        /// <list type="bullet">
+        ///   <item>pointer = <c>usage_pointer</c>; addr = <c>p32(pointer)</c>; count = <c>u8(switch2_address+2)</c>;</item>
+        ///   <item>GATE: only if <c>IsSwitch2Enable(switch2_address)</c> AND <c>isSafetyOffset(addr)</c>
+        ///   (else WF's <c>ReInit</c> returns <c>NOT_FOUND</c> and <c>MakeAllDataLength</c> <c>continue</c>s
+        ///   — emits nothing for that usage);</item>
+        ///   <item><c>ReInitPointer(pointer, count + 1)</c> sets BasePointer = pointer, BaseAddress =
+        ///   p32(pointer), DataCount = <c>count + 1</c> (the count is set EXPLICITLY here, NOT via a
+        ///   getBlockDataCount walk — the IFR's IsDataExists returns false);</item>
+        ///   <item>main IFR Address: <c>AddAddress(ifr, "ItemUsageP"+n, {0}, InputFormRef_ASM)</c> -&gt;
+        ///   length = block(4) × (DataCount + 1) = 4 × (count + 2), pointer = BasePointer;</item>
+        ///   <item>then <c>AddFunctions(MakeList(), 0, " ItemUsageP"+n)</c>: one ASM AddFunction per entry
+        ///   at offset 0 (block address itself), bounded by <c>MakeList()</c>'s EOF cutoff.</item>
+        /// </list>
+        /// The Switch2 enable byte-pattern + the count read are pure ROM reads
+        /// (<see cref="ItemUsagePointerCore.IsSwitch2Enable"/>), so this is faithfully headless. The WF
+        /// per-entry ASM label is the IFR display name + " ItemUsageP&lt;n&gt;"; a static label is used
+        /// here (non-load-bearing for relocation, same convention as the other AsmFunction sub-walks).
+        /// </summary>
+        public static void EmitItemUsagePointer(ROM rom, List<Address> list)
+        {
+            // The 10 usage tables in WF ReInit case order (0..9). Each is a RomInfo data pointer + a
+            // RomInfo Switch2 address; the WF "config file" reads in ReInit are GUI-only (the combo box)
+            // and do NOT affect the produced Address list, so they are intentionally omitted here.
+            ItemUsageTable[] tables = new ItemUsageTable[]
+            {
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_usability_array_pointer,    Switch2Address = r => r.RomInfo.item_usability_array_switch2_address,    Name = "ItemUsageP0" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_effect_array_pointer,       Switch2Address = r => r.RomInfo.item_effect_array_switch2_address,       Name = "ItemUsageP1" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_promotion1_array_pointer,   Switch2Address = r => r.RomInfo.item_promotion1_array_switch2_address,   Name = "ItemUsageP2" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_promotion2_array_pointer,   Switch2Address = r => r.RomInfo.item_promotion2_array_switch2_address,   Name = "ItemUsageP3" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_staff1_array_pointer,       Switch2Address = r => r.RomInfo.item_staff1_array_switch2_address,       Name = "ItemUsageP4" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_staff2_array_pointer,       Switch2Address = r => r.RomInfo.item_staff2_array_switch2_address,       Name = "ItemUsageP5" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_statbooster1_array_pointer, Switch2Address = r => r.RomInfo.item_statbooster1_array_switch2_address, Name = "ItemUsageP6" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_statbooster2_array_pointer, Switch2Address = r => r.RomInfo.item_statbooster2_array_switch2_address, Name = "ItemUsageP7" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_errormessage_array_pointer, Switch2Address = r => r.RomInfo.item_errormessage_array_switch2_address, Name = "ItemUsageP8" },
+                new ItemUsageTable { Pointer = r => r.RomInfo.item_name_article_pointer,       Switch2Address = r => r.RomInfo.item_name_article_switch2_address,       Name = "ItemUsageP9" },
+            };
+            EmitItemUsagePointerTables(rom, list, tables);
+        }
+
+        /// <summary>ItemUsagePointer walk from an explicit set of usage tables (test seam — lets a
+        /// synthetic ROM supply the pointer/switch2 addresses without populating RomInfo, which has no
+        /// public setters). See <see cref="EmitItemUsagePointer"/> for the verbatim WF reproduction.</summary>
+        public static void EmitItemUsagePointerTables(ROM rom, List<Address> list, ItemUsageTable[] tables)
+        {
+            const uint block = 4;
+            foreach (ItemUsageTable t in tables)
+            {
+                uint switch2Addr = t.Switch2Address(rom);
+                // WF ReInit: enable-gate, then base-safety. Either failing => NOT_FOUND => continue.
+                if (!ItemUsagePointerCore.IsSwitch2Enable(rom, switch2Addr))
+                {
+                    continue;
+                }
+                uint pointer = U.toOffset(t.Pointer(rom));
+                if (!U.isSafetyOffset(pointer, rom))
+                {
+                    continue; // p32(pointer) below would read junk; WF's ReInitPointer->p32 needs a safe slot.
+                }
+                uint baseAddr = rom.p32(pointer);
+                // WF ReInit: !isSafetyOffset(addr) -> NOT_FOUND -> continue (no emit for this usage).
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    continue;
+                }
+
+                // WF: count = u8(switch2_address + 2); ReInitPointer(pointer, count + 1) -> DataCount =
+                // count + 1 (set EXPLICITLY, not via getBlockDataCount). The +2 read is in-bounds because
+                // IsSwitch2Enable already validated the full switch2 opcode region at switch2Addr.
+                uint count = rom.u8(switch2Addr + 2);
+                uint dataCount = count + 1;
+
+                // Main IFR Address: AddAddress(ifr, name, {0}, InputFormRef_ASM) ->
+                // length = block * (DataCount + 1). BasePointer = the RomInfo pointer slot (safe here).
+                uint length = block * (dataCount + 1);
+                list.Add(new Address(baseAddr, length, pointer, t.Name,
+                    Address.DataTypeEnum.InputFormRef_ASM, block, new uint[] { 0 }));
+
+                // AddFunctions(MakeList(), 0, " " + name): one ASM AddFunction per entry at offset 0
+                // (the entry block address itself). MakeList() yields DataCount entries from baseAddr,
+                // stepping by block, with an EOF cutoff (addr + block > Data.Length -> stop). Mirror that
+                // bound exactly so a corrupted/too-large count near EOF truncates instead of throwing
+                // (AddFunction's u32 read check_safety would throw past EOF).
+                for (uint i = 0; i < dataCount; i++)
+                {
+                    uint entryAddr = baseAddr + i * block;
+                    if (entryAddr + block > (uint)rom.Data.Length)
+                    {
+                        break;
+                    }
+                    Address.AddFunction(list, entryAddr, " " + t.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>UnitFE6Form.MakeAllDataLength</c> (slice 2f, FE6 only). NOT a flat pointer-slot table: the
+        /// WF <c>Init</c> builds an IFR with BasePointer 0 and then <c>ReInit(p32(unit_pointer) +
+        /// unit_datasize)</c> sets BaseAddress DIRECTLY (one block past the table start — FE6 skips unit
+        /// 0). Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>base = <c>p32(unit_pointer) + unit_datasize</c>; block = <c>unit_datasize</c>;
+        ///   IsDataExists = <c>i &lt; unit_maxcount</c> (FixedCount);</item>
+        ///   <item>BasePointer = 0 -&gt; <c>isSafetyOffset(0)</c> false -&gt; pointer slot = NOT_FOUND
+        ///   (the table is reached via the +unit_datasize computed base, NOT a plain RomInfo pointer
+        ///   slot, so its pointer FIELD is intentionally untracked — matching WF's AddAddress on a
+        ///   BasePointer-0 IFR);</item>
+        ///   <item>main IFR Address: <c>AddAddress(ifr, "Unit", {44})</c> -&gt; length =
+        ///   block × (DataCount + 1), type InputFormRef, pointerIndexes {44}.</item>
+        /// </list>
+        /// FLAT — no per-entry sub-walk (unlike the FE8 UnitForm's +44 support BinFixed). The per-entry
+        /// embedded pointer at offset 44 is tracked via pointerIndexes {44} on the main Address (its
+        /// target is relocated by the rebuild's pointer-index pass), exactly as the FE7 UnitFE7Form
+        /// descriptor does.
+        /// </summary>
+        public static void EmitUnitFE6(ROM rom, List<Address> list)
+        {
+            EmitUnitFE6At(rom, list, rom.RomInfo.unit_pointer, rom.RomInfo.unit_datasize,
+                rom.RomInfo.unit_maxcount);
+        }
+
+        /// <summary>UnitFE6 walk from explicit unit-pointer slot / block / maxcount (test seam — lets a
+        /// synthetic ROM supply them without populating RomInfo, which has no public setters). See
+        /// <see cref="EmitUnitFE6"/> for the verbatim WF reproduction.</summary>
+        public static void EmitUnitFE6At(ROM rom, List<Address> list, uint rawUnitPointer, uint block, uint maxcount)
+        {
+            if (block == 0)
+            {
+                return; // a zero block would make getBlockDataCount spin; not real data.
+            }
+
+            // WF Init: ifr.ReInit(p32(unit_pointer) + unit_datasize). Guard the full pointer slot
+            // before p32 (root+3) so a near-EOF unit_pointer slot skips instead of throwing.
+            uint unitPointerSlot = U.toOffset(rawUnitPointer);
+            if (!U.isSafetyOffset(unitPointerSlot + 3, rom))
+            {
+                return;
+            }
+            uint tableStart = rom.p32(unitPointerSlot);
+            // baseAddr = tableStart + one block (FE6 skips unit 0 via the +unit_datasize ReInit).
+            uint baseAddr = U.toOffset(tableStart + block);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF ReInit on an unsafe addr -> AddAddress early-returns (isSafetyOffset(addr) false).
+            }
+
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) => i < maxcount);
+
+            // AddAddress(ifr, "Unit", {44}): length = block * (DataCount + 1); pointer = BasePointer = 0
+            // -> NOT_FOUND (the FE6 unit table's pointer slot is intentionally untracked).
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, U.NOT_FOUND, "Unit",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 44 }));
+        }
+
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
         /// <c>is_data_exists_callback</c> that <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> expects.</summary>
         static Func<int, uint, bool> MakeIsDataExists(ROM rom, StructDescriptor d)
@@ -1545,6 +1742,102 @@ namespace FEBuilderGBA
                 RuleStopValue = 0xFF,
                 PointerIndexes = new uint[] { },
             });
+
+            // ---- slice 2f: version-agnostic AI / Arena-weapon / Mant flat forms ----
+            // These are called UNCONDITIONALLY in the WF MakeAllStructPointersList (between
+            // DoEvents checkpoints 3 and 4). Each is a pure RomInfo table walk whose count + every
+            // length is a pure ROM read (no Huffman/LZ77/disasm/PatchUtil/config-file), expressible
+            // with the existing descriptor + AsmFunction/FixedPointer SubWalk machinery.
+
+            // AIMapSettingForm.MakeAllDataLength — Info "AIMapSetting", block 4, base
+            // ai_map_setting_pointer, IsDataExists = u8(addr)!=0xFF (U8NotEqual @0), pointerIndexes {}.
+            // Flat — no per-entry sub-walk.
+            l.Add(new StructDescriptor
+            {
+                Name = "AIMapSetting",
+                PointerField = r => r.RomInfo.ai_map_setting_pointer,
+                BlockSize = 4,
+                Rule = DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 0xFF,
+                PointerIndexes = new uint[] { },
+            });
+
+            // AIPerformStaffForm.MakeAllDataLength — Info "AIPerformStaff", block 8, base
+            // ai_preform_staff_pointer, IsDataExists = u16(addr)!=0 (U16NotZero @0), pointerIndexes {4}.
+            // PLUS Address.AddFunctions(MakeList(), 4, "AIPerformStaff_ASM_"): one ASM AddFunction per
+            // entry at offset 4. Reproduced as a SubKind.AsmFunction sub-walk @4 (reads u32(p+4),
+            // ProgramAddrToPlain, length-0 ASM block — extent at rebuild). The WF per-entry label is the
+            // IFR display name + "_ASM_"; the producer uses a static label (non-load-bearing for
+            // relocation, same convention as StatusOption/SoundFootSteps AsmFunction sub-walks).
+            // EOF-safe: getBlockDataCount guarantees p+8<=Length, so u32(p+4) (deepest p+7) is in bounds.
+            l.Add(new StructDescriptor
+            {
+                Name = "AIPerformStaff",
+                PointerField = r => r.RomInfo.ai_preform_staff_pointer,
+                BlockSize = 8,
+                Rule = DataCountRule.U16NotZero,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 4 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.AsmFunction, Name = (r, i) => "AIPerformStaff_ASM_" },
+                },
+            });
+
+            // AIPerformItemForm.MakeAllDataLength — identical shape to AIPerformStaff but base
+            // ai_preform_item_pointer, Info "AIPerformItem", per-entry ASM label "AIPerformItem_ASM_".
+            l.Add(new StructDescriptor
+            {
+                Name = "AIPerformItem",
+                PointerField = r => r.RomInfo.ai_preform_item_pointer,
+                BlockSize = 8,
+                Rule = DataCountRule.U16NotZero,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 4 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.AsmFunction, Name = (r, i) => "AIPerformItem_ASM_" },
+                },
+            });
+
+            // MantAnimationForm.MakeAllDataLength — Info "Mant", block 4, base mant_command_pointer,
+            // IsDataExists = U.isPointer(u32(addr+0)) (PointerAt @0 — a NULL slot terminates),
+            // pointerIndexes {0}. PLUS per entry: Address.AddPointer(p+0, 0x10, "MANT_P:0x<i>", POINTER)
+            // — a fixed 0x10-byte POINTER block behind the +0 pointer (SubKind.FixedPointer @0). The
+            // per-entry label "MANT_P:0x<i>" is reproduced verbatim via the sub-walk Name callback.
+            l.Add(new StructDescriptor
+            {
+                Name = "Mant",
+                PointerField = r => r.RomInfo.mant_command_pointer,
+                BlockSize = 4,
+                Rule = DataCountRule.PointerAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.FixedPointer, FixedLength = 0x10, DataType = Address.DataTypeEnum.POINTER, Name = (r, i) => "MANT_P:" + U.To0xHexString((int)i) },
+                },
+            });
+
+            // ArenaEnemyWeaponForm.MakeAllDataLength — Info "ArenaEnemyWeapon", block 1, base
+            // arena_enemy_weapon_basic_pointer, IsDataExists = i<8 (FixedCount 8), pointerIndexes {}.
+            // VERBATIM QUIRK: WF emits this descriptor TWICE — the second block reads `Init(null)`
+            // (the BASIC table again), NOT `N_Init` (the rankup table), so the rankup_pointer / i<0x1A
+            // table is never emitted. The duplicate-basic emit is a WF copy/paste, reproduced exactly
+            // (two identical descriptors) to keep the produced Address list byte-identical.
+            for (int dup = 0; dup < 2; dup++)
+            {
+                l.Add(new StructDescriptor
+                {
+                    Name = "ArenaEnemyWeapon",
+                    PointerField = r => r.RomInfo.arena_enemy_weapon_basic_pointer,
+                    BlockSize = 1,
+                    Rule = DataCountRule.FixedCount,
+                    RuleFixedCount = 8,
+                    PointerIndexes = new uint[] { },
+                });
+            }
 
             // ---- slice 2e: flat LZ77-image + palette IFR-loop forms (version-agnostic) ----
             // Each is the Core port of an ImageXxxForm.MakeAllDataLength that emits a main IFR Address
@@ -2264,9 +2557,11 @@ namespace FEBuilderGBA
             else if (rom.RomInfo.version == 6)
             {
                 // ---- version==6 (FE6) section ----
-                // Forms called ONLY inside the WF `else if (version == 6)` branch. UnitFE6Form,
-                // WorldMapEventPointerFE6Form (PLIST event-scan), MapSettingFE6Form (IsMapSettingEnd +
-                // CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay deferred.
+                // Forms called ONLY inside the WF `else if (version == 6)` branch. UnitFE6Form is ported
+                // in slice 2f via the dedicated EmitUnitFE6 walker (its base is p32(unit_pointer)+
+                // unit_datasize with a NOT_FOUND pointer slot, which the pointer-slot descriptor model
+                // cannot express). WorldMapEventPointerFE6Form (PLIST event-scan), MapSettingFE6Form
+                // (IsMapSettingEnd + CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay deferred.
                 // ImagePortraitFE6Form STAYS too — its Init has a stateful nullContinuousCount
                 // terminator + GetFEditorLengthHint, not faithfully reproducible by the stateless
                 // descriptor rule model. The clean tables below are ported; ImageChapterTitleFE7Form
@@ -2536,11 +2831,25 @@ namespace FEBuilderGBA
                 //  CString + 6 ASM ptrs — + its own 6 ASM ptrs] ported in slice 2d via dedicated recursive
                 //  walkers; MenuCommandForm.MakeAllDataLengthP is reproduced by EmitMenuCommandSubTable.)
                 "ItemShopForm",
-                "ItemWeaponEffectForm", "ItemUsagePointerForm", "UnitActionPointerForm",
+                "ItemWeaponEffectForm",
+                // UnitActionPointerForm STAYS — its base = SearchActionPointer(), gated on
+                //   PatchUtil.SearchUnitActionReworkPatch() (PatchUtil patch detection not in Core).
+                // (ItemUsagePointerForm ported in slice 2f — dedicated EmitItemUsagePointer walker over
+                //  the 10 Switch2-gated usage tables, base/count from each xxx_array_switch2_address via
+                //  the Core ItemUsagePointerCore.IsSwitch2Enable + per-entry ASM AddFunction @0.)
+                "UnitActionPointerForm",
+                // MapChangeForm/MapExitPointForm — tractable via the Core map helpers
+                //   (MapChangeCore.GetMapChangeAddrWhereMapID / MapExitPointCore.ListMapEntries +
+                //    ListExitPointsForMap) but each needs a dedicated per-map walker with verbatim
+                //    per-entry length reproduction; DEFERRED for slice size (a coherent map-PLIST batch).
                 "MapChangeForm", "MapExitPointForm", "MapPointerForm", "FontForm",
                 // AI scripts (disasm)
-                "AIScriptForm", "AIMapSettingForm", "AIPerformStaffForm", "AIPerformItemForm",
-                "ArenaEnemyWeaponForm",
+                // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
+                //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
+                //  slice 2f. AIScriptForm STAYS — its per-entry length is AIScriptForm.CalcLength (AI
+                //  16-byte-opcode bytecode walk) + AIUnitsForm.CalcLength + nested LZ77 sub-pointers, none
+                //  of which is in Core.)
+                "AIScriptForm",
                 // skills (version/patch dependent)
                 "SkillAssignmentClassSkillSystemForm", "SkillAssignmentUnitSkillSystemForm",
                 "SkillConfigSkillSystemForm", "SkillConfigFE8NSkillForm",
@@ -2551,17 +2860,26 @@ namespace FEBuilderGBA
                 //  StatusOptionForm ported in slice 2d [v7+v8, PointerAt@40 main IFR + per-entry
                 //  SubKind.AsmFunction @40]. NOTE: "MapMiniMapTerrainForm" does NOT exist as a distinct
                 //  ASM form — the only file is MapMiniMapTerrainImageForm (an LZ77 image form, already
-                //  listed above), so there is nothing extra to port for it.)
-                "MantAnimationForm", "MapTileAnimation1Form",
+                //  listed above), so there is nothing extra to port for it.
+                //  MantAnimationForm ported in slice 2f — PointerAt@0 main IFR ("Mant") + per-entry
+                //  SubKind.FixedPointer @0 (0x10-byte POINTER block "MANT_P:0x<i>").
+                //  MapTileAnimation1Form/MapTileAnimation2Form — tractable via the Core helpers
+                //  (MapTileAnimation1Core/2Core.BuildPlistList + ScanEntries) but need a dedicated
+                //  per-PLIST walker with verbatim per-entry IMG/BIN length reproduction; DEFERRED for
+                //  slice size (the coherent map-PLIST batch).
+                //  MapTerrainFloorLookupTableForm/MapTerrainBGLookupTableForm — their pointer set comes
+                //  from GetPointersExtendsPatch (PatchUtil.SearchExtendsBattleBG + hardcoded FE8 offsets),
+                //  not in Core.)
+                "MapTileAnimation1Form",
                 "MapTileAnimation2Form", "MapTerrainFloorLookupTableForm",
                 "MapTerrainBGLookupTableForm",
                 // units / classes per-version with extra reads
                 // (UnitForm [FE8, flat + 24-byte support BinFixed sub-walk @44] and UnitFE7Form
                 //  [FE7, flat, no sub-walk] ported in this sweep; SummonUnitForm + SummonsDemonKingForm
-                //  + EventForceSortieForm [FE8 clean tables] ported too. UnitFE6Form STAYS — its base is
-                //  p32(unit_pointer)+unit_datasize via a direct ReInit, which the pointer-slot descriptor
-                //  model cannot express faithfully.)
-                "UnitFE6Form", "UnitCustomBattleAnimeForm",
+                //  + EventForceSortieForm [FE8 clean tables] ported too. UnitFE6Form ported in slice 2f
+                //  via the dedicated EmitUnitFE6 walker — base p32(unit_pointer)+unit_datasize, BasePointer
+                //  0 -> NOT_FOUND, i < unit_maxcount, pointerIndexes {44}.)
+                "UnitCustomBattleAnimeForm",
                 "ExtraUnitForm", "ExtraUnitFE8UForm",
                 "EventUnitForm(RecycleReserveUnits)",
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
@@ -2572,7 +2890,11 @@ namespace FEBuilderGBA
                 //  WorldMapPointForm [FE8], SupportTalkForm/FE6/FE7, EventBattleTalkFE6Form [FE6 ×2],
                 //  EventHaikuFE6Form [FE6], TacticianAffinityFE7, EventFinalSerifFE7Form.
                 //  STILL deferred (event-scan / LZ77 / recursive / GetUnitIDWhereSupportAddr / dynamic
-                //  base): MonsterWMapProbabilityForm + WorldMapEventPointerForm [ScanScript],
+                //  base): MonsterWMapProbabilityForm STAYS — although its 5 IFR probability/stage tables
+                //    are flat ROM reads, its MakeAllDataLength ALSO emits EventScriptForm.ScanScript over
+                //    the two skirmish start/end event pointers (no Core ScanScript primitive yet);
+                //    porting only the flat tables would drop those skirmish-event regions = corruption.
+                //  WorldMapEventPointerForm [ScanScript],
                 //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry], SupportUnitForm
                 //  [GetUnitIDWhereSupportAddr], WorldMapPathForm [CalcPathDataLength], EDStaffRollForm +
                 //  OPPrologueForm + OPClassFontForm + OPClassDemoForm/FE7Form [LZ77], MapSettingForm
