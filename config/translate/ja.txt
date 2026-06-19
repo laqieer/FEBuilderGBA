@@ -11367,6 +11367,9 @@ TSA数: {0}
 :The image size is not correct. The font glyph must be {0}x{1}. Selected: {2}x{3}
 画像サイズが正しくありません。フォントグリフは {0}x{1} である必要があります。選択: {2}x{3}
 
+:This is not a Chinese ROM.
+これは中国語ROMではありません。
+
 :The image uses colors outside the 4-color font palette. Remap it to the font palette first.
 画像が4色のフォントパレット外の色を使用しています。先にフォントパレットへ変換してください。
 

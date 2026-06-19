@@ -25202,6 +25202,9 @@ TSA数量: {0}
 :The image size is not correct. The font glyph must be {0}x{1}. Selected: {2}x{3}
 图像尺寸不正确。字体字形必须为 {0}x{1}。已选择: {2}x{3}
 
+:This is not a Chinese ROM.
+这不是中文ROM。
+
 :The image uses colors outside the 4-color font palette. Remap it to the font palette first.
 图像使用了4色字体调色板之外的颜色。请先将其映射到字体调色板。
 
