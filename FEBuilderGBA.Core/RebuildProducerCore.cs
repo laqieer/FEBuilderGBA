@@ -464,6 +464,52 @@ namespace FEBuilderGBA
             progress?.Report("ItemUsagePointer");
             EmitItemUsagePointer(rom, list);
 
+            // ---- slice 2g: per-map PLIST forms (version-agnostic) ----
+            // ItemShop / MapChange / MapExitPoint / MapTileAnimation1 / MapTileAnimation2 are all
+            // version-agnostic in WF MakeAllStructPointersList. None is a flat StructDescriptor walk:
+            // each is a per-map enumeration (MakeMapIDList / event-cond shop scan / PLIST resolve) with
+            // verbatim per-entry length reproduction. Each gets a dedicated walker with its own
+            // cancel-check, mirroring the WF DoEvents posture.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ItemShop");
+            EmitItemShop(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapChange");
+            EmitMapChange(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapExitPoint");
+            EmitMapExitPoint(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapTileAnimation1");
+            EmitMapTileAnimation1(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapTileAnimation2");
+            EmitMapTileAnimation2(rom, list);
+
             if (rom.RomInfo.version == 7)
             {
                 if (ct.IsCancellationRequested)
@@ -1387,6 +1433,473 @@ namespace FEBuilderGBA
             uint length = block * (dataCount + 1);
             list.Add(new Address(baseAddr, length, U.NOT_FOUND, "Unit",
                 Address.DataTypeEnum.InputFormRef, block, new uint[] { 44 }));
+        }
+
+        // ===================================================================
+        // slice 2g — per-map PLIST forms (version-agnostic section of WF
+        // MakeAllStructPointersList). Each is a per-map walk that a flat
+        // StructDescriptor cannot express, so each gets a dedicated emitter +
+        // a test seam that supplies the resolved work items without RomInfo.
+        // ===================================================================
+
+        /// <summary>
+        /// <c>ItemShopForm.MakeAllDataLength</c> (slice 2g, version-agnostic). For each shop
+        /// enumerated by <see cref="ItemShopCore.MakeShopList"/> (hensei preparation shop, FE8
+        /// worldmap shops, per-map event-cond shops — verbatim WF <c>MakeShopListLow</c> scan
+        /// order), WF re-inits an IFR at the shop item-list address and emits one BIN
+        /// <see cref="Address"/> whose length is <c>(DataCount + 1) * BlockSize</c> with
+        /// BlockSize = 2 and DataCount = the count of non-zero 2-byte item entries
+        /// (<c>ItemShopForm.Init</c> IsDataExists = <c>u8(addr) != 0x00</c>). Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>shop_addr = <c>AddrResult.addr</c>; tag (pointer slot) = <c>AddrResult.tag</c>;</item>
+        ///   <item>DataCount = <c>getBlockDataCount(shop_addr, 2, u8(addr)!=0)</c> (the WF IFR walk;
+        ///   NOT <see cref="ItemShopCore.CountShopItems"/>, whose 0x200 cap WF's IFR lacks);</item>
+        ///   <item><c>AddAddress(list, shop_addr, (DataCount+1)*2, tag, "Shop", BIN)</c>.</item>
+        /// </list>
+        /// The shop enumeration depends on the event-script OBJECT-condition scan
+        /// (<see cref="ItemShopCore.MakeShopList"/> via <c>MapEventUnitCore.GetCondSlots</c> /
+        /// <c>GetEventAddrForMap</c>), which are pure ROM reads — so this is faithfully headless.
+        /// </summary>
+        public static void EmitItemShop(ROM rom, List<Address> list)
+        {
+            EmitItemShopList(rom, list, ItemShopCore.MakeShopList(rom));
+        }
+
+        /// <summary>ItemShop emission from an explicit shop list (test seam — lets a synthetic ROM
+        /// supply the shop addr/tag without driving the full event-cond scan). See
+        /// <see cref="EmitItemShop"/> for the verbatim WF reproduction. Each
+        /// <see cref="AddrResult.addr"/> is the shop's item-list address and
+        /// <see cref="AddrResult.tag"/> is the inbound 4-byte pointer slot.</summary>
+        public static void EmitItemShopList(ROM rom, List<Address> list, List<AddrResult> shopList)
+        {
+            if (shopList == null)
+            {
+                return;
+            }
+            const uint block = 2; // ItemShopForm.Init BlockSize.
+            foreach (AddrResult shop in shopList)
+            {
+                uint shopAddr = U.toOffset(shop.addr);
+                // WF ReInit(shop_addr) -> AddAddress early-returns on an unsafe base. getBlockDataCount
+                // itself returns 0 on an unsafe/zero addr, but guard explicitly so the AddAddress below
+                // (which would otherwise emit a 1-block length on a NOT_FOUND base) mirrors WF.
+                if (!U.isSafetyOffset(shopAddr, rom))
+                {
+                    continue;
+                }
+
+                // WF IFR DataCount: getBlockDataCount(shop_addr, 2, u8(addr) != 0). The 2-arg overload
+                // stops at the 0x00 terminator OR at addr+block > Data.Length (EOF) — no extra guard is
+                // needed (the callback only reads u8(addr), fully covered by the loop's addr+block<=Len).
+                uint dataCount = rom.getBlockDataCount(shopAddr, block, (i, addr) => rom.u8(addr) != 0x00);
+                uint length = block * (dataCount + 1);
+                // AddAddress(list, shop_addr, length, tag, "Shop", BIN). The tag (pointer slot) is the
+                // address of the 4-byte pointer that references the shop — relocated by the rebuild.
+                Address.AddAddress(list, shopAddr, length, shop.tag, "Shop", Address.DataTypeEnum.BIN);
+            }
+        }
+
+        /// <summary>
+        /// <c>MapChangeForm.MakeAllDataLength</c> (slice 2g, version-agnostic). Iterates every map
+        /// (<c>mapid &lt; MapSettingForm.GetDataCount()</c>), resolves the per-map mapchange PLIST via
+        /// <see cref="MapChangeCore.GetMapChangeAddrWhereMapID"/> (= WF
+        /// <c>MapSettingForm.GetMapChangeAddrWhereMapID(mapid, out pointer)</c> +
+        /// <c>MapPointerForm.PlistToOffsetAddrFast(CHANGE, ...)</c>), and for each resolved map emits:
+        /// <list type="bullet">
+        ///   <item>the main IFR <see cref="Address"/> (<c>N_Init</c>: BlockSize 12, IsDataExists
+        ///   <c>u8(addr) != 0xFF</c>): <c>AddAddress(N_IFR, "MapChange map:0x&lt;id&gt;", {8})</c>
+        ///   via <c>ReInitPointer(pointer)</c> — base = <c>p32(pointer)</c>, length =
+        ///   12 × (DataCount + 1), pointer = the PLIST slot, pointerIndexes {8};</item>
+        ///   <item>per entry (<c>p = base + i*12</c>): <c>w = u8(p+3)</c>, <c>h = u8(p+4)</c>,
+        ///   <c>change_mar = p32(p+8)</c>; if <c>isSafetyOffset(change_mar)</c> a BIN
+        ///   <see cref="Address"/> of length <c>w*h*2</c> at <c>change_mar</c>, pointer slot
+        ///   <c>p+8</c>.</item>
+        /// </list>
+        /// The map iteration uses <see cref="MapSettingCore.MakeMapIDList"/> (= WF
+        /// <c>Init().MakeList()</c>) whose entries carry the sequential mapid in <c>tag</c>; the loop
+        /// is bounded by its <c>.Count</c> (= WF <c>GetDataCount()</c>). All reads are pure ROM reads
+        /// — faithfully headless.
+        /// </summary>
+        public static void EmitMapChange(ROM rom, List<Address> list)
+        {
+            // WF: for (mapid = 0; mapid < GetDataCount(); mapid++). MakeMapIDList(rom) yields one entry
+            // per map with tag == mapid (sequential), Count == the WF IFR DataCount.
+            foreach (AddrResult map in MapSettingCore.MakeMapIDList(rom))
+            {
+                uint mapid = map.tag;
+                uint change_addr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, mapid, out uint pointer);
+                if (change_addr == U.NOT_FOUND)
+                {
+                    continue; // WF: change_addr == NOT_FOUND -> continue.
+                }
+                EmitMapChangeAt(rom, list, mapid, pointer);
+            }
+        }
+
+        /// <summary>MapChange emission for one map from its resolved CHANGE PLIST slot
+        /// <paramref name="pointer"/> (test seam — lets a synthetic ROM supply the slot directly
+        /// without populating the map-setting / PLIST tables). See <see cref="EmitMapChange"/> for the
+        /// verbatim WF reproduction. <paramref name="pointer"/> is the 4-byte PLIST-table slot whose
+        /// <c>p32</c> is the change-data base (WF <c>N_InputFormRef.ReInitPointer(pointer)</c>).</summary>
+        public static void EmitMapChangeAt(ROM rom, List<Address> list, uint mapid, uint pointer)
+        {
+            const uint block = 12; // MapChangeForm.N_Init BlockSize.
+
+            // WF N_InputFormRef.ReInitPointer(pointer): BasePointer = pointer, BaseAddress = p32(pointer).
+            // Guard the full 4-byte slot before p32 (pointer+3) so a near-EOF slot skips, not throws
+            // (matches the EmitUnitFE6At / ItemUsage root+3 convention).
+            uint pointerSlot = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointerSlot + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointerSlot);
+            // WF AddAddress early-returns when !isSafetyOffset(BaseAddress) (the pointer slot then
+            // becomes NOT_FOUND); without a safe base there is also nothing to walk.
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // N_Init IsDataExists = u8(addr) != 0xFF. The 2-arg getBlockDataCount stops at the 0xFF
+            // terminator OR at addr+12 > Data.Length (EOF) — the callback reads only u8(addr).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) => rom.u8(addr) != 0xFF);
+
+            // Main IFR: AddAddress(N_IFR, "MapChange map:0x<id>", {8}) -> length = 12 * (DataCount + 1),
+            // pointer = BasePointer = the PLIST slot (safe here), pointerIndexes {8}.
+            uint length = block * (dataCount + 1);
+            string name = "MapChange map:" + U.To0xHexString(mapid);
+            list.Add(new Address(baseAddr, length, pointerSlot, name,
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 8 }));
+
+            // Per-entry change-map BIN blocks (WF inner loop): for each entry p = base + i*12 read the
+            // w/h size bytes and the +8 change pointer, then add a w*h*2 BIN block behind it.
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint p = baseAddr + i * block;
+                // Guard the full 12-byte record (the deepest read is p32(p+8) -> p+11) before any read,
+                // so a corrupted/too-large DataCount near EOF skips instead of throwing. On valid ROMs
+                // every record is fully in-bounds (getBlockDataCount already bounded by addr+12<=Len),
+                // so this only hardens synthetic/corrupted ROMs — but the p32(p+8) read below reaches
+                // p+11, one byte past getBlockDataCount's addr+block-1, so the explicit guard is needed.
+                if (p + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                uint w = rom.u8(p + 3); // size w
+                uint h = rom.u8(p + 4); // size h
+                uint change_mar = rom.p32(p + 8); // change-map pointer
+                if (!U.isSafetyOffset(change_mar, rom))
+                {
+                    continue; // WF: !isSafetyOffset(change_mar) -> continue (no emit for this entry).
+                }
+                string entryName = "MapChange map:" + U.To0xHexString(mapid) + " n:" + U.To0xHexString(i);
+                Address.AddAddress(list, change_mar, w * h * 2, p + 8, entryName,
+                    Address.DataTypeEnum.BIN);
+            }
+        }
+
+        /// <summary>
+        /// <c>MapExitPointForm.MakeAllDataLength</c> (slice 2g, version-agnostic). Emits TWO main IFR
+        /// tables (enemy + NPC escape-point slot tables) plus a per-map sub-table for each:
+        /// <list type="bullet">
+        ///   <item><b>enemy main</b> (<c>Init</c>: BasePointer = <c>map_exit_point_pointer</c>, BlockSize
+        ///   4, IsDataExists <c>isPointerOrNULL(u32(addr)) &amp;&amp; i &lt; npc_blockadd</c>):
+        ///   <c>AddAddress(IFR, "MapExit", {0})</c> — length 4 × (DataCount + 1), pointer =
+        ///   <c>map_exit_point_pointer</c>, pointerIndexes {0};</item>
+        ///   <item><b>enemy per-map</b> (<c>mapid &lt; GetDataCount()</c>): <c>exit_addr =
+        ///   IDToAddr(mapid)</c> (= enemy base + mapid*4, bounded by the enemy IFR DataCount); skip when
+        ///   out of range or <c>p32(exit_addr) == NOT_FOUND</c>; else <c>N_ReInitPointer(exit_addr)</c>
+        ///   (<c>N_Init</c>: BlockSize 4, <c>u8(addr) != 0xFF</c>) and
+        ///   <c>AddAddress(N_IFR, "MapExit map:0x&lt;id&gt;", {})</c> — length 4 × (N_DataCount + 1),
+        ///   pointer = <c>exit_addr</c>, empty pointerIndexes;</item>
+        ///   <item><b>NPC main</b>: <c>ReInit(p32(map_exit_point_pointer) + 4*npc_blockadd)</c> then
+        ///   <c>AddAddressButIgnorePointer(IFR, "MapExit NPC", {0})</c> — pointer FORCED to NOT_FOUND
+        ///   (the NPC base is reached by a computed offset, not a RomInfo slot), type InputFormRef;</item>
+        ///   <item><b>NPC per-map</b>: identical to enemy per-map but rooted at the NPC base, name
+        ///   "MapExit map:0x&lt;id&gt; NPC".</item>
+        /// </list>
+        /// Reproduced VERBATIM (the enemy/NPC bases, the <c>i &lt; npc_blockadd</c> enemy cap, the
+        /// <c>ButIgnorePointer</c> NPC main). All reads are pure ROM reads — faithfully headless.
+        /// </summary>
+        public static void EmitMapExitPoint(ROM rom, List<Address> list)
+        {
+            uint mapCount = (uint)MapSettingCore.MakeMapIDList(rom).Count; // WF GetDataCount().
+            EmitMapExitPointAt(rom, list, rom.RomInfo.map_exit_point_pointer,
+                rom.RomInfo.map_exit_point_npc_blockadd, mapCount);
+        }
+
+        /// <summary>MapExitPoint emission from explicit RomInfo addresses (test seam — lets a synthetic
+        /// ROM supply the pointer slot / npc_blockadd / map count without populating RomInfo). See
+        /// <see cref="EmitMapExitPoint"/> for the verbatim WF reproduction.</summary>
+        public static void EmitMapExitPointAt(ROM rom, List<Address> list, uint rawMainPointer,
+            uint npcBlockAdd, uint mapCount)
+        {
+            const uint block = 4; // Init / N_Init BlockSize.
+
+            // --- enemy table ---
+            // WF Init: BasePointer = map_exit_point_pointer, BaseAddress = p32(map_exit_point_pointer).
+            uint mainPointer = U.toOffset(rawMainPointer);
+            if (!U.isSafetyOffset(mainPointer + 3, rom))
+            {
+                return; // p32(mainPointer) would read junk past EOF.
+            }
+            uint enemyBase = rom.p32(mainPointer);
+
+            // Enemy IsDataExists = isPointerOrNULL(u32(addr)) && i < npc_blockadd.
+            Func<int, uint, bool> enemyRule = (i, addr) =>
+                U.isPointerOrNULL(rom.u32(addr)) && i < npcBlockAdd;
+
+            // Enemy main: AddAddress(IFR, "MapExit", {0}) — pointer = BasePointer (map_exit_point_pointer).
+            EmitMapExitMain(rom, list, enemyBase, block, enemyRule, mainPointer, "MapExit",
+                new uint[] { 0 }, ignorePointer: false);
+
+            // Enemy per-map sub-tables: exit_addr = enemyBase + mapid*4 (IDToAddr bounded by the enemy
+            // IFR DataCount). The DataCount is the getBlockDataCount over the enemy rule.
+            EmitMapExitSubTables(rom, list, enemyBase, block, enemyRule, mapCount, "");
+
+            // --- NPC table ---
+            // WF: InputFormRef.ReInit(p32(map_exit_point_pointer) + 4 * npc_blockadd). BasePointer is
+            // UNCHANGED by ReInit (still map_exit_point_pointer), but AddAddressButIgnorePointer forces
+            // the emitted pointer to NOT_FOUND, so the NPC main's pointer slot is intentionally untracked.
+            uint npcBase = enemyBase + block * npcBlockAdd;
+
+            // NPC main: AddAddressButIgnorePointer(IFR, "MapExit NPC", {0}) — pointer forced NOT_FOUND.
+            EmitMapExitMain(rom, list, npcBase, block, enemyRule, mainPointer, "MapExit NPC",
+                new uint[] { 0 }, ignorePointer: true);
+
+            // NPC per-map sub-tables: exit_addr = npcBase + mapid*4 (IDToAddr bounded by the NPC IFR
+            // DataCount, computed from the same enemy rule over the NPC base). Name suffix " NPC".
+            EmitMapExitSubTables(rom, list, npcBase, block, enemyRule, mapCount, " NPC");
+        }
+
+        /// <summary>The MapExitPoint main-IFR emit (enemy or NPC). Reproduces
+        /// <c>AddressWinForms.AddAddress</c> (or <c>AddAddressButIgnorePointer</c> when
+        /// <paramref name="ignorePointer"/>): addr = BaseAddress, length = block × (DataCount + 1),
+        /// type InputFormRef. The pointer is <paramref name="basePointer"/> for the enemy table and
+        /// forced NOT_FOUND for the NPC table.</summary>
+        static void EmitMapExitMain(ROM rom, List<Address> list, uint baseAddr, uint block,
+            Func<int, uint, bool> rule, uint basePointer, string name, uint[] pointerIndexes,
+            bool ignorePointer)
+        {
+            // WF AddAddress: early-return when !isSafetyOffset(BaseAddress).
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, rule);
+            uint length = block * (dataCount + 1);
+            // AddAddress: pointer = BasePointer (-> NOT_FOUND if unsafe). ButIgnorePointer: pointer
+            // ALWAYS NOT_FOUND. basePointer (the RomInfo slot) is already verified safe by the caller.
+            uint pointer = ignorePointer ? U.NOT_FOUND : basePointer;
+            list.Add(new Address(baseAddr, length, pointer, name,
+                Address.DataTypeEnum.InputFormRef, block, pointerIndexes));
+        }
+
+        /// <summary>The MapExitPoint per-map sub-table loop (enemy or NPC). For each
+        /// <c>mapid &lt; mapCount</c>, WF computes <c>exit_addr = IDToAddr(mapid)</c> (= base + mapid*4,
+        /// NOT_FOUND once <c>mapid &gt;= mainDataCount</c>), checks <c>p32(exit_addr) != NOT_FOUND</c>,
+        /// then <c>N_ReInitPointer(exit_addr)</c> + <c>AddAddress(N_IFR, "MapExit map:0x&lt;id&gt;" +
+        /// suffix, {})</c> — block × (N_DataCount + 1), pointer = exit_addr, empty pointerIndexes, type
+        /// InputFormRef.</summary>
+        static void EmitMapExitSubTables(ROM rom, List<Address> list, uint base_, uint block,
+            Func<int, uint, bool> mainRule, uint mapCount, string nameSuffix)
+        {
+            if (!U.isSafetyOffset(base_, rom))
+            {
+                return; // base unsafe -> IDToAddr's IFR DataCount is 0 -> no sub-tables.
+            }
+            // The main IFR DataCount bounds IDToAddr (WF: id >= DataCount -> NOT_FOUND). Compute it once.
+            uint mainDataCount = rom.getBlockDataCount(base_, block, mainRule);
+
+            for (uint mapid = 0; mapid < mapCount; mapid++)
+            {
+                // WF IDToAddr(mapid): NOT_FOUND when mapid >= mainDataCount.
+                if (mapid >= mainDataCount)
+                {
+                    continue;
+                }
+                uint exitAddr = base_ + mapid * block;
+                // Guard the full 4-byte slot before p32(exitAddr) (exitAddr+3). On valid ROMs the slot is
+                // in-bounds (mapid < mainDataCount, which getBlockDataCount bounded by addr+block<=Len);
+                // this only hardens corrupted ROMs (p32 reads exitAddr..exitAddr+3).
+                if (!U.isSafetyOffset(exitAddr + 3, rom))
+                {
+                    continue;
+                }
+                // WF: a = p32(exit_addr); if (a == U.NOT_FOUND) continue. p32 strips 0x08000000 so it is
+                // never literally NOT_FOUND; reproduced for structural fidelity (the real gate is the
+                // N base-safety below, exactly as WF's N_ReInitPointer -> AddAddress early-return).
+                uint a = rom.p32(exitAddr);
+                if (a == U.NOT_FOUND)
+                {
+                    continue;
+                }
+
+                // N_ReInitPointer(exit_addr): N BasePointer = exit_addr, N BaseAddress = p32(exit_addr).
+                uint nBase = rom.p32(exitAddr);
+                // N_Init IsDataExists = u8(addr) != 0xFF. AddAddress early-returns on an unsafe N base.
+                if (!U.isSafetyOffset(nBase, rom))
+                {
+                    continue;
+                }
+                uint nDataCount = rom.getBlockDataCount(nBase, block, (i, addr) => rom.u8(addr) != 0xFF);
+                uint length = block * (nDataCount + 1);
+                string name = "MapExit map:" + U.To0xHexString(mapid) + nameSuffix;
+                // AddAddress(N_IFR, name, {}) -> pointer = N BasePointer = exit_addr, empty pointerIndexes.
+                list.Add(new Address(nBase, length, exitAddr, name,
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+            }
+        }
+
+        /// <summary>
+        /// <c>MapTileAnimation1Form.MakeAllDataLength</c> (slice 2g, version-agnostic). Builds the
+        /// dedup'd anime1-PLIST list (WF <c>MakeTileAnimation1</c>: every map's <c>anime1_plist</c> at
+        /// map-setting +9, skip 0 / already-seen, resolved via
+        /// <c>MapPointerForm.PlistToOffsetAddr(ANIMATION, plist)</c> =
+        /// <see cref="MapChangeCore.PlistToOffsetAddr"/> with
+        /// <see cref="MapChangeCore.PlistType.ANIMATION"/>), then for each resolved PLIST emits:
+        /// <list type="bullet">
+        ///   <item>the main IFR <see cref="Address"/> (<c>Init</c>: BlockSize 8, IsDataExists
+        ///   <c>isPointer(u32(addr+4))</c>): <c>AddAddress(IFR, name, {4})</c> via
+        ///   <c>ReInit(addr)</c> — base = addr, BasePointer = 0 -&gt; NOT_FOUND, length =
+        ///   8 × (DataCount + 1), pointerIndexes {4};</item>
+        ///   <item>per entry (<c>p = base + i*8</c>): <c>img = p32(p+4)</c>, <c>len = u16(p+2)</c>;
+        ///   if <c>isSafetyOffset(img)</c> an IMG <see cref="Address"/> of length <c>len</c> at
+        ///   <c>img</c>, pointer slot <c>p+4</c>.</item>
+        /// </list>
+        /// Reproduced VERBATIM. Uses <see cref="MapChangeCore.PlistToOffsetAddr"/> (NOT the
+        /// <c>MapTileAnimation1Core.BuildPlistList</c> resolution, which omits the version PLIST-limit
+        /// gate) so the resolved data set is byte-identical to WF; a resolution that returns 0/NOT_FOUND
+        /// emits no <see cref="Address"/> (WF <c>ReInit</c> on an unsafe base early-returns).
+        /// </summary>
+        public static void EmitMapTileAnimation1(ROM rom, List<Address> list)
+        {
+            EmitMapTileAnimationN(rom, list, atOffset: 9, MapChangeCore.PlistType.ANIMATION,
+                imgAtPlus4: true);
+        }
+
+        /// <summary>
+        /// <c>MapTileAnimation2Form.MakeAllDataLength</c> (slice 2g, version-agnostic). Same shape as
+        /// <see cref="EmitMapTileAnimation1"/> but: the per-map PLIST is <c>anime2_plist</c> at
+        /// map-setting +10, the PLIST type is <see cref="MapChangeCore.PlistType.ANIMATION2"/>, the
+        /// main IFR IsDataExists is <c>isPointer(u32(addr+0))</c> (image pointer at +0, NOT +4), the
+        /// main IFR pointerIndexes is {0}, and each per-entry block is a BIN of length <c>u8(p+5) * 2</c>
+        /// behind the +0 pointer (<c>count = u8(p+5)</c>; palette rows are 2 bytes each). Reproduced
+        /// VERBATIM.
+        /// </summary>
+        public static void EmitMapTileAnimation2(ROM rom, List<Address> list)
+        {
+            EmitMapTileAnimationN(rom, list, atOffset: 10, MapChangeCore.PlistType.ANIMATION2,
+                imgAtPlus4: false);
+        }
+
+        /// <summary>Shared MapTileAnimation1/2 emitter. <paramref name="atOffset"/> is the map-setting
+        /// byte holding the per-map PLIST (9 = anime1, 10 = anime2); <paramref name="plistType"/> is the
+        /// PLIST table; <paramref name="imgAtPlus4"/> selects the anime1 schema (image pointer at +4,
+        /// IMG length = <c>u16(p+2)</c>, pointerIndexes {4}) vs the anime2 schema (image pointer at +0,
+        /// BIN length = <c>u8(p+5) * 2</c>, pointerIndexes {0}). Reproduces WF <c>MakeTileAnimationN</c>
+        /// (dedup by PLIST) + the per-entry inner loop VERBATIM.</summary>
+        static void EmitMapTileAnimationN(ROM rom, List<Address> list, uint atOffset,
+            MapChangeCore.PlistType plistType, bool imgAtPlus4)
+        {
+            var seen = new HashSet<uint>();
+            foreach (AddrResult map in MapSettingCore.MakeMapIDList(rom))
+            {
+                // anime1_plist = u8(mapAddr+9) / anime2_plist = u8(mapAddr+10).
+                uint mapAddr = map.addr;
+                if (mapAddr + atOffset + 1 > (uint)rom.Data.Length)
+                {
+                    continue;
+                }
+                uint plist = rom.u8(mapAddr + atOffset);
+                if (plist == 0)
+                {
+                    continue; // WF: plist == 0 -> continue.
+                }
+                if (!seen.Add(plist))
+                {
+                    continue; // WF: already-found dedup.
+                }
+
+                // WF: addr = PlistToOffsetAddr(ANIMATION/ANIMATION2, plist). Returns the resolved data
+                // offset (or 0/NOT_FOUND when broken). MapChangeCore.PlistToOffsetAddr applies the same
+                // version PLIST-limit + safety gate as the WF MapPointerForm path. A broken resolution
+                // (NOT_FOUND) means WF marks the row "(破損)" and ReInit on it emits nothing — so skip.
+                uint dataAddr = MapChangeCore.PlistToOffsetAddr(rom, plistType, plist, out uint _);
+                EmitMapTileAnimationFor(rom, list, dataAddr, plist, imgAtPlus4);
+            }
+        }
+
+        /// <summary>MapTileAnimation emission for one resolved PLIST data address (test seam — lets a
+        /// synthetic ROM supply the entry-table base + plist directly without populating the
+        /// map-setting / PLIST tables). <paramref name="dataAddr"/> is the WF <c>urList[n].addr</c>
+        /// (the PLIST-resolved entry-table base); <paramref name="imgAtPlus4"/> selects the anime1 vs
+        /// anime2 schema. See <see cref="EmitMapTileAnimation1"/> / <see cref="EmitMapTileAnimation2"/>
+        /// for the verbatim WF reproduction.</summary>
+        public static void EmitMapTileAnimationFor(ROM rom, List<Address> list, uint dataAddr,
+            uint plist, bool imgAtPlus4)
+        {
+            const uint block = 8; // Init BlockSize (both anime1 and anime2).
+
+            // WF: InputFormRef.ReInit(urList[n].addr). On an unsafe/NOT_FOUND base the IFR DataCount is 0
+            // and AddAddress early-returns — emit nothing (the "(破損)"/0-resolution case).
+            uint baseAddr = U.toOffset(dataAddr);
+            if (dataAddr == U.NOT_FOUND || !U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // Main IFR IsDataExists: anime1 = isPointer(u32(addr+4)); anime2 = isPointer(u32(addr+0)).
+            uint imgOffset = imgAtPlus4 ? 4u : 0u;
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => U.isPointer(rom.u32(addr + imgOffset)));
+
+            // Main IFR Address: AddAddress(IFR, name, {imgOffset}). BasePointer = 0 -> NOT_FOUND (the
+            // entry table is reached via the PLIST resolution, not a plain RomInfo pointer slot). The WF
+            // name is the localized "タイルアニメーション1/2:0x<plist>" string; the label is non-load-
+            // bearing for relocation (same convention as SoundFootSteps), so a stable ASCII label is
+            // used here ("MapTileAnime1/2:0x<plist>") — headless and locale-independent.
+            uint length = block * (dataCount + 1);
+            string animeKind = imgAtPlus4 ? "1" : "2";
+            string name = "MapTileAnime" + animeKind + ":" + U.To0xHexString(plist);
+            list.Add(new Address(baseAddr, length, U.NOT_FOUND, name,
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { imgOffset }));
+
+            // Per-entry image/palette blocks (WF inner loop).
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint p = baseAddr + i * block;
+                // Guard the full 8-byte record before any read. The deepest read is p32(p+4) -> p+7
+                // (anime1) or u8(p+5) (anime2); getBlockDataCount already bounded addr+block<=Len, but
+                // guard explicitly so a corrupted DataCount near EOF skips instead of throwing.
+                if (p + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                if (imgAtPlus4)
+                {
+                    // anime1: addr = p32(p+4); len = u16(p+2); IMG block of length len at addr, slot p+4.
+                    uint addr = rom.p32(p + 4);
+                    uint imgLen = rom.u16(p + 2);
+                    if (U.isSafetyOffset(addr, rom))
+                    {
+                        Address.AddAddress(list, addr, imgLen, p + 4,
+                            name + "_" + U.ToHexString(i), Address.DataTypeEnum.IMG);
+                    }
+                }
+                else
+                {
+                    // anime2: addr = p32(p+0); count = u8(p+5); BIN block of length count*2 at addr, slot p+0.
+                    uint addr = rom.p32(p + 0);
+                    uint count = rom.u8(p + 5);
+                    if (U.isSafetyOffset(addr, rom))
+                    {
+                        Address.AddAddress(list, addr, count * 2, p + 0,
+                            name + "_" + U.To0xHexString(i), Address.DataTypeEnum.BIN);
+                    }
+                }
+            }
         }
 
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
@@ -2835,7 +3348,9 @@ namespace FEBuilderGBA
                 //  and MenuDefinitionForm [recursive MenuCommandForm sub-table — InputFormRef_MIX + per-entry
                 //  CString + 6 ASM ptrs — + its own 6 ASM ptrs] ported in slice 2d via dedicated recursive
                 //  walkers; MenuCommandForm.MakeAllDataLengthP is reproduced by EmitMenuCommandSubTable.)
-                "ItemShopForm",
+                // (ItemShopForm ported in slice 2g — EmitItemShop walks ItemShopCore.MakeShopList [hensei +
+                //  FE8 worldmap + per-map event-cond OBJECT-slot shops] and emits one BIN Address per shop,
+                //  length = (count of non-zero 2-byte item entries + 1) * 2.)
                 "ItemWeaponEffectForm",
                 // UnitActionPointerForm STAYS — its base = SearchActionPointer(), gated on
                 //   PatchUtil.SearchUnitActionReworkPatch() (PatchUtil patch detection not in Core).
@@ -2843,11 +3358,16 @@ namespace FEBuilderGBA
                 //  the 10 Switch2-gated usage tables, base/count from each xxx_array_switch2_address via
                 //  the Core ItemUsagePointerCore.IsSwitch2Enable + per-entry ASM AddFunction @0.)
                 "UnitActionPointerForm",
-                // MapChangeForm/MapExitPointForm — tractable via the Core map helpers
-                //   (MapChangeCore.GetMapChangeAddrWhereMapID / MapExitPointCore.ListMapEntries +
-                //    ListExitPointsForMap) but each needs a dedicated per-map walker with verbatim
-                //    per-entry length reproduction; DEFERRED for slice size (a coherent map-PLIST batch).
-                "MapChangeForm", "MapExitPointForm", "MapPointerForm", "FontForm",
+                // (MapChangeForm + MapExitPointForm ported in slice 2g via dedicated per-map walkers:
+                //  EmitMapChange [per map: MapChangeCore.GetMapChangeAddrWhereMapID -> main 12-byte IFR
+                //  {8} + per-entry w*h*2 BIN behind +8] and EmitMapExitPoint [enemy + NPC 4-byte slot
+                //  tables, each with a per-map N-table; NPC main via ButIgnorePointer].
+                //  MapPointerForm STAYS — out of the slice-2g per-map-PLIST scope: its MakeAllDataLength
+                //  emits 6+ MAPPOINTERS IFR tables AND a per-map sweep that reads palette2_plist via
+                //  MapSettingForm.GetMapPListsWhereAddr, gated on PatchUtil.SearchFlag0x28ToMapSecond-
+                //  PalettePatch (PatchUtil patch detection not in Core), so its column set can't be
+                //  reproduced verbatim yet.)
+                "MapPointerForm", "FontForm",
                 // AI scripts (disasm)
                 // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
@@ -2868,15 +3388,16 @@ namespace FEBuilderGBA
                 //  listed above), so there is nothing extra to port for it.
                 //  MantAnimationForm ported in slice 2f — PointerAt@0 main IFR ("Mant") + per-entry
                 //  SubKind.FixedPointer @0 (0x10-byte POINTER block "MANT_P:0x<i>").
-                //  MapTileAnimation1Form/MapTileAnimation2Form — tractable via the Core helpers
-                //  (MapTileAnimation1Core/2Core.BuildPlistList + ScanEntries) but need a dedicated
-                //  per-PLIST walker with verbatim per-entry IMG/BIN length reproduction; DEFERRED for
-                //  slice size (the coherent map-PLIST batch).
-                //  MapTerrainFloorLookupTableForm/MapTerrainBGLookupTableForm — their pointer set comes
+                //  (MapTileAnimation1Form + MapTileAnimation2Form ported in slice 2g — EmitMapTileAnimation1
+                //   / EmitMapTileAnimation2 build the dedup'd per-map PLIST list [anime1_plist@+9 /
+                //   anime2_plist@+10, resolved via MapChangeCore.PlistToOffsetAddr ANIMATION/ANIMATION2 with
+                //   the version PLIST-limit gate], emit the main 8-byte IFR [isPointer(u32+4)/{4} for anime1,
+                //   isPointer(u32+0)/{0} for anime2], then per-entry IMG [u16(p+2) @ p32(p+4)] / BIN
+                //   [u8(p+5)*2 @ p32(p+0)] columns.)
+                //  MapTerrainFloorLookupTableForm/MapTerrainBGLookupTableForm STAY — their pointer set comes
                 //  from GetPointersExtendsPatch (PatchUtil.SearchExtendsBattleBG + hardcoded FE8 offsets),
                 //  not in Core.)
-                "MapTileAnimation1Form",
-                "MapTileAnimation2Form", "MapTerrainFloorLookupTableForm",
+                "MapTerrainFloorLookupTableForm",
                 "MapTerrainBGLookupTableForm",
                 // units / classes per-version with extra reads
                 // (UnitForm [FE8, flat + 24-byte support BinFixed sub-walk @44] and UnitFE7Form

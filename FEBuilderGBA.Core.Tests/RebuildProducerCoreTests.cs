@@ -476,8 +476,8 @@ namespace FEBuilderGBA.Core.Tests
             // (CCBranchForm is now PORTED in the #1261 producer sweep via ClassDataCount — it is no
             //  longer a deferred sibling; EventBattleTalkForm stays deferred for its ScanScript.)
             Assert.Contains("EventBattleTalkForm", notYet);        // per-entry EventScriptForm.ScanScript
-            Assert.Contains("MapTileAnimation1Form", notYet);      // embedded IMG sub-block
-            Assert.Contains("MapTileAnimation2Form", notYet);      // embedded BIN sub-block
+            // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g — see
+            //  GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.)
             Assert.Contains("MapTerrainFloorLookupTableForm", notYet); // PatchUtil GetPointers()
             Assert.Contains("MapTerrainBGLookupTableForm", notYet);    // PatchUtil GetPointers()
         }
@@ -638,7 +638,8 @@ namespace FEBuilderGBA.Core.Tests
                 //  per-entry EventScriptForm.ScanScript expansion.)
                 Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
                 Assert.Contains("EventBattleTalkForm", notYet2b);
-                Assert.Contains("MapTileAnimation1Form", notYet2b);
+                // (MapTileAnimation1Form is now PORTED in slice 2g — its still-deferred map sibling
+                //  MapTerrainFloorLookupTableForm [PatchUtil GetPointers] stays tracked here instead.)
                 Assert.Contains("MapTerrainFloorLookupTableForm", notYet2b);
 
                 // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
@@ -1703,8 +1704,9 @@ namespace FEBuilderGBA.Core.Tests
                 "MonsterWMapProbabilityForm", "SoundRoomForm",
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
-                //  ported in slice 2f -> no longer kept here.)
-                "ItemForm", "MapTileAnimation1Form", "MapTerrainFloorLookupTableForm",
+                //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
+                //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.)
+                "ItemForm", "MapTerrainFloorLookupTableForm",
             })
             {
                 Assert.Contains(kept, notYet);
@@ -3477,15 +3479,444 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("AIScriptForm", ported);              // AI bytecode CalcLength + nested LZ77
             Assert.Contains("UnitActionPointerForm", ported);     // PatchUtil SearchUnitActionReworkPatch
             Assert.Contains("MonsterWMapProbabilityForm", ported);// EventScriptForm.ScanScript skirmish
-            Assert.Contains("MapChangeForm", ported);             // deferred for slice size (map-PLIST)
-            Assert.Contains("MapExitPointForm", ported);          // deferred for slice size (map-PLIST)
-            Assert.Contains("MapTileAnimation1Form", ported);     // deferred for slice size (map-PLIST)
-            Assert.Contains("MapTileAnimation2Form", ported);     // deferred for slice size (map-PLIST)
-            Assert.Contains("ItemShopForm", ported);              // deferred for slice size (map-PLIST)
+            // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
+            //  — see GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.)
             Assert.Contains("EventCondForm", ported);             // EventScriptForm.ScanScript
             // and the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ====================================================================
+        // slice 2g — per-map PLIST forms (ItemShop / MapChange / MapExitPoint /
+        // MapTileAnimation1 / MapTileAnimation2). Each exercises the test-seam
+        // emitter with a synthetic per-map structure, then a near-EOF / corrupt
+        // case asserting no throw.
+        // ====================================================================
+
+        // ---- EmitItemShopList (BIN block per shop) --------------------------
+
+        [Fact]
+        public void EmitItemShopList_EmitsBinPerShop_LengthIsItemCountPlus1Times2()
+        {
+            // A shop with 3 non-zero 2-byte item entries then a 0x00 terminator -> DataCount = 3 ->
+            // length = (3+1)*2 = 8. The tag (pointer slot) is recorded on the emitted Address.
+            var rom = CreateTestRom();
+            uint shopAddr = 0x1000;
+            uint slot = 0x0800; // the inbound 4-byte pointer slot (AddrResult.tag)
+            // 3 items: each item-ID byte must be non-zero; the 4th byte is the 0x00 terminator.
+            rom.write_u8(shopAddr + 0, 0x11); rom.write_u8(shopAddr + 1, 0x05);
+            rom.write_u8(shopAddr + 2, 0x22); rom.write_u8(shopAddr + 3, 0x02);
+            rom.write_u8(shopAddr + 4, 0x33); rom.write_u8(shopAddr + 5, 0x01);
+            rom.write_u8(shopAddr + 6, 0x00); // terminator item-ID
+
+            var list = new List<Address>();
+            var shops = new List<AddrResult> { new AddrResult(shopAddr, "Shop", slot) };
+            RebuildProducerCore.EmitItemShopList(rom, list, shops);
+
+            Address a = Assert.Single(list);
+            Assert.Equal(shopAddr, a.Addr);
+            Assert.Equal(8u, a.Length); // (3+1)*2
+            Assert.Equal(slot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.BIN, a.DataType);
+            Assert.Equal("Shop", a.Info);
+        }
+
+        [Fact]
+        public void EmitItemShopList_EmptyShop_LengthIsTwo()
+        {
+            // First item-ID byte is 0x00 -> DataCount = 0 -> length = (0+1)*2 = 2 (one terminator block).
+            var rom = CreateTestRom();
+            uint shopAddr = 0x1000;
+            uint slot = 0x0800;
+            rom.write_u8(shopAddr, 0x00);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemShopList(rom, list,
+                new List<AddrResult> { new AddrResult(shopAddr, "Shop", slot) });
+
+            Address a = Assert.Single(list);
+            Assert.Equal(2u, a.Length);
+        }
+
+        [Fact]
+        public void EmitItemShopList_UnsafeShopAddr_EmitsNothing()
+        {
+            // A shop whose item-list address is below 0x200 (unsafe) is skipped (WF ReInit -> AddAddress
+            // early-returns). Null/empty list also no-ops.
+            var rom = CreateTestRom();
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemShopList(rom, list,
+                new List<AddrResult> { new AddrResult(0x0100, "Shop", 0x0800) });
+            Assert.Empty(list);
+
+            RebuildProducerCore.EmitItemShopList(rom, list, null);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitItemShopList_UnterminatedShopNearEof_TruncatesWithoutThrowing()
+        {
+            // An unterminated all-non-zero run up to EOF must stop at addr+block > Data.Length
+            // (getBlockDataCount's EOF cutoff), NOT throw. length = (count+1)*2 is clamped to a safe value.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint shopAddr = size - 6; // 0x1FFA — 3 two-byte entries fit before EOF, no terminator
+            for (uint i = shopAddr; i < size; i++) rom.write_u8(i, 0x11);
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitItemShopList(rom, list,
+                new List<AddrResult> { new AddrResult(shopAddr, "Shop", 0x0800) }));
+            Assert.Null(ex);
+        }
+
+        // ---- EmitMapChangeAt (per-map 12-byte IFR + w*h*2 BIN per entry) ----
+
+        [Fact]
+        public void EmitMapChangeAt_MainIfrPlusPerEntryBinBlocks()
+        {
+            // Slot -> change-data base; the change table has 2 records (12 bytes each) then a 0xFF
+            // terminator record. Each record: +3 = w, +4 = h, +8 = p32(change-map). Record 0 points at
+            // a w*h*2 = 2*3*2 = 12-byte BIN; record 1 at a 1*1*2 = 2-byte BIN.
+            var rom = CreateTestRom(0x8000);
+            uint slot = 0x0800;        // PLIST slot (pointer)
+            uint changeBase = 0x1000;  // p32(slot)
+            rom.write_u32(slot, Ptr(changeBase));
+
+            uint mar0 = 0x2000, mar1 = 0x2100;
+            // record 0
+            rom.write_u8(changeBase + 0, 0x01);  // id (non-0xFF)
+            rom.write_u8(changeBase + 3, 2);     // w
+            rom.write_u8(changeBase + 4, 3);     // h
+            rom.write_u32(changeBase + 8, Ptr(mar0));
+            // record 1
+            rom.write_u8(changeBase + 12 + 0, 0x02);
+            rom.write_u8(changeBase + 12 + 3, 1);
+            rom.write_u8(changeBase + 12 + 4, 1);
+            rom.write_u32(changeBase + 12 + 8, Ptr(mar1));
+            // terminator record (id == 0xFF)
+            rom.write_u8(changeBase + 24, 0xFF);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0x05, pointer: slot);
+
+            // Main IFR: base = changeBase, length = 12*(2+1) = 36, pointer = slot, block 12, {8}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.Equal(changeBase, main.Addr);
+            Assert.Equal(36u, main.Length);
+            Assert.Equal(slot, main.Pointer);
+            Assert.Equal(12u, main.BlockSize);
+            Assert.Equal(new uint[] { 8 }, main.PointerIndexes);
+            Assert.Equal("MapChange map:0x05", main.Info); // U.To0xHexString(0x05) zero-pads to 2 digits
+
+            // Two BIN change-map blocks.
+            var bins = list.Where(a => a.DataType == Address.DataTypeEnum.BIN).ToList();
+            Assert.Equal(2, bins.Count);
+            Assert.Contains(bins, a => a.Addr == mar0 && a.Length == 12 && a.Pointer == changeBase + 8);
+            Assert.Contains(bins, a => a.Addr == mar1 && a.Length == 2 && a.Pointer == changeBase + 12 + 8);
+        }
+
+        [Fact]
+        public void EmitMapChangeAt_UnsafeBase_EmitsNothing()
+        {
+            // A slot whose p32 base is unsafe (0) -> WF ReInitPointer -> AddAddress early-returns.
+            var rom = CreateTestRom();
+            uint slot = 0x0800;
+            rom.write_u32(slot, 0); // base = 0 -> unsafe
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0, pointer: slot);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMapChangeAt_EntryPointerUnsafe_SkipsEntry_KeepsMainIfr()
+        {
+            // An entry whose +8 change pointer is unsafe is skipped (no BIN), but the main IFR is kept.
+            var rom = CreateTestRom(0x8000);
+            uint slot = 0x0800, changeBase = 0x1000;
+            rom.write_u32(slot, Ptr(changeBase));
+            rom.write_u8(changeBase + 0, 0x01);
+            rom.write_u8(changeBase + 3, 2);
+            rom.write_u8(changeBase + 4, 2);
+            rom.write_u32(changeBase + 8, 0); // unsafe change pointer (0)
+            rom.write_u8(changeBase + 12, 0xFF); // terminator
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0, pointer: slot);
+            Assert.Single(list, a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
+        }
+
+        [Fact]
+        public void EmitMapChangeAt_PointerSlotNearEof_SkipsWithoutThrowing()
+        {
+            // A PLIST slot whose 4 bytes straddle EOF must skip (pointer+3 guard), not throw.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint slotNearEof = size - 2; // 0x1FFE: < Len but slot+3 = 0x2001 > Len
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0, pointer: slotNearEof));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMapChangeAt_RecordRunsPastEof_TruncatesWithoutThrowing()
+        {
+            // A change table with no 0xFF terminator near EOF: getBlockDataCount stops at the EOF cutoff,
+            // and the per-entry p32(p+8) read (which reaches p+11) is guarded by the p+block <= Len check.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint slot = 0x0800;
+            uint changeBase = size - 12; // exactly one 12-byte record fits; no terminator after it
+            rom.write_u32(slot, Ptr(changeBase));
+            rom.write_u8(changeBase + 0, 0x01); // non-0xFF id
+            rom.write_u8(changeBase + 3, 1);
+            rom.write_u8(changeBase + 4, 1);
+            // +8 left 0 (unsafe pointer) so no BIN; the point is the walk must not throw.
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMapChangeAt(rom, list, mapid: 0, pointer: slot));
+            Assert.Null(ex);
+        }
+
+        // ---- EmitMapExitPointAt (enemy + NPC slot tables + per-map N-tables) -
+
+        [Fact]
+        public void EmitMapExitPointAt_EmitsEnemyAndNpcMains_AndPerMapSubTables()
+        {
+            // Enemy base = p32(mainPointer). npc_blockadd = 2: enemy table caps at 2 slots, NPC base is
+            // enemyBase + 4*2. Two map slots each point at an N-table (4-byte rows, u8 != 0xFF).
+            var rom = CreateTestRom(0x8000);
+            uint mainPointer = 0x0800;
+            uint enemyBase = 0x1000;
+            rom.write_u32(mainPointer, Ptr(enemyBase));
+            uint npcBlockAdd = 2;
+            uint npcBase = enemyBase + 4 * npcBlockAdd; // 0x1008
+
+            // Enemy slots (2): slot 0 -> exitData0, slot 1 -> NULL (still pointer-or-null so counted).
+            uint exitData0 = 0x2000;
+            rom.write_u32(enemyBase + 0, Ptr(exitData0));
+            rom.write_u32(enemyBase + 4, 0); // NULL pointer (isPointerOrNULL true)
+            // exitData0 N-table: 2 rows then 0xFF terminator.
+            rom.write_u8(exitData0 + 0, 0x01);
+            rom.write_u8(exitData0 + 4, 0x02);
+            rom.write_u8(exitData0 + 8, 0xFF);
+
+            // NPC slots: slot 0 -> exitDataN.
+            uint exitDataN = 0x3000;
+            rom.write_u32(npcBase + 0, Ptr(exitDataN));
+            rom.write_u32(npcBase + 4, 0);
+            rom.write_u8(exitDataN + 0, 0x01);
+            rom.write_u8(exitDataN + 4, 0xFF);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapExitPointAt(rom, list, mainPointer, npcBlockAdd, mapCount: 4);
+
+            // Enemy main: addr = enemyBase, pointer = mainPointer, block 4, {0}.
+            Address enemyMain = list.Single(a => a.Info == "MapExit");
+            Assert.Equal(enemyBase, enemyMain.Addr);
+            Assert.Equal(mainPointer, enemyMain.Pointer);
+            Assert.Equal(4u, enemyMain.BlockSize);
+            Assert.Equal(new uint[] { 0 }, enemyMain.PointerIndexes);
+            // Enemy DataCount: 2 pointer-or-null slots before the i < npc_blockadd cap -> length 4*(2+1)=12.
+            Assert.Equal(12u, enemyMain.Length);
+
+            // NPC main: pointer FORCED to NOT_FOUND (AddAddressButIgnorePointer).
+            Address npcMain = list.Single(a => a.Info == "MapExit NPC");
+            Assert.Equal(npcBase, npcMain.Addr);
+            Assert.Equal(U.NOT_FOUND, npcMain.Pointer);
+
+            // Enemy per-map sub-table for map 0 (exitData0): length 4*(2+1)=12, pointer = enemyBase+0.
+            // (U.To0xHexString(0) zero-pads to 2 digits -> "0x00".)
+            Address enemySub = list.Single(a => a.Info == "MapExit map:0x00");
+            Assert.Equal(exitData0, enemySub.Addr);
+            Assert.Equal(enemyBase + 0, enemySub.Pointer);
+            Assert.Equal(12u, enemySub.Length);
+            Assert.Equal(new uint[] { }, enemySub.PointerIndexes);
+
+            // NPC per-map sub-table for map 0 (exitDataN): length 4*(1+1)=8, pointer = npcBase+0.
+            Address npcSub = list.Single(a => a.Info == "MapExit map:0x00 NPC");
+            Assert.Equal(exitDataN, npcSub.Addr);
+            Assert.Equal(npcBase + 0, npcSub.Pointer);
+            Assert.Equal(8u, npcSub.Length);
+        }
+
+        [Fact]
+        public void EmitMapExitPointAt_MainPointerNearEof_SkipsWithoutThrowing()
+        {
+            // The map_exit_point_pointer slot straddling EOF must skip (mainPointer+3 guard), not throw.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMapExitPointAt(rom, list, size - 2, npcBlockAdd: 2, mapCount: 4));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMapExitPointAt_SubTableNBaseUnsafe_SkipsThatSubTable()
+        {
+            // A map slot whose N base (p32) is unsafe (0) must be skipped (WF N_ReInitPointer ->
+            // AddAddress early-returns), but the enemy main is still emitted.
+            var rom = CreateTestRom(0x8000);
+            uint mainPointer = 0x0800, enemyBase = 0x1000;
+            rom.write_u32(mainPointer, Ptr(enemyBase));
+            rom.write_u32(enemyBase + 0, 0); // NULL -> p32 = 0 -> N base unsafe -> sub-table skipped
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapExitPointAt(rom, list, mainPointer, npcBlockAdd: 2, mapCount: 4);
+            Assert.Contains(list, a => a.Info == "MapExit");
+            Assert.DoesNotContain(list, a => a.Info == "MapExit map:0x00");
+        }
+
+        // ---- EmitMapTileAnimationFor (anime1 IMG / anime2 BIN) --------------
+
+        [Fact]
+        public void EmitMapTileAnimationFor_Anime1_MainIfrPlusImgPerEntry()
+        {
+            // anime1: image pointer at +4, IMG length = u16(p+2), main pointerIndexes {4}. Two entries
+            // (each +4 is a valid pointer) then a non-pointer +4 terminator.
+            var rom = CreateTestRom(0x8000);
+            uint baseAddr = 0x1000;
+            uint img0 = 0x2000, img1 = 0x2100;
+            // entry 0
+            rom.write_u16(baseAddr + 2, 0x40);          // length
+            rom.write_u32(baseAddr + 4, Ptr(img0));     // image pointer (+4)
+            // entry 1
+            rom.write_u16(baseAddr + 8 + 2, 0x20);
+            rom.write_u32(baseAddr + 8 + 4, Ptr(img1));
+            // entry 2 terminator: +4 not a pointer (0)
+            rom.write_u32(baseAddr + 16 + 4, 0);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapTileAnimationFor(rom, list, baseAddr, plist: 0x07, imgAtPlus4: true);
+
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.Equal(baseAddr, main.Addr);
+            Assert.Equal(8u * (2 + 1), main.Length); // 24
+            Assert.Equal(U.NOT_FOUND, main.Pointer); // BasePointer 0 -> NOT_FOUND
+            Assert.Equal(8u, main.BlockSize);
+            Assert.Equal(new uint[] { 4 }, main.PointerIndexes);
+
+            var imgs = list.Where(a => a.DataType == Address.DataTypeEnum.IMG).ToList();
+            Assert.Equal(2, imgs.Count);
+            Assert.Contains(imgs, a => a.Addr == img0 && a.Length == 0x40 && a.Pointer == baseAddr + 4);
+            Assert.Contains(imgs, a => a.Addr == img1 && a.Length == 0x20 && a.Pointer == baseAddr + 8 + 4);
+        }
+
+        [Fact]
+        public void EmitMapTileAnimationFor_Anime2_MainIfrPlusBinPerEntry()
+        {
+            // anime2: image pointer at +0, BIN length = u8(p+5)*2, main pointerIndexes {0}.
+            var rom = CreateTestRom(0x8000);
+            uint baseAddr = 0x1000;
+            uint pal0 = 0x2000;
+            rom.write_u32(baseAddr + 0, Ptr(pal0)); // pointer at +0
+            rom.write_u8(baseAddr + 5, 4);          // count -> BIN length = 4*2 = 8
+            // entry 1 terminator: +0 not a pointer.
+            rom.write_u32(baseAddr + 8 + 0, 0);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapTileAnimationFor(rom, list, baseAddr, plist: 0x03, imgAtPlus4: false);
+
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef);
+            Assert.Equal(baseAddr, main.Addr);
+            Assert.Equal(8u * (1 + 1), main.Length); // 16
+            Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+            Address bin = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(pal0, bin.Addr);
+            Assert.Equal(8u, bin.Length); // count*2
+            Assert.Equal(baseAddr + 0, bin.Pointer);
+        }
+
+        [Fact]
+        public void EmitMapTileAnimationFor_BrokenResolution_EmitsNothing()
+        {
+            // dataAddr == NOT_FOUND (broken "(破損)" PLIST) -> ReInit on an unsafe base -> emit nothing.
+            var rom = CreateTestRom();
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMapTileAnimationFor(rom, list, U.NOT_FOUND, plist: 0x01, imgAtPlus4: true);
+            Assert.Empty(list);
+            // Also an unsafe (<0x200) base emits nothing.
+            RebuildProducerCore.EmitMapTileAnimationFor(rom, list, 0x0100, plist: 0x01, imgAtPlus4: true);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMapTileAnimationFor_EntryRunsPastEof_TruncatesWithoutThrowing()
+        {
+            // An entry table with no terminator near EOF: the per-entry p32(p+4) read (reaching p+7) is
+            // guarded by p+block <= Len, so the walk truncates rather than throwing.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint baseAddr = size - 8; // exactly one 8-byte entry fits
+            rom.write_u32(baseAddr + 4, Ptr(0x1000)); // valid pointer so the single entry is counted
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMapTileAnimationFor(rom, list, baseAddr, plist: 0x01, imgAtPlus4: true));
+            Assert.Null(ex);
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2g ----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2g ported these 5 map-PLIST forms — no longer in the deferred list:
+            Assert.DoesNotContain("ItemShopForm", ported);
+            Assert.DoesNotContain("MapChangeForm", ported);
+            Assert.DoesNotContain("MapExitPointForm", ported);
+            Assert.DoesNotContain("MapTileAnimation1Form", ported);
+            Assert.DoesNotContain("MapTileAnimation2Form", ported);
+
+            // deferred map siblings STAY (their blocking subsystem is not in Core):
+            Assert.Contains("MapPointerForm", ported);                 // palette2 via PatchUtil patch detect
+            Assert.Contains("MapTerrainFloorLookupTableForm", ported); // PatchUtil GetPointersExtendsPatch
+            Assert.Contains("MapTerrainBGLookupTableForm", ported);    // PatchUtil GetPointersExtendsPatch
+            Assert.Contains("MapSettingForm", ported);                 // IsMapSettingEnd + CString
+            Assert.Contains("ItemForm", ported);                       // StatBooster size via PatchUtil
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        [Fact]
+        public void EmitMapPlistForms_RomInfoDriven_DoNotThrow_OnEmptyFakeRom()
+        {
+            // The public RomInfo-driven entry points must run cleanly on a versioned-but-empty 32MB
+            // fake ROM (real RomInfo, all-zero data -> every map/exit/shop/PLIST table base resolves
+            // unsafe). They emit nothing but must NOT throw (no NRE on RomInfo, no read past EOF).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8);
+
+                var list = new List<Address>();
+                var ex = Record.Exception(() =>
+                {
+                    RebuildProducerCore.EmitItemShop(fe8, list);
+                    RebuildProducerCore.EmitMapChange(fe8, list);
+                    RebuildProducerCore.EmitMapExitPoint(fe8, list);
+                    RebuildProducerCore.EmitMapTileAnimation1(fe8, list);
+                    RebuildProducerCore.EmitMapTileAnimation2(fe8, list);
+                });
+                Assert.Null(ex);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
     }
 }
