@@ -196,10 +196,10 @@ namespace FEBuilderGBA
             /// <c>new uint[] {}</c>). Unlike every other <see cref="SubKind"/> (which emits a flat block of
             /// a known length), this one runs its OWN inner <c>getBlockDataCount</c>. Used by the
             /// OPClassDemo forms (N1/N2 sub-tables); EOF-safe (the embedded-pointer read and the inner
-            /// walk are both bounds-guarded, never throw). NOT driven by the flat <see cref="SubWalk"/>
-            /// loop in <see cref="EmitSubWalks"/> — the OPClassDemo forms have form-specific per-entry
-            /// guard ordering, so they call <see cref="EmitNestedIfrSub"/> directly from a dedicated
-            /// emitter; this enum value documents/labels the mechanism for future deferred forms.</summary>
+            /// walk are both bounds-guarded, never throw). IS handled by the flat <see cref="SubWalk"/>
+            /// loop in <see cref="EmitSubWalks"/> (available to any future single-nested-sub-table form);
+            /// the OPClassDemo forms, however, have form-specific per-entry guard ordering, so they call
+            /// <see cref="EmitNestedIfrSub"/> directly from a dedicated emitter rather than the flat loop.</summary>
             NestedIfr,
         }
 
@@ -1792,14 +1792,27 @@ namespace FEBuilderGBA
         ///   <see cref="Address.DataTypeEnum.InputFormRef"/>; blockSize <paramref name="subBlock"/>;
         ///   pointerIndexes EMPTY (the WinForms <c>new uint[] {}</c>).</item>
         /// </list>
-        /// EOF-safe: the embedded-pointer read is guarded (<c>pfield+3</c> before <c>p32</c>), an unsafe
-        /// <paramref name="pfield"/> or <c>subBase</c> emits nothing (mirroring <c>AddAddress</c>'s
-        /// <c>!isSafetyOffset(addr)</c> early-return), and <c>getBlockDataCount</c>'s own callback reads
-        /// are <c>addr+subBlock</c>-bounded.
+        /// EOF-safe: emits nothing when <paramref name="subBlock"/> is 0, when the embedded-pointer slot
+        /// is near EOF (<c>!isSafetyOffset(pfield+3)</c>, guarded before <c>p32</c>), or when <c>subBase</c>
+        /// is unsafe (mirroring <c>AddAddress</c>'s <c>!isSafetyOffset(addr)</c> early-return). A
+        /// <paramref name="pfield"/> that is in-bounds for the read but not itself a safe BasePointer does
+        /// NOT suppress emission — it only makes the emitted Address pointer <see cref="U.NOT_FOUND"/>
+        /// (matching <c>AddAddress</c>'s BasePointer fallback). <c>getBlockDataCount</c>'s own callback
+        /// reads are <c>addr+subBlock</c>-bounded. Requires a non-null <paramref name="subRule"/> — a
+        /// misconfigured <see cref="SubKind.NestedIfr"/> with a null rule throws
+        /// <see cref="System.ArgumentNullException"/> (a programming error, not a ROM-data condition).
         /// </summary>
         public static void EmitNestedIfrSub(ROM rom, List<Address> list, uint pfield,
             uint subBlock, Func<int, uint, bool> subRule, string name)
         {
+            if (subRule == null)
+            {
+                // A NestedIfr SubWalk with no SubRule is a descriptor misconfiguration; fail loudly here
+                // rather than NRE deep inside getBlockDataCount's callback invocation (consistent with the
+                // producer treating other invalid SubKind/DataCountRule configs as programming errors).
+                throw new System.ArgumentNullException(nameof(subRule),
+                    "SubKind.NestedIfr requires a non-null SubRule (the nested IsDataExists walk).");
+            }
             if (subBlock == 0)
             {
                 return; // a zero block would make getBlockDataCount spin; not real data.

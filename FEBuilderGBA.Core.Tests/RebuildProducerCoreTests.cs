@@ -4437,6 +4437,20 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(list);
         }
 
+        [Fact]
+        public void EmitNestedIfrSub_NullSubRule_Throws()
+        {
+            // Regression (PR #1281 review): a NestedIfr SubWalk misconfigured with a null SubRule must
+            // fail loudly (ArgumentNullException) rather than NRE deep inside getBlockDataCount's
+            // callback — consistent with the producer treating other invalid configs as programming errors.
+            var rom = CreateTestRom(0x8000);
+            uint pfield = 0x1000;
+            rom.write_u32(pfield, Ptr(0x2000));
+            var list = new List<Address>();
+            Assert.Throws<System.ArgumentNullException>(() =>
+                RebuildProducerCore.EmitNestedIfrSub(rom, list, pfield, 2, null!, "Nested"));
+        }
+
         // ---- EmitOPClassDemoAt (FE8-multibyte): main + N1 + N2 nested IFRs ---
 
         [Fact]
