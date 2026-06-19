@@ -476,10 +476,10 @@ namespace FEBuilderGBA.Core.Tests
             // (CCBranchForm is now PORTED in the #1261 producer sweep via ClassDataCount — it is no
             //  longer a deferred sibling; EventBattleTalkForm stays deferred for its ScanScript.)
             Assert.Contains("EventBattleTalkForm", notYet);        // per-entry EventScriptForm.ScanScript
-            // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g — see
-            //  GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.)
-            Assert.Contains("MapTerrainFloorLookupTableForm", notYet); // PatchUtil GetPointers()
-            Assert.Contains("MapTerrainBGLookupTableForm", notYet);    // PatchUtil GetPointers()
+            // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g; the MapTerrain
+            //  lookup tables are now PORTED in slice 2j — see
+            //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings.)
+            Assert.Contains("SongTableForm", notYet);              // SongUtil.ParseTrack/RecycleOldInstrument
         }
 
         [Fact]
@@ -638,9 +638,10 @@ namespace FEBuilderGBA.Core.Tests
                 //  per-entry EventScriptForm.ScanScript expansion.)
                 Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
                 Assert.Contains("EventBattleTalkForm", notYet2b);
-                // (MapTileAnimation1Form is now PORTED in slice 2g — its still-deferred map sibling
-                //  MapTerrainFloorLookupTableForm [PatchUtil GetPointers] stays tracked here instead.)
-                Assert.Contains("MapTerrainFloorLookupTableForm", notYet2b);
+                // (MapTileAnimation1Form is now PORTED in slice 2g and the MapTerrain lookup tables in
+                //  slice 2j — the still-deferred misc sibling SongTableForm [SongUtil.ParseTrack /
+                //  RecycleOldInstrument not in Core] stays tracked here instead.)
+                Assert.Contains("SongTableForm", notYet2b);
 
                 // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
                 // sub-block size needs un-ported PatchUtil detection) — it must be absent from the
@@ -1708,8 +1709,9 @@ namespace FEBuilderGBA.Core.Tests
                 //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.
                 //  SupportUnitForm + WorldMapPathForm + EDStaffRollForm + OPPrologueForm + OPClassFontForm
                 //  ported in slice 2h -> no longer kept here. OPClassDemoForm + OPClassDemoFE7Form ported
-                //  in slice 2i -> no longer kept here.)
-                "ItemForm", "MapTerrainFloorLookupTableForm",
+                //  in slice 2i -> no longer kept here. MapTerrain{BG,Floor}LookupTableForm + MapPointerForm
+                //  + ExtraUnitForm + ExtraUnitFE8UForm ported in slice 2j -> no longer kept here.)
+                "ItemForm", "SongTableForm",
             })
             {
                 Assert.Contains(kept, notYet);
@@ -3880,10 +3882,14 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("MapTileAnimation1Form", ported);
             Assert.DoesNotContain("MapTileAnimation2Form", ported);
 
+            // (MapPointerForm + MapTerrain{Floor,BG}LookupTableForm were deferred map siblings here, but
+            //  are now PORTED in slice 2j — their blocking Core helpers (MapPListResolverCore /
+            //  MapTerrainLookupCore + the PatchDetection gates) landed for the Avalonia gap-sweep. See
+            //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("MapPointerForm", ported);
+            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", ported);
+            Assert.DoesNotContain("MapTerrainBGLookupTableForm", ported);
             // deferred map siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("MapPointerForm", ported);                 // palette2 via PatchUtil patch detect
-            Assert.Contains("MapTerrainFloorLookupTableForm", ported); // PatchUtil GetPointersExtendsPatch
-            Assert.Contains("MapTerrainBGLookupTableForm", ported);    // PatchUtil GetPointersExtendsPatch
             Assert.Contains("MapSettingForm", ported);                 // IsMapSettingEnd + CString
             Assert.Contains("ItemForm", ported);                       // StatBooster size via PatchUtil
 
@@ -4754,6 +4760,454 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("MonsterWMapProbabilityForm", ported); // ScanScript skirmish events
             Assert.Contains("ImageCGFE7UForm", ported);          // LZ77 CG (FE7U)
             Assert.Contains("FE8SpellMenuExtendsForm", ported);  // FindFE8SpellPatchPointer
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ====================================================================
+        // slice 2j — misc self-contained stragglers (MapTerrain lookup tables,
+        // MapPointer, ExtraUnit FE8J/FE8U + the shared RecycleOldUnits walk).
+        // ====================================================================
+
+        // ---- EmitMapTerrainLookupAt (one flat block-1 IFR per non-zero pointer) ----
+
+        [Fact]
+        public void EmitMapTerrainLookupAt_OneIfrPerNonZeroPointer_NameCarriesIndex_FixedCount()
+        {
+            // map_terrain_type_count drives the FixedCount walk (block 1). Two non-zero pointer slots
+            // (index 0 and 2) plus a zero slot (index 1, skipped) -> 2 IFR Addresses, names ...00 / ...02.
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint count = fe8.RomInfo.map_terrain_type_count; // 65 on FE8U.
+
+                uint slot0 = 0x100000, slot2 = 0x100100;
+                uint table0 = 0x101000, table2 = 0x102000;
+                fe8.write_u32(slot0, Ptr(table0));
+                fe8.write_u32(slot2, Ptr(table2));
+                uint[] pointers = { slot0, 0u, slot2 };
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, pointers, isFloor: false);
+
+                Assert.Equal(2, list.Count);
+                Address a0 = list.Single(a => a.Info == "MapTerrainBGLookupTable" + U.ToHexString(0));
+                Assert.Equal(table0, a0.Addr);
+                Assert.Equal(slot0, a0.Pointer);
+                Assert.Equal(1u, a0.BlockSize);
+                Assert.Equal(1u * (count + 1), a0.Length); // block 1 * (FixedCount + 1)
+                Assert.Equal(Address.DataTypeEnum.InputFormRef, a0.DataType);
+                Assert.Empty(a0.PointerIndexes);
+
+                Address a2 = list.Single(a => a.Info == "MapTerrainBGLookupTable" + U.ToHexString(2));
+                Assert.Equal(table2, a2.Addr);
+                Assert.Equal(slot2, a2.Pointer);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitMapTerrainLookupAt_FloorUsesFloorName_AndSkipsZeroAndUnsafe()
+        {
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint slot = 0x100000;
+                fe8.write_u32(slot, Ptr(0x101000));
+                // index 0 = a slot whose target is BELOW 0x200 (unsafe) -> skipped; index 1 = valid.
+                uint badSlot = 0x100200;
+                fe8.write_u32(badSlot, Ptr(0x100)); // target < 0x200 -> isSafetyOffset false
+                uint[] pointers = { badSlot, slot };
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, pointers, isFloor: true);
+
+                Address a = Assert.Single(list);
+                Assert.Equal("MapTerrainFloorLookupTable" + U.ToHexString(1), a.Info);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitMapTerrainLookupAt_NullArray_EmitsNothing()
+        {
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, null, isFloor: false);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitMapTerrainLookupAt_PointerSlotNearEof_DoesNotThrow()
+        {
+            // A pointer slot at EOF-3 would make p32 read past the end; the slot+3 guard must skip it.
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint nearEof = (uint)fe8.Data.Length - 2; // slot+3 > Length
+                var list = new List<Address>();
+                var ex = Record.Exception(() =>
+                    RebuildProducerCore.EmitMapTerrainLookupAt(fe8, list, new uint[] { nearEof }, isFloor: false));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitMapPointer (the 6 MAPPOINTERS IFR tables) -----------------
+
+        [Fact]
+        public void EmitMapPointer_EmitsSixMappointersTables_Block4_PI0_VanillaLimit()
+        {
+            // Plant all 6 FE8U map-pointer slots pointing at ONE shared base (vanilla, NOT split) so
+            // IsPlistSplits()==false -> limit = map_map_pointer_list_default_size (0xEC). Each table's
+            // IsDataExists is index-only (i==0||i<limit), so DataCount == limit and length == 4*(limit+1).
+            // No map settings exist -> the per-map sweep adds nothing; only the 6 main tables are emitted.
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint sharedBase = 0x200000;
+                uint[] slots =
+                {
+                    fe8.RomInfo.map_config_pointer, fe8.RomInfo.map_tileanime1_pointer,
+                    fe8.RomInfo.map_obj_pointer, fe8.RomInfo.map_map_pointer_pointer,
+                    fe8.RomInfo.map_event_pointer, fe8.RomInfo.map_mapchange_pointer,
+                };
+                foreach (uint s in slots) fe8.write_u32(U.toOffset(s), Ptr(sharedBase));
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMapPointer(fe8, list);
+
+                uint limit = fe8.RomInfo.map_map_pointer_list_default_size; // 0xEC, since not split.
+                uint expectedLen = 4 * (limit + 1);
+                foreach (string name in new[]
+                {
+                    "MAPPOINTERS", "MAPPOINTERS_ANIMATION", "MAPPOINTERS_OBJECT",
+                    "MAPPOINTERS_MAP", "MAPPOINTERS_EVENT", "MAPPOINTERS_CHANGE",
+                })
+                {
+                    Address a = Assert.Single(list, x => x.Info == name);
+                    Assert.Equal(sharedBase, a.Addr);
+                    Assert.Equal(4u, a.BlockSize);
+                    Assert.Equal(expectedLen, a.Length);
+                    Assert.Equal(Address.DataTypeEnum.InputFormRef, a.DataType);
+                    Assert.Equal(new uint[] { 0 }, a.PointerIndexes);
+                }
+                // FE8 (version 8) has NO MAPPOINTERS_WMAP_EVENT (that alias is FE6-only).
+                Assert.DoesNotContain(list, x => x.Info == "MAPPOINTERS_WMAP_EVENT");
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitMapPointer_EmptyVersionedRom_EmitsNothing_DoesNotThrow()
+        {
+            // All map-pointer slots are 0 in an all-zero ROM -> every table base resolves unsafe -> the
+            // emitter adds nothing and never throws (no NRE on RomInfo, no read past EOF).
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitMapPointer(fe8, list));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitExtraUnitAt (FE8J: direct base, flag BINs, RecycleOldUnits) ----
+
+        [Fact]
+        public void EmitExtraUnitAt_FE8J_MainIfrNotFoundPointer_PerEntryUnitsAndFlags()
+        {
+            // FE8J: BaseAddress is a DIRECT address (ReInit), BasePointer 0 -> NOT_FOUND. block 4, rule
+            // isSafetyPointer(u32(addr)). 2 valid entries (each points to a script-pointer), then a NULL
+            // 3rd -> DataCount 2. Each entry expands via RecycleOldUnits; the flags are at the absolute
+            // FE8J locations (out of this synthetic data's range -> the flag AddAddress safely no-ops).
+            var fe8 = MakeVersionedRom("BE8J01"); // FE8J = multibyte
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint block = fe8.RomInfo.eventunit_data_size; // 20 on FE8.
+
+                uint baseAddr = 0x300000;
+                // Each ExtraUnit entry's +0 field is the "script pointer" RecycleOldUnits reads. WF:
+                // script_addr = u32(script_pointer) IS the EventUnit IFR base (ReInitPointer -> BaseAddress
+                // = p32(field)). So the entry holds Ptr(unitList) directly; the unit ids live at unitList.
+                uint unitList0 = 0x311000, unitList1 = 0x321000;
+                fe8.write_u32(baseAddr + 0, Ptr(unitList0));
+                fe8.write_u32(baseAddr + 4, Ptr(unitList1));
+                // entry 2 = NULL -> isSafetyPointer(0) false -> terminates (DataCount 2).
+                fe8.write_u8(unitList0 + 0, 0x10); // unit id != 0 -> 1 entry, then 0 terminator at +block.
+                fe8.write_u8(unitList1 + 0, 0x11);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitExtraUnitAt(fe8, list, baseAddr);
+
+                // Main IFR: addr = baseAddr, pointer = NOT_FOUND, block 4, length 4*(2+1)=12, PI {}.
+                Address main = Assert.Single(list, a => a.Info == "ExtraUnit");
+                Assert.Equal(baseAddr, main.Addr);
+                Assert.Equal(U.NOT_FOUND, main.Pointer);
+                Assert.Equal(4u, main.BlockSize);
+                Assert.Equal(12u, main.Length);
+                Assert.Empty(main.PointerIndexes);
+
+                // Two RecycleOldUnits EVENT UNIT IFRs (one per entry), base = u32(entry+0), block 20. Each
+                // has 1 unit + a 0 terminator -> length block*2. pointer = the entry field (baseAddr+i*4).
+                var euList = list.Where(a => a.Info == "ExtraUnit EVENT UNIT").ToList();
+                Assert.Equal(2, euList.Count);
+                Assert.Contains(euList, a => a.Addr == unitList0 && a.BlockSize == block
+                    && a.Length == block * 2 && a.Pointer == baseAddr + 0);
+                Assert.Contains(euList, a => a.Addr == unitList1 && a.BlockSize == block
+                    && a.Pointer == baseAddr + 4);
+                // FE8 (v8) main EVENT UNIT IFR carries pointerIndexes {8}.
+                Assert.All(euList, a => Assert.Equal(new uint[] { 8 }, a.PointerIndexes));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitExtraUnitAt_FE8J_UnsafeBase_EmitsNothing_AndNearEofDoesNotThrow()
+        {
+            var fe8 = MakeVersionedRom("BE8J01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                // base below 0x200 -> unsafe -> nothing.
+                RebuildProducerCore.EmitExtraUnitAt(fe8, list, 0x100);
+                Assert.Empty(list);
+
+                // base near EOF with an all-non-null run -> must not throw.
+                uint nearEof = (uint)fe8.Data.Length - 4;
+                var ex = Record.Exception(() => RebuildProducerCore.EmitExtraUnitAt(fe8, list, nearEof));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitExtraUnitFE8UAt (FE8U: pointer-slot base, block 8, +4 field) ----
+
+        [Fact]
+        public void EmitExtraUnitFE8UAt_FE8U_MainIfrSafePointer_PerEntryUnitsNoFlag()
+        {
+            // FE8U: BasePointer = the slot (safe), BaseAddress = p32(slot). block 8, rule
+            // isSafetyPointer(u32(addr+4)). 2 entries then a NULL +4 -> DataCount 2. Each expands via
+            // RecycleOldUnits(addr+4). NO flag block (the +0 field is in-table).
+            var fe8 = MakeVersionedRom("BE8E01"); // FE8U = non-multibyte
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint block8 = 8;
+                uint euBlock = fe8.RomInfo.eventunit_data_size; // 20.
+
+                uint slot = 0x300000;
+                uint tableBase = 0x310000;
+                fe8.write_u32(slot, Ptr(tableBase));
+
+                // The +4 field of each 8-byte entry IS the RecycleOldUnits script pointer; u32(+4) is the
+                // EventUnit IFR base directly (ReInitPointer). So +4 holds Ptr(unitList); the +0 field is
+                // the in-table flag (unused by the producer). entry 2 +4 = NULL -> DataCount 2.
+                uint unitList0 = 0x321000, unitList1 = 0x331000;
+                fe8.write_u32(tableBase + 0 + 4, Ptr(unitList0));
+                fe8.write_u32(tableBase + 8 + 4, Ptr(unitList1));
+                fe8.write_u8(unitList0, 0x10);
+                fe8.write_u8(unitList1, 0x11);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitExtraUnitFE8UAt(fe8, list, slot);
+
+                // Main IFR: addr = tableBase, pointer = slot (safe), block 8, length 8*(2+1)=24, PI {}.
+                Address main = Assert.Single(list, a => a.Info == "ExtraUnit");
+                Assert.Equal(tableBase, main.Addr);
+                Assert.Equal(U.toOffset(slot), main.Pointer);
+                Assert.Equal(block8, main.BlockSize);
+                Assert.Equal(24u, main.Length);
+                Assert.Empty(main.PointerIndexes);
+
+                // Two EVENT UNIT IFRs, base = u32(entry+4), pointer = the +4 field, block 20.
+                var euList = list.Where(a => a.Info == "ExtraUnit EVENT UNIT").ToList();
+                Assert.Equal(2, euList.Count);
+                Assert.Contains(euList, a => a.Addr == unitList0 && a.BlockSize == euBlock
+                    && a.Pointer == tableBase + 0 + 4);
+                Assert.Contains(euList, a => a.Addr == unitList1 && a.BlockSize == euBlock
+                    && a.Pointer == tableBase + 8 + 4);
+
+                // No "ExtraUnit Flag" BIN for FE8U.
+                Assert.DoesNotContain(list, a => a.Info == "ExtraUnit Flag");
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitExtraUnitFE8UAt_FE8U_UnsafeSlot_EmitsNothing_AndNearEofDoesNotThrow()
+        {
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                RebuildProducerCore.EmitExtraUnitFE8UAt(fe8, list, 0x100); // slot < 0x200 -> nothing.
+                Assert.Empty(list);
+
+                uint nearEof = (uint)fe8.Data.Length - 2; // slot+3 > Length -> skip.
+                var ex = Record.Exception(() => RebuildProducerCore.EmitExtraUnitFE8UAt(fe8, list, nearEof));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitRecycleOldUnits (the EventUnit IFR + v8 COORD sub-blocks) ----
+
+        [Fact]
+        public void EmitRecycleOldUnits_FE8_EmitsIfrWithPI8_AndCoordBinPerEntryWithAfterCoords()
+        {
+            // v8: main IFR {8} + per entry with u8(addr+7)>0 a count*8 BIN at p32(addr+8).
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint block = fe8.RomInfo.eventunit_data_size; // 20.
+
+                uint scriptPointer = 0x400000;
+                uint unitBase = 0x410000;
+                fe8.write_u32(scriptPointer, Ptr(unitBase));
+
+                // entry 0: unit id != 0 (counted); u8(+7) = 3 after-coords -> p32(+8) -> 3*8=24 BIN.
+                uint coords0 = 0x420000;
+                fe8.write_u8(unitBase + 0, 0x10);
+                fe8.write_u8(unitBase + 7, 3);
+                fe8.write_u32(unitBase + 8, Ptr(coords0));
+                // entry 1: unit id != 0; u8(+7) = 0 -> NO coord block.
+                fe8.write_u8(unitBase + block + 0, 0x11);
+                fe8.write_u8(unitBase + block + 7, 0);
+                // entry 2: unit id == 0 -> terminator (DataCount 2).
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitRecycleOldUnits(fe8, list, "ExtraUnit", scriptPointer);
+
+                // Main EVENT UNIT IFR: addr = unitBase, pointer = scriptPointer, block 20, length 20*(2+1)=60, {8}.
+                Address main = Assert.Single(list, a => a.Info == "ExtraUnit EVENT UNIT");
+                Assert.Equal(unitBase, main.Addr);
+                Assert.Equal(U.toOffset(scriptPointer), main.Pointer);
+                Assert.Equal(block, main.BlockSize);
+                Assert.Equal(block * 3, main.Length);
+                Assert.Equal(new uint[] { 8 }, main.PointerIndexes);
+
+                // One COORD BIN for entry 0 only (entry 1 had count 0).
+                Address coord = Assert.Single(list, a => a.Info == "ExtraUnit EVENT UNIT COORD 0");
+                Assert.Equal(coords0, coord.Addr);
+                Assert.Equal(24u, coord.Length); // 3 * 8
+                Assert.Equal(unitBase + 8, coord.Pointer);
+                Assert.Equal(Address.DataTypeEnum.BIN, coord.DataType);
+                Assert.DoesNotContain(list, a => a.Info == "ExtraUnit EVENT UNIT COORD 1");
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitRecycleOldUnits_FE7_EmitsSingleIfrWithEmptyPI_NoCoordBlocks()
+        {
+            // v<=7: a single EVENT UNIT IFR with EMPTY pointerIndexes and NO per-entry COORD blocks.
+            var fe7 = MakeVersionedRom("AE7E01"); // FE7U (version 7)
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe7;
+                Assert.True(fe7.RomInfo.version <= 7);
+                uint block = fe7.RomInfo.eventunit_data_size; // 16 on FE7.
+
+                uint scriptPointer = 0x400000;
+                uint unitBase = 0x410000;
+                fe7.write_u32(scriptPointer, Ptr(unitBase));
+                fe7.write_u8(unitBase + 0, 0x10);          // entry 0 counted
+                // entry 1 = 0 -> terminator (DataCount 1).
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitRecycleOldUnits(fe7, list, "ExtraUnit", scriptPointer);
+
+                Address main = Assert.Single(list); // ONLY the main IFR (no COORD walk on v<=7).
+                Assert.Equal("ExtraUnit EVENT UNIT", main.Info);
+                Assert.Equal(unitBase, main.Addr);
+                Assert.Equal(block, main.BlockSize);
+                Assert.Equal(block * 2, main.Length); // 1 entry + terminator
+                Assert.Empty(main.PointerIndexes);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitRecycleOldUnits_NullOrUnsafeScriptPointer_EmitsNothing_AndNearEofDoesNotThrow()
+        {
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+
+                // script pointer field holds 0 (not a pointer) -> nothing.
+                uint scriptPointer = 0x400000;
+                fe8.write_u32(scriptPointer, 0);
+                RebuildProducerCore.EmitRecycleOldUnits(fe8, list, "ExtraUnit", scriptPointer);
+                Assert.Empty(list);
+
+                // unit base near EOF with an all-non-zero run -> must not throw.
+                uint scriptPointer2 = 0x400100;
+                uint nearEof = (uint)fe8.Data.Length - 4;
+                fe8.write_u32(scriptPointer2, Ptr(nearEof));
+                for (uint i = nearEof; i < (uint)fe8.Data.Length; i++) fe8.write_u8(i, 0x10);
+                var ex = Record.Exception(() =>
+                    RebuildProducerCore.EmitRecycleOldUnits(fe8, list, "ExtraUnit", scriptPointer2));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2j ----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2j ported these 5 (or 4 forms; ExtraUnit is a FE8J/FE8U split) — no longer deferred:
+            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", ported);
+            Assert.DoesNotContain("MapTerrainBGLookupTableForm", ported);
+            Assert.DoesNotContain("MapPointerForm", ported);
+            Assert.DoesNotContain("ExtraUnitForm", ported);
+            Assert.DoesNotContain("ExtraUnitFE8UForm", ported);
+
+            // Still deferred (real missing-Core blocker) -> must REMAIN:
+            Assert.Contains("SongTableForm", ported);                   // SongUtil.ParseTrack/RecycleOldInstrument
+            Assert.Contains("EventUnitForm(RecycleReserveUnits)", ported); // NewAllocData = editor session state
+            Assert.Contains("SoundRoomForm", ported);                   // FE7 CString sub-walk + MIX type
+            Assert.Contains("ItemForm", ported);                        // StatBooster size via PatchUtil
+            Assert.Contains("MapSettingForm", ported);                  // IsMapSettingEnd text-count cache
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
