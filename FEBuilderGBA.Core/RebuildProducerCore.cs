@@ -937,6 +937,11 @@ namespace FEBuilderGBA
                 //  and the ItemEffectiveness rework variant on SearchClassType — a wrong size would
                 //  relocate the wrong bytes, so it must wait until those detectors reach Core.)
                 "ItemForm",
+                // The other slice-2c embedded forms also stay — their sub-block LENGTH needs a
+                // subsystem not yet in Core (a wrong length relocates the wrong bytes = corruption):
+                //   StatusRMenuForm     — recursive 28-byte MIX tree (visited-set) + ASM AddFunction (disasm).
+                //   MenuDefinitionForm  — recursive MenuCommandForm sub-table + 6 ASM ptrs (disasm).
+                //   ItemWeaponEffectForm— PROCS sub-block length = ProcsScriptForm.CalcLengthAndCheck (disasm).
                 "ItemShopForm", "StatusRMenuForm", "MenuDefinitionForm",
                 "ItemWeaponEffectForm", "ItemUsagePointerForm", "UnitActionPointerForm",
                 "MapChangeForm", "MapExitPointForm", "MapPointerForm", "FontForm",
