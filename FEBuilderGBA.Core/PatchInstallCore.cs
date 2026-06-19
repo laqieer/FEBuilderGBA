@@ -247,7 +247,10 @@ namespace FEBuilderGBA
             // sp[1] is the destination address; a CustomBuild BINF emits exactly two
             // tokens ("BINF" and "0x...."). A third token (sp[2]) would request a
             // ChangeAddress relocation, which is out of the CustomBuild subset.
-            if (sp.Length > 2 && U.atoi0x(U.at(sp, 2)) > 0)
+            // Reject ANY third token unconditionally (loud fail) — a numeric check
+            // would let a non-hex relocation token like "$TEXTID" parse to 0 and slip
+            // through, silently ignoring the relocation it requested.
+            if (sp.Length > 2)
             {
                 throw new PatchInstallException(R.Error(
                     "Address relocation is not supported by the CustomBuild patch installer: {0}",

@@ -267,7 +267,7 @@ namespace FEBuilderGBA.Core.Tests
 
             PatchInstallCore.ApplyPatch(patch, rom, undo, vanillaRom: vanilla);
 
-            // The 0x150..0x160 window is restored to vanilla (0xFF).
+            // The 0x250..0x260 window is restored to vanilla (0xFF).
             Assert.Equal(vanilla, rom.Data);
         }
 
