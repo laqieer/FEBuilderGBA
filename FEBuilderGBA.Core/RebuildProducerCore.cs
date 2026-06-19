@@ -1896,11 +1896,11 @@ namespace FEBuilderGBA
             uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
             {
                 uint pp = rom.u32(addr + 0);
-                if (!U.isPointer(pp) || !U.isSafetyPointer(pp)) return false;
+                if (!U.isPointer(pp) || !U.isSafetyPointer(pp, rom)) return false;
                 uint ppOff = U.toOffset(pp);
                 if (ppOff + 4 > (uint)rom.Data.Length) return false;
                 uint p2 = rom.u32(ppOff);
-                if (!U.isPointer(p2) || !U.isSafetyPointer(p2)) return false;
+                if (!U.isPointer(p2) || !U.isSafetyPointer(p2, rom)) return false;
                 return true;
             });
 
@@ -3927,11 +3927,11 @@ namespace FEBuilderGBA
                         // ImageCGForm.Init verbatim: +RuleOffset is a pointer whose target's first u32 is
                         // ALSO a pointer (the 10-image-pointer-array signature). EOF-harden the inner read.
                         uint p = rom.u32(addr + d.RuleOffset);
-                        if (!U.isPointer(p) || !U.isSafetyPointer(p)) return false;
+                        if (!U.isPointer(p) || !U.isSafetyPointer(p, rom)) return false;
                         uint pOff = U.toOffset(p);
                         if (pOff + 4 > (uint)rom.Data.Length) return false;
                         uint p2 = rom.u32(pOff);
-                        if (!U.isPointer(p2) || !U.isSafetyPointer(p2)) return false;
+                        if (!U.isPointer(p2) || !U.isSafetyPointer(p2, rom)) return false;
                         return true;
                     };
                 case DataCountRule.U16EqualAt:
