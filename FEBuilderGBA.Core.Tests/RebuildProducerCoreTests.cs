@@ -1700,14 +1700,15 @@ namespace FEBuilderGBA.Core.Tests
             {
                 "EventBattleTalkForm", "EventHaikuForm",
                 "WorldMapEventPointerForm",
-                "MapSettingForm", "OPClassDemoForm", "FE8SpellMenuExtendsForm",
+                "MapSettingForm", "FE8SpellMenuExtendsForm",
                 "MonsterWMapProbabilityForm", "SoundRoomForm",
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
                 //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
                 //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.
                 //  SupportUnitForm + WorldMapPathForm + EDStaffRollForm + OPPrologueForm + OPClassFontForm
-                //  ported in slice 2h -> no longer kept here.)
+                //  ported in slice 2h -> no longer kept here. OPClassDemoForm + OPClassDemoFE7Form ported
+                //  in slice 2i -> no longer kept here.)
                 "ItemForm", "MapTerrainFloorLookupTableForm",
             })
             {
@@ -4352,11 +4353,393 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("WorldMapPathForm", ported);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("OPClassDemoForm", ported);     // nested-IFR N1/N2 sub-table
-            Assert.Contains("OPClassDemoFE7Form", ported);  // nested-IFR N2 sub-table
+            // (NOTE: OPClassDemoForm / OPClassDemoFE7Form were the nested-IFR siblings deferred at
+            //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there.)
             Assert.Contains("MapSettingForm", ported);      // IsMapSettingEnd needs WF text-count cache
             Assert.Contains("WorldMapEventPointerForm", ported); // ScanScript
             Assert.Contains("ImageCGFE7UForm", ported);     // LZ77 CG (FE7U)
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ===================================================================
+        // slice 2i — SubKind.NestedIfr + OPClassDemo (FE8-mb) / OPClassDemoFE7
+        // (FE7-mb). Synthetic ROMs prove the main IFR Address AND each nested
+        // IFR Address have the right addr/length/pointer/type/name; the version
+        // gate is proven via multibyte (present) vs non-mb/other (absent); a
+        // near-EOF plant proves no throw.
+        // ===================================================================
+
+        // ---- EmitNestedIfrSub (the reusable nested count-walked IFR) ---------
+
+        [Fact]
+        public void EmitNestedIfrSub_WalksSubTable_EmitsIfrAddress_LengthPlusOne_EmptyPointerIndexes()
+        {
+            // A sub-table at 0x2000, block 2, rule u8(addr)!=0: 3 valid entries then a 0 terminator.
+            var rom = CreateTestRom(0x8000);
+            uint pfield = 0x1000;     // the embedded pointer FIELD
+            uint subBase = 0x2000;    // the nested sub-table base
+            rom.write_u32(pfield, Ptr(subBase));
+            rom.write_u8(subBase + 0, 0x11);
+            rom.write_u8(subBase + 2, 0x22);
+            rom.write_u8(subBase + 4, 0x33);
+            rom.write_u8(subBase + 6, 0x00); // terminator (u8(addr)==0 -> stop) -> count 3
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitNestedIfrSub(rom, list, pfield, 2,
+                (i, addr) => rom.u8(addr) != 0x00, "Nested");
+
+            Address a = Assert.Single(list);
+            Assert.Equal(subBase, a.Addr);
+            Assert.Equal(pfield, a.Pointer);       // pointer = the embedded FIELD
+            Assert.Equal(2u, a.BlockSize);
+            Assert.Equal(2u * (3u + 1u), a.Length); // subBlock * (count + 1) = 8
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, a.DataType);
+            Assert.Empty(a.PointerIndexes);        // WF new uint[] {} -> empty
+        }
+
+        [Fact]
+        public void EmitNestedIfrSub_NullEmbeddedPointer_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pfield = 0x1000;
+            rom.write_u32(pfield, 0); // embedded pointer NULL -> p32 == 0, unsafe -> emit nothing
+            var list = new List<Address>();
+            RebuildProducerCore.EmitNestedIfrSub(rom, list, pfield, 2,
+                (i, addr) => rom.u8(addr) != 0x00, "Nested");
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitNestedIfrSub_ZeroBlock_EmitsNothing_DoesNotHang()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pfield = 0x1000;
+            rom.write_u32(pfield, Ptr(0x2000));
+            var list = new List<Address>();
+            RebuildProducerCore.EmitNestedIfrSub(rom, list, pfield, 0,
+                (i, addr) => true, "Nested");
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitNestedIfrSub_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pfield = 0x1FFE; // pfield+3 runs past EOF -> guarded, no throw, no emit
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitNestedIfrSub(rom, list, pfield, 2,
+                    (i, addr) => rom.u8(addr) != 0, "Nested"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        // ---- EmitOPClassDemoAt (FE8-multibyte): main + N1 + N2 nested IFRs ---
+
+        [Fact]
+        public void EmitOPClassDemoAt_EmitsMainIfr_CString_AndBothNestedIfrs()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint className = 0x2000;  // CString target (entry +0 pointer)
+            uint n1Base = 0x3000;     // N1 sub-table (entry +8 pointer)
+            uint n2Base = 0x4000;     // N2 sub-table (entry +24 pointer)
+            rom.write_u32(pointer, Ptr(table));
+
+            // entry 0: u8(+0xF) <= 4 -> valid. entry 1: u8(+0xF) = 5 -> terminate -> DataCount 1.
+            rom.write_u8(table + 0 * 28 + 0xF, 0x02);
+            rom.write_u8(table + 1 * 28 + 0xF, 0x05);
+            // embedded pointers for entry 0:
+            rom.write_u32(table + 0, Ptr(className)); // +0 class-name CString
+            rom.write_u32(table + 8, Ptr(n1Base));    // +8 N1 sub-table
+            rom.write_u32(table + 24, Ptr(n2Base));   // +24 N2 sub-table
+            // class-name string
+            rom.write_u8(className + 0, (byte)'A');
+            rom.write_u8(className + 1, (byte)'B');
+            rom.write_u8(className + 2, 0x00); // strlen 2 -> CString length 3
+            // N1 sub-table block 1, rule i>=16?false:u8(addr)!=0xFF: 4 valid then 0xFF terminator.
+            rom.write_u8(n1Base + 0, 0x01);
+            rom.write_u8(n1Base + 1, 0x02);
+            rom.write_u8(n1Base + 2, 0x03);
+            rom.write_u8(n1Base + 3, 0x04);
+            rom.write_u8(n1Base + 4, 0xFF); // terminator -> N1 count 4
+            // N2 sub-table block 2, rule u8(addr)!=0: 2 valid then 0 terminator.
+            rom.write_u8(n2Base + 0, 0x10);
+            rom.write_u8(n2Base + 2, 0x20);
+            rom.write_u8(n2Base + 4, 0x00); // terminator -> N2 count 2
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoAt(rom, list, pointer);
+
+            // Main IFR: block 28, DataCount 1 -> length 28*(1+1)=56, pointerIndexes {0,8,24}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(28u, main.BlockSize);
+            Assert.Equal(56u, main.Length);
+            Assert.Equal(new uint[] { 0, 8, 24 }, main.PointerIndexes);
+
+            // CString at +0: length strlen+1 = 3.
+            Address cstr = list.Single(a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == className);
+            Assert.Equal(3u, cstr.Length);
+            Assert.Equal(table + 0, cstr.Pointer);
+
+            // N1 nested IFR @ +8: block 1, count 4 -> length 1*(4+1)=5, pointer = table+8.
+            Address n1 = list.Single(a => a.Info == "OPClassDemo_JPName");
+            Assert.Equal(n1Base, n1.Addr);
+            Assert.Equal(table + 8, n1.Pointer);
+            Assert.Equal(1u, n1.BlockSize);
+            Assert.Equal(5u, n1.Length);
+            Assert.Empty(n1.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, n1.DataType);
+
+            // N2 nested IFR @ +24: block 2, count 2 -> length 2*(2+1)=6, pointer = table+24.
+            Address n2 = list.Single(a => a.Info == "OPClassDemo_Anime");
+            Assert.Equal(n2Base, n2.Addr);
+            Assert.Equal(table + 24, n2.Pointer);
+            Assert.Equal(2u, n2.BlockSize);
+            Assert.Equal(6u, n2.Length);
+            Assert.Empty(n2.PointerIndexes);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoAt_N1CapsAt16_EvenIfNoTerminator()
+        {
+            // N1 rule i>=16 -> false even if u8(addr)!=0xFF, so a sub-table with no 0xFF stops at 16.
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint n1Base = 0x3000;
+            uint n2Base = 0x4000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0xF, 0x00);           // entry 0 valid
+            rom.write_u8(table + 28 + 0xF, 0x05);      // entry 1 terminates main
+            rom.write_u32(table + 8, Ptr(n1Base));
+            rom.write_u32(table + 24, Ptr(n2Base));
+            // N1: 32 non-0xFF bytes (would walk forever w/o the i>=16 cap).
+            for (uint k = 0; k < 32; k++) rom.write_u8(n1Base + k, 0x01);
+            // N2: immediate 0 terminator -> count 0.
+            rom.write_u8(n2Base + 0, 0x00);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoAt(rom, list, pointer);
+
+            Address n1 = list.Single(a => a.Info == "OPClassDemo_JPName");
+            // count capped at 16 -> length 1*(16+1)=17.
+            Assert.Equal(17u, n1.Length);
+            Address n2 = list.Single(a => a.Info == "OPClassDemo_Anime");
+            // count 0 -> length 2*(0+1)=2.
+            Assert.Equal(2u, n2.Length);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoAt_UnsafeJpNameOrAnime_SkipsBothNestedTables_KeepsCString()
+        {
+            // If either embedded pointer (+8 jpName OR +24 anime) is unsafe, WF `continue`s -> NEITHER
+            // nested table is emitted, but the +0 CString (emitted BEFORE the guards) still is.
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint className = 0x2000;
+            uint n1Base = 0x3000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0xF, 0x00);          // entry 0 valid
+            rom.write_u8(table + 28 + 0xF, 0x05);     // entry 1 terminates
+            rom.write_u32(table + 0, Ptr(className)); // CString OK
+            rom.write_u8(className + 0, (byte)'X'); rom.write_u8(className + 1, 0x00);
+            rom.write_u32(table + 8, Ptr(n1Base));    // jpName SAFE
+            rom.write_u32(table + 24, 0);             // anime NULL -> unsafe -> skip BOTH nested
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoAt(rom, list, pointer);
+
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == className);
+            Assert.DoesNotContain(list, a => a.Info == "OPClassDemo_JPName"); // skipped (anime unsafe)
+            Assert.DoesNotContain(list, a => a.Info == "OPClassDemo_Anime");
+        }
+
+        [Fact]
+        public void EmitOPClassDemoAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FF0)); // base near EOF
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoAt(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        // ---- EmitOPClassDemoFE7At (FE7-multibyte): main + LZ77 + N2 + palette -
+
+        [Fact]
+        public void EmitOPClassDemoFE7At_EmitsMainIfr_CString_Lz77_N2_AndCommonPalette()
+        {
+            // ROM must be large enough to hold the absolute JP_FONT_PALETTE_POINTER (0x0B0038).
+            var rom = CreateTestRom(0xC0000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint className = 0x2000;  // CString target (+0)
+            uint jpImg = 0x3000;      // LZ77 target (+8)
+            uint n2Base = 0x5000;     // N2 sub-table (+28)
+            uint paletteData = 0x70000; // common-palette target (past 0x0B0038)
+            rom.write_u32(pointer, Ptr(table));
+
+            // Build ONLY 1 real entry then make the table end via EOF would be huge; instead rely on the
+            // fixed i<=0x41 rule. To keep the per-entry assertions on entry 0, plant entry 0 fully and
+            // leave the rest as zeros (their CString/LZ77/anime are all NULL/unsafe -> emit nothing).
+            rom.write_u32(table + 0, Ptr(className));
+            rom.write_u8(className + 0, (byte)'Z'); rom.write_u8(className + 1, 0x00); // strlen 1 -> len 2
+            uint imgLen = WriteLz77AllLiteral(rom, jpImg, 48);
+            rom.write_u32(table + 8, Ptr(jpImg));
+            rom.write_u32(table + 28, Ptr(n2Base));
+            // N2 block 2, rule u8(addr)!=0: 3 valid then 0 terminator.
+            rom.write_u8(n2Base + 0, 0x10);
+            rom.write_u8(n2Base + 2, 0x20);
+            rom.write_u8(n2Base + 4, 0x30);
+            rom.write_u8(n2Base + 6, 0x00); // -> N2 count 3
+            // common palette: absolute JP_FONT_PALETTE_POINTER = 0x0B0038 holds a pointer to paletteData.
+            rom.write_u32(0x0B0038, Ptr(paletteData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE7At(rom, list, pointer);
+
+            // Main IFR: block 32, DataCount = 0x42 (i<=0x41) -> length 32*(0x42+1).
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(32u, main.BlockSize);
+            Assert.Equal(32u * (0x42u + 1u), main.Length);
+            Assert.Equal(new uint[] { 0, 8, 28 }, main.PointerIndexes);
+
+            // entry 0 CString @ +0.
+            Address cstr = list.Single(a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == className);
+            Assert.Equal(2u, cstr.Length);
+            Assert.Equal(table + 0, cstr.Pointer);
+
+            // entry 0 LZ77 @ +8: name "OPClassDemo_Anime_<0>_JP_NAME_IMG", real compressed length.
+            Address lz = list.Single(a => a.DataType == Address.DataTypeEnum.LZ77IMG && a.Addr == jpImg);
+            Assert.Equal(imgLen, lz.Length);
+            Assert.Equal(table + 8, lz.Pointer);
+            Assert.Equal("OPClassDemo_Anime_" + U.ToHexString(0u) + "_JP_NAME_IMG", lz.Info);
+
+            // entry 0 N2 nested IFR @ +28: block 2, count 3 -> length 2*(3+1)=8.
+            Address n2 = list.Single(a => a.Info == "OPClassDemo_Anime_" + U.ToHexString(0u) + "_Anime");
+            Assert.Equal(n2Base, n2.Addr);
+            Assert.Equal(table + 28, n2.Pointer);
+            Assert.Equal(2u, n2.BlockSize);
+            Assert.Equal(8u, n2.Length);
+            Assert.Empty(n2.PointerIndexes);
+
+            // trailing common-palette pointer: AddPointer(0x0B0038, 2*16, PAL).
+            Address pal = list.Single(a => a.Info == "OPClassDemo_CommonPalette");
+            Assert.Equal(paletteData, pal.Addr);
+            Assert.Equal(2u * 16u, pal.Length);
+            Assert.Equal(0x0B0038u, pal.Pointer);
+            Assert.Equal(Address.DataTypeEnum.PAL, pal.DataType);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE7At_MissingMainTable_StillEmitsCommonPalette()
+        {
+            // WF emits the trailing common-palette AddPointer OUTSIDE the main block (unconditional),
+            // so even a missing main table still emits it.
+            var rom = CreateTestRom(0xC0000); // large enough for the absolute JP_FONT_PALETTE_POINTER
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, 0); // base NULL -> no main IFR
+            uint paletteData = 0x70000;
+            rom.write_u32(0x0B0038, Ptr(paletteData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE7At(rom, list, pointer);
+
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Address pal = list.Single(a => a.Info == "OPClassDemo_CommonPalette");
+            Assert.Equal(paletteData, pal.Addr);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE7At_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FF0)); // base near EOF
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoFE7At(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        // ---- version gate: OPClassDemo present on multibyte, absent otherwise ----
+
+        [Fact]
+        public void MakeAllStructPointers_FE8Multibyte_EmitsOPClassDemo()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8j = MakeVersionedRom("BE8J01"); // FE8J: version 8, is_multibyte == true
+                CoreState.ROM = fe8j;
+                Assert.True(fe8j.RomInfo.is_multibyte);
+                var result = RebuildProducerCore.MakeAllStructPointers(fe8j);
+                // On a blank fake ROM the op_class_demo_pointer slot is 0 -> the main IFR is skipped, but
+                // the emitter still RUNS without throwing (proven by FE8 gate firing). Coverage bookkeeping
+                // proves the FORM is no longer deferred (the gate is reached).
+                Assert.DoesNotContain("OPClassDemoForm", result.NotYetPorted);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitOPClassDemo_FE8Multibyte_RunsCleanly_OnEmptyFakeRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8j = MakeVersionedRom("BE8J01");
+                CoreState.ROM = fe8j;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemo(fe8j, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE7_FE7Multibyte_RunsCleanly_OnEmptyFakeRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe7j = MakeVersionedRom("AE7J01"); // FE7J: version 7, is_multibyte == true
+                CoreState.ROM = fe7j;
+                Assert.True(fe7j.RomInfo.is_multibyte);
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoFE7(fe7j, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2i -----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2iCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2i ported these 2 — no longer in the deferred list:
+            Assert.DoesNotContain("OPClassDemoForm", ported);
+            Assert.DoesNotContain("OPClassDemoFE7Form", ported);
+
+            // deferred siblings STAY (their blocking subsystem is not in Core):
+            Assert.Contains("MapSettingForm", ported);           // IsMapSettingEnd needs WF text-count cache
+            Assert.Contains("WorldMapEventPointerForm", ported); // ScanScript
+            Assert.Contains("MonsterWMapProbabilityForm", ported); // ScanScript skirmish events
+            Assert.Contains("ImageCGFE7UForm", ported);          // LZ77 CG (FE7U)
+            Assert.Contains("FE8SpellMenuExtendsForm", ported);  // FindFE8SpellPatchPointer
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
