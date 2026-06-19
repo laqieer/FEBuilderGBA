@@ -2294,15 +2294,15 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2dCoveredForms()
         {
-            var ported = RebuildProducerCore.GetNotYetPortedForms();
-            Assert.DoesNotContain("StatusOptionForm", ported);
-            Assert.DoesNotContain("SoundFootStepsForm", ported);
-            Assert.DoesNotContain("StatusRMenuForm", ported);
-            Assert.DoesNotContain("MenuDefinitionForm", ported);
+            var notYet = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.DoesNotContain("StatusOptionForm", notYet);
+            Assert.DoesNotContain("SoundFootStepsForm", notYet);
+            Assert.DoesNotContain("StatusRMenuForm", notYet);
+            Assert.DoesNotContain("MenuDefinitionForm", notYet);
             // sibling forms that genuinely still need un-ported subsystems STAY.
-            Assert.Contains("ItemForm", ported);
-            Assert.Contains("SoundRoomForm", ported);
-            Assert.Contains("ItemWeaponEffectForm", ported);
+            Assert.Contains("ItemForm", notYet);
+            Assert.Contains("SoundRoomForm", notYet);
+            Assert.Contains("ItemWeaponEffectForm", notYet);
         }
 
         // ---- real ROM: the new tables are found --------------------------
@@ -3044,24 +3044,24 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_NoLongerListsPortedImageForms_StillListsDeferred()
         {
-            var ported = RebuildProducerCore.GetNotYetPortedForms();
+            var notYet = RebuildProducerCore.GetNotYetPortedForms();
             // ported in slice 2e -> removed from the deferred list:
-            Assert.DoesNotContain("ImageBattleBGForm", ported);
-            Assert.DoesNotContain("ImageBattleTerrainForm", ported);
-            Assert.DoesNotContain("ImageBattleScreenForm", ported);
-            Assert.DoesNotContain("ImageUnitWaitIconFrom", ported);
-            Assert.DoesNotContain("ImageUnitPaletteForm", ported);
-            Assert.DoesNotContain("ImageGenericEnemyPortraitForm", ported);
-            Assert.DoesNotContain("ImageChapterTitleForm", ported);
+            Assert.DoesNotContain("ImageBattleBGForm", notYet);
+            Assert.DoesNotContain("ImageBattleTerrainForm", notYet);
+            Assert.DoesNotContain("ImageBattleScreenForm", notYet);
+            Assert.DoesNotContain("ImageUnitWaitIconFrom", notYet);
+            Assert.DoesNotContain("ImageUnitPaletteForm", notYet);
+            Assert.DoesNotContain("ImageGenericEnemyPortraitForm", notYet);
+            Assert.DoesNotContain("ImageChapterTitleForm", notYet);
             // still deferred (need ImageUtil / config / runtime-inspection subsystems):
-            Assert.Contains("ImageBGForm", ported);
-            Assert.Contains("ImageCGForm", ported);
-            Assert.Contains("ImageSystemIconForm", ported);
-            Assert.Contains("ImageBattleAnimeForm", ported);
-            Assert.Contains("ImagePortraitForm", ported);
-            Assert.Contains("WorldMapImageForm", ported); // the FE8 form stays (AddHeaderTSAPointer)
-            Assert.Contains("ImageItemIconForm", ported);
-            Assert.Contains("ImageTSAAnimeForm", ported);
+            Assert.Contains("ImageBGForm", notYet);
+            Assert.Contains("ImageCGForm", notYet);
+            Assert.Contains("ImageSystemIconForm", notYet);
+            Assert.Contains("ImageBattleAnimeForm", notYet);
+            Assert.Contains("ImagePortraitForm", notYet);
+            Assert.Contains("WorldMapImageForm", notYet); // the FE8 form stays (AddHeaderTSAPointer)
+            Assert.Contains("ImageItemIconForm", notYet);
+            Assert.Contains("ImageTSAAnimeForm", notYet);
         }
 
         // ===================================================================
@@ -3469,24 +3469,24 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2fCoveredForms_KeepsDeferredSiblings()
         {
-            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
             // slice 2f ported these 7 — no longer in the deferred list:
-            Assert.DoesNotContain("AIMapSettingForm", ported);
-            Assert.DoesNotContain("AIPerformStaffForm", ported);
-            Assert.DoesNotContain("AIPerformItemForm", ported);
-            Assert.DoesNotContain("MantAnimationForm", ported);
-            Assert.DoesNotContain("ArenaEnemyWeaponForm", ported);
-            Assert.DoesNotContain("ItemUsagePointerForm", ported);
-            Assert.DoesNotContain("UnitFE6Form", ported);
+            Assert.DoesNotContain("AIMapSettingForm", notYet);
+            Assert.DoesNotContain("AIPerformStaffForm", notYet);
+            Assert.DoesNotContain("AIPerformItemForm", notYet);
+            Assert.DoesNotContain("MantAnimationForm", notYet);
+            Assert.DoesNotContain("ArenaEnemyWeaponForm", notYet);
+            Assert.DoesNotContain("ItemUsagePointerForm", notYet);
+            Assert.DoesNotContain("UnitFE6Form", notYet);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("AIScriptForm", ported);              // AI bytecode CalcLength + nested LZ77
-            Assert.Contains("UnitActionPointerForm", ported);     // PatchUtil SearchUnitActionReworkPatch
-            Assert.Contains("MonsterWMapProbabilityForm", ported);// EventScriptForm.ScanScript skirmish
+            Assert.Contains("AIScriptForm", notYet);              // AI bytecode CalcLength + nested LZ77
+            Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
+            Assert.Contains("MonsterWMapProbabilityForm", notYet);// EventScriptForm.ScanScript skirmish
             // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
             //  — see GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.)
-            Assert.Contains("EventCondForm", ported);             // EventScriptForm.ScanScript
+            Assert.Contains("EventCondForm", notYet);             // EventScriptForm.ScanScript
             // and the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
@@ -3873,25 +3873,25 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings()
         {
-            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
             // slice 2g ported these 5 map-PLIST forms — no longer in the deferred list:
-            Assert.DoesNotContain("ItemShopForm", ported);
-            Assert.DoesNotContain("MapChangeForm", ported);
-            Assert.DoesNotContain("MapExitPointForm", ported);
-            Assert.DoesNotContain("MapTileAnimation1Form", ported);
-            Assert.DoesNotContain("MapTileAnimation2Form", ported);
+            Assert.DoesNotContain("ItemShopForm", notYet);
+            Assert.DoesNotContain("MapChangeForm", notYet);
+            Assert.DoesNotContain("MapExitPointForm", notYet);
+            Assert.DoesNotContain("MapTileAnimation1Form", notYet);
+            Assert.DoesNotContain("MapTileAnimation2Form", notYet);
 
             // (MapPointerForm + MapTerrain{Floor,BG}LookupTableForm were deferred map siblings here, but
             //  are now PORTED in slice 2j — their blocking Core helpers (MapPListResolverCore /
             //  MapTerrainLookupCore + the PatchDetection gates) landed for the Avalonia gap-sweep. See
             //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings.)
-            Assert.DoesNotContain("MapPointerForm", ported);
-            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", ported);
-            Assert.DoesNotContain("MapTerrainBGLookupTableForm", ported);
+            Assert.DoesNotContain("MapPointerForm", notYet);
+            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", notYet);
+            Assert.DoesNotContain("MapTerrainBGLookupTableForm", notYet);
             // deferred map siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("MapSettingForm", ported);                 // IsMapSettingEnd + CString
-            Assert.Contains("ItemForm", ported);                       // StatBooster size via PatchUtil
+            Assert.Contains("MapSettingForm", notYet);                 // IsMapSettingEnd + CString
+            Assert.Contains("ItemForm", notYet);                       // StatBooster size via PatchUtil
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -4349,21 +4349,21 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2hCoveredForms_KeepsDeferredSiblings()
         {
-            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
             // slice 2h ported these 5 — no longer in the deferred list:
-            Assert.DoesNotContain("EDStaffRollForm", ported);
-            Assert.DoesNotContain("OPPrologueForm", ported);
-            Assert.DoesNotContain("OPClassFontForm", ported);
-            Assert.DoesNotContain("SupportUnitForm", ported);
-            Assert.DoesNotContain("WorldMapPathForm", ported);
+            Assert.DoesNotContain("EDStaffRollForm", notYet);
+            Assert.DoesNotContain("OPPrologueForm", notYet);
+            Assert.DoesNotContain("OPClassFontForm", notYet);
+            Assert.DoesNotContain("SupportUnitForm", notYet);
+            Assert.DoesNotContain("WorldMapPathForm", notYet);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
             // (NOTE: OPClassDemoForm / OPClassDemoFE7Form were the nested-IFR siblings deferred at
             //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there.)
-            Assert.Contains("MapSettingForm", ported);      // IsMapSettingEnd needs WF text-count cache
-            Assert.Contains("WorldMapEventPointerForm", ported); // ScanScript
-            Assert.Contains("ImageCGFE7UForm", ported);     // LZ77 CG (FE7U)
+            Assert.Contains("MapSettingForm", notYet);      // IsMapSettingEnd needs WF text-count cache
+            Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
+            Assert.Contains("ImageCGFE7UForm", notYet);     // LZ77 CG (FE7U)
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -4748,18 +4748,18 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2iCoveredForms_KeepsDeferredSiblings()
         {
-            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
             // slice 2i ported these 2 — no longer in the deferred list:
-            Assert.DoesNotContain("OPClassDemoForm", ported);
-            Assert.DoesNotContain("OPClassDemoFE7Form", ported);
+            Assert.DoesNotContain("OPClassDemoForm", notYet);
+            Assert.DoesNotContain("OPClassDemoFE7Form", notYet);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("MapSettingForm", ported);           // IsMapSettingEnd needs WF text-count cache
-            Assert.Contains("WorldMapEventPointerForm", ported); // ScanScript
-            Assert.Contains("MonsterWMapProbabilityForm", ported); // ScanScript skirmish events
-            Assert.Contains("ImageCGFE7UForm", ported);          // LZ77 CG (FE7U)
-            Assert.Contains("FE8SpellMenuExtendsForm", ported);  // FindFE8SpellPatchPointer
+            Assert.Contains("MapSettingForm", notYet);           // IsMapSettingEnd needs WF text-count cache
+            Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
+            Assert.Contains("MonsterWMapProbabilityForm", notYet); // ScanScript skirmish events
+            Assert.Contains("ImageCGFE7UForm", notYet);          // LZ77 CG (FE7U)
+            Assert.Contains("FE8SpellMenuExtendsForm", notYet);  // FindFE8SpellPatchPointer
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -5193,21 +5193,21 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings()
         {
-            string[] ported = RebuildProducerCore.GetNotYetPortedForms();
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
             // slice 2j ported these 5 (or 4 forms; ExtraUnit is a FE8J/FE8U split) — no longer deferred:
-            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", ported);
-            Assert.DoesNotContain("MapTerrainBGLookupTableForm", ported);
-            Assert.DoesNotContain("MapPointerForm", ported);
-            Assert.DoesNotContain("ExtraUnitForm", ported);
-            Assert.DoesNotContain("ExtraUnitFE8UForm", ported);
+            Assert.DoesNotContain("MapTerrainFloorLookupTableForm", notYet);
+            Assert.DoesNotContain("MapTerrainBGLookupTableForm", notYet);
+            Assert.DoesNotContain("MapPointerForm", notYet);
+            Assert.DoesNotContain("ExtraUnitForm", notYet);
+            Assert.DoesNotContain("ExtraUnitFE8UForm", notYet);
 
             // Still deferred (real missing-Core blocker) -> must REMAIN:
-            Assert.Contains("SongTableForm", ported);                   // SongUtil.ParseTrack/RecycleOldInstrument
-            Assert.Contains("EventUnitForm(RecycleReserveUnits)", ported); // NewAllocData = editor session state
-            Assert.Contains("SoundRoomForm", ported);                   // FE7 CString sub-walk + MIX type
-            Assert.Contains("ItemForm", ported);                        // StatBooster size via PatchUtil
-            Assert.Contains("MapSettingForm", ported);                  // IsMapSettingEnd text-count cache
+            Assert.Contains("SongTableForm", notYet);                   // SongUtil.ParseTrack/RecycleOldInstrument
+            Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet); // NewAllocData = editor session state
+            Assert.Contains("SoundRoomForm", notYet);                   // FE7 CString sub-walk + MIX type
+            Assert.Contains("ItemForm", notYet);                        // StatBooster size via PatchUtil
+            Assert.Contains("MapSettingForm", notYet);                  // IsMapSettingEnd text-count cache
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();

@@ -2794,17 +2794,34 @@ namespace FEBuilderGBA
         /// PLIST types). Pure RomInfo <c>p32</c> reads — no PatchUtil dependency.</summary>
         static bool IsPlistSplits(ROM rom)
         {
-            uint a = rom.p32(rom.RomInfo.map_config_pointer);
-            if (a == rom.p32(rom.RomInfo.map_tileanime1_pointer)) return false;
-            if (a == rom.p32(rom.RomInfo.map_obj_pointer)) return false;
-            if (a == rom.p32(rom.RomInfo.map_map_pointer_pointer)) return false;
-            if (a == rom.p32(rom.RomInfo.map_mapchange_pointer)) return false;
-            if (a == rom.p32(rom.RomInfo.map_event_pointer)) return false;
+            // EOF-harden (Copilot #1282): on synthetic/truncated ROMs a RomInfo PLIST slot can sit near
+            // EOF, where ROM.p32 -> u32 -> check_safety throws. On valid ROMs these header slots are
+            // always in-bounds, so guarding slot+3 before each p32 never changes the result; an unsafe
+            // slot is treated as "not equal to config" (the comparison simply does not fire). A missing
+            // config base -> not split (the conservative smaller limit).
+            uint cfg = rom.RomInfo.map_config_pointer;
+            if (!U.isSafetyOffset(cfg + 3, rom)) return false;
+            uint a = rom.p32(cfg);
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_tileanime1_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_obj_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_map_pointer_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_mapchange_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_event_pointer)) return false;
             if (rom.RomInfo.version == 6)
             {
-                if (a == rom.p32(rom.RomInfo.map_worldmapevent_pointer)) return false;
+                if (PlistBaseEquals(rom, a, rom.RomInfo.map_worldmapevent_pointer)) return false;
             }
             return true;
+        }
+
+        /// <summary>Guarded <c>a == p32(slot)</c> for <see cref="IsPlistSplits"/>: returns false (treat
+        /// as "not equal", i.e. keep checking) when the 4-byte slot is near EOF, so a synthetic/truncated
+        /// ROM never throws in <c>p32</c>. On valid ROMs the slot is always in-bounds, so the result is
+        /// identical to the verbatim WF comparison.</summary>
+        static bool PlistBaseEquals(ROM rom, uint a, uint slot)
+        {
+            if (!U.isSafetyOffset(slot + 3, rom)) return false;
+            return a == rom.p32(slot);
         }
 
         /// <summary>
