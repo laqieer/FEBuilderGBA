@@ -541,6 +541,37 @@ namespace FEBuilderGBA
             progress?.Report("MapTileAnimation2");
             EmitMapTileAnimation2(rom, list);
 
+            // ---- slice 2j: MapTerrain Floor/BG lookup tables + MapPointer (version-agnostic) ----
+            // All three are called in the WF unconditional section. None is a flat StructDescriptor walk:
+            // the MapTerrain forms loop a per-form pointer array (MapTerrainLookupCore.GetPointers — the
+            // vanilla 21-slot RomInfo list OR the extends-patch table) emitting one flat IFR per non-zero
+            // pointer with the index baked into the name; MapPointer emits 6-7 MAPPOINTERS IFR tables plus a
+            // per-map PLIST sweep (MapPListResolverCore.GetMapPListsWhereAddr). Each gets a dedicated walker
+            // with its own cancel-check, mirroring the WF DoEvents posture. WF order: Floor THEN BG.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapTerrainFloorLookupTable");
+            EmitMapTerrainLookup(rom, list, isFloor: true);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapTerrainBGLookupTable");
+            EmitMapTerrainLookup(rom, list, isFloor: false);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("MapPointer");
+            EmitMapPointer(rom, list);
+
             // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
             // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
             // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
@@ -580,6 +611,35 @@ namespace FEBuilderGBA
                     }
                     progress?.Report("OPClassDemo");
                     EmitOPClassDemo(rom, list);
+                }
+
+                // ---- slice 2j: ExtraUnit (FE8-only; multibyte/non-multibyte split) ----
+                // WF calls ExtraUnitForm (FE8J) inside `version==8 && is_multibyte` and ExtraUnitFE8UForm
+                // (FE8U) inside `version==8 && !is_multibyte` — a version/multibyte split (the FE8J path is
+                // an if-chain at hardcoded 0x37EE4 / flags @ i*0x14+0x37E10; the FE8U path is a table at
+                // 0x37D88, block 8). Both expand each entry via EventUnitForm.RecycleOldUnits (reproduced
+                // by EmitRecycleOldUnits — the EventUnit IFR + the FE8 per-entry COORD sub-blocks). Gate
+                // EXACTLY as WF: a wrong-shape port on the wrong FE8 variant corrupts (cf. the #1274 FE6
+                // bug). is_multibyte == FE8J, !is_multibyte == FE8U.
+                if (rom.RomInfo.is_multibyte)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("ExtraUnit");
+                    EmitExtraUnit(rom, list);
+                }
+                else
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("ExtraUnitFE8U");
+                    EmitExtraUnitFE8U(rom, list);
                 }
             }
 
@@ -2493,6 +2553,473 @@ namespace FEBuilderGBA
             }
         }
 
+        // ====================================================================
+        // slice 2j — misc self-contained stragglers (MapTerrain lookup tables,
+        // MapPointer, ExtraUnit FE8J/FE8U). Each was DEFERRED on a "helper not in
+        // Core" claim that is now STALE — MapTerrainLookupCore.GetPointers,
+        // MapPListResolverCore.GetMapPListsWhereAddr (+ its PatchDetection gate),
+        // and MapSettingCore.MakeMapIDList were all added for the Avalonia
+        // gap-sweep (#441/#442) and are pure ROM-reads. ExtraUnit's only blocker
+        // (EventUnitForm.RecycleOldUnits) is reproduced verbatim by
+        // EmitRecycleOldUnits below (a pure EventUnit-IFR + FE8 COORD walk).
+        // ====================================================================
+
+        /// <summary>
+        /// <c>MapTerrain{BG,Floor}LookupTableForm.MakeAllDataLength</c> (slice 2j, version-agnostic).
+        /// Both forms share the identical shape — only the pointer SET differs (BG vs Floor) — so one
+        /// emitter covers both via <paramref name="isFloor"/>. WF: <c>pointers = GetPointers()</c> (the
+        /// vanilla 21-slot RomInfo list, or the extends-patch 8-byte-stride table when the ExtendsBattleBG
+        /// patch is installed — reproduced VERBATIM by <see cref="MapTerrainLookupCore.GetPointers"/>),
+        /// then for each non-zero pointer <c>InputFormRef.ReInitPointer(pointers[i])</c> +
+        /// <c>AddAddress(IFR, name + ToHexString(i), {})</c>. The IFR is block 1, IsDataExists
+        /// <c>i &lt; map_terrain_type_count</c> (a FixedCount walk), pointerIndexes EMPTY. The index is
+        /// baked into the per-pointer name (so this is a dedicated emitter, not a flat
+        /// <see cref="StructDescriptor.PointerFields"/> descriptor whose name is shared).
+        /// </summary>
+        public static void EmitMapTerrainLookup(ROM rom, List<Address> list, bool isFloor)
+        {
+            EmitMapTerrainLookupAt(rom, list, MapTerrainLookupCore.GetPointers(rom, isFloor), isFloor);
+        }
+
+        /// <summary>MapTerrain lookup emission from an explicit pointer array (test seam — lets a
+        /// synthetic ROM supply the pointer set directly without populating the 21 RomInfo slots / the
+        /// extends-patch table). See <see cref="EmitMapTerrainLookup"/> for the verbatim WF
+        /// reproduction. <paramref name="pointers"/> is the WF <c>GetPointers()</c> array; each non-zero
+        /// element is a 4-byte pointer SLOT whose <c>p32</c> is the lookup-table base.</summary>
+        public static void EmitMapTerrainLookupAt(ROM rom, List<Address> list, uint[] pointers, bool isFloor)
+        {
+            const uint block = 1; // MapTerrain{BG,Floor}LookupTableForm.Init BlockSize.
+            // WF Init IsDataExists = i < map_terrain_type_count (a FixedCount walk; BOTH the BG and the
+            // Floor form use map_terrain_type_count — there is no separate floor count field).
+            uint count = rom.RomInfo.map_terrain_type_count;
+            string baseName = isFloor ? "MapTerrainFloorLookupTable" : "MapTerrainBGLookupTable";
+
+            if (pointers == null)
+            {
+                return;
+            }
+            for (int i = 0; i < pointers.Length; i++)
+            {
+                uint pointerRaw = pointers[i];
+                if (pointerRaw == 0)
+                {
+                    continue; // WF: pointers[i] == 0 -> continue.
+                }
+                // WF InputFormRef.ReInitPointer(pointers[i]): BasePointer = pointers[i],
+                // BaseAddress = p32(pointers[i]). Guard the full 4-byte slot before p32 (slot+3) so a
+                // near-EOF pointer slot emits nothing instead of throwing.
+                uint pointer = U.toOffset(pointerRaw);
+                if (!U.isSafetyOffset(pointer + 3, rom))
+                {
+                    continue;
+                }
+                uint baseAddr = rom.p32(pointer);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    continue; // WF AddAddress early-returns when !isSafetyOffset(BaseAddress).
+                }
+
+                // IsDataExists = i < count (FixedCount); getBlockDataCount stops at addr+1 > Len (EOF) too.
+                uint dataCount = rom.getBlockDataCount(baseAddr, block, (j, addr) => j < count);
+                uint length = block * (dataCount + 1);
+                list.Add(new Address(baseAddr, length, pointer, baseName + U.ToHexString(i),
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+            }
+        }
+
+        /// <summary>
+        /// <c>MapPointerForm.MakeAllDataLength</c> (slice 2j, version-agnostic). Emits the 6-7
+        /// MAPPOINTERS PLIST-table IFRs (CONFIG / ANIMATION / OBJECT / MAP / EVENT / CHANGE, plus a FE6
+        /// WMAP_EVENT alias) and then a per-map sweep that resolves each map's PLIST columns
+        /// (<see cref="MapPListResolverCore.GetMapPListsWhereAddr"/>) and adds the pointed-at map-chipset
+        /// LZ77 / MAR / palette / OBJECT blocks. Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>each PLIST table is a block-4 IFR, IsDataExists <c>i==0 ? true : i &lt; limit</c> where
+        ///   <c>limit = IsPlistSplits() ? 256 : map_map_pointer_list_default_size</c>, pointerIndexes
+        ///   {0}; the base pointers come from <see cref="MapPListResolverCore"/>'s RomInfo slots;</item>
+        ///   <item>the per-map columns index into the CONFIG / MAP / OBJECT tables by PLIST id (the WF
+        ///   <c>configList[plist].addr == configBase + plist*4</c>), each adding an LZ77 (config / MAR /
+        ///   obj-low / obj-high) or fixed-PAL (palette / palette2) block behind the indexed slot.</item>
+        /// </list>
+        /// The deferral claim ("palette2 gated on SearchFlag0x28ToMapSecondPalettePatch — not in Core")
+        /// is STALE: that gate now lives inside <see cref="MapPListResolverCore.GetMapPListsWhereAddr"/>.
+        /// The producer always scans real lengths, so the LZ77 columns pass <c>isPointerOnly: false</c>.
+        /// </summary>
+        public static void EmitMapPointer(ROM rom, List<Address> list)
+        {
+            // IsPlistSplits(): the PLIST tables are split iff CONFIG's base differs from every other
+            // table's base. Pure RomInfo p32 reads (no PatchUtil) — reproduced from MapPointerForm.
+            bool isSplit = IsPlistSplits(rom);
+            // limit = split ? 256 : map_map_pointer_list_default_size (the WF Init local).
+            uint limit = isSplit ? 256u : rom.RomInfo.map_map_pointer_list_default_size;
+
+            // The base POINTER SLOTS (RomInfo fields), reproducing MapPointerForm.GetBasePointer.
+            uint configPtr = rom.RomInfo.map_config_pointer;
+            uint animePtr  = rom.RomInfo.map_tileanime1_pointer;
+            uint objPtr    = rom.RomInfo.map_obj_pointer;
+            uint mapPtr    = rom.RomInfo.map_map_pointer_pointer;
+            uint eventPtr  = rom.RomInfo.map_event_pointer;
+            uint changePtr = rom.RomInfo.map_mapchange_pointer;
+
+            // The 6 (FE6: 7) main MAPPOINTERS IFR tables. WF emits AddAddress(IFR, name, {0}) for each.
+            // configBase/mapBase/objBase are the resolved table bases we also index into per-map below.
+            uint configBase = EmitMapPointerTable(rom, list, configPtr, limit, "MAPPOINTERS");
+            EmitMapPointerTable(rom, list, animePtr, limit, "MAPPOINTERS_ANIMATION"); // ANIMATION2 shares.
+            uint objBase = EmitMapPointerTable(rom, list, objPtr, limit, "MAPPOINTERS_OBJECT"); // PAL shares.
+            uint mapBase = EmitMapPointerTable(rom, list, mapPtr, limit, "MAPPOINTERS_MAP");
+            EmitMapPointerTable(rom, list, eventPtr, limit, "MAPPOINTERS_EVENT");
+            EmitMapPointerTable(rom, list, changePtr, limit, "MAPPOINTERS_CHANGE");
+            if (rom.RomInfo.version == 6)
+            {
+                // WF FE6: a second alias over the CHANGE base ("MAPPOINTERS_WMAP_EVENT").
+                EmitMapPointerTable(rom, list, changePtr, limit, "MAPPOINTERS_WMAP_EVENT");
+            }
+
+            // The per-map column counts: WF indexes configList[plist] (plist < configList.Count). The IFR
+            // DataCount bounds that list, so compute each table's DataCount and require plist < count.
+            uint configCount = MapPointerTableDataCount(rom, configBase, limit);
+            uint objCount     = MapPointerTableDataCount(rom, objBase, limit);
+            uint mapCount     = MapPointerTableDataCount(rom, mapBase, limit);
+
+            // WF: 0x20 * MapStyleEditorForm.MAX_MAP_PALETTE_COUNT. MAX_MAP_PALETTE_COUNT is a WinForms UI
+            // constant (PARTS_MAP_PALETTE_COUNT=5 * 2 = 10), NOT a RomInfo field — reproduce the literal.
+            const uint MAX_MAP_PALETTE_COUNT = 10;
+            const uint palSize = 0x20 * MAX_MAP_PALETTE_COUNT;
+
+            foreach (AddrResult map in MapSettingCore.MakeMapIDList(rom))
+            {
+                MapPListResolverCore.PLists plists =
+                    MapPListResolverCore.GetMapPListsWhereAddr(rom, map.addr);
+                uint mapid = map.tag;
+
+                // config_plist -> LZ77MAPCONFIG behind configList[config_plist].addr (= configBase + plist*4).
+                if (plists.config_plist > 0 && plists.config_plist < configCount)
+                {
+                    uint pointer = configBase + plists.config_plist * 4;
+                    Address.AddLZ77Pointer(list, pointer + 0,
+                        "MAP:" + U.To0xHexString(mapid) + " MAP_CHIPSET" + U.ToHexString(plists.config_plist),
+                        false, Address.DataTypeEnum.LZ77MAPCONFIG);
+                }
+                // mappointer_plist -> LZ77MAPMAR behind mapList[mappointer_plist].addr.
+                if (plists.mappointer_plist > 0 && plists.mappointer_plist < mapCount)
+                {
+                    uint pointer = mapBase + plists.mappointer_plist * 4;
+                    Address.AddLZ77Pointer(list, pointer + 0,
+                        "MAP:" + U.To0xHexString(mapid) + " MAP MAR:" + U.ToHexString(plists.mappointer_plist),
+                        false, Address.DataTypeEnum.LZ77MAPMAR);
+                }
+                // palette_plist -> fixed PAL behind objList[palette_plist].addr (OBJECT and PAL share base).
+                if (plists.palette_plist > 0 && plists.palette_plist < objCount)
+                {
+                    uint pointer = objBase + plists.palette_plist * 4;
+                    Address.AddPointer(list, pointer + 0, palSize,
+                        "MAP:" + U.ToHexString(mapid) + " PALETTE:" + U.ToHexString(plists.palette_plist),
+                        Address.DataTypeEnum.PAL);
+                }
+                // palette2_plist -> fixed PAL (second palette; the value is 0 unless the patch is installed,
+                // gated inside GetMapPListsWhereAddr).
+                if (plists.palette2_plist > 0 && plists.palette2_plist < objCount)
+                {
+                    uint pointer = objBase + plists.palette2_plist * 4;
+                    Address.AddPointer(list, pointer + 0, palSize,
+                        "MAP:" + U.ToHexString(mapid) + " SECOND PALETTE:" + U.ToHexString(plists.palette2_plist),
+                        Address.DataTypeEnum.PAL);
+                }
+                // obj_plist (a packed u16): low and high bytes each -> LZ77IMG behind objList[byte].addr.
+                uint objLow = plists.obj_plist & 0xFF;
+                uint objHigh = (plists.obj_plist >> 8) & 0xFF;
+                if (objLow > 0 && objLow < objCount)
+                {
+                    uint pointer = objBase + objLow * 4;
+                    Address.AddLZ77Pointer(list, pointer + 0,
+                        "MAP:" + U.ToHexString(mapid) + " OBJ:" + U.ToHexString(objLow),
+                        false, Address.DataTypeEnum.LZ77IMG);
+                }
+                if (objHigh > 0 && objHigh < objCount)
+                {
+                    uint pointer = objBase + objHigh * 4;
+                    Address.AddLZ77Pointer(list, pointer + 0,
+                        "MAP:" + U.ToHexString(mapid) + " OBJ:" + U.ToHexString(objHigh),
+                        false, Address.DataTypeEnum.LZ77IMG);
+                }
+            }
+        }
+
+        /// <summary>Emit one MAPPOINTERS PLIST-table IFR (block 4, IsDataExists
+        /// <c>i==0 ? true : i &lt; limit</c>, pointerIndexes {0}) for the RomInfo pointer slot
+        /// <paramref name="rawPointer"/>. Returns the resolved table BASE (<c>p32(slot)</c>) so the
+        /// caller can index per-map columns into it, or <see cref="U.NOT_FOUND"/> when the slot is
+        /// unsafe (the per-map index guards on that). Reproduces the WF
+        /// <c>InputFormRef.ReInitPointer(GetBasePointer(...)) + AddAddress(IFR, name, {0})</c>.</summary>
+        static uint EmitMapPointerTable(ROM rom, List<Address> list, uint rawPointer, uint limit, string name)
+        {
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return U.NOT_FOUND; // p32(slot) would read junk past EOF.
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return U.NOT_FOUND; // WF AddAddress early-returns; nothing to index either.
+            }
+            uint dataCount = MapPointerDataCountAt(rom, baseAddr, limit);
+            uint length = 4 * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, name,
+                Address.DataTypeEnum.InputFormRef, 4, new uint[] { 0 }));
+            return baseAddr;
+        }
+
+        /// <summary>The MapPointer IFR DataCount for a resolved table base, or 0 when the base is
+        /// unsafe/NOT_FOUND. IsDataExists = <c>i==0 ? true : i &lt; limit</c> (the WF Init rule).</summary>
+        static uint MapPointerTableDataCount(ROM rom, uint baseAddr, uint limit)
+        {
+            if (baseAddr == U.NOT_FOUND || !U.isSafetyOffset(baseAddr, rom))
+            {
+                return 0;
+            }
+            return MapPointerDataCountAt(rom, baseAddr, limit);
+        }
+
+        /// <summary>getBlockDataCount over the MapPointer IFR rule (block 4,
+        /// <c>i==0 ? true : i &lt; limit</c>). The callback reads nothing — it is a pure index walk —
+        /// so getBlockDataCount's only extra cutoff is addr+4 &gt; Len (EOF), which is harmless.</summary>
+        static uint MapPointerDataCountAt(ROM rom, uint baseAddr, uint limit)
+        {
+            return rom.getBlockDataCount(baseAddr, 4, (i, addr) => i == 0 || (uint)i < limit);
+        }
+
+        /// <summary>Reproduces <c>MapPointerForm.IsPlistSplits</c>: the PLIST tables are "split" iff the
+        /// CONFIG base differs from every other table's base (a vanilla ROM shares one base across all
+        /// PLIST types). Pure RomInfo <c>p32</c> reads — no PatchUtil dependency.</summary>
+        static bool IsPlistSplits(ROM rom)
+        {
+            // EOF-harden (Copilot #1282): on synthetic/truncated ROMs a RomInfo PLIST slot can sit near
+            // EOF, where ROM.p32 -> u32 -> check_safety throws. On valid ROMs these header slots are
+            // always in-bounds, so guarding slot+3 before each p32 never changes the result; an unsafe
+            // slot is treated as "not equal to config" (the comparison simply does not fire). A missing
+            // config base -> not split (the conservative smaller limit).
+            uint cfg = rom.RomInfo.map_config_pointer;
+            if (!U.isSafetyOffset(cfg + 3, rom)) return false;
+            uint a = rom.p32(cfg);
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_tileanime1_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_obj_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_map_pointer_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_mapchange_pointer)) return false;
+            if (PlistBaseEquals(rom, a, rom.RomInfo.map_event_pointer)) return false;
+            if (rom.RomInfo.version == 6)
+            {
+                if (PlistBaseEquals(rom, a, rom.RomInfo.map_worldmapevent_pointer)) return false;
+            }
+            return true;
+        }
+
+        /// <summary>Guarded <c>a == p32(slot)</c> for <see cref="IsPlistSplits"/>: returns false (treat
+        /// as "not equal", i.e. keep checking) when the 4-byte slot is near EOF, so a synthetic/truncated
+        /// ROM never throws in <c>p32</c>. On valid ROMs the slot is always in-bounds, so the result is
+        /// identical to the verbatim WF comparison.</summary>
+        static bool PlistBaseEquals(ROM rom, uint a, uint slot)
+        {
+            if (!U.isSafetyOffset(slot + 3, rom)) return false;
+            return a == rom.p32(slot);
+        }
+
+        /// <summary>
+        /// <c>ExtraUnitForm.MakeAllDataLength</c> (slice 2j; FE8J = <c>version==8 &amp;&amp; is_multibyte</c>
+        /// ONLY). The FE8J editor uses an if-chain at a HARDCODED base: <c>ifr.ReInit(0x37EE4)</c> (a
+        /// DIRECT address, NOT a pointer slot — so the IFR BasePointer stays 0 -&gt; NOT_FOUND), block 4,
+        /// IsDataExists <c>isSafetyPointer(u32(addr))</c>. WF: <c>AddAddress(IFR, "ExtraUnit", {})</c>
+        /// then per entry <c>RecycleOldUnits("ExtraUnit", addr + 0)</c> + a 1-byte BIN flag at
+        /// <c>i*0x14 + 0x37E10</c> (pointer NOT_FOUND, name "ExtraUnit Flag"). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitExtraUnit(ROM rom, List<Address> list)
+        {
+            EmitExtraUnitAt(rom, list, 0x37EE4);
+        }
+
+        /// <summary>ExtraUnit (FE8J) walk from an explicit table base (test seam — lets a synthetic ROM
+        /// supply the base directly without the hardcoded 0x37EE4). <paramref name="baseAddrRaw"/> is the
+        /// WF <c>ReInit</c> DIRECT base address (the unit-pointer entry table). The flag addresses are the
+        /// WF hardcoded <c>i*0x14 + 0x37E10</c> — those are absolute FE8J locations, so the test base is
+        /// only used to vary the entry table.</summary>
+        public static void EmitExtraUnitAt(ROM rom, List<Address> list, uint baseAddrRaw)
+        {
+            const uint block = 4;
+            const uint flagBase = 0x37E10; // WF GetFlagAddr(i) = i*0x14 + 0x37E10.
+            const uint flagStride = 0x14;
+
+            // WF ifr.ReInit(0x37EE4): BaseAddress = 0x37EE4 (DIRECT), BasePointer = 0 -> NOT_FOUND.
+            uint baseAddr = U.toOffset(baseAddrRaw);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF AddAddress early-returns when !isSafetyOffset(BaseAddress).
+            }
+            // IsDataExists = isSafetyPointer(u32(addr)). getBlockDataCount stops at addr+4 > Len too.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => U.isSafetyPointer(rom.u32(addr)));
+
+            // Main IFR: pointer = NOT_FOUND (BasePointer 0), pointerIndexes {}.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, U.NOT_FOUND, "ExtraUnit",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint addr = baseAddr + i * block;
+                // Guard the full 4-byte entry before RecycleOldUnits reads u32(addr) (addr+3).
+                if (!U.isSafetyOffset(addr + 3, rom))
+                {
+                    break;
+                }
+                EmitRecycleOldUnits(rom, list, "ExtraUnit", addr + 0);
+
+                // 1-byte BIN flag at the absolute FE8J location i*0x14 + 0x37E10 (pointer NOT_FOUND). WF
+                // calls Address.AddAddress directly (no pre-guard); the Core AddAddress safety-guards the
+                // addr internally and early-returns when out of range (e.g. a smaller synthetic ROM).
+                uint flagAddr = i * flagStride + flagBase;
+                Address.AddAddress(list, flagAddr, 1, U.NOT_FOUND, "ExtraUnit Flag",
+                    Address.DataTypeEnum.BIN);
+            }
+        }
+
+        /// <summary>
+        /// <c>ExtraUnitFE8UForm.MakeAllDataLength</c> (slice 2j; FE8U = <c>version==8 &amp;&amp;
+        /// !is_multibyte</c> ONLY). The FE8U editor is a TABLE at a HARDCODED pointer slot
+        /// <c>0x37D88</c> (constructed as the IFR BasePointer, so BaseAddress = <c>p32(0x37D88)</c>),
+        /// block 8, IsDataExists <c>isSafetyPointer(u32(addr+4))</c>. WF:
+        /// <c>AddAddress(IFR, "ExtraUnit", {})</c> then per entry
+        /// <c>RecycleOldUnits("ExtraUnit", addr + 4)</c> — NO flag block (the flag is the +0 field, an
+        /// in-table u32, not a separate region). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitExtraUnitFE8U(ROM rom, List<Address> list)
+        {
+            EmitExtraUnitFE8UAt(rom, list, 0x37D88);
+        }
+
+        /// <summary>ExtraUnit (FE8U) walk from an explicit pointer slot (test seam). See
+        /// <see cref="EmitExtraUnitFE8U"/> for the verbatim WF reproduction. <paramref name="rawPointer"/>
+        /// is the 4-byte pointer SLOT (WF BasePointer 0x37D88) whose <c>p32</c> is the table base.</summary>
+        public static void EmitExtraUnitFE8UAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 8;
+
+            // WF Init(basepointer=0x37D88): BasePointer = slot, BaseAddress = p32(slot). Guard slot+3.
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF AddAddress early-returns.
+            }
+            // IsDataExists = isSafetyPointer(u32(addr+4)). getBlockDataCount only fires while addr+8<=Len,
+            // so the +4 read is always in bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => U.isSafetyPointer(rom.u32(addr + 4)));
+
+            // Main IFR: pointer = BasePointer (0x37D88, safe here), pointerIndexes {}.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "ExtraUnit",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint addr = baseAddr + i * block;
+                // Guard the full 8-byte entry before RecycleOldUnits reads u32(addr+4) (addr+7).
+                if (!U.isSafetyOffset(addr + 7, rom))
+                {
+                    break;
+                }
+                EmitRecycleOldUnits(rom, list, "ExtraUnit", addr + 4);
+            }
+        }
+
+        /// <summary>
+        /// Reproduces <c>EventUnitForm.RecycleOldUnits(ref list, basename, script_pointer)</c> +
+        /// <c>RecycleOldUnitsLow</c> (slice 2j). The WF helper recovers the EVENT-UNIT region behind an
+        /// embedded script pointer (the <c>script_pointer</c> field of an ExtraUnit entry): it
+        /// dereferences <c>script_addr = u32(script_pointer)</c> (a pointer; NULL/unsafe -&gt; emit
+        /// nothing), then walks an EventUnit IFR rooted at <paramref name="scriptPointer"/> — block
+        /// <c>eventunit_data_size</c>, IsDataExists <c>u8(addr) != 0</c>. VERBATIM per version:
+        /// <list type="bullet">
+        ///   <item><b>version &lt;= 7</b>: one IFR Address (<c>AddAddress(IFR, basename + " EVENT UNIT",
+        ///   {})</c>) — pointer = the script-pointer field, pointerIndexes EMPTY.</item>
+        ///   <item><b>version 8</b>: one IFR Address with pointerIndexes <c>{8}</c>, PLUS for each entry
+        ///   whose <c>u8(addr+7) &gt; 0</c> a <c>count*8</c>-byte BIN block at <c>p32(addr+8)</c> behind
+        ///   the <c>addr+8</c> field (the FE8 "after-coordinate" placement list), named
+        ///   <c>basename + " EVENT UNIT COORD " + i</c>.</item>
+        /// </list>
+        /// All reads are pure ROM reads (no Form / disasm / session state), so this is faithfully
+        /// headless. EOF-safe: the script-pointer field and every per-entry read are bounds-guarded.
+        /// </summary>
+        public static void EmitRecycleOldUnits(ROM rom, List<Address> list, string basename, uint scriptPointer)
+        {
+            // WF: script_addr = u32(script_pointer); if (!isPointer(script_addr)) return; toOffset;
+            // if (!isSafetyOffset(script_addr)) return. Guard the full 4-byte field (field+3) first.
+            uint field = U.toOffset(scriptPointer);
+            if (!U.isSafetyOffset(field + 3, rom))
+            {
+                return;
+            }
+            uint scriptAddrRaw = rom.u32(field);
+            if (!U.isPointer(scriptAddrRaw))
+            {
+                return;
+            }
+            uint scriptAddr = U.toOffset(scriptAddrRaw);
+            if (!U.isSafetyOffset(scriptAddr, rom))
+            {
+                return;
+            }
+
+            // WF InputFormRef.ReInitPointer(script_pointer): BasePointer = field, BaseAddress = scriptAddr.
+            // EventUnitForm.Init: block = eventunit_data_size, IsDataExists = u8(addr) != 0.
+            uint block = rom.RomInfo.eventunit_data_size;
+            if (block == 0)
+            {
+                return; // a zero block would spin getBlockDataCount; not real data.
+            }
+            uint dataCount = rom.getBlockDataCount(scriptAddr, block, (i, addr) => rom.u8(addr) != 0);
+            uint length = block * (dataCount + 1);
+
+            if (rom.RomInfo.version <= 7)
+            {
+                // v<=7: AddAddress(IFR, basename + " EVENT UNIT", {}) — pointer = field, indexes EMPTY.
+                list.Add(new Address(scriptAddr, length, field, basename + " EVENT UNIT",
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+                return;
+            }
+
+            // v8: AddAddress(IFR, basename + " EVENT UNIT", {8}) — pointerIndexes {8} (the +8 after-coord
+            // pointer field in each EventUnit record).
+            list.Add(new Address(scriptAddr, length, field, basename + " EVENT UNIT",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 8 }));
+
+            // v8 per-entry: for each entry with u8(addr+7) > 0 add a count*8 BIN at p32(addr+8).
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint addr = scriptAddr + i * block;
+                // Guard the full record's deepest read (p32(addr+8) -> addr+11) before any read so a
+                // corrupted DataCount near EOF skips instead of throwing.
+                if (addr + 12 > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                uint count = rom.u8(addr + 7);
+                if (count == 0)
+                {
+                    continue; // WF: count > 0 gate.
+                }
+                uint afterAddress = rom.p32(addr + 8);
+                // WF Address.AddAddress(after_address, count*8, addr+8, name, BIN). The Core AddAddress
+                // early-returns when !isSafetyOffset(after_address), matching WF's downstream behaviour.
+                Address.AddAddress(list, afterAddress, count * 8, addr + 8,
+                    basename + " EVENT UNIT COORD " + i, Address.DataTypeEnum.BIN);
+            }
+        }
+
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
         /// <c>is_data_exists_callback</c> that <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> expects.</summary>
         static Func<int, uint, bool> MakeIsDataExists(ROM rom, StructDescriptor d)
@@ -4001,7 +4528,13 @@ namespace FEBuilderGBA
                 //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundFootStepsForm ported in
                 //  slice 2d — Switch2-gated dedicated walker (base/count from sound_foot_steps_switch2_address,
                 //  IsSwitch2Enable gate) + per-entry ASM AddFunction. SoundRoomForm STAYS — its FE7
-                //  path adds a per-entry getString C-string sub-walk + InputFormRef_MIX type.)
+                //  path adds a per-entry getString C-string sub-walk + InputFormRef_MIX type.
+                //  SongTableForm STAYS — although its main IFR (sound_table_pointer, block 8, rule
+                //  isPointer(u32(addr)), PI {0}) is trivial, each entry's LENGTH needs SongUtil.RecycleOldSong
+                //  (= SongUtil.ParseTrack, a music-track bytecode/FINE-address walk) + SongInstrumentForm.
+                //  RecycleOldInstrument (an instrument-tree walk) — NEITHER in Core (the Song*Core files are
+                //  MIDI import/export only). Porting just the main IFR would leave the song-score + instrument
+                //  data un-tracked -> dangling pointers on rebuild = corruption.)
                 "SongTableForm", "SoundRoomForm",
                 // embedded sub-pointer / event-scan / CString expansion
                 // (ClassForm + StatusParamForm ported in slice 2c — per-entry MoveCost / CString
@@ -4031,12 +4564,14 @@ namespace FEBuilderGBA
                 //  EmitMapChange [per map: MapChangeCore.GetMapChangeAddrWhereMapID -> main 12-byte IFR
                 //  {8} + per-entry w*h*2 BIN behind +8] and EmitMapExitPoint [enemy + NPC 4-byte slot
                 //  tables, each with a per-map N-table; NPC main via ButIgnorePointer].
-                //  MapPointerForm STAYS — out of the slice-2g per-map-PLIST scope: its MakeAllDataLength
-                //  emits 6+ MAPPOINTERS IFR tables AND a per-map sweep that reads palette2_plist via
-                //  MapSettingForm.GetMapPListsWhereAddr, gated on PatchUtil.SearchFlag0x28ToMapSecond-
-                //  PalettePatch (PatchUtil patch detection not in Core), so its column set can't be
-                //  reproduced verbatim yet.)
-                "MapPointerForm", "FontForm",
+                //  MapPointerForm ported in slice 2j (EmitMapPointer): the 6-7 MAPPOINTERS PLIST-table
+                //  IFRs (block 4, rule i==0||i<limit, limit = IsPlistSplits()?256:map_map_pointer_list_
+                //  default_size, PI {0}) + a per-map column sweep. Its only blocker was the palette2_plist
+                //  read, gated on PatchUtil.SearchFlag0x28ToMapSecondPalettePatch — that gate now lives in
+                //  Core (PatchDetection.SearchFlag0x28ToMapSecondPalettePatch) inside
+                //  MapPListResolverCore.GetMapPListsWhereAddr, and MapSettingCore.MakeMapIDList +
+                //  RomInfo-only GetBasePointer/IsPlistSplits complete the dependency set.)
+                "FontForm",
                 // AI scripts (disasm)
                 // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
@@ -4063,19 +4598,28 @@ namespace FEBuilderGBA
                 //   the version PLIST-limit gate], emit the main 8-byte IFR [isPointer(u32+4)/{4} for anime1,
                 //   isPointer(u32+0)/{0} for anime2], then per-entry IMG [u16(p+2) @ p32(p+4)] / BIN
                 //   [u8(p+5)*2 @ p32(p+0)] columns.)
-                //  MapTerrainFloorLookupTableForm/MapTerrainBGLookupTableForm STAY — their pointer set comes
-                //  from GetPointersExtendsPatch (PatchUtil.SearchExtendsBattleBG + hardcoded FE8 offsets),
-                //  not in Core.)
-                "MapTerrainFloorLookupTableForm",
-                "MapTerrainBGLookupTableForm",
+                //  MapTerrainFloorLookupTableForm/MapTerrainBGLookupTableForm ported in slice 2j
+                //  (EmitMapTerrainLookup): one flat block-1 IFR (rule i<map_terrain_type_count) per
+                //  non-zero pointer, name + ToHexString(i). Their pointer set comes from
+                //  GetPointersExtendsPatch (PatchUtil.SearchExtendsBattleBG + hardcoded FE8 offsets) —
+                //  now in Core as MapTerrainLookupCore.GetPointers + PatchDetection.SearchExtendsBattleBG
+                //  (added for the Avalonia #441/#442 gap-sweep), so the pointer set IS reproducible.)
                 // units / classes per-version with extra reads
                 // (UnitForm [FE8, flat + 24-byte support BinFixed sub-walk @44] and UnitFE7Form
                 //  [FE7, flat, no sub-walk] ported in this sweep; SummonUnitForm + SummonsDemonKingForm
                 //  + EventForceSortieForm [FE8 clean tables] ported too. UnitFE6Form ported in slice 2f
                 //  via the dedicated EmitUnitFE6 walker — base p32(unit_pointer)+unit_datasize, BasePointer
                 //  0 -> NOT_FOUND, i < unit_maxcount, pointerIndexes {44}.)
+                // (ExtraUnitForm [FE8J] + ExtraUnitFE8UForm [FE8U] ported in slice 2j (EmitExtraUnit /
+                //  EmitExtraUnitFE8U — gated EXACTLY as WF: version==8 && is_multibyte = FE8J at hardcoded
+                //  0x37EE4 + flag BINs @ i*0x14+0x37E10; version==8 && !is_multibyte = FE8U table @ 0x37D88
+                //  block 8). Both expand each entry via EventUnitForm.RecycleOldUnits, reproduced verbatim
+                //  by EmitRecycleOldUnits (an EventUnit IFR + the v8 per-entry COORD BIN sub-blocks — pure
+                //  ROM reads, no Form/disasm). EventUnitForm.RecycleReserveUnits STAYS — it iterates the
+                //  static NewAllocData list, which is EDITOR SESSION STATE (newly-allocated unit regions
+                //  recorded during live editing), NOT a ROM-derived table; it is always empty headless, so
+                //  the producer emits nothing for it — kept listed so the coverage gate stays honest.)
                 "UnitCustomBattleAnimeForm",
-                "ExtraUnitForm", "ExtraUnitFE8UForm",
                 "EventUnitForm(RecycleReserveUnits)",
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
                 // (MonsterItemForm + MonsterProbabilityForm ported in slice 2b.
