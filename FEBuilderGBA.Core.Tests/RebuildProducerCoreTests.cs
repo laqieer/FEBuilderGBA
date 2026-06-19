@@ -1979,6 +1979,37 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(list);
         }
 
+        [Fact]
+        public void EmitSoundFootStepsAt_CountRunsPastEof_TruncatesWithoutThrowing()
+        {
+            // Regression (PR #1276 review): a corrupted/too-large count near EOF must TRUNCATE like
+            // WF InputFormRef.MakeList() (breaks on `addr + BlockSize > Data.Length`), NOT throw.
+            // AddFunction reads u32(entryAddr) whose check_safety throws past EOF.
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint switch2Addr = 0x0300;
+            uint pointer = 0x0400;
+            // Place the table so that exactly 2 of its 4-byte entries fit before EOF.
+            //   i=0 -> 0x1FF8 (+4=0x1FFC <= 0x2000) fits; i=1 -> 0x1FFC (+4=0x2000) fits;
+            //   i=2 -> 0x2000 (+4=0x2004 > 0x2000) -> WF MakeList breaks here.
+            uint table = size - 8; // 0x1FF8
+            PlantSwitch2(rom, switch2Addr, count: 5); // claims 6 entries; only 2 fit
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(0x1000) | 1);
+            rom.write_u32(table + 4, Ptr(0x1100) | 1);
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitSoundFootStepsAt(rom, list, switch2Addr, pointer));
+            Assert.Null(ex); // must not throw on the past-EOF entries
+
+            // Only the 2 entries that fit before EOF are emitted as ASM (the other 4 are truncated).
+            var asms = list.Where(a => a.DataType == Address.DataTypeEnum.ASM).ToList();
+            Assert.Equal(2, asms.Count);
+            Assert.Contains(asms, a => a.Addr == 0x1000);
+            Assert.Contains(asms, a => a.Addr == 0x1100);
+        }
+
         // ---- EmitStatusRMenuRoots / EmitStatusRMenuSub (recursive MIX tree) -
 
         // Plant a 28-byte RMENU node at addr with child sub-pointers at 0/4/8/12 and ASM ptrs at

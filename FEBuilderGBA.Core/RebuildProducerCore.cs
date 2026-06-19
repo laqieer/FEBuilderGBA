@@ -658,6 +658,15 @@ namespace FEBuilderGBA
             for (uint i = 0; i < dataCount; i++)
             {
                 uint entryAddr = baseAddr + i * block;
+                // Faithful to WF InputFormRef.MakeList(): it stops yielding the moment a block would
+                // run past EOF (`addr + BlockSize > Data.Length` -> break), so AddFunctions never
+                // reads past EOF. AddFunction reads u32(entryAddr) whose check_safety THROWS past EOF,
+                // so without this same bound a corrupted/too-large count near EOF would throw instead
+                // of truncating gracefully. block is the BlockSize and equals the u32 read width.
+                if (entryAddr + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
                 Address.AddFunction(list, entryAddr, "SoundFootStepsPointer");
             }
         }
