@@ -157,6 +157,103 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WalkAndAdd_U32LessThan_StopsWhenU32GreaterOrEqual()
+        {
+            // StatusUnitsMenuForm rule: continue while u32(addr+0) < 0xFF.
+            var rom = CreateTestRom();
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 16;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + block * 0, 0x00); // < 0xFF -> exists
+            rom.write_u32(table + block * 1, 0x10); // < 0xFF -> exists
+            rom.write_u32(table + block * 2, 0xFF); // == 0xFF -> stop
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "UnitsMenu",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U32LessThan,
+                RuleOffset = 0,
+                RuleStopValue = 0xFF,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Assert.Single(list);
+            // dataCount = 2, length = 16 * (2 + 1) = 48
+            Assert.Equal(48u, list[0].Length);
+        }
+
+        [Fact]
+        public void WalkAndAdd_SoundBossBGMRule_StopsAtFFFFTerminator()
+        {
+            // SoundBossBGMForm rule: stop at the u16(addr)==0xFFFF terminator.
+            var rom = CreateTestRom();
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 8;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u16(table + block * 0, 0x0001);
+            rom.write_u16(table + block * 1, 0x0002);
+            rom.write_u16(table + block * 2, 0xFFFF); // terminator
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "BossBGM",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.SoundBossBGMRule,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Assert.Single(list);
+            // dataCount = 2, length = 8 * (2 + 1) = 24
+            Assert.Equal(24u, list[0].Length);
+        }
+
+        [Fact]
+        public void WalkAndAdd_SoundBossBGMRule_StopsAtTrailingEmptyRunAfter10Entries()
+        {
+            // The second guard: after the first 10 entries, stop once a run of 10 empty blocks
+            // (BlockSize*10 zero bytes) is hit. Fill 11 non-empty entries, then leave the rest 0;
+            // at i==11 the IsEmpty(addr, 80) guard fires (i > 10) -> count == 11.
+            var rom = CreateTestRom(0x8000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 8;
+            rom.write_u32(pointer, Ptr(table));
+            for (uint i = 0; i < 11; i++)
+            {
+                // any non-zero, non-0xFFFF first u16 keeps the entry "present" and non-empty
+                rom.write_u16(table + block * i, 0x0100 + i);
+            }
+            // entries 11.. are all-zero -> IsEmpty(addr, 80) true at i==11 (> 10).
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "BossBGM",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.SoundBossBGMRule,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Assert.Single(list);
+            // dataCount = 11, length = 8 * (11 + 1) = 96
+            Assert.Equal(96u, list[0].Length);
+        }
+
+        [Fact]
         public void WalkAndAdd_MultiPointer_EmitsOnePerNonZeroPointer()
         {
             var rom = CreateTestRom();
@@ -357,6 +454,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void GetNotYetPortedForms_DropsSlice2bCoveredForms_KeepsDeferredSiblings()
+        {
+            // Slice 2b ports these four single-table forms -> they must be removed from the
+            // not-yet-ported tracker (so IsComplete coverage stays accurate). This check is
+            // ROM-independent so it always runs (the FE8U batch test is env-gated).
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.DoesNotContain("StatusUnitsMenuForm", notYet);
+            Assert.DoesNotContain("LinkArenaDenyUnitForm", notYet);
+            Assert.DoesNotContain("MonsterItemForm", notYet);
+            Assert.DoesNotContain("MonsterProbabilityForm", notYet);
+
+            // Their deferred siblings (embedded sub-walk / event-scan / dynamic count / patch
+            // pointer set) must STAY tracked — porting only some forms while leaving these
+            // un-tracked would dangle their pointers during a rebuild.
+            Assert.Contains("MonsterWMapProbabilityForm", notYet); // EventScriptForm.ScanScript
+            Assert.Contains("CCBranchForm", notYet);               // count == ClassForm.DataCount()
+            Assert.Contains("MapTileAnimation1Form", notYet);      // embedded IMG sub-block
+            Assert.Contains("MapTileAnimation2Form", notYet);      // embedded BIN sub-block
+            Assert.Contains("MapTerrainFloorLookupTableForm", notYet); // PatchUtil GetPointers()
+            Assert.Contains("MapTerrainBGLookupTableForm", notYet);    // PatchUtil GetPointers()
+        }
+
+        [Fact]
         public void GetNotYetPortedForms_HasNoDuplicates()
         {
             // Duplicates would inflate the count and make the IsComplete gate
@@ -460,6 +580,53 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(list, a => a.Addr == arFar && a.Info == "AreaClassForm far weapon");
                 uint arMagic = rom.p32(rom.RomInfo.arena_class_magic_weapon_pointer);
                 Assert.Contains(list, a => a.Addr == arMagic && a.Info == "AreaClassForm magic weapon");
+
+                // ---- slice 2b: the new batch tables must be present with the WF block sizes
+                //      and Info strings ----
+
+                // SoundBossBGMForm -> "BossBGM" (block 8, called unconditionally in WF).
+                uint bossBgmBase = rom.p32(rom.RomInfo.sound_boss_bgm_pointer);
+                Address bossBgm = list.FirstOrDefault(a => a.Addr == bossBgmBase && a.Info == "BossBGM");
+                Assert.NotNull(bossBgm);
+                Assert.Equal(8u, bossBgm.BlockSize);
+
+                // StatusUnitsMenuForm -> "UnitsMenu" (block 16, u32<0xFF, FE8-only).
+                uint unitsMenuBase = rom.p32(rom.RomInfo.status_units_menu_pointer);
+                Address unitsMenu = list.FirstOrDefault(a => a.Addr == unitsMenuBase && a.Info == "UnitsMenu");
+                Assert.NotNull(unitsMenu);
+                Assert.Equal(16u, unitsMenu.BlockSize);
+
+                // LinkArenaDenyUnitForm -> "LinkAreaDenyUnitForm" (WF typo, block 2, FE8-only).
+                uint linkDenyBase = rom.p32(rom.RomInfo.link_arena_deny_unit_pointer);
+                Address linkDeny = list.FirstOrDefault(a => a.Addr == linkDenyBase && a.Info == "LinkAreaDenyUnitForm");
+                Assert.NotNull(linkDeny);
+                Assert.Equal(2u, linkDeny.BlockSize);
+
+                // MonsterItemForm -> three distinct tables with WF Info strings and block sizes.
+                uint monItemBase = rom.p32(rom.RomInfo.monster_item_item_pointer);
+                Address monItem = list.FirstOrDefault(a => a.Addr == monItemBase && a.Info == "MonsterItemForm");
+                Assert.NotNull(monItem);
+                Assert.Equal(5u, monItem.BlockSize);
+                uint monItemProbBase = rom.p32(rom.RomInfo.monster_item_probability_pointer);
+                Assert.Contains(list, a => a.Addr == monItemProbBase && a.Info == "MonsterItemFormProbability" && a.BlockSize == 5);
+                uint monItemTableBase = rom.p32(rom.RomInfo.monster_item_table_pointer);
+                Assert.Contains(list, a => a.Addr == monItemTableBase && a.Info == "MonsterItemFormTable" && a.BlockSize == 32);
+
+                // MonsterProbabilityForm -> "MonsterProbabilityForm" (block 12).
+                uint monProbBase = rom.p32(rom.RomInfo.monster_probability_pointer);
+                Assert.Contains(list, a => a.Addr == monProbBase && a.Info == "MonsterProbabilityForm" && a.BlockSize == 12);
+
+                // The newly-covered forms must no longer be reported as NotYetPorted.
+                string[] notYet2b = RebuildProducerCore.GetNotYetPortedForms();
+                Assert.DoesNotContain("StatusUnitsMenuForm", notYet2b);
+                Assert.DoesNotContain("LinkArenaDenyUnitForm", notYet2b);
+                Assert.DoesNotContain("MonsterItemForm", notYet2b);
+                Assert.DoesNotContain("MonsterProbabilityForm", notYet2b);
+                // Deferred sibling forms MUST remain tracked (event-scan / dynamic count / patch).
+                Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
+                Assert.Contains("CCBranchForm", notYet2b);
+                Assert.Contains("MapTileAnimation1Form", notYet2b);
+                Assert.Contains("MapTerrainFloorLookupTableForm", notYet2b);
 
                 // FAITHFULNESS / COMPLETENESS-SAFETY: Item and Class are NOT emitted by this
                 // slice (embedded sub-pointer blocks). They must be absent from the list AND
