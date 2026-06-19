@@ -23,6 +23,9 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             rom.SwapNewROMDataDirect(new byte[size]);
             CoreState.ROM = rom;
+            // The CString/BinString sub-walks decode strings via ROM.getString, which needs a
+            // SystemTextEncoder. A headless ASCII encoder is enough for the synthetic-ROM tests.
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
             return rom;
         }
 
@@ -447,10 +450,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("TextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
             Assert.Contains("SongTableForm", notYet);
-            // Item/Class have embedded per-entry sub-pointer blocks (StatBooster/effectiveness,
-            // MoveCost) the descriptor walker cannot emit yet -> must be DEFERRED, not in the batch.
+            // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
+            // patch detection. (ClassForm WAS deferred for its MoveCost sub-blocks but is ported in
+            // slice 2c — see GetNotYetPortedForms_DropsSlice2cCoveredForms_KeepsDeferredSiblings.)
             Assert.Contains("ItemForm", notYet);
-            Assert.Contains("ClassForm", notYet);
+            Assert.DoesNotContain("ClassForm", notYet);
         }
 
         [Fact]
@@ -542,12 +546,16 @@ namespace FEBuilderGBA.Core.Tests
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
             try
             {
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
                 if (rom.RomInfo.version != 8) return; // this assertion is FE8U-specific
+                // The full producer walk now decodes strings (slice 2c StatusParam/MapTerrainName
+                // sub-walks) via ROM.getString, which needs a SystemTextEncoder.
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
 
                 // Pass a progress collector through and assert reporting happens (does not throw).
                 var progressLines = new List<string>();
@@ -628,13 +636,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("MapTileAnimation1Form", notYet2b);
                 Assert.Contains("MapTerrainFloorLookupTableForm", notYet2b);
 
-                // FAITHFULNESS / COMPLETENESS-SAFETY: Item and Class are NOT emitted by this
-                // slice (embedded sub-pointer blocks). They must be absent from the list AND
-                // tracked in NotYetPorted so a rebuild does not silently drop their sub-blocks.
+                // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
+                // sub-block size needs un-ported PatchUtil detection) — it must be absent from the
+                // list AND tracked in NotYetPorted so a rebuild does not silently drop its
+                // sub-blocks. ClassForm IS emitted as of slice 2c (covered by the dedicated
+                // MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndDefersItem test).
                 uint itemBase = rom.p32(rom.RomInfo.item_pointer);
                 Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
-                uint classBase = rom.p32(rom.RomInfo.class_pointer);
-                Assert.DoesNotContain(list, a => a.Addr == classBase && a.Info == "Class");
 
                 // The progress collector must have received reports (per-descriptor + summary).
                 lock (progressLines)
@@ -646,6 +654,365 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ---- slice 2c: per-entry embedded sub-walks ------------------------
+
+        [Fact]
+        public void SubWalk_BinFixed_EmitsFixedLengthBinBehindEachEntryPointer()
+        {
+            // ClassForm MoveCost: a 66-byte BIN block behind the embedded pointer at offset 56.
+            var rom = CreateTestRom(0x4000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 0x54; // > 56 so the embedded pointer fits in the block
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0 exists (index-0 always), entry 1 u8(+4)=1 exists, entry 2 u8(+4)=0 stops.
+            rom.write_u8(table + block * 1 + 4, 0x01);
+            // entry 0's MoveCost pointer @ +56 -> 0x2000 ; entry 1's -> 0x2100
+            uint mc0 = 0x2000, mc1 = 0x2100;
+            rom.write_u32(table + block * 0 + 56, Ptr(mc0));
+            rom.write_u32(table + block * 1 + 56, Ptr(mc1));
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Class",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U8NotZeroIndex0Always,
+                RuleOffset = 4,
+                MaxCount = 0x100,
+                PointerIndexes = new uint[] { 56 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 56,
+                        Kind = RebuildProducerCore.SubKind.BinFixed,
+                        FixedLength = 66,
+                        Name = (r, i) => "MoveCost Clear",
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR + 2 MoveCost sub-blocks
+            Assert.Equal(3, list.Count);
+            // main is first
+            Assert.Equal(table, list[0].Addr);
+            // both MoveCost blocks present at the right addr/length/pointer-slot/type
+            Address b0 = list.First(a => a.Addr == mc0);
+            Assert.Equal(66u, b0.Length);
+            Assert.Equal(table + block * 0 + 56, b0.Pointer);
+            Assert.Equal(Address.DataTypeEnum.BIN, b0.DataType);
+            Address b1 = list.First(a => a.Addr == mc1);
+            Assert.Equal(66u, b1.Length);
+            Assert.Equal(table + block * 1 + 56, b1.Pointer);
+        }
+
+        [Fact]
+        public void SubWalk_BinFixed_SkipsEntryWhenEmbeddedPointerUnsafe()
+        {
+            // If an entry's embedded pointer is not a safe offset, no sub-block is emitted
+            // (WF: `if (U.isSafetyOffset(pointer))`).
+            var rom = CreateTestRom(0x4000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 0x54;
+            rom.write_u32(pointer, Ptr(table));
+            // single entry (index 0); embedded pointer @ +56 left 0 (unsafe) -> no sub-block.
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Class",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U8NotZeroIndex0Always,
+                RuleOffset = 4,
+                MaxCount = 0x100,
+                PointerIndexes = new uint[] { 56 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 56,
+                        Kind = RebuildProducerCore.SubKind.BinFixed,
+                        FixedLength = 66,
+                        Name = (r, i) => "MoveCost Clear",
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // only the main IFR Address — the 0 (unsafe) embedded pointer is skipped.
+            Assert.Single(list);
+            Assert.Equal(table, list[0].Addr);
+        }
+
+        [Fact]
+        public void ExtraFixedPointers_EmittedOncePerDescriptor()
+        {
+            // ClassForm's three 全クラス共通 terrain pointers are emitted ONCE (not per entry).
+            var rom = CreateTestRom(0x4000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 0x10;
+            rom.write_u32(pointer, Ptr(table));
+            // 2 entries (index 0 + u8(+4)=1 at entry 1)
+            rom.write_u8(table + block * 1 + 4, 0x01);
+
+            uint tr0 = 0x0250, tr1 = 0x0254;
+            uint tBlock0 = 0x2200, tBlock1 = 0x2300;
+            rom.write_u32(tr0, Ptr(tBlock0));
+            rom.write_u32(tr1, Ptr(tBlock1));
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Class",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.U8NotZeroIndex0Always,
+                RuleOffset = 4,
+                MaxCount = 0x100,
+                PointerIndexes = new uint[] { },
+                ExtraFixedPointers = new[]
+                {
+                    new RebuildProducerCore.ExtraFixedPointer { PointerField = _ => tr0, FixedLength = 66, Name = "MoveCost ref" },
+                    new RebuildProducerCore.ExtraFixedPointer { PointerField = _ => tr1, FixedLength = 66, Name = "MoveCost recovery bad status" },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR + exactly 2 extra pointers (once, regardless of the 2 entries).
+            Assert.Equal(3, list.Count);
+            Assert.Single(list, a => a.Addr == tBlock0 && a.Length == 66 && a.DataType == Address.DataTypeEnum.BIN);
+            Assert.Single(list, a => a.Addr == tBlock1 && a.Length == 66 && a.DataType == Address.DataTypeEnum.BIN);
+        }
+
+        [Fact]
+        public void SubWalk_CString_EmitsNulTerminatedStringBehindEmbeddedPointer()
+        {
+            // StatusParamForm: a CString (len+1, CSTRING) behind the embedded pointer at offset 12.
+            var rom = CreateTestRom(0x4000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 16;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0: embedded pointer @ +12 must be a real pointer (PointerAt rule) -> 0x2000
+            // entry 1: embedded pointer @ +12 == 0 (NULL) -> PointerAt stops (count == 1)
+            uint str0 = 0x2000;
+            rom.write_u32(table + block * 0 + 12, Ptr(str0));
+            // plant the C string "AB\0" at str0
+            rom.write_u8(str0 + 0, (byte)'A');
+            rom.write_u8(str0 + 1, (byte)'B');
+            rom.write_u8(str0 + 2, 0x00);
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "StatusParam0",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerAt,
+                RuleOffset = 12,
+                MaxCount = 0x10000,
+                PointerIndexes = new uint[] { 0, 4, 12 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 12,
+                        Kind = RebuildProducerCore.SubKind.CString,
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR (dataCount == 1) + 1 CString sub-block
+            Assert.Equal(2, list.Count);
+            Address main = list[0];
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(16u * (1 + 1), main.Length); // count 1 -> length block*(1+1)
+            Address cstr = list.First(a => a.DataType == Address.DataTypeEnum.CSTRING);
+            Assert.Equal(str0, cstr.Addr);
+            Assert.Equal(3u, cstr.Length); // "AB" + NUL == strlen(2) + 1
+            Assert.Equal(table + 0 * block + 12, cstr.Pointer);
+        }
+
+        [Fact]
+        public void SubWalk_BinString_EmitsStringLengthBinNoPlusOne()
+        {
+            // MapTerrainNameForm: a string-derived BIN block of length == strlen (NO +1) behind the
+            // embedded pointer at offset 0.
+            var rom = CreateTestRom(0x4000);
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint block = 4;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0: embedded pointer @ +0 -> 0x2000 (a real pointer, PointerOrNullAt continues)
+            // entry 1: embedded pointer @ +0 == not-a-pointer -> stop.
+            uint str0 = 0x2000;
+            rom.write_u32(table + block * 0 + 0, Ptr(str0));
+            rom.write_u32(table + block * 1 + 0, 0x12345678); // not a pointer-or-null -> stop
+            rom.write_u8(str0 + 0, (byte)'X');
+            rom.write_u8(str0 + 1, (byte)'Y');
+            rom.write_u8(str0 + 2, (byte)'Z');
+            rom.write_u8(str0 + 3, 0x00);
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "Terrain",
+                PointerField = _ => pointer,
+                BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerOrNullAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 0,
+                        Kind = RebuildProducerCore.SubKind.BinString,
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR (dataCount == 1) + 1 string-BIN sub-block
+            Assert.Equal(2, list.Count);
+            Address bin = list.First(a => a.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(str0, bin.Addr);
+            Assert.Equal(3u, bin.Length); // "XYZ" == strlen 3, NO +1 (distinct from CString)
+            Assert.Equal(table + 0 * block + 0, bin.Pointer);
+        }
+
+        [Fact]
+        public void DataCountRule_PointerAt_NullSlotTerminates_OrNullDoesNot()
+        {
+            // PointerAt stops at a NULL slot; PointerOrNullAt continues through it. Two synthetic
+            // tables prove the difference (StatusParam vs MapTerrain semantics).
+            var rom = CreateTestRom(0x4000);
+            uint pointer = 0x0240;
+            uint table = 0x1000;
+            uint block = 16;
+            rom.write_u32(pointer, Ptr(table));
+            // entry 0 slot @ +12 = real ptr ; entry 1 slot @ +12 = NULL(0) ; entry 2 = real ptr ;
+            // entry 3 slot @ +12 = garbage (neither pointer nor NULL) -> the hard stop for BOTH rules.
+            rom.write_u32(table + block * 0 + 12, Ptr(0x2000));
+            rom.write_u32(table + block * 1 + 12, 0x00000000);   // NULL
+            rom.write_u32(table + block * 2 + 12, Ptr(0x2100));
+            rom.write_u32(table + block * 3 + 12, 0x12345678);   // garbage (not pointer-or-null)
+
+            var pAt = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "PAt", PointerField = _ => pointer, BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerAt, RuleOffset = 12,
+                MaxCount = 0x100, PointerIndexes = new uint[] { },
+            };
+            var listAt = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, listAt, pAt);
+            // PointerAt stops at entry 1 (NULL terminates) -> dataCount 1 -> length block*(1+1)
+            Assert.Equal(block * (1 + 1), listAt[0].Length);
+
+            var pOrNull = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "POrNull", PointerField = _ => pointer, BlockSize = block,
+                Rule = RebuildProducerCore.DataCountRule.PointerOrNullAt, RuleOffset = 12,
+                MaxCount = 0x100, PointerIndexes = new uint[] { },
+            };
+            var listOrNull = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, listOrNull, pOrNull);
+            // PointerOrNullAt passes THROUGH the NULL at entry 1; it stops only at the entry-3
+            // garbage -> dataCount 3 -> length block*(3+1).
+            Assert.Equal(block * (3 + 1), listOrNull[0].Length);
+        }
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2cCoveredForms_KeepsDeferredSiblings()
+        {
+            // Slice 2c ports ClassForm + StatusParamForm + MapTerrainNameForm -> they must be
+            // removed from the not-yet-ported tracker. ROM-independent so it always runs.
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+            Assert.DoesNotContain("ClassForm", notYet);
+            Assert.DoesNotContain("StatusParamForm", notYet);
+            Assert.DoesNotContain("MapTerrainNameForm", notYet);
+
+            // The deferred siblings (un-ported patch detection / PROCS disasm / recursive ASM tree /
+            // config-file driven) MUST stay tracked — porting only some embedded forms while leaving
+            // these un-tracked would dangle their sub-block pointers during a rebuild.
+            Assert.Contains("ItemForm", notYet);          // StatBooster size needs PatchUtil detection
+            Assert.Contains("ItemWeaponEffectForm", notYet); // PROCS length needs ProcsScript disasm
+            Assert.Contains("MenuDefinitionForm", notYet);   // recursive MenuCommand + ASM ptrs
+            Assert.Contains("StatusRMenuForm", notYet);      // recursive 28-byte tree + ASM funcs
+            Assert.Contains("OtherTextForm", notYet);        // config-file (U.ConfigDataFilename) driven
+        }
+
+        [Fact]
+        public void MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndDefersItem()
+        {
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip when no ROM available (env-only)
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 8) return; // FE8U-specific
+                // Slice 2c forms decode strings (StatusParam CString, MapTerrainName string-BIN) via
+                // ROM.getString, which needs a SystemTextEncoder. A headless encoder is sufficient.
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                List<Address> list = RebuildProducerCore.MakeAllStructPointersList(rom);
+                Assert.NotEmpty(list);
+
+                // ClassForm main IFR must now be present (it was DEFERRED before slice 2c).
+                uint classBase = rom.p32(rom.RomInfo.class_pointer);
+                Address main = list.FirstOrDefault(a => a.Addr == classBase && a.Info == "Class");
+                Assert.NotNull(main);
+                Assert.Equal(rom.RomInfo.class_datasize, main.BlockSize);
+                Assert.Equal(new uint[] { 52, 56, 60, 64, 68, 72, 76 }, main.PointerIndexes);
+
+                // At least one MoveCost sub-block (66-byte BIN) must be emitted behind an embedded
+                // class pointer @ off 56..76. (Vanilla FE8U classes share MoveCost tables.)
+                int moveCostBlocks = list.Count(a => a.DataType == Address.DataTypeEnum.BIN
+                    && a.Length == 66
+                    && a.Info != null && a.Info.StartsWith("MoveCost"));
+                Assert.True(moveCostBlocks > 0, "expected at least one 66-byte MoveCost BIN sub-block");
+
+                // The three 全クラス共通 terrain pointers must be present (once each).
+                uint trBase = rom.p32(rom.RomInfo.terrain_recovery_pointer);
+                if (U.isSafetyOffset(trBase))
+                {
+                    Assert.Contains(list, a => a.Addr == trBase && a.Length == 66
+                        && a.Info == "MoveCost ref" && a.DataType == Address.DataTypeEnum.BIN);
+                }
+
+                // ClassForm must no longer be tracked as not-yet-ported; ItemForm STAYS deferred
+                // and its main IFR must be ABSENT from the list (StatBooster size unportable).
+                string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+                Assert.DoesNotContain("ClassForm", notYet);
+                Assert.Contains("ItemForm", notYet);
+                uint itemBase = rom.p32(rom.RomInfo.item_pointer);
+                Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
             }
         }
 
