@@ -122,6 +122,21 @@ namespace FEBuilderGBA
             /// <summary>TextDic main rule: stop when <c>u16(addr+2) &lt;= 0 || u16(addr+4) &lt;= 0</c>.
             /// Reproduces <c>TextDicForm.Init</c> (the <c>dic_main</c> table) verbatim.</summary>
             DicMainRule,
+            /// <summary>Continue while <c>U.isPointer(u32(addr+0)) &amp;&amp; U.isPointer(u32(addr+4))</c>
+            /// (BOTH non-NULL ROM pointers). Matches <c>ImageBattleBGForm.Init</c> (its IsDataExists is
+            /// "0 と 4 がポインタであればデータがある"). The offsets are fixed at 0 and 4.</summary>
+            TwoU32PointerAt04,
+            /// <summary><c>ImageUnitWaitIconFrom.Init</c> rule: entry 0 always exists; otherwise the
+            /// <c>+4</c> field decides — a <c>U.isPointer(u32(addr+4))</c> continues; a <c>u32(addr+4)==0</c>
+            /// continues ONLY while <c>u32(addr+0) != 0</c> (both zero = terminator); any other (non-zero,
+            /// non-pointer) <c>+4</c> value terminates. Reproduced VERBATIM.</summary>
+            WaitIconRule,
+            /// <summary><c>ImageUnitPaletteForm.Init</c> rule: a <c>U.isPointer(u32(addr+12))</c> continues;
+            /// a <c>u32(addr+12)==0</c> terminates ONLY when <c>u32(addr+0)==0</c> too (name also NULL);
+            /// any other value continues. Reproduced VERBATIM (the +12 palette-pointer field, with the
+            /// +0 name-NULL tie-break, distinct from <see cref="PointerAt"/> which terminates on any
+            /// non-pointer).</summary>
+            UnitPaletteRule,
         }
 
         /// <summary>How a <see cref="SubWalk"/> reproduces the per-entry embedded-data
@@ -150,6 +165,24 @@ namespace FEBuilderGBA
             /// relocation, so a static name is used (the WinForms <c>isPointerOnly</c> flag only swaps
             /// the label between <c>""</c> and a Huffman-decoded string — neither affects addr/length).</summary>
             AsmFunction,
+            /// <summary>An embedded LZ77-compressed block (image / TSA / palette) behind a pointer.
+            /// Emits via <see cref="Address.AddLZ77Pointer"/> VERBATIM (reads <c>u32(p +
+            /// EmbeddedPointerOffset)</c>, <c>isSafetyPointer</c>-checks, then adds a block whose length
+            /// is <c>LZ77.getCompressedSize(rom.Data, addr)</c> — the producer always scans with
+            /// <c>isPointerOnly = false</c>, so a real length is computed, NOT 0). The block's
+            /// <see cref="Address.DataTypeEnum"/> is taken from <see cref="SubWalk.DataType"/>
+            /// (LZ77IMG / LZ77TSA / LZ77PAL). Matches the per-entry <c>AddLZ77Pointer</c> in
+            /// <c>ImageBattleBGForm</c>/<c>ImageBattleTerrainForm</c>/<c>ImageUnitWaitIconFrom</c>/
+            /// <c>ImageUnitPaletteForm</c>/<c>ImageChapterTitleForm</c> etc. EOF-safe: a near-EOF /
+            /// malformed stream yields <c>getCompressedSize == 0</c> (length 0), never throws.</summary>
+            Lz77Pointer,
+            /// <summary>An embedded FIXED-size block (palette / uncompressed image) behind a pointer.
+            /// Emits via <see cref="Address.AddPointer"/> VERBATIM (<c>u32(p + EmbeddedPointerOffset)</c>
+            /// -&gt; addr, <c>isSafetyPointer</c>-check, add a <see cref="SubWalk.FixedLength"/>-byte block
+            /// of <see cref="SubWalk.DataType"/>). Distinct from <see cref="BinFixed"/> only in that the
+            /// data type is configurable (PAL / IMG / LZ77PAL), not hard-wired to BIN. Matches the
+            /// per-entry <c>AddPointer(p + N, 0x20*K, name, PAL)</c> palette/image columns.</summary>
+            FixedPointer,
         }
 
         /// <summary>One per-entry embedded-data sub-walk applied to every entry of a
@@ -167,9 +200,15 @@ namespace FEBuilderGBA
             public uint EmbeddedPointerOffset;
             /// <summary>What kind of data the embedded pointer targets.</summary>
             public SubKind Kind;
-            /// <summary>For <see cref="SubKind.BinFixed"/>: the fixed block length
-            /// (e.g. MoveCost = 66). Ignored for the string kinds.</summary>
+            /// <summary>For <see cref="SubKind.BinFixed"/> / <see cref="SubKind.FixedPointer"/>: the
+            /// fixed block length (e.g. MoveCost = 66, a 16-color palette = 0x20). Ignored for the
+            /// string / LZ77 kinds (LZ77 length comes from <c>getCompressedSize</c>).</summary>
             public uint FixedLength;
+            /// <summary>For <see cref="SubKind.Lz77Pointer"/> / <see cref="SubKind.FixedPointer"/>: the
+            /// <see cref="Address.DataTypeEnum"/> the emitted block is tagged with (LZ77IMG / LZ77TSA /
+            /// LZ77PAL / PAL / IMG). Reproduces the WinForms per-entry call's last argument VERBATIM.
+            /// Ignored for the other kinds (which have a fixed type: CSTRING / BIN / ASM).</summary>
+            public Address.DataTypeEnum DataType;
             /// <summary>Builds the <see cref="Address.Info"/> label for entry <c>i</c>
             /// (was the WinForms per-entry name string). For <see cref="SubKind.CString"/> the
             /// label is taken from the decoded string itself (matching
@@ -239,19 +278,33 @@ namespace FEBuilderGBA
             /// (terrain_recovery / terrain_bad_status_recovery / terrain_show_infomation), each a
             /// 66-byte BIN via <c>Address.AddPointer(..., 66, name, BIN)</c>.</summary>
             public ExtraFixedPointer[] ExtraFixedPointers;
+            /// <summary>Whether to emit the main IFR <see cref="Address"/> (block × (DataCount+1)).
+            /// Default <c>true</c> (every flat / sub-walk descriptor so far). A few WinForms image
+            /// forms (e.g. <c>ImageGenericEnemyPortraitForm</c>) run the per-entry loop but emit NO
+            /// <c>AddressWinForms.AddAddress(list, IFR, ...)</c> — only the standalone header pointer +
+            /// the per-entry columns. Setting this <c>false</c> suppresses the main IFR Address while
+            /// still walking <see cref="SubWalks"/> over the same <c>getBlockDataCount</c>.</summary>
+            public bool EmitMainIfr = true;
         }
 
-        /// <summary>A standalone fixed-size BIN pointer emitted once per descriptor (see
-        /// <see cref="StructDescriptor.ExtraFixedPointers"/>).</summary>
+        /// <summary>A standalone fixed-size pointer emitted once per descriptor (see
+        /// <see cref="StructDescriptor.ExtraFixedPointers"/>). Default type is BIN (the ClassForm
+        /// terrain pointers); <see cref="DataType"/> overrides it (e.g. the GenericEnemyPortrait
+        /// header is a POINTER block).</summary>
         public sealed class ExtraFixedPointer
         {
             /// <summary>Resolves the <c>RomInfo</c> pointer field (e.g.
             /// <c>r =&gt; r.RomInfo.terrain_recovery_pointer</c>).</summary>
             public Func<ROM, uint> PointerField;
-            /// <summary>Fixed BIN block length (e.g. 66).</summary>
+            /// <summary>Fixed block length (e.g. 66 for MoveCost BIN, 8*2*4 for the GenericEnemyPortrait
+            /// POINTER header).</summary>
             public uint FixedLength;
             /// <summary>The <see cref="Address.Info"/> label.</summary>
             public string Name;
+            /// <summary>The emitted block's <see cref="Address.DataTypeEnum"/>. Defaults to
+            /// <see cref="Address.DataTypeEnum.BIN"/> (the ClassForm terrain pointers); set to e.g.
+            /// <see cref="Address.DataTypeEnum.POINTER"/> for the GenericEnemyPortrait header.</summary>
+            public Address.DataTypeEnum DataType = Address.DataTypeEnum.BIN;
         }
 
         /// <summary>
@@ -384,6 +437,40 @@ namespace FEBuilderGBA
             progress?.Report("RMENU");
             EmitStatusRMenuTree(rom, list);
 
+            // ---- slice 2e: flat LZ77-image + palette forms that are NOT a descriptor walk ----
+            // ImageBattleScreenForm is version-agnostic (called in the WF unconditional section);
+            // WorldMapImageFE6Form / WorldMapImageFE7Form are version-gated (the FE8 WorldMapImageForm
+            // is DEFERRED — it uses AddHeaderTSAPointer / AddROMTCSPointer, both ImageUtil-backed and
+            // not yet in Core). Each gets its own cancel-check, mirroring the WF DoEvents checkpoints.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageBattleScreen");
+            EmitImageBattleScreen(rom, list);
+
+            if (rom.RomInfo.version == 7)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("WorldMapImageFE7");
+                EmitWorldMapImageFE7(rom, list);
+            }
+            else if (rom.RomInfo.version == 6)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("WorldMapImageFE6");
+                EmitWorldMapImageFE6(rom, list);
+            }
+
             // Surface — never silently drop — the statics this slice does not yet cover.
             progress?.Report("MakeAllStructPointersList: ported batch=" + batch.Count
                 + " descriptors; not-yet-ported=" + notYet.Length + " forms (deferred to later slices)");
@@ -425,7 +512,7 @@ namespace FEBuilderGBA
                 foreach (ExtraFixedPointer ep in d.ExtraFixedPointers)
                 {
                     Address.AddPointer(list, ep.PointerField(rom), ep.FixedLength, ep.Name,
-                        Address.DataTypeEnum.BIN);
+                        ep.DataType);
                 }
             }
         }
@@ -458,7 +545,14 @@ namespace FEBuilderGBA
             // WinForms AddressWinForms.AddAddress: length = BlockSize * (DataCount + 1).
             uint length = d.BlockSize * (dataCount + 1);
 
-            list.Add(new Address(baseAddr, length, pointer, d.Name, d.DataType, d.BlockSize, d.PointerIndexes));
+            // Most descriptors emit a main IFR Address (AddressWinForms.AddAddress(list, IFR, ...)).
+            // A few image forms (ImageGenericEnemyPortraitForm) run the per-entry loop but emit NO main
+            // IFR Address — EmitMainIfr==false suppresses it while still walking the SubWalks over the
+            // SAME getBlockDataCount (so the dataCount that drives the sub-walk loop is identical).
+            if (d.EmitMainIfr)
+            {
+                list.Add(new Address(baseAddr, length, pointer, d.Name, d.DataType, d.BlockSize, d.PointerIndexes));
+            }
 
             // Per-entry embedded-data sub-walks (slice 2c). The WinForms MakeAllDataLength runs
             // these inside the `for (i < DataCount)` loop right after the main AddAddress, over the
@@ -553,6 +647,31 @@ namespace FEBuilderGBA
                             // rebuild). No encoder needed — the label is static (see SubKind.AsmFunction).
                             Address.AddFunction(list, pfield,
                                 sw.Name != null ? sw.Name(rom, i) : d.Name);
+                            break;
+
+                        case SubKind.Lz77Pointer:
+                            // ImageBattleBGForm/ImageBattleTerrainForm/ImageUnitWaitIconFrom/
+                            // ImageUnitPaletteForm/ImageChapterTitle(FE7)Form per-entry:
+                            // Address.AddLZ77Pointer(list, p + N, name, isPointerOnly, type).
+                            // AddLZ77Pointer reads u32(pfield), isSafetyPointer-checks, then
+                            // AddLZ77Address computes length = LZ77.getCompressedSize(rom.Data, addr).
+                            // The producer scans real lengths, so isPointerOnly: false (WF passes the
+                            // caller's isPointerOnly; a defragment scan is always !isPointerOnly).
+                            // No encoder needed (no string decode). EOF-safe (getCompressedSize == 0
+                            // on a malformed/near-EOF stream — never throws).
+                            Address.AddLZ77Pointer(list, pfield,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name,
+                                false, sw.DataType);
+                            break;
+
+                        case SubKind.FixedPointer:
+                            // The fixed-size palette/image columns: Address.AddPointer(list, p + N,
+                            // <constant>, name, <PAL/IMG/LZ77PAL>). AddPointer reads u32(pfield),
+                            // isSafetyPointer-checks, and adds a FixedLength block of DataType. Same
+                            // shape as BinFixed but with a configurable (non-BIN) data type.
+                            Address.AddPointer(list, pfield, sw.FixedLength,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name,
+                                sw.DataType);
                             break;
 
                         default:
@@ -965,6 +1084,109 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// <c>ImageBattleScreenForm.MakeAllDataLength</c> (slice 2e) — a FLAT sequence of fixed-size
+        /// TSA + palette blocks and LZ77 images, all from RomInfo pointer slots (no per-entry table
+        /// walk). Reproduced VERBATIM: five <c>battle_screen_TSA{1..5}</c> blocks of the WF constant
+        /// lengths (type TSA), one <c>battle_screen_palette</c> (0x20*4, PAL), five
+        /// <c>battle_screen_image{1..5}</c> LZ77 images via <see cref="Address.AddLZ77Pointer"/>. The WF
+        /// image labels are all "battle_screen_image1" (a copy/paste in the original) — preserved
+        /// verbatim (the label is non-load-bearing).
+        /// </summary>
+        public static void EmitImageBattleScreen(ROM rom, List<Address> list)
+        {
+            // Each TSA: tsa = p32(ptr); AddAddress(list, tsa, <const>, ptr, name, TSA). AddAddress
+            // re-checks addr/pointer safety and computes nothing — the length is a pure constant.
+            uint tsa;
+            tsa = rom.p32(rom.RomInfo.battle_screen_TSA1_pointer);
+            Address.AddAddress(list, tsa, (5 + 1) * ((15 + 1) - 1) * 2,
+                rom.RomInfo.battle_screen_TSA1_pointer, "battle_screen_TSA1", Address.DataTypeEnum.TSA);
+            tsa = rom.p32(rom.RomInfo.battle_screen_TSA2_pointer);
+            Address.AddAddress(list, tsa, (5 + 1) * ((30 + 16) - 1) * 2,
+                rom.RomInfo.battle_screen_TSA2_pointer, "battle_screen_TSA2", Address.DataTypeEnum.TSA);
+            tsa = rom.p32(rom.RomInfo.battle_screen_TSA3_pointer);
+            Address.AddAddress(list, tsa, ((19 + 1) - 13) * ((15 + 1) - 1) * 2,
+                rom.RomInfo.battle_screen_TSA3_pointer, "battle_screen_TSA3", Address.DataTypeEnum.TSA);
+            tsa = rom.p32(rom.RomInfo.battle_screen_TSA4_pointer);
+            Address.AddAddress(list, tsa, ((19 + 1) - 13) * ((31 + 1) - 16) * 2,
+                rom.RomInfo.battle_screen_TSA4_pointer, "battle_screen_TSA4", Address.DataTypeEnum.TSA);
+            tsa = rom.p32(rom.RomInfo.battle_screen_TSA5_pointer);
+            Address.AddAddress(list, tsa, ((19 + 1) - 0) * ((32 + 1) - 31) * 2,
+                rom.RomInfo.battle_screen_TSA5_pointer, "battle_screen_TSA5", Address.DataTypeEnum.TSA);
+
+            uint pal = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+            Address.AddAddress(list, pal, 0x20 * 4,
+                rom.RomInfo.battle_screen_palette_pointer, "battle_screen_palette", Address.DataTypeEnum.PAL);
+
+            // Five LZ77 images via AddLZ77Pointer (length = getCompressedSize, isPointerOnly: false —
+            // the producer always computes real lengths for a defragment). WF labels are all
+            // "battle_screen_image1" verbatim.
+            Address.AddLZ77Pointer(list, rom.RomInfo.battle_screen_image1_pointer, "battle_screen_image1", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, rom.RomInfo.battle_screen_image2_pointer, "battle_screen_image1", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, rom.RomInfo.battle_screen_image3_pointer, "battle_screen_image1", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, rom.RomInfo.battle_screen_image4_pointer, "battle_screen_image1", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, rom.RomInfo.battle_screen_image5_pointer, "battle_screen_image1", false, Address.DataTypeEnum.LZ77IMG);
+        }
+
+        /// <summary>
+        /// <c>WorldMapImageFE6Form.MakeAllDataLength</c> (slice 2e, FE6 only) — a FLAT sequence of
+        /// <see cref="Address.AddLZ77Pointer"/> calls: five (image, palette) pairs at offsets 0/8/16/
+        /// 24/32 off the two RomInfo pointers <c>worldmap_big_image_pointer</c> /
+        /// <c>worldmap_big_palette_pointer</c> (image = LZ77IMG, palette = LZ77PAL). Reproduced
+        /// VERBATIM (same pointer-slot offsets, labels, types, order).
+        /// </summary>
+        public static void EmitWorldMapImageFE6(ROM rom, List<Address> list)
+        {
+            uint imgP = rom.RomInfo.worldmap_big_image_pointer;
+            uint palP = rom.RomInfo.worldmap_big_palette_pointer;
+            Address.AddLZ77Pointer(list, imgP + 0, "worldmap_big_image", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, palP + 0, "worldmap_big_palette", false, Address.DataTypeEnum.LZ77PAL);
+            Address.AddLZ77Pointer(list, imgP + 8, "worldmap_big_imageNW", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, palP + 8, "worldmap_big_paletteNW", false, Address.DataTypeEnum.LZ77PAL);
+            Address.AddLZ77Pointer(list, imgP + 16, "worldmap_big_imageNE", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, palP + 16, "worldmap_big_paletteNE", false, Address.DataTypeEnum.LZ77PAL);
+            Address.AddLZ77Pointer(list, imgP + 24, "worldmap_big_imageSW", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, palP + 24, "worldmap_big_paletteSW", false, Address.DataTypeEnum.LZ77PAL);
+            Address.AddLZ77Pointer(list, imgP + 32, "worldmap_big_imageSE", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, palP + 32, "worldmap_big_paletteSE", false, Address.DataTypeEnum.LZ77PAL);
+        }
+
+        /// <summary>
+        /// <c>WorldMapImageFE7Form.MakeAllDataLength</c> (slice 2e, FE7 only) — the big-map block: a
+        /// PAL (0x20*4), then a FIXED 12-entry loop reading <c>imagemap = p32(worldmap_big_image_pointer)</c>
+        /// (advancing 4 bytes per entry) for a constant-size IMG (256/2*256), and a TSA (256/8*256/8)
+        /// read from <c>tsamap = p32(worldmap_big_palettemap_pointer)</c>. NOTE: the WF loop reads
+        /// <c>tsa = p32(tsamap)</c> WITHOUT advancing <c>tsamap</c> — every TSA entry points at the
+        /// SAME slot; this (likely-WF-quirk) is reproduced VERBATIM to keep the produced Address list
+        /// byte-identical. Then the three flat <c>worldmap_event_*</c> blocks (LZ77 image, LZ77 TSA,
+        /// fixed PAL 0x20*4).
+        /// </summary>
+        public static void EmitWorldMapImageFE7(ROM rom, List<Address> list)
+        {
+            uint imagemap = rom.p32(rom.RomInfo.worldmap_big_image_pointer);
+            uint palette = rom.p32(rom.RomInfo.worldmap_big_palette_pointer);
+            uint tsamap = rom.p32(rom.RomInfo.worldmap_big_palettemap_pointer);
+
+            Address.AddAddress(list, palette, 0x20 * 4,
+                rom.RomInfo.worldmap_big_palette_pointer, "worldmap_big_palette", Address.DataTypeEnum.PAL);
+
+            uint pointer = imagemap;
+            for (int i = 0; i < 12; i++, pointer += 4)
+            {
+                uint image = rom.p32(pointer);
+                uint imagelength = 256 / 2 * 256;
+                Address.AddAddress(list, image, imagelength, pointer, "worldmap_big_image" + i, Address.DataTypeEnum.IMG);
+
+                uint tsa = rom.p32(tsamap); // WF does NOT advance tsamap — verbatim.
+                uint tsalength = 256 / 8 * 256 / 8;
+                Address.AddAddress(list, tsa, tsalength, tsamap, "worldmap_big_tsa" + i, Address.DataTypeEnum.TSA);
+            }
+
+            Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_image_pointer, "worldmap_event_image", false, Address.DataTypeEnum.LZ77IMG);
+            Address.AddLZ77Pointer(list, rom.RomInfo.worldmap_event_tsa_pointer, "worldmap_event_tsa", false, Address.DataTypeEnum.LZ77TSA);
+            Address.AddPointer(list, rom.RomInfo.worldmap_event_palette_pointer, 0x20 * 4, "worldmap_event_palette", Address.DataTypeEnum.PAL);
+        }
+
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
         /// <c>is_data_exists_callback</c> that <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> expects.</summary>
         static Func<int, uint, bool> MakeIsDataExists(ROM rom, StructDescriptor d)
@@ -1130,6 +1352,44 @@ namespace FEBuilderGBA
                         if (text1 <= 0 || text2 <= 0) return false;
                         return true;
                     };
+                case DataCountRule.TwoU32PointerAt04:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // ImageBattleBGForm.Init: 0 と 4 がポインタであればデータがある.
+                        return U.isPointer(rom.u32(addr + 0))
+                            && U.isPointer(rom.u32(addr + 4));
+                    };
+                case DataCountRule.WaitIconRule:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // ImageUnitWaitIconFrom.Init verbatim: entry 0 always; then the +4 field.
+                        if (i == 0) return true;
+                        uint a = rom.u32(addr + 4);
+                        if (U.isPointer(a)) return true;
+                        if (a == 0)
+                        {
+                            uint flags = rom.u32(addr + 0);
+                            if (flags == 0) return false; // both 0 -> terminator
+                            return true;
+                        }
+                        return false; // non-zero non-pointer -> terminator
+                    };
+                case DataCountRule.UnitPaletteRule:
+                    return (i, addr) =>
+                    {
+                        if (i >= d.MaxCount) return false;
+                        // ImageUnitPaletteForm.Init verbatim: +12 palette pointer, +0 name tie-break.
+                        uint p = rom.u32(addr + 12);
+                        if (U.isPointer(p)) return true;
+                        if (p == 0)
+                        {
+                            uint name = rom.u32(addr + 0);
+                            if (name == 0) return false; // name also NULL -> terminator
+                        }
+                        return true; // any other value -> valid
+                    };
                 default:
                     // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
                     // not a 0-entry table. Returning always-false would silently emit a 1-block
@@ -1284,6 +1544,111 @@ namespace FEBuilderGBA
                 RuleOffset = 0,
                 RuleStopValue = 0xFF,
                 PointerIndexes = new uint[] { },
+            });
+
+            // ---- slice 2e: flat LZ77-image + palette IFR-loop forms (version-agnostic) ----
+            // Each is the Core port of an ImageXxxForm.MakeAllDataLength that emits a main IFR Address
+            // (AddressWinForms.AddAddress(list, IFR, name, pointerIndexes) -> length = block ×
+            // (DataCount+1)) PLUS a per-entry loop of AddLZ77Pointer / AddPointer columns. The
+            // per-entry columns are the SubWalks (Lz77Pointer / FixedPointer). EVERY length is either
+            // LZ77.getCompressedSize (EOF-safe, 0 on malformed) or a CONSTANT palette/image size — no
+            // ImageUtil/TSA-header/frame-walk dependency. The forms that DO need such a subsystem
+            // (AddHeaderTSAPointer, ImageUtil*.RecycleOldAnime, config-file g_TSAAnime/g_ROMAnime,
+            // ImageUtilOAM, IsHalfBodyFlag, AddAPPointer) stay in GetNotYetPortedForms.
+
+            // ImageBattleBGForm.MakeAllDataLength — Info "BattleBG", block 12, base battle_bg_pointer,
+            // IsDataExists = isPointer(u32+0) && isPointer(u32+4) (TwoU32PointerAt04), pointerIndexes
+            // {0,4,8}. Per entry: LZ77IMG @0, LZ77IMG @4 (the WF "_tsa" column is tagged LZ77IMG, NOT
+            // LZ77TSA — reproduced verbatim), LZ77PAL @8.
+            l.Add(new StructDescriptor
+            {
+                Name = "BattleBG",
+                PointerField = r => r.RomInfo.battle_bg_pointer,
+                BlockSize = 12,
+                Rule = DataCountRule.TwoU32PointerAt04,
+                PointerIndexes = new uint[] { 0, 4, 8 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "BattleBG " + U.To0xHexString((uint)i) + "_img" },
+                    new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "BattleBG " + U.To0xHexString((uint)i) + "_tsa" },
+                    new SubWalk { EmbeddedPointerOffset = 8, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77PAL, Name = (r, i) => "BattleBG " + U.To0xHexString((uint)i) + "_lz77pal" },
+                },
+            });
+
+            // ImageBattleTerrainForm.MakeAllDataLength — Info "BattleTerrain", block 24, base
+            // battle_terrain_pointer, IsDataExists = isPointer(u32+12) (PointerAt @12), pointerIndexes
+            // {12,16}. Per entry: LZ77IMG @12, fixed PAL (0x20) @16.
+            l.Add(new StructDescriptor
+            {
+                Name = "BattleTerrain",
+                PointerField = r => r.RomInfo.battle_terrain_pointer,
+                BlockSize = 24,
+                Rule = DataCountRule.PointerAt,
+                RuleOffset = 12,
+                PointerIndexes = new uint[] { 12, 16 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 12, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "BattleTerrain 0x" + U.ToHexString((int)i) },
+                    new SubWalk { EmbeddedPointerOffset = 16, Kind = SubKind.FixedPointer, FixedLength = 0x20 * 1, DataType = Address.DataTypeEnum.PAL, Name = (r, i) => "BattleTerrain 0x" + U.ToHexString((int)i) },
+                },
+            });
+
+            // ImageUnitWaitIconFrom.MakeAllDataLength — Info "WaitUnitIcon", block 8, base
+            // unit_wait_icon_pointer, IsDataExists = WaitIconRule, pointerIndexes {4}. Per entry:
+            // LZ77IMG @4.
+            l.Add(new StructDescriptor
+            {
+                Name = "WaitUnitIcon",
+                PointerField = r => r.RomInfo.unit_wait_icon_pointer,
+                BlockSize = 8,
+                Rule = DataCountRule.WaitIconRule,
+                PointerIndexes = new uint[] { 4 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "WaitUnitIcon " + U.To0xHexString((uint)i) },
+                },
+            });
+
+            // ImageUnitPaletteForm.MakeAllDataLength — Info "UnitPalette", block 16, base
+            // image_unit_palette_pointer, IsDataExists = UnitPaletteRule, pointerIndexes {12}. Per
+            // entry: LZ77PAL @12. (NOTE: the WF per-entry label uses i+1, faithfully reproduced.)
+            l.Add(new StructDescriptor
+            {
+                Name = "UnitPalette",
+                PointerField = r => r.RomInfo.image_unit_palette_pointer,
+                BlockSize = 16,
+                Rule = DataCountRule.UnitPaletteRule,
+                PointerIndexes = new uint[] { 12 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 12, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77PAL, Name = (r, i) => "UnitPalette " + U.To0xHexString((uint)i + 1) },
+                },
+            });
+
+            // ImageGenericEnemyPortraitForm.MakeAllDataLength — Info "GenericEnemyPortait" (WF
+            // spelling preserved). This form is SPECIAL: it emits NO main IFR Address — instead a
+            // standalone POINTER (8*2*4 = 64-byte) at generic_enemy_portrait_pointer ONCE, then a
+            // per-entry loop (count = generic_enemy_portrait_count, block 4): a fixed IMG
+            // (4*8/2)*(4*8)=512 @0 and a fixed PAL (0x20) @16. Modeled as a FixedCount descriptor with
+            // EmitMainIfr=false + an ExtraFixedPointer for the standalone header + per-entry SubWalks.
+            l.Add(new StructDescriptor
+            {
+                Name = "GenericEnemyPortait",
+                PointerField = r => r.RomInfo.generic_enemy_portrait_pointer,
+                BlockSize = 4,
+                Rule = DataCountRule.FixedCount,
+                FixedCountField = r => r.RomInfo.generic_enemy_portrait_count,
+                PointerIndexes = new uint[] { },
+                EmitMainIfr = false, // WF emits no main IFR AddAddress for this form
+                ExtraFixedPointers = new[]
+                {
+                    new ExtraFixedPointer { PointerField = r => r.RomInfo.generic_enemy_portrait_pointer, FixedLength = 8 * 2 * 4, Name = "GenericEnemyPortait", DataType = Address.DataTypeEnum.POINTER },
+                },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.FixedPointer, FixedLength = (4 * 8 / 2) * (4 * 8), DataType = Address.DataTypeEnum.IMG, Name = (r, i) => "GenericEnemyPortait 0x" + U.ToHexString((int)i) },
+                    new SubWalk { EmbeddedPointerOffset = 16, Kind = SubKind.FixedPointer, FixedLength = 0x20 * 1, DataType = Address.DataTypeEnum.PAL, Name = (r, i) => "GenericEnemyPortait 0x" + U.ToHexString((int)i) },
+                },
             });
 
             // ClassForm vs ClassFE6Form (slice 2c) — VERSION-SPECIFIC. The WinForms
@@ -1736,6 +2101,27 @@ namespace FEBuilderGBA
                     RuleWidth = 2, RuleOffset = 0, RuleStopValue = 0xFFFF, HasEmptyGuard = true,
                     PointerIndexes = new uint[] { },
                 });
+
+                // ImageChapterTitleForm.MakeAllDataLength (FE8, slice 2e) — Info "ChapterTitleImage",
+                // block 12, base image_chapter_title_pointer, IsDataExists = isPointer(u32+0)
+                // (PointerAt @0), pointerIndexes {0,4,8}. Per entry: THREE LZ77IMG columns at 0/4/8
+                // ("_Save"/"_Number"/"_Title"). (The FE7/FE6 path uses ImageChapterTitleFE7Form below —
+                // block 4, ONE column.)
+                l.Add(new StructDescriptor
+                {
+                    Name = "ChapterTitleImage",
+                    PointerField = r => r.RomInfo.image_chapter_title_pointer,
+                    BlockSize = 12,
+                    Rule = DataCountRule.PointerAt,
+                    RuleOffset = 0,
+                    PointerIndexes = new uint[] { 0, 4, 8 },
+                    SubWalks = new List<SubWalk>
+                    {
+                        new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "ChapterTitleImage_Save" },
+                        new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "ChapterTitleImage_Number" },
+                        new SubWalk { EmbeddedPointerOffset = 8, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "ChapterTitleImage_Title" },
+                    },
+                });
             }
             else if (rom.RomInfo.version == 7)
             {
@@ -1864,15 +2250,28 @@ namespace FEBuilderGBA
                     RuleRangeHi = 0xff,
                     PointerIndexes = new uint[] { },
                 });
+
+                // ImageChapterTitleFE7Form.MakeAllDataLength (FE7, slice 2e) — called in the WF FE7
+                // branch ONLY inside `if (is_multibyte)` (the FE7U non-multibyte path uses a different
+                // CG/title set). Gated identically here. Block 4, base image_chapter_title_pointer,
+                // IsDataExists = isPointer(u32+0) (PointerAt @0), pointerIndexes {0}. Per entry: ONE
+                // LZ77IMG column at 0.
+                if (rom.RomInfo.is_multibyte)
+                {
+                    l.Add(MakeImageChapterTitleFE7Descriptor());
+                }
             }
             else if (rom.RomInfo.version == 6)
             {
                 // ---- version==6 (FE6) section ----
                 // Forms called ONLY inside the WF `else if (version == 6)` branch. UnitFE6Form,
-                // WorldMapEventPointerFE6Form (PLIST event-scan), ImagePortraitFE6Form (LZ77),
-                // ImageChapterTitleFE7Form (LZ77), WorldMapImageFE6Form (LZ77), MapSettingFE6Form
-                // (IsMapSettingEnd + CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay
-                // deferred. The clean tables below are ported.
+                // WorldMapEventPointerFE6Form (PLIST event-scan), MapSettingFE6Form (IsMapSettingEnd +
+                // CString), SupportUnitFE6Form (GetUnitIDWhereSupportAddr) stay deferred.
+                // ImagePortraitFE6Form STAYS too — its Init has a stateful nullContinuousCount
+                // terminator + GetFEditorLengthHint, not faithfully reproducible by the stateless
+                // descriptor rule model. The clean tables below are ported; ImageChapterTitleFE7Form
+                // (flat LZ77) and WorldMapImageFE6Form (flat LZ77) are ported in slice 2e (see the
+                // ImageChapterTitleFE7Form descriptor at the end of this branch + EmitWorldMapImageFE6).
 
                 // EDFE6Form.MakeAllDataLength — Info "EDFE6Form", single table N2 (ed_3a, block 8),
                 // IsDataExists = i < 0x42 (fixed cap).
@@ -1963,6 +2362,12 @@ namespace FEBuilderGBA
                         new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.BinString },
                     },
                 });
+
+                // ImageChapterTitleFE7Form.MakeAllDataLength (FE6, slice 2e) — the WF FE6 branch calls
+                // it UNCONDITIONALLY (no is_multibyte gate, unlike FE7). Same descriptor as the FE7
+                // multibyte path: block 4, base image_chapter_title_pointer, PointerAt @0, one LZ77IMG
+                // column at 0.
+                l.Add(MakeImageChapterTitleFE7Descriptor());
             }
 
             // EDSensekiCommentForm.MakeAllDataLength — called in the WF version==7 AND version==6
@@ -2022,6 +2427,28 @@ namespace FEBuilderGBA
             return l;
         }
 
+        /// <summary>The <c>ImageChapterTitleFE7Form.MakeAllDataLength</c> descriptor (slice 2e), shared
+        /// by the FE7 (multibyte-gated) and FE6 (unconditional) branches: block 4, base
+        /// <c>image_chapter_title_pointer</c>, IsDataExists = <c>isPointer(u32+0)</c>
+        /// (<see cref="DataCountRule.PointerAt"/> @0), pointerIndexes {0}, one LZ77IMG column at 0.
+        /// (Distinct from the FE8 <c>ImageChapterTitleForm</c>: block 12, THREE columns.)</summary>
+        static StructDescriptor MakeImageChapterTitleFE7Descriptor()
+        {
+            return new StructDescriptor
+            {
+                Name = "ChapterTitleImage",
+                PointerField = r => r.RomInfo.image_chapter_title_pointer,
+                BlockSize = 4,
+                Rule = DataCountRule.PointerAt,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "ChapterTitleImage" + U.To0xHexString((uint)i) },
+                },
+            };
+        }
+
         /// <summary>
         /// The <c>MakeAllDataLength</c> statics from <c>U.MakeAllStructPointersList</c> /
         /// <c>U.AppendAllASMStructPointersList</c> that this slice does <b>not</b> yet port.
@@ -2056,12 +2483,36 @@ namespace FEBuilderGBA
                 //  so it has a headless config-file dependency, not ROM-derived data.)
                 "TextForm", "TextCharCodeForm", "OtherTextForm",
                 // images (LZ77/TSA length calc)
-                "ImageBattleAnimeForm", "ImageBattleBGForm", "ImageBattleTerrainForm", "ImageBGForm",
-                "ImageMagicFEditorForm", "ImageMagicCSACreatorForm", "ImageBattleScreenForm",
-                "ImageItemIconForm", "ImageUnitMoveIconFrom", "ImageUnitWaitIconFrom",
-                "ImageUnitPaletteForm", "ImageSystemIconForm", "ImageRomAnimeForm",
-                "ImageGenericEnemyPortraitForm", "ImageMapActionAnimationForm", "ImageTSAAnimeForm",
-                "ImageTSAAnime2Form", "ImageChapterTitleForm", "ImagePortraitForm", "ImageCGForm",
+                // (slice 2e ported the FLAT LZ77-image + palette forms whose every length is
+                //  LZ77.getCompressedSize (EOF-safe) or a CONSTANT palette/image size:
+                //    ImageBattleBGForm, ImageBattleTerrainForm, ImageUnitWaitIconFrom,
+                //    ImageUnitPaletteForm, ImageGenericEnemyPortraitForm, ImageChapterTitleForm [FE8]
+                //    + ImageChapterTitleFE7Form [FE7-multibyte/FE6] (StructDescriptor + Lz77Pointer/
+                //    FixedPointer SubWalks); ImageBattleScreenForm, WorldMapImageFE6Form [FE6],
+                //    WorldMapImageFE7Form [FE7] (dedicated flat emitters). The FE8 WorldMapImageForm
+                //    STAYS (AddHeaderTSAPointer + AddROMTCSPointer — both ImageUtil-backed, not in Core).
+                //  The rest STAY, each blocked on a subsystem not yet in Core (a wrong length relocates
+                //  the wrong bytes = silent corruption):
+                //    ImageBGForm/ImageCGForm/ImageSystemIconForm/ImageTSAAnime2Form/WorldMapImageForm —
+                //      AddHeaderTSAPointer (ImageUtil.CalcByteLengthForHeaderTSAData).
+                //    ImageMagicFEditorForm/ImageMagicCSACreatorForm/ImageMapActionAnimationForm —
+                //      ImageUtil*.RecycleOldAnime (ImageUtil anime length helpers).
+                //    ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (LZ77-embedded OAM pointers).
+                //    ImageUnitMoveIconFrom — AddAPPointer (ImageUtilAP.CalcAPLength).
+                //    ImageRomAnimeForm/ImageTSAAnimeForm — config-file tables (U.ConfigDataFilename
+                //      "romanime_"/"tsaanime_") + dynamic pointer-list frame walks, not RomInfo slots.
+                //    ImagePortraitForm — IsHalfBodyFlag runtime header inspection (+ ImagePortraitFE6Form
+                //      has a stateful nullContinuousCount terminator + GetFEditorLengthHint).
+                //    ImageItemIconForm — out of slice scope: a flat 128-byte icon-SHEET IFR (no LZ77
+                //      image / palette to relocate) whose count rule reads a hardcoded FE7U magic addr.
+                //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
+                //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
+                "ImageBattleAnimeForm", "ImageBGForm",
+                "ImageMagicFEditorForm", "ImageMagicCSACreatorForm",
+                "ImageItemIconForm", "ImageUnitMoveIconFrom",
+                "ImageSystemIconForm", "ImageRomAnimeForm",
+                "ImageMapActionAnimationForm", "ImageTSAAnimeForm",
+                "ImageTSAAnime2Form", "ImagePortraitForm", "ImageCGForm",
                 "MapMiniMapTerrainImageForm", "WorldMapImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
