@@ -1485,6 +1485,46 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ROMInfoLoadResourceKnownArea_PointerSlotNearEof_DoesNotThrow()
+        {
+            // Regression (Copilot PR #1300): the once-dereferenced rom.u32(addr) on a reflected _pointer
+            // property is EOF-guarded only by isSafetyOffset(addr), which proves the START is in-bounds but
+            // NOT the full 4-byte extent — Core's u32 THROWS when addr+4 > Length. Truncate a versioned ROM
+            // so its SMALLEST in-range RomInfo _pointer offset sits within 3 bytes of EOF: the unguarded read
+            // would throw; the explicit isSafetyOffset(addr+3) guard must skip it instead.
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+
+                // Find the smallest in-range _pointer offset via the same reflection the method uses.
+                uint smallest = uint.MaxValue;
+                foreach (var prop in fe8.RomInfo.GetType().GetProperties())
+                {
+                    if (prop.PropertyType != typeof(uint)) continue;
+                    if (prop.Name.IndexOf("_pointer") < 0) continue;
+                    uint off = U.toOffset((uint)prop.GetValue(fe8.RomInfo, null));
+                    if (off >= 0x200 && off < (uint)fe8.Data.Length && off < smallest) smallest = off;
+                }
+                Assert.NotEqual(uint.MaxValue, smallest); // a versioned ROM has at least one _pointer.
+
+                // Truncate so [smallest, smallest+? ) straddles EOF: Length = smallest + 2 makes addr in-range
+                // (addr < Length) but addr+4 (= smallest+4) > Length -> the unguarded u32 would throw.
+                var truncated = new byte[smallest + 2];
+                fe8.SwapNewROMDataDirect(truncated);
+                CoreState.ROM = fe8;
+                Assert.True(U.isSafetyOffset(smallest, fe8));          // start in-bounds
+                Assert.False(U.isSafetyOffset(smallest + 3, fe8));     // full extent NOT in-bounds
+
+                var map = new Dictionary<uint, AsmMapSt>();
+                var ex = Record.Exception(() =>
+                    RebuildProducerCore.ROMInfoLoadResourceKnownArea(fe8, map, isWithOutProcs: true));
+                Assert.Null(ex); // the addr+3 guard skipped the near-EOF deref instead of throwing.
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
         public void EmitProcsScript_NullBaseDirectory_DoesNotThrowOrShowError()
         {
             // EmitProcsScript loads 6c_name_ via ConfigDataFilename (Path.Combine(BaseDirectory, ...)) ->

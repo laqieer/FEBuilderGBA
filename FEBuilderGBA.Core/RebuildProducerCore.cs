@@ -11332,9 +11332,13 @@ namespace FEBuilderGBA
         /// <c>_pointer</c>, the once-dereferenced <c>_address</c>) as a known-area <see cref="AsmMapSt"/>.
         /// Used by the PROCS walk as the "this is a different data table, do not mis-scan it as Procs"
         /// filter. Pure reflection + Core-available guards (<c>U.toOffset</c>/<c>isSafetyOffset</c>/
-        /// <c>toPointer</c>/<c>isPointer</c> + <c>rom.u32</c>); the once-dereferenced read is EOF-guarded by
-        /// <c>isSafetyOffset(addr)</c> (addr is already an in-ROM offset, so addr+3 is in-bounds — the WF
-        /// code reads <c>rom.u32(addr)</c> the same way under the same guard).
+        /// <c>toPointer</c>/<c>isPointer</c> + <c>rom.u32</c>). The once-dereferenced <c>rom.u32(addr)</c>
+        /// read is EOF-guarded by an EXPLICIT <c>isSafetyOffset(addr + 3, rom)</c> check (the start guard
+        /// <c>isSafetyOffset(addr)</c> only proves <c>addr</c> is in-bounds, NOT the full 4-byte extent —
+        /// Core's <c>u32</c> throws when <c>addr+4 &gt; Length</c>). On any real ROM a RomInfo
+        /// <c>_pointer</c> never sits in the last 3 bytes, so the extra guard is output-equivalent to WF
+        /// (which reads <c>Program.ROM.u32(addr)</c> under the same start guard); a slot that close to EOF
+        /// simply skips recording its dereferenced <c>_address</c> instead of throwing.
         /// </summary>
         public static void ROMInfoLoadResourceKnownArea(ROM rom, Dictionary<uint, AsmMapSt> asmMap, bool isWithOutProcs)
         {
@@ -11380,12 +11384,18 @@ namespace FEBuilderGBA
                         p.Name = info.Name;
                         asmMap[pointer] = p;
 
-                        uint pointer2 = rom.u32(addr);
-                        if (U.isPointer(pointer2))
+                        // EOF-guard the FULL 4-byte extent before the deref: isSafetyOffset(addr) above only
+                        // proves addr is in-bounds, and Core's rom.u32 throws when addr+4 > Length. A slot
+                        // within 3 bytes of EOF skips its dereferenced _address (never happens on a real ROM).
+                        if (U.isSafetyOffset(addr + 3, rom))
                         {
-                            p = new AsmMapSt();
-                            p.Name = info.Name.Replace("_pointer", "_address");
-                            asmMap[pointer2] = p;
+                            uint pointer2 = rom.u32(addr);
+                            if (U.isPointer(pointer2))
+                            {
+                                p = new AsmMapSt();
+                                p.Name = info.Name.Replace("_pointer", "_address");
+                                asmMap[pointer2] = p;
+                            }
                         }
                     }
                 }
@@ -11583,8 +11593,10 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                // Guard the full u32 extent (pointer+3) before the deref (the #1261 producer discipline;
-                // isSafetyOffset(pointer) above already implies pointer+3 < Length, but be explicit).
+                // EOF-guard the FULL u32 extent (pointer+3) before the deref (the #1261 producer discipline).
+                // The start guard isSafetyOffset(pointer) above only proves `pointer` is in-bounds, NOT that
+                // pointer+3 is — Core's rom.u32 throws when pointer+4 > Length, so this explicit extent guard
+                // is required (a config slot within 3 bytes of EOF is skipped instead of throwing).
                 if (!U.isSafetyOffset(pointer + 3, rom))
                 {
                     continue;
