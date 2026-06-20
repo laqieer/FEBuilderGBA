@@ -51,7 +51,12 @@ namespace FEBuilderGBA.Tests.Unit
     /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / most worktrees,
     /// present in the user's main checkout). When no ROM is found the test returns early (skips) and
     /// never fails CI.</para>
+    /// <para>In the <c>SharedState</c> xUnit collection: it mutates global WinForms/Core state
+    /// (<c>CoreState.BaseDirectory</c>, <c>Program.BaseDirectory</c>/<c>Config</c>/<c>ROM</c> via
+    /// <c>LoadROM</c>), so it must not run in parallel with other state-mutating tests (Copilot PR #1302
+    /// review).</para>
     /// </summary>
+    [Collection("SharedState")]
     public class RebuildProducerWFParityTests
     {
         // WF rebuild flags — match the ToolROMRebuildMake.Make defaults (ToolROMRebuildMake.cs:820-826).

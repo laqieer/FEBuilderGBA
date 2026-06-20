@@ -10610,9 +10610,11 @@ namespace FEBuilderGBA
             AsmProducerResult asm = AppendAllAsmStructPointers(
                 rom, data.List, ldrmap, isUseOtherGraphics, isUseOAMSP, progress, ct);
 
-            // 3) + 4) gate (cancel + IsComplete) then delegate.
+            // 3) + 4) gate (cancel + IsComplete) then delegate. The internal seam emits data.List
+            //    itself — the ASM producer above appended into that same list, so the gated result
+            //    and the relocated list are guaranteed identical.
             MakeWithProducer(
-                data, asm, rom.Data, vanilla, rebuildAddress, data.List, manifestPath,
+                data, asm, rom.Data, vanilla, rebuildAddress, manifestPath,
                 romVersion: rom.RomInfo.version,
                 nameResolver: null,
                 eventScriptWithPatch: CoreState.EventScript,
@@ -10630,12 +10632,14 @@ namespace FEBuilderGBA
         /// <c>NotYetPorted</c>) — which the live producers cannot currently produce while PatchForm and
         /// the remaining data-path forms stay deferred — and the throw path with an incomplete result.
         /// </summary>
-        /// <param name="data">The data-path result (gated on <see cref="ProducerResult.IsComplete"/>).</param>
+        /// <param name="data">The data-path result; the gate is applied to it AND <see cref="ProducerResult.List"/>
+        /// is the EXACT list emitted to <see cref="RebuildMakeCore.Make"/> — there is no separate list
+        /// parameter, so the gated result and the relocated list can never diverge (Copilot PR #1302 review).
+        /// The ASM-path producer must have appended into this same <c>data.List</c>.</param>
         /// <param name="asm">The ASM-path result (gated on <see cref="AsmProducerResult.IsComplete"/>).</param>
         /// <param name="modified">The modified ROM bytes to defragment (was <c>rom.Data</c>).</param>
         /// <param name="vanilla">The unmodified base ROM.</param>
         /// <param name="rebuildAddress">Offset at/after which data is rebuilt.</param>
-        /// <param name="structList">The combined struct list to emit (normally <c>data.List</c>).</param>
         /// <param name="manifestPath">Output <c>.rebuild</c> path.</param>
         /// <param name="romVersion">FE game version forwarded to Make.</param>
         /// <param name="nameResolver">Optional symbol-name resolver forwarded to Make.</param>
@@ -10647,7 +10651,7 @@ namespace FEBuilderGBA
         /// <param name="ct">Cancellation token.</param>
         internal static void MakeWithProducer(
             ProducerResult data, AsmProducerResult asm,
-            byte[] modified, ROM vanilla, uint rebuildAddress, List<Address> structList, string manifestPath,
+            byte[] modified, ROM vanilla, uint rebuildAddress, string manifestPath,
             int romVersion = 8,
             Func<uint, string> nameResolver = null,
             EventScript eventScriptWithPatch = null,
@@ -10661,7 +10665,7 @@ namespace FEBuilderGBA
             if (asm == null) throw new ArgumentNullException(nameof(asm));
             if (modified == null) throw new ArgumentNullException(nameof(modified));
             if (vanilla == null) throw new ArgumentNullException(nameof(vanilla));
-            if (structList == null) throw new ArgumentNullException(nameof(structList));
+            if (data.List == null) throw new ArgumentException("data.List must not be null.", nameof(data));
             if (string.IsNullOrEmpty(manifestPath)) throw new ArgumentNullException(nameof(manifestPath));
 
             // CANCEL: a cancelled producer returned a PARTIAL list — never feed it to Make.
@@ -10693,9 +10697,10 @@ namespace FEBuilderGBA
                     + "as free) = silent ROM corruption. The rebuild stays disabled until coverage is complete.");
             }
 
-            // COMPLETE: safe to defragment.
+            // COMPLETE: safe to defragment. Emit data.List itself (the exact list the gate guarded) —
+            // never a caller-supplied alias that could have diverged from the gated result.
             RebuildMakeCore.Make(
-                modified, vanilla, rebuildAddress, structList, manifestPath,
+                modified, vanilla, rebuildAddress, data.List, manifestPath,
                 nameResolver: nameResolver,
                 romVersion: romVersion,
                 eventScriptWithPatch: eventScriptWithPatch,

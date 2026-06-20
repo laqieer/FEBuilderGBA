@@ -8837,7 +8837,7 @@ namespace FEBuilderGBA.Core.Tests
                     string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
                     var ex = Assert.Throws<InvalidOperationException>(() =>
                         RebuildProducerCore.MakeWithProducer(
-                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, structList, manifestPath));
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
 
                     // The message NAMES the deferred form so the caller can tell the user exactly what's pending.
                     Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
@@ -8876,7 +8876,7 @@ namespace FEBuilderGBA.Core.Tests
                     string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
                     var ex = Assert.Throws<InvalidOperationException>(() =>
                         RebuildProducerCore.MakeWithProducer(
-                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, structList, manifestPath));
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
                     Assert.Contains("ItemForm", ex.Message);
                     Assert.False(System.IO.File.Exists(manifestPath));
                 }
@@ -8911,7 +8911,7 @@ namespace FEBuilderGBA.Core.Tests
                     string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
                     Assert.Throws<OperationCanceledException>(() =>
                         RebuildProducerCore.MakeWithProducer(
-                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, structList, manifestPath));
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
                     Assert.False(System.IO.File.Exists(manifestPath),
                         "cancelled producer must NOT drive Make (no manifest)");
                 }
@@ -8947,7 +8947,7 @@ namespace FEBuilderGBA.Core.Tests
                     string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
                     // Must NOT throw — both halves complete ⇒ Make runs.
                     RebuildProducerCore.MakeWithProducer(
-                        data, asm, modified, vanilla, WIRE_REBUILD_ADDR, structList, manifestPath);
+                        data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath);
 
                     // Make ran: the manifest file + its @-token columns exist.
                     Assert.True(System.IO.File.Exists(manifestPath),
