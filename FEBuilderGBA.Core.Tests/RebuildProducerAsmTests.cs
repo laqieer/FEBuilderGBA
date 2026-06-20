@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Xunit;
@@ -305,6 +306,363 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ====================================================================
+        // EmitOAMSP / EmitOAMSPCore — OAMSPForm.MakeAllDataLength (slice 2w)
+        // ====================================================================
+        //
+        // The OAM walk needs a populated ROM region past compress_image_borderline_address
+        // (loop 1's gate) — so these tests use MakeVersionedRom("BE8E01") (borderline 0xDB000,
+        // 32 MiB) and plant a hand-authored OAM byte stream + a synthetic ldrmap, exactly as
+        // the *At seams let the data-path tests do without RomInfo grafting.
+
+        // Plant one OAM-12 record stream at oam12Off: one data record ([0]==0 -> continue) then an
+        // all-zero terminator record. Returns the byte length the walker should report (24).
+        static uint PlantOam12(ROM rom, uint oam12Off)
+        {
+            // record 0: data ([0]==0, rest arbitrary non-terminator-tripping)
+            rom.write_u8(oam12Off + 0, 0x00);
+            for (uint b = 1; b < 12; b++) rom.write_u8(oam12Off + b, (byte)(0x10 + b));
+            // record 1: all-zero first 8 bytes -> terminator
+            for (uint b = 0; b < 12; b++) rom.write_u8(oam12Off + 12 + b, 0x00);
+            return 24;
+        }
+
+        // Plant an OAMSP word table at oamspOff: `ptrCount` words pointing to distinct OAM-12 sub-tables
+        // (each carved out 0x100 apart starting at oam12Base), then a 0x8X0000XX terminator word.
+        // Returns the OAMSP word-table byte length (= (ptrCount + 1) * 4).
+        static uint PlantOamspTable(ROM rom, uint oamspOff, uint oam12Base, int ptrCount)
+        {
+            for (int k = 0; k < ptrCount; k++)
+            {
+                uint oam12Off = oam12Base + (uint)k * 0x100;
+                PlantOam12(rom, oam12Off);
+                rom.write_u32(oamspOff + (uint)k * 4, Ptr(oam12Off));
+            }
+            rom.write_u32(oamspOff + (uint)ptrCount * 4, 0x80000001); // OAM term 0x8X0000XX
+            return (uint)(ptrCount + 1) * 4;
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_ValidLdrmapEntry_EmitsOamspAndOam12()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // borderline 0xDB000
+                CoreState.ROM = fe8;
+
+                uint oamspOff = 0x00E0000;     // past borderline
+                uint oam12Base = 0x00E1000;
+                // 2 OAM-12 pointers + terminator -> main length 12 (>= loop-1 threshold 4*3).
+                uint expectMainLen = PlantOamspTable(fe8, oamspOff, oam12Base, ptrCount: 2);
+
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff),
+                        ldr_data_address = 0x00E5000, // where the pointer lives (becomes the OAMSP pointer)
+                        ldr_address = 0x00E6000,
+                    }
+                };
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
+
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Assert.Equal(oamspOff, main.Addr);
+                Assert.Equal(expectMainLen, main.Length);
+                Assert.Equal(0x00E5000u, main.Pointer); // ldr_data_address
+
+                var oam12 = list.Where(a => a.DataType == Address.DataTypeEnum.OAMSP12).ToList();
+                Assert.Equal(2, oam12.Count);
+                Assert.Contains(oam12, a => a.Addr == oam12Base && a.Length == 24);
+                Assert.Contains(oam12, a => a.Addr == oam12Base + 0x100 && a.Length == 24);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_ConfigDictEntry_EmitsOamspWithNotFoundPointer()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                uint oamspOff = 0x00E0000;
+                uint oam12Base = 0x00E1000;
+                PlantOamspTable(fe8, oamspOff, oam12Base, ptrCount: 1); // length 8 (>= loop-2 threshold 4)
+
+                var oamName = new Dictionary<uint, string> { { Ptr(oamspOff), "TestSprite" } };
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap: null, oamName: oamName);
+
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Assert.Equal(oamspOff, main.Addr);
+                Assert.Equal(8u, main.Length);
+                Assert.Equal(U.NOT_FOUND, main.Pointer); // loop-2 pointer is NOT_FOUND
+                Assert.Equal(1, list.Count(a => a.DataType == Address.DataTypeEnum.OAMSP12));
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_DedupAcrossBothLoops()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                uint oamspOff = 0x00E0000;
+                uint oam12Base = 0x00E1000;
+                PlantOamspTable(fe8, oamspOff, oam12Base, ptrCount: 2);
+
+                // The SAME table address appears in BOTH loop 1 (ldrmap) and loop 2 (config dict).
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var oamName = new Dictionary<uint, string> { { Ptr(oamspOff), "Dup" } };
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, oamName);
+
+                // alreadyMatch keyed on the offset: loop 1 records it, loop 2 skips it -> exactly ONE OAMSP.
+                Assert.Equal(1, list.Count(a => a.DataType == Address.DataTypeEnum.OAMSP));
+                // alreadyMatch12 dedups the OAM-12 sub-tables too -> exactly two distinct OAM-12s.
+                Assert.Equal(2, list.Count(a => a.DataType == Address.DataTypeEnum.OAMSP12));
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_EmptyZeroedRom_EmitsNothing()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // all-zero 32 MiB ROM
+                CoreState.ROM = fe8;
+
+                // An ldrmap pointing at all-zero data: u32 reads 0 -> !isSafetyPointer -> NOT_FOUND -> skip.
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(0x00E0000), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_NearEofSlot_DoesNotThrow()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                // An OAMSP start within a few bytes of EOF: the Calc* `while (addr < Data.Length-4/-12)`
+                // bound (and the start guard) must keep every u32/getBinaryData read in-bounds.
+                uint nearEof = (uint)fe8.Data.Length - 6;
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(nearEof), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                var ex = Record.Exception(() =>
+                    RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>()));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_BeforeBorderline_SkippedInLoop1()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // borderline 0xDB000
+                CoreState.ROM = fe8;
+
+                uint beforeBorder = 0x00010000; // < 0xDB000
+                uint oam12Base = 0x00011000;
+                PlantOamspTable(fe8, beforeBorder, oam12Base, ptrCount: 2);
+
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(beforeBorder), ldr_data_address = 0x00015000, ldr_address = 0x00016000,
+                    }
+                };
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
+                Assert.Empty(list); // loop 1 skips addr < borderline.
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_ShortTableBelowThreshold_LoopOneSkips()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                uint oamspOff = 0x00E0000;
+                uint oam12Base = 0x00E1000;
+                // 1 pointer + terminator -> main length 8, BELOW loop-1 threshold (4*3=12) -> skipped.
+                PlantOamspTable(fe8, oamspOff, oam12Base, ptrCount: 1);
+
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.OAMSP);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        // EmitOAMSP (the public entry) loads the oam_name_ config dict via ConfigDataFilename, which on a
+        // versioned ROM hits U.IsRequiredFileExist (a Debug.Assert when the file is absent). Build a temp
+        // config/data dir with an empty oam_name_ALL.txt (the ConfigDataFilename ALL fallback) so the load
+        // path runs without tripping the required-config assert; returns the temp BaseDirectory.
+        static string MakeTempConfigBaseDir()
+        {
+            string baseDir = Path.Combine(Path.GetTempPath(), "feb_oamsp_" + Guid.NewGuid().ToString("N"));
+            string dataDir = Path.Combine(baseDir, "config", "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, "oam_name_ALL.txt"), "");
+            return baseDir;
+        }
+
+        [Fact]
+        public void EmitOAMSP_PublicEntry_LoadsConfigAndEmits()
+        {
+            var saved = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            string baseDir = null;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                baseDir = MakeTempConfigBaseDir();
+                CoreState.BaseDirectory = baseDir;
+
+                uint oamspOff = 0x00E0000;
+                PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSP(fe8, list, ldrmap);
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.OAMSP && a.Addr == oamspOff);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                CoreState.BaseDirectory = savedBaseDir;
+                if (baseDir != null) try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void AppendAllAsmStructPointers_IsUseOamspFalse_EmitsNoOamsp()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                uint oamspOff = 0x00E0000;
+                PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                // isUseOAMSP defaults to false -> the OAMSP gate is closed, even with a valid table present.
+                var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap,
+                    isUseOAMSP: false);
+                Assert.False(res.Cancelled);
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.OAMSP);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void AppendAllAsmStructPointers_IsUseOamspTrue_EmitsOamsp()
+        {
+            var saved = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            string baseDir = null;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                // The full entrypoint's EmitOAMSP loads the RomInfo-derived oam_name_ config dict via
+                // ConfigDataFilename; supply an empty temp config so the load runs (loop 2 no-op; loop 1 runs).
+                baseDir = MakeTempConfigBaseDir();
+                CoreState.BaseDirectory = baseDir;
+
+                uint oamspOff = 0x00E0000;
+                PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
+                // The ldrmap MUST actually contain the OAMSP pointer for loop 1 to find it. Drive EmitOAMSP
+                // through the full entrypoint with a hand-built ldrmap.
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap,
+                    isUseOAMSP: true);
+                Assert.False(res.Cancelled);
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.OAMSP && a.Addr == oamspOff);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                CoreState.BaseDirectory = savedBaseDir;
+                if (baseDir != null) try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        // ====================================================================
         // EmitItemEffectPointerAt — InputFormRef_MIX + magic-count cap
         // ====================================================================
 
@@ -543,7 +901,8 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
                 Assert.Contains("ProcsScriptForm", res.NotYetPorted);
                 Assert.Contains("GraphicsToolForm", res.NotYetPorted);
-                Assert.Contains("OAMSPForm", res.NotYetPorted);
+                // OAMSPForm is PORTED in slice 2w — it is NOT re-reported as deferred.
+                Assert.DoesNotContain("OAMSPForm", res.NotYetPorted);
             }
             finally { CoreState.ROM = saved; }
         }
@@ -591,8 +950,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
             Assert.Contains("ProcsScriptForm", notYet);
             Assert.Contains("GraphicsToolForm", notYet);
-            Assert.Contains("OAMSPForm", notYet);
             // The PORTED forms are NOT in the static deferred list.
+            Assert.DoesNotContain("OAMSPForm", notYet); // PORTED in slice 2w.
             Assert.DoesNotContain("EventScript(MakeEventASMMAPList)", notYet);
             Assert.DoesNotContain("EventFunctionPointerForm", notYet);
             Assert.DoesNotContain("Command85PointerForm", notYet);
