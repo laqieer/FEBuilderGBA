@@ -357,6 +357,9 @@ namespace FEBuilderGBA
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
             g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
             g_Cache_MapSecondPalette = MapSecondPalette_extends.NoCache;
+            g_Cache_ItemUsingExtends = ItemUsingExtends_extends.NoCache;
+            g_Cache_class_type = class_type_extends.NoCache;
+            g_Cache_growth_mod = growth_mod_extends.NoCache;
         }
 
         // ---- OPClassReel patch detectors (extracted from PatchUtil for gap-sweep #419) ----
@@ -470,8 +473,258 @@ namespace FEBuilderGBA
         // SkillSystemPatchScanner.IsClassSkillExtends(rom) — see the
         // duplicate-source consolidation done by gap-sweep #415 +
         // gap-sweep #416. Both WinForms (SkillConfigSkillSystemForm.cs)
-        // and Avalonia (SkillAssignmentClassCSkillSysViewModel,
+        // and Avalonia (SkillAssignmentClassSkillSystemViewModel,
         // SkillAssignmentClassSkillSystemViewModel) route through that
         // single helper.
+
+        // ---- UnitActionRework patch detector (#1261 slice 2ad) ----
+        // Cross-platform port of WinForms PatchUtil.SearchUnitActionReworkPatch
+        // (PatchUtil.cs:548). Gates UnitActionPointerForm's base resolution
+        // (SearchActionPointer): when the rework patch is installed the unit-action
+        // function-pointer table moves and its entries are masked (& 0x0FFFFFFF).
+        // The producer (RebuildProducerCore.EmitUnitActionPointer) reads this to
+        // pick the base + IsDataExists rule. A wrong answer relocates the wrong
+        // ASM-pointer table — silent ROM corruption.
+        //
+        // This is a thin delegate wrapper (NOT a byte-table): every per-version
+        // RomInfo subclass already carries the (addr, expected_value) pair via the
+        // virtual patch_unitaction_rework_hack(out enable_value) accessor in Core
+        // (ROMFE*.cs), so we reproduce the WF logic verbatim — read u32(address),
+        // compare to enable_value — guarding the full 4-byte read.
+
+        /// <summary>
+        /// True when the "UnitActionRework" patch is installed in <paramref name="rom"/>.
+        /// Verbatim port of WinForms <c>PatchUtil.SearchUnitActionReworkPatch</c>: the
+        /// per-version RomInfo accessor <c>patch_unitaction_rework_hack(out enable_value)</c>
+        /// supplies the (address, expected u32) pair; the patch is present when
+        /// <c>u32(address) == enable_value</c>. Returns false on a null ROM or when the
+        /// accessor reports address 0 (FE versions without the patch concept).
+        /// </summary>
+        public static bool SearchUnitActionReworkPatch(ROM rom)
+        {
+            if (rom?.RomInfo == null) return false;
+            uint check_value;
+            uint address = rom.RomInfo.patch_unitaction_rework_hack(out check_value);
+            if (address == 0)
+            {
+                return false;
+            }
+            // Guard the full 4-byte u32 read (address + 3) on a truncated/synthetic ROM —
+            // WF reads Program.ROM.u32(address) unconditionally; on a valid ROM the patch
+            // slot is never near EOF, so this is output-equivalent.
+            if (!U.isSafetyOffset(address + 3, rom))
+            {
+                return false;
+            }
+            uint a = rom.u32(address);
+            return (a == check_value);
+        }
+
+        /// <summary>Ambient-ROM overload. Reads <see cref="CoreState.ROM"/>.</summary>
+        public static bool SearchUnitActionReworkPatch()
+        {
+            return SearchUnitActionReworkPatch(CoreState.ROM);
+        }
+
+        // ---- ItemUsingExtends (IER) patch detector (#1261 slice 2ad) ----
+        // Cross-platform port of WinForms PatchUtil.ItemUsingExtendsPatch
+        // (PatchUtil.cs:1936). Gates ItemForm's StatBooster sub-block size: when IER
+        // is installed AND the item's passive-booster bit 0x80 is set, the booster
+        // block is 20 bytes (vanilla 12). A fixed-address signature table (FE8U only).
+
+        public enum ItemUsingExtends_extends
+        {
+            NO,
+            IER,
+            NoCache = (int)NO_CACHE
+        }
+
+        static readonly PatchTableSt[] ItemUsingExtendsTable = new PatchTableSt[] {
+            new PatchTableSt{ name="IER", ver = "FE8U", addr = 0x28E80, data = new byte[]{0x03, 0x4B, 0x14, 0x22, 0x50, 0x43, 0x40, 0x18, 0xC0, 0x18, 0x00, 0x68, 0x70, 0x47, 0x00, 0x00}},
+        };
+
+        /// <summary>
+        /// Detect the "ItemUsingExtends" (IER) patch in <paramref name="rom"/>. Verbatim
+        /// port of WinForms <c>PatchUtil.ItemUsingExtendsPatchLow</c> — a single FE8U
+        /// signature at 0x28E80. Returns <see cref="ItemUsingExtends_extends.NO"/> on a
+        /// null ROM or any non-FE8U version (the table only contains FE8U).
+        /// </summary>
+        public static ItemUsingExtends_extends ItemUsingExtendsPatch(ROM rom)
+        {
+            if (SearchPatchBool(rom, ItemUsingExtendsTable))
+            {
+                return ItemUsingExtends_extends.IER;
+            }
+            return ItemUsingExtends_extends.NO;
+        }
+
+        static ItemUsingExtends_extends g_Cache_ItemUsingExtends = ItemUsingExtends_extends.NoCache;
+
+        public static void ClearCacheItemUsingExtends()
+        {
+            g_Cache_ItemUsingExtends = ItemUsingExtends_extends.NoCache;
+        }
+
+        /// <summary>Ambient-ROM overload (cached). Reads <see cref="CoreState.ROM"/>.</summary>
+        public static ItemUsingExtends_extends ItemUsingExtendsPatch()
+        {
+            if (g_Cache_ItemUsingExtends == ItemUsingExtends_extends.NoCache)
+            {
+                g_Cache_ItemUsingExtends = ItemUsingExtendsPatch(CoreState.ROM);
+            }
+            return g_Cache_ItemUsingExtends;
+        }
+
+        // ---- ClassType (SkillSystems effectiveness rework) detector (#1261 slice 2ad) ----
+        // Cross-platform port of WinForms PatchUtil.SearchClassType ->
+        // SearchSkillSystemsEffectivenesReworkLow (PatchUtil.cs:280-306). Gates
+        // ItemForm's ItemEffectiveness sub-block: when the rework is installed the
+        // effectiveness list is a block-4 (class-type) table whose length is
+        // (count+1)*4 instead of the vanilla block-1 (count+1). Uses CompareByte at
+        // a single fixed address (0x2AAEC) against TWO alternative byte patterns,
+        // FE8U-only (version 8 && !is_multibyte) — verbatim.
+
+        public enum class_type_extends
+        {
+            NO,
+            SkillSystems_Rework,
+            NoCache = (int)NO_CACHE
+        }
+
+        /// <summary>
+        /// Detect the "SkillSystems effectiveness rework" (class-type) patch in
+        /// <paramref name="rom"/>. Verbatim port of WinForms
+        /// <c>PatchUtil.SearchSkillSystemsEffectivenesReworkLow</c>: only on FE8U
+        /// (version 8 &amp;&amp; !is_multibyte), <c>CompareByte(0x2AAEC, ..)</c> against
+        /// either of two 8-byte patterns. Returns <see cref="class_type_extends.NO"/> on
+        /// a null ROM or any other version. CompareByte is itself EOF-safe.
+        /// </summary>
+        public static class_type_extends SearchClassType(ROM rom)
+        {
+            if (rom?.RomInfo == null) return class_type_extends.NO;
+            if (rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte == false)
+            {
+                bool r = rom.CompareByte(0x2AAEC,
+                    new byte[] { 0x00, 0x25, 0x00, 0x28, 0x00, 0xD0, 0x05, 0x1C });
+                if (r)
+                {
+                    return class_type_extends.SkillSystems_Rework;
+                }
+                r = rom.CompareByte(0x2AAEC,
+                    new byte[] { 0x01, 0x4B, 0xA6, 0xF0, 0xED, 0xFE, 0x01, 0xE0 });
+                if (r)
+                {
+                    return class_type_extends.SkillSystems_Rework;
+                }
+            }
+            return class_type_extends.NO;
+        }
+
+        static class_type_extends g_Cache_class_type = class_type_extends.NoCache;
+
+        public static void ClearCacheClassType()
+        {
+            g_Cache_class_type = class_type_extends.NoCache;
+        }
+
+        /// <summary>Ambient-ROM overload (cached). Reads <see cref="CoreState.ROM"/>.</summary>
+        public static class_type_extends SearchClassType()
+        {
+            if (g_Cache_class_type == class_type_extends.NoCache)
+            {
+                g_Cache_class_type = SearchClassType(CoreState.ROM);
+            }
+            return g_Cache_class_type;
+        }
+
+        // ---- GrowsMod patch detector (#1261 slice 2ad) ----
+        // Cross-platform port of WinForms PatchUtil.SearchGrowsMod ->
+        // SearchGrowsModLow (PatchUtil.cs:138-169). Gates ItemForm's StatBooster
+        // sub-block size: Vennou -> 16 bytes (when the item's +34 flag == 1),
+        // SkillSystems -> 20 bytes (same flag). Two-stage detection, verbatim:
+        //   1. Vennou: a fixed-address byte table (FE8U @ 0x02BA2A).
+        //   2. SkillSystems: a ROM-WIDE U.Grep of a long signature, scanned from
+        //      compress_image_borderline_address with alignment 4 (reproduces the WF
+        //      GrepPatch(Grep2PatchTableSt[]) helper — same start/blocksize/safety).
+        // FE8U-only on both stages (matching the WF table `ver` fields).
+
+        public enum growth_mod_extends
+        {
+            NO,
+            Vennou,
+            SkillSystems,
+            NoCache = (int)NO_CACHE
+        }
+
+        static readonly PatchTableSt[] GrowsModVennouTable = new PatchTableSt[] {
+            new PatchTableSt{ name="GrowsMod", ver = "FE8U", addr = 0x02BA2A, data = new byte[]{0x4E, 0x46, 0x45, 0x46, 0x60, 0xB4, 0x8B, 0xB0, 0x07, 0x1C, 0xFF, 0xF7, 0xDE, 0xFF, 0x00, 0x06, 0x00, 0x28, 0x00, 0xD1, 0x8E, 0xE0, 0x78, 0x7A, 0x63, 0x28, 0x00, 0xD8, 0x8A, 0xE0, 0x03, 0x1C, 0x64, 0x3B, 0x7B, 0x72, 0x38, 0x7A, 0x42, 0x1C, 0x3A, 0x72, 0x38, 0x68, 0x79, 0x68, 0x80, 0x6A, 0x89, 0x6A, 0x08, 0x43, 0x80, 0x21, 0x09, 0x03, 0x08, 0x40, 0x00, 0x28, 0x04, 0xD0, 0x10, 0x06, 0x00, 0x16, 0x0A, 0x28, 0x0B, 0xD1, 0x03, 0xE0, 0x10, 0x06, 0x00}},
+        };
+
+        // SkillSystems is found by a whole-ROM grep (not a fixed addr) — reproduces the
+        // WF Grep2PatchTableSt path. We keep the version + signature here; the scan is
+        // done in SearchGrowsMod below (it needs rom.Data + the borderline address).
+        static readonly byte[] GrowsModSkillSystemsSignature = new byte[] {
+            0x17, 0x49, 0x40, 0x18, 0x22, 0x21, 0x41, 0x5C, 0x01, 0x22, 0x11, 0x42, 0x06, 0xD0, 0xC0, 0x68,
+            0x00, 0x28, 0x03, 0xD0, 0x80, 0x57, 0x2D, 0x18, 0x00, 0x2F, 0x02, 0xD0, 0x02, 0x33, 0x08, 0x2B,
+            0xE5, 0xDD, 0x20, 0x1C, 0x10, 0x49, 0x0F, 0x4A
+        };
+
+        /// <summary>
+        /// Detect the "GrowsMod" StatBooster-extension patch in <paramref name="rom"/>.
+        /// Verbatim port of WinForms <c>PatchUtil.SearchGrowsModLow</c>:
+        /// <list type="number">
+        ///   <item><b>Vennou</b> — a fixed FE8U byte table at 0x02BA2A.</item>
+        ///   <item><b>SkillSystems</b> — a whole-ROM <see cref="U.Grep"/> of the
+        ///   SkillSystems signature, scanned from
+        ///   <c>compress_image_borderline_address</c> with blocksize 4, accepted only
+        ///   when the hit is a safe offset (reproduces WF <c>GrepPatch</c>). FE8U only.</item>
+        /// </list>
+        /// Returns <see cref="growth_mod_extends.NO"/> on a null ROM or any non-FE8U
+        /// version (both stages are FE8U-gated, matching WF).
+        /// </summary>
+        public static growth_mod_extends SearchGrowsMod(ROM rom)
+        {
+            if (rom?.RomInfo == null) return growth_mod_extends.NO;
+
+            // Stage 1 — Vennou (fixed-address table; SearchPatchBool already version-gates).
+            if (SearchPatchBool(rom, GrowsModVennouTable))
+            {
+                return growth_mod_extends.Vennou;
+            }
+
+            // Stage 2 — SkillSystems (whole-ROM grep, FE8U only). Reproduces WF
+            // GrepPatch(Grep2PatchTableSt[]): U.Grep(rom.Data, signature,
+            // compress_image_borderline_address, 0, 4) and require isSafetyOffset(hit).
+            if (rom.RomInfo.VersionToFilename == "FE8U")
+            {
+                uint addr = U.Grep(rom.Data, GrowsModSkillSystemsSignature,
+                    rom.RomInfo.compress_image_borderline_address, 0, 4);
+                // Use the (addr, rom) safety overload — the no-arg isSafetyOffset(addr) reads
+                // CoreState.ROM, which need not be `rom` when a detector runs outside the producer.
+                if (addr != U.NOT_FOUND && U.isSafetyOffset(addr, rom))
+                {
+                    return growth_mod_extends.SkillSystems;
+                }
+            }
+
+            return growth_mod_extends.NO;
+        }
+
+        static growth_mod_extends g_Cache_growth_mod = growth_mod_extends.NoCache;
+
+        public static void ClearCacheGrowsMod()
+        {
+            g_Cache_growth_mod = growth_mod_extends.NoCache;
+        }
+
+        /// <summary>Ambient-ROM overload (cached). Reads <see cref="CoreState.ROM"/>.</summary>
+        public static growth_mod_extends SearchGrowsMod()
+        {
+            if (g_Cache_growth_mod == growth_mod_extends.NoCache)
+            {
+                g_Cache_growth_mod = SearchGrowsMod(CoreState.ROM);
+            }
+            return g_Cache_growth_mod;
+        }
     }
 }

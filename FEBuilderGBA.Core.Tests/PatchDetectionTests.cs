@@ -318,5 +318,260 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeAntiHuffmanRom("BE8E01", 0x500000, new byte[] { 0x00, 0xB5, 0xC2, 0x0F });
             Assert.False(PatchDetection.SearchAntiHuffmanPatch(rom));
         }
+
+        // ===============================================================
+        // #1261 slice 2ad — four producer patch detectors.
+        //
+        // - SearchUnitActionReworkPatch: DELEGATE wrap. Each RomInfo subclass
+        //   exposes patch_unitaction_rework_hack(out enable_value) = (addr,
+        //   expected u32). The patch is present when u32(addr)==expected.
+        // - ItemUsingExtendsPatch: FE8U byte table @ 0x28E80.
+        // - SearchClassType: FE8U-only CompareByte(0x2AAEC) vs two patterns.
+        // - SearchGrowsMod: FE8U Vennou byte table @ 0x02BA2A, then FE8U
+        //   whole-ROM grep of the SkillSystems signature.
+        // ===============================================================
+
+        static ROM MakeRom(string signature, byte[] data) // helper for the slice-2ad detectors
+        {
+            var rom = new ROM();
+            bool ok = rom.LoadLow("synthetic-2ad.gba", data, signature);
+            Assert.True(ok, "LoadLow did not recognize version string: " + signature);
+            return rom;
+        }
+
+        // ---- SearchUnitActionReworkPatch (delegate wrap) ----
+
+        [Fact]
+        public void SearchUnitActionReworkPatch_NullRom_ReturnsFalse()
+        {
+            Assert.False(PatchDetection.SearchUnitActionReworkPatch((ROM?)null));
+        }
+
+        [Fact]
+        public void SearchUnitActionReworkPatch_FE8U_PatchAbsent_ReturnsFalse()
+        {
+            // A zeroed FE8U ROM: u32(patch addr) == 0 != enable_value -> false.
+            var rom = MakeRom("BE8E01", new byte[0x1000000]);
+            Assert.False(PatchDetection.SearchUnitActionReworkPatch(rom));
+        }
+
+        [Fact]
+        public void SearchUnitActionReworkPatch_FE8U_PatchPresent_ReturnsTrue()
+        {
+            // Plant the per-version expected u32 at the per-version address from the
+            // RomInfo delegate itself (so this stays faithful even if ROMFE8U's
+            // (addr, value) ever changes). FE8U: addr=0x031F08, value=0x4C03B510.
+            var rom = MakeRom("BE8E01", new byte[0x1000000]);
+            uint expected;
+            uint addr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
+            Assert.NotEqual(0u, addr);
+            // little-endian write of `expected` at `addr`.
+            rom.Data[addr + 0] = (byte)(expected & 0xFF);
+            rom.Data[addr + 1] = (byte)((expected >> 8) & 0xFF);
+            rom.Data[addr + 2] = (byte)((expected >> 16) & 0xFF);
+            rom.Data[addr + 3] = (byte)((expected >> 24) & 0xFF);
+            Assert.True(PatchDetection.SearchUnitActionReworkPatch(rom));
+        }
+
+        [Fact]
+        public void SearchUnitActionReworkPatch_FE8J_PatchPresent_ReturnsTrue()
+        {
+            // FE8J has its own (addr, value) — prove the delegate-wrap is version-correct.
+            var rom = MakeRom("BE8J01", new byte[0x1100000]);
+            uint expected;
+            uint addr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
+            Assert.NotEqual(0u, addr);
+            rom.Data[addr + 0] = (byte)(expected & 0xFF);
+            rom.Data[addr + 1] = (byte)((expected >> 8) & 0xFF);
+            rom.Data[addr + 2] = (byte)((expected >> 16) & 0xFF);
+            rom.Data[addr + 3] = (byte)((expected >> 24) & 0xFF);
+            Assert.True(PatchDetection.SearchUnitActionReworkPatch(rom));
+        }
+
+        // ---- ItemUsingExtendsPatch (FE8U byte table @ 0x28E80) ----
+
+        static readonly byte[] IERSig = new byte[]
+        {
+            0x03, 0x4B, 0x14, 0x22, 0x50, 0x43, 0x40, 0x18,
+            0xC0, 0x18, 0x00, 0x68, 0x70, 0x47, 0x00, 0x00
+        };
+
+        [Fact]
+        public void ItemUsingExtendsPatch_NullRom_ReturnsNO()
+        {
+            Assert.Equal(PatchDetection.ItemUsingExtends_extends.NO,
+                PatchDetection.ItemUsingExtendsPatch((ROM?)null));
+        }
+
+        [Fact]
+        public void ItemUsingExtendsPatch_FE8U_PatchAbsent_ReturnsNO()
+        {
+            var rom = MakeRom("BE8E01", new byte[0x1000000]);
+            Assert.Equal(PatchDetection.ItemUsingExtends_extends.NO,
+                PatchDetection.ItemUsingExtendsPatch(rom));
+        }
+
+        [Fact]
+        public void ItemUsingExtendsPatch_FE8U_PatchPresent_ReturnsIER()
+        {
+            var data = new byte[0x1000000];
+            Array.Copy(IERSig, 0, data, 0x28E80, IERSig.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.ItemUsingExtends_extends.IER,
+                PatchDetection.ItemUsingExtendsPatch(rom));
+        }
+
+        [Fact]
+        public void ItemUsingExtendsPatch_FE8J_SigAtFE8UOffset_StillNO()
+        {
+            // The table only has an FE8U row — the version filter rejects FE8J even
+            // with the bytes planted at the FE8U offset.
+            var data = new byte[0x1100000];
+            Array.Copy(IERSig, 0, data, 0x28E80, IERSig.Length);
+            var rom = MakeRom("BE8J01", data);
+            Assert.Equal(PatchDetection.ItemUsingExtends_extends.NO,
+                PatchDetection.ItemUsingExtendsPatch(rom));
+        }
+
+        // ---- SearchClassType (FE8U-only CompareByte @ 0x2AAEC) ----
+
+        static readonly byte[] ClassTypePat1 = new byte[] { 0x00, 0x25, 0x00, 0x28, 0x00, 0xD0, 0x05, 0x1C };
+        static readonly byte[] ClassTypePat2 = new byte[] { 0x01, 0x4B, 0xA6, 0xF0, 0xED, 0xFE, 0x01, 0xE0 };
+
+        [Fact]
+        public void SearchClassType_NullRom_ReturnsNO()
+        {
+            Assert.Equal(PatchDetection.class_type_extends.NO,
+                PatchDetection.SearchClassType((ROM?)null));
+        }
+
+        [Fact]
+        public void SearchClassType_FE8U_PatchAbsent_ReturnsNO()
+        {
+            var rom = MakeRom("BE8E01", new byte[0x1000000]);
+            Assert.Equal(PatchDetection.class_type_extends.NO,
+                PatchDetection.SearchClassType(rom));
+        }
+
+        [Fact]
+        public void SearchClassType_FE8U_Pattern1_ReturnsRework()
+        {
+            var data = new byte[0x1000000];
+            Array.Copy(ClassTypePat1, 0, data, 0x2AAEC, ClassTypePat1.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.class_type_extends.SkillSystems_Rework,
+                PatchDetection.SearchClassType(rom));
+        }
+
+        [Fact]
+        public void SearchClassType_FE8U_Pattern2_ReturnsRework()
+        {
+            var data = new byte[0x1000000];
+            Array.Copy(ClassTypePat2, 0, data, 0x2AAEC, ClassTypePat2.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.class_type_extends.SkillSystems_Rework,
+                PatchDetection.SearchClassType(rom));
+        }
+
+        [Fact]
+        public void SearchClassType_FE8J_PatternAtFE8UOffset_StillNO()
+        {
+            // FE8J is multibyte -> the version-8 && !is_multibyte gate rejects it
+            // even with the pattern present at 0x2AAEC.
+            var data = new byte[0x1100000];
+            Array.Copy(ClassTypePat1, 0, data, 0x2AAEC, ClassTypePat1.Length);
+            var rom = MakeRom("BE8J01", data);
+            Assert.Equal(PatchDetection.class_type_extends.NO,
+                PatchDetection.SearchClassType(rom));
+        }
+
+        // ---- SearchGrowsMod (FE8U Vennou table + FE8U SkillSystems grep) ----
+
+        static readonly byte[] VennouSig = new byte[]
+        {
+            0x4E, 0x46, 0x45, 0x46, 0x60, 0xB4, 0x8B, 0xB0, 0x07, 0x1C, 0xFF, 0xF7, 0xDE, 0xFF, 0x00, 0x06,
+            0x00, 0x28, 0x00, 0xD1, 0x8E, 0xE0, 0x78, 0x7A, 0x63, 0x28, 0x00, 0xD8, 0x8A, 0xE0, 0x03, 0x1C,
+            0x64, 0x3B, 0x7B, 0x72, 0x38, 0x7A, 0x42, 0x1C, 0x3A, 0x72, 0x38, 0x68, 0x79, 0x68, 0x80, 0x6A,
+            0x89, 0x6A, 0x08, 0x43, 0x80, 0x21, 0x09, 0x03, 0x08, 0x40, 0x00, 0x28, 0x04, 0xD0, 0x10, 0x06,
+            0x00, 0x16, 0x0A, 0x28, 0x0B, 0xD1, 0x03, 0xE0, 0x10, 0x06, 0x00
+        };
+
+        static readonly byte[] SkillSystemsSig = new byte[]
+        {
+            0x17, 0x49, 0x40, 0x18, 0x22, 0x21, 0x41, 0x5C, 0x01, 0x22, 0x11, 0x42, 0x06, 0xD0, 0xC0, 0x68,
+            0x00, 0x28, 0x03, 0xD0, 0x80, 0x57, 0x2D, 0x18, 0x00, 0x2F, 0x02, 0xD0, 0x02, 0x33, 0x08, 0x2B,
+            0xE5, 0xDD, 0x20, 0x1C, 0x10, 0x49, 0x0F, 0x4A
+        };
+
+        [Fact]
+        public void SearchGrowsMod_NullRom_ReturnsNO()
+        {
+            Assert.Equal(PatchDetection.growth_mod_extends.NO,
+                PatchDetection.SearchGrowsMod((ROM?)null));
+        }
+
+        [Fact]
+        public void SearchGrowsMod_FE8U_PatchAbsent_ReturnsNO()
+        {
+            var rom = MakeRom("BE8E01", new byte[0x1000000]);
+            Assert.Equal(PatchDetection.growth_mod_extends.NO,
+                PatchDetection.SearchGrowsMod(rom));
+        }
+
+        [Fact]
+        public void SearchGrowsMod_FE8U_VennouTablePresent_ReturnsVennou()
+        {
+            var data = new byte[0x1000000];
+            Array.Copy(VennouSig, 0, data, 0x02BA2A, VennouSig.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.growth_mod_extends.Vennou,
+                PatchDetection.SearchGrowsMod(rom));
+        }
+
+        [Fact]
+        public void SearchGrowsMod_FE8U_SkillSystemsGrep_ReturnsSkillSystems()
+        {
+            // Plant the SkillSystems signature AFTER compress_image_borderline_address
+            // (the grep start). With NO Vennou table present, stage 2 finds it.
+            var rom0 = MakeRom("BE8E01", new byte[0x1000000]);
+            uint border = rom0.RomInfo.compress_image_borderline_address;
+            uint plantAt = U.Padding4(border + 0x100); // 4-aligned, inside the scan window
+            var data = new byte[0x1000000];
+            Array.Copy(SkillSystemsSig, 0, data, plantAt, SkillSystemsSig.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.growth_mod_extends.SkillSystems,
+                PatchDetection.SearchGrowsMod(rom));
+        }
+
+        [Fact]
+        public void SearchGrowsMod_FE8U_VennouWins_WhenBothPresent()
+        {
+            // Stage 1 (Vennou table) is checked first; even if the SkillSystems
+            // signature is also present, Vennou is returned (WF order).
+            var rom0 = MakeRom("BE8E01", new byte[0x1000000]);
+            uint border = rom0.RomInfo.compress_image_borderline_address;
+            uint plantAt = U.Padding4(border + 0x100);
+            var data = new byte[0x1000000];
+            Array.Copy(VennouSig, 0, data, 0x02BA2A, VennouSig.Length);
+            Array.Copy(SkillSystemsSig, 0, data, plantAt, SkillSystemsSig.Length);
+            var rom = MakeRom("BE8E01", data);
+            Assert.Equal(PatchDetection.growth_mod_extends.Vennou,
+                PatchDetection.SearchGrowsMod(rom));
+        }
+
+        [Fact]
+        public void SearchGrowsMod_FE8J_SignaturesPresent_StillNO()
+        {
+            // Both stages are FE8U-gated -> FE8J never matches.
+            var rom0 = MakeRom("BE8J01", new byte[0x1100000]);
+            uint border = rom0.RomInfo.compress_image_borderline_address;
+            uint plantAt = U.Padding4(border + 0x100);
+            var data = new byte[0x1100000];
+            Array.Copy(VennouSig, 0, data, 0x02BA2A, VennouSig.Length);
+            Array.Copy(SkillSystemsSig, 0, data, plantAt, SkillSystemsSig.Length);
+            var rom = MakeRom("BE8J01", data);
+            Assert.Equal(PatchDetection.growth_mod_extends.NO,
+                PatchDetection.SearchGrowsMod(rom));
+        }
     }
 }

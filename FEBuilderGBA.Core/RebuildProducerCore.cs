@@ -647,6 +647,38 @@ namespace FEBuilderGBA
             progress?.Report("MapExitPoint");
             EmitMapExitPoint(rom, list);
 
+            // ---- slice 2ad: ItemForm (data path; version-agnostic call site) ----
+            // WF calls ItemForm.MakeAllDataLength at U.cs:2431, right after MapExitPoint (2430). It is NOT
+            // a flat StructDescriptor walk: its main IFR (base p32(item_pointer), block item_datasize,
+            // IsDataExists = ItemRule) is followed by TWO per-entry embedded BIN sub-blocks whose SIZES
+            // depend on PatchUtil patch state — StatBooster (12/16/20 via SearchGrowsMod /
+            // ItemUsingExtendsPatch + per-entry +34/+10 reads) and ItemEffectiveness ((count+1) vanilla
+            // vs (count+1)*4 via SearchClassType). A dedicated emitter reproduces it VERBATIM (the
+            // slice-2ad PatchDetection detectors supply the patch state). Its own cancel-check mirrors the
+            // WF DoEvents posture.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("Item");
+            EmitItem(rom, list);
+
+            // ---- slice 2ad: UnitActionPointerForm (data path; version-agnostic call site) ----
+            // WF calls UnitActionPointerForm.MakeAllDataLength at U.cs:2435. It is an InputFormRef_ASM
+            // function-pointer table whose base = SearchActionPointer() (resolved via the rework gate
+            // PatchDetection.SearchUnitActionReworkPatch — non-rework: RomInfo unitaction_function_pointer
+            // slot; rework: a U.GrepEnd over the ApplyAction.bin config file). A dedicated emitter
+            // reproduces it VERBATIM via the existing EmitAsmPointerTable helper (its own cancel-check
+            // mirrors the WF DoEvents posture).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("UnitActionPointer");
+            EmitUnitActionPointer(rom, list);
+
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -3723,6 +3755,270 @@ namespace FEBuilderGBA
                 Address.AddPointer(list, p + 8, CalcProcsLengthAndCheck(rom, mapAnime),
                     procName, Address.DataTypeEnum.PROCS);
             }
+        }
+
+        /// <summary>
+        /// <c>ItemForm.MakeAllDataLength</c> (data path, #1261 slice 2ad — WF <c>ItemForm.cs:328</c>).
+        /// Main IFR (base <c>p32(item_pointer)</c>, block <c>item_datasize</c>, IsDataExists = the
+        /// existing <see cref="DataCountRule.ItemRule"/> = <c>ItemForm.Init</c>'s callback verbatim,
+        /// pointerIndexes <c>{12,16}</c>), then per entry TWO embedded BIN sub-blocks whose SIZES depend
+        /// on PatchUtil patch state (reproduced VERBATIM):
+        /// <list type="bullet">
+        ///   <item><b>StatBooster</b> behind <c>p32(addr+12)</c> (only when &gt; 0): 12 bytes (vanilla),
+        ///   16 when <see cref="PatchDetection.SearchGrowsMod"/>==Vennou &amp;&amp; <c>u8(addr+34)==1</c>,
+        ///   20 when GrowsMod==SkillSystems &amp;&amp; <c>u8(addr+34)==1</c>, 20 when
+        ///   <see cref="PatchDetection.ItemUsingExtendsPatch"/>==IER &amp;&amp; <c>(u8(addr+10)&amp;0x80)==0x80</c>.</item>
+        ///   <item><b>ItemEffectiveness</b> behind <c>p32(addr+16)</c> (only when &gt; 0): length =
+        ///   <c>(MakeCriticalClassList(eff).Count + 1)</c> vanilla (block 1, stop at <c>u8==0</c>), OR
+        ///   <c>(MakeCriticalClassList(eff).Count + 1) * 4</c> when
+        ///   <see cref="PatchDetection.SearchClassType"/>==SkillSystems_Rework (block 4, stop at
+        ///   <c>!(u8==0 &amp;&amp; u32!=0)</c>). Both counts are reproduced via <c>getBlockDataCount</c>
+        ///   (EOF-bounded; equals the WF <c>N_InputFormRef.ReInit(eff).MakeList().Count</c> away from EOF).</item>
+        /// </list>
+        /// A wrong StatBooster / effectiveness size relocates the wrong bytes — the FE8U WF-parity harness
+        /// catches it as a Core-extra. All reads bounds-guarded.
+        /// </summary>
+        public static void EmitItem(ROM rom, List<Address> list)
+        {
+            EmitItemAt(rom, list, rom.RomInfo.item_pointer, rom.RomInfo.item_datasize);
+        }
+
+        /// <summary>Item walk from an explicit pointer slot + block size (test seam — lets a synthetic ROM
+        /// supply them without populating RomInfo). See <see cref="EmitItem"/> for the verbatim WF
+        /// reproduction.</summary>
+        public static void EmitItemAt(ROM rom, List<Address> list, uint rawPointer, uint block)
+        {
+            if (rom?.RomInfo == null) return;
+            if (block == 0) return; // getBlockDataCount would never advance — a descriptor bug, not data.
+
+            // WF InputFormRef.Init: BasePointer = toOffset(item_pointer); BaseAddress = p32(BasePointer).
+            // Guard the full slot (pointer+3) before p32 on a truncated/synthetic ROM.
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // ItemForm.Init IsDataExists == the existing ItemRule (reproduced once in MakeIsDataExists):
+            // i<=0xff; FE8U checks only isPointerOrNULL(u32(addr+12)); else both +12 and +16.
+            Func<int, uint, bool> itemRule = (i, addr) =>
+            {
+                if (i > 0xff) return false;
+                if (rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte == false)
+                {
+                    return U.isPointerOrNULL(rom.u32(addr + 12));
+                }
+                return U.isPointerOrNULL(rom.u32(addr + 12))
+                    && U.isPointerOrNULL(rom.u32(addr + 16));
+            };
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, itemRule);
+
+            // Main IFR Address (AddressWinForms.AddAddress(list, ifr, "Item", {12,16})).
+            uint length = block * (dataCount + 1);
+            uint mainPointer = U.isSafetyOffset(pointer, rom) ? pointer : U.NOT_FOUND;
+            list.Add(new Address(baseAddr, length, mainPointer, "Item",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 12, 16 }));
+
+            // The per-entry SIZE selectors — read once outside the loop (WF reads them once before the
+            // for loop). These wrap the slice-2ad PatchDetection detectors (rom overloads, pure).
+            PatchDetection.class_type_extends effectivenesRework = PatchDetection.SearchClassType(rom);
+            PatchDetection.growth_mod_extends growthmod = PatchDetection.SearchGrowsMod(rom);
+            PatchDetection.ItemUsingExtends_extends itemUsingExtends = PatchDetection.ItemUsingExtendsPatch(rom);
+
+            // Per-entry sub-blocks. getBlockDataCount guarantees addr+block<=Length for i<dataCount, so
+            // (for the common item_datasize >= 36) the +34/+16 reads below are in-bounds; we still guard
+            // each computed read defensively (a tiny synthetic block, or a near-EOF base).
+            uint addrEntry = baseAddr;
+            for (uint i = 0; i < dataCount; i++, addrEntry += block)
+            {
+                // ---- StatBooster (behind p32(addr+12)) ----
+                if (U.isSafetyOffset(addrEntry + 15, rom)) // p32(addr+12) reads addr+12..addr+15
+                {
+                    uint itemStatBonuses = rom.p32(addrEntry + 12);
+                    if (itemStatBonuses > 0)
+                    {
+                        // u8(addr+34) / u8(addr+10) — guard the wider one (addr+34).
+                        uint vennoExtends = U.isSafetyOffset(addrEntry + 34, rom) ? rom.u8(addrEntry + 34) : 0;
+                        uint passivebooster = U.isSafetyOffset(addrEntry + 10, rom) ? rom.u8(addrEntry + 10) : 0;
+                        uint statBonusesSize = 12; // vanilla is 12 bytes.
+                        if (growthmod == PatchDetection.growth_mod_extends.Vennou && vennoExtends == 1)
+                        {
+                            statBonusesSize = 16; // vennou extension is 16 bytes.
+                        }
+                        else if (growthmod == PatchDetection.growth_mod_extends.SkillSystems && vennoExtends == 1)
+                        {
+                            statBonusesSize = 20; // SkillSystems is 20 bytes.
+                        }
+                        else if (itemUsingExtends == PatchDetection.ItemUsingExtends_extends.IER
+                            && ((passivebooster & 0x80) == 0x80))
+                        {
+                            statBonusesSize = 20; // IER is 20 bytes.
+                        }
+
+                        Address.AddAddress(list, itemStatBonuses, statBonusesSize, addrEntry + 12,
+                            "StatBooster " + U.To0xHexString(i), Address.DataTypeEnum.BIN);
+                    }
+                }
+
+                // ---- ItemEffectiveness (behind p32(addr+16)) ----
+                if (U.isSafetyOffset(addrEntry + 19, rom)) // p32(addr+16) reads addr+16..addr+19
+                {
+                    uint itemEffectiveness = rom.p32(addrEntry + 16);
+                    if (itemEffectiveness > 0)
+                    {
+                        uint effOffset = U.toOffset(itemEffectiveness);
+                        if (effectivenesRework == PatchDetection.class_type_extends.SkillSystems_Rework)
+                        {
+                            // ItemEffectivenessSkillSystemsReworkForm.N_Init: block 4, stop when NOT
+                            // (u8(addr)==0 && u32(addr)!=0). length = (count + 1) * 4.
+                            uint cnt = U.isSafetyOffset(effOffset, rom)
+                                ? rom.getBlockDataCount(effOffset, 4, (j, a) =>
+                                    {
+                                        if (rom.u8(a) != 0) return false; // head must be 0
+                                        return rom.u32(a) != 0;
+                                    })
+                                : 0;
+                            Address.AddAddress(list, itemEffectiveness, (cnt + 1) * 4, addrEntry + 16,
+                                "ItemEffectiveness " + U.To0xHexString(i), Address.DataTypeEnum.BIN);
+                        }
+                        else
+                        {
+                            // ItemEffectivenessForm.N_Init: block 1, stop when u8(addr)==0. length = count+1.
+                            uint cnt = U.isSafetyOffset(effOffset, rom)
+                                ? rom.getBlockDataCount(effOffset, 1, (j, a) => rom.u8(a) != 0)
+                                : 0;
+                            Address.AddAddress(list, itemEffectiveness, cnt + 1, addrEntry + 16,
+                                "ItemEffectiveness " + U.To0xHexString(i), Address.DataTypeEnum.BIN);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>UnitActionPointerForm.MakeAllDataLength</c> (data path, #1261 slice 2ad — WF
+        /// <c>UnitActionPointerForm.cs:88</c>). An <see cref="Address.DataTypeEnum.InputFormRef_ASM"/>
+        /// function-pointer table whose base is <c>SearchActionPointer()</c> (a pointer SLOT, resolved
+        /// via the rework gate <see cref="PatchDetection.SearchUnitActionReworkPatch"/>) and whose block
+        /// is 4. Reproduced VERBATIM via the existing <see cref="EmitAsmPointerTableFrom"/> helper (same
+        /// AddAddress + AddFunctions idiom the other ASM-pointer-table forms use):
+        /// <list type="bullet">
+        ///   <item>base resolution = <see cref="SearchActionPointer"/> (non-rework: RomInfo
+        ///   <c>unitaction_function_pointer</c> SLOT; rework: a <c>U.GrepEnd</c> over the
+        ///   <c>UnitActionRework/.../ApplyAction.bin</c> config file — null-BaseDirectory / missing-file safe);</item>
+        ///   <item>BasePointer = <c>toOffset(slot)</c>, BaseAddress = <c>p32(slot)</c> (the <c>ReInitPointer</c>
+        ///   semantics — identical to <see cref="EmitAsmPointerTable"/>'s pointer-slot resolution);</item>
+        ///   <item>IsDataExists gated on the rework flag VERBATIM: non-rework = <c>isSafetyPointer(u32)</c>;
+        ///   rework = keep <c>0</c> (NULL slot), reject <c>NOT_FOUND</c>, accept
+        ///   <c>isSafetyPointer(u32 &amp; 0x0FFFFFFF)</c>;</item>
+        ///   <item>main IFR length = <c>4*(count+1)</c>, plus one ASM AddFunction per entry.</item>
+        /// </list>
+        /// </summary>
+        public static void EmitUnitActionPointer(ROM rom, List<Address> list)
+        {
+            EmitUnitActionPointerAt(rom, list, SearchActionPointer(rom));
+        }
+
+        /// <summary>UnitActionPointer walk from an explicit base pointer SLOT (test seam — lets a synthetic
+        /// ROM supply the resolved <c>SearchActionPointer()</c> result, including the rework-config path,
+        /// without staging the config tree). See <see cref="EmitUnitActionPointer"/> for the verbatim WF
+        /// reproduction.</summary>
+        public static void EmitUnitActionPointerAt(ROM rom, List<Address> list, uint rawPointerSlot)
+        {
+            if (rom?.RomInfo == null) return;
+
+            bool isRework = PatchDetection.SearchUnitActionReworkPatch(rom);
+
+            // UnitActionPointerForm.Init IsDataExists (block 4), gated on isRework — verbatim.
+            Func<int, uint, bool> isDataExists = (i, addr) =>
+            {
+                uint a = rom.u32(addr);
+                if (isRework == false)
+                {//not reworked
+                    if (U.isSafetyPointer(a, rom))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {//reworked
+                    if (a == U.NOT_FOUND)
+                    {
+                        return false;
+                    }
+                    if (a == 0)
+                    {
+                        return true;
+                    }
+                    if (U.isSafetyPointer(a & 0x0FFFFFFF, rom))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            // WF: ReInitPointer(SearchActionPointer()) -> BasePointer = toOffset(slot),
+            // BaseAddress = p32(slot). EmitAsmPointerTable performs exactly that resolution from the SLOT
+            // (basePointerField), so feed it the slot and reuse the verbatim AddAddress + AddFunctions shape.
+            EmitAsmPointerTable(rom, list, rawPointerSlot, 4, isDataExists,
+                "UnitActionFunctionPointer", Address.DataTypeEnum.InputFormRef_ASM);
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>UnitActionPointerForm.SearchActionPointer</c>. Returns the unit-action
+        /// function-pointer table SLOT. Non-rework: the RomInfo <c>unitaction_function_pointer</c> slot.
+        /// Rework (<see cref="PatchDetection.SearchUnitActionReworkPatch"/>): a <c>U.GrepEnd</c> of the
+        /// <c>config/patch2/&lt;ver&gt;/UnitActionRework/UnitActionRework/asm/ApplyAction.bin</c> stream
+        /// from <c>unitaction_function_pointer - 0x100</c> (blocksize 4) — returns 0 if BaseDirectory is
+        /// null / the config file is absent / the signature is not found (the WF behavior: a 0 base emits
+        /// nothing). Headless-config safe.
+        /// </summary>
+        public static uint SearchActionPointer(ROM rom)
+        {
+            if (rom?.RomInfo == null) return 0;
+
+            if (!PatchDetection.SearchUnitActionReworkPatch(rom))
+            {//not reworked
+                return rom.RomInfo.unitaction_function_pointer;
+            }
+
+            // Rework path: read the ApplyAction.bin signature and GrepEnd for the patched table slot.
+            string baseDir = CoreState.BaseDirectory;
+            if (string.IsNullOrEmpty(baseDir))
+            {
+                return 0; // null BaseDirectory -> WF's File.Exists false path -> 0.
+            }
+            string filename = System.IO.Path.Combine(baseDir, "config", "patch2",
+                rom.RomInfo.VersionToFilename, "UnitActionRework", "UnitActionRework", "asm", "ApplyAction.bin");
+            if (!System.IO.File.Exists(filename))
+            {
+                return 0;
+            }
+
+            uint hintAddr = rom.RomInfo.unitaction_function_pointer - 0x100;
+
+            byte[] bin;
+            try
+            {
+                bin = System.IO.File.ReadAllBytes(filename);
+            }
+            catch
+            {
+                return 0; // unreadable handle -> treat as absent (no throw in the producer).
+            }
+            uint addrApplyAction = U.GrepEnd(rom.Data, bin, hintAddr, 0, 4);
+            if (addrApplyAction == U.NOT_FOUND)
+            {
+                return 0;
+            }
+
+            return addrApplyAction;
         }
 
         /// <summary>VERBATIM port of <c>ProcsScriptForm.CalcLengthAndCheck</c>: walk a PROCS (map-anime)
@@ -11398,11 +11694,11 @@ namespace FEBuilderGBA
                 //  the parse + DirectSound-length ports the deferral once thought were MIDI-only.)
                 // embedded sub-pointer / event-scan / CString expansion
                 // (ClassForm + StatusParamForm ported in slice 2c — per-entry MoveCost / CString
-                //  sub-walks. ItemForm STAYS: its StatBooster sub-block SIZE depends on un-ported
-                //  PatchUtil patch detection (SearchGrowsMod / ItemUsingExtendsPatch -> 12/16/20)
-                //  and the ItemEffectiveness rework variant on SearchClassType — a wrong size would
-                //  relocate the wrong bytes, so it must wait until those detectors reach Core.)
-                "ItemForm",
+                //  sub-walks. ItemForm PORTED in slice 2ad — EmitItem: main IFR (ItemRule) + per-entry
+                //  StatBooster BIN whose size (12/16/20) comes from the new Core PatchDetection detectors
+                //  SearchGrowsMod / ItemUsingExtendsPatch + per-entry +34/+10 reads, and ItemEffectiveness
+                //  BIN whose length is (count+1) vanilla vs (count+1)*4 on SearchClassType. The 4 detectors
+                //  now live in PatchDetection.cs.)
                 // (ItemWeaponEffectForm ported in slice 2l — EmitItemWeaponEffect: a flat IFR (base
                 //  p32(item_effect_pointer), block 16, IsDataExists u16==0xFFFF / i>10 && IsEmpty(addr,160)
                 //  — both pure ROM reads) + a per-entry PROCS sub-block behind the embedded pointer at +8,
@@ -11416,12 +11712,14 @@ namespace FEBuilderGBA
                 // (ItemShopForm ported in slice 2g — EmitItemShop walks ItemShopCore.MakeShopList [hensei +
                 //  FE8 worldmap + per-map event-cond OBJECT-slot shops] and emits one BIN Address per shop,
                 //  length = (count of non-zero 2-byte item entries + 1) * 2.)
-                // UnitActionPointerForm STAYS — its base = SearchActionPointer(), gated on
-                //   PatchUtil.SearchUnitActionReworkPatch() (PatchUtil patch detection not in Core).
+                // UnitActionPointerForm PORTED in slice 2ad — EmitUnitActionPointer: an InputFormRef_ASM
+                //   table whose base = SearchActionPointer() (gated on the new Core
+                //   PatchDetection.SearchUnitActionReworkPatch — a thin wrap of the RomInfo
+                //   patch_unitaction_rework_hack delegate; rework path = U.GrepEnd over ApplyAction.bin),
+                //   reproduced via the existing EmitAsmPointerTable helper.
                 // (ItemUsagePointerForm ported in slice 2f — dedicated EmitItemUsagePointer walker over
                 //  the 10 Switch2-gated usage tables, base/count from each xxx_array_switch2_address via
                 //  the Core ItemUsagePointerCore.IsSwitch2Enable + per-entry ASM AddFunction @0.)
-                "UnitActionPointerForm",
                 // (MapChangeForm + MapExitPointForm ported in slice 2g via dedicated per-map walkers:
                 //  EmitMapChange [per map: MapChangeCore.GetMapChangeAddrWhereMapID -> main 12-byte IFR
                 //  {8} + per-entry w*h*2 BIN behind +8] and EmitMapExitPoint [enemy + NPC 4-byte slot
