@@ -1047,10 +1047,10 @@ namespace FEBuilderGBA.Core.Tests
                 var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap);
                 Assert.False(res.IsComplete);
                 Assert.Contains("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
-                Assert.Contains("ProcsScriptForm", res.NotYetPorted);
                 Assert.Contains("GraphicsToolForm", res.NotYetPorted);
-                // OAMSPForm is PORTED in slice 2w — it is NOT re-reported as deferred.
+                // OAMSPForm is PORTED in slice 2w, ProcsScriptForm in slice 2x — NOT re-reported as deferred.
                 Assert.DoesNotContain("OAMSPForm", res.NotYetPorted);
+                Assert.DoesNotContain("ProcsScriptForm", res.NotYetPorted);
             }
             finally { CoreState.ROM = saved; }
         }
@@ -1096,10 +1096,10 @@ namespace FEBuilderGBA.Core.Tests
         {
             string[] notYet = RebuildProducerCore.GetAsmNotYetPortedForms();
             Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
-            Assert.Contains("ProcsScriptForm", notYet);
             Assert.Contains("GraphicsToolForm", notYet);
             // The PORTED forms are NOT in the static deferred list.
             Assert.DoesNotContain("OAMSPForm", notYet); // PORTED in slice 2w.
+            Assert.DoesNotContain("ProcsScriptForm", notYet); // PORTED in slice 2x.
             Assert.DoesNotContain("EventScript(MakeEventASMMAPList)", notYet);
             Assert.DoesNotContain("EventFunctionPointerForm", notYet);
             Assert.DoesNotContain("Command85PointerForm", notYet);
@@ -1168,6 +1168,422 @@ namespace FEBuilderGBA.Core.Tests
                 data[i * 4 + 3] = (byte)((words[i] >> 24) & 0xFF);
             }
             return new EventScript.Script { Data = data, Info = new string[] { "test" } };
+        }
+
+        // ====================================================================
+        // EmitProcsScript / EmitProcsScriptCore — ProcsScriptForm.MakeAllDataLength (slice 2x)
+        // ====================================================================
+        //
+        // PROCS bytecode = 8-byte fixed records (code:u16, sarg:u16, parg:u32). The terminator-walk
+        // CalcProcsLengthAndCheck validates each record's arg contract and stops at code 0x00 (sarg==0,
+        // parg==0) or 0x800. A synthetic CreateTestRom (NULL RomInfo) gives an EMPTY knownArea so the walk
+        // is exercised in isolation; the reflection/known-area + safe-config tests use a versioned ROM.
+
+        // Plant an 8-byte PROCS record at off. Returns the next record offset (off + 8).
+        static uint PlantProcsRecord(ROM rom, uint off, uint code, uint sarg, uint parg)
+        {
+            rom.write_u16(off + 0, code);
+            rom.write_u16(off + 2, sarg);
+            rom.write_u32(off + 4, parg);
+            return off + 8;
+        }
+
+        // Plant a minimal valid 2-record PROCS at off: record0 = 0x0B (parg-null, non-terminator), record1 =
+        // 0x00 terminator. CalcProcsLengthAndCheck returns 16 (>= the IsTooShort 2-record gate). The trailing
+        // record after the terminator keeps the walk's `addr+8<=limit` clamp from breaking before validating
+        // the terminator. Returns the reported length (16).
+        static uint PlantMinimalProcs(ROM rom, uint off)
+        {
+            PlantProcsRecord(rom, off + 0, 0x0B, 0, 0); // non-terminator, parg must be 0
+            PlantProcsRecord(rom, off + 8, 0x00, 0, 0); // terminator
+            PlantProcsRecord(rom, off + 16, 0x0B, 0, 0); // padding so the clamp doesn't break early
+            return 16;
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_ValidLdrmapTarget_EmitsProcsAddressLengthName()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint procsOff = 0x1000;
+            uint expectLen = PlantMinimalProcs(rom, procsOff);
+            uint pointerAddr = 0x2000; // where the ldr_data_address pointer lives (becomes Address.Pointer)
+
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = pointerAddr, ldr_address = 0x2100,
+                }
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+
+            Address procs = list.Single(a => a.DataType == Address.DataTypeEnum.PROCS);
+            Assert.Equal(procsOff, procs.Addr);
+            Assert.Equal(expectLen, procs.Length);
+            Assert.Equal(pointerAddr, procs.Pointer);
+            // No config name hint -> the "Procs " prefix fallback (Get6CName2 with both hints empty).
+            Assert.StartsWith("Procs", procs.Info);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_TooShort_RejectsSingleRecordProcs()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint procsOff = 0x1000;
+            // A SINGLE-record Procs: record0 = 0x00 terminator immediately -> length 8 (< 16). Non-child
+            // candidates below the IsTooShort 2-record gate are rejected.
+            PlantProcsRecord(rom, procsOff + 0, 0x00, 0, 0);
+            PlantProcsRecord(rom, procsOff + 8, 0x0B, 0, 0); // padding
+
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.PROCS);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_ChildProcsRecursion_EmitsNestedProcs()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint childOff = 0x1800;  // even offset (a 6C child pointer must be even)
+            PlantMinimalProcs(rom, childOff);
+
+            // Parent: record0 = 0x05 (child-procs opcode; sarg==0, parg = even safe pointer to childOff),
+            // record1 = 0x00 terminator. length 16 -> passes the non-child IsTooShort gate; its 0x05 record
+            // recurses into childOff (emitted as a nested PROCS even though it's only reachable as a child).
+            uint parentOff = 0x1000;
+            PlantProcsRecord(rom, parentOff + 0, 0x05, 0, Ptr(childOff)); // child pointer (even)
+            PlantProcsRecord(rom, parentOff + 8, 0x00, 0, 0);             // terminator
+            PlantProcsRecord(rom, parentOff + 16, 0x0B, 0, 0);            // padding
+
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(parentOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+
+            var procs = list.Where(a => a.DataType == Address.DataTypeEnum.PROCS).ToList();
+            Assert.Contains(procs, a => a.Addr == parentOff);
+            Assert.Contains(procs, a => a.Addr == childOff); // child emitted via the recursion
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_AsmRoutineRecord_EmitsCallAsmFunction()
+        {
+            var rom = CreateTestRom(0x8000);
+            // An ASM-routine function body at funcOff: the record's parg must be a safe ODD thumb pointer
+            // (CalcProcsLengthAndCheck requires hasASMRoutine opcodes 2/3/4/0x14/0x16 to have an ODD parg).
+            uint funcOff = 0x1800;
+            uint thumbPtr = Ptr(funcOff) | 1u; // odd (thumb)
+
+            uint procsOff = 0x1000;
+            PlantProcsRecord(rom, procsOff + 0, 0x02, 0, thumbPtr); // hasASMRoutine, parg odd safe pointer
+            PlantProcsRecord(rom, procsOff + 8, 0x00, 0, 0);        // terminator
+            PlantProcsRecord(rom, procsOff + 16, 0x0B, 0, 0);       // padding
+
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+
+            // The per-record MakeAllDataLength sub-walk: a hasASMRoutine opcode with parg!=0 emits an
+            // AddFunction (ASM-type Address) at addr+4 pointing at the (plain) thumb routine.
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.ASM && a.Addr == funcOff);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_SetNameRecord_EmitsCString()
+        {
+            var rom = CreateTestRom(0x8000);
+            // A 0x01 "set name" record: parg must be a safe pointer to an ASCII string.
+            uint strOff = 0x1800;
+            byte[] ascii = System.Text.Encoding.ASCII.GetBytes("PROCNAME\0");
+            for (uint b = 0; b < ascii.Length; b++) rom.write_u8(strOff + b, ascii[b]);
+
+            uint procsOff = 0x1000;
+            PlantProcsRecord(rom, procsOff + 0, 0x01, 0, Ptr(strOff)); // set-name, parg -> ASCII string
+            PlantProcsRecord(rom, procsOff + 8, 0x00, 0, 0);           // terminator
+            PlantProcsRecord(rom, procsOff + 16, 0x0B, 0, 0);          // padding
+
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+
+            // The per-record sub-walk: code 0x01 emits an AddCString (CSTRING) at the string address.
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == strOff);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_AlreadyMatchDedup_EmitsEachProcsOnce()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint procsOff = 0x1000;
+            PlantMinimalProcs(rom, procsOff);
+
+            // The SAME Procs offset reached by TWO ldrmap entries -> alreadyMatch dedups to one PROCS.
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                },
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x3000, ldr_address = 0x3100,
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+            Assert.Equal(1, list.Count(a => a.DataType == Address.DataTypeEnum.PROCS));
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_ConfigDictTarget_EmitsProcsAndDedupsAgainstLdrmap()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint procsOff = 0x1000;
+            PlantMinimalProcs(rom, procsOff);
+
+            // The 6c_name_ config key is an OFFSET to a POINTER SLOT (a location whose u32 derefs to the
+            // Procs pointer) — see config/data/6c_name_FE8.txt (bare-hex offset keys). Plant such a slot,
+            // then key the dict on the slot OFFSET. Loop 2 derefs rom.u32(slot) -> Ptr(procsOff).
+            uint slotOff = 0x2000;
+            rom.write_u32(slotOff, Ptr(procsOff));
+            var procsName = new Dictionary<uint, string> { { slotOff, "MyProc" } };
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap: null, procsName: procsName);
+
+            Address procs = list.Single(a => a.DataType == Address.DataTypeEnum.PROCS);
+            Assert.Equal(procsOff, procs.Addr);
+            Assert.Equal(slotOff, procs.Pointer);
+            // The per-pointer config name is used (MakeProcNameByAddr maps the deref'd addr -> "MyProc").
+            Assert.Contains("MyProc", procs.Info);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_ZeroedRom_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x8000);
+            // An ldrmap pointing at all-zero data: u32 reads 0 -> the first record is a 0x00 terminator
+            // (length 8 < 16) -> rejected; nothing emitted, no throw.
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(0x1000), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>());
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_NearEofSlot_DoesNotThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            // A Procs start within a few bytes of EOF: the CalcProcsLengthAndCheck `while (addr+8<=limit)`
+            // clamp + the sub-walk `isSafetyOffset(addr+7)` guard must keep every read in-bounds.
+            uint nearEof = (uint)rom.Data.Length - 6;
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(nearEof), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitProcsScriptCore(rom, list, ldrmap, new Dictionary<uint, string>()));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitProcsScriptCore_Cancellation_Throws()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint procsOff = 0x1000;
+            PlantMinimalProcs(rom, procsOff);
+            var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+            {
+                new DisassemblerTrumb.LDRPointer
+                {
+                    ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                }
+            };
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            // The loops call ct.ThrowIfCancellationRequested() (replacing WF IsStopFlagOn()).
+            Assert.Throws<OperationCanceledException>(() =>
+                RebuildProducerCore.EmitProcsScriptCore(rom, new List<Address>(), ldrmap,
+                    new Dictionary<uint, string>(), cts.Token));
+        }
+
+        [Fact]
+        public void ROMInfoLoadResourceKnownArea_PopulatesFromRomInfo_SkipsProcsNamedProps()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // populated RomInfo (ROMFE8U)
+                CoreState.ROM = fe8;
+
+                var withProcs = new Dictionary<uint, AsmMapSt>();
+                RebuildProducerCore.ROMInfoLoadResourceKnownArea(fe8, withProcs, isWithOutProcs: false);
+
+                var withoutProcs = new Dictionary<uint, AsmMapSt>();
+                RebuildProducerCore.ROMInfoLoadResourceKnownArea(fe8, withoutProcs, isWithOutProcs: true);
+
+                // The reflection found at least some _pointer/_address known-areas.
+                Assert.NotEmpty(withProcs);
+                // isWithOutProcs:true must SKIP every procs-named property -> no entry whose Name contains
+                // "procs" appears in the without-procs map (and it is a subset of the with-procs map).
+                Assert.DoesNotContain(withoutProcs.Values, v => v.Name != null && v.Name.IndexOf("procs") >= 0);
+                Assert.Contains(withProcs.Values, v => v.Name != null && v.Name.IndexOf("procs") >= 0);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void ROMInfoLoadResourceKnownArea_NullRomInfo_DoesNotThrowAndStaysEmpty()
+        {
+            var rom = CreateTestRom(0x8000); // NULL RomInfo (synthetic)
+            var map = new Dictionary<uint, AsmMapSt>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.ROMInfoLoadResourceKnownArea(rom, map, isWithOutProcs: true));
+            Assert.Null(ex);
+            Assert.Empty(map);
+        }
+
+        [Fact]
+        public void EmitProcsScript_NullBaseDirectory_DoesNotThrowOrShowError()
+        {
+            // EmitProcsScript loads 6c_name_ via ConfigDataFilename (Path.Combine(BaseDirectory, ...)) ->
+            // ArgumentNullException when BaseDirectory is null, and U.LoadDicResource -> IsRequiredFileExist
+            // shows a dialog + Debug.Assert on a missing file. Load6cNameDicSafe must degrade to an EMPTY
+            // dict (loop 2 contributes nothing; loop 1 still emits) instead of throwing/asserting headless.
+            var savedRom = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            var savedServices = CoreState.Services;
+            var spy = new ThrowOnDialogServices();
+            try
+            {
+                var rom = CreateTestRom(0x8000);
+                CoreState.BaseDirectory = null; // unconfigured / headless
+                CoreState.Services = spy;
+
+                uint procsOff = 0x1000;
+                PlantMinimalProcs(rom, procsOff);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                    }
+                };
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitProcsScript(rom, list, ldrmap));
+                Assert.Null(ex); // no ArgumentNullException, no Debug.Assert dialog/throw.
+                Assert.Equal(0, spy.ShowErrorCount); // never surfaced UI.
+                // The ldrmap loop still emits (config dict empty -> "Procs " prefix fallback).
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.PROCS && a.Addr == procsOff);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBaseDir;
+                CoreState.Services = savedServices;
+            }
+        }
+
+        [Fact]
+        public void EmitProcsScript_PresentButUnreadableConfig_DoesNotThrowOrShowError()
+        {
+            // File.Exists is true but the read fails (exclusive lock). U.LoadDicResource's catch would call
+            // CoreState.Services.ShowError; Load6cNameDicSafe inlines the parse under a UI-free swallow. A
+            // VERSIONED ROM is used so ConfigDataFilename("6c_name_", rom) resolves the planted ...ALL.txt
+            // (a CreateTestRom has a null RomInfo -> ConfigDataFilename would NRE inside the swallow before
+            // ever reaching the locked file, which wouldn't exercise the lock-swallow path).
+            var savedRom = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            var savedServices = CoreState.Services;
+            string baseDir = null;
+            FileStream exclusiveLock = null;
+            var spy = new ThrowOnDialogServices();
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                baseDir = MakeTempConfigBaseDirFor("6c_name_", "0x08001000=Something\n");
+                CoreState.BaseDirectory = baseDir;
+                CoreState.Services = spy;
+                exclusiveLock = new FileStream(
+                    Path.Combine(baseDir, "config", "data", "6c_name_ALL.txt"),
+                    FileMode.Open, FileAccess.Read, FileShare.None);
+
+                uint procsOff = 0x1000;
+                PlantMinimalProcs(rom, procsOff);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(procsOff), ldr_data_address = 0x2000, ldr_address = 0x2100,
+                    }
+                };
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitProcsScript(rom, list, ldrmap));
+                Assert.Null(ex);                  // swallowed the IOException — no throw.
+                Assert.Equal(0, spy.ShowErrorCount); // never surfaced UI.
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.PROCS && a.Addr == procsOff);
+            }
+            finally
+            {
+                exclusiveLock?.Dispose();
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBaseDir;
+                CoreState.Services = savedServices;
+                if (baseDir != null) try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        // Build a temp config/data dir with a <type>ALL.txt (the ConfigDataFilename ALL fallback) so the
+        // headless-safe loader's File.Exists pre-check passes; returns the temp BaseDirectory.
+        static string MakeTempConfigBaseDirFor(string type, string content)
+        {
+            string baseDir = Path.Combine(Path.GetTempPath(), "feb_procs_" + Guid.NewGuid().ToString("N"));
+            string dataDir = Path.Combine(baseDir, "config", "data");
+            Directory.CreateDirectory(dataDir);
+            File.WriteAllText(Path.Combine(dataDir, type + "ALL.txt"), content);
+            return baseDir;
         }
     }
 }
