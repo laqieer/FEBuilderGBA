@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Core.Tests
                 Write32(rom, ri.event_ballte_talk_pointer, Ptr(tableBase));
 
                 // Row 0: unit id 0x10, special-event pointer at +12 -> a script.
-                rom.Data[tableBase + 0] = 0x10;
+                rom.write_u8(tableBase + 0, 0x10);
                 uint script = 0x00921000u;
                 Write32(rom, tableBase + 12, Ptr(script));
                 rom.write_u32(script + 0, 0x0000000A); // ENDA
@@ -187,7 +187,7 @@ namespace FEBuilderGBA.Core.Tests
                 var ri = rom.RomInfo;
                 uint tableBase = 0x00920000u;
                 Write32(rom, ri.event_ballte_talk_pointer, Ptr(tableBase));
-                rom.Data[tableBase + 0] = 0x10;
+                rom.write_u8(tableBase + 0, 0x10);
                 Write32(rom, tableBase + 12, 0x00000000u); // NULL event pointer -> not isSafetyPointer
                 rom.write_u16(tableBase + 16, 0xFFFF);     // terminator
 
@@ -213,7 +213,7 @@ namespace FEBuilderGBA.Core.Tests
                 uint tableBase = 0x00930000u;     // block 12, PI {8}
                 Write32(rom, ri.event_haiku_pointer, Ptr(tableBase));
 
-                rom.Data[tableBase + 0] = 0x10;   // unit id
+                rom.write_u8(tableBase + 0, 0x10); // unit id
                 uint script = 0x00931000u;
                 Write32(rom, tableBase + 8, Ptr(script));  // event pointer at +8
                 rom.write_u32(script + 0, 0x0000000A);     // ENDA
