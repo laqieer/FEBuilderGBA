@@ -1001,11 +1001,12 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void EmitGraphicsToolLZ77At_Cancelled_StopsAfterFirstEmit()
+        public void EmitGraphicsToolLZ77At_PreCancelled_EmitsNothing()
         {
+            // The scan checks ct at the TOP of each iteration, so a pre-cancelled token returns before
+            // any emission (responsive cancellation, not "after the first emit").
             var rom = CreateTestRom(0x8000);
             uint borderline = 0x1000;
-            // Two distinct valid images at two scan slots.
             uint imageA = 0x2000, imageB = 0x3000;
             WriteLz77Image(rom, imageA, 32);
             WriteLz77Image(rom, imageB, 32);
@@ -1013,11 +1014,24 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u32(0x0404, Ptr(imageB));
 
             var cts = new CancellationTokenSource();
-            cts.Cancel(); // pre-cancelled: the loop emits the first match then returns.
+            cts.Cancel(); // pre-cancelled: the loop returns before the first iteration's body.
             var list = new List<Address>();
             RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
                 new Dictionary<uint, bool>(), borderline, cts.Token);
-            Assert.True(list.Count(a => a.DataType == Address.DataTypeEnum.LZ77IMG) <= 1);
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_TinyRom_DoesNotThrow_EmitsNothing()
+        {
+            // A sub-0x104-byte buffer has no scannable slot; the early-size guard prevents the
+            // (uint)(Data.Length-4) underflow that would otherwise blow up the loop bound.
+            var rom = CreateTestRom(0x80);
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), compressBorderline: 0x40));
+            Assert.Null(ex);
+            Assert.Empty(list);
         }
 
         [Fact]
@@ -1040,30 +1054,44 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void EmitGraphicsToolLZ77_OnFe8_DoesNotThrow_WithPlantedBattleAnimeTable()
+        public void EmitGraphicsToolLZ77_BattleAnimeFrame_IsAddedToIgnoreSet_AndNotEmitted()
         {
-            // Exercise MakeBattleFrameAndOAMDictionary's N_-table walk against a real RomInfo
-            // (image_battle_animelist_pointer) by planting a small valid N_ table.
+            // Observable proof that MakeBattleFrameAndOAMDictionary's N_-table walk populates the ignore
+            // set: plant a valid LZ77 image at an N_ entry's frame pointer (+16). The N_ entry itself sits
+            // in the scan range and its +16 slot is a 0x08-tagged pointer to that image — so WITHOUT the
+            // ignore set the scan WOULD emit it. With the battle-anime builder it is ignored.
             var saved = CoreState.ROM;
             try
             {
                 var fe8 = MakeVersionedRom("BE8E01");
                 CoreState.ROM = fe8;
-                uint listPtr = fe8.RomInfo.image_battle_animelist_pointer; // RomInfo slot
-                uint nTable = 0x00A00000u;
+                uint borderline = fe8.RomInfo.compress_image_borderline_address; // FE8U = 0xDB000
+                uint listPtr = fe8.RomInfo.image_battle_animelist_pointer;        // RomInfo slot
+                uint nTable = 0x00A00000u;        // 4-padded, in-range
+                uint frameImage = 0x00E00000u;    // 4-padded, >= borderline
                 fe8.write_u32(U.toOffset(listPtr), Ptr(nTable));
-                // one entry (block 32): the 3 IsDataExists pointers at +12/+20/+24 + 5 LZ77 ptrs.
-                for (uint off = 0; off < 32; off += 4) fe8.write_u32(nTable + off, Ptr(0x00B00000u + off));
-                // terminator entry: all-zero -> IsDataExists false.
+                // one valid entry (block 32): IsDataExists needs pointers at +12/+20/+24; +16 is the frame.
+                for (uint off = 0; off < 32; off += 4) fe8.write_u32(nTable + off, Ptr(0x00C00000u + off));
+                fe8.write_u32(nTable + 16, Ptr(frameImage)); // frame pointer -> the planted image
+                // terminator entry: all-zero -> IsDataExists false (stops the N_ count at 1).
                 for (uint off = 0; off < 32; off += 4) fe8.write_u32(nTable + 32 + off, 0);
+                WriteLz77Image(fe8, frameImage, 32);
 
-                var ignore = new Dictionary<uint, bool>();
-                var ex = Record.Exception(() =>
-                    RebuildProducerCore.EmitGraphicsToolLZ77(fe8, new List<Address>()));
-                Assert.Null(ex);
-                // Direct builder coverage: the 5 entry pointers land in the ignore set.
-                // (Re-run the builder via the public path already did; assert the table walk reached them.)
-                Assert.True(U.isSafetyOffset(U.toOffset(listPtr) + 3, fe8));
+                Assert.True(frameImage >= borderline, "frameImage must be past the compress borderline");
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitGraphicsToolLZ77(fe8, list);
+                // The frame image was put in the ignore set by the battle-anime builder -> never emitted.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG
+                                                 && a.Addr == frameImage);
+
+                // Control: with an EMPTY ignore set the SAME ROM DOES emit frameImage (proving the
+                // suppression above is the ignore set, not some other filter rejecting the candidate).
+                var control = new List<Address>();
+                RebuildProducerCore.EmitGraphicsToolLZ77At(fe8, control,
+                    new Dictionary<uint, bool>(), borderline);
+                Assert.Contains(control, a => a.DataType == Address.DataTypeEnum.LZ77IMG
+                                              && a.Addr == frameImage);
             }
             finally { CoreState.ROM = saved; }
         }

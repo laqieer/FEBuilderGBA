@@ -10593,10 +10593,13 @@ namespace FEBuilderGBA
         }
 
         /// <summary>VERBATIM port of <c>SoundFootStepsForm.MakeIgnoreDictionary</c>: add the foot-steps
-        /// data pointer to the ignore set so its LZ77 payload is not mistaken for a free image.</summary>
+        /// data pointer to the ignore set so its LZ77 payload is not mistaken for a free image.
+        /// EOF-HARDENING (beyond WF): the guard checks the slot's FULL u32 extent (+3) before the Core
+        /// <c>p32</c> read, since Core <c>p32</c> THROWS past EOF (WF's <c>isSafetyOffset</c> only checked
+        /// the slot's first byte).</summary>
         static void MakeSoundFootStepsIgnoreDictionary(ROM rom, Dictionary<uint, bool> dic)
         {
-            if (!U.isSafetyOffset(rom.RomInfo.sound_foot_steps_data_pointer, rom))
+            if (!U.isSafetyOffset(rom.RomInfo.sound_foot_steps_data_pointer + 3, rom))
             {
                 return;
             }
@@ -10606,11 +10609,19 @@ namespace FEBuilderGBA
 
         /// <summary>VERBATIM port of <c>WorldMapPointForm.MakeIgnoreDictionary</c>. NOTE the WF guard is on
         /// <c>sound_foot_steps_data_pointer</c> (not worldmap_scroll_somedata_pointer) — reproduced exactly,
-        /// quirk and all — then the worldmap-scroll-somedata pointer is added to the ignore set.</summary>
+        /// quirk and all — then the worldmap-scroll-somedata pointer is added to the ignore set.
+        /// EOF-HARDENING (beyond WF): Core <c>p32</c> THROWS on an out-of-range read, so even though the WF
+        /// guard checks the foot-steps slot, we additionally verify the worldmap-scroll slot's own full u32
+        /// extent before reading it — a trimmed/corrupt ROM with an in-bounds foot-steps slot but an
+        /// out-of-bounds worldmap slot would otherwise crash the producer.</summary>
         static void MakeWorldMapPointIgnoreDictionary(ROM rom, Dictionary<uint, bool> dic)
         {
             if (!U.isSafetyOffset(rom.RomInfo.sound_foot_steps_data_pointer, rom))
             {
+                return;
+            }
+            if (!U.isSafetyOffset(rom.RomInfo.worldmap_scroll_somedata_pointer + 3, rom))
+            {//worldmap slot's u32 would read past EOF — skip (WF would crash on Core p32 here).
                 return;
             }
             uint pointer = rom.p32(rom.RomInfo.worldmap_scroll_somedata_pointer);
@@ -10715,10 +10726,24 @@ namespace FEBuilderGBA
             // WF: MakeIgnoreDictionnaryFromList(ignoreDic, list) — every already-tracked address is ignored.
             MakeIgnoreDictionnaryFromList(ignoreDic, list);
 
+            // EOF guard: the scan reads rom.Data[addr+3] from addr=0x100, so a ROM smaller than 0x104
+            // bytes has no scannable slot. (Also prevents `(uint)Data.Length - 4` underflowing for a
+            // sub-4-byte buffer, which would make the loop bound enormous and the first read throw.)
+            if (rom.Data.Length < 0x104)
+            {
+                return;
+            }
+
             string name = R._("圧縮データ");
             uint length = (uint)rom.Data.Length - 4;
             for (uint addr = 0x100; addr < length; addr += 4)
             {
+                // Per-iteration cancellation (WF DoEvents was per-iteration too): keep the scan responsive
+                // even on a long run where no candidate passes the filters. Returns the partial list.
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
                 uint a = (uint)rom.Data[addr + 3];
                 if (a != 0x08 && a != 0x09)
                 {//ignore non-pointers.
