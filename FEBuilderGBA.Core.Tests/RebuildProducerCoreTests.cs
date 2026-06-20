@@ -5305,8 +5305,10 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Single(list);
                 Assert.Same(sentinel, list[0]);
 
+                // null! — intentionally pass null to the non-nullable param to validate "does not throw"
+                // for the unused ROM argument (the (x, rom) emitter signature parity); keep it CS8625-free.
                 var ex = Record.Exception(() =>
-                    RebuildProducerCore.EmitEventUnitReserveUnits(null, list));
+                    RebuildProducerCore.EmitEventUnitReserveUnits(null!, list));
                 Assert.Null(ex);
                 Assert.Single(list);
             }

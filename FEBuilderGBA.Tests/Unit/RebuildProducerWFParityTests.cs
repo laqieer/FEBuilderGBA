@@ -190,17 +190,21 @@ namespace FEBuilderGBA.Tests.Unit
         /// per-entry <c>"NEW EVENT UNIT COORD &lt;i&gt;"</c>). So filtering the WF producer list by
         /// <c>Info.StartsWith("NEW EVENT UNIT")</c> and asserting count==0 directly proves the no-op safe.
         /// </para>
-        /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree;
-        /// present in the user's main checkout, found by walking up to a root that has BOTH the solution
-        /// AND the ROM).</para>
+        /// <para>NO-ROM EARLY-EXIT (reported as Pass): requires <c>roms/FE8U.gba</c> (gitignored — absent
+        /// in CI / the worktree; present in the user's main checkout, found by walking up to a root that
+        /// has BOTH the solution AND the ROM). This project has no SkippableFact package, so — exactly like
+        /// the sibling <see cref="CoreProducer_IsSubsetOf_WinFormsProducer_ForAllPortedForms"/> harness —
+        /// the no-ROM guards <c>return;</c> early and xUnit reports the test as Pass (a silent early-exit,
+        /// NOT a true "skipped" outcome). The empirical proof is therefore only ENFORCED where the ROM is
+        /// present (the user's main checkout, run locally before this slice merged).</para>
         /// </summary>
         [Fact]
         public void WinFormsProducer_EmitsNoReserveUnitEntries_OnLoadedRom()
         {
             string? repoRoot = FindRepoRootWithRom();
-            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — skip
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
             string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
-            if (!File.Exists(romPath)) return; // SKIP-IF-NO-ROM (gitignored, absent in CI)
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
 
             string savedBaseDir = CoreState.BaseDirectory;
             try
@@ -210,8 +214,8 @@ namespace FEBuilderGBA.Tests.Unit
                 BootstrapWinFormsProgram(repoRoot);
 
                 bool loaded = Program.LoadROM(romPath, "");
-                if (!loaded || Program.ROM == null) return; // skip if the ROM did not load
-                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
 
                 // The full WF data-path producer (the parity reference). It DOES call
                 // EventUnitForm.RecycleReserveUnits(ref list) at U.cs:2485.
