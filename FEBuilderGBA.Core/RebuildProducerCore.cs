@@ -160,6 +160,15 @@ namespace FEBuilderGBA
             /// value MATCHES (ImageCGFE7U: <c>u16(addr+2) == 0</c> — entries are 16-byte-aligned so the
             /// padding u16 at +2 stays 0 within the table).</summary>
             U16EqualAt,
+            /// <summary><c>ImageItemIconForm.Init</c> rule: continue while <c>i &lt;= itemMax</c>, where
+            /// <c>itemMax = GetIconMax(rom)</c> (the item-icon SHEET count). <c>GetIconMax</c> is a pure-ROM
+            /// inspection reproduced VERBATIM in <see cref="GetIconMax"/> (a repoint check via
+            /// <c>p32(icon_pointer) != icon_orignal_address</c> -&gt; 0xFE; an FE7U-specific FEditorAdv
+            /// AutoPatch probe at the hardcoded magic addr <c>u32(0xCB51A) == 0x18404902</c> -&gt;
+            /// <c>icon_orignal_max - 1</c>; else <c>icon_orignal_max</c>). The <c>&lt;=</c> means count =
+            /// itemMax + 1. EOF-hardened on the two raw reads (<c>p32(icon_pointer)</c> /
+            /// <c>u32(0xCB51A)</c>).</summary>
+            ItemIconMaxRule,
         }
 
         /// <summary>How a <see cref="SubWalk"/> reproduces the per-entry embedded-data
@@ -916,6 +925,21 @@ namespace FEBuilderGBA
                     EmitFE8SpellMenuExtends(rom, list);
                 }
 
+                // ---- slice 2t: ImagePortraitForm (FE8 + FE7 call sites) ----
+                // WF calls ImagePortraitForm.MakeAllDataLength in BOTH the version==8 and version==7 branches
+                // (the version==6 branch uses ImagePortraitFE6Form — wired into the v6 branch below). The main
+                // IFR "Portrait" {0,4,8,12,16} + the per-entry RecyclePortrait (FACE LZ77/IMG/HALFBODY by
+                // header byte, MAP FACE / PAL / MOUTH / CLASS CARD) — IsHalfBodyFlag is a pure-ROM
+                // u32(seet)==0x00200400 inspection. Same emitter both versions (the FE8-only halfbody branch
+                // is internally version-gated). Its own cancel-check mirrors the WF DoEvents posture.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImagePortrait");
+                EmitImagePortrait(rom, list);
+
                 // ---- slice 2k: WorldMapImageForm + ImageCGForm (FE8) ----
                 // WF (version==8) calls WorldMapImageForm.MakeAllDataLength and ImageCGForm.MakeAllDataLength
                 // UNCONDITIONALLY within the version==8 branch (NOT multibyte-gated). EmitWorldMapImageFE8 is
@@ -991,6 +1015,18 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE7");
                 EmitWorldMapImageFE7(rom, list);
+
+                // ---- slice 2t: ImagePortraitForm (FE7 path) ----
+                // WF calls ImagePortraitForm.MakeAllDataLength in the version==7 branch too (same emitter as
+                // the v8 path; the halfbody FACE branch is internally gated on version==8 so it never fires
+                // on FE7). Its own cancel-check mirrors the WF DoEvents posture.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImagePortrait");
+                EmitImagePortrait(rom, list);
 
                 // ---- slice 2r: SoundRoomForm (FE7 path) ----
                 // WF calls SoundRoomForm.MakeAllDataLength in the version==7 branch too; the FE7 path ADDS
@@ -1078,6 +1114,18 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("UnitFE6");
                 EmitUnitFE6(rom, list);
+
+                // ---- slice 2t: ImagePortraitFE6Form (FE6 path) ----
+                // WF calls ImagePortraitFE6Form.MakeAllDataLength in the version==6 branch (a distinct, simpler
+                // form: null-run cap 10, no halfbody, FACE LZ77 / MAP FACE IMG@+4 / PAL@+8). Its own
+                // cancel-check mirrors the WF DoEvents posture.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImagePortraitFE6");
+                EmitImagePortraitFE6(rom, list);
             }
 
             // Surface — never silently drop — the statics this slice does not yet cover.
@@ -4126,6 +4174,285 @@ namespace FEBuilderGBA
             return rom.p32(slot);
         }
 
+        /// <summary>
+        /// <c>ImagePortraitForm.MakeAllDataLength</c> (slice 2t, FE8 + FE7 call sites). Reproduces the
+        /// WinForms <c>Init</c> walk (base <c>p32(portrait_pointer)</c>, block <c>portrait_datasize</c>, the
+        /// stateful <c>nullContinuousCount</c>/<c>FEditorHint</c> IsDataExists), the main "Portrait" IFR
+        /// Address (pointerIndexes <c>{0,4,8,12,16}</c>), and the per-entry <c>RecyclePortrait</c>. The
+        /// per-entry FACE column has THREE branches (LZ77IMG when <c>u8(seet)==0x10</c>; a fixed IMG
+        /// 0x4+0x2000 "HALFBODY" when <c>version==8 &amp;&amp; IsHalfBodyFlag(seet)</c>; else a fixed IMG
+        /// 0x4+0x1000), and the PAL column emits at a DIFFERENT offset/length/type for halfbody (+0 len 0x40
+        /// IMG) vs normal (+8 len 0x20 PAL) — neither expressible by the flat SubWalk loop, hence a dedicated
+        /// emitter. The per-entry <c>info</c> labels use a static "Portrait:0x.." prefix (WF appends a
+        /// getString-decoded name — cosmetic / relocation-identical; the <c>ItemWeaponEffect</c> precedent).
+        /// EOF-safe: the IsDataExists reads (+0/+4/+8) are bounded by getBlockDataCount's
+        /// <c>addr+blocksize&lt;=Length</c> guard (block 20 &gt; +8+4), and every per-entry Add* helper
+        /// re-checks pointer safety. The producer is always a defragment scan, so LZ77 lengths are computed
+        /// (the WF <c>isPointerOnly</c> flag is fixed to <c>false</c>, matching every sibling emitter).
+        /// </summary>
+        public static void EmitImagePortrait(ROM rom, List<Address> list)
+        {
+            EmitPortraitTable(rom, list, "Portrait",
+                new uint[] { 0, 4, 8, 12, 16 }, nullLimit: 1000, RecyclePortrait);
+        }
+
+        /// <summary>
+        /// <c>ImagePortraitFE6Form.MakeAllDataLength</c> (slice 2t, FE6 call site). Same shape as
+        /// <see cref="EmitImagePortrait"/> but: the main IFR is "PortraitFE6" with pointerIndexes
+        /// <c>{0,4,8}</c>; the null-run terminator cap is <b>10</b> (not 1000); and the per-entry
+        /// <c>RecyclePortrait</c> is the simpler FE6 form (FACE = LZ77IMG @+0; MAP FACE = fixed IMG @+4 len
+        /// <c>mapface(32×32)/2 = 0x200</c>; PAL = fixed PAL @+8 len 0x20 — no header-byte branch, no
+        /// halfbody). Reproduced VERBATIM (pure-ROM; the FE6 <c>IsHalfBodyFlag</c> path does not exist).
+        /// </summary>
+        public static void EmitImagePortraitFE6(ROM rom, List<Address> list)
+        {
+            EmitPortraitTable(rom, list, "PortraitFE6",
+                new uint[] { 0, 4, 8 }, nullLimit: 10, RecyclePortraitFE6);
+        }
+
+        /// <summary>Shared driver for the three ImagePortrait* forms: reproduce the WinForms
+        /// <c>InputFormRef.Init</c> walk (the stateful nullContinuousCount + FEditorHint IsDataExists), emit
+        /// the main IFR Address (length = block × (count+1), pointer = portrait_pointer if safe else
+        /// NOT_FOUND — matching <c>AddressWinForms.AddAddress</c>), then run the per-form per-entry recycle.
+        /// The <paramref name="nullLimit"/> is the form's null-run cutoff (FE7/FE8 = 1000, FE6 = 10).</summary>
+        static void EmitPortraitTable(ROM rom, List<Address> list, string mainName,
+            uint[] pointerIndexes, int nullLimit, Action<ROM, List<Address>, string, uint> recycle)
+        {
+            uint basePointer = rom.RomInfo.portrait_pointer;
+            uint block = rom.RomInfo.portrait_datasize;
+            // block == 0 would make getBlockDataCount spin (addr += 0); a zero datasize is a descriptor
+            // bug, not data — bail (WF's InputFormRef never has a 0 BlockSize here).
+            if (block == 0)
+            {
+                return;
+            }
+            // baseAddr = p32(portrait_pointer). ROM.p32 returns 0 for addr >= Data.Length but the underlying
+            // u32 throws when portrait_pointer is within 3 bytes of EOF; full-extent-guard the read and fall
+            // back to p32's own 0-return (a 0 baseAddr -> getBlockDataCount returns 0, AddAddress bails).
+            uint basePointerOffset = U.toOffset(basePointer);
+            uint baseAddr = (basePointerOffset + 4 <= (uint)rom.Data.Length) ? rom.p32(basePointer) : 0;
+
+            // InputFormRef.Init: FEditorHint = GetFEditorLengthHint(p32(portrait_pointer)); the per-walk
+            // nullContinuousCount is captured per call (a closure over a local, exactly as WF's lambda).
+            uint feditorHint = GetFEditorLengthHint(rom, baseAddr);
+            int nullContinuousCount = 0;
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                // VERBATIM ImagePortraitForm.Init IsDataExists (FE6 differs only in nullLimit).
+                if (i <= 0)
+                {
+                    return true;
+                }
+                // 0/4/8 がポインタであればデータがあると考える. (block >= 20 guarantees +8+4 is in bounds.)
+                uint u0 = rom.u32(addr + 0);
+                uint u4 = rom.u32(addr + 4);
+                uint u8 = rom.u32(addr + 8);
+                if (U.isPointerOrNULL(u0) && U.isPointerOrNULL(u4) && U.isPointerOrNULL(u8))
+                {
+                    if (u0 == 0 && u4 == 0 && u8 == 0)
+                    {//NULLデータ. 怪しいがとりあえずOK
+                        nullContinuousCount++;
+                        if (nullContinuousCount >= nullLimit)
+                        {//NULLデータが連続して nullLimit 個出てきたら打ち切る.
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        nullContinuousCount = 0;
+                    }
+                    return true;
+                }
+                if (feditorHint != U.NOT_FOUND && i < feditorHint)
+                {//不明なデータではあるがFEditorがあるというので信用する.
+                    nullContinuousCount = 0;
+                    return true;
+                }
+                return false;
+            });
+
+            // AddressWinForms.AddAddress: addr = BaseAddress; length = block*(count+1); pointer =
+            // BasePointer if safe else NOT_FOUND. AddAddress emits the main IFR ONLY when baseAddr is a safe
+            // offset (it bails otherwise); the per-entry RecyclePortrait loop in MakeAllDataLength runs
+            // REGARDLESS (over the same DataCount). Reproduced VERBATIM (an unsafe baseAddr yields a 0-count
+            // walk -> no per-entry emits anyway, but the ordering matches WF exactly).
+            if (U.isSafetyOffset(baseAddr, rom))
+            {
+                uint length = block * (dataCount + 1);
+                uint pointer = U.isSafetyOffset(basePointer, rom) ? basePointer : U.NOT_FOUND;
+                list.Add(new Address(baseAddr, length, pointer, mainName,
+                    Address.DataTypeEnum.InputFormRef, block, pointerIndexes));
+            }
+
+            // Per-entry recycle, over the SAME dataCount (WF loops i<DataCount, addr += BlockSize).
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string name = "Portrait:" + U.To0xHexString(i);
+                recycle(rom, list, name, p);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImagePortraitForm.IsHalfBodyFlag</c>: a portrait sheet is a
+        /// half-body extended sheet iff <c>u32(seet) == 0x00200400</c>. Pure-ROM; the dereference is
+        /// full-extent-guarded (WF guards <c>isSafetyOffset(seet+4)</c> too).</summary>
+        static bool IsHalfBodyFlag(ROM rom, uint unitFace)
+        {
+            unitFace = U.toOffset(unitFace);
+            if (!U.isSafetyOffset(unitFace + 4, rom))
+            {
+                return false;
+            }
+            uint faceHeader = rom.u32(unitFace);
+            return (faceHeader == 0x00200400);
+        }
+
+        /// <summary>VERBATIM port of <c>ImagePortraitForm.RecyclePortrait</c> (FE7/FE8): the per-entry
+        /// FACE/MAP-FACE/PAL/MOUTH/CLASS-CARD columns behind the portrait entry's +0/+4/+8/+12/+16 pointer
+        /// fields. FACE is LZ77 / IMG / HALFBODY by header byte; PAL emits at +0 (IMG 0x40) on halfbody or
+        /// +8 (PAL 0x20) otherwise. (parts_width=32, parts_height=16 -> MOUTH = (32/2)*16*6 = 0x600.)
+        /// The producer is always a defragment scan, so the WF <c>isPointerOnly</c> LZ77 arg is fixed
+        /// <c>false</c> (real getCompressedSize lengths), matching every sibling emitter.</summary>
+        static void RecyclePortrait(ROM rom, List<Address> list, string basename, uint portraitAddr)
+        {
+            const bool isPointerOnly = false;
+            const uint parts_width = 8 * 4;
+            const uint parts_height = 8 * 2;
+            if (!U.isSafetyOffset(portraitAddr, rom))
+            {
+                return;
+            }
+            uint seetImage = rom.p32(portraitAddr + 0);
+            uint mapFace = rom.p32(portraitAddr + 4);
+            uint paletteFace = rom.p32(portraitAddr + 8);
+            uint mouthFace = rom.p32(portraitAddr + 12);
+            uint classFace = rom.p32(portraitAddr + 16);
+            bool isHalfBodyExtends = false;
+
+            if (U.isSafetyOffset(seetImage, rom))
+            {
+                isHalfBodyExtends = (rom.RomInfo.version == 8 && IsHalfBodyFlag(rom, seetImage));
+
+                uint header00 = rom.u8(seetImage);
+                if (header00 == 0x10)
+                {//圧縮ヘッダがるので圧縮されてる
+                    Address.AddLZ77Pointer(list, portraitAddr + 0, basename + "FACE",
+                        isPointerOnly, Address.DataTypeEnum.LZ77IMG);
+                }
+                else if (isHalfBodyExtends)
+                {//HalfBody
+                    Address.AddPointer(list, portraitAddr + 0, 0x4 + 0x2000,
+                        basename + "FACE HALFBODY", Address.DataTypeEnum.IMG);
+                }
+                else
+                {//無圧縮 FE7 FE8 FE8U
+                    Address.AddPointer(list, portraitAddr + 0, 0x4 + 0x1000,
+                        basename + "FACE", Address.DataTypeEnum.IMG);
+                }
+            }
+            if (U.isSafetyOffset(mapFace, rom))
+            {
+                Address.AddLZ77Pointer(list, portraitAddr + 4, basename + "MAP FACE",
+                    isPointerOnly, Address.DataTypeEnum.LZ77IMG);
+            }
+            if (U.isSafetyOffset(paletteFace, rom))
+            {
+                if (isHalfBodyExtends)
+                {//HalfBody
+                    Address.AddPointer(list, portraitAddr + 0, 0x40,
+                        basename + "PAL HALFBODY", Address.DataTypeEnum.IMG);
+                }
+                else
+                {
+                    Address.AddPointer(list, portraitAddr + 8, 0x20,
+                        basename + "PAL", Address.DataTypeEnum.PAL); //16色パレット
+                }
+            }
+            if (U.isSafetyOffset(mouthFace, rom))
+            {
+                Address.AddPointer(list, portraitAddr + 12, (parts_width / 2) * parts_height * 6,
+                    basename + "MOUTH", Address.DataTypeEnum.IMG);
+            }
+            if (U.isSafetyOffset(classFace, rom))
+            {
+                Address.AddLZ77Pointer(list, portraitAddr + 16, basename + "CLASS CARD",
+                    isPointerOnly, Address.DataTypeEnum.LZ77IMG);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImagePortraitFE6Form.RecyclePortrait</c>: the FE6 per-entry columns
+        /// behind +0/+4/+8 (FACE = LZ77IMG; MAP FACE = fixed IMG @+4 len <c>mapface(32×32)/2 = 0x200</c>;
+        /// PAL = fixed PAL @+8 len 0x20). No header-byte branch, no halfbody. The producer is always a
+        /// defragment scan, so the WF <c>isPointerOnly</c> LZ77 arg is fixed <c>false</c>.</summary>
+        static void RecyclePortraitFE6(ROM rom, List<Address> list, string basename, uint portraitAddr)
+        {
+            const bool isPointerOnly = false;
+            const uint mapface_width = 4 * 8;
+            const uint mapface_height = 4 * 8;
+            if (!U.isSafetyOffset(portraitAddr, rom))
+            {
+                return;
+            }
+            uint a0 = rom.p32(portraitAddr + 0);
+            uint a4 = rom.p32(portraitAddr + 4);
+            uint a8 = rom.p32(portraitAddr + 8);
+            //顔画像は圧縮されている.
+            if (U.isSafetyOffset(a0, rom))
+            {
+                Address.AddLZ77Pointer(list, portraitAddr + 0, basename + "FACE",
+                    isPointerOnly, Address.DataTypeEnum.LZ77IMG);
+            }
+            if (U.isSafetyOffset(a4, rom))
+            {
+                Address.AddPointer(list, portraitAddr + 4, mapface_width * mapface_height / 2,
+                    basename + "MAP FACE", Address.DataTypeEnum.IMG); //(/2は16色のため)
+            }
+            if (U.isSafetyOffset(a8, rom))
+            {
+                Address.AddPointer(list, portraitAddr + 8, 0x20,
+                    basename + "PAL", Address.DataTypeEnum.PAL); //16色パレット
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImageItemIconForm.GetIconMax</c>: the item-icon SHEET count.
+        /// Returns 0xFE when the icon table has been repointed (<c>p32(icon_pointer) !=
+        /// icon_orignal_address</c>); on FE7U (version 7, non-multibyte) probes the hardcoded FEditorAdv
+        /// AutoPatch magic at <c>u32(0xCB51A)</c> — if it equals <c>0x18404902</c> the autopatch occupies one
+        /// icon slot, so the count is <c>icon_orignal_max - 1</c>; otherwise returns <c>icon_orignal_max</c>.
+        /// Pure-ROM; both raw reads are EOF-hardened (a near-EOF / tiny synthetic ROM never throws — the WF
+        /// reads are unconditional but only reached on a real FE7U ROM large enough to hold them).</summary>
+        static uint GetIconMax(ROM rom)
+        {
+            // ImageItemIconForm.GetIconMax: repoint check `p32(icon_pointer) != icon_orignal_address`.
+            // ROM.p32 already toOffsets + short-circuits addr >= Data.Length to 0, but the underlying u32
+            // throws when icon_pointer is within 3 bytes of EOF; full-extent-guard the read and fall back to
+            // p32's own 0-return so the comparison VALUE is identical to WF (0 vs icon_orignal_address).
+            uint iconPointerOffset = U.toOffset(rom.RomInfo.icon_pointer);
+            uint iconValue = (iconPointerOffset + 4 <= (uint)rom.Data.Length)
+                ? rom.p32(rom.RomInfo.icon_pointer) : 0;
+            if (iconValue != rom.RomInfo.icon_orignal_address)
+            {//リポイント済み
+                return 0xFE;
+            }
+            if (rom.RomInfo.version == 7)
+            {
+                if (rom.RomInfo.is_multibyte == false)
+                {//FE7Uでは、アイテムアイコンの中にFEditorAdv AutoPatchのデータがある
+                    // The WF magic addr 0xCB51A is unconditional; EOF-guard it for tiny synthetic ROMs.
+                    if (0xCB51A + 4 <= (uint)rom.Data.Length)
+                    {
+                        uint code = rom.u32(0xCB51A);
+                        if (code == 0x18404902)
+                        {//そのため、FE7UでFEditorAdv AutoPatchがあれば、個数は一つ下げる
+                            return rom.RomInfo.icon_orignal_max - 1;
+                        }
+                    }
+                }
+            }
+
+            return rom.RomInfo.icon_orignal_max;
+        }
+
         /// <summary>VERBATIM port of <c>InputFormRef.GetFEditorLengthHint</c>: the FEditor-Adv list-length
         /// hint stored 4 bytes BEFORE <paramref name="dataOffset"/>. Gated on the config option
         /// <c>func_lookup_feditor</c> (default "0" = None -> always NOT_FOUND; the same default the WF
@@ -6891,6 +7218,13 @@ namespace FEBuilderGBA
                         // ImageCGFE7UForm.Init verbatim: continue while u16(addr+RuleOffset) == StopValue.
                         return rom.u16(addr + d.RuleOffset) == (ushort)d.RuleStopValue;
                     };
+                case DataCountRule.ItemIconMaxRule:
+                {
+                    // ImageItemIconForm.Init verbatim: itemMax = GetIconMax() read ONCE in Init; the
+                    // per-entry rule is `i <= itemMax` (so count = itemMax + 1).
+                    uint itemMax = GetIconMax(rom);
+                    return (i, addr) => i <= itemMax;
+                }
                 default:
                     // An unhandled DataCountRule is a PROGRAMMING ERROR (a bad/new descriptor),
                     // not a 0-entry table. Returning always-false would silently emit a 1-block
@@ -7190,6 +7524,21 @@ namespace FEBuilderGBA
                     new SubWalk { EmbeddedPointerOffset = 12, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "BattleTerrain 0x" + U.ToHexString((int)i) },
                     new SubWalk { EmbeddedPointerOffset = 16, Kind = SubKind.FixedPointer, FixedLength = 0x20 * 1, DataType = Address.DataTypeEnum.PAL, Name = (r, i) => "BattleTerrain 0x" + U.ToHexString((int)i) },
                 },
+            });
+
+            // ImageItemIconForm.MakeAllDataLength (slice 2t) — Info "ItemIcon", block 128
+            // ((2*8*2*8)/2, 16-color icon sheet), base icon_pointer, IsDataExists = `i <= GetIconMax()`
+            // (ItemIconMaxRule), pointerIndexes {} (empty — the icon SHEET has no embedded LZ77 image or
+            // palette pointers to relocate; the palette lives at the separate icon_palette_pointer). NO
+            // SubWalks. Version-agnostic call site (WF line 2453, unconditional). GetIconMax is a verbatim
+            // pure-ROM port (repoint -> 0xFE; FE7U FEditorAdv AutoPatch probe at 0xCB51A -> max-1).
+            l.Add(new StructDescriptor
+            {
+                Name = "ItemIcon",
+                PointerField = r => r.RomInfo.icon_pointer,
+                BlockSize = (2 * 8 * 2 * 8) / 2,
+                Rule = DataCountRule.ItemIconMaxRule,
+                PointerIndexes = new uint[] { },
             });
 
             // ImageUnitWaitIconFrom.MakeAllDataLength — Info "WaitUnitIcon", block 8, base
@@ -8801,14 +9150,23 @@ namespace FEBuilderGBA
                 //   pointer-verified), Palette ptr + per GetRomAnimePalettePointerListCount entry PAL
                 //   (2*16, with the COMMONPALETTE / framePointer<0x100 / else fallbacks). All pure-ROM
                 //   walks, no Drawing/disasm. ImageTSAAnimeForm ported alongside it — see above.)
-                //    ImagePortraitForm — IsHalfBodyFlag runtime header inspection (+ ImagePortraitFE6Form
-                //      has a stateful nullContinuousCount terminator + GetFEditorLengthHint).
-                //    ImageItemIconForm — out of slice scope: a flat 128-byte icon-SHEET IFR (no LZ77
-                //      image / palette to relocate) whose count rule reads a hardcoded FE7U magic addr.
+                //    (ImagePortraitForm + ImagePortraitFE6Form + ImageItemIconForm PORTED in slice 2t:
+                //      ImageItemIconForm — a flat 128-byte icon-SHEET StructDescriptor (base icon_pointer,
+                //        block (2*8*2*8)/2, rule ItemIconMaxRule = `i <= GetIconMax()`, pointerIndexes {});
+                //        GetIconMax is the verbatim pure-ROM count (repoint -> 0xFE; FE7U FEditorAdv
+                //        AutoPatch probe at the hardcoded 0xCB51A -> max-1; else icon_orignal_max).
+                //      ImagePortraitForm [FE8 + FE7] — EmitImagePortrait (shared EmitPortraitTable): the main
+                //        "Portrait" IFR {0,4,8,12,16} (the stateful nullContinuousCount>=1000 + GetFEditor
+                //        LengthHint IsDataExists, pure-ROM) + per-entry RecyclePortrait (FACE LZ77/IMG/
+                //        HALFBODY by header byte — IsHalfBodyFlag = u32(seet)==0x00200400, version==8-gated;
+                //        MAP FACE / PAL@+8-or-+0-halfbody / MOUTH / CLASS CARD). The per-entry info name is
+                //        STATIC ("Portrait:0x..") — WF appends a getString-decoded name (cosmetic /
+                //        relocation-identical; the ItemWeaponEffect precedent).
+                //      ImagePortraitFE6Form [FE6] — EmitImagePortraitFE6 (same driver, nullContinuousCount>=10,
+                //        pointerIndexes {0,4,8}, simpler RecyclePortraitFE6: FACE LZ77 / MAP FACE IMG@+4 /
+                //        PAL@+8; no halfbody). See GetNotYetPortedForms_DropsSlice2tForms.)
                 //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
-                "ImageItemIconForm",
-                "ImagePortraitForm",
                 "MapMiniMapTerrainImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],

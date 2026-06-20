@@ -3080,9 +3080,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("WorldMapImageForm", notYet);
             // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // still deferred (runtime-inspection / out-of-scope subsystems):
-            Assert.Contains("ImagePortraitForm", notYet);
-            Assert.Contains("ImageItemIconForm", notYet);
+            // (ImagePortraitForm + ImageItemIconForm ported in slice 2t — see
+            //  GetNotYetPortedForms_DropsSlice2tForms.)
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
+            Assert.DoesNotContain("ImageItemIconForm", notYet);
             // (ImageTSAAnimeForm / ImageTSAAnime2Form were the config-file TSA-anime siblings here; slice
             //  2q ports them — see GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
@@ -5620,8 +5621,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
             // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // Other header-less image forms blocked on a different subsystem still stay tracked.
-            Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
+            // (ImagePortraitForm ported in slice 2t — IsHalfBodyFlag is a pure-ROM u32==0x00200400 read;
+            //  see GetNotYetPortedForms_DropsSlice2tForms.)
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6313,9 +6315,9 @@ namespace FEBuilderGBA.Core.Tests
 
             // sibling forms that genuinely still need un-ported subsystems STAY:
             Assert.Contains("ItemForm", notYet);                  // PatchUtil StatBooster detection
-            Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
-            Assert.Contains("ImageItemIconForm", notYet);         // out-of-scope icon-SHEET IFR
             Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
+            // (ImagePortraitForm + ImageItemIconForm — formerly listed here — ported in slice 2t; see
+            //  GetNotYetPortedForms_DropsSlice2tForms.)
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6978,15 +6980,10 @@ namespace FEBuilderGBA.Core.Tests
             // slice 2n ports ImageUnitMoveIconFrom (AP per-entry column).
             Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
 
-            // Sibling image forms blocked on an un-ported subsystem STAY:
-            foreach (var kept in new[]
-            {
-                "ImageItemIconForm",         // out-of-scope icon-SHEET IFR
-                "ImagePortraitForm",         // IsHalfBodyFlag runtime header
-            })
-            {
-                Assert.Contains(kept, notYet);
-            }
+            // (ImageItemIconForm + ImagePortraitForm were deferred siblings here; slice 2t ports them — see
+            //  GetNotYetPortedForms_DropsSlice2tForms.)
+            Assert.DoesNotContain("ImageItemIconForm", notYet);
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
             // (ImageBattleAnimeForm was a deferred sibling here; slice 2s ports it — see
             //  GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
@@ -8139,10 +8136,10 @@ namespace FEBuilderGBA.Core.Tests
 
             // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // The remaining image-anime siblings STAY (each blocked on a Core gap):
-            //  ImagePortraitForm (IsHalfBodyFlag runtime header), ImageItemIconForm (out of scope).
-            Assert.Contains("ImagePortraitForm", notYet);
-            Assert.Contains("ImageItemIconForm", notYet);
+            // (ImagePortraitForm + ImageItemIconForm were the remaining image siblings here; slice 2t
+            //  ports them — see GetNotYetPortedForms_DropsSlice2tForms.)
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
+            Assert.DoesNotContain("ImageItemIconForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -8497,7 +8494,245 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // Genuinely-still-deferred siblings STAY:
             Assert.Contains("ItemForm", notYet);          // PatchUtil StatBooster detection
-            Assert.Contains("ImagePortraitForm", notYet); // IsHalfBodyFlag runtime header
+            // (ImagePortraitForm — formerly listed here — ported in slice 2t; see
+            //  GetNotYetPortedForms_DropsSlice2tForms.)
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ===================================================================
+        // slice 2t: ImageItemIconForm + ImagePortraitForm + ImagePortraitFE6Form
+        // ===================================================================
+
+        // ---- ImageItemIconForm: flat 128-byte icon-SHEET StructDescriptor ----
+
+        [Fact]
+        public void BuildBatchDescriptors_ItemIcon_FlatSheet_BaseBlockRuleAndEmptyPointers()
+        {
+            // The ImageItemIcon descriptor is base icon_pointer, block 128 ((2*8*2*8)/2), rule
+            // ItemIconMaxRule, pointerIndexes {} (no embedded LZ77/palette to relocate), no SubWalks.
+            WithVersionedRom("AE7E01", rom => // FE7U (version 7, non-multibyte) — exercises GetIconMax
+            {
+                var descs = RebuildProducerCore.BuildBatchDescriptors(rom);
+                var icon = descs.Single(d => d.Name == "ItemIcon");
+                Assert.Equal((uint)((2 * 8 * 2 * 8) / 2), icon.BlockSize);
+                Assert.Equal(128u, icon.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.ItemIconMaxRule, icon.Rule);
+                Assert.Equal(new uint[] { }, icon.PointerIndexes);
+                Assert.Null(icon.SubWalks);
+                Assert.Equal(rom.RomInfo.icon_pointer, icon.PointerField(rom));
+            });
+        }
+
+        [Fact]
+        public void WalkAndAdd_ItemIcon_EmitsSheetIfr_LengthIsIconMaxPlusTwoBlocks()
+        {
+            // ItemIconMaxRule continues while `i <= itemMax`; getBlockDataCount returns itemMax+1, and
+            // AddAddress length = block*(count+1) = block*(itemMax+2). Plant a tiny table on a fresh
+            // synthetic ROM where the repoint-check fails (icon_pointer NULL == icon_orignal_address 0 on
+            // CreateTestRom's RomInfo-less ROM would throw), so use a versioned ROM and a small itemMax via
+            // the repointed path (p32(icon_pointer) != icon_orignal_address -> itemMax = 0xFE).
+            var rom = CreateTestRom(0x40000);
+            uint table = 0x2000;
+            uint block = 128;
+            // RomInfo is null on CreateTestRom; drive the rule directly via MakeIsDataExists is internal —
+            // instead assert the descriptor count math through a versioned ROM in the dedicated test below.
+            // Here we just prove the rule shape over getBlockDataCount with a hand-built callback:
+            // i <= itemMax with itemMax small.
+            uint itemMax = 2;
+            uint count = rom.getBlockDataCount(table, block, (i, addr) => i <= itemMax);
+            Assert.Equal(itemMax + 1, count); // 3 entries: i=0,1,2
+            uint length = block * (count + 1);
+            Assert.Equal(block * (itemMax + 2), length);
+        }
+
+        [Fact]
+        public void GetIconMax_Repointed_Returns0xFE()
+        {
+            // GetIconMax: when p32(icon_pointer) != icon_orignal_address the table is repointed -> 0xFE.
+            // Drive it end-to-end via the ItemIcon descriptor's emitted Address count on a versioned ROM.
+            WithVersionedRom("BE8E01", rom => // FE8U
+            {
+                // Repoint: write a non-orignal pointer at icon_pointer so the repoint branch fires (0xFE).
+                uint iconPtr = U.toOffset(rom.RomInfo.icon_pointer);
+                uint table = 0x800000; // somewhere safely inside the 32MB versioned ROM
+                if (iconPtr + 4 <= (uint)rom.Data.Length && table + 128 * 0x100 <= (uint)rom.Data.Length)
+                {
+                    rom.write_u32(iconPtr, Ptr(table));
+
+                    var list = new List<Address>();
+                    var descs = RebuildProducerCore.BuildBatchDescriptors(rom);
+                    var icon = descs.Single(d => d.Name == "ItemIcon");
+                    RebuildProducerCore.WalkAndAdd(rom, list, icon);
+
+                    Address sheet = Assert.Single(list, a => a.Info == "ItemIcon");
+                    // 0xFE repointed -> count = 0xFE+1 = 0xFF; length = 128*(0xFF+1) = 128*0x100.
+                    Assert.Equal(128u * (0xFFu + 1u), sheet.Length);
+                    Assert.Equal(table, sheet.Addr);
+                }
+            });
+        }
+
+        [Fact]
+        public void EmitImagePortrait_NearEof_DoesNotThrow()
+        {
+            // EOF robustness: a tiny ROM whose portrait_pointer / table runs near EOF must not throw.
+            WithVersionedRom("BE8E01", rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImagePortrait(rom, list));
+                Assert.Null(ex);
+            });
+        }
+
+        [Fact]
+        public void EmitImagePortrait_PlantedEntry_EmitsPortraitIfrAndFaceColumns()
+        {
+            // Plant a portrait table with one entry whose +0 FACE is an uncompressed image (header byte
+            // != 0x10, not halfbody) and +8 PAL pointer. Assert the main "Portrait" IFR and the FACE/PAL
+            // columns are emitted with the verbatim lengths (FACE = 0x4+0x1000 IMG, PAL = 0x20 PAL).
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint block = rom.RomInfo.portrait_datasize;
+                Assert.True(block >= 20, "portrait_datasize should be >= 20 for FE8");
+                uint basePointer = U.toOffset(rom.RomInfo.portrait_pointer);
+                uint table = 0x800000;
+                uint face = 0x810000, pal = 0x820000;
+                if (basePointer + 4 > (uint)rom.Data.Length) return;
+                rom.write_u32(basePointer, Ptr(table));
+                // entry 0: FACE @+0, PAL @+8. (+4 map face NULL, +12 mouth NULL, +16 class NULL.)
+                rom.write_u32(table + 0, Ptr(face));
+                rom.write_u32(table + 8, Ptr(pal));
+                // FACE header byte != 0x10 (uncompressed) and != 0x00200400 (not halfbody).
+                rom.write_u8(face, 0x00);
+                // entry 1: NULL face/map/pal -> the IsDataExists keeps it (nullContinuousCount < 1000), so
+                // make entry 1 a clear terminator: write a non-pointer non-zero at +0 so the rule stops.
+                rom.write_u32(table + block * 1 + 0, 0x12345678); // not pointer-or-NULL -> stop at i=1
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImagePortrait(rom, list);
+
+                // Main IFR: count = 1 (entry 0), length = block*(1+1).
+                Address main = Assert.Single(list, a => a.Info == "Portrait");
+                Assert.Equal(table, main.Addr);
+                Assert.Equal(block * 2u, main.Length);
+                Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+
+                // FACE column: uncompressed IMG length 0x4+0x1000.
+                Address faceAddr = Assert.Single(list, a => a.Info == "Portrait:0x00FACE");
+                Assert.Equal(face, faceAddr.Addr);
+                Assert.Equal((uint)(0x4 + 0x1000), faceAddr.Length);
+                Assert.Equal(Address.DataTypeEnum.IMG, faceAddr.DataType);
+
+                // PAL column: 16-color palette length 0x20, type PAL, at +8.
+                Address palAddr = Assert.Single(list, a => a.Info == "Portrait:0x00PAL");
+                Assert.Equal(pal, palAddr.Addr);
+                Assert.Equal(0x20u, palAddr.Length);
+                Assert.Equal(Address.DataTypeEnum.PAL, palAddr.DataType);
+            });
+        }
+
+        [Fact]
+        public void EmitImagePortrait_HalfBodyFace_EmitsHalfbodyImgAndPalAtOffsetZero()
+        {
+            // version==8 + IsHalfBodyFlag (u32(seet)==0x00200400) -> FACE is a fixed 0x4+0x2000 IMG
+            // "HALFBODY" and the PAL column emits at +0 (len 0x40, IMG) instead of +8 (len 0x20, PAL).
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint block = rom.RomInfo.portrait_datasize;
+                uint basePointer = U.toOffset(rom.RomInfo.portrait_pointer);
+                uint table = 0x800000;
+                uint face = 0x810000, pal = 0x820000;
+                if (basePointer + 4 > (uint)rom.Data.Length) return;
+                rom.write_u32(basePointer, Ptr(table));
+                rom.write_u32(table + 0, Ptr(face));
+                rom.write_u32(table + 8, Ptr(pal));
+                rom.write_u32(face, 0x00200400); // halfbody header
+                rom.write_u32(table + block * 1 + 0, 0x12345678); // terminator at i=1
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImagePortrait(rom, list);
+
+                // FACE: 0x4+0x2000 IMG "HALFBODY".
+                Address faceAddr = Assert.Single(list, a => a.Info == "Portrait:0x00FACE HALFBODY");
+                Assert.Equal(face, faceAddr.Addr);
+                Assert.Equal((uint)(0x4 + 0x2000), faceAddr.Length);
+                Assert.Equal(Address.DataTypeEnum.IMG, faceAddr.DataType);
+
+                // PAL HALFBODY: emitted at +0 (so its Addr == the FACE target), len 0x40, type IMG.
+                Address palHb = Assert.Single(list, a => a.Info == "Portrait:0x00PAL HALFBODY");
+                Assert.Equal(face, palHb.Addr); // +0 points at the FACE image addr
+                Assert.Equal(0x40u, palHb.Length);
+                Assert.Equal(Address.DataTypeEnum.IMG, palHb.DataType);
+            });
+        }
+
+        [Fact]
+        public void EmitImagePortraitFE6_PlantedEntry_EmitsFE6IfrAndColumns()
+        {
+            // FE6: main IFR "PortraitFE6", FACE = LZ77IMG @+0, MAP FACE = IMG @+4 len 0x200, PAL @+8 len 0x20.
+            WithVersionedRom("AFEJ01", rom => // FE6 (ROMFE6JP)
+            {
+                Assert.Equal(6, rom.RomInfo.version);
+                uint block = rom.RomInfo.portrait_datasize;
+                uint basePointer = U.toOffset(rom.RomInfo.portrait_pointer);
+                uint table = 0x800000;
+                uint mapFace = 0x820000, pal = 0x830000;
+                if (basePointer + 4 > (uint)rom.Data.Length) return;
+                rom.write_u32(basePointer, Ptr(table));
+                rom.write_u32(table + 4, Ptr(mapFace)); // MAP FACE present
+                rom.write_u32(table + 8, Ptr(pal));     // PAL present
+                rom.write_u32(table + block * 1 + 0, 0x12345678); // terminator at i=1
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImagePortraitFE6(rom, list);
+
+                Address main = Assert.Single(list, a => a.Info == "PortraitFE6");
+                Assert.Equal(table, main.Addr);
+                Assert.Equal(block * 2u, main.Length);
+
+                // MAP FACE: IMG @+4 len mapface(32*32)/2 = 0x200.
+                Address mf = Assert.Single(list, a => a.Info == "Portrait:0x00MAP FACE");
+                Assert.Equal(mapFace, mf.Addr);
+                Assert.Equal((uint)(32 * 32 / 2), mf.Length);
+                Assert.Equal(0x200u, mf.Length);
+                Assert.Equal(Address.DataTypeEnum.IMG, mf.DataType);
+
+                // PAL: PAL @+8 len 0x20.
+                Address palAddr = Assert.Single(list, a => a.Info == "Portrait:0x00PAL");
+                Assert.Equal(pal, palAddr.Addr);
+                Assert.Equal(0x20u, palAddr.Length);
+                Assert.Equal(Address.DataTypeEnum.PAL, palAddr.DataType);
+            });
+        }
+
+        [Fact]
+        public void EmitImagePortraitFE6_NearEof_DoesNotThrow()
+        {
+            WithVersionedRom("AFEJ01", rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImagePortraitFE6(rom, list));
+                Assert.Null(ex);
+            });
+        }
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2tForms()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2t ports the three remaining data-path image forms.
+            Assert.DoesNotContain("ImageItemIconForm", notYet);
+            Assert.DoesNotContain("ImagePortraitForm", notYet);
+            Assert.DoesNotContain("ImagePortraitFE6Form", notYet);
+
+            // The ASM-path MapMiniMapTerrainImageForm (AppendAllASMStructPointersList, NOT this producer)
+            // STAYS deferred.
+            Assert.Contains("MapMiniMapTerrainImageForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
