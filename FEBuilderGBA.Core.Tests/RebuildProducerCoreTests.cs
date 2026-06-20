@@ -7783,6 +7783,83 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitSkillConfigFE8NVer2At_EmissionOrder_N1N2N3_Icon_ThenN4()
+        {
+            // WF SkillConfigFE8NVer2SkillForm.MakeAllDataLength :1100-1128 emits N1, N2, N3, SkillIcon, N4
+            // (the icon is interleaved BETWEEN N3 and the optional N4). Lock the ORDER for entry 0.
+            var rom = CreateTestRom(0x10000);
+            uint skillBaseP = 0x0400, skillTable = 0x1000;
+            uint iconListSize = 20; // block 20 -> N4 emitted.
+            rom.write_u32(skillBaseP, Ptr(skillTable));
+            rom.write_u8(skillTable + 0 * 20, 0x10);
+            rom.write_u8(skillTable + 1 * 20, 0xFF); // 1 entry then terminator.
+            // valid N1..N4 pointers @ +4/+8/+12/+16.
+            uint nbase = 0x2000;
+            for (uint k = 0; k < 4; k++)
+            {
+                uint np = nbase + k * 0x10;
+                rom.write_u32(skillTable + 0 * 20 + 4 + k * 4, Ptr(np));
+                rom.write_u8(np, (byte)(0x05 + k)); rom.write_u8(np + 1, 0x00);
+            }
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, iconListSize);
+
+            // Pull the indices of the entry-0 rows in emission order.
+            int iUnit = list.FindIndex(a => a.Info == "SkillUnit:0x00");
+            int iClass = list.FindIndex(a => a.Info == "SkillClass:0x00");
+            int iItem = list.FindIndex(a => a.Info == "SkillItem:0x00");
+            int iIcon = list.FindIndex(a => a.Info == "SkillIcon:0x00");
+            int iItem2 = list.FindIndex(a => a.Info == "SkillItem2:0x00");
+            Assert.True(iUnit >= 0 && iClass >= 0 && iItem >= 0 && iIcon >= 0 && iItem2 >= 0);
+            // N1 < N2 < N3 < Icon < N4.
+            Assert.True(iUnit < iClass);
+            Assert.True(iClass < iItem);
+            Assert.True(iItem < iIcon);
+            Assert.True(iIcon < iItem2);
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer3At_EmissionOrder_AllNestedBeforeIcon()
+        {
+            // WF SkillConfigFE8NVer3SkillForm.MakeAllDataLength :1097-1123 emits N1..N5 BEFORE the icon.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint skillBaseP = 0x0400, skillTable = 0x600;
+                uint iconListSize = 24;
+                rom.write_u32(skillBaseP, Ptr(skillTable));
+                rom.write_u8(skillTable + 0 * 24, 0x10);
+                rom.write_u8(skillTable + 1 * 24, 0xFF);
+                uint nbase = 0x900;
+                for (uint k = 0; k < 5; k++)
+                {
+                    uint np = nbase + k * 0x10;
+                    rom.write_u32(skillTable + 0 * 24 + 4 + k * 4, Ptr(np));
+                    rom.write_u8(np, (byte)(0x05 + k)); rom.write_u8(np + 1, 0x00);
+                }
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigFE8NVer3At(rom, list, skillBaseP, 0, iconListSize);
+
+                int iComplex = list.FindIndex(a => a.Info == "SkillComplex:0x00"); // N5 (last nested).
+                int iIcon = list.FindIndex(a => a.Info == "SkillIcon:0x00");
+                Assert.True(iComplex >= 0 && iIcon >= 0);
+                Assert.True(iComplex < iIcon); // ALL nested before the icon.
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
         public void EmitSkillConfigFE8NVer2At_Block24_Pi12NotPi16_ButN4StillEmitted()
         {
             // WF asymmetry: the main pointerIndexes use `ifr.BlockSize == 20` (so block 24 -> {4,8,12}, NOT

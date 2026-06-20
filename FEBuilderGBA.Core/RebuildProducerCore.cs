@@ -6667,10 +6667,14 @@ namespace FEBuilderGBA
                 }
             }
 
-            // Per-entry N1..N4 nested IFRs + SkillIcon IMG. WF walks addr = ifr.BaseAddress (== baseAddr),
-            // icon = p32(g_SkillBaseAddress) (== baseAddr's source), i < dataCount, addr += block,
-            // icon += 128.
+            // Per-entry N1..N3 nested IFRs, THEN SkillIcon IMG, THEN (optionally) N4 — the EXACT WF
+            // SkillConfigFE8NVer2SkillForm.MakeAllDataLength :1100-1128 emission ORDER. WF walks
+            // addr = ifr.BaseAddress (== baseAddr), icon = p32(g_SkillBaseAddress) (== baseAddr), i <
+            // dataCount, addr += block, icon += 128. NOTE: unlike Ver3 (N1..N5 then icon), Ver2 emits the
+            // ICON between N3 and the OPTIONAL N4 (ifr_n4 != null), so the slots are emitted inline here
+            // rather than via the shared EmitSkillUnitClassItemNested (which would place N4 before the icon).
             bool hasN4 = iconListSize >= 20;
+            Func<int, uint, bool> nRule = (j, addr) => rom.u8(addr) != 0;
             uint iconWalk = baseAddr; // WF: icon = p32(g_SkillBaseAddress) == baseAddr.
             uint entryAddr = baseAddr;
             for (uint i = 0; i < dataCount; i++, entryAddr += block, iconWalk += SkillIconDataCount)
@@ -6679,11 +6683,21 @@ namespace FEBuilderGBA
                 {//WF: if (!isSafetyOffset(addr)) break;
                     break;
                 }
-                EmitSkillUnitClassItemNested(rom, list, entryAddr, i, hasN4 ? 4 : 3, false);
+                // N1 (unit) @+4, N2 (class) @+8, N3 (item) @+12 — block-1 nested IFRs (rule u8!=0).
+                EmitNestedIfrSub(rom, list, entryAddr + 4, 1, nRule, "SkillUnit:" + U.To0xHexString(i));
+                EmitNestedIfrSub(rom, list, entryAddr + 8, 1, nRule, "SkillClass:" + U.To0xHexString(i));
+                EmitNestedIfrSub(rom, list, entryAddr + 12, 1, nRule, "SkillItem:" + U.To0xHexString(i));
 
-                // SkillIcon IMG (length 128) at icon. WF AddAddress(icon, 128, NOT_FOUND, name, IMG).
+                // SkillIcon IMG (length 128) at icon — BEFORE N4 (WF order). AddAddress(icon, 128, NOT_FOUND,
+                // name, IMG).
                 Address.AddAddress(list, iconWalk, SkillIconDataCount, U.NOT_FOUND,
                     "SkillIcon:" + U.To0xHexString(i), Address.DataTypeEnum.IMG);
+
+                // N4 (item2) @+16 — only when ifr_n4 != null (g_ICON_LIST_SIZE >= 20), emitted AFTER the icon.
+                if (hasN4)
+                {
+                    EmitNestedIfrSub(rom, list, entryAddr + 16, 1, nRule, "SkillItem2:" + U.To0xHexString(i));
+                }
             }
         }
 
@@ -6781,31 +6795,26 @@ namespace FEBuilderGBA
                 {
                     break;
                 }
-                // N1..N5 (unit/class/item/item2/complex) @ +4/+8/+12/+16/+20.
-                EmitSkillUnitClassItemNested(rom, list, entryAddr, i, 5, true);
+                // N1..N5 (unit/class/item/item2/complex) @ +4/+8/+12/+16/+20, THEN the SkillIcon — the EXACT
+                // WF SkillConfigFE8NVer3SkillForm.MakeAllDataLength :1097-1123 ORDER (Ver3 emits ALL five
+                // nested IFRs BEFORE the icon, unlike Ver2 which interleaves the icon between N3 and N4).
+                EmitSkillVer3UnitClassItemNested(rom, list, entryAddr, i);
 
                 Address.AddAddress(list, iconWalk, SkillIconDataCount, U.NOT_FOUND,
                     "SkillIcon:" + U.To0xHexString(i), Address.DataTypeEnum.IMG);
             }
         }
 
-        /// <summary>Shared per-entry nested unit/class/item(/item2/complex) list emitter for the Ver2/Ver3
-        /// skill-config forms. Reproduces the WF <c>N{1..5}_Init</c> block-1 IFRs (each
-        /// <c>ReInitPointer(addr + 4*k)</c>, rule <c>u8(addr) != 0</c>) emitted via
-        /// <see cref="EmitNestedIfrSub"/>. <paramref name="count"/> selects how many slots to emit (Ver2: 3
-        /// or 4; Ver3: 5). Names: "SkillUnit", "SkillClass", "SkillItem", then "SkillItem2" + "SkillComplex"
-        /// (when <paramref name="ver3Naming"/>) or "SkillItem2" (Ver2 N4). The embedded pointers are at
-        /// <c>entryAddr + 4</c>, <c>+8</c>, <c>+12</c>, <c>+16</c>, <c>+20</c>.</summary>
-        static void EmitSkillUnitClassItemNested(ROM rom, List<Address> list, uint entryAddr,
-            uint index, int count, bool ver3Naming)
+        /// <summary>Ver3 per-entry nested unit/class/item/item2/complex list emitter. Reproduces the WF
+        /// <c>N{1..5}_Init</c> block-1 IFRs (each <c>ReInitPointer(addr + 4*k)</c>, rule <c>u8(addr) != 0</c>)
+        /// emitted via <see cref="EmitNestedIfrSub"/> in order N1..N5 at <c>entryAddr + 4/8/12/16/20</c>.
+        /// (Ver2 does NOT use this — its icon is interleaved between N3 and the optional N4, so its slots are
+        /// emitted inline in <see cref="EmitSkillConfigFE8NVer2At"/>.)</summary>
+        static void EmitSkillVer3UnitClassItemNested(ROM rom, List<Address> list, uint entryAddr, uint index)
         {
-            // Names for slots 1..5 (the WF N1..N5 AddAddress info prefixes).
-            string[] names = ver3Naming
-                ? new[] { "SkillUnit:", "SkillClass:", "SkillItem:", "SkillItem2:", "SkillComplex:" }
-                : new[] { "SkillUnit:", "SkillClass:", "SkillItem:", "SkillItem2:" };
-
+            string[] names = { "SkillUnit:", "SkillClass:", "SkillItem:", "SkillItem2:", "SkillComplex:" };
             Func<int, uint, bool> rule = (j, addr) => rom.u8(addr) != 0;
-            for (int k = 0; k < count && k < names.Length; k++)
+            for (int k = 0; k < names.Length; k++)
             {
                 uint pfield = entryAddr + (uint)(4 * (k + 1)); // +4, +8, +12, +16, +20
                 EmitNestedIfrSub(rom, list, pfield, 1, rule, names[k] + U.To0xHexString(index));
