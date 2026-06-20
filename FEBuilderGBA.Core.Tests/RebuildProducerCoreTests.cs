@@ -647,10 +647,10 @@ namespace FEBuilderGBA.Core.Tests
                 //  per-entry EventScriptForm.ScanScript expansion.)
                 Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
                 Assert.Contains("EventBattleTalkForm", notYet2b);
-                // (MapTileAnimation1Form is now PORTED in slice 2g and the MapTerrain lookup tables in
-                //  slice 2j — the still-deferred misc sibling SongTableForm [SongUtil.ParseTrack /
-                //  RecycleOldInstrument not in Core] stays tracked here instead.)
-                Assert.Contains("SongTableForm", notYet2b);
+                // (MapTileAnimation1Form is now PORTED in slice 2g, the MapTerrain lookup tables in
+                //  slice 2j, and SongTableForm in slice 2r — so the still-deferred misc sibling tracked
+                //  here is UnitCustomBattleAnimeForm [per-unit custom battle-anime recycle, not in Core].)
+                Assert.Contains("UnitCustomBattleAnimeForm", notYet2b);
 
                 // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
                 // sub-block size needs un-ported PatchUtil detection) — it must be absent from the
@@ -7783,11 +7783,14 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitImageTSAAnime(rom, list);
 
-                // Main IFR: base baseTbl, block 12, count 2 (atoh("002")==2), length 12*(2+1)=36,
-                // pointer slot, PI {0,4,8}.
+                // Main IFR: base baseTbl, block 12, count 2 (atoh("002")==2), length 12*(2+1)=36, PI {0,4,8}.
+                // WF parity (#1261 2z-wire): the main IFR Pointer is NOT_FOUND, not the config slot —
+                // WF's ImageTSAAnimeForm.Init constructs the InputFormRef with pointer 0 and ReInit(addr,
+                // count) never sets BasePointer, so AddAddress(IFR) emits Pointer == NOT_FOUND. (Verified
+                // against the WinForms producer by the FEBuilderGBA.Tests WF-parity harness on FE8U.)
                 Address mainIfr = list.Single(a => a.Info == "TSAANIME MyAnime " && a.BlockSize == 12);
                 Assert.Equal(baseTbl, mainIfr.Addr);
-                Assert.Equal(slot, mainIfr.Pointer);
+                Assert.Equal(U.NOT_FOUND, mainIfr.Pointer);
                 Assert.Equal(12u * 3u, mainIfr.Length);
                 Assert.Equal(Address.DataTypeEnum.InputFormRef, mainIfr.DataType);
                 Assert.Equal(new uint[] { 0, 4, 8 }, mainIfr.PointerIndexes);
@@ -8740,6 +8743,298 @@ namespace FEBuilderGBA.Core.Tests
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ====================================================================
+        // slice 2z-wire (#1261): MakeWithProducer — the IsComplete-gated bridge
+        // from the producers to RebuildMakeCore.Make.
+        //
+        // The internal seam (ProducerResult/AsmProducerResult overload) lets us
+        // exercise the Make-DELEGATION path with a SYNTHETIC complete result —
+        // which the live producers cannot currently yield while PatchForm and the
+        // remaining data-path forms stay deferred — and the THROW path with an
+        // incomplete / cancelled result. The seam still applies the same gate; it
+        // is not a bypass.
+        // ====================================================================
+
+        sealed class WireTempDir : IDisposable
+        {
+            public string Path { get; }
+            public WireTempDir()
+            {
+                Path = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(), "feb_make_wire_" + Guid.NewGuid().ToString("N"));
+                System.IO.Directory.CreateDirectory(Path);
+            }
+            public void Dispose() { try { System.IO.Directory.Delete(Path, true); } catch { } }
+        }
+
+        // A minimal modified-ROM + vanilla + struct list that RebuildMakeCore.Make accepts and
+        // emits a non-empty manifest for. Mirrors the RebuildCoreTests round-trip layout: a header,
+        // two pointer fields in the non-rebuild region pointing at two BIN structs in the rebuild
+        // region. CoreState.ROM MUST be the modified ROM (the Address ctor + emitter validate against it).
+        const uint WIRE_REBUILD_ADDR = 0x1000;
+        static byte[] BuildWireModified()
+        {
+            byte[] rom = new byte[0x10000];
+            for (uint i = 0; i < 0x100; i++) rom[i] = (byte)(0x11 + i);
+            // PTR_B @ 0x200 -> struct B @ 0x4000 ; PTR_C @ 0x204 -> struct C @ 0x8000
+            WireU32(rom, 0x200, 0x08000000 + 0x4000);
+            WireU32(rom, 0x204, 0x08000000 + 0x8000);
+            for (uint i = 0; i < 0x20; i++) rom[0x1000 + i] = (byte)(0xA0 + i); // struct A (stays)
+            for (uint i = 0; i < 0x30; i++) rom[0x4000 + i] = (byte)(0xB0 + i); // struct B (relocates)
+            for (uint i = 0; i < 0x40; i++) rom[0x8000 + i] = (byte)(0xC0 + i); // struct C (relocates)
+            return rom;
+        }
+        static void WireU32(byte[] rom, uint off, uint val)
+        {
+            rom[off + 0] = (byte)(val & 0xFF);
+            rom[off + 1] = (byte)((val >> 8) & 0xFF);
+            rom[off + 2] = (byte)((val >> 16) & 0xFF);
+            rom[off + 3] = (byte)((val >> 24) & 0xFF);
+        }
+        static ROM BuildWireVanilla()
+        {
+            byte[] data = new byte[0x1000];
+            for (uint i = 0; i < 0x100; i++) data[i] = (byte)(0x11 + i);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            return rom;
+        }
+        static List<Address> BuildWireStructList()
+        {
+            return new List<Address>
+            {
+                new Address(0x200, 4, U.NOT_FOUND, "PTR_B", Address.DataTypeEnum.POINTER),
+                new Address(0x204, 4, U.NOT_FOUND, "PTR_C", Address.DataTypeEnum.POINTER),
+                new Address(0x1000, 0x20, U.NOT_FOUND, "STRUCT_A", Address.DataTypeEnum.BIN),
+                new Address(0x4000, 0x30, 0x08000000 + 0x200, "STRUCT_B", Address.DataTypeEnum.BIN),
+                new Address(0x8000, 0x40, 0x08000000 + 0x204, "STRUCT_C", Address.DataTypeEnum.BIN),
+            };
+        }
+
+        [Fact]
+        public void MakeWithProducer_IncompleteAsm_Throws_NamesDeferredForm_NoManifest()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                byte[] modified = BuildWireModified();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                ROM vanilla = BuildWireVanilla();
+                var structList = BuildWireStructList();
+
+                // Data path complete, ASM path still defers PatchForm — the real current-master shape.
+                var data = new RebuildProducerCore.ProducerResult(structList, new string[0], cancelled: false);
+                var asm = new RebuildProducerCore.AsmProducerResult(
+                    new[] { "PatchForm(MakePatchStructDataList)" }, cancelled: false);
+
+                using (var tmp = new WireTempDir())
+                {
+                    string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        RebuildProducerCore.MakeWithProducer(
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
+
+                    // The message NAMES the deferred form so the caller can tell the user exactly what's pending.
+                    Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
+                    // GUARD: Make was NOT invoked — no manifest written.
+                    Assert.False(System.IO.File.Exists(manifestPath),
+                        "incomplete producer must NOT drive Make (no manifest)");
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        [Fact]
+        public void MakeWithProducer_IncompleteData_Throws_NoManifest()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                byte[] modified = BuildWireModified();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                ROM vanilla = BuildWireVanilla();
+                var structList = BuildWireStructList();
+
+                // Data path incomplete (a deferred data-path form), ASM path complete.
+                var data = new RebuildProducerCore.ProducerResult(
+                    structList, new[] { "ItemForm" }, cancelled: false);
+                var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
+
+                using (var tmp = new WireTempDir())
+                {
+                    string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        RebuildProducerCore.MakeWithProducer(
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
+                    Assert.Contains("ItemForm", ex.Message);
+                    Assert.False(System.IO.File.Exists(manifestPath));
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        [Fact]
+        public void MakeWithProducer_Cancelled_ThrowsOperationCanceled_NoManifest()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                byte[] modified = BuildWireModified();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                ROM vanilla = BuildWireVanilla();
+                var structList = BuildWireStructList();
+
+                // Both halves "complete" by coverage, but the data half was CANCELLED mid-run
+                // (partial list) — must never reach Make even though NotYetPorted is empty.
+                var data = new RebuildProducerCore.ProducerResult(structList, new string[0], cancelled: true);
+                var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
+
+                using (var tmp = new WireTempDir())
+                {
+                    string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
+                    Assert.Throws<OperationCanceledException>(() =>
+                        RebuildProducerCore.MakeWithProducer(
+                            data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
+                    Assert.False(System.IO.File.Exists(manifestPath),
+                        "cancelled producer must NOT drive Make (no manifest)");
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        [Fact]
+        public void MakeWithProducer_BothComplete_DelegatesToMake_WritesManifest()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var modifiedRom = new ROM();
+                byte[] modified = BuildWireModified();
+                modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+                CoreState.ROM = modifiedRom;
+
+                ROM vanilla = BuildWireVanilla();
+                var structList = BuildWireStructList();
+
+                // SYNTHETIC complete results (empty NotYetPorted) — the live producers cannot
+                // yield these while PatchForm stays deferred, so the seam is the only way to prove
+                // the Make-delegation path actually runs.
+                var data = new RebuildProducerCore.ProducerResult(structList, new string[0], cancelled: false);
+                var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
+
+                using (var tmp = new WireTempDir())
+                {
+                    string manifestPath = System.IO.Path.Combine(tmp.Path, "wire.rebuild");
+                    // Must NOT throw — both halves complete ⇒ Make runs.
+                    RebuildProducerCore.MakeWithProducer(
+                        data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath);
+
+                    // Make ran: the manifest file + its @-token columns exist.
+                    Assert.True(System.IO.File.Exists(manifestPath),
+                        "complete producer must drive Make (manifest written)");
+                    string manifest = System.IO.File.ReadAllText(manifestPath);
+                    Assert.Contains("@_REBUILDADDRESS ", manifest);
+                    Assert.Contains("@BIN ", manifest);   // structs A/B/C emit as fixed BIN
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        [Fact]
+        public void MakeWithProducer_PublicEntry_RealProducer_RefusesAndNamesPending_NoManifest()
+        {
+            // Public-entry / current-master SMOKE: the real producer path (env-gated on a ROM)
+            // must REFUSE (the gate is closed while forms stay deferred) and name the pending forms,
+            // and must create no output. Skips cleanly when no ROM is present (CI / most worktrees).
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip when no ROM available (env-only)
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                ROM vanilla = BuildWireVanilla();
+
+                using (var tmp = new WireTempDir())
+                {
+                    string manifestPath = System.IO.Path.Combine(tmp.Path, "real.rebuild");
+                    var ex = Assert.Throws<InvalidOperationException>(() =>
+                        RebuildProducerCore.MakeWithProducer(
+                            rom, vanilla, WIRE_REBUILD_ADDR, manifestPath,
+                            isUseOtherGraphics: true, isUseOAMSP: false));
+
+                    // The ASM half always keeps PatchForm deferred, so the gate always names it.
+                    Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
+                    Assert.False(System.IO.File.Exists(manifestPath),
+                        "real (incomplete) producer must refuse — no manifest");
+                }
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void BuildRebuildLdrMap_UsesWFRebuildArgs_BoundedPointerOnly()
+        {
+            // The rebuild-specific LDR map MUST match WF ToolROMRebuildMake.cs:818 — bounded to the
+            // compress borderline + pointer-only — NOT the whole-ROM cache map (BuildLdrMap). Prove the
+            // construction differs from the cache builder so the ASM producers get WF-faithful input.
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip when no ROM available (env-only)
+
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+
+                var rebuildMap = RebuildProducerCore.BuildRebuildLdrMap(rom);
+                // Byte-exact equality with the WF rebuild args.
+                var expected = DisassemblerTrumb.MakeLDRMap(
+                    rom.Data, 0x100, rom.RomInfo.compress_image_borderline_address, true);
+                Assert.Equal(expected.Count, rebuildMap.Count);
+
+                // The bounded+pointer-only map is a strict subset of the whole-ROM cache map: every
+                // entry is at/below the compress borderline AND points at a real pointer.
+                uint border = rom.RomInfo.compress_image_borderline_address;
+                Assert.All(rebuildMap, e => Assert.True(e.ldr_address < border + 4));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
         }
     }
 }

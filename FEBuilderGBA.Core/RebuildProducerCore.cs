@@ -2243,9 +2243,16 @@ namespace FEBuilderGBA
                 string basename = "TSAANIME " + U.at(pair.Value, 1) + " ";
 
                 // Main IFR: ReInit(addr, count) -> BaseAddress addr, DataCount count; AddAddress(IFR, ...)
-                // length = block * (count + 1), pointer = BasePointer (= pointer here, safe).
+                // length = block * (count + 1). WF parity (#1261 2z-wire): ImageTSAAnimeForm.Init's
+                // InputFormRef is constructed with pointer arg 0, and ReInit(addr, count) updates ONLY
+                // BaseAddress/DataCount — it never sets BasePointer. So WF's AddAddress(IFR) reads
+                // BasePointer == 0, fails isSafetyOffset, and emits Pointer == NOT_FOUND (verified against
+                // the WinForms producer on FE8U). Emitting the config-table slot pointer here instead
+                // would make the rebuild back-patch a slot WF leaves alone = divergence. Match WF exactly.
+                // (NOTE: EmitImageTSAAnime2's main IFR already uses NOT_FOUND for the same reason; its N1
+                // IFR keeps the slot pointer because WF reaches it via ReInitPointer, which DOES set it.)
                 uint length = block * (count + 1);
-                list.Add(new Address(addr, length, pointer, basename,
+                list.Add(new Address(addr, length, U.NOT_FOUND, basename,
                     Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 4, 8 }));
 
                 for (uint i = 0; i < count; i++, addr += block)
@@ -10503,6 +10510,204 @@ namespace FEBuilderGBA
             }
 
             return new AsmProducerResult(notYet, cancelled: false);
+        }
+
+        // ====================================================================
+        // slice 2z-wire (#1261) — drive RebuildMakeCore.Make from the producers,
+        // GATED on IsComplete.
+        //
+        // CORRUPTION MODEL (why the gate is mandatory): RebuildMakeCore.Make
+        // emits a .rebuild manifest from ONLY the caller-supplied structList.
+        // The rebuild treats every ROM region NOT named in that list as free
+        // and droppable (AsmMapFile.MakeFreeDataList uses the COMPLEMENT of the
+        // listed structs; Make carries only the listed structs into the rebuilt
+        // ROM). So a Make driven by an INCOMPLETE producer silently drops or
+        // mis-types the bytes the producer failed to enumerate = silent ROM
+        // corruption. Therefore MakeWithProducer REFUSES to call Make unless
+        // BOTH the data-path and ASM-path producers report IsComplete (empty
+        // NotYetPorted) — there is intentionally NO --force / bypass: an
+        // incomplete producer must never reach Make.
+        //
+        // Current state: the data-path NotYetPorted (GetNotYetPortedForms) is
+        // non-empty and the ASM-path keeps PatchForm(MakePatchStructDataList)
+        // in AsmNotYetPortedRaw, so the gate is CURRENTLY ALWAYS CLOSED — that
+        // is correct, honest and safe until those subsystems land in Core.
+        // ====================================================================
+
+        /// <summary>
+        /// Build the LDR pointer map exactly as the WinForms ROM-rebuild does
+        /// (<c>ToolROMRebuildMake.Make</c>, <c>ToolROMRebuildMake.cs:818</c>):
+        /// <c>DisassemblerTrumb.MakeLDRMap(Program.ROM.Data, 0x100,
+        /// Program.ROM.RomInfo.compress_image_borderline_address, true)</c> — i.e.
+        /// bounded to the compress-image borderline AND <c>isPointerOnly:true</c>.
+        /// <para>
+        /// This is DISTINCT from <see cref="BuildLdrMap"/>, which reproduces the
+        /// WinForms whole-ROM <i>cache</i> map (<c>AsmMapFileAsmCache.GetLDRMapCache</c>
+        /// = <c>MakeLDRMap(.., 0x100)</c>, unbounded + non-pointer-only). The ASM-path
+        /// producers (<see cref="AppendAllAsmStructPointers"/> → <c>EmitProcsScript</c>/
+        /// <c>EmitOAMSP</c>) iterate the supplied map and emit one <see cref="Address"/>
+        /// per LDR entry, so feeding the broader cache map would emit extra/different
+        /// addresses than WinForms. For a WF-parity-faithful, corruption-safe rebuild the
+        /// ASM half MUST receive THIS rebuild-specific map.
+        /// </para>
+        /// </summary>
+        public static List<DisassemblerTrumb.LDRPointer> BuildRebuildLdrMap(ROM rom)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            return DisassemblerTrumb.MakeLDRMap(
+                rom.Data, 0x100, rom.RomInfo.compress_image_borderline_address, true);
+        }
+
+        /// <summary>
+        /// Run BOTH producers (data-path <see cref="MakeAllStructPointers"/> + ASM-path
+        /// <see cref="AppendAllAsmStructPointers"/>) and, only if BOTH report
+        /// <see cref="ProducerResult.IsComplete"/>/<see cref="AsmProducerResult.IsComplete"/>,
+        /// drive <see cref="RebuildMakeCore.Make"/> to emit the <c>.rebuild</c> manifest.
+        /// Mirrors the WinForms arg-assembly in <c>ToolROMRebuildMake.Make</c>
+        /// (<c>ToolROMRebuildMake.cs</c> L775-827): ldrmap via <see cref="BuildRebuildLdrMap"/>,
+        /// the data list from the data-path producer, the ASM list appended into the SAME list,
+        /// then <see cref="RebuildMakeCore.Make"/>.
+        /// <para>
+        /// <b>COMPLETENESS GATE (corruption-safety).</b> If either producer's
+        /// <c>NotYetPorted</c> is non-empty this throws <see cref="InvalidOperationException"/>
+        /// naming the still-deferred forms and does NOT call Make. Rationale: Make relocates only
+        /// the listed structs and treats every unlisted region as free (free-list = COMPLEMENT of
+        /// the list), so an incomplete list = silently dropped/mis-typed bytes = ROM corruption.
+        /// There is deliberately no bypass. Because PatchForm (and the remaining data-path forms)
+        /// stay deferred, this gate is CURRENTLY ALWAYS CLOSED — the safe, honest default.
+        /// </para>
+        /// <para>
+        /// <b>FORWARD-LOOKING.</b> <see cref="RebuildMakeCore.Make"/> still omits several WinForms
+        /// post-producer phases (<c>AppendLDR</c>, the hardcoded-pointer search, <c>OptimizeList</c>,
+        /// <c>ProcssPointer</c>) — it takes the supplied list as authoritative. That is harmless while
+        /// this gate is closed, but before any future patch OPENS the gate on real ROMs those phases
+        /// need their own completeness proof/gate. Porting them is a separate item, not this wiring slice.
+        /// </para>
+        /// </summary>
+        /// <param name="rom">The loaded ROM to rebuild — MUST be <see cref="CoreState.ROM"/> (the
+        /// producers' <see cref="Address"/> validation is CoreState-bound).</param>
+        /// <param name="vanilla">The unmodified base ROM (<see cref="RebuildMakeCore.Make"/>'s diff base).</param>
+        /// <param name="rebuildAddress">Offset at/after which data is rebuilt.</param>
+        /// <param name="manifestPath">Output <c>.rebuild</c> path (sidecar folders created beside it).</param>
+        /// <param name="isUseOtherGraphics">WF <c>isUseOtherGraphics</c> (gates GraphicsToolForm in the ASM half).</param>
+        /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> (gates OAMSPForm in the ASM half).</param>
+        /// <param name="progress">Optional progress reporter (forwarded to both producers and Make).</param>
+        /// <param name="ct">Cancellation token (a cancelled producer throws <see cref="OperationCanceledException"/>).</param>
+        public static void MakeWithProducer(ROM rom, ROM vanilla, uint rebuildAddress, string manifestPath,
+            bool isUseOtherGraphics, bool isUseOAMSP,
+            IProgress<string> progress = null, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (vanilla == null) throw new ArgumentNullException(nameof(vanilla));
+            if (string.IsNullOrEmpty(manifestPath)) throw new ArgumentNullException(nameof(manifestPath));
+
+            // 1) data-path producer.
+            ProducerResult data = MakeAllStructPointers(rom, progress, ct);
+
+            // 2) ASM-path producer, appended into the SAME list (WF builds one combined list).
+            //    Use the rebuild-specific LDR map (bounded + pointer-only), NOT the whole-ROM cache map.
+            List<DisassemblerTrumb.LDRPointer> ldrmap = BuildRebuildLdrMap(rom);
+            AsmProducerResult asm = AppendAllAsmStructPointers(
+                rom, data.List, ldrmap, isUseOtherGraphics, isUseOAMSP, progress, ct);
+
+            // 3) + 4) gate (cancel + IsComplete) then delegate. The internal seam emits data.List
+            //    itself — the ASM producer above appended into that same list, so the gated result
+            //    and the relocated list are guaranteed identical.
+            MakeWithProducer(
+                data, asm, rom.Data, vanilla, rebuildAddress, manifestPath,
+                romVersion: rom.RomInfo.version,
+                nameResolver: null,
+                eventScriptWithPatch: CoreState.EventScript,
+                eventScriptWithoutPatch: null,
+                aiScript: CoreState.AIScript,
+                procsScript: CoreState.ProcsScript,
+                ct: ct,
+                progress: progress);
+        }
+
+        /// <summary>
+        /// Internal seam (NOT a bypass — it applies the SAME cancel + IsComplete gate): delegates to
+        /// <see cref="RebuildMakeCore.Make"/> from already-built producer results. Exists so a test can
+        /// exercise the Make-delegation path with a synthetic COMPLETE result (empty
+        /// <c>NotYetPorted</c>) — which the live producers cannot currently produce while PatchForm and
+        /// the remaining data-path forms stay deferred — and the throw path with an incomplete result.
+        /// </summary>
+        /// <param name="data">The data-path result; the gate is applied to it AND <see cref="ProducerResult.List"/>
+        /// is the EXACT list emitted to <see cref="RebuildMakeCore.Make"/> — there is no separate list
+        /// parameter, so the gated result and the relocated list can never diverge (Copilot PR #1302 review).
+        /// The ASM-path producer must have appended into this same <c>data.List</c>.</param>
+        /// <param name="asm">The ASM-path result (gated on <see cref="AsmProducerResult.IsComplete"/>).</param>
+        /// <param name="modified">The modified ROM bytes to defragment (was <c>rom.Data</c>).</param>
+        /// <param name="vanilla">The unmodified base ROM.</param>
+        /// <param name="rebuildAddress">Offset at/after which data is rebuilt.</param>
+        /// <param name="manifestPath">Output <c>.rebuild</c> path.</param>
+        /// <param name="romVersion">FE game version forwarded to Make.</param>
+        /// <param name="nameResolver">Optional symbol-name resolver forwarded to Make.</param>
+        /// <param name="eventScriptWithPatch">Optional EVENTSCRIPT (with patch) dict; null -&gt; Make's WildCard.</param>
+        /// <param name="eventScriptWithoutPatch">Optional EVENTSCRIPT (without patch) dict; null -&gt; WildCard.</param>
+        /// <param name="aiScript">Optional AISCRIPT dict; null -&gt; WildCard.</param>
+        /// <param name="procsScript">Optional PROCS dict; null -&gt; WildCard.</param>
+        /// <param name="progress">Optional progress reporter.</param>
+        /// <param name="ct">Cancellation token.</param>
+        internal static void MakeWithProducer(
+            ProducerResult data, AsmProducerResult asm,
+            byte[] modified, ROM vanilla, uint rebuildAddress, string manifestPath,
+            int romVersion = 8,
+            Func<uint, string> nameResolver = null,
+            EventScript eventScriptWithPatch = null,
+            EventScript eventScriptWithoutPatch = null,
+            EventScript aiScript = null,
+            EventScript procsScript = null,
+            IProgress<string> progress = null,
+            CancellationToken ct = default)
+        {
+            if (data == null) throw new ArgumentNullException(nameof(data));
+            if (asm == null) throw new ArgumentNullException(nameof(asm));
+            if (modified == null) throw new ArgumentNullException(nameof(modified));
+            if (vanilla == null) throw new ArgumentNullException(nameof(vanilla));
+            if (data.List == null) throw new ArgumentException("data.List must not be null.", nameof(data));
+            if (string.IsNullOrEmpty(manifestPath)) throw new ArgumentNullException(nameof(manifestPath));
+
+            // CANCEL: a cancelled producer returned a PARTIAL list — never feed it to Make.
+            if (data.Cancelled || asm.Cancelled)
+            {
+                throw new OperationCanceledException(
+                    "ROM rebuild cancelled before the struct producer completed.", ct);
+            }
+
+            // GATE: refuse to Make while EITHER half is incomplete (corruption model above).
+            if (!data.IsComplete || !asm.IsComplete)
+            {
+                var pending = new List<string>();
+                if (data.NotYetPorted != null) pending.AddRange(data.NotYetPorted);
+                if (asm.NotYetPorted != null) pending.AddRange(asm.NotYetPorted);
+                // de-dup (the two halves cross-list some ASM forms) and keep a stable order.
+                var combined = new List<string>();
+                var seen = new HashSet<string>();
+                foreach (string f in pending)
+                {
+                    if (f != null && seen.Add(f)) combined.Add(f);
+                }
+                throw new InvalidOperationException(
+                    "ROM rebuild unavailable: " + combined.Count
+                    + (combined.Count == 1 ? " form not" : " forms not")
+                    + " yet ported to Core: " + string.Join(", ", combined)
+                    + ". Driving RebuildMakeCore.Make from an incomplete producer would drop the "
+                    + "un-enumerated regions (the rebuild treats every region NOT in the struct list "
+                    + "as free) = silent ROM corruption. The rebuild stays disabled until coverage is complete.");
+            }
+
+            // COMPLETE: safe to defragment. Emit data.List itself (the exact list the gate guarded) —
+            // never a caller-supplied alias that could have diverged from the gated result.
+            RebuildMakeCore.Make(
+                modified, vanilla, rebuildAddress, data.List, manifestPath,
+                nameResolver: nameResolver,
+                romVersion: romVersion,
+                eventScriptWithPatch: eventScriptWithPatch,
+                eventScriptWithoutPatch: eventScriptWithoutPatch,
+                aiScript: aiScript,
+                procsScript: procsScript,
+                progress: progress);
         }
 
         // ====================================================================
