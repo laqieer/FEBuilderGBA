@@ -10973,31 +10973,53 @@ namespace FEBuilderGBA
         /// <summary>
         /// Load the <c>oam_name_</c> config dictionary, never throwing or surfacing UI. Mirrors the
         /// <see cref="LoadConfigTableSafe"/> precedent (the slice-2q anime forms) but for the
-        /// <see cref="U.LoadDicResource"/> dict shape: <see cref="U.LoadDicResource"/> has no
-        /// <c>isRequired:false</c> overload, so it always routes a missing file through
-        /// <c>U.IsRequiredFileExist</c> (a <c>ShowError</c> dialog + <c>Debug.Assert(false)</c> on a
-        /// versioned ROM). We therefore pre-check <see cref="System.IO.File.Exists"/> and only load when the
-        /// file is present; the try/catch additionally covers a null <see cref="CoreState.BaseDirectory"/>
-        /// (<c>U.ConfigDataFilename</c> does <c>Path.Combine(BaseDirectory, …)</c>). Either way a missing/
-        /// unconfigured config tree degrades to an EMPTY dict — the same faithful headless behavior as a
-        /// present-but-empty <c>oam_name_</c> file (loop 2 of <see cref="EmitOAMSPCore"/> contributes
-        /// nothing; the ldrmap loop is unaffected, falling back to the hex name).
+        /// <see cref="U.LoadDicResource"/> dict shape. We do NOT delegate to <see cref="U.LoadDicResource"/>:
+        /// it has no <c>isRequired:false</c> overload (so a MISSING file routes through
+        /// <c>U.IsRequiredFileExist</c> = a <c>ShowError</c> dialog + <c>Debug.Assert(false)</c> on a
+        /// versioned ROM), AND its parse-loop <c>catch</c> calls <c>CoreState.Services.ShowError</c> so a
+        /// PRESENT-but-malformed file (an <c>atoh</c>/<c>Split</c> throw) also surfaces UI / can NRE
+        /// headless. Instead we pre-check <see cref="System.IO.File.Exists"/> (missing -> empty, no assert)
+        /// and INLINE the exact U.LoadDicResource parse loop (U.cs:1772-1792) under a UI-free try/catch.
+        /// The parse is identical to WF (same comment/other-lang skip, same <c>'='</c> split, same
+        /// <c>atoh</c> key / <c>at(sp,1)</c> value) — only the failure mode differs: a missing/unconfigured/
+        /// malformed config degrades to an EMPTY (or partial) dict instead of a dialog. The
+        /// <c>OtherLangLine(line, rom)</c> overload is used (not the <c>CoreState.ROM</c> global one), which
+        /// safe-falls-back when RomInfo is null; output-equivalent (it only toggles whether a <c>{U}</c>/
+        /// <c>{J}</c>-tagged line is skipped, which the downstream parser ignores anyway). A missing/empty
+        /// dict means loop 2 of <see cref="EmitOAMSPCore"/> contributes nothing; the ldrmap loop is
+        /// unaffected (it falls back to the hex name).
         /// </summary>
         static Dictionary<uint, string> LoadOamNameDicSafe(ROM rom)
         {
+            var dic = new Dictionary<uint, string>();
             try
             {
                 string filename = U.ConfigDataFilename("oam_name_", rom);
                 if (!System.IO.File.Exists(filename))
                 {
-                    return new Dictionary<uint, string>();
+                    return dic;
                 }
-                return U.LoadDicResource(filename);
+                // Inlined U.LoadDicResource parse loop (U.cs:1772-1792) — parse-identical to WF, but the
+                // catch SWALLOWS (returns the partial/empty dict) instead of calling ShowError.
+                using (var reader = System.IO.File.OpenText(filename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line, rom)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('=');
+                        dic[U.atoh(sp[0])] = U.at(sp, 1);
+                    }
+                }
             }
             catch (Exception)
             {
-                return new Dictionary<uint, string>();
+                // Null BaseDirectory (ConfigDataFilename Path.Combine), an unreadable handle, or a malformed
+                // line (atoh/Split throw): never surface UI — return whatever parsed so far (partial/empty).
             }
+            return dic;
         }
 
         /// <summary>

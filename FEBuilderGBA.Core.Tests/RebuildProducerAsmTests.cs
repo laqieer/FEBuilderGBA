@@ -587,15 +587,86 @@ namespace FEBuilderGBA.Core.Tests
 
         // EmitOAMSP (the public entry) loads the oam_name_ config dict via ConfigDataFilename, which on a
         // versioned ROM hits U.IsRequiredFileExist (a Debug.Assert when the file is absent). Build a temp
-        // config/data dir with an empty oam_name_ALL.txt (the ConfigDataFilename ALL fallback) so the load
+        // config/data dir with an oam_name_ALL.txt (the ConfigDataFilename ALL fallback) so the load
         // path runs without tripping the required-config assert; returns the temp BaseDirectory.
-        static string MakeTempConfigBaseDir()
+        static string MakeTempConfigBaseDir(string oamNameContent = "")
         {
             string baseDir = Path.Combine(Path.GetTempPath(), "feb_oamsp_" + Guid.NewGuid().ToString("N"));
             string dataDir = Path.Combine(baseDir, "config", "data");
             Directory.CreateDirectory(dataDir);
-            File.WriteAllText(Path.Combine(dataDir, "oam_name_ALL.txt"), "");
+            File.WriteAllText(Path.Combine(dataDir, "oam_name_ALL.txt"), oamNameContent);
             return baseDir;
+        }
+
+        static string OamNameConfigPath(string baseDir) =>
+            Path.Combine(baseDir, "config", "data", "oam_name_ALL.txt");
+
+        // An IAppServices that THROWS if any dialog method is reached — proves the producer's config load
+        // never surfaces UI (no ShowError) even on a present-but-unreadable config file.
+        sealed class ThrowOnDialogServices : IAppServices
+        {
+            public int ShowErrorCount;
+            public void ShowError(string message)
+            {
+                ShowErrorCount++;
+                throw new InvalidOperationException("ShowError must not be reached from the producer: " + message);
+            }
+            public void ShowInfo(string message) => throw new InvalidOperationException("ShowInfo: " + message);
+            public bool ShowQuestion(string message) => throw new InvalidOperationException("ShowQuestion");
+            public bool ShowYesNo(string message) => throw new InvalidOperationException("ShowYesNo");
+            public void RunOnUIThread(Action action) => action();
+            public bool IsMainThread() => true;
+        }
+
+        [Fact]
+        public void EmitOAMSP_PresentButUnreadableConfig_DoesNotThrowOrShowError()
+        {
+            // Regression (Copilot PR #1299 follow-up): File.Exists is true but the read/parse fails (here an
+            // exclusive lock -> File.OpenText throws IOException). U.LoadDicResource's catch would call
+            // CoreState.Services.ShowError (UI / NRE headless); LoadOamNameDicSafe inlines the parse under a
+            // UI-free swallow, so EmitOAMSP must NOT throw and must NOT reach ShowError, still emitting the
+            // ldrmap-loop OAMSP (config dict ends up empty -> hex name fallback).
+            var savedRom = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            var savedServices = CoreState.Services;
+            string baseDir = null;
+            FileStream exclusiveLock = null;
+            var spy = new ThrowOnDialogServices();
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                baseDir = MakeTempConfigBaseDir("0x08E5000=Something\n");
+                CoreState.BaseDirectory = baseDir;
+                CoreState.Services = spy;
+                // Lock the config file for exclusive access so File.OpenText in the parse loop throws.
+                exclusiveLock = new FileStream(OamNameConfigPath(baseDir), FileMode.Open,
+                    FileAccess.Read, FileShare.None);
+
+                uint oamspOff = 0x00E0000;
+                PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOAMSP(fe8, list, ldrmap));
+                Assert.Null(ex);                  // swallowed the IOException — no throw.
+                Assert.Equal(0, spy.ShowErrorCount); // never surfaced UI.
+                // The ldrmap loop still emits (config dict empty after the swallowed read -> hex name).
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.OAMSP && a.Addr == oamspOff);
+            }
+            finally
+            {
+                exclusiveLock?.Dispose();
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBaseDir;
+                CoreState.Services = savedServices;
+                if (baseDir != null) try { Directory.Delete(baseDir, true); } catch { }
+            }
         }
 
         [Fact]
