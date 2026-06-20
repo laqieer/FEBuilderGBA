@@ -6496,8 +6496,7 @@ namespace FEBuilderGBA.Core.Tests
             // Sibling image forms blocked on an un-ported subsystem STAY:
             foreach (var kept in new[]
             {
-                "ImageBattleAnimeForm",      // ImageUtilOAM
-                "ImageMagicFEditorForm",     // ImageUtil*.RecycleOldAnime
+                "ImageBattleAnimeForm",      // ImageUtilOAM (slice 2p ports the Magic/MapAction siblings)
                 "ImageItemIconForm",         // out-of-scope icon-SHEET IFR
                 "ImageRomAnimeForm",         // config-file table
                 "ImageTSAAnimeForm", "ImageTSAAnime2Form",
@@ -6828,21 +6827,320 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(kept, notYet);
             }
 
-            // The Group-3 anime/OAM forms (same blocker class) also STAY.
-            foreach (var kept in new[]
-            {
-                "ImageBattleAnimeForm",
-                "ImageMagicFEditorForm",
-                "ImageMagicCSACreatorForm",
-                "ImageMapActionAnimationForm",
-            })
-            {
-                Assert.Contains(kept, notYet);
-            }
+            // The Group-3 OAM form ImageBattleAnimeForm STAYS (slice 2p ports the Magic/MapAction
+            // RecycleOldAnime siblings — see GetNotYetPortedForms_DropsSlice2pAnimeForms_KeepsBattleAnime).
+            Assert.Contains("ImageBattleAnimeForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ---- slice 2p: OAM / battle-anime length forms -----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2pAnimeForms_KeepsBattleAnime()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2p ports the pure-ROM RecycleOldAnime forms (gate/count deps already in Core).
+            Assert.DoesNotContain("ImageMapActionAnimationForm", notYet);
+            Assert.DoesNotContain("ImageMagicFEditorForm", notYet);
+            Assert.DoesNotContain("ImageMagicCSACreatorForm", notYet);
+
+            // ImageBattleAnimeForm STAYS (needs ClassForm.MakeClassList + two IFRs + seat-dedup state).
+            Assert.Contains("ImageBattleAnimeForm", notYet);
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // --- ImageMapActionAnimation ---------------------------------------
+
+        [Fact]
+        public void EmitImageMapActionAnimation_MainIfr_AndPerEntryRecycleAnime()
+        {
+            var rom = CreateTestRom(0x10000);
+            // Anime pointer table: AnimeP slot -> base. Entries: [0]=empty 00 (skipped), [1]=valid ptr,
+            // [2]=NULL terminator (stops the IFR walk at count 2).
+            uint animeP = 0x0400;
+            uint baseTbl = 0x1000;
+            rom.write_u32(animeP, Ptr(baseTbl));
+            rom.write_u32(baseTbl + 0 * 8, 0);            // entry 0: empty (skipped by the i=1 loop)
+            uint anime1 = 0x2000;
+            rom.write_u32(baseTbl + 1 * 8, Ptr(anime1));  // entry 1: valid anime pointer
+            // entry 2 left 0 -> isSafetyPointerOrNull(0)==true continues the walk... so plant a NON-pointer
+            // sentinel to STOP at count 2.
+            rom.write_u32(baseTbl + 2 * 8, 0x12345678);   // not a pointer-or-null -> IFR walk stops
+
+            // anime1 record stream: one 12-byte record (OBJ@+4, PAL@+8), then a 0/0 terminator record.
+            uint obj1 = 0x3000;
+            rom.write_u32(anime1 + 0, 0xAABBCCDD);        // term1 (non-zero) -> record continues
+            rom.write_u32(anime1 + 4, Ptr(obj1));         // OBJ image pointer
+            rom.write_u32(anime1 + 8, 0x4000);            // PAL slot value (any safe pointer for AddPointer)
+            rom.write_u32(anime1 + 8, Ptr(0x4000));
+            rom.write_u32(anime1 + 12, 0);                // term1 of record 2 == 0
+            rom.write_u32(anime1 + 16, 0);                // p32(n+4) == 0 -> stop
+            // a tiny LZ77 stream at obj1 so AddLZ77Pointer records a real (possibly 0) length without throwing
+            rom.write_u32(obj1, 0x00000010);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitImageMapActionAnimationAt(rom, list, animeP);
+
+            // Main IFR: base=baseTbl, block 8, DataCount=2 (entries 0,1 exist; entry 2 stops),
+            // length = 8 * (2 + 1) = 24, pointer = animeP, PI {0}.
+            Address mainIfr = list.Single(a => a.Info == "MapActionAnimation");
+            Assert.Equal(baseTbl, mainIfr.Addr);
+            Assert.Equal(animeP, mainIfr.Pointer);
+            Assert.Equal(8u, mainIfr.BlockSize);
+            Assert.Equal(8u * 3u, mainIfr.Length);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, mainIfr.DataType);
+
+            // Per-entry RecycleOldAnime for entry 1 (name "MapActionAnime:0x01 " — To0xHexString 2-pads):
+            // the record IFR + OBJ + PAL.
+            Address recIfr = list.Single(a => a.Info == "MapActionAnime:0x01 ");
+            Assert.Equal(anime1, recIfr.Addr);
+            Assert.Equal(12u, recIfr.BlockSize);
+            // 1 record -> count = (12)/12 = 1, length = 12 * (1 + 1) = 24.
+            Assert.Equal(12u * 2u, recIfr.Length);
+            Assert.Equal(U.NOT_FOUND, recIfr.Pointer); // ReInit has no pointer.
+
+            Assert.Contains(list, a => a.Info == "MapActionAnime:0x01 OBJ" && a.Addr == obj1);
+            Assert.Contains(list, a => a.Info == "MapActionAnime:0x01 PAL" && a.Length == 0x20);
+        }
+
+        [Fact]
+        public void EmitImageMapActionAnimation_NoSignature_EmitsNothing()
+        {
+            // FindMapActionAnimationPointer greps a 20-byte signature; a blank ROM has none.
+            var rom = CreateTestRom(0x10000);
+            var list = new List<Address>();
+            RebuildProducerCore.EmitImageMapActionAnimation(rom, list);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitImageMapActionAnimationAt_NearEofSlot_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            // animeP slot within 4 bytes of EOF -> the pointer+3 guard returns without throwing.
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitImageMapActionAnimationAt(rom, list, (uint)rom.Data.Length - 2));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMapActionRecycleOldAnime_NeverTerminates_EmitsNoIfr()
+        {
+            // A record stream that never hits the 0/0 terminator before the data end: WF returns without
+            // emitting the IFR (n >= limitter guard). Here the clamp == Data.Length, so the loop breaks at
+            // EOF with n >= limitter -> no IFR, but the per-record OBJ/PAL emitted so far stay.
+            var rom = CreateTestRom(0x2000);
+            uint anime = 0x1000;
+            // Fill records with non-zero term1 + non-zero img so the terminator never fires, up to EOF.
+            for (uint n = anime; n + 12 <= (uint)rom.Data.Length; n += 12)
+            {
+                rom.write_u32(n + 0, 0x11111111);
+                rom.write_u32(n + 4, Ptr(0x1800));
+                rom.write_u32(n + 8, Ptr(0x1900));
+            }
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMapActionRecycleOldAnime(rom, list, anime, "X:"));
+            Assert.Null(ex);
+            // No record-table IFR (the walk hit the limiter/EOF without a terminator).
+            Assert.DoesNotContain(list, a => a.Info == "X:" && a.DataType == Address.DataTypeEnum.InputFormRef);
+        }
+
+        // --- ImageMagic FEditor / CSA --------------------------------------
+
+        [Fact]
+        public void CalcMagicOamLength_WalksTo0x01Terminal()
+        {
+            var rom = CreateTestRom(0x4000);
+            uint oamBase = 0x1000;
+            uint maxOAM = 24;
+            // From oamBase+maxOAM, 12-byte steps until a u32==0x01. Plant 2 steps then the terminal.
+            uint start = oamBase + maxOAM;
+            rom.write_u32(start + 0, 0xDEAD0000);   // step 1 (not 0x01)
+            rom.write_u32(start + 12, 0xBEEF0000);  // step 2 (not 0x01)
+            rom.write_u32(start + 24, 0x00000001);  // terminal frame
+            // length = (start + 24 + 12) - oamBase = maxOAM + 36.
+            uint len = RebuildProducerCore.CalcMagicOamLength(rom, Ptr(oamBase), maxOAM);
+            Assert.Equal(maxOAM + 36u, len);
+        }
+
+        [Fact]
+        public void CalcMagicOamLength_ZeroOffset_ReturnsZero()
+        {
+            var rom = CreateTestRom(0x1000);
+            Assert.Equal(0u, RebuildProducerCore.CalcMagicOamLength(rom, 0, 0));
+        }
+
+        [Fact]
+        public void CalcMagicOamLength_RunsPastLimiter_ReturnsZero_NoThrow()
+        {
+            var rom = CreateTestRom(0x4000);
+            uint oamBase = 0x1000;
+            // No 0x01 terminal within the 2K limiter window -> WF returns 0.
+            var ex = Record.Exception(() =>
+            {
+                uint len = RebuildProducerCore.CalcMagicOamLength(rom, Ptr(oamBase), 0);
+                Assert.Equal(0u, len);
+            });
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitMagicRecycleOldAnime_FEditorAdv_EmitsFrameAndFourOam()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint magicBase = 0x0800;     // the per-spell base (csaSpellTable + 20*i)
+            uint frame = 0x1000;
+            rom.write_u32(magicBase + 0, Ptr(frame));    // frameData
+            rom.write_u32(magicBase + 4, Ptr(0x5000));   // objRtoL OAM ptr
+            rom.write_u32(magicBase + 8, Ptr(0x5400));   // objLtoR OAM ptr
+            rom.write_u32(magicBase + 12, Ptr(0x5800));  // bgRtoL OAM ptr
+            rom.write_u32(magicBase + 16, Ptr(0x5C00));  // bgLtoR OAM ptr
+
+            // One 0x86 record (28 bytes for FEditorAdv) then a 0x80 terminator.
+            // record fields: +3 cmd=0x86; OBJ@+4, BG@+16, OBJPAL@+20, BGPAL@+24, OAM idx @+8/+12.
+            rom.write_u8(frame + 3, 0x86);
+            rom.write_u32(frame + 4, Ptr(0x6000));   // OBJ image
+            rom.write_u32(frame + 8, 4);             // objOAM idx
+            rom.write_u32(frame + 12, 6);            // bgOAM idx
+            rom.write_u32(frame + 16, Ptr(0x6400));  // BG image
+            rom.write_u32(frame + 20, Ptr(0x6800));  // OBJ palette
+            rom.write_u32(frame + 24, Ptr(0x6C00));  // BG palette
+            // terminator record at frame+28: cmd 0x80 (and +1 != 0x01).
+            rom.write_u8(frame + 28 + 3, 0x80);
+
+            // Plant OAM terminals so CalcMagicOamLength returns >0 for at least one (not required, but real).
+            // objRtoL OAM @0x5000, maxObjOAM=4 -> terminal at 0x5000+4.
+            rom.write_u32(0x5000 + 4, 0x00000001);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMagicRecycleOldAnime(rom, list, magicBase, "Magic:0x0 ", isCsa: false);
+
+            // FRAME block (MAGICFRAME_FEITORADV), length = end-of-frame-walk - frameData.
+            Address frameAddr = list.Single(a => a.Info == "Magic:0x0 FRAME");
+            Assert.Equal(frame, frameAddr.Addr);
+            Assert.Equal(Address.DataTypeEnum.MAGICFRAME_FEITORADV, frameAddr.DataType);
+            // walk: i starts at frame; one 0x86 record advances i by 28; then i hits the 0x80 -> i+=4 -> 32.
+            Assert.Equal(32u, frameAddr.Length);
+
+            // Per-record columns.
+            Assert.Contains(list, a => a.Info == "Magic:0x0 OBJ" && a.Addr == 0x6000);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 BG" && a.Addr == 0x6400);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 OBJ PAL" && a.Addr == 0x6800 && a.Length == 0x20);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 BG PAL" && a.Addr == 0x6C00 && a.Length == 0x20);
+            // FEditorAdv has NO TSA column.
+            Assert.DoesNotContain(list, a => a.Info == "Magic:0x0 TSA");
+
+            // Four OAM blocks (MAGICOAM), names verbatim for FEditorAdv.
+            Assert.Contains(list, a => a.Info == "Magic:0x0 RihtToLeftOAM" && a.DataType == Address.DataTypeEnum.MAGICOAM);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 LeftRightOAM" && a.DataType == Address.DataTypeEnum.MAGICOAM);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 OBJ OAM" && a.DataType == Address.DataTypeEnum.MAGICOAM);
+            Assert.Contains(list, a => a.Info == "Magic:0x0 BG OAM" && a.DataType == Address.DataTypeEnum.MAGICOAM);
+        }
+
+        [Fact]
+        public void EmitMagicRecycleOldAnime_TruncatedStream_NoTerminator_EmitsNothing()
+        {
+            // Regression (PR #1288 review): if the frame walk runs out of bytes for the 4-byte command
+            // window (i+4 > limitter) WITHOUT a real 0x80 terminator, the stream is truncated -> treat as
+            // over-limiter and emit NO FRAME/OAM (a length from a truncated stream would mis-relocate).
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint magicBase = 0x0800;
+            uint frame = size - 6; // 0x1FFA: one 0x85 'continue' then i+4 exceeds the limiter (= Data.Length)
+            rom.write_u32(magicBase + 0, Ptr(frame));
+            // 0x85 at frame+3 -> 'continue', i += 4 -> next iteration i+4 > limitter -> truncation break.
+            rom.write_u8(frame + 3, 0x85);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMagicRecycleOldAnime(rom, list, magicBase, "Magic:0x0 ", isCsa: false);
+
+            // Truncated -> over the limiter -> nothing emitted (no FRAME, no OAM).
+            Assert.DoesNotContain(list, a => a.Info == "Magic:0x0 FRAME");
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitMagicRecycleOldAnime_Csa_HasTsaColumn_And32ByteStride()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint magicBase = 0x0800;
+            uint frame = 0x1000;
+            rom.write_u32(magicBase + 0, Ptr(frame));
+            rom.write_u32(magicBase + 4, Ptr(0x5000));
+            rom.write_u32(magicBase + 8, Ptr(0x5400));
+            rom.write_u32(magicBase + 12, Ptr(0x5800));
+            rom.write_u32(magicBase + 16, Ptr(0x5C00));
+
+            // One 0x86 CSA record (32 bytes; adds TSA @+28) then a 0x80 terminator at frame+32.
+            rom.write_u8(frame + 3, 0x86);
+            rom.write_u32(frame + 4, Ptr(0x6000));
+            rom.write_u32(frame + 16, Ptr(0x6400));
+            rom.write_u32(frame + 20, Ptr(0x6800));
+            rom.write_u32(frame + 24, Ptr(0x6C00));
+            rom.write_u32(frame + 28, Ptr(0x7000));   // CSA TSA pointer
+            rom.write_u8(frame + 32 + 3, 0x80);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMagicRecycleOldAnime(rom, list, magicBase, "Magic:0x0 ", isCsa: true);
+
+            Address frameAddr = list.Single(a => a.Info == "Magic:0x0 FRAME");
+            Assert.Equal(Address.DataTypeEnum.MAGICFRAME_CSA, frameAddr.DataType);
+            // walk: one 32-byte record + 0x80 (i+=4) = 36.
+            Assert.Equal(36u, frameAddr.Length);
+
+            // CSA-only TSA column at +28.
+            Assert.Contains(list, a => a.Info == "Magic:0x0 TSA" && a.Addr == 0x7000 && a.DataType == Address.DataTypeEnum.LZ77TSA);
+
+            // CSA OAM names differ from FEditorAdv for the BG pair.
+            Assert.Contains(list, a => a.Info == "Magic:0x0 RihtToLeftOAM");
+            Assert.Contains(list, a => a.Info == "Magic:0x0 LeftRightOAM");
+            Assert.Contains(list, a => a.Info == "Magic:0x0 RihtToLeftOAMBG");
+            Assert.Contains(list, a => a.Info == "Magic:0x0 LeftRightOAMBG");
+        }
+
+        [Fact]
+        public void EmitMagicRecycleOldAnime_NearEofBase_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            var list = new List<Address>();
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.EmitMagicRecycleOldAnime(rom, list, (uint)rom.Data.Length - 8, "X:", isCsa: false));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitImageMagicCommon_NonMagicRom_EmitsNothing()
+        {
+            // A blank ROM has no magic-engine signature -> SearchMagicSystem returns No -> nothing emitted.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01"); // FE8U
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageMagicFEditor(rom, list);
+                RebuildProducerCore.EmitImageMagicCsaCreator(rom, list);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
         }
     }
 }

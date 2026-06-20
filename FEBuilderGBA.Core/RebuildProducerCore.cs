@@ -679,6 +679,43 @@ namespace FEBuilderGBA
             progress?.Report("Text");
             EmitText(rom, list);
 
+            // ---- slice 2p: OAM / battle-anime length forms (version-agnostic call site) ----
+            // ImageMapActionAnimationForm and the two ImageUtilMagic forms (FEditor / CSA) are all in
+            // the WF unconditional section, each internally gated (FindAnimationPointer for MapAction;
+            // ImageUtilMagicCore.SearchMagicSystem FEDITOR_ADV / CSA_CREATOR for the Magic pair), so a
+            // ROM without the relevant patch emits nothing. None is a flat StructDescriptor walk: each
+            // expands every table entry via a verbatim ImageUtil*.RecycleOldAnime length walk (a pure-ROM
+            // anime-stream terminator scan; the OAM column length is the verbatim CalcMagicOamLength port
+            // of WF ImageUtilMagicFEditor.calcOAMLength). Each gets a dedicated emitter with its own
+            // cancel-check, mirroring the WF DoEvents posture. ImageBattleAnimeForm (ImageUtilOAM
+            // MakeAllDataLength — the UnCompressFrame-embedded seat-image walk) and the
+            // RecycleOldAnime-dependent SkillConfig siblings STAY deferred (see GetNotYetPortedForms):
+            // ImageBattleAnime additionally needs ClassForm.MakeClassList + the per-class two-IFR /
+            // seat-dedup machinery, a larger surface left for a later slice.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageMapActionAnimation");
+            EmitImageMapActionAnimation(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageMagicFEditor");
+            EmitImageMagicFEditor(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageMagicCSACreator");
+            EmitImageMagicCsaCreator(rom, list);
+
             // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
             // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
             // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
@@ -3128,6 +3165,506 @@ namespace FEBuilderGBA
                 || FETextEncode.IsUnHuffmanPatch_IW_RAMPointer(p)
                 || U.is_02RAMPointer(p)
                 || FETextEncode.IsUnHuffmanPatch_EW_RAMPointer(p);
+        }
+
+        // =====================================================================================
+        // slice 2p: OAM / battle-anime length forms (version-agnostic call sites)
+        // =====================================================================================
+
+        /// <summary>
+        /// <c>ImageMapActionAnimationForm.MakeAllDataLength</c> (slice 2p, version-agnostic call site;
+        /// internally gated by <see cref="FindMapActionAnimationPointer"/>). The map-attack animation
+        /// table: a main IFR (base = <c>p32(AnimeP)</c>, block 8, IsDataExists =
+        /// <c>isSafetyPointerOrNull(u32(addr))</c>, pointerIndexes {0}) plus, for each entry <c>i</c> from
+        /// 1 (the WF loop SKIPS entry 0 — the empty 00 slot) to <c>DataCount</c>, a
+        /// <see cref="EmitMapActionRecycleOldAnime"/> expansion when the entry pointer
+        /// <c>p32(animeBaseAddress)</c> is a safe offset. Reproduced VERBATIM (the entry-0 skip, the
+        /// per-entry <c>!isSafetyOffset(addr) -&gt; continue</c>). The per-entry RecycleOldAnime length is a
+        /// pure-ROM 12-byte-record terminator walk (no OAM-length calc, no decompress, no System.Drawing).
+        /// The WF IFR name lambda reads a config file (<c>MapActionAnimation_</c>) — names are
+        /// non-load-bearing for relocation, so the producer uses the WF per-entry
+        /// <c>"MapActionAnime:0x&lt;i&gt;"</c> label directly (matching the WF RecycleOldAnime call site).
+        /// EOF-safe (all reads guard the full extent; the IFR walk is <c>getBlockDataCount</c>-bounded).
+        /// </summary>
+        public static void EmitImageMapActionAnimation(ROM rom, List<Address> list)
+        {
+            // WF FindAnimationPointer(): NOT_FOUND on a ROM without the map-action-anime table.
+            uint animeP = FindMapActionAnimationPointer(rom);
+            if (animeP == U.NOT_FOUND)
+            {
+                return;
+            }
+            EmitImageMapActionAnimationAt(rom, list, animeP);
+        }
+
+        /// <summary>MapActionAnimation emission from the resolved table pointer <paramref name="animeP"/>
+        /// (test seam — lets a synthetic ROM supply the pointer slot directly without planting the
+        /// version-gated signature <see cref="FindMapActionAnimationPointer"/> greps for). See
+        /// <see cref="EmitImageMapActionAnimation"/> for the verbatim WF reproduction. <paramref name="animeP"/>
+        /// is the 4-byte pointer slot whose <c>p32</c> is the anime-table base (WF
+        /// <c>InputFormRef Init(null, AnimeP)</c> BasePointer).</summary>
+        public static void EmitImageMapActionAnimationAt(ROM rom, List<Address> list, uint animeP)
+        {
+            const uint block = 8; // ImageMapActionAnimationForm.Init BlockSize.
+
+            // WF Init: BasePointer = animePointer, BaseAddress = p32(animePointer). Guard the full 4-byte
+            // slot (animeP+3) before p32 so a near-EOF slot skips rather than throws.
+            uint pointer = U.toOffset(animeP);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            // WF AddAddress early-returns when !isSafetyOffset(BaseAddress); the per-entry loop also needs
+            // a safe base to walk.
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // Init IsDataExists = (addr+4 <= Length) && isSafetyPointerOrNull(u32(addr)). getBlockDataCount
+            // already guards addr+block(8) <= Length, so the addr+4 read is always in-bounds; the explicit
+            // WF length check is subsumed and harmless to reproduce.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                if (addr + 4 > (uint)rom.Data.Length)
+                {
+                    return false;
+                }
+                return U.isSafetyPointerOrNull(rom.u32(addr));
+            });
+
+            // Main IFR: AddAddress(IFR, "MapActionAnimation", {0}) -> length = 8 * (DataCount + 1),
+            // pointer = BasePointer (safe here), pointerIndexes {0}.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "MapActionAnimation",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            // Per-entry expansion. WF: animeBaseAddress += BlockSize (skip empty 00), then for i=1..DataCount.
+            uint animeBaseAddress = baseAddr + block; // WF "skip empty 00"
+            for (uint i = 1; i < dataCount; i++, animeBaseAddress += block)
+            {
+                // WF reads p32(animeBaseAddress). getBlockDataCount bounded i<DataCount to addr+8<=Length, so
+                // the 4-byte p32 read is in-bounds; guard anyway for robustness on a corrupted DataCount.
+                if (animeBaseAddress + 4 > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                uint addr = rom.p32(animeBaseAddress);
+                if (!U.isSafetyOffset(addr, rom))
+                {
+                    continue; // WF: !isSafetyOffset(addr) -> continue.
+                }
+                string name = "MapActionAnime:" + U.To0xHexString(i) + " ";
+                EmitMapActionRecycleOldAnime(rom, list, addr, name);
+            }
+        }
+
+        /// <summary>
+        /// VERBATIM port of WF <c>ImageUtilMapActionAnimation.RecycleOldAnime</c>: walk 12-byte records
+        /// from <paramref name="animeAddress"/> until a record with <c>u32(n) == 0 &amp;&amp; p32(n+4) == 0</c>;
+        /// per record emit an LZ77 OBJ image pointer at <c>n+4</c> and a fixed 0x20-byte PAL at <c>n+8</c>;
+        /// then emit the main record-table IFR (base = <paramref name="animeAddress"/>, block 12, count =
+        /// <c>(n - animeAddress) / 12</c>, pointerIndexes {4,8}). All reads are pure ROM; the 1MB limiter is
+        /// reproduced (a never-terminating stream past the limiter emits NO IFR — the WF
+        /// <c>n &gt;= limitter -&gt; return</c> guard). EOF-safe: every read guards its full extent.
+        /// </summary>
+        public static void EmitMapActionRecycleOldAnime(ROM rom, List<Address> list, uint animeAddress, string basename)
+        {
+            animeAddress = U.toOffset(animeAddress);
+            if (!U.isSafetyOffset(animeAddress, rom))
+            {
+                return;
+            }
+
+            uint dataLen = (uint)rom.Data.Length;
+            // WF limitter = animeAddress + 1MB, clamped to Data.Length.
+            uint limitter = animeAddress + 1024 * 1024;
+            if (limitter > dataLen)
+            {
+                limitter = dataLen;
+            }
+
+            uint n = animeAddress;
+            bool terminated = false; // true once the 0/0 terminator record is seen (WF emits the IFR only then).
+            for (; n < limitter; n += 12)
+            {
+                // WF reads u32(n) and p32(n+4) directly (it relies on the limiter clamp leaving room). Those
+                // reads reach n+7, so a full-extent EOF guard is needed to never throw on a stream whose
+                // limiter == Data.Length. This does NOT change the IFR-emission decision (which is driven by
+                // the `terminated` flag below): an un-terminated stream that runs off the end leaves
+                // `terminated == false`, exactly like the WF `n >= limitter -> return` path.
+                if (n + 8 > dataLen)
+                {
+                    break;
+                }
+                uint term1 = rom.u32(n);
+                uint imgOffset = rom.p32(n + 4);
+                if (term1 == 0 && imgOffset == 0)
+                {
+                    terminated = true;
+                    break;
+                }
+
+                // OBJ image (LZ77) at n+4.
+                Address.AddLZ77Pointer(list, n + 4, basename + "OBJ", false, Address.DataTypeEnum.LZ77IMG);
+                // Palette (0x20 = 16 colors * 2 bytes) at n+8.
+                Address.AddPointer(list, n + 8, 0x20, basename + "PAL", Address.DataTypeEnum.PAL);
+            }
+            if (!terminated)
+            {
+                // WF: hit the limiter / ran off the data without a 0/0 terminator -> no IFR (unsafe to reuse).
+                return;
+            }
+
+            // WF: ifr.ReInit(anime_address, (n - anime_address)/12); AddAddress(ifr, basename, {4,8}).
+            // ReInit sets BaseAddress = anime_address, BasePointer = NOT_FOUND (ReInit has no pointer),
+            // DataCount = (n - anime_address)/12. AddAddress length = block * (DataCount + 1).
+            uint count = (n - animeAddress) / 12;
+            uint length = 12 * (count + 1);
+            list.Add(new Address(animeAddress, length, U.NOT_FOUND, basename,
+                Address.DataTypeEnum.InputFormRef, 12, new uint[] { 4, 8 }));
+        }
+
+        /// <summary>
+        /// VERBATIM port of WF <c>ImageMapActionAnimationForm.FindAnimationPointerLow</c>: a version-gated
+        /// (<c>is_multibyte</c> FE8J vs FE8U) 20-byte signature <see cref="U.GrepEnd"/> from
+        /// <c>compress_image_borderline_address</c>; on a hit, back up to the pointer slot
+        /// (<c>p - bin.Length - 4</c>) and require it to be a ROM pointer. Returns
+        /// <see cref="U.NOT_FOUND"/> when not found / not a pointer. Pure ROM + RomInfo (no caching — the
+        /// WF static cache is a GUI concern).
+        /// </summary>
+        public static uint FindMapActionAnimationPointer(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            {
+                return U.NOT_FOUND;
+            }
+
+            byte[] bin;
+            if (rom.RomInfo.is_multibyte)
+            {//FE8J
+                bin = new byte[] { 0x54, 0x3C, 0x08, 0x08, 0xEC, 0xE1, 0x03, 0x02, 0xE8, 0xA4, 0x03, 0x02, 0x68, 0xA5, 0x03, 0x02, 0xFF, 0xFF, 0x00, 0x00 };
+            }
+            else
+            {//FE8U
+                bin = new byte[] { 0x14, 0x19, 0x08, 0x08, 0xF0, 0xE1, 0x03, 0x02, 0xEC, 0xA4, 0x03, 0x02, 0x6C, 0xA5, 0x03, 0x02, 0xFF, 0xFF, 0x00, 0x00 };
+            }
+            uint p = U.GrepEnd(rom.Data, bin, rom.RomInfo.compress_image_borderline_address, 0, 4, 0, true);
+            if (p == U.NOT_FOUND)
+            {
+                return U.NOT_FOUND;
+            }
+            p = p - (uint)bin.Length - 4;
+            // WF reads u32(p) after the grep — GrepEnd's needPointer already guaranteed a pointer-or-null at
+            // (p + bin.Length + 4), i.e. 4 bytes past the grep end; p itself is bin.Length+4 before that, so
+            // p..p+3 is in-bounds whenever the grep end was. Guard explicitly to never throw on a corrupt ROM.
+            if (p + 4 > (uint)rom.Data.Length)
+            {
+                return U.NOT_FOUND;
+            }
+            uint a = rom.u32(p);
+            if (!U.isPointer(a))
+            {
+                return U.NOT_FOUND;
+            }
+            return p;
+        }
+
+        /// <summary>
+        /// <c>ImageMagicFEditorForm.MakeAllDataLength</c> (slice 2p, version-agnostic; gated on the
+        /// FEditorAdv magic engine). Emits: the main spell IFR (base = <c>magic_effect_pointer</c>, block 4,
+        /// DataCount = <c>GetSpellDataCount</c>, pointerIndexes {0}); the <c>Magic_Append_SpellTable</c>
+        /// pointer block (<c>csaSpellTable</c>, length <c>DataCount * 4 * 5</c>, pointer
+        /// <c>csaSpellTablePointer</c>); and, per spell whose <c>p32(addr) == dimaddr || no_dimaddr</c>, the
+        /// <see cref="EmitMagicRecycleOldAnime"/> expansion (the FEditorAdv 28-byte-record variant). All
+        /// gate/count dependencies (<see cref="ImageUtilMagicCore.SearchMagicSystem"/> /
+        /// <see cref="ImageUtilMagicCore.FindCSASpellTable"/> / <see cref="ImageUtilMagicCore.GetSpellDataCount"/>)
+        /// are headless Core helpers. Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitImageMagicFEditor(ROM rom, List<Address> list)
+        {
+            EmitImageMagicCommon(rom, list, ImageUtilMagicCore.MagicSystem.FEditorAdv);
+        }
+
+        /// <summary>
+        /// <c>ImageMagicCSACreatorForm.MakeAllDataLength</c> (slice 2p, version-agnostic; gated on the
+        /// CsaCreator magic engine). Structurally identical to <see cref="EmitImageMagicFEditor"/> but
+        /// gated on CSA_CREATOR and using the CSA 32-byte-record RecycleOldAnime variant (which adds the
+        /// extra BG-TSA LZ77 pointer at <c>+28</c> and tags the frame block
+        /// <see cref="Address.DataTypeEnum.MAGICFRAME_CSA"/>). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitImageMagicCsaCreator(ROM rom, List<Address> list)
+        {
+            EmitImageMagicCommon(rom, list, ImageUtilMagicCore.MagicSystem.CsaCreator);
+        }
+
+        /// <summary>Shared body of <see cref="EmitImageMagicFEditor"/> / <see cref="EmitImageMagicCsaCreator"/>
+        /// — the two WF forms' <c>MakeAllDataLength</c> are byte-for-byte identical apart from the
+        /// <paramref name="system"/> gate and the per-entry RecycleOldAnime variant (FEditorAdv 28-byte vs
+        /// CSA 32-byte). Reproduces the WF logic VERBATIM.</summary>
+        static void EmitImageMagicCommon(ROM rom, List<Address> list, ImageUtilMagicCore.MagicSystem system)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            {
+                return;
+            }
+
+            // WF: if SearchMagicSystem(...) != <system> return. (The Core SearchMagicSystem also requires the
+            // CSA spell table to be findable — same posture as the WF cache, which keeps scanning otherwise.)
+            uint baseaddr, dimaddr, no_dimaddr;
+            if (ImageUtilMagicCore.SearchMagicSystem(rom, out baseaddr, out dimaddr, out no_dimaddr) != system)
+            {
+                return;
+            }
+
+            uint spellDataCount = ImageUtilMagicCore.GetSpellDataCount(rom);
+            uint csaSpellTablePointer;
+            uint csaSpellTable = ImageUtilMagicCore.FindCSASpellTable(rom, system, out csaSpellTablePointer);
+            if (csaSpellTable == U.NOT_FOUND)
+            {
+                return; // WF: csaSpellTable == NOT_FOUND -> return.
+            }
+
+            // WF Init: BasePointer = magic_effect_pointer, BaseAddress = p32(magic_effect_pointer), block 4,
+            // IsDataExists = (csaSpellTable != NOT_FOUND) && i < spellDataCount && i < 0xFE. The lambda does
+            // NOT read the ROM, so DataCount = min(spellDataCount, 0xFE). GetSpellDataCount caps at 0xFD, so
+            // DataCount == spellDataCount; reproduce the cap exactly via getBlockDataCount for parity.
+            uint magicPointer = rom.RomInfo.magic_effect_pointer;
+            uint pointer = U.toOffset(magicPointer);
+            // Guard the FULL 4-byte slot (pointer+3) before p32 — ROM.p32 reads a u32 and would throw on a
+            // near-EOF slot (matches the MapAction emitter's pointer+3 guard; on valid ROMs the RomInfo
+            // slot is always in-bounds).
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return; // WF AddAddress early-returns when the base/pointer is unsafe.
+            }
+            uint baseAddress = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddress, rom))
+            {
+                return;
+            }
+            const uint block = 4;
+            uint dataCount = rom.getBlockDataCount(baseAddress, block,
+                (i, addr) => i < spellDataCount && i < 0xFE);
+
+            // Main IFR: AddAddress(IFR, "Magic", {0}) -> length 4 * (DataCount + 1).
+            uint mainLength = block * (dataCount + 1);
+            list.Add(new Address(baseAddress, mainLength, pointer, "Magic",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            // Append spell table: AddAddress(list, csaSpellTable, DataCount*4*5, csaSpellTablePointer,
+            // "Magic_Append_SpellTable", MAGIC_APPEND_SPELLTABLE).
+            Address.AddAddress(list, csaSpellTable, dataCount * 4 * 5, csaSpellTablePointer,
+                "Magic_Append_SpellTable", Address.DataTypeEnum.MAGIC_APPEND_SPELLTABLE);
+
+            // Per-entry: for i in [0, DataCount), addr = baseAddress + 4*i; dataaddr = p32(addr); skip 0;
+            // if dataaddr == dimaddr || no_dimaddr -> RecycleOldAnime(csaSpellTable + 20*i).
+            bool isCsa = system == ImageUtilMagicCore.MagicSystem.CsaCreator;
+            uint addrEntry = baseAddress;
+            for (uint i = 0; i < dataCount; i++, addrEntry += block)
+            {
+                uint csaaddress = csaSpellTable + (20 * i);
+
+                // getBlockDataCount bounded i<DataCount to addrEntry+4<=Length, so the p32 read is in-bounds.
+                uint dataaddr = rom.p32(addrEntry);
+                if (dataaddr == 0)
+                {
+                    continue;
+                }
+                if (dataaddr == dimaddr || dataaddr == no_dimaddr)
+                {
+                    string name = "Magic:" + U.To0xHexString(i);
+                    EmitMagicRecycleOldAnime(rom, list, csaaddress, name, isCsa);
+                }
+            }
+        }
+
+        /// <summary>
+        /// VERBATIM port of WF <c>ImageUtilMagicFEditor.RecycleOldAnime</c> (<paramref name="isCsa"/> false)
+        /// / <c>ImageUtilMagicCSACreator.RecycleOldAnime</c> (<paramref name="isCsa"/> true). Walks the
+        /// uncompressed magic frame-data array behind <c>magic_baseaddress + 0</c> (each 0x86 record is
+        /// 28 bytes for FEditorAdv, 32 for CSA — the CSA record also carries a BG-TSA LZ77 pointer at +28),
+        /// accumulates the max OBJ/BG OAM index, then (when the frame walk terminated inside the 1MB
+        /// limiter) emits the FRAME block plus four OAM blocks whose lengths are
+        /// <see cref="CalcMagicOamLength"/>. The four OAM pointers are emitted UNCONDITIONALLY (matching WF —
+        /// even a 0-length <see cref="CalcMagicOamLength"/> result is emitted; <see cref="Address.AddPointer"/>
+        /// itself drops a slot whose dereferenced target is not a safe pointer). EOF-safe (every read guards
+        /// its full extent; the 1MB limiter bounds the frame walk).
+        /// </summary>
+        public static void EmitMagicRecycleOldAnime(ROM rom, List<Address> list, uint magicBaseAddress, string basename, bool isCsa)
+        {
+            uint dataLen = (uint)rom.Data.Length;
+
+            // WF reads p32(base+0) and u32(base+4/8/12/16) unconditionally up front. Normalize the base to
+            // an offset (baseOff) and use it for BOTH the bounds guard AND every read + pointer-slot below,
+            // so a GBA-pointer magicBaseAddress cannot slip past the guard or mis-record a slot (in practice
+            // the base is already an offset, so baseOff == magicBaseAddress). Guard base+19 (the furthest,
+            // base+16+3) so a near-EOF base skips rather than throws.
+            uint baseOff = U.toOffset(magicBaseAddress);
+            if (baseOff + 20 > dataLen)
+            {
+                return;
+            }
+            uint frameData_offset = rom.p32(baseOff + 0);
+            uint objRtoL = rom.u32(baseOff + 4);   // OBJ OAM
+            uint objLtoR = rom.u32(baseOff + 8);   // OBJ OAM
+            uint bgRtoL  = rom.u32(baseOff + 12);  // BG OAM
+            uint bgLtoR  = rom.u32(baseOff + 16);  // BG OAM
+
+            if (frameData_offset == 0)
+            {
+                return;
+            }
+            // WF does NOT toOffset frameData_offset (it is already a ROM offset via p32); but p32 returns a
+            // GBA pointer. WF p32 returns the raw u32; the frame walk indexes Program.ROM.Data directly with
+            // it, so it MUST be an offset. WF p32 in this codebase returns toOffset'd value — reproduce by
+            // toOffset here (no-op if already an offset). Guard against an out-of-range base.
+            uint frameDataOff = U.toOffset(frameData_offset);
+            if (!U.isSafetyOffset(frameDataOff, rom))
+            {
+                return;
+            }
+
+            // WF limitter = frameData_offset + 1MB, clamped to Data.Length.
+            uint limitter = frameDataOff + 1024 * 1024;
+            if (limitter > dataLen)
+            {
+                limitter = dataLen;
+            }
+
+            uint recordStride = isCsa ? 32u : 28u; // CSA = 32 bytes/record, FEditorAdv = 28.
+            byte[] d = rom.Data;
+            uint maxObjOAM = 0;
+            uint maxBGOAM = 0;
+            uint i;
+            for (i = frameDataOff; i < limitter; i += 4)
+            {
+                // WF reads d[i+1] and d[i+3] (the terminator/command bytes) — guard i+3 < limitter so the
+                // 4-byte stride read never crosses the clamp. Hitting this is NOT a real 0x80 terminator —
+                // the stream ran out of bytes (truncated/past-EOF), so push i past the limiter to trigger
+                // the post-loop "over the limiter -> do NOT reuse" guard (no FRAME/OAM emitted from a
+                // truncated stream).
+                if (i + 4 > limitter)
+                {
+                    i = limitter + 1;
+                    break;
+                }
+                if (d[i + 3] == 0x80)
+                {//終端データ
+                    if (d[i + 1] == 0x01) //0x00 0x01 0x00 0x80 may continue.
+                    {
+                        continue;
+                    }
+                    i += 4;
+                    break;
+                }
+                else if (d[i + 3] != 0x86)
+                {
+                    if (d[i + 3] == 0x85)
+                    {
+                        continue;
+                    }
+                    //unknown command.
+                    break;
+                }
+
+                // A 0x86 record spans recordStride bytes (the deepest field is +24/+28 + 4). Guard it before
+                // emitting the per-record columns (WF relies on the limiter; harden against a record that
+                // straddles the clamp).
+                if (i + recordStride > dataLen)
+                {
+                    break;
+                }
+
+                // OBJ image (LZ77) at i+4.
+                Address.AddLZ77Pointer(list, i + 4, basename + "OBJ", false, Address.DataTypeEnum.LZ77IMG);
+                // BG image (LZ77) at i+16.
+                Address.AddLZ77Pointer(list, i + 16, basename + "BG", false, Address.DataTypeEnum.LZ77IMG);
+                // OBJ palette (0x20 bytes) at i+20.
+                Address.AddPointer(list, i + 20, 0x20, basename + "OBJ PAL", Address.DataTypeEnum.PAL);
+                // BG palette (0x20 bytes) at i+24.
+                Address.AddPointer(list, i + 24, 0x20, basename + "BG PAL", Address.DataTypeEnum.PAL);
+                if (isCsa)
+                {
+                    // BG TSA (LZ77) at i+28 — CSA ONLY.
+                    Address.AddLZ77Pointer(list, i + 28, basename + "TSA", false, Address.DataTypeEnum.LZ77TSA);
+                }
+
+                // Max OAM index from i+8 / i+12.
+                uint objOAM = U.u32(d, i + 8);
+                uint bgOAM = U.u32(d, i + 12);
+                if (objOAM > maxObjOAM) maxObjOAM = objOAM;
+                if (bgOAM > maxBGOAM) maxBGOAM = bgOAM;
+
+                // WF advances i by recordStride-4 here (the outer loop's += 4 completes the stride).
+                i += recordStride - 4;
+            }
+
+            if (i > limitter)
+            {
+                // WF: over the limiter -> do NOT reuse frame/OAM (unsafe).
+                return;
+            }
+
+            // FRAME block: AddPointer(base+0, i - frameData_offset, "...FRAME", MAGICFRAME_*).
+            Address.DataTypeEnum frameType = isCsa
+                ? Address.DataTypeEnum.MAGICFRAME_CSA
+                : Address.DataTypeEnum.MAGICFRAME_FEITORADV;
+            Address.AddPointer(list, baseOff + 0, i - frameDataOff, basename + "FRAME", frameType);
+
+            // Four OAM blocks (emitted UNCONDITIONALLY, matching WF — the length may be 0). The WF per-block
+            // names differ slightly between FEditorAdv and CSA; reproduce each VERBATIM. Pointer slots use
+            // baseOff (the ROM offset) to stay consistent with the bounds guard + reads above.
+            Address.AddPointer(list, baseOff + 4, CalcMagicOamLength(rom, objRtoL, maxObjOAM),
+                basename + "RihtToLeftOAM", Address.DataTypeEnum.MAGICOAM);
+            Address.AddPointer(list, baseOff + 8, CalcMagicOamLength(rom, objLtoR, maxObjOAM),
+                basename + "LeftRightOAM", Address.DataTypeEnum.MAGICOAM); // FEditorAdv + CSA share this name
+            Address.AddPointer(list, baseOff + 12, CalcMagicOamLength(rom, bgRtoL, maxBGOAM),
+                basename + (isCsa ? "RihtToLeftOAMBG" : "OBJ OAM"), Address.DataTypeEnum.MAGICOAM);
+            Address.AddPointer(list, baseOff + 16, CalcMagicOamLength(rom, bgLtoR, maxBGOAM),
+                basename + (isCsa ? "LeftRightOAMBG" : "BG OAM"), Address.DataTypeEnum.MAGICOAM);
+        }
+
+        /// <summary>
+        /// VERBATIM port of WF <c>ImageUtilMagicFEditor.calcOAMLength(duumyOAMoffset, maxOAM)</c>: from
+        /// <c>toOffset(duumyOAMoffset) + maxOAM</c>, scan forward in 12-byte steps until a step whose
+        /// leading u32 is <c>0x01</c> (the terminal frame), returning the byte length from the OAM base to
+        /// the end of that step. Returns 0 when the offset is 0 or the scan overruns the limiter
+        /// (<c>off + maxOAM + 2048</c>, clamped to Data.Length). EOF-safe (the u32 read is guarded by the
+        /// limiter; never throws).
+        /// </summary>
+        public static uint CalcMagicOamLength(ROM rom, uint duumyOAMoffset, uint maxOAM)
+        {
+            duumyOAMoffset = U.toOffset(duumyOAMoffset);
+            if (duumyOAMoffset == 0)
+            {
+                return 0;
+            }
+            uint dataLen = (uint)rom.Data.Length;
+            uint limitter = duumyOAMoffset + maxOAM + 2048; // give up after a 2K search.
+            if (limitter > dataLen)
+            {
+                limitter = dataLen;
+            }
+
+            uint oam = duumyOAMoffset + maxOAM;
+            while (true)
+            {
+                // WF: if (oam >= limitter) return 0. Also guard the 4-byte u32 read so it never crosses the
+                // clamp (WF's limitter is already <= Data.Length, but oam can be limitter-1..limitter-1+3).
+                if (oam >= limitter || oam + 4 > dataLen)
+                {//dangerous — ran past ROM end.
+                    return 0;
+                }
+                uint a = rom.u32(oam);
+                oam += 12;
+                if (a == 0x01)
+                {//terminal frame
+                    break;
+                }
+            }
+            return oam - duumyOAMoffset;
         }
 
         /// <summary>
@@ -6316,9 +6853,24 @@ namespace FEBuilderGBA
                 //    ImageTSAAnime2Form — its g_TSAAnime table is a config-FILE TSV resource
                 //      (U.LoadTSVResource(U.ConfigDataFilename("tsaanime2_"))) + IFR ReInit/ReInitPointer
                 //      machinery, NOT a RomInfo table (same class of blocker as ImageTSAAnimeForm).
-                //    ImageMagicFEditorForm/ImageMagicCSACreatorForm/ImageMapActionAnimationForm —
-                //      ImageUtil*.RecycleOldAnime (ImageUtil anime length helpers).
-                //    ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (LZ77-embedded OAM pointers).
+                //  (slice 2p ported the RecycleOldAnime forms whose length walk is PURE ROM (no Drawing, no
+                //   config) and whose gate/count deps are already in Core:
+                //    ImageMapActionAnimationForm — EmitImageMapActionAnimation: FindMapActionAnimationPointer
+                //      (version-gated 20-byte grep) + a main IFR (base p32(AnimeP), block 8, IsDataExists
+                //      isSafetyPointerOrNull(u32), PI {0}) + per-entry (i=1..) EmitMapActionRecycleOldAnime
+                //      (a 12-byte-record terminator walk; LZ77 OBJ @n+4 + PAL @n+8 per record, then a main
+                //      record IFR ReInit(base,(n-base)/12) PI {4,8}). NO calcOAMLength, NO decompress.
+                //    ImageMagicFEditorForm / ImageMagicCSACreatorForm — EmitImageMagicFEditor /
+                //      EmitImageMagicCsaCreator (shared EmitImageMagicCommon): the ImageUtilMagicCore gate
+                //      (SearchMagicSystem FEDITOR_ADV/CSA_CREATOR) + FindCSASpellTable + GetSpellDataCount,
+                //      a main IFR (base magic_effect_pointer, block 4, count GetSpellDataCount, PI {0}), the
+                //      Magic_Append_SpellTable block, and per spell (p32==dim/no_dim) EmitMagicRecycleOldAnime
+                //      (the verbatim WF RecycleOldAnime: FEditorAdv 28-byte / CSA 32-byte+TSA records; the OAM
+                //      column length is the verbatim CalcMagicOamLength port of WF calcOAMLength).
+                //  ImageBattleAnimeForm STAYS — ImageUtilOAM.MakeAllDataLength (the UnCompressFrame-embedded
+                //  seat-image walk IS Core-reproducible, but the form additionally needs ClassForm.MakeClassList
+                //  + ClassForm.GetBattleAnimeAddrWhereAddr + two IFRs (Init per-class + N_Init) + a seat-image
+                //  dedup list threaded across entries — a larger surface left for a later slice.)
                 //  (slice 2n ported ImageUnitMoveIconFrom — its per-entry AP column uses SubKind.ApPointer /
                 //   EmitApPointer, length = ImageUtilAPCore.CalcAPLength [the verbatim Core port of WF
                 //   ImageUtilAP.CalcAPLength = Parse + GetLength, already a tested Core helper]. The count
@@ -6332,10 +6884,9 @@ namespace FEBuilderGBA
                 //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
                 "ImageBattleAnimeForm",
-                "ImageMagicFEditorForm", "ImageMagicCSACreatorForm",
                 "ImageItemIconForm",
                 "ImageRomAnimeForm",
-                "ImageMapActionAnimationForm", "ImageTSAAnimeForm",
+                "ImageTSAAnimeForm",
                 "ImageTSAAnime2Form", "ImagePortraitForm",
                 "MapMiniMapTerrainImageForm",
                 // songs / sound (recycle, embedded inst)
