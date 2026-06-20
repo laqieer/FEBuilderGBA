@@ -5279,8 +5279,9 @@ namespace FEBuilderGBA
 
         // Verbatim port of FontForm.FontChar — decode (moji1,moji2) to a display string. NAME-ONLY
         // (informational; the WF-parity harness does not assert names). The WF @-fallback uses
-        // U.ToCharOneHex (one hex char); Core uses the 2-hex form (X2), matching FontGlyphRenderCore.Hex2 —
-        // a cosmetic divergence, relocation-identical.
+        // U.ToCharOneHex, which is ToString("X02") = TWO hex digits; Core's ToString("X2") produces the
+        // SAME two-digit output for a byte (X2 already pads a single-digit byte to 2), so the @-fallback is
+        // byte-identical to WF (matching FontGlyphRenderCore.Hex2).
         static string FontChar(ROM rom, uint moji1, uint moji2, PRIORITY_CODE priorityCode)
         {
             ISystemTextEncoder encoder = CoreState.SystemTextEncoder;
