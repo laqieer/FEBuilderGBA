@@ -622,6 +622,23 @@ namespace FEBuilderGBA
             progress?.Report("MapChange");
             EmitMapChange(rom, list);
 
+            // ---- slice 2ab: FontForm (item / text / status font; version-agnostic call site) ----
+            // WF calls FontForm.MakeAllDataLength at U.cs:2427, IMMEDIATELY AFTER MapChange (2426) and
+            // before Text (2428). Wired here, directly after EmitMapChange, to preserve that WF emission
+            // ORDER (Copilot plan-review point 1). It is NOT a flat StructDescriptor walk: the non-ZH path
+            // emits a top hash POINTER table entry then chain-walks each bucket's next-pointer list (per-
+            // glyph FONT entries with before_pointer as the pointer field); the ZH path (is_multibyte &&
+            // textencoding==ZH_TBL) emits one FONTCN entry per codeB TBL key. Reproduced VERBATIM as a
+            // dedicated emitter (the editor enumerators FontGlyphRenderCore/FontGlyphZHCore DIVERGE — see
+            // EmitFont). Its own cancel-check mirrors the WF DoEvents posture.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("Font");
+            EmitFont(rom, list);
+
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -1094,6 +1111,20 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE7");
                 EmitWorldMapImageFE7(rom, list);
+
+                // ---- slice 2ab: UnitCustomBattleAnimeForm (FE7-only) ----
+                // WF calls UnitCustomBattleAnimeForm.MakeAllDataLength ONLY in the version==7 branch
+                // (U.cs:2549). A two-level pointer table: the N2 main IFR (base
+                // unit_custom_battle_anime_pointer, block 4, rule i==0?true:isPointer(u32), PI {0}), then
+                // per N2 entry a ReInitPointer'd inner IFR (block 4, rule u32(addr)!=0, PI {}) via the
+                // slice-2i EmitNestedIfrSub primitive. Its own cancel-check mirrors the WF DoEvents posture.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("UnitCustomBattleAnime");
+                EmitUnitCustomBattleAnime(rom, list);
 
                 // ---- slice 2t: ImagePortraitForm (FE7 path) ----
                 // WF calls ImagePortraitForm.MakeAllDataLength in the version==7 branch too (same emitter as
@@ -4965,6 +4996,332 @@ namespace FEBuilderGBA
                 || FETextEncode.IsUnHuffmanPatch_EW_RAMPointer(p);
         }
 
+        // ===================================================================
+        // slice 2ab: FontForm (item / text / status font; version-agnostic
+        // call site at U.cs:2427, BETWEEN MapChange and Text). Reproduced
+        // VERBATIM from FontForm.MakeAllDataLength (FontForm.cs:803) — NOT via
+        // the editor enumerators FontGlyphRenderCore.EnumerateGlyphs /
+        // FontGlyphZHCore.EnumerateGlyphsZH, which DIVERGE from the producer
+        // walk (the editor helpers omit the top POINTER table entry, drop the
+        // per-glyph before_pointer field, and add a stricter p+72 EOF guard
+        // where the producer only checks isSafetyOffset(p) — same corruption-
+        // risk class as the MagicEffect*ImportCore.RecycleOld* EOF mismatch).
+        // The FontGlyphRenderCore / FontGlyphZHCore / PatchDetection.Search-
+        // PriorityCode helpers cited in the (now removed) stale deferral comment
+        // ARE used for the pure pieces (GetFontPointer, GetFontPointerZH,
+        // CalcCodeB, SearchPriorityCode), but the EMISSION walk is local.
+        // ===================================================================
+
+        /// <summary>
+        /// <c>FontForm.MakeAllDataLength</c> (slice 2ab; version-agnostic call site). Gated EXACTLY at the
+        /// WF entry: <c>is_multibyte &amp;&amp; CoreState.TextEncoding == ZH_TBL</c> dispatches the ZH
+        /// direct-reference codeB walk (<see cref="EmitFontZH"/>); otherwise the item font, the text font
+        /// (both <see cref="EmitFontInner"/>) and the status font (<see cref="EmitFontStatusFont"/>).
+        /// </summary>
+        public static void EmitFont(ROM rom, List<Address> list)
+        {
+            // WF: if (is_multibyte) { if (textencoding() == ZH_TBL) { FontZHForm.MakeAllDataLength; return; } }
+            if (rom.RomInfo.is_multibyte && CoreState.TextEncoding == TextEncodingEnum.ZH_TBL)
+            {
+                EmitFontZH(rom, list);
+                return;
+            }
+
+            // アイテム / セリフ.
+            EmitFontInner(rom, list, isItemFont: true);
+            EmitFontInner(rom, list, isItemFont: false);
+
+            // ステータスフォント.
+            EmitFontStatusFont(rom, list,
+                rom.RomInfo.status_font_pointer, rom.RomInfo.status_font_count);
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>FontForm.MakeAllDataLengthInner</c> (the non-ZH item/text font). Emits the
+        /// top hash POINTER table entry, then walks each hash bucket's next-pointer chain emitting one
+        /// <c>8+64</c>-byte <see cref="Address.DataTypeEnum.FONT"/> entry per glyph (pointer field =
+        /// <c>before_pointer</c>, exactly as WF). Three branches:
+        /// <list type="bullet">
+        ///   <item>JP (<c>is_multibyte</c>): POINTER length <c>4*(0xff-0x1f)</c>; buckets <c>moji1</c>
+        ///   0x1f..0xff at <c>topaddress + (moji1&lt;&lt;2) - 0x100</c>; name <c>FontChar(moji2,moji1)</c>.</item>
+        ///   <item>UTF8 (priority code): POINTER length <c>4*0xff</c>; buckets <c>moji1</c> 0x00..0xff at
+        ///   <c>topaddress + (moji1&lt;&lt;2)</c>; name <c>FontCharUTF8</c> (reads <c>u8(p+6)/u8(p+7)</c>).</item>
+        ///   <item>LAT1 (else): POINTER length <c>4*0xff</c>; buckets <c>moji2</c> 0x00..0xff at
+        ///   <c>topaddress + (moji2&lt;&lt;2)</c>; name <c>FontChar(0,moji2)</c>.</item>
+        /// </list>
+        /// EOF-hardening: WF reads <c>u8(p+4)</c>/<c>u8(p+6)</c>/<c>u8(p+7)</c>/<c>u32(p)</c> after only
+        /// <c>isSafetyOffset(p)</c> (the START byte). The chain walk here additionally requires the full
+        /// 8-byte struct header to fit (<c>isSafetyOffset(p+7)</c>) before any read — behaviour-neutral on a
+        /// real ROM (every glyph struct is 72 bytes, always allocated) and EOF-robust on a truncated /
+        /// synthetic one (the never-throws contract). A cap (<c>MAX_FONT_CHAIN</c>) guards a corrupt cyclic
+        /// chain (matching the editor helper's MAX_CHAIN).
+        /// </summary>
+        public static void EmitFontInner(ROM rom, List<Address> list, bool isItemFont)
+        {
+            uint topaddress = FontCore.GetFontPointer(isItemFont, rom);
+            // PriorityCodeUtil.SearchPriorityCode is the Core port of WF PatchUtil.SearchPriorityCode (byte-
+            // faithful — same is_multibyte/DrawFont gate); it returns the bare FEBuilderGBA.PRIORITY_CODE the
+            // FontGlyphRenderCore font code uses (PatchDetection.PRIORITY_CODE is the duplicate enum in the
+            // other namespace).
+            PRIORITY_CODE priorityCode = PriorityCodeUtil.SearchPriorityCode(rom);
+            EmitFontInnerAt(rom, list, isItemFont, topaddress, priorityCode, rom.RomInfo.is_multibyte);
+        }
+
+        /// <summary>FontForm inner walk from an EXPLICIT top hash-table address + priority code +
+        /// multibyte flag (test seam — lets a synthetic NULL-RomInfo ROM supply the hash-table base and
+        /// branch selection without populating RomInfo / a draw-font patch). See
+        /// <see cref="EmitFontInner"/> for the verbatim WF reproduction.</summary>
+        public static void EmitFontInnerAt(ROM rom, List<Address> list, bool isItemFont,
+            uint topaddress, PRIORITY_CODE priorityCode, bool isMultibyte)
+        {
+            string name = isItemFont ? "FontItem" : "FontText";
+
+            if (isMultibyte)
+            {//日本語版
+                Address.AddAddress(list, topaddress, 4 * (0xffu - 0x1fu), U.NOT_FOUND,
+                    name, Address.DataTypeEnum.POINTER);
+
+                for (uint moji1 = 0x1f; moji1 <= 0xff; moji1++)
+                {
+                    uint fontlist = topaddress + (moji1 << 2) - 0x100;
+                    if (!U.isSafetyOffset(fontlist, rom)) continue;
+                    uint p = rom.p32(fontlist);
+                    if (!U.isSafetyOffset(p, rom)) continue;
+                    uint before_pointer = fontlist;
+
+                    int guard = 0;
+                    while (p > 0 && guard++ < MAX_FONT_CHAIN)
+                    {
+                        if (!FontStructFits(rom, p)) break; // EOF-extend (WF: only isSafetyOffset(p))
+                        uint moji2 = rom.u8(p + 4);
+                        Address.AddAddress(list, p, 8 + 64, before_pointer,
+                            name + FontChar(rom, moji2, moji1, priorityCode),
+                            Address.DataTypeEnum.FONT);
+
+                        uint next = rom.u32(p);
+                        if (next == 0) break;                       // リスト終端.
+                        if (!U.isSafetyPointer(next, rom)) break;   // リストが壊れている.
+                        before_pointer = p;
+                        p = U.toOffset(next);
+                    }
+                }
+            }
+            else if (priorityCode == PRIORITY_CODE.UTF8)
+            {//UTF-8
+                Address.AddAddress(list, topaddress, 4 * 0xffu, U.NOT_FOUND,
+                    name, Address.DataTypeEnum.POINTER);
+
+                for (uint moji1 = 0x0; moji1 <= 0xff; moji1++)
+                {
+                    uint fontlist = topaddress + (moji1 << 2);
+                    if (!U.isSafetyOffset(fontlist, rom)) continue;
+                    uint p = rom.p32(fontlist);
+                    if (!U.isSafetyOffset(p, rom)) continue;
+                    uint before_pointer = fontlist;
+
+                    int guard = 0;
+                    while (p > 0 && guard++ < MAX_FONT_CHAIN)
+                    {
+                        if (!FontStructFits(rom, p)) break;
+                        uint moji2 = rom.u8(p + 4);
+                        uint moji3 = rom.u8(p + 6);
+                        uint moji4 = rom.u8(p + 7);
+                        Address.AddAddress(list, p, 8 + 64, before_pointer,
+                            name + FontCharUTF8(moji1, moji2, moji3, moji4),
+                            Address.DataTypeEnum.FONT);
+
+                        uint next = rom.u32(p);
+                        if (next == 0) break;
+                        if (!U.isSafetyPointer(next, rom)) break;
+                        before_pointer = p;
+                        p = U.toOffset(next);
+                    }
+                }
+            }
+            else
+            {//英語版
+                Address.AddAddress(list, topaddress, 4 * 0xffu, U.NOT_FOUND,
+                    name, Address.DataTypeEnum.POINTER);
+
+                for (uint moji2 = 0x0; moji2 <= 0xff; moji2++)
+                {
+                    uint fontlist = topaddress + (moji2 << 2);
+                    if (!U.isSafetyOffset(fontlist, rom)) continue;
+                    uint p = rom.p32(fontlist);
+                    if (!U.isSafetyOffset(p, rom)) continue;
+                    uint before_pointer = fontlist;
+
+                    int guard = 0;
+                    while (p > 0 && guard++ < MAX_FONT_CHAIN)
+                    {
+                        if (!FontStructFits(rom, p)) break;
+                        Address.AddAddress(list, p, 8 + 64, before_pointer,
+                            name + FontChar(rom, 0, moji2, priorityCode),
+                            Address.DataTypeEnum.FONT);
+
+                        uint next = rom.u32(p);
+                        if (next == 0) break;
+                        if (!U.isSafetyPointer(next, rom)) break;
+                        before_pointer = p;
+                        p = U.toOffset(next);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>FontForm.MakeAllDataLengthStatusFont</c>. A fixed-size status-font pointer
+        /// loop: <c>topaddress = p32(toppointer)</c> (both <paramref name="toppointer"/> and the resolved
+        /// base guarded), then <c>i &lt; count</c>, <c>addr += 4</c>: emit the <c>8+64</c>-byte
+        /// <see cref="Address.DataTypeEnum.FONT"/> glyph at <c>p32(addr)</c> (pointer field = the slot
+        /// <c>addr</c>), skipping any slot whose resolved font is an unsafe offset. The slot is guarded
+        /// (<c>addr+3</c>) before the <c>p32</c> read.
+        /// </summary>
+        public static void EmitFontStatusFont(ROM rom, List<Address> list, uint toppointer, uint count)
+        {
+            if (!U.isSafetyOffset(toppointer, rom)) return;
+            uint topaddress = rom.p32(toppointer);
+            if (!U.isSafetyOffset(topaddress, rom)) return;
+
+            const string name = "StatusFont";
+            uint addr = topaddress;
+            for (uint i = 0; i < count; i++, addr += 4)
+            {
+                // WF reads p32(addr) after only the loop bound; guard the full slot (addr+3) so a near-EOF
+                // count emits nothing instead of throwing (behaviour-neutral on a real ROM allocated to
+                // `count` slots).
+                if (!U.isSafetyOffset(addr + 3, rom)) break;
+                uint font = rom.p32(addr);
+                if (!U.isSafetyOffset(font, rom)) continue;
+
+                Address.AddAddress(list, font, 8 + 64, addr, name, Address.DataTypeEnum.FONT);
+            }
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>FontZHForm.MakeAllDataLength</c> (the Chinese direct-reference codeB font).
+        /// Builds the <c>{ codeB -&gt; char }</c> map from the AMBIENT
+        /// <see cref="CoreState.SystemTextEncoder"/> (mirroring WF <c>Program.SystemTextEncoder</c> — in the
+        /// ZH producer branch the loaded encoder IS the ZH_TBL one; this is NOT the editor helper's fresh
+        /// <c>new SystemTextEncoder(ZH_TBL)</c>), then emits one <c>44</c>-byte
+        /// <see cref="Address.DataTypeEnum.FONTCN"/> entry per key at <c>GetFontPointerZH(version,isItemFont)
+        /// + codeB</c> for both the item and text fonts. Emission is UNCONDITIONAL per key (no struct-fits
+        /// guard — WF emits every key; <see cref="Address.AddAddress(List{Address},uint,uint,uint,string,
+        /// Address.DataTypeEnum)"/> already guards the start offset). The codeB stride math is
+        /// <see cref="FontGlyphZHCore.CalcCodeBRaw"/> (the verbatim <c>FontZHForm.CalcCodeB</c>).
+        /// </summary>
+        public static void EmitFontZH(ROM rom, List<Address> list)
+        {
+            var codeBMap = MakeFontZHCodeBMap();
+            EmitFontZHInner(rom, list, isItemFont: true, codeBMap);
+            EmitFontZHInner(rom, list, isItemFont: false, codeBMap);
+        }
+
+        // FontZHForm.MakeCodeBMap(isKanjiOnly:false). { codeB -> char }. The WF producer path passes
+        // isKanjiOnly=false (the bigendian<=0x8397 skip never applies). Last-char-for-a-colliding-codeB
+        // wins (Dictionary indexer assignment), exactly as WF.
+        static Dictionary<uint, string> MakeFontZHCodeBMap()
+        {
+            var codeBMap = new Dictionary<uint, string>();
+            ISystemTextEncoder encoder = CoreState.SystemTextEncoder;
+            if (encoder == null) return codeBMap;
+            Dictionary<string, uint> encodeMap = encoder.GetTBLEncodeDicLow();
+            if (encodeMap == null) return codeBMap;
+
+            foreach (var p in encodeMap)
+            {
+                uint codeA = p.Value & 0xff;
+                uint codeB = (p.Value >> 8) & 0xff;
+                uint codeBB = FEBuilderGBA.Core.FontGlyphZHCore.CalcCodeBRaw(codeA, codeB);
+                codeBMap[codeBB] = p.Key;
+            }
+            return codeBMap;
+        }
+
+        // FontZHForm.MakeAllDataLengthInner. fontSize == 4 (header) + 40 (2bpp bitmap) == 44.
+        static void EmitFontZHInner(ROM rom, List<Address> list, bool isItemFont,
+            Dictionary<uint, string> codeBMap)
+        {
+            uint topaddress = FEBuilderGBA.Core.FontGlyphZHCore.GetFontPointerZH(rom.RomInfo.version, isItemFont);
+            EmitFontZHInnerAt(list, isItemFont, topaddress, codeBMap);
+        }
+
+        /// <summary>ZH font inner walk from an EXPLICIT table head (test seam — supply the ZH font head
+        /// without a real FE6/7/8 RomInfo version). One <c>44</c>-byte
+        /// <see cref="Address.DataTypeEnum.FONTCN"/> entry per codeB key. See <see cref="EmitFontZH"/>.</summary>
+        public static void EmitFontZHInnerAt(List<Address> list, bool isItemFont,
+            uint topaddress, Dictionary<uint, string> codeBMap)
+        {
+            string name = isItemFont ? "FontItem" : "FontText";
+            const uint fontSize = 4 + 40;
+
+            foreach (var p in codeBMap)
+            {
+                uint addr = topaddress + p.Key;
+                Address.AddAddress(list, addr, fontSize, U.NOT_FOUND,
+                    name + p.Value, Address.DataTypeEnum.FONTCN);
+            }
+        }
+
+        // Hard cap on a single font hash-bucket chain length (a corrupt cyclic next-pointer chain would
+        // otherwise spin). No real font bucket approaches this; matches FontGlyphRenderCore.MAX_CHAIN.
+        const int MAX_FONT_CHAIN = 0x10000;
+
+        // True when the full 8-byte font struct header at p (next u32 + moji2/width/moji3/moji4) is
+        // in-bounds, so the subsequent u8(p+4..p+7)/u32(p) reads can't throw on EOF. isSafetyOffset(p)
+        // alone only checks the FIRST byte. (The producer relocates 72 bytes, but WF only ever READS the
+        // first 8 in the walk, so guarding +7 is sufficient and exactly bounds every read it performs.)
+        static bool FontStructFits(ROM rom, uint p)
+        {
+            return U.isSafetyOffset(p, rom)
+                && (ulong)p + 8 <= (ulong)rom.Data.Length;
+        }
+
+        // Verbatim port of FontForm.FontChar — decode (moji1,moji2) to a display string. NAME-ONLY
+        // (informational; the WF-parity harness does not assert names). The WF @-fallback uses
+        // U.ToCharOneHex, which is ToString("X02") = TWO hex digits; Core's ToString("X2") produces the
+        // SAME two-digit output for a byte (X2 already pads a single-digit byte to 2), so the @-fallback is
+        // byte-identical to WF (matching FontGlyphRenderCore.Hex2).
+        static string FontChar(ROM rom, uint moji1, uint moji2, PRIORITY_CODE priorityCode)
+        {
+            ISystemTextEncoder encoder = CoreState.SystemTextEncoder;
+            if (encoder != null && priorityCode == PRIORITY_CODE.SJIS)
+            {
+                if (U.isSJIS1stCode((byte)moji1) && U.isSJIS2ndCode((byte)moji2))
+                {
+                    byte[] str = { (byte)moji1, (byte)moji2, 0 };
+                    return encoder.Decode(str, 0, 2);
+                }
+                if (moji1 > 0 && moji2 == 0x40)
+                {
+                    byte[] str = { (byte)moji1, 0 };
+                    return encoder.Decode(str, 0, 1);
+                }
+            }
+
+            if (moji1 == 0 && encoder != null)
+            {
+                byte[] str = { (byte)moji2, 0 };
+                return encoder.Decode(str, 0, 1);
+            }
+
+            return "@" + ((byte)moji2).ToString("X2") + ((byte)moji1).ToString("X2");
+        }
+
+        // Verbatim port of FontForm.FontCharUTF8 (UTF-32 decode of the 4 packed bytes). NAME-ONLY.
+        static string FontCharUTF8(uint moji1, uint moji2, uint moji3, uint moji4)
+        {
+            byte[] str = { (byte)moji1, (byte)moji2, (byte)moji3, (byte)moji4, 0 };
+            try
+            {
+                return System.Text.Encoding.GetEncoding("UTF-32").GetString(str, 0, 4);
+            }
+            catch
+            {
+                return "@" + ((byte)moji1).ToString("X2");
+            }
+        }
+
         // =====================================================================================
         // slice 2p: OAM / battle-anime length forms (version-agnostic call sites)
         // =====================================================================================
@@ -5941,6 +6298,87 @@ namespace FEBuilderGBA
             uint pointer = U.isSafetyOffset(field, rom) ? field : U.NOT_FOUND;
             list.Add(new Address(subBase, length, pointer, name,
                 Address.DataTypeEnum.InputFormRef, subBlock, new uint[] { }));
+        }
+
+        // ===================================================================
+        // slice 2ab: UnitCustomBattleAnimeForm (FE7-only; WF call site in the
+        // version==7 branch at U.cs:2549). A two-level N2/InputFormRef pointer
+        // loop reproduced VERBATIM from UnitCustomBattleAnimeForm.MakeAllData-
+        // Length (UnitCustomBattleAnimeForm.cs:142): the N2 main pointer table
+        // IFR, then per N2 entry a ReInitPointer'd inner IFR. NO anime-recycle,
+        // NO patch detection, NO sub-length. The inner ReInitPointer + AddAddress
+        // (IFR, {}) is exactly the slice-2i EmitNestedIfrSub primitive (the inner
+        // IFR's NextAddrCallback defaults to +blocksize, so its 4-arg getBlock-
+        // DataCount == the 3-arg one EmitNestedIfrSub uses).
+        // ===================================================================
+
+        /// <summary>
+        /// <c>UnitCustomBattleAnimeForm.MakeAllDataLength</c> (slice 2ab; FE7-only). Resolves the N2 base
+        /// from <c>unit_custom_battle_anime_pointer</c> and delegates to
+        /// <see cref="EmitUnitCustomBattleAnimeAt"/>.
+        /// </summary>
+        public static void EmitUnitCustomBattleAnime(ROM rom, List<Address> list)
+        {
+            EmitUnitCustomBattleAnimeAt(rom, list, rom.RomInfo.unit_custom_battle_anime_pointer);
+        }
+
+        /// <summary>
+        /// UnitCustomBattleAnime walk from an EXPLICIT N2 pointer-table slot (test seam — lets a synthetic
+        /// ROM supply it without populating RomInfo). Reproduces <c>MakeAllDataLength</c> VERBATIM:
+        /// <list type="bullet">
+        ///   <item><b>N2 main IFR</b> (<c>N2_Init</c>): BasePointer = <paramref name="n2Pointer"/>,
+        ///   BaseAddress = <c>p32(slot)</c>, block 4, IsDataExists = <c>i == 0 ? true : isPointer(u32(addr))</c>.
+        ///   Emitted via <see cref="Address.AddAddressInstantIFR"/> as
+        ///   <c>AddressWinForms.AddAddress(list, N2_IFR, "UnitCustomBattle", {0})</c> — addr = BaseAddress,
+        ///   length = <c>4 * (DataCount + 1)</c>, pointer = the slot, pointerIndexes <c>{0}</c>.</item>
+        ///   <item><b>per N2 entry</b> (<c>p = N2.BaseAddress</c>, <c>i &lt; N2.DataCount</c>, <c>p += 4</c>):
+        ///   <c>InputFormRef.ReInitPointer(p)</c> (inner base = <c>p32(p)</c>, block 4, IsDataExists =
+        ///   <c>u32(addr) != 0</c>) + <c>AddAddress(list, InputFormRef, "UnitCustomBattle" + To0xHexString(i),
+        ///   {})</c> — reproduced by <see cref="EmitNestedIfrSub"/> (pointer field = <c>p</c> = the inner
+        ///   IFR's BasePointer; pointerIndexes EMPTY).</item>
+        /// </list>
+        /// The N2 main DataCount is computed via the SAME <c>getBlockDataCount(N2.BaseAddress, 4, N2rule)</c>
+        /// WF's <c>N2_Init</c> runs (BaseAddress-derived). The slot is guarded (<c>+3</c>) before the
+        /// <c>p32</c> read; the per-entry <c>p</c> can run to where a 4-byte read is near-EOF (WF's loop
+        /// bound is the N2 DataCount, not a re-walk of THIS pointer list), but
+        /// <see cref="EmitNestedIfrSub"/> already guards <c>p+3</c> and emits nothing there — behaviour-
+        /// neutral on a real ROM allocated to <c>DataCount</c> entries, EOF-robust on a synthetic one.
+        /// </summary>
+        public static void EmitUnitCustomBattleAnimeAt(ROM rom, List<Address> list, uint n2Pointer)
+        {
+            const uint block = 4;
+
+            // N2_Init: BasePointer = toOffset(slot); BaseAddress = p32(BasePointer). Guard the full slot
+            // before p32 (root+3), matching InputFormRef.Init (toOffset then p32, both safety-checked).
+            uint slot = U.toOffset(n2Pointer);
+            if (!U.isSafetyOffset(slot + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(slot);
+
+            // N2 IsDataExists: i == 0 ? true : isPointer(u32(addr)). getBlockDataCount guards
+            // addr+block(4) <= Length, so u32(addr) is always in bounds. A baseAddr of 0/NOT_FOUND yields
+            // count 0 (getBlockDataCount short-circuits), exactly as InputFormRef.Init over an unsafe base.
+            Func<int, uint, bool> n2Rule = (i, addr) =>
+                i == 0 ? true : U.isPointer(rom.u32(addr));
+            uint n2Count = rom.getBlockDataCount(baseAddr, block, n2Rule);
+
+            // AddAddressInstantIFR == AddressWinForms.AddAddress(list, N2_IFR, "UnitCustomBattle", {0}):
+            // addr = p32(slot), length = block*(count+1), pointer = slot (if safe), PI {0}. It internally
+            // guards the resolved base (no emit when unsafe), matching AddAddress's isSafetyOffset(addr).
+            Address.AddAddressInstantIFR(list, n2Pointer, block, n2Count, "UnitCustomBattle", new uint[] { 0 });
+
+            // Per N2 entry: p = N2.BaseAddress; p += BlockSize. WF loops i < N2.DataCount and calls
+            // InputFormRef.ReInitPointer(p) + AddAddress(InputFormRef, name, {}) == EmitNestedIfrSub with
+            // pfield = p. Inner IFR: block 4, IsDataExists = u32(addr) != 0 (the "00まで検索" terminator).
+            uint p = baseAddr;
+            for (uint i = 0; i < n2Count; i++, p += block)
+            {
+                EmitNestedIfrSub(rom, list, p, block,
+                    (j, addr) => rom.u32(addr) != 0,
+                    "UnitCustomBattle" + U.To0xHexString(i));
+            }
         }
 
         /// <summary>
@@ -10400,7 +10838,16 @@ namespace FEBuilderGBA
                 //  Core (PatchDetection.SearchFlag0x28ToMapSecondPalettePatch) inside
                 //  MapPListResolverCore.GetMapPListsWhereAddr, and MapSettingCore.MakeMapIDList +
                 //  RomInfo-only GetBasePointer/IsPlistSplits complete the dependency set.)
-                "FontForm",
+                // (FontForm ported in slice 2ab — EmitFont: gated EXACTLY at the WF entry
+                //  (is_multibyte && CoreState.TextEncoding==ZH_TBL -> the ZH direct-ref codeB walk
+                //  EmitFontZH; else the item/text hash-chain walks EmitFontInner + the fixed-size status
+                //  font loop EmitFontStatusFont). Reproduced VERBATIM as producer-local methods, NOT via the
+                //  editor enumerators FontGlyphRenderCore.EnumerateGlyphs/FontGlyphZHCore.EnumerateGlyphsZH —
+                //  those DIVERGE (the editor helpers omit the top POINTER table entry, drop the per-glyph
+                //  before_pointer field, and add a stricter p+72 EOF guard where WF only checks
+                //  isSafetyOffset(p); EnumerateGlyphsZH also adds a struct-fits guard WF lacks + builds its
+                //  own fresh encoder). The pure helpers ARE reused: FontCore.GetFontPointer,
+                //  FontGlyphZHCore.GetFontPointerZH/CalcCodeBRaw, PatchDetection.SearchPriorityCode.)
                 // AI scripts (disasm)
                 // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
@@ -10475,7 +10922,13 @@ namespace FEBuilderGBA
                 //  static NewAllocData list, which is EDITOR SESSION STATE (newly-allocated unit regions
                 //  recorded during live editing), NOT a ROM-derived table; it is always empty headless, so
                 //  the producer emits nothing for it — kept listed so the coverage gate stays honest.)
-                "UnitCustomBattleAnimeForm",
+                // (UnitCustomBattleAnimeForm [FE7-only] ported in slice 2ab — EmitUnitCustomBattleAnime: the
+                //  N2 main pointer-table IFR (base unit_custom_battle_anime_pointer, block 4, rule
+                //  i==0?true:isPointer(u32), PI {0}) via AddAddressInstantIFR, then per N2 entry a
+                //  ReInitPointer'd inner IFR (block 4, rule u32(addr)!=0, PI {}) via the slice-2i
+                //  EmitNestedIfrSub primitive. NO anime-recycle, NO patch detection, NO sub-length — the
+                //  inner IFR's default +blocksize NextAddrCallback makes its getBlockDataCount identical to
+                //  EmitNestedIfrSub's 3-arg walk.)
                 "EventUnitForm(RecycleReserveUnits)",
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
                 // (MonsterItemForm + MonsterProbabilityForm ported in slice 2b.
