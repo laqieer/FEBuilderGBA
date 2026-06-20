@@ -532,8 +532,9 @@ namespace FEBuilderGBA
             // version-gated LZ77/PAL/HEADER-TSA sequence) are both called in the WF unconditional section.
             // The FE8/FE7-multibyte ImageCGForm, FE7U ImageCGFE7UForm, and FE8 WorldMapImageForm are
             // version-gated and wired into their respective version branches below. Each gets its own
-            // cancel-check, mirroring the WF DoEvents posture. ImageTSAAnime2Form STAYS deferred — its
-            // g_TSAAnime table is a config-FILE TSV (U.LoadTSVResource("tsaanime2_")), not a RomInfo table.
+            // cancel-check, mirroring the WF DoEvents posture. (The config-FILE-table TSA-anime forms —
+            // ImageTSAAnime2Form / ImageTSAAnimeForm, g_TSAAnime from U.LoadTSVResource("tsaanime2_"/
+            // "tsaanime_") — are ported in slice 2q and wired into their version branches below.)
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -716,6 +717,33 @@ namespace FEBuilderGBA
             progress?.Report("ImageMagicCSACreator");
             EmitImageMagicCsaCreator(rom, list);
 
+            // ---- slice 2q: config-FILE-table forms (version-agnostic call site) ----
+            // OtherTextForm and ImageRomAnimeForm are both in the WF unconditional section (NOT
+            // version-gated). Neither is a flat StructDescriptor walk: each loads a config TSV
+            // (other_text_ / romanime_) via U.ConfigDataFilename / U.LoadTSVResource (now in Core,
+            // resolving against CoreState.BaseDirectory) — a config-FILE table, not a RomInfo slot —
+            // and emits per-entry blocks whose lengths are all Core-backed (getString / LZ77
+            // getCompressedSize / pure-ROM frame & pointer-list terminator walks; NO ImageUtilOAM /
+            // Drawing / disasm). A missing config tree -> empty table -> nothing emitted (faithful to
+            // WF's empty-dict headless behavior). Each gets its own cancel-check (WF DoEvents posture).
+            // The version-gated ImageTSAAnimeForm (v8 + v7) / ImageTSAAnime2Form (v8) are wired into
+            // their respective version branches below.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("OtherText");
+            EmitOtherText(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageRomAnime");
+            EmitImageRomAnime(rom, list);
+
             // ---- slice 2h: SupportUnit (all versions) + WorldMapPath (FE8-only) ----
             // SupportUnitForm is called in the WF version==8 AND version==7 branches (block 24); the
             // SupportUnitFE6Form variant in version==6 (block 32). EmitSupportUnit auto-selects the
@@ -858,6 +886,28 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("ImageCG");
                 EmitImageCG(rom, list);
+
+                // ---- slice 2q: ImageTSAAnime2Form (FE8 ONLY) + ImageTSAAnimeForm (FE8 + FE7) ----
+                // WF calls ImageTSAAnime2Form.MakeAllDataLength ONLY in the version==8 branch (its
+                // g_TSAAnime / tsaanime2_ config exists only for FE8); ImageTSAAnimeForm.MakeAllDataLength
+                // is called in BOTH the version==8 AND version==7 branches (NOT version==6). Both load a
+                // config TSV (tsaanime2_ / tsaanime_) and emit an IFR + LZ77/PAL/HEADER-TSA columns —
+                // all Core-backed lengths. EmitImageTSAAnime is wired into the version==7 branch below too.
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImageTSAAnime2");
+                EmitImageTSAAnime2(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImageTSAAnime");
+                EmitImageTSAAnime(rom, list);
             }
 
             if (rom.RomInfo.version == 7)
@@ -869,6 +919,17 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE7");
                 EmitWorldMapImageFE7(rom, list);
+
+                // ---- slice 2q: ImageTSAAnimeForm (FE8 + FE7) ----
+                // WF calls ImageTSAAnimeForm.MakeAllDataLength in the version==7 branch too (NOT FE6).
+                // Same emitter as the version==8 path (tsaanime_ config + IFR + LZ77/PAL/LZ77TSA columns).
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("ImageTSAAnime");
+                EmitImageTSAAnime(rom, list);
 
                 // ---- slice 2i: OPClassDemoFE7 (FE7-multibyte ONLY) ----
                 // WF calls OPClassDemoFE7Form.MakeAllDataLength inside `version==7 && is_multibyte` (the
@@ -1891,6 +1952,550 @@ namespace FEBuilderGBA
             }
             uint length = ImageUtilAPCore.CalcAPLength(rom.Data, target);
             list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.AP));
+        }
+
+        // -------------------------------------------------------------------------------------------
+        // slice 2q: config-FILE-table forms (the table base/count come from a config TSV loaded via
+        // U.ConfigDataFilename / U.LoadTSVResource, NOT a RomInfo pointer slot, so none fits the flat
+        // StructDescriptor model — each gets a dedicated emitter). All four are pure-ROM + config: every
+        // per-entry length is LZ77.getCompressedSize, a constant palette size, CalcHeaderTsaLength
+        // (slice 2k), ROM.getString, or a pure-ROM frame/pointer-list terminator walk — NO ImageUtilOAM,
+        // System.Drawing, or disasm. The config files (other_text_/tsaanime_/tsaanime2_/romanime_) ship
+        // under config/data/; ConfigDataFilename resolves them against CoreState.BaseDirectory. In a
+        // headless scan with the config tree absent the load returns an EMPTY dict/list (no throw — WF's
+        // LoadTSVResource / MakeOtherTextMap exact behavior), so the emitter contributes nothing, which
+        // is faithful (the same as a vanilla ROM with no entries).
+
+        /// <summary>
+        /// Load a config TSV table (<see cref="U.LoadTSVResource"/>) for a slice-2q anime form, never
+        /// throwing. WF's <c>PreLoadResource</c> always runs with a valid <see cref="CoreState.BaseDirectory"/>
+        /// (set during app/CLI init), but the producer may be invoked by a test / tool before the config
+        /// tree is staged: <see cref="U.ConfigDataFilename"/> does <c>Path.Combine(CoreState.BaseDirectory,
+        /// …)</c>, which throws <see cref="ArgumentNullException"/> when BaseDirectory is null. Wrap BOTH the
+        /// path build and the load in a try/catch so a missing/unconfigured config tree degrades to an EMPTY
+        /// table (emit nothing) — the same faithful headless behavior as a present-but-empty config file
+        /// (WF's <see cref="U.LoadTSVResource"/> returns an empty dict for a missing file).
+        /// </summary>
+        static Dictionary<uint, string[]> LoadConfigTableSafe(string type, ROM rom)
+        {
+            try
+            {
+                return U.LoadTSVResource(U.ConfigDataFilename(type, rom));
+            }
+            catch (Exception)
+            {
+                return new Dictionary<uint, string[]>();
+            }
+        }
+
+        /// <summary>
+        /// <c>OtherTextForm.MakeAllDataLength</c> (slice 2q, version-agnostic call site). WF iterates the
+        /// per-entry list from <c>MakeOtherTextMap()</c> (the <c>other_text_</c> config file, ONE hex
+        /// pointer per line, comment/other-lang filtered, <c>isSafetyOffset</c> gated — reproduced by
+        /// <see cref="TextSourceListCore.MakeOtherTextList"/>), and for each entry <c>p = textlist[i].addr</c>
+        /// reads <c>nameAddr = p32(p + 0)</c>; if <c>isSafetyOffset(nameAddr)</c> it decodes the C string
+        /// (<c>getString(nameAddr, out length)</c>) and emits a BIN block of that exact decoded length
+        /// (<c>AddAddress(nameAddr, length, p + 0, name, BIN)</c> — the byte length of the string WITHOUT a
+        /// trailing-NUL +1, like the MapTerrainName/Text BinString sub-walks). VERBATIM.
+        /// <para>The decode needs a <see cref="CoreState.SystemTextEncoder"/> (set in the real app + CLI
+        /// <c>InitFull</c>). With none loaded the producer SKIPS the per-entry block rather than NRE — the
+        /// embedded string is then un-tracked, but a partial scan is already <c>IsComplete == false</c>
+        /// (mirrors the <see cref="EmitSubWalks"/> encoder-null guard).</para>
+        /// <para>EOF-HARDENING: WF reads <c>p32(p)</c> after only the <c>isSafetyOffset(p)</c> the entry
+        /// list already guarantees; the producer guards the full 4-byte read extent before dereferencing.</para>
+        /// </summary>
+        public static void EmitOtherText(ROM rom, List<Address> list)
+        {
+            // BOTH the entry-list builder (TextSourceListCore.MakeOtherTextList decodes each entry's name
+            // via ROM.getString) AND the per-entry block decode need a CoreState.SystemTextEncoder (set in
+            // the real app + CLI InitFull). Check it FIRST and skip the whole form (don't NRE) when none is
+            // loaded — WF's MakeOtherTextMap would equally need one; mirrors the EmitSubWalks guard.
+            if (CoreState.SystemTextEncoder == null)
+            {
+                return;
+            }
+
+            // MakeOtherTextList reproduces MakeOtherTextMap (the entry's .addr is the config-file offset
+            // p; its .name is irrelevant here — MakeAllDataLength re-decodes the name from nameAddr).
+            // Missing config tree -> empty list -> nothing emitted (faithful headless behavior).
+            List<AddrResult> textlist = TextSourceListCore.MakeOtherTextList(rom);
+
+            for (int i = 0; i < textlist.Count; i++)
+            {
+                uint p = textlist[i].addr;
+                // EOF-harden: p32(p) reads p..p+3. The entry list already isSafetyOffset(p)-gated p, but
+                // guard the full extent so a near-EOF p skips rather than throws.
+                if (p + 4 > (uint)rom.Data.Length)
+                {
+                    continue;
+                }
+                uint nameAddr = rom.p32(0 + p);
+                if (U.isSafetyOffset(nameAddr, rom))
+                {
+                    int length;
+                    string name = rom.getString(nameAddr, out length);
+                    Address.AddAddress(list, nameAddr, (uint)length, p + 0, name,
+                        Address.DataTypeEnum.BIN);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>ImageTSAAnimeForm.MakeAllDataLength</c> (slice 2q; WF calls it in the <c>version==8</c> AND
+        /// <c>version==7</c> branches — NOT FE6). WF loads <c>g_TSAAnime = LoadTSVResource(ConfigDataFilename(
+        /// "tsaanime_"))</c> (key = a 4-byte pointer SLOT, value = [count, name, …]). For each entry: the
+        /// slot is <c>pointer = toOffset(key)</c>; <c>addr = p32(pointer)</c> is the anime-record table base;
+        /// <c>count = atoh(value[0])</c> is its FIXED entry count. The main IFR is <c>ReInit(addr, count)</c>
+        /// (block <c>4*3 = 12</c>, pointerIndexes {0,4,8}). Per entry <c>i &lt; count</c> (addr += 12): an
+        /// LZ77 image @ +0, a fixed <c>0x20*8</c>-byte palette @ +4, and an LZ77 TSA @ +8. Reproduced VERBATIM.
+        /// <para>EOF-HARDENING: WF reads <c>p32(pointer)</c> after only <c>isSafetyOffset(pointer)</c>; the
+        /// producer guards the full 4-byte extent. The per-column <c>Address.Add*</c> helpers re-check pointer
+        /// safety and compute the real length (<c>getCompressedSize</c> — 0/never-throws on a malformed stream).</para>
+        /// </summary>
+        public static void EmitImageTSAAnime(ROM rom, List<Address> list)
+        {
+            // WF PreLoadResource(): g_TSAAnime = LoadTSVResource(ConfigDataFilename("tsaanime_")). Load it
+            // fresh here (the producer has no live form to hold the static). Missing config -> empty dict.
+            const uint block = 4 * 3; // ImageTSAAnimeForm.Init BlockSize.
+            var g_TSAAnime = LoadConfigTableSafe("tsaanime_", rom);
+            foreach (var pair in g_TSAAnime)
+            {
+                uint pointer = pair.Key;
+                pointer = U.toOffset(pointer);
+                if (!U.isSafetyOffset(pointer, rom))
+                {
+                    continue;
+                }
+                // EOF-harden: p32(pointer) reads pointer..pointer+3.
+                if (pointer + 4 > (uint)rom.Data.Length)
+                {
+                    continue;
+                }
+                uint addr = rom.p32(pointer);
+                if (!U.isSafetyOffset(addr, rom))
+                {
+                    continue;
+                }
+                uint count = U.atoh(U.at(pair.Value, 0));
+                string basename = "TSAANIME " + U.at(pair.Value, 1) + " ";
+
+                // Main IFR: ReInit(addr, count) -> BaseAddress addr, DataCount count; AddAddress(IFR, ...)
+                // length = block * (count + 1), pointer = BasePointer (= pointer here, safe).
+                uint length = block * (count + 1);
+                list.Add(new Address(addr, length, pointer, basename,
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { 0, 4, 8 }));
+
+                for (uint i = 0; i < count; i++, addr += block)
+                {
+                    string name = basename + "" + U.To0xHexString(i);
+
+                    Address.AddLZ77Pointer(list, addr + 0, name + " IMAGE", false,
+                        Address.DataTypeEnum.LZ77IMG);
+                    Address.AddPointer(list, addr + 4, 0x20 * 8, name + " PALETTE",
+                        Address.DataTypeEnum.PAL);
+                    Address.AddLZ77Pointer(list, addr + 8, name + " TSA", false,
+                        Address.DataTypeEnum.LZ77TSA);
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>ImageTSAAnime2Form.MakeAllDataLength</c> (slice 2q; WF calls it in the <c>version==8</c> branch
+        /// ONLY). WF loads <c>g_TSAAnime = LoadTSVResource(ConfigDataFilename("tsaanime2_"))</c> (key = a
+        /// 4-byte pointer SLOT, value = [name, …]). The main IFR is block 12 with IsDataExists =
+        /// <c>isPointer(u32(addr+8))</c>; the N1 IFR is block 20 with IsDataExists = <c>i &lt; 1</c>. Per entry:
+        /// <c>pointer = toOffset(key)</c>; <c>addr = p32(pointer)</c>. N1 <c>ReInitPointer(pointer, 1)</c> makes
+        /// N1.BasePointer = pointer, N1.BaseAddress = addr, N1.DataCount = 1; main <c>ReInit(addr + 20)</c>
+        /// walks the TSA records starting 20 bytes past the header (VARIABLE count via getBlockDataCount).
+        /// WF emits: the main IFR (pointerIndexes {8}), the N1 IFR (pointerIndexes {4,16}); if N1.DataCount
+        /// &gt;= 1 a HEADER pair (LZ77 image @ addr+16, fixed 0x20-byte palette @ addr+4); then it skips the
+        /// 20-byte header (<c>addr += 20</c>) and per record <c>i &lt; main.DataCount</c> (addr += 12) emits a
+        /// header-TSA pointer @ addr+8. Reproduced VERBATIM.
+        /// <para>EOF-HARDENING: the <c>p32(pointer)</c> slot read and the <c>u32(a+8)</c> IsDataExists read
+        /// guard their full extents (getBlockDataCount already bounds addr+block &lt;= Length; the explicit
+        /// guard covers the +8 sub-read and the near-EOF slot). <see cref="EmitHeaderTsaPointer"/> is EOF-safe.</para>
+        /// </summary>
+        public static void EmitImageTSAAnime2(ROM rom, List<Address> list)
+        {
+            const uint block = 12;   // ImageTSAAnime2Form.Init BlockSize.
+            const uint n1Block = 20; // ImageTSAAnime2Form.N1_Init BlockSize.
+            // WF ImageTSAAnime2Form.PreLoadResource(): g_TSAAnime = LoadTSVResource("tsaanime2_").
+            var g_TSAAnime = LoadConfigTableSafe("tsaanime2_", rom);
+            foreach (var pair in g_TSAAnime)
+            {
+                uint pointer = pair.Key;
+                pointer = U.toOffset(pointer);
+                if (!U.isSafetyOffset(pointer, rom))
+                {
+                    continue;
+                }
+                // EOF-harden: p32(pointer) reads pointer..pointer+3.
+                if (pointer + 4 > (uint)rom.Data.Length)
+                {
+                    continue;
+                }
+                uint addr = rom.p32(pointer);
+                if (!U.isSafetyOffset(addr, rom))
+                {
+                    continue;
+                }
+                string basename = "TSAANIME2 " + U.at(pair.Value, 0) + " ";
+
+                // WF: N1_InputFormRef.ReInitPointer(pointer, 1) -> N1.BasePointer = pointer, N1.BaseAddress
+                // = p32(pointer) = addr, N1.DataCount = 1. InputFormRef.ReInit(addr + 20) -> main.BaseAddress
+                // = toOffset(addr + 20), main.DataCount = getBlockDataCount(IsDataExists = isPointer(u32(a+8))),
+                // main.BasePointer is the form default (unset/0).
+                uint mainAddr = U.toOffset(addr + 20);
+                uint mainCount;
+                if (U.isSafetyOffset(mainAddr, rom))
+                {
+                    mainCount = rom.getBlockDataCount(mainAddr, block, (i, a) =>
+                    {
+                        // WF Init IsDataExists: isPointer(u32(a + 8)). getBlockDataCount already bounds
+                        // a + block(12) <= Length, so a + 8 .. a + 11 is in range; guard anyway.
+                        if (a + 12 > (uint)rom.Data.Length)
+                        {
+                            return false;
+                        }
+                        return U.isPointer(rom.u32(a + 8));
+                    });
+                }
+                else
+                {
+                    mainCount = 0;
+                }
+
+                // WF order: AddAddress(main IFR, {8}) FIRST, then AddAddress(N1 IFR, {4,16}).
+                // WF main AddAddress: returns WITHOUT emitting when !isSafetyOffset(main.BaseAddress).
+                if (U.isSafetyOffset(mainAddr, rom))
+                {
+                    uint mainLength = block * (mainCount + 1);
+                    // WF main IFR BasePointer is unset (0) -> AddAddress sets pointer = NOT_FOUND.
+                    list.Add(new Address(mainAddr, mainLength, U.NOT_FOUND, basename,
+                        Address.DataTypeEnum.InputFormRef, block, new uint[] { 8 }));
+                }
+
+                // N1 IFR: ReInitPointer(pointer, 1) -> BasePointer pointer, BaseAddress addr, DataCount 1.
+                // (addr is already isSafetyOffset-checked above, so WF's N1 AddAddress always emits.)
+                uint n1Length = n1Block * (1 + 1);
+                list.Add(new Address(addr, n1Length, pointer, basename,
+                    Address.DataTypeEnum.InputFormRef, n1Block, new uint[] { 4, 16 }));
+
+                if (1 >= 1) // WF: if (N1_InputFormRef.DataCount >= 1) — DataCount is fixed 1 here.
+                {
+                    string name = basename + " HEADER";
+
+                    Address.AddLZ77Pointer(list, addr + 16, name + " IMAGE", false,
+                        Address.DataTypeEnum.LZ77IMG);
+                    Address.AddPointer(list, addr + 4, 0x20, name + " PALETTE",
+                        Address.DataTypeEnum.PAL);
+                }
+
+                uint recAddr = addr + 20; // WF: addr += 20 (SkipHeader).
+                for (uint i = 0; i < mainCount; i++, recAddr += block)
+                {
+                    string name = basename + "" + U.To0xHexString(i);
+
+                    EmitHeaderTsaPointer(rom, list, recAddr + 8, name + " TSA");
+                }
+            }
+        }
+
+        /// <summary>
+        /// <c>ImageRomAnimeForm.MakeAllDataLength</c> (slice 2q, version-agnostic call site). WF loads
+        /// <c>g_ROMAnime = LoadTSVResource(ConfigDataFilename("romanime_"))</c> (value = [imageWidth, option,
+        /// framePointer, tsaPointer, imagePointer, palettePointer, name, …]). Per entry it gates on
+        /// <see cref="CheckRomAnimePonters"/> (pure-ROM), then emits: a 4-byte FRAME pointer + (frameCount*4)
+        /// BIN frame table (frameCount from <see cref="GetRomAnimeFrameCountLow"/>, an <c>u16==0xFFFF</c>
+        /// terminator walk; if NOT_FOUND the whole entry is skipped); a 4-byte TSA pointer + one LZ77 TSA per
+        /// <see cref="GetRomAnimePointerListCount"/> entry; a 4-byte Image pointer + one LZ77 image per list
+        /// entry; a 4-byte Palette pointer + one fixed <c>2*16</c>-byte PAL per
+        /// <see cref="GetRomAnimePalettePointerListCount"/> entry. The per-frame pointer slot is verified
+        /// (<c>p32(baseAddr + i*4) == a</c>) before being used as the relocation pointer (else NOT_FOUND).
+        /// All helpers are reproduced VERBATIM (pure-ROM, EOF-hardened).
+        /// </summary>
+        public static void EmitImageRomAnime(ROM rom, List<Address> list)
+        {
+            // WF ImageRomAnimeForm.PreLoadResource(): g_ROMAnime = LoadTSVResource("romanime_").
+            var g_ROMAnime = LoadConfigTableSafe("romanime_", rom);
+            foreach (var pair in g_ROMAnime)
+            {
+                string[] sp = pair.Value;
+                string option = U.at(sp, 1);
+                uint framePointer = U.atoh(U.at(sp, 2));
+                uint tsaPointer = U.atoh(U.at(sp, 3));
+                uint imagePointer = U.atoh(U.at(sp, 4));
+                uint palettePointer = U.atoh(U.at(sp, 5));
+                string name = U.at(sp, 6);
+
+                if (!CheckRomAnimePonters(rom, framePointer, tsaPointer, imagePointer, palettePointer))
+                {
+                    continue;
+                }
+
+                uint frameCount = U.NOT_FOUND;
+                if (U.isSafetyOffset(framePointer, rom))
+                {
+                    Address.AddAddress(list, framePointer, 4, U.NOT_FOUND,
+                        name + " FRAME Pointer", Address.DataTypeEnum.POINTER);
+                    // WF: the !isPointerOnly branch always runs for a producer scan.
+                    frameCount = GetRomAnimeFrameCountLow(rom, framePointer);
+                    if (frameCount != U.NOT_FOUND)
+                    {
+                        // EOF-harden the p32(framePointer) slot read (isSafetyOffset(framePointer) above
+                        // guards the offset but not the full 4-byte extent on a near-EOF slot).
+                        if (framePointer + 4 <= (uint)rom.Data.Length)
+                        {
+                            uint p = rom.p32(framePointer);
+                            Address.AddAddress(list, p, frameCount * 4, framePointer,
+                                name + " FRAME", Address.DataTypeEnum.BIN);
+                        }
+                    }
+                }
+
+                if (frameCount == U.NOT_FOUND)
+                {
+                    continue;
+                }
+
+                Address.AddAddress(list, tsaPointer, 4, U.NOT_FOUND,
+                    name + " TSA Pointer", Address.DataTypeEnum.POINTER);
+                EmitRomAnimePointerList(rom, list, tsaPointer,
+                    GetRomAnimePointerListCount(rom, tsaPointer),
+                    name + " TSA", Address.DataTypeEnum.LZ77TSA, isPalette: false);
+
+                Address.AddAddress(list, imagePointer, 4, U.NOT_FOUND,
+                    name + " Image Pointer", Address.DataTypeEnum.POINTER);
+                EmitRomAnimePointerList(rom, list, imagePointer,
+                    GetRomAnimePointerListCount(rom, imagePointer),
+                    name + " Image", Address.DataTypeEnum.LZ77IMG, isPalette: false);
+
+                Address.AddAddress(list, palettePointer, 4, U.NOT_FOUND,
+                    name + " Palette Pointer", Address.DataTypeEnum.POINTER);
+                EmitRomAnimePointerList(rom, list, palettePointer,
+                    GetRomAnimePalettePointerListCount(rom, palettePointer, framePointer, option),
+                    name + " Palette", Address.DataTypeEnum.PAL, isPalette: true);
+            }
+        }
+
+        /// <summary>Shared per-pointer-list emission for <see cref="EmitImageRomAnime"/>: walk the resolved
+        /// target list, and for each entry verify the per-entry pointer slot (<c>p32(baseAddr + i*4) == a</c>;
+        /// else relocation pointer = NOT_FOUND) and emit an Address. LZ77 entries use
+        /// <c>LZ77.getCompressedSize</c>; the palette list uses a fixed <c>2*16</c> length. VERBATIM
+        /// reproduction of the three WF column loops (which differ only in length + data type).</summary>
+        static void EmitRomAnimePointerList(ROM rom, List<Address> list, uint listPointer,
+            List<uint> targets, string name, Address.DataTypeEnum type, bool isPalette)
+        {
+            // WF: baseAddr = p32(listPointer). EOF-harden the slot read.
+            uint baseAddr = 0;
+            if (U.isSafetyOffset(listPointer, rom) && listPointer + 4 <= (uint)rom.Data.Length)
+            {
+                baseAddr = rom.p32(listPointer);
+            }
+            for (int i = 0; i < targets.Count; i++)
+            {
+                uint p = baseAddr + ((uint)i * 4);
+                uint a = targets[i];
+                // WF: if (p32(p) != a) p = NOT_FOUND; — the per-entry pointer slot must actually point at
+                // this target to be used as the relocation pointer. EOF-harden the p32(p) read.
+                if (p + 4 > (uint)rom.Data.Length || rom.p32(p) != a)
+                {
+                    p = U.NOT_FOUND;
+                }
+                uint length = isPalette
+                    ? (uint)(2 * 16)
+                    : LZ77.getCompressedSize(rom.Data, U.toOffset(a));
+                Address.AddAddress(list, a, length, p, name, type);
+            }
+        }
+
+        /// <summary>VERBATIM port of WF <c>ImageRomAnimeForm.checkPonters</c>: a pure-ROM gate — if a frame
+        /// pointer slot is present it must hold a safe pointer, and the TSA/image/palette pointer slots must
+        /// each be a safe offset holding a safe pointer. Returns false (skip the entry) otherwise.
+        /// EOF-hardened on every <c>u32</c> slot read.</summary>
+        public static bool CheckRomAnimePonters(ROM rom, uint framePointer, uint tsaPointer,
+            uint imagePointer, uint palettePointer)
+        {
+            if (U.isSafetyOffset(framePointer, rom))
+            {
+                if (framePointer + 4 > (uint)rom.Data.Length)
+                {
+                    return false;
+                }
+                uint frameAddress = rom.u32(framePointer);
+                if (!U.isSafetyPointer(frameAddress, rom))
+                {
+                    return false;
+                }
+            }
+
+            if (!U.isSafetyOffset(tsaPointer, rom) || tsaPointer + 4 > (uint)rom.Data.Length)
+            {
+                return false;
+            }
+            uint tsaAddress = rom.u32(tsaPointer);
+            if (!U.isSafetyPointer(tsaAddress, rom))
+            {
+                return false;
+            }
+
+            if (!U.isSafetyOffset(imagePointer, rom) || imagePointer + 4 > (uint)rom.Data.Length)
+            {
+                return false;
+            }
+            uint imageAddress = rom.u32(imagePointer);
+            if (!U.isSafetyPointer(imageAddress, rom))
+            {
+                return false;
+            }
+
+            if (!U.isSafetyOffset(palettePointer, rom) || palettePointer + 4 > (uint)rom.Data.Length)
+            {
+                return false;
+            }
+            uint paletteAddress = rom.u32(palettePointer);
+            if (!U.isSafetyPointer(paletteAddress, rom))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>VERBATIM port of WF <c>ImageRomAnimeForm.GetFrameCountLow</c>: the frame table behind
+        /// <paramref name="framePointer"/> is an uncompressed stream of 4-byte {id, wait} records; the count
+        /// is the number of records before an <c>id == 0xFFFF</c> terminator. A 1 MB limiter (clamped to
+        /// <c>Data.Length</c>) prevents a runaway scan. Returns NOT_FOUND when the pointer / its target is
+        /// not a safe offset. EOF-hardened on every <c>u16</c> read.</summary>
+        public static uint GetRomAnimeFrameCountLow(ROM rom, uint framePointer)
+        {
+            if (!U.isSafetyOffset(framePointer, rom))
+            {
+                return U.NOT_FOUND;
+            }
+            if (framePointer + 4 > (uint)rom.Data.Length)
+            {
+                return U.NOT_FOUND;
+            }
+            uint addr = rom.p32(framePointer);
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return U.NOT_FOUND;
+            }
+
+            // WF limitter = addr + 1MB, clamped to Data.Length.
+            uint limitter = addr + 1024 * 1024;
+            uint dataLen = (uint)rom.Data.Length;
+            if (limitter > dataLen)
+            {
+                limitter = dataLen;
+            }
+
+            uint i;
+            for (i = 0; addr < limitter; i++, addr += 4)
+            {
+                // WF reads u16(addr) and u16(addr+2); guard the 4-byte record extent.
+                if (addr + 4 > dataLen)
+                {
+                    break;
+                }
+                uint id = rom.u16(addr);
+                if (id == 0xFFFF)
+                {
+                    break;
+                }
+            }
+            return i;
+        }
+
+        /// <summary>VERBATIM port of WF <c>ImageRomAnimeForm.GetPointerListCount</c>: the list behind
+        /// <paramref name="p"/> is a NULL/non-pointer-terminated array of 4-byte ROM pointers; walk
+        /// <c>a = p32(p)</c> forward (step 4) collecting <c>toOffset</c> targets while the slot is a safe
+        /// pointer. If the list resolves to ZERO entries WF still adds a single <c>toOffset(a)</c> fallback
+        /// (the resolved base IS the lone target). EOF-hardened on every <c>u32</c> read.</summary>
+        public static List<uint> GetRomAnimePointerListCount(ROM rom, uint p)
+        {
+            var ret = new List<uint>();
+
+            if (!U.isSafetyOffset(p, rom) || p + 4 > (uint)rom.Data.Length)
+            {
+                return ret;
+            }
+            uint a = rom.p32(p);
+            if (!U.isSafetyOffset(a, rom))
+            {
+                return ret;
+            }
+
+            uint length = (uint)rom.Data.Length - 4;
+            for (; a < length; a += 4)
+            {
+                // WF reads u32(a); a < Data.Length-4 keeps a..a+3 in range.
+                uint p2 = rom.u32(a);
+                if (!U.isSafetyPointer(p2, rom))
+                {
+                    break;
+                }
+                ret.Add(U.toOffset(p2));
+            }
+
+            if (ret.Count <= 0)
+            {
+                ret.Add(U.toOffset(a));
+            }
+            return ret;
+        }
+
+        /// <summary>VERBATIM port of WF <c>ImageRomAnimeForm.GetPalettePointerListCount</c>: like
+        /// <see cref="GetRomAnimePointerListCount"/>, but when the list resolves to ZERO entries the
+        /// fallback depends on <paramref name="option"/>/<paramref name="framePointer"/>: "COMMONPALETTE"
+        /// (or <paramref name="framePointer"/> &gt;= 0x100) adds the single resolved base; a
+        /// <paramref name="framePointer"/> &lt; 0x100 (a FIXED per-frame palette count, not a pointer) adds
+        /// one entry per frame at <c>a + i*(2*16)</c>. EOF-hardened on the <c>u32</c> read.</summary>
+        public static List<uint> GetRomAnimePalettePointerListCount(ROM rom, uint p, uint framePointer,
+            string option)
+        {
+            var ret = new List<uint>();
+
+            if (!U.isSafetyOffset(p, rom) || p + 4 > (uint)rom.Data.Length)
+            {
+                return ret;
+            }
+            uint a = rom.p32(p);
+            if (!U.isSafetyOffset(a, rom))
+            {
+                return ret;
+            }
+
+            uint length = (uint)rom.Data.Length - 4;
+            for (; a < length; a += 4)
+            {
+                uint p2 = rom.u32(a);
+                if (!U.isSafetyPointer(p2, rom))
+                {
+                    break;
+                }
+                ret.Add(U.toOffset(p2));
+            }
+
+            if (ret.Count <= 0)
+            {
+                if (option == "COMMONPALETTE")
+                {
+                    ret.Add(U.toOffset(a));
+                }
+                else if (framePointer < 0x100)
+                {
+                    for (uint i = 0; i < framePointer; i++)
+                    {
+                        ret.Add(U.toOffset(a + (i * (2 * 16))));
+                    }
+                }
+                else
+                {
+                    ret.Add(U.toOffset(a));
+                }
+            }
+            return ret;
         }
 
         // -------------------------------------------------------------------------------------------
@@ -6828,9 +7433,12 @@ namespace FEBuilderGBA
                 //      a SystemTextEncoder to size (they decode the string as a side effect); without one
                 //      the producer falls back to the WF isPointerOnly side (size 0) — the slot is still
                 //      relocated and the target addr recorded, and IsComplete already gates a partial scan.
-                //  OtherTextForm STAYS: it iterates a config file `other_text_*` (U.ConfigDataFilename),
-                //  not a RomInfo table, so it has a headless config-file dependency, not ROM-derived data.)
-                "OtherTextForm",
+                //  OtherTextForm ported in slice 2q (EmitOtherText): its entry list comes from a config
+                //  file (other_text_, one hex pointer per line) via TextSourceListCore.MakeOtherTextList
+                //  (= WF MakeOtherTextMap), and per entry it emits a string-BIN block (length == decoded
+                //  strlen, NO +1) behind the embedded pointer at +0. U.ConfigDataFilename / the line
+                //  reader are in Core (resolving against CoreState.BaseDirectory); a missing config tree
+                //  -> empty list -> nothing emitted (faithful headless behavior).)
                 // images (LZ77/TSA length calc)
                 // (slice 2e ported the FLAT LZ77-image + palette forms whose every length is
                 //  LZ77.getCompressedSize (EOF-safe) or a CONSTANT palette/image size:
@@ -6850,9 +7458,15 @@ namespace FEBuilderGBA
                 //      LZ77 + WorldmapCountyBorder IFR with per-entry ROMTCS + WorldMapIconData IFR].
                 //  The rest STAY, each blocked on a subsystem not yet in Core (a wrong length relocates
                 //  the wrong bytes = silent corruption):
-                //    ImageTSAAnime2Form — its g_TSAAnime table is a config-FILE TSV resource
-                //      (U.LoadTSVResource(U.ConfigDataFilename("tsaanime2_"))) + IFR ReInit/ReInitPointer
-                //      machinery, NOT a RomInfo table (same class of blocker as ImageTSAAnimeForm).
+                //  (slice 2q ported the config-FILE-table TSA-anime forms — once U.ConfigDataFilename /
+                //   U.LoadTSVResource reached Core (resolving config/data/ vs CoreState.BaseDirectory) the
+                //   config-LOAD stopped being a blocker; every per-entry LENGTH is Core-backed (LZ77
+                //   getCompressedSize / const PAL / CalcHeaderTsaLength). EmitImageTSAAnime [v8 + v7] —
+                //   per tsaanime_ entry: ReInit(addr, count=atoh(v[0])) main IFR block 12 PI {0,4,8} +
+                //   per i: LZ77IMG@+0 / PAL 0x20*8@+4 / LZ77TSA@+8. EmitImageTSAAnime2 [v8 ONLY] —
+                //   per tsaanime2_ entry: main block 12 ReInit(addr+20) isPointer(u32(a+8)) PI {8},
+                //   N1 block 20 ReInitPointer(ptr,1) PI {4,16}, HEADER LZ77IMG@addr+16 + PAL 0x20@addr+4,
+                //   then per record HeaderTsa@+8.)
                 //  (slice 2p ported the RecycleOldAnime forms whose length walk is PURE ROM (no Drawing, no
                 //   config) and whose gate/count deps are already in Core:
                 //    ImageMapActionAnimationForm — EmitImageMapActionAnimation: FindMapActionAnimationPointer
@@ -6875,8 +7489,13 @@ namespace FEBuilderGBA
                 //   EmitApPointer, length = ImageUtilAPCore.CalcAPLength [the verbatim Core port of WF
                 //   ImageUtilAP.CalcAPLength = Parse + GetLength, already a tested Core helper]. The count
                 //   rule is MoveIconRule [class-count-bounded]. So it is no longer deferred.)
-                //    ImageRomAnimeForm/ImageTSAAnimeForm — config-file tables (U.ConfigDataFilename
-                //      "romanime_"/"tsaanime_") + dynamic pointer-list frame walks, not RomInfo slots.
+                //  (slice 2q ported ImageRomAnimeForm [all versions] — EmitImageRomAnime: per romanime_
+                //   config entry, CheckRomAnimePonters gate (pure-ROM), then FRAME ptr + BIN
+                //   (frameCount*4, frameCount = GetRomAnimeFrameCountLow u16==0xFFFF terminator walk),
+                //   TSA/Image ptr + per GetRomAnimePointerListCount entry LZ77 (getCompressedSize,
+                //   pointer-verified), Palette ptr + per GetRomAnimePalettePointerListCount entry PAL
+                //   (2*16, with the COMMONPALETTE / framePointer<0x100 / else fallbacks). All pure-ROM
+                //   walks, no Drawing/disasm. ImageTSAAnimeForm ported alongside it — see above.)
                 //    ImagePortraitForm — IsHalfBodyFlag runtime header inspection (+ ImagePortraitFE6Form
                 //      has a stateful nullContinuousCount terminator + GetFEditorLengthHint).
                 //    ImageItemIconForm — out of slice scope: a flat 128-byte icon-SHEET IFR (no LZ77
@@ -6885,9 +7504,7 @@ namespace FEBuilderGBA
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
                 "ImageBattleAnimeForm",
                 "ImageItemIconForm",
-                "ImageRomAnimeForm",
-                "ImageTSAAnimeForm",
-                "ImageTSAAnime2Form", "ImagePortraitForm",
+                "ImagePortraitForm",
                 "MapMiniMapTerrainImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],

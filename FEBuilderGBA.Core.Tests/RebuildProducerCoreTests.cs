@@ -447,10 +447,9 @@ namespace FEBuilderGBA.Core.Tests
             string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
             Assert.NotEmpty(notYet);
             // The heavy editors that need extraction first must be tracked, not dropped.
-            // (TextForm/TextCharCodeForm are ported in slice 2m — see
-            //  GetNotYetPortedForms_DropsSlice2mCoveredForms_KeepsDeferredSiblings; OtherTextForm STAYS,
-            //  its config-file other_text_* table is not ROM-derived.)
-            Assert.Contains("OtherTextForm", notYet);
+            // (TextForm/TextCharCodeForm are ported in slice 2m; OtherTextForm in slice 2q — see
+            //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("OtherTextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
             Assert.Contains("SongTableForm", notYet);
             // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
@@ -1146,8 +1145,10 @@ namespace FEBuilderGBA.Core.Tests
             // recursive walkers, so they are now covered — see GetNotYetPortedForms_DropsSlice2dCoveredForms.)
             Assert.Contains("ItemForm", notYet);          // StatBooster size needs PatchUtil detection
             // (ItemWeaponEffectForm was a deferred sibling here; slice 2l ports it via
-            //  EmitItemWeaponEffect — see GetNotYetPortedForms_DropsSlice2lCoveredForms.)
-            Assert.Contains("OtherTextForm", notYet);        // config-file (U.ConfigDataFilename) driven
+            //  EmitItemWeaponEffect — see GetNotYetPortedForms_DropsSlice2lCoveredForms. OtherTextForm
+            //  was the config-file sibling here; slice 2q ports it — see
+            //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("OtherTextForm", notYet);
         }
 
         [Fact]
@@ -3064,12 +3065,14 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageCGForm", notYet);
             Assert.DoesNotContain("ImageSystemIconForm", notYet);
             Assert.DoesNotContain("WorldMapImageForm", notYet);
-            // still deferred (need ImageUtil OAM / config-file / runtime-inspection subsystems):
+            // still deferred (need ImageUtil OAM / runtime-inspection subsystems):
             Assert.Contains("ImageBattleAnimeForm", notYet);
             Assert.Contains("ImagePortraitForm", notYet);
             Assert.Contains("ImageItemIconForm", notYet);
-            Assert.Contains("ImageTSAAnimeForm", notYet);
-            Assert.Contains("ImageTSAAnime2Form", notYet); // config-file "tsaanime2_" TSV, not RomInfo
+            // (ImageTSAAnimeForm / ImageTSAAnime2Form were the config-file TSA-anime siblings here; slice
+            //  2q ports them — see GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
+            Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
         }
 
         // ===================================================================
@@ -5594,12 +5597,12 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageCGFE7UForm", notYet);
             Assert.DoesNotContain("WorldMapImageForm", notYet);
 
-            // ImageTSAAnime2Form STAYS deferred — its g_TSAAnime table is a config-FILE TSV resource
-            // (U.LoadTSVResource("tsaanime2_")), not a RomInfo table.
-            Assert.Contains("ImageTSAAnime2Form", notYet);
+            // (ImageTSAAnime2Form / ImageTSAAnimeForm were the config-FILE TSA-anime siblings here; slice
+            //  2q ports them — see GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
+            Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
             // Other header-less image forms blocked on a different subsystem still stay tracked.
             Assert.Contains("ImageBattleAnimeForm", notYet);      // ImageUtilOAM OAM frame walk
-            Assert.Contains("ImageTSAAnimeForm", notYet);         // config-file "tsaanime_" table
             Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
 
             // the no-duplicates invariant still holds after the edits.
@@ -6161,8 +6164,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("TextCharCodeForm", notYet);
             Assert.DoesNotContain("FE8SpellMenuExtendsForm", notYet);
 
-            // OtherTextForm STAYS — it iterates a config FILE (other_text_*), not a RomInfo table.
-            Assert.Contains("OtherTextForm", notYet);
+            // (OtherTextForm was the config-FILE sibling here; slice 2q ports it — see
+            //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("OtherTextForm", notYet);
             // ImageUnitMoveIconFrom is PORTED in slice 2n (ImageUtilAPCore.CalcAPLength is in Core) ->
             // it must be GONE (see GetNotYetPortedForms_DropsSlice2nMoveIcon_KeepsDeferredSiblings).
             Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
@@ -6498,13 +6502,17 @@ namespace FEBuilderGBA.Core.Tests
             {
                 "ImageBattleAnimeForm",      // ImageUtilOAM (slice 2p ports the Magic/MapAction siblings)
                 "ImageItemIconForm",         // out-of-scope icon-SHEET IFR
-                "ImageRomAnimeForm",         // config-file table
-                "ImageTSAAnimeForm", "ImageTSAAnime2Form",
                 "ImagePortraitForm",         // IsHalfBodyFlag runtime header
             })
             {
                 Assert.Contains(kept, notYet);
             }
+            // (ImageRomAnimeForm / ImageTSAAnimeForm / ImageTSAAnime2Form were the config-FILE-table
+            //  siblings here; slice 2q ports them — see
+            //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("ImageRomAnimeForm", notYet);
+            Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
+            Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -7141,6 +7149,519 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
             }
+        }
+
+        // ==== slice 2q: config-FILE-table forms ================================
+        // OtherText / ImageTSAAnime / ImageTSAAnime2 / ImageRomAnime each load a config TSV (resolved by
+        // U.ConfigDataFilename vs CoreState.BaseDirectory). These tests stage a temp config tree with
+        // controlled table addresses, plant the corresponding ROM tables, and assert the emitted
+        // Addresses; plus the empty-config (emit-nothing-no-throw) and near-EOF robustness paths.
+
+        /// <summary>Stage a temp <c>config/data/{type}FE8.txt</c> with the given lines + a real FE8U ROM
+        /// (RomInfo.TitleToFilename == "FE8") assigned to CoreState; runs <paramref name="body"/> with that
+        /// ROM, then restores all mutated CoreState. The temp dir is deleted afterwards.</summary>
+        static void WithConfig(string type, string[] lines, Action<ROM> body)
+        {
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+
+            string tempRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "feb_s2q_" + Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(tempRoot, "config", "data");
+            System.IO.Directory.CreateDirectory(dataDir);
+            try
+            {
+                if (lines != null)
+                {
+                    // FE8U TitleToFilename == "FE8"; lang "en" -> ConfigDataFilename tries {type}FE8.en.txt
+                    // then {type}FE8.txt. Write the plain .txt so it resolves to our file.
+                    System.IO.File.WriteAllLines(
+                        System.IO.Path.Combine(dataDir, type + "FE8.txt"), lines);
+                }
+
+                CoreState.BaseDirectory = tempRoot;
+                CoreState.Language = "en";
+                var rom = MakeVersionedRom("BE8E01"); // FE8U: version 8, TitleToFilename "FE8"
+                CoreState.ROM = rom; // LoadTSVResource's OtherLangLine reads CoreState.ROM
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                body(rom);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+                try { System.IO.Directory.Delete(tempRoot, true); } catch { /* best effort */ }
+            }
+        }
+
+        static void WriteAsciiZ(ROM rom, uint addr, string s)
+        {
+            for (int i = 0; i < s.Length; i++)
+            {
+                rom.write_u8(addr + (uint)i, (byte)s[i]);
+            }
+            rom.write_u8(addr + (uint)s.Length, 0x00);
+        }
+
+        // ---- OtherText ----
+
+        [Fact]
+        public void EmitOtherText_PerEntryStringBin_NoPlusOne()
+        {
+            // other_text_ config: each line = ONE hex pointer SLOT. The slot holds a pointer to the
+            // C string; the emitter records a BIN block of length == strlen (NO +1) behind it.
+            uint slot0 = 0x1000;
+            uint slot1 = 0x1100;
+            WithConfig("other_text_", new[] { U.ToHexString(slot0), U.ToHexString(slot1) }, rom =>
+            {
+                uint str0 = 0x2000;
+                uint str1 = 0x2100;
+                rom.write_u32(slot0, Ptr(str0));
+                rom.write_u32(slot1, Ptr(str1));
+                WriteAsciiZ(rom, str0, "HELLO");  // strlen 5
+                WriteAsciiZ(rom, str1, "AB");     // strlen 2
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOtherText(rom, list);
+
+                Assert.Equal(2, list.Count);
+                Address b0 = list.Single(a => a.Addr == str0);
+                Assert.Equal(5u, b0.Length);            // NO +1
+                Assert.Equal(slot0, b0.Pointer);
+                Assert.Equal(Address.DataTypeEnum.BIN, b0.DataType);
+                Address b1 = list.Single(a => a.Addr == str1);
+                Assert.Equal(2u, b1.Length);
+                Assert.Equal(slot1, b1.Pointer);
+            });
+        }
+
+        [Fact]
+        public void EmitOtherText_NoEncoder_SkipsWithoutThrow()
+        {
+            WithConfig("other_text_", new[] { U.ToHexString(0x1000u) }, rom =>
+            {
+                rom.write_u32(0x1000, Ptr(0x2000));
+                WriteAsciiZ(rom, 0x2000, "X");
+                CoreState.SystemTextEncoder = null; // the critical condition (decode would NRE)
+
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list); // skipped, not crashed
+            });
+        }
+
+        [Fact]
+        public void EmitOtherText_MissingConfig_EmitsNothing()
+        {
+            // No config file written (lines == null) -> MakeOtherTextList File.Exists is false -> empty
+            // list -> nothing emitted, no throw (faithful headless behavior).
+            WithConfig("other_text_", null, rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOtherText(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            });
+        }
+
+        // ---- ImageTSAAnime ----
+
+        [Fact]
+        public void EmitImageTSAAnime_MainIfr_AndPerEntryLz77PalLz77()
+        {
+            // tsaanime_ config line: <slot>\t<count>\t<name>. The slot holds a pointer to the anime
+            // record table (base); count records of block 12 (LZ77IMG@+0, PAL@+4, LZ77TSA@+8).
+            uint slot = 0x1000;
+            uint baseTbl = 0x2000;
+            // 2 records.
+            WithConfig("tsaanime_",
+                new[] { U.ToHexString(slot) + "\t002\tMyAnime" }, rom =>
+            {
+                rom.write_u32(slot, Ptr(baseTbl));
+                // record 0
+                rom.write_u32(baseTbl + 0 + 0, Ptr(0x3000)); // IMAGE
+                rom.write_u32(baseTbl + 0 + 4, Ptr(0x3100)); // PALETTE
+                rom.write_u32(baseTbl + 0 + 8, Ptr(0x3200)); // TSA
+                // record 1
+                rom.write_u32(baseTbl + 12 + 0, Ptr(0x3300));
+                rom.write_u32(baseTbl + 12 + 4, Ptr(0x3400));
+                rom.write_u32(baseTbl + 12 + 8, Ptr(0x3500));
+                // tiny LZ77 headers so getCompressedSize returns a real (possibly 0) length, no throw
+                rom.write_u32(0x3000, 0x00000010);
+                rom.write_u32(0x3200, 0x00000010);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageTSAAnime(rom, list);
+
+                // Main IFR: base baseTbl, block 12, count 2 (atoh("002")==2), length 12*(2+1)=36,
+                // pointer slot, PI {0,4,8}.
+                Address mainIfr = list.Single(a => a.Info == "TSAANIME MyAnime " && a.BlockSize == 12);
+                Assert.Equal(baseTbl, mainIfr.Addr);
+                Assert.Equal(slot, mainIfr.Pointer);
+                Assert.Equal(12u * 3u, mainIfr.Length);
+                Assert.Equal(Address.DataTypeEnum.InputFormRef, mainIfr.DataType);
+                Assert.Equal(new uint[] { 0, 4, 8 }, mainIfr.PointerIndexes);
+
+                // Per-record columns.
+                Assert.Contains(list, a => a.Addr == 0x3100 && a.Length == 0x20 * 8 &&
+                    a.DataType == Address.DataTypeEnum.PAL);
+                Assert.Contains(list, a => a.Addr == 0x3000 &&
+                    a.DataType == Address.DataTypeEnum.LZ77IMG);
+                Assert.Contains(list, a => a.Addr == 0x3200 &&
+                    a.DataType == Address.DataTypeEnum.LZ77TSA);
+                // record 1 PALETTE present too.
+                Assert.Contains(list, a => a.Addr == 0x3400 && a.Length == 0x20 * 8 &&
+                    a.DataType == Address.DataTypeEnum.PAL);
+            });
+        }
+
+        [Fact]
+        public void EmitImageTSAAnime_MissingConfig_EmitsNothing()
+        {
+            // Empty config file (file exists, only a comment) -> empty dict -> nothing emitted, no throw.
+            WithConfig("tsaanime_", new[] { "//empty" }, rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageTSAAnime(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            });
+        }
+
+        [Fact]
+        public void EmitImageTSAAnime_NearEofSlot_NoThrow()
+        {
+            // A config slot WITHIN 4 bytes of EOF: the `pointer + 4 > Data.Length` guard skips that entry
+            // rather than throwing inside p32(pointer). MakeVersionedRom is 32MB, so put the slot 2 bytes
+            // before the end (a GBA offset of Data.Length-2 is a safe offset but its 4-byte read overruns).
+            WithConfig("tsaanime_", null, rom =>
+            {
+                uint nearEof = (uint)rom.Data.Length - 2;
+                // Re-stage the config with the near-EOF slot. (WithConfig wrote no file; write one now.)
+                string dataDir = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "data");
+                System.IO.File.WriteAllLines(
+                    System.IO.Path.Combine(dataDir, "tsaanime_FE8.txt"),
+                    new[] { U.ToHexString(nearEof) + "\t001\tX" });
+
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageTSAAnime(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list); // the near-EOF slot is guarded out
+            });
+        }
+
+        // ---- ImageTSAAnime2 ----
+
+        [Fact]
+        public void EmitImageTSAAnime2_MainAndN1Ifrs_HeaderAndPerRecordTsa()
+        {
+            // tsaanime2_ config line: <slot>\t<name>. The slot holds a pointer to the header (addr);
+            // N1 (block 20) is the 1-entry header IFR; main (block 12) walks records from addr+20.
+            uint slot = 0x1000;
+            uint addr = 0x2000;
+            WithConfig("tsaanime2_", new[] { U.ToHexString(slot) + "\tMyAnime2" }, rom =>
+            {
+                rom.write_u32(slot, Ptr(addr));
+                // HEADER fields: LZ77 image @ addr+16, palette @ addr+4.
+                rom.write_u32(addr + 16, Ptr(0x3000)); // header IMAGE
+                rom.write_u32(addr + 4, Ptr(0x3100));  // header PALETTE
+                rom.write_u32(0x3000, 0x00000010);     // tiny LZ77 header
+
+                // Record table at addr+20: block 12, IsDataExists isPointer(u32(a+8)). 1 record then stop.
+                uint rec0 = addr + 20;
+                rom.write_u32(rec0 + 8, Ptr(0x4000));  // record 0 valid (u32(a+8) is a pointer)
+                // plant a header-TSA stream at the dereferenced target so CalcHeaderTsaLength is non-zero
+                rom.write_u8(0x4000 + 0, 0x01); // x-1
+                rom.write_u8(0x4000 + 1, 0x01); // y-1
+                rom.write_u32((addr + 20) + 12 + 8, 0x12345678); // record 1 +8 not a pointer -> stop
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageTSAAnime2(rom, list);
+
+                // Main IFR: base addr+20, block 12, count 1, length 12*(1+1)=24, pointer NOT_FOUND, PI {8}.
+                Address mainIfr = list.Single(a => a.BlockSize == 12 && a.Info == "TSAANIME2 MyAnime2 ");
+                Assert.Equal(addr + 20, mainIfr.Addr);
+                Assert.Equal(U.NOT_FOUND, mainIfr.Pointer);
+                Assert.Equal(12u * 2u, mainIfr.Length);
+                Assert.Equal(new uint[] { 8 }, mainIfr.PointerIndexes);
+
+                // N1 IFR: base addr, block 20, count 1, length 20*(1+1)=40, pointer slot, PI {4,16}.
+                Address n1Ifr = list.Single(a => a.BlockSize == 20 && a.Info == "TSAANIME2 MyAnime2 ");
+                Assert.Equal(addr, n1Ifr.Addr);
+                Assert.Equal(slot, n1Ifr.Pointer);
+                Assert.Equal(20u * 2u, n1Ifr.Length);
+                Assert.Equal(new uint[] { 4, 16 }, n1Ifr.PointerIndexes);
+
+                // WF emits the main IFR BEFORE the N1 IFR — assert that order.
+                Assert.True(list.IndexOf(mainIfr) < list.IndexOf(n1Ifr),
+                    "WF order: main IFR must be emitted before the N1 IFR");
+
+                // HEADER pair (N1.DataCount >= 1): LZ77IMG @ addr+16, PAL 0x20 @ addr+4.
+                Assert.Contains(list, a => a.Addr == 0x3000 && a.DataType == Address.DataTypeEnum.LZ77IMG);
+                Assert.Contains(list, a => a.Addr == 0x3100 && a.Length == 0x20 &&
+                    a.DataType == Address.DataTypeEnum.PAL);
+
+                // Per-record header-TSA @ rec0+8 -> target 0x4000, length = 2 + (2*2*2) = 10.
+                Assert.Contains(list, a => a.Addr == 0x4000 && a.Length == 10u &&
+                    a.DataType == Address.DataTypeEnum.HEADERTSA);
+            });
+        }
+
+        [Fact]
+        public void EmitImageTSAAnime2_MissingConfig_EmitsNothing()
+        {
+            WithConfig("tsaanime2_", new[] { "//empty" }, rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageTSAAnime2(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            });
+        }
+
+        // ---- ImageRomAnime ----
+
+        [Fact]
+        public void EmitImageRomAnime_FramePointerListsAndPalette()
+        {
+            // romanime_ config line: <key>\t<width>\t<option>\t<framePtr>\t<tsaPtr>\t<imgPtr>\t<palPtr>\t<name>
+            uint framePtr = 0x1000;
+            uint tsaPtr = 0x1100;
+            uint imgPtr = 0x1200;
+            uint palPtr = 0x1300;
+            string line = "0000\t30\tNNN\t" + U.ToHexString(framePtr) + "\t" + U.ToHexString(tsaPtr)
+                + "\t" + U.ToHexString(imgPtr) + "\t" + U.ToHexString(palPtr) + "\tMyRom";
+            WithConfig("romanime_", new[] { line }, rom =>
+            {
+                // FRAME table: {id, wait} 4-byte records, terminator id==0xFFFF. 2 frames.
+                uint frameTbl = 0x2000;
+                rom.write_u32(framePtr, Ptr(frameTbl));
+                rom.write_u16(frameTbl + 0, 0x0000); rom.write_u16(frameTbl + 2, 0x0001);
+                rom.write_u16(frameTbl + 4, 0x0001); rom.write_u16(frameTbl + 6, 0x0001);
+                rom.write_u16(frameTbl + 8, 0xFFFF); // terminator -> frameCount 2
+
+                // TSA pointer-list: base -> [ptrA, terminator]
+                uint tsaListBase = 0x2400;
+                rom.write_u32(tsaPtr, Ptr(tsaListBase));
+                rom.write_u32(tsaListBase + 0, Ptr(0x3000)); // TSA target 0
+                rom.write_u32(tsaListBase + 4, 0x00000000);  // not a pointer -> list ends (1 entry)
+                rom.write_u32(0x3000, 0x00000010);           // tiny LZ77 header
+
+                // Image pointer-list
+                uint imgListBase = 0x2500;
+                rom.write_u32(imgPtr, Ptr(imgListBase));
+                rom.write_u32(imgListBase + 0, Ptr(0x3100));
+                rom.write_u32(imgListBase + 4, 0x00000000);
+                rom.write_u32(0x3100, 0x00000010);
+
+                // Palette pointer-list
+                uint palListBase = 0x2600;
+                rom.write_u32(palPtr, Ptr(palListBase));
+                rom.write_u32(palListBase + 0, Ptr(0x3200));
+                rom.write_u32(palListBase + 4, 0x00000000);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageRomAnime(rom, list);
+
+                // FRAME Pointer (4-byte POINTER) + FRAME BIN (frameCount*4 == 8).
+                Assert.Contains(list, a => a.Info == "MyRom FRAME Pointer" && a.Length == 4 &&
+                    a.DataType == Address.DataTypeEnum.POINTER);
+                Assert.Contains(list, a => a.Info == "MyRom FRAME" && a.Addr == frameTbl &&
+                    a.Length == 8u && a.DataType == Address.DataTypeEnum.BIN);
+
+                // TSA / Image / Palette pointers + per-list entries.
+                Assert.Contains(list, a => a.Info == "MyRom TSA Pointer" && a.Length == 4);
+                Assert.Contains(list, a => a.Info == "MyRom TSA" && a.Addr == 0x3000 &&
+                    a.DataType == Address.DataTypeEnum.LZ77TSA);
+                Assert.Contains(list, a => a.Info == "MyRom Image" && a.Addr == 0x3100 &&
+                    a.DataType == Address.DataTypeEnum.LZ77IMG);
+                Assert.Contains(list, a => a.Info == "MyRom Palette" && a.Addr == 0x3200 &&
+                    a.Length == 2 * 16 && a.DataType == Address.DataTypeEnum.PAL);
+            });
+        }
+
+        [Fact]
+        public void EmitImageRomAnime_CommonPaletteFallback_EmitsSingleResolvedBase()
+        {
+            // option == "COMMONPALETTE": when the palette pointer-list resolves to ZERO entries, the
+            // fallback adds the single resolved base (toOffset(a)) as the lone palette.
+            uint framePtr = 0x1000;
+            uint tsaPtr = 0x1100;
+            uint imgPtr = 0x1200;
+            uint palPtr = 0x1300;
+            string line = "0000\t30\tCOMMONPALETTE\t" + U.ToHexString(framePtr) + "\t"
+                + U.ToHexString(tsaPtr) + "\t" + U.ToHexString(imgPtr) + "\t" + U.ToHexString(palPtr)
+                + "\tCommonRom";
+            WithConfig("romanime_", new[] { line }, rom =>
+            {
+                uint frameTbl = 0x2000;
+                rom.write_u32(framePtr, Ptr(frameTbl));
+                rom.write_u16(frameTbl + 0, 0xFFFF); // 0 frames (terminator immediately) -> frameCount 0
+
+                rom.write_u32(tsaPtr, Ptr(0x2400));
+                rom.write_u32(0x2400, 0x00000000); // empty list -> fallback adds base 0x2400
+                rom.write_u32(imgPtr, Ptr(0x2500));
+                rom.write_u32(0x2500, 0x00000000);
+                // Palette: base 0x2600 with NO pointer entries -> COMMONPALETTE fallback adds 0x2600.
+                rom.write_u32(palPtr, Ptr(0x2600));
+                rom.write_u32(0x2600, 0x00000000);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageRomAnime(rom, list);
+
+                // The COMMONPALETTE fallback: exactly one Palette at the resolved base 0x2600.
+                var pals = list.Where(a => a.Info == "CommonRom Palette").ToList();
+                Assert.Single(pals);
+                Assert.Equal(0x2600u, pals[0].Addr);
+                Assert.Equal(2u * 16u, pals[0].Length);
+            });
+        }
+
+        [Fact]
+        public void EmitImageRomAnime_FixedPaletteCountFallback_WhenFramePointerBelow0x100()
+        {
+            // framePointer < 0x100 (a FIXED per-frame palette COUNT, not a pointer) with an empty
+            // palette list -> the fallback adds one palette per frame at a + i*(2*16).
+            uint tsaPtr = 0x1100;
+            uint imgPtr = 0x1200;
+            uint palPtr = 0x1300;
+            const uint frameCountFixed = 3; // < 0x100
+            string line = "0000\t30\tNNN\t" + U.ToHexString(frameCountFixed) + "\t"
+                + U.ToHexString(tsaPtr) + "\t" + U.ToHexString(imgPtr) + "\t" + U.ToHexString(palPtr)
+                + "\tFixedRom";
+            WithConfig("romanime_", new[] { line }, rom =>
+            {
+                // framePointer == 3 is NOT a safe offset -> checkPonters skips the frame slot, but the
+                // tsa/img/pal slots must still hold safe pointers. frameCount stays NOT_FOUND ->
+                // GetFrameCountLow returns NOT_FOUND for a non-safe framePointer... which would `continue`.
+                // WF: when !isSafetyOffset(framePointer), the FRAME block is skipped AND frameCount stays
+                // NOT_FOUND -> `if (frameCount == NOT_FOUND) continue`. So with framePointer < 0x100 the
+                // WHOLE entry is skipped. Assert that faithfully (no Palette emitted).
+                rom.write_u32(tsaPtr, Ptr(0x2400));
+                rom.write_u32(0x2400, Ptr(0x3000));
+                rom.write_u32(0x3000, 0x00000010);
+                rom.write_u32(imgPtr, Ptr(0x2500));
+                rom.write_u32(0x2500, Ptr(0x3100));
+                rom.write_u32(0x3100, 0x00000010);
+                rom.write_u32(palPtr, Ptr(0x2600));
+                rom.write_u32(0x2600, 0x00000000);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageRomAnime(rom, list);
+
+                // framePointer 3 -> isSafetyOffset false -> frameCount NOT_FOUND -> entry skipped entirely.
+                Assert.DoesNotContain(list, a => a.Info != null && a.Info.StartsWith("FixedRom"));
+            });
+        }
+
+        [Fact]
+        public void GetRomAnimePalettePointerListCount_FixedPaletteFallback_OnePerFrame()
+        {
+            // Direct test of the framePointer<0x100 palette fallback (the per-frame palette layout).
+            WithConfig("romanime_", null, rom =>
+            {
+                uint palPtr = 0x1300;
+                uint paletteBase = 0x2600;
+                rom.write_u32(palPtr, Ptr(paletteBase));
+                rom.write_u32(paletteBase, 0x00000000); // empty list -> fallback fires
+
+                List<uint> pals = RebuildProducerCore.GetRomAnimePalettePointerListCount(
+                    rom, palPtr, framePointer: 3, option: "NNN");
+                // 3 entries at base + i*(2*16).
+                Assert.Equal(3, pals.Count);
+                Assert.Equal(paletteBase + 0u * 32u, pals[0]);
+                Assert.Equal(paletteBase + 1u * 32u, pals[1]);
+                Assert.Equal(paletteBase + 2u * 32u, pals[2]);
+            });
+        }
+
+        [Fact]
+        public void GetRomAnimePalettePointerListCount_ElseFallback_SingleBase_WhenFramePointerLarge()
+        {
+            // framePointer >= 0x100 and NOT COMMONPALETTE and empty list -> single resolved base.
+            WithConfig("romanime_", null, rom =>
+            {
+                uint palPtr = 0x1300;
+                uint paletteBase = 0x2600;
+                rom.write_u32(palPtr, Ptr(paletteBase));
+                rom.write_u32(paletteBase, 0x00000000);
+
+                List<uint> pals = RebuildProducerCore.GetRomAnimePalettePointerListCount(
+                    rom, palPtr, framePointer: 0x1000, option: "NNN");
+                Assert.Single(pals);
+                Assert.Equal(paletteBase, pals[0]);
+            });
+        }
+
+        [Fact]
+        public void EmitImageRomAnime_MissingConfig_EmitsNothing()
+        {
+            WithConfig("romanime_", new[] { "//empty" }, rom =>
+            {
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageRomAnime(rom, list));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            });
+        }
+
+        [Fact]
+        public void GetRomAnimeFrameCountLow_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            // framePointer slot near EOF -> the +4 guard returns NOT_FOUND, no throw.
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.GetRomAnimeFrameCountLow(rom, (uint)rom.Data.Length - 2));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void CheckRomAnimePonters_ReadsRawU32_NotP32()
+        {
+            // Faithfulness: WF checkPonters reads u32(slot) and isSafetyPointer(...) — it does NOT
+            // p32-normalize before the check. A slot holding a NON-pointer value must fail the gate.
+            var rom = CreateTestRom(0x4000);
+            uint tsaPtr = 0x1100, imgPtr = 0x1200, palPtr = 0x1300;
+            rom.write_u32(tsaPtr, 0x12345678); // NOT a GBA pointer -> isSafetyPointer false -> gate fails
+            rom.write_u32(imgPtr, Ptr(0x2000));
+            rom.write_u32(palPtr, Ptr(0x2100));
+            // framePointer 0 -> isSafetyOffset(0) false -> the frame branch is skipped (WF).
+            bool ok = RebuildProducerCore.CheckRomAnimePonters(rom, 0, tsaPtr, imgPtr, palPtr);
+            Assert.False(ok);
+
+            // Now make the TSA slot a real pointer -> gate passes.
+            rom.write_u32(tsaPtr, Ptr(0x2200));
+            Assert.True(RebuildProducerCore.CheckRomAnimePonters(rom, 0, tsaPtr, imgPtr, palPtr));
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2q ----
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2q ports the four config-FILE-table forms.
+            Assert.DoesNotContain("OtherTextForm", notYet);
+            Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
+            Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
+            Assert.DoesNotContain("ImageRomAnimeForm", notYet);
+
+            // The remaining image-anime siblings STAY (each blocked on a Core gap):
+            //  ImageBattleAnimeForm (ImageUtilOAM + ClassForm.MakeClassList + seat-dedup),
+            //  ImagePortraitForm (IsHalfBodyFlag runtime header), ImageItemIconForm (out of scope).
+            Assert.Contains("ImageBattleAnimeForm", notYet);
+            Assert.Contains("ImagePortraitForm", notYet);
+            Assert.Contains("ImageItemIconForm", notYet);
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
         }
     }
 }
