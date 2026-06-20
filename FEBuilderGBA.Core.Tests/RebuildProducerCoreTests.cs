@@ -457,10 +457,11 @@ namespace FEBuilderGBA.Core.Tests
             //  see GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
-            // patch detection. (ClassForm WAS deferred for its MoveCost sub-blocks but is ported in
-            // slice 2c — see GetNotYetPortedForms_DropsSlice2cCoveredForms_KeepsDeferredSiblings.)
-            Assert.Contains("ItemForm", notYet);
+            // ItemForm is PORTED in slice 2ad (EmitItem + the new Core PatchDetection detectors that
+            // size its StatBooster / effectiveness sub-blocks) — see
+            // GetNotYetPortedForms_DropsSlice2adForms_KeepsDeferredSiblings. (ClassForm WAS deferred for
+            // its MoveCost sub-blocks but is ported in slice 2c.)
+            Assert.DoesNotContain("ItemForm", notYet);
             Assert.DoesNotContain("ClassForm", notYet);
         }
 
@@ -1155,16 +1156,18 @@ namespace FEBuilderGBA.Core.Tests
             // would dangle their sub-block pointers during a rebuild. (MenuDefinitionForm and
             // StatusRMenuForm were the recursive-tree siblings here; slice 2d ports them via dedicated
             // recursive walkers, so they are now covered — see GetNotYetPortedForms_DropsSlice2dCoveredForms.)
-            Assert.Contains("ItemForm", notYet);          // StatBooster size needs PatchUtil detection
-            // (ItemWeaponEffectForm was a deferred sibling here; slice 2l ports it via
+            // (ItemForm was a deferred sibling here; slice 2ad ports it via EmitItem + the new Core
+            //  PatchDetection detectors — see GetNotYetPortedForms_DropsSlice2adForms_KeepsDeferredSiblings.
+            //  ItemWeaponEffectForm was a deferred sibling here; slice 2l ports it via
             //  EmitItemWeaponEffect — see GetNotYetPortedForms_DropsSlice2lCoveredForms. OtherTextForm
             //  was the config-file sibling here; slice 2q ports it — see
             //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("ItemForm", notYet);
             Assert.DoesNotContain("OtherTextForm", notYet);
         }
 
         [Fact]
-        public void MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndDefersItem()
+        public void MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndItem()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
@@ -1206,13 +1209,14 @@ namespace FEBuilderGBA.Core.Tests
                         && a.Info == "MoveCost ref" && a.DataType == Address.DataTypeEnum.BIN);
                 }
 
-                // ClassForm must no longer be tracked as not-yet-ported; ItemForm STAYS deferred
-                // and its main IFR must be ABSENT from the list (StatBooster size unportable).
+                // ClassForm must no longer be tracked as not-yet-ported. ItemForm is now PORTED in
+                // slice 2ad — its main "Item" IFR must be PRESENT in the list (StatBooster + effectiveness
+                // sizes resolved via the new Core PatchDetection detectors).
                 string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
                 Assert.DoesNotContain("ClassForm", notYet);
-                Assert.Contains("ItemForm", notYet);
+                Assert.DoesNotContain("ItemForm", notYet);
                 uint itemBase = rom.p32(rom.RomInfo.item_pointer);
-                Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
+                Assert.Contains(list, a => a.Addr == itemBase && a.Info == "Item");
             }
             finally
             {
@@ -1713,23 +1717,19 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(gone, notYet);
             }
 
-            // Still deferred (un-ported subsystem) -> must REMAIN:
+            // Still deferred (un-ported subsystem) -> must REMAIN. The only data-path remainder after
+            // slice 2ad is EventUnitForm(RecycleReserveUnits) (editor session state — NewAllocData).
+            // (FE8SpellMenuExtendsForm ported in slice 2m. EventBattleTalk/Haiku/WorldMapEventPointer/
+            //  MonsterWMapProbability ported in slice 2aa. StatusOption + SoundFootSteps in 2d.
+            //  UnitFE6 + ItemUsagePointer + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon in 2f.
+            //  MapTileAnimation1/2 + ItemShop + MapChange + MapExitPoint in 2g. SupportUnit + WorldMapPath
+            //  + EDStaffRoll + OPPrologue + OPClassFont in 2h. OPClassDemo + OPClassDemoFE7 in 2i.
+            //  MapTerrain{BG,Floor}Lookup + MapPointer + ExtraUnit + ExtraUnitFE8U in 2j. SoundRoom +
+            //  SongTable + MapSetting in 2r. AIScript + ImageBattleAnime in 2s.
+            //  ItemForm + UnitActionPointerForm in 2ad -> asserted GONE below.)
             foreach (var kept in new[]
             {
-                // (FE8SpellMenuExtendsForm ported in slice 2m -> no longer kept here.
-                //  EventBattleTalkForm/EventHaikuForm/WorldMapEventPointerForm/MonsterWMapProbabilityForm
-                //  ported in slice 2aa -> no longer kept here; asserted GONE below.)
-                // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
-                //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
-                //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
-                //  ItemShopForm + MapChangeForm + MapExitPointForm ported in slice 2g -> no longer kept.
-                //  SupportUnitForm + WorldMapPathForm + EDStaffRollForm + OPPrologueForm + OPClassFontForm
-                //  ported in slice 2h -> no longer kept here. OPClassDemoForm + OPClassDemoFE7Form ported
-                //  in slice 2i -> no longer kept here. MapTerrain{BG,Floor}LookupTableForm + MapPointerForm
-                //  + ExtraUnitForm + ExtraUnitFE8UForm ported in slice 2j -> no longer kept here.
-                //  SoundRoomForm + SongTableForm + MapSettingForm ported in slice 2r -> no longer kept here.
-                //  AIScriptForm + ImageBattleAnimeForm ported in slice 2s -> no longer kept here.)
-                "ItemForm",
+                "EventUnitForm(RecycleReserveUnits)",
             })
             {
                 Assert.Contains(kept, notYet);
@@ -1738,6 +1738,10 @@ namespace FEBuilderGBA.Core.Tests
             // slice 2s ported AIScriptForm + ImageBattleAnimeForm -> they must now be GONE.
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+
+            // slice 2ad ported ItemForm + UnitActionPointerForm -> they must now be GONE.
+            Assert.DoesNotContain("ItemForm", notYet);
+            Assert.DoesNotContain("UnitActionPointerForm", notYet);
 
             // slice 2aa ported the four FE8 ScanScript-family forms -> they must now be GONE.
             Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
@@ -2327,8 +2331,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("SoundFootStepsForm", notYet);
             Assert.DoesNotContain("StatusRMenuForm", notYet);
             Assert.DoesNotContain("MenuDefinitionForm", notYet);
-            // sibling forms that genuinely still need un-ported subsystems STAY.
-            Assert.Contains("ItemForm", notYet);
+            // (ItemForm was a deferred sibling here; slice 2ad ports it via EmitItem + the new Core
+            //  PatchDetection detectors.)
+            Assert.DoesNotContain("ItemForm", notYet);
             // (SoundRoomForm ported in slice 2r — see GetNotYetPortedForms_DropsSlice2rForms; AIScriptForm
             //  ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("AIScriptForm", notYet);
@@ -3519,8 +3524,9 @@ namespace FEBuilderGBA.Core.Tests
 
             // (AIScriptForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("AIScriptForm", notYet);
-            // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
+            // (UnitActionPointerForm was a deferred sibling here; slice 2ad ports it via
+            //  EmitUnitActionPointer + the new Core PatchDetection.SearchUnitActionReworkPatch detector.)
+            Assert.DoesNotContain("UnitActionPointerForm", notYet);
             // (MonsterWMapProbabilityForm PORTED in slice 2aa — EmitScanScript skirmish events.)
             Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
             // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
@@ -3930,10 +3936,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("MapPointerForm", notYet);
             Assert.DoesNotContain("MapTerrainFloorLookupTableForm", notYet);
             Assert.DoesNotContain("MapTerrainBGLookupTableForm", notYet);
-            // deferred map siblings STAY (their blocking subsystem is not in Core):
             // (MapSettingForm is ported in slice 2r — its IsMapSettingEnd text-count cache is now
-            //  reproduced by TextDataCount. ItemForm stays deferred on its StatBooster PatchUtil size.)
-            Assert.Contains("ItemForm", notYet);                       // StatBooster size via PatchUtil
+            //  reproduced by TextDataCount. ItemForm is ported in slice 2ad — its StatBooster size now
+            //  comes from the new Core PatchDetection detectors.)
+            Assert.DoesNotContain("ItemForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -5256,7 +5262,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet); // NewAllocData = editor session state
-            Assert.Contains("ItemForm", notYet);                        // StatBooster size via PatchUtil
+            // (ItemForm ported in slice 2ad — StatBooster size via the new Core PatchDetection detectors.)
+            Assert.DoesNotContain("ItemForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6329,11 +6336,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
 
-            // sibling forms that genuinely still need un-ported subsystems STAY:
-            Assert.Contains("ItemForm", notYet);                  // PatchUtil StatBooster detection
-            Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
-            // (ImagePortraitForm + ImageItemIconForm — formerly listed here — ported in slice 2t; see
-            //  GetNotYetPortedForms_DropsSlice2tForms.)
+            // (ItemForm + UnitActionPointerForm — formerly deferred siblings here — ported in slice 2ad
+            //  via EmitItem / EmitUnitActionPointer + the new Core PatchDetection detectors.
+            //  ImagePortraitForm + ImageItemIconForm ported in slice 2t.)
+            Assert.DoesNotContain("ItemForm", notYet);
+            Assert.DoesNotContain("UnitActionPointerForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6355,8 +6362,8 @@ namespace FEBuilderGBA.Core.Tests
             // ProcsScriptForm itself STAYS — it is an ASM-path form (MakePatchStructDataList), out of
             // scope for this data-path producer; only its CalcLengthAndCheck length helper is reused.
             Assert.Contains("ProcsScriptForm", notYet);
-            // ItemForm STAYS — StatBooster sub-block size needs un-ported PatchUtil detection.
-            Assert.Contains("ItemForm", notYet);
+            // (ItemForm ported in slice 2ad — StatBooster size via the new Core PatchDetection detectors.)
+            Assert.DoesNotContain("ItemForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6669,8 +6676,8 @@ namespace FEBuilderGBA.Core.Tests
             //  in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("MapSettingForm", notYet);
             Assert.DoesNotContain("AIScriptForm", notYet);
-            // ItemForm STAYS — StatBooster sub-block size needs un-ported PatchUtil detection.
-            Assert.Contains("ItemForm", notYet);
+            // (ItemForm ported in slice 2ad — StatBooster size via the new Core PatchDetection detectors.)
+            Assert.DoesNotContain("ItemForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -9184,10 +9191,9 @@ namespace FEBuilderGBA.Core.Tests
             //  are now ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // Genuinely-still-deferred siblings STAY:
-            Assert.Contains("ItemForm", notYet);          // PatchUtil StatBooster detection
-            // (ImagePortraitForm — formerly listed here — ported in slice 2t; see
-            //  GetNotYetPortedForms_DropsSlice2tForms.)
+            // (ItemForm — formerly a deferred sibling here — ported in slice 2ad via EmitItem + the new
+            //  Core PatchDetection detectors. ImagePortraitForm ported in slice 2t.)
+            Assert.DoesNotContain("ItemForm", notYet);
             Assert.DoesNotContain("ImagePortraitForm", notYet);
 
             // no-duplicates invariant still holds.
@@ -9554,7 +9560,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Data path incomplete (a deferred data-path form), ASM path complete.
                 var data = new RebuildProducerCore.ProducerResult(
-                    structList, new[] { "ItemForm" }, cancelled: false);
+                    structList, new[] { "EventUnitForm(RecycleReserveUnits)" }, cancelled: false);
                 var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
 
                 using (var tmp = new WireTempDir())
@@ -9563,7 +9569,7 @@ namespace FEBuilderGBA.Core.Tests
                     var ex = Assert.Throws<InvalidOperationException>(() =>
                         RebuildProducerCore.MakeWithProducer(
                             data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
-                    Assert.Contains("ItemForm", ex.Message);
+                    Assert.Contains("EventUnitForm(RecycleReserveUnits)", ex.Message);
                     Assert.False(System.IO.File.Exists(manifestPath));
                 }
             }
@@ -9722,5 +9728,429 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = savedRom;
             }
         }
+
+        // ==================================================================
+        // #1261 slice 2ad — EmitItem + EmitUnitActionPointer (data-path forms).
+        //
+        // These use a real FE8U ROM (MakeVersionedRom("BE8E01")) because both
+        // emitters call into RomInfo (item version/datasize, the rework delegate)
+        // and the slice-2ad PatchDetection detectors. The detector signatures live
+        // at LOW fixed addresses (0x02BA2A / 0x2AAEC / 0x28E80); test tables are
+        // planted HIGH (>= 0x100000) so a zeroed-detector ROM gives the vanilla
+        // sizes and planting a detector signature flips exactly one size.
+        // ==================================================================
+
+        // ---- EmitItem ----
+
+        [Fact]
+        public void EmitItem_NullRomInfo_EmitsNothing()
+        {
+            var rom = CreateTestRom(); // synthetic, no RomInfo
+            var list = new List<Address>();
+            RebuildProducerCore.EmitItemAt(rom, list, 0x240, 36);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitItem_ZeroedFe8u_EmitsNothingSafe()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                var list = new List<Address>();
+                // EmitItem reads RomInfo.item_pointer (FindROMPointer fallback) -> p32 == 0 -> nothing.
+                RebuildProducerCore.EmitItem(rom, list);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        /// <summary>
+        /// Plant ONE item entry on a FE8U ROM: a pointer slot -> a one-entry item table whose
+        /// entry has a StatBooster pointer at +12 and (optionally) an ItemEffectiveness pointer at
+        /// +16. Returns (slot, table, entry, statboost, effect). The item rule (FE8U: +12 is a
+        /// pointer-or-null) makes exactly one entry valid; entry+block has +12 NOT pointer -> stop.
+        /// </summary>
+        static (uint slot, uint table, uint entry, uint statboost, uint effect) PlantOneItem(
+            ROM rom, byte vennoExtendsFlag, byte passiveBoosterFlag, bool withEffect)
+        {
+            const uint block = 36;
+            uint slot = 0x100000;
+            uint table = 0x101000;
+            uint statboost = 0x102000;
+            uint effect = 0x103000;
+
+            rom.write_u32(slot, Ptr(table));
+
+            // entry 0 at `table`.
+            rom.write_u32(table + 12, Ptr(statboost));         // StatBooster pointer (> 0)
+            rom.write_u8(table + 34, vennoExtendsFlag);        // venno/skill flag
+            rom.write_u8(table + 10, passiveBoosterFlag);      // passive-booster byte
+            if (withEffect)
+            {
+                rom.write_u32(table + 16, Ptr(effect));        // ItemEffectiveness pointer (> 0)
+            }
+
+            // entry 1 (terminator): +12 must NOT be pointer-or-null so the item rule stops at count 1.
+            // 0x00000001 is neither a pointer nor null -> isPointerOrNULL false.
+            rom.write_u32(table + block + 12, 0x00000001);
+
+            return (slot, table, table, statboost, effect);
+        }
+
+        [Fact]
+        public void EmitItem_Vanilla_StatBoosterSize12()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                var p = PlantOneItem(rom, vennoExtendsFlag: 1, passiveBoosterFlag: 0x80, withEffect: false);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                // No GrowsMod/IER/ClassType signatures planted -> vanilla 12-byte StatBooster.
+                Address sb = list.Single(a => a.Addr == p.statboost);
+                Assert.Equal(12u, sb.Length);
+                Assert.Equal(Address.DataTypeEnum.BIN, sb.DataType);
+                Assert.Equal(p.table + 12, sb.Pointer);
+
+                // Main IFR present: base = table, block 36, type InputFormRef, count 1 -> 36*2.
+                Address main = list.Single(a => a.Addr == p.table && a.DataType == Address.DataTypeEnum.InputFormRef);
+                Assert.Equal(36u * 2, main.Length);
+                Assert.Equal(p.slot, main.Pointer);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_Vennou_StatBoosterSize16_WhenFlag1()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                // Plant the Vennou signature so SearchGrowsMod == Vennou.
+                Array.Copy(VennouSigFor2ad, 0, rom.Data, 0x02BA2A, VennouSigFor2ad.Length);
+                var p = PlantOneItem(rom, vennoExtendsFlag: 1, passiveBoosterFlag: 0x00, withEffect: false);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address sb = list.Single(a => a.Addr == p.statboost);
+                Assert.Equal(16u, sb.Length); // Vennou + flag==1 -> 16
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_Vennou_StatBoosterSize12_WhenFlagNot1()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                Array.Copy(VennouSigFor2ad, 0, rom.Data, 0x02BA2A, VennouSigFor2ad.Length);
+                // flag at +34 is 0 -> Vennou branch does NOT fire -> vanilla 12.
+                var p = PlantOneItem(rom, vennoExtendsFlag: 0, passiveBoosterFlag: 0x00, withEffect: false);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address sb = list.Single(a => a.Addr == p.statboost);
+                Assert.Equal(12u, sb.Length);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_IER_StatBoosterSize20_WhenPassiveBit()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                Array.Copy(IERSigFor2ad, 0, rom.Data, 0x28E80, IERSigFor2ad.Length);
+                // No GrowsMod signature -> growthmod==NO; IER + passive bit 0x80 -> 20.
+                var p = PlantOneItem(rom, vennoExtendsFlag: 0, passiveBoosterFlag: 0x80, withEffect: false);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address sb = list.Single(a => a.Addr == p.statboost);
+                Assert.Equal(20u, sb.Length);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_VennouWinsOverIER_WhenBothPresentAndFlags()
+        {
+            // Copilot plan-review point 2: the if/else-if priority means Vennou (flag==1) wins
+            // over IER (passive bit) — both present must yield 16, NOT 20.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                Array.Copy(VennouSigFor2ad, 0, rom.Data, 0x02BA2A, VennouSigFor2ad.Length);
+                Array.Copy(IERSigFor2ad, 0, rom.Data, 0x28E80, IERSigFor2ad.Length);
+                var p = PlantOneItem(rom, vennoExtendsFlag: 1, passiveBoosterFlag: 0x80, withEffect: false);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address sb = list.Single(a => a.Addr == p.statboost);
+                Assert.Equal(16u, sb.Length); // Vennou wins -> 16 (NOT IER's 20)
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_Effectiveness_VanillaLengthIsCountPlusOne()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                var p = PlantOneItem(rom, vennoExtendsFlag: 0, passiveBoosterFlag: 0, withEffect: true);
+                // Vanilla N_Init: block 1, stop at u8==0. Plant 3 non-zero bytes then a 0.
+                rom.write_u8(p.effect + 0, 0x05);
+                rom.write_u8(p.effect + 1, 0x06);
+                rom.write_u8(p.effect + 2, 0x07);
+                rom.write_u8(p.effect + 3, 0x00); // terminator
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address eff = list.Single(a => a.Addr == p.effect);
+                // count 3 -> length 3+1 = 4 (block 1).
+                Assert.Equal(4u, eff.Length);
+                Assert.Equal(Address.DataTypeEnum.BIN, eff.DataType);
+                Assert.Equal(p.table + 16, eff.Pointer);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_Effectiveness_ReworkLengthIsCountPlusOneTimes4()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                // SkillSystems_Rework: plant the ClassType pattern at 0x2AAEC.
+                Array.Copy(ClassTypePat1For2ad, 0, rom.Data, 0x2AAEC, ClassTypePat1For2ad.Length);
+                var p = PlantOneItem(rom, vennoExtendsFlag: 0, passiveBoosterFlag: 0, withEffect: true);
+                // Rework N_Init: block 4, stop when NOT (u8==0 && u32!=0). 2 valid blocks then a stop.
+                rom.write_u32(p.effect + 0, 0x00000200); // u8(low)==0 && u32!=0 -> valid
+                rom.write_u32(p.effect + 4, 0x00000400); // valid
+                rom.write_u32(p.effect + 8, 0x00000001); // u8==1 -> stop (head must be 0)
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitItemAt(rom, list, p.slot, 36);
+
+                Address eff = list.Single(a => a.Addr == p.effect);
+                // count 2 -> length (2+1)*4 = 12 (block 4).
+                Assert.Equal(12u, eff.Length);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitItem_NearEof_NoThrow()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                // A small FE8U ROM is impossible (LoadLow probes high addrs), so use the normal
+                // 32MB ROM but point the slot near EOF: the pointer-slot guard returns safely.
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                var list = new List<Address>();
+                uint nearEof = (uint)rom.Data.Length - 2; // slot+3 exceeds EOF -> guarded
+                var ex = Record.Exception(() => RebuildProducerCore.EmitItemAt(rom, list, nearEof, 36));
+                Assert.Null(ex);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- EmitUnitActionPointer ----
+
+        [Fact]
+        public void EmitUnitActionPointer_NullRomInfo_EmitsNothing()
+        {
+            var rom = CreateTestRom();
+            var list = new List<Address>();
+            RebuildProducerCore.EmitUnitActionPointerAt(rom, list, 0x240);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitUnitActionPointer_NonRework_EmitsAsmTable()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                // Non-rework (no rework signature planted): IsDataExists = isSafetyPointer(u32).
+                uint slot = 0x100000;
+                uint table = 0x101000;
+                rom.write_u32(slot, Ptr(table));
+                // 2 valid ASM pointer entries (block 4) then a non-pointer terminator.
+                rom.write_u32(table + 0, Ptr(0x120000));
+                rom.write_u32(table + 4, Ptr(0x120040));
+                rom.write_u32(table + 8, 0x00000001); // not a safe pointer -> stop
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitUnitActionPointerAt(rom, list, slot);
+
+                Address main = list.Single(a => a.Addr == table
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+                Assert.Equal(4u * (2 + 1), main.Length); // count 2 -> 4*(2+1)
+                Assert.Equal(slot, main.Pointer);
+                // One ASM AddFunction per entry (2 entries). AddFunction emits DataTypeEnum.ASM
+                // (the resolved target addr), gated on isSafetyPointer(u32(entry)).
+                int funcs = list.Count(a => a.DataType == Address.DataTypeEnum.ASM);
+                Assert.Equal(2, funcs);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitUnitActionPointer_Rework_TreatsZeroAsValidAndMasksPointer()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                // Make the rework gate TRUE: plant the per-version expected u32 at the rework addr.
+                uint expected;
+                uint hackAddr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
+                rom.write_u32(hackAddr, expected);
+                Assert.True(PatchDetection.SearchUnitActionReworkPatch(rom));
+
+                uint slot = 0x100000;
+                uint table = 0x101000;
+                rom.write_u32(slot, Ptr(table));
+                // Rework predicate: 0 is a VALID entry; masked pointer (& 0x0FFFFFFF) accepted;
+                // 0xFFFFFFFF terminates.
+                rom.write_u32(table + 0, 0x00000000);   // valid (0)
+                rom.write_u32(table + 4, 0x08120000);    // masked -> 0x00120000 safe offset -> valid
+                rom.write_u32(table + 8, 0xFFFFFFFF);    // NOT_FOUND -> stop
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitUnitActionPointerAt(rom, list, slot);
+
+                Address main = list.Single(a => a.Addr == table
+                    && a.DataType == Address.DataTypeEnum.InputFormRef_ASM);
+                Assert.Equal(4u * (2 + 1), main.Length); // count 2 (the 0 entry counts)
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitUnitActionPointer_ZeroSlot_EmitsNothing()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                var list = new List<Address>();
+                // A 0 base slot (e.g. SearchActionPointer returned 0 in the rework-no-config path).
+                RebuildProducerCore.EmitUnitActionPointerAt(rom, list, 0);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void SearchActionPointer_NonRework_ReturnsRomInfoSlot()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                // No rework signature -> non-rework path returns the RomInfo slot verbatim.
+                Assert.Equal(rom.RomInfo.unitaction_function_pointer,
+                    RebuildProducerCore.SearchActionPointer(rom));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void SearchActionPointer_Rework_NoConfigFile_ReturnsZero()
+        {
+            var savedRom = CoreState.ROM;
+            var savedBase = CoreState.BaseDirectory;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                CoreState.BaseDirectory = null; // no config tree -> rework path returns 0 (no throw)
+                uint expected;
+                uint hackAddr = rom.RomInfo.patch_unitaction_rework_hack(out expected);
+                rom.write_u32(hackAddr, expected);
+                Assert.True(PatchDetection.SearchUnitActionReworkPatch(rom));
+
+                Assert.Equal(0u, RebuildProducerCore.SearchActionPointer(rom));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBase;
+            }
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2ad ----
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2adForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2ad ports these two data-path forms -> no longer deferred.
+            Assert.DoesNotContain("ItemForm", notYet);
+            Assert.DoesNotContain("UnitActionPointerForm", notYet);
+
+            // The only data-path remainder (a genuine producer form) is
+            // EventUnitForm(RecycleReserveUnits) — editor session state (NewAllocData). The list also
+            // keeps the ASM-path epic PatchForm(MakePatchStructDataList) and the ASM-only ProcsScriptForm
+            // (whose length helper this data path reuses but whose own table is ASM-path) — both out of
+            // scope for the data-path producer, kept so the coverage gate stays honest.
+            Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet);
+            Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
+        }
+
+        // Signatures duplicated locally for the slice-2ad EmitItem tests (kept in sync with
+        // PatchDetection's tables — a divergence would make these tests fail loudly).
+        static readonly byte[] VennouSigFor2ad = new byte[]
+        {
+            0x4E, 0x46, 0x45, 0x46, 0x60, 0xB4, 0x8B, 0xB0, 0x07, 0x1C, 0xFF, 0xF7, 0xDE, 0xFF, 0x00, 0x06,
+            0x00, 0x28, 0x00, 0xD1, 0x8E, 0xE0, 0x78, 0x7A, 0x63, 0x28, 0x00, 0xD8, 0x8A, 0xE0, 0x03, 0x1C,
+            0x64, 0x3B, 0x7B, 0x72, 0x38, 0x7A, 0x42, 0x1C, 0x3A, 0x72, 0x38, 0x68, 0x79, 0x68, 0x80, 0x6A,
+            0x89, 0x6A, 0x08, 0x43, 0x80, 0x21, 0x09, 0x03, 0x08, 0x40, 0x00, 0x28, 0x04, 0xD0, 0x10, 0x06,
+            0x00, 0x16, 0x0A, 0x28, 0x0B, 0xD1, 0x03, 0xE0, 0x10, 0x06, 0x00
+        };
+        static readonly byte[] IERSigFor2ad = new byte[]
+        {
+            0x03, 0x4B, 0x14, 0x22, 0x50, 0x43, 0x40, 0x18,
+            0xC0, 0x18, 0x00, 0x68, 0x70, 0x47, 0x00, 0x00
+        };
+        static readonly byte[] ClassTypePat1For2ad = new byte[] { 0x00, 0x25, 0x00, 0x28, 0x00, 0xD0, 0x05, 0x1C };
     }
 }
