@@ -477,6 +477,32 @@ namespace FEBuilderGBA
                 return new ProducerResult(list, notYet, cancelled: true);
             }
 
+            // ---- slice 2u: EventCondForm FIRST (matches WF U.MakeAllStructPointersList
+            // order — EventCondForm.MakeAllDataLength(list) at U.cs:2418, the very first
+            // static, BEFORE the first DoEvents checkpoint). It walks every map's event-
+            // condition table and ScanScript-traces every referenced event script + data
+            // block.
+            //
+            // The event-script DISASSEMBLER is a hard prerequisite (CoreState.EventScript
+            // / CommentCache). A REAL rebuild always has them wired (full ROM init); but a
+            // partially-initialised host might not. To honour Copilot plan-review point 1
+            // (the omission must never be SILENT) WITHOUT crashing a valid non-EventCond
+            // producer run, EventCondForm is treated as STILL not-yet-ported when the
+            // disasm is unwired — the EVENTCOND/script blocks are skipped AND
+            // EventCondForm is re-reported in NotYetPorted, so IsComplete stays false and
+            // the coverage signal reflects reality. When the disasm IS wired,
+            // EmitEventCond runs and EventCondForm is fully covered.
+            if (IsEventScriptDisasmReady(rom))
+            {
+                progress?.Report("EventCond");
+                EmitEventCond(rom, list);
+            }
+            else
+            {
+                progress?.Report("EventCond (skipped — disassembler not wired)");
+                notYet = AppendNotYetPorted(notYet, "EventCondForm");
+            }
+
             // The WinForms producer interleaves DoEvents checkpoints between groups of
             // statics. We keep the SAME checkpoint boundaries so a later parity slice can
             // line them up. ct.IsCancellationRequested mirrors a DoEvents cancel.
@@ -6978,6 +7004,838 @@ namespace FEBuilderGBA
             }
         }
 
+        // ====================================================================
+        // slice 2u — EventCondForm + the Core ScanScript event-script BLOCK-emitter.
+        //
+        // EventCondForm.MakeAllDataLength (EventCondForm.cs:2450) walks every map's
+        // event-condition table and, per cond slot, emits the EVENTCOND_*/EVENTTRAP
+        // frame Address PLUS — for the slots that hold event-script pointers — runs
+        // EventScriptForm.ScanScript (EventScriptForm.cs:379), the recursive
+        // event-script tracer that emits one Address per referenced data region
+        // (the event-script bytes themselves + the per-arg RecycleOldData blocks:
+        // units, FE7 battle/move/talk data, AI coords/range/calltalk, menus, ASM).
+        //
+        // ScanScript is reproduced VERBATIM as EmitScanScript (the recursive Scan
+        // closure). It is DISTINCT from EventScriptReferenceScanner.ScanScriptForArg
+        // (which collects id VALUES for the references UI) — this one emits Address
+        // BLOCKS for relocation.
+        //
+        // PREREQUISITES (Copilot plan-review point 1 — the omission must be LOUD, not
+        // silent): the event-script DISASSEMBLY path (EventScript.DisAseemble /
+        // IsExitCode / the per-command CommentCache lookup) is bound to the static
+        // CoreState.ROM / CoreState.EventScript / CoreState.CommentCache. Because the
+        // producer already REQUIRES rom == CoreState.ROM (asserted in
+        // MakeAllStructPointers), a real rebuild always has the active ROM wired. But
+        // EventScript / CommentCache could still be unset (e.g. a partially-initialised
+        // headless host). If they are, EmitEventCond would silently emit NO script
+        // blocks — a silent relocation gap once EventCondForm is dropped from
+        // NotYetPorted. So EmitEventCond THROWS InvalidOperationException when the
+        // disasm prerequisites are missing (the caller wires them or keeps the producer
+        // un-wired) rather than producing a partial, falsely-"complete" list.
+        // ====================================================================
+
+        /// <summary>
+        /// Returns true when the event-script disassembly path is wired for
+        /// <paramref name="rom"/>: <paramref name="rom"/> IS the active
+        /// <see cref="CoreState.ROM"/>, an <see cref="EventScript"/> is set, AND a
+        /// comment cache is set (the disasm path dereferences it). Same gate as
+        /// <see cref="EventScriptReferenceScanner.FindAllArgReferences"/>, but the
+        /// producer treats a false result as a HARD ERROR (see
+        /// <see cref="EmitEventCond"/>), never as "emit nothing".
+        /// </summary>
+        static bool IsEventScriptDisasmReady(ROM rom)
+        {
+            if (CoreState.EventScript == null) return false;
+            if (CoreState.ROM == null || !ReferenceEquals(CoreState.ROM, rom)) return false;
+            if (CoreState.CommentCache == null) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// Core port of <c>EventCondForm.MakeAllDataLength</c> (EventCondForm.cs:2450).
+        /// Walks every map (<c>mapid 0..MapSettingCore.GetMapCount()</c>); per map
+        /// resolves the cond-block address + its EVENT-plist slot pointer
+        /// (split-aware, via <see cref="MapChangeCore.PlistToOffsetAddr"/> = WF
+        /// <c>GetEventAddrWhereMapID(out pointer)</c>); per cond slot (laid out by
+        /// <see cref="MapEventUnitCore.GetCondSlots"/> = WF <c>MapCond</c>) emits the
+        /// EVENTCOND_*/EVENTTRAP frame Address at <c>base_pointer = mapcond_addr+4*i</c>,
+        /// runs <see cref="EmitScanScript"/> per referenced event, emits the per-version
+        /// ASM <see cref="Address.DataTypeEnum.ASM"/> blocks, the FE8 random-chest IFR,
+        /// the unit-placement recycle, and the trailing <c>EventCond Frame</c> block.
+        ///
+        /// <para>The <c>tracelist</c> is allocated ONCE for the whole walk (matching WF
+        /// <c>EventCondForm.MakeAllDataLength</c>'s single <c>tracelist</c>), so a script
+        /// reached from two maps/conds is emitted once (the second reference becomes a
+        /// zero-length alias <see cref="Address.DataTypeEnum.EVENTSCRIPT"/> pointer).</para>
+        ///
+        /// <para>THROWS <see cref="InvalidOperationException"/> when the event-script
+        /// disasm path is not wired (<see cref="IsEventScriptDisasmReady"/>) — the
+        /// omission of every traced script block would otherwise be silent.</para>
+        /// </summary>
+        public static void EmitEventCond(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+
+            if (!IsEventScriptDisasmReady(rom))
+            {
+                throw new InvalidOperationException(
+                    "RebuildProducerCore.EmitEventCond requires the event-script disassembler to be "
+                    + "wired (CoreState.ROM == rom, CoreState.EventScript != null, CoreState.CommentCache "
+                    + "!= null). Without it every ScanScript-traced data block would be silently dropped "
+                    + "from the rebuild relocation list (corruption). Wire the disassembler before running "
+                    + "the producer, or keep EventCondForm in NotYetPorted.");
+            }
+
+            var tracelist = new List<uint>();
+            int mapmax = MapSettingCore.GetMapCount();
+            var slots = MapEventUnitCore.GetCondSlots(rom);
+            if (slots.Count == 0) return;
+
+            uint ternSize = rom.RomInfo.eventcond_tern_size;
+            uint talkSize = rom.RomInfo.eventcond_talk_size;
+
+            for (uint mapid = 0; mapid < mapmax; mapid++)
+            {
+                // mapcond_pointer = the EVENT-plist slot holding the cond block; mapcond_addr = the block.
+                uint mapcondPointer;
+                uint mapcondAddr = ResolveEventCondAddr(rom, mapid, out mapcondPointer);
+                if (!U.isSafetyOffset(mapcondAddr, rom))
+                {
+                    continue;
+                }
+                string mapidString = U.To0xHexString(mapid);
+
+                for (int i = 0; i < slots.Count; i++)
+                {
+                    MapEventUnitCore.CondType condtype = slots[i].Type;
+                    uint basePointer = (uint)(mapcondAddr + (4 * i));
+                    // WF reads base_addr = p32(base_pointer); guard the full 4-byte slot first.
+                    if (!U.isSafetyOffset(basePointer + 3, rom))
+                    {
+                        continue;
+                    }
+                    uint baseAddr = rom.p32(basePointer);
+                    if (!U.isSafetyOffset(baseAddr, rom))
+                    {
+                        continue;
+                    }
+
+                    uint startaddr = baseAddr;
+                    switch (condtype)
+                    {
+                        case MapEventUnitCore.CondType.Turn:
+                        {
+                            while (true)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + ternSize, rom)) break;
+                                uint type = rom.u8(baseAddr);
+                                if (type == 0) break;
+
+                                if (rom.RomInfo.version == 6 && type == 0x0D)
+                                {
+                                    EmitEventCondAsm(rom, list, baseAddr + 8,
+                                        "EventCond map:" + mapidString + " talk: ASM");
+                                }
+
+                                uint eventAddr = rom.p32(baseAddr + 4);
+                                if (U.isSafetyOffset(eventAddr, rom))
+                                {
+                                    EmitScanScript(rom, list, baseAddr + 4, true, false,
+                                        "EventScript map:" + mapidString + " turn:" + U.To0xHexString(eventAddr),
+                                        tracelist);
+                                }
+
+                                if (rom.RomInfo.version == 7 && type == 1)
+                                {
+                                    baseAddr += 12; // FE7 12-byte short-turn event
+                                }
+                                else
+                                {
+                                    baseAddr += ternSize;
+                                }
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + ternSize, basePointer,
+                                "EventCond map:" + mapidString + " turn:" + U.ToHexString(startaddr),
+                                Address.DataTypeEnum.EVENTCOND_TURN);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.Talk:
+                        {
+                            for (; true; baseAddr += talkSize)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + talkSize, rom)) break;
+                                uint type = rom.u8(baseAddr + 0);
+                                if (type == 0) break;
+
+                                if (rom.RomInfo.version == 6)
+                                {
+                                    if (type == 0x0D)
+                                    {
+                                        EmitEventCondAsm(rom, list, baseAddr + 8,
+                                            "EventCond map:" + mapidString + " talk: ASM");
+                                    }
+                                }
+                                else
+                                {
+                                    if (type == 0x04)
+                                    {
+                                        EmitEventCondAsm(rom, list, baseAddr + 12,
+                                            "EventCond map:" + mapidString + " talk: ASM");
+                                    }
+                                }
+
+                                uint eventAddr = rom.p32(baseAddr + 4);
+                                if (!U.isSafetyOffset(eventAddr, rom)) continue;
+
+                                EmitScanScript(rom, list, baseAddr + 4, true, false,
+                                    "EventScript map:" + mapidString + " talk:" + U.To0xHexString(eventAddr),
+                                    tracelist);
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + talkSize, basePointer,
+                                "EventCond map:" + mapidString + " talk:" + U.ToHexString(startaddr),
+                                Address.DataTypeEnum.EVENTCOND_TALK);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.Object:
+                        {
+                            for (; true; baseAddr += 12)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + 12, rom)) break;
+                                uint type = rom.u8(baseAddr);
+                                if (type == 0) break;
+
+                                uint eventAddr = rom.p32(baseAddr + 4);
+                                if (!U.isSafetyOffset(eventAddr, rom)) continue;
+
+                                uint objectType = rom.u8(baseAddr + 10);
+                                if (IsShopObjectType(rom, objectType))
+                                {
+                                    // shop — recovered as separate data, nothing here.
+                                }
+                                else if (IsChestObjectType(rom, objectType))
+                                {
+                                    if (rom.RomInfo.version == 8 && type == 0x5)
+                                    {
+                                        EmitItemRandomChest(rom, list, baseAddr + 4, mapidString);
+                                    }
+                                }
+                                else
+                                {
+                                    EmitScanScript(rom, list, baseAddr + 4, true, false,
+                                        "EventScript map:" + mapidString + " obj:" + U.To0xHexString(eventAddr),
+                                        tracelist);
+                                }
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + 12, basePointer,
+                                "EventCond Object map:" + mapidString + " obj:" + U.To0xHexString(startaddr),
+                                Address.DataTypeEnum.EVENTCOND_OBJECT);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.Always:
+                        {
+                            for (; true; baseAddr += 12)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + 12, rom)) break;
+                                uint type = rom.u32(baseAddr);
+                                if (type == 0) break;
+
+                                if (rom.RomInfo.version == 6)
+                                {
+                                    if (type == 0x0D)
+                                    {
+                                        EmitEventCondAsm(rom, list, baseAddr + 8,
+                                            "EventCond map:" + mapidString + " always: ASM");
+                                    }
+                                }
+                                else
+                                {
+                                    if (type == 0x0E)
+                                    {
+                                        EmitEventCondAsm(rom, list, baseAddr + 12,
+                                            "EventCond map:" + mapidString + " always: ASM");
+                                    }
+                                }
+
+                                uint eventAddr = rom.p32(baseAddr + 4);
+                                if (!U.isSafetyOffset(eventAddr, rom)) continue;
+
+                                EmitScanScript(rom, list, baseAddr + 4, true, false,
+                                    "EventScript map:" + mapidString + " always:" + U.To0xHexString(eventAddr),
+                                    tracelist);
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + 12, basePointer,
+                                "EventCond map:" + mapidString + " always:" + U.ToHexString(startaddr),
+                                Address.DataTypeEnum.EVENTCOND_ALWAYS);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.Trap:
+                        {
+                            for (; true; baseAddr += 6)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + 6, rom)) break;
+                                if (rom.u8(baseAddr) == 0) break;
+                                // nop — TRAP records hold no event-script / sub-pointers.
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + 6, basePointer,
+                                "EventScript map:" + mapidString + " trap:" + U.To0xHexString(startaddr),
+                                Address.DataTypeEnum.EVENTTRAP);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.Tutorial:
+                        {
+                            for (; true; baseAddr += 4)
+                            {
+                                if (!U.isSafetyOffset(baseAddr + 4, rom)) break;
+                                if (rom.u8(baseAddr) == 0) break;
+
+                                uint eventAddr = rom.p32(baseAddr + 0);
+                                if (!U.isSafetyOffset(eventAddr, rom)) continue;
+
+                                EmitScanScript(rom, list, baseAddr + 0, true, false,
+                                    "EventScript map:" + mapidString + " tutorial:" + U.To0xHexString(eventAddr),
+                                    tracelist);
+                            }
+                            Address.AddAddress(list, startaddr, baseAddr - startaddr + 4, basePointer,
+                                "EventScript map:" + mapidString + " tutorial:" + U.To0xHexString(startaddr),
+                                Address.DataTypeEnum.POINTER);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.PlayerUnit:
+                        case MapEventUnitCore.CondType.EnemyUnit:
+                        case MapEventUnitCore.CondType.FreemapPlayerUnit:
+                        case MapEventUnitCore.CondType.FreemapEnemyUnit:
+                        {
+                            // Unit placement — WF EventUnitForm.RecycleOldUnits(ref list, name, base_pointer).
+                            EmitRecycleOldUnits(rom, list,
+                                "EventCond map:" + mapidString + " units:" + U.To0xHexString(startaddr),
+                                basePointer);
+                            break;
+                        }
+                        case MapEventUnitCore.CondType.StartEvent:
+                        case MapEventUnitCore.CondType.EndEvent:
+                        {
+                            // 18,19 chapter start/end event — the cond-slot itself is the script pointer.
+                            EmitScanScript(rom, list, basePointer, true, false,
+                                "EventScript map:" + mapidString + " chaptor:" + U.To0xHexString(startaddr),
+                                tracelist);
+                            break;
+                        }
+                        default:
+                            // Unknown cond type — WF has no branch; nothing emitted.
+                            break;
+                    }
+                }
+
+                Address.AddAddress(list, mapcondAddr, (uint)slots.Count * 4, mapcondPointer,
+                    "EventCond Frame map:" + mapidString, Address.DataTypeEnum.POINTER);
+            }
+        }
+
+        /// <summary>
+        /// Resolve a map's event-condition block address + the EVENT-plist slot that
+        /// holds it (= WF <c>MapSettingForm.GetEventAddrWhereMapID(mapid, out pointer)</c>).
+        /// Reads the map's event plist index (<c>u8(mapAddr + map_setting_event_plist_pos)</c>)
+        /// then resolves it SPLIT-AWARE through
+        /// <see cref="MapChangeCore.PlistToOffsetAddr"/> (= WF
+        /// <c>PlistToOffsetAddrFast(EVENT, plist, out pointer)</c>, which applies the
+        /// per-version PLIST limit). Returns <see cref="U.NOT_FOUND"/> + an
+        /// <see cref="U.NOT_FOUND"/> pointer on any failure.
+        /// </summary>
+        static uint ResolveEventCondAddr(ROM rom, uint mapId, out uint mapcondPointer)
+        {
+            mapcondPointer = U.NOT_FOUND;
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+
+            uint mapAddr = MapSettingCore.GetMapAddr(rom, mapId);
+            if (mapAddr == U.NOT_FOUND) return U.NOT_FOUND;
+
+            uint eventPlistPos = rom.RomInfo.map_setting_event_plist_pos;
+            if (eventPlistPos == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(mapAddr + eventPlistPos, rom)) return U.NOT_FOUND;
+
+            uint plist = rom.u8(mapAddr + eventPlistPos);
+            if (plist == 0) return U.NOT_FOUND;
+
+            // Split-aware EVENT-plist resolution (Copilot plan-review point 2).
+            return MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.EVENT, plist, out mapcondPointer);
+        }
+
+        /// <summary>
+        /// One EventCond ASM block: WF <c>Address.AddFunction(list, addr, name)</c>.
+        /// EOF-hardened (Copilot plan-review point 4): <see cref="Address.AddFunction"/>
+        /// reads <c>u32(addr)</c> after only a start-offset check, so the full 4-byte
+        /// field is guarded here first.
+        /// </summary>
+        static void EmitEventCondAsm(ROM rom, List<Address> list, uint addr, string name)
+        {
+            if (!U.isSafetyOffset(U.toOffset(addr) + 3, rom)) return;
+            Address.AddFunction(list, addr, name);
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>EventScriptForm.ScanScript</c> (EventScriptForm.cs:379)
+        /// + its inner <c>ScanScriptHelper.Scan</c>. Disassembles the event script
+        /// behind the pointer slot <paramref name="scriptPointer"/> and emits one
+        /// <see cref="Address.DataTypeEnum.EVENTSCRIPT"/> block for it, recursing through
+        /// <see cref="EventScript.ScriptHas.POINTER_UNIT_OR_EVENT"/> /
+        /// <see cref="EventScript.ScriptHas.POINTER_OTHER"/> args. With
+        /// <paramref name="isWithEventUnit"/> it ALSO dispatches each pointer-arg type to
+        /// the per-form <c>RecycleOldData</c> reproduction (units / FE7 battle/move/talk /
+        /// AI coord/range/calltalk / units-short-text / menu-extends / ASM).
+        ///
+        /// <para>The shared <paramref name="tracelist"/> stores TARGET offsets (the
+        /// dereferenced event_addr); a revisited target emits a zero-length alias
+        /// EVENTSCRIPT pointer for the SLOT (matching WF, Copilot plan-review point 3).</para>
+        ///
+        /// <para>EOF/termination guards (Copilot plan-review point 4): a hard
+        /// <see cref="ScanMaxSteps"/> step cap and a <c>Script.Size &gt; 0</c> advance
+        /// guard supplement the WF 10-UNKNOWN cutoff so a non-advancing / malformed
+        /// decode can never spin.</para>
+        /// </summary>
+        public static void EmitScanScript(ROM rom, List<Address> list, uint scriptPointer,
+            bool isWithEventUnit, bool isWorldMapEvent, string basename, List<uint> tracelist)
+        {
+            var es = CoreState.EventScript;
+            if (es == null) return; // disasm not wired — caller (EmitEventCond) already hard-errors.
+            ScanScriptRecurse(rom, es, list, scriptPointer, isWithEventUnit, isWorldMapEvent, basename, tracelist, 0);
+        }
+
+        // WF cutoff: 10 consecutive UNKNOWN commands abort a single walk.
+        const int ScanUnknownCutoff = 10;
+        // Defensive recursion + step caps (no WF equivalent — WF relies on the tracelist
+        // cycle-guard + exit/unknown cutoffs; we add hard caps so a pathological ROM can
+        // never hang or stack-overflow). The tracelist already bounds distinct targets.
+        const int ScanMaxSteps = 1 << 20;
+        const int ScanMaxDepth = 4096;
+
+        static void ScanScriptRecurse(ROM rom, EventScript es, List<Address> list, uint eventPointer,
+            bool isWithEventUnit, bool isWorldMapEvent, string basename, List<uint> tracelist, int depth)
+        {
+            if (depth > ScanMaxDepth) return;
+
+            // WF: event_addr = Program.ROM.u32(event_pointer); guard the full 4-byte slot.
+            uint eptr = U.toOffset(eventPointer);
+            if (!U.isSafetyOffset(eptr + 3, rom)) return;
+            uint eventAddrRaw = rom.u32(eptr);
+            if (!U.isPointer(eventAddrRaw)) return;
+            uint eventAddr = U.toOffset(eventAddrRaw);
+            if (!U.isSafetyOffset(eventAddr, rom)) return;
+
+            if (tracelist.IndexOf(eventAddr) >= 0)
+            {//既知 — emit the zero-length alias pointer for the SLOT.
+                Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                return;
+            }
+            tracelist.Add(eventAddr);
+
+            uint addr = eventAddr;
+            uint lastBranchAddr = 0;
+            int unknownCount = 0;
+            for (int step = 0; step < ScanMaxSteps; step++)
+            {
+                // Guard the 4-byte minimum a decode reads (Copilot plan-review point 4).
+                if (U.toOffset(addr) + 4 > (uint)rom.Data.Length)
+                {
+                    Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                    return;
+                }
+
+                EventScript.OneCode code = es.DisAseemble(rom.Data, addr);
+                if (code?.Script == null)
+                {
+                    Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                    return;
+                }
+
+                if (EventScript.IsExitCode(code, addr, lastBranchAddr))
+                {//終端命令
+                    uint len = (uint)(addr - eventAddr + code.Script.Size);
+                    Address.AddPointer(list, eventPointer, len, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                    return;
+                }
+                else if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                {
+                    unknownCount++;
+                    if (unknownCount > ScanUnknownCutoff)
+                    {//不明命令が連続したら打ち切る
+                        Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                        return;
+                    }
+                }
+                else
+                {
+                    unknownCount = 0;
+
+                    if (code.Script.Has == EventScript.ScriptHas.POINTER_UNIT_OR_EVENT
+                        || code.Script.Has == EventScript.ScriptHas.POINTER_OTHER)
+                    {
+                        ScanScriptDispatchArgs(rom, es, list, code, addr, isWithEventUnit, basename, tracelist, depth);
+                    }
+                    else if (code.Script.Has == EventScript.ScriptHas.LABEL_CONDITIONAL)
+                    {
+                        lastBranchAddr = 0;
+                    }
+                    else if (code.Script.Has == EventScript.ScriptHas.IF_CONDITIONAL)
+                    {
+                        lastBranchAddr = addr;
+                    }
+                }
+
+                int size = code.Script.Size;
+                if (size <= 0)
+                {// guard against a non-advancing decode (no WF equiv; cannot happen on valid data).
+                    Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                    return;
+                }
+                addr += (uint)size;
+            }
+        }
+
+        /// <summary>
+        /// The per-arg dispatch loop of WF <c>ScanScriptHelper.Scan</c> — for each arg
+        /// of <paramref name="code"/> recurse through POINTER_EVENT (cycle-guarded by the
+        /// shared <paramref name="tracelist"/>) or, when <paramref name="isWithEventUnit"/>,
+        /// dispatch to the per-pointer-type RecycleOldData reproduction.
+        /// </summary>
+        static void ScanScriptDispatchArgs(ROM rom, EventScript es, List<Address> list,
+            EventScript.OneCode code, uint addr, bool isWithEventUnit, string basename,
+            List<uint> tracelist, int depth)
+        {
+            if (code.Script.Args == null) return;
+            for (int i = 0; i < code.Script.Args.Length; i++)
+            {
+                EventScript.ArgType argType = code.Script.Args[i].Type;
+                if (argType == EventScript.ArgType.POINTER_EVENT)
+                {
+                    // WF passes the POINTER SLOT (GetArgPointer = base+position), NOT the
+                    // dereferenced target. The tracelist add here guards the SLOT v; Scan
+                    // re-checks the dereferenced target's tracelist membership.
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        ScanScriptRecurse(rom, es, list, v, isWithEventUnit, false, basename, tracelist, depth + 1);
+                    }
+                }
+                else if (!isWithEventUnit)
+                {//nop
+                }
+                else if (argType == EventScript.ArgType.POINTER_UNIT)
+                {//ユニット配置の回収
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (v == EventUnitInvalidatePointer)
+                    {//ユニット指定がない状態
+                    }
+                    else if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitRecycleOldUnits(rom, list, basename, v);
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_EVENTBATTLEDATA)
+                {//FE7戦闘バトルポインタの回収
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitEventBattleDataFE7(rom, list, v);
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_EVENTMOVEDATA)
+                {//FE7イベントの移動配置座標の回収
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitEventMoveDataFE7(rom, list, v);
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_TALKGROUP)
+                {//FE7会話グループポインタの回収
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitEventTalkGroupFE7(rom, list, v);
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_MENUEXTENDS)
+                {//メニューオプション
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitMenuExtendSplitMenu(rom, list, v);
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_UNITSSHORTTEXT)
+                {//unitに関連付けられたshort型データ
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        // UnitsShortTextForm.RecycleOldData: AddPointer(2*DATAMAX, BIN), DATAMAX=0x46.
+                        EmitFixedBinPointer(rom, list, v, 2 * 0x46, "UnitsShortText");
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_AICOORDINATE)
+                {//AI座標
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitFixedBinPointer(rom, list, v, 4, "AI Coordinate");
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_AIRANGE)
+                {//AI範囲
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitFixedBinPointer(rom, list, v, 4, "AI Range");
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_AICALLTALK)
+                {//敵AIから話しかける
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitFixedBinPointer(rom, list, v, 4, "AI CallTalk");
+                    }
+                }
+                else if (argType == EventScript.ArgType.POINTER_ASM)
+                {//ASM
+                    uint v = EventScript.GetArgPointer(code, i, addr);
+                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                    {
+                        tracelist.Add(v);
+                        EmitEventCondAsm(rom, list, v, "");
+                    }
+                }
+            }
+        }
+
+        // EventUnitForm.INVALIDATE_UNIT_POINTER (a "no unit specified" sentinel).
+        const uint EventUnitInvalidatePointer = 0xFFFFFF;
+
+        /// <summary>
+        /// <c>UnitsShortTextForm</c> / <c>AIASMCoordinateForm</c> / <c>AIASMRangeForm</c> /
+        /// <c>AIASMCALLTALKForm</c> <c>RecycleOldData</c> = a single
+        /// <c>Address.AddPointer(script_pointer, length, name, BIN)</c>. EOF-hardened:
+        /// <see cref="Address.AddPointer"/> reads <c>u32(pointer)</c> after only a
+        /// start-offset check, so the full 4-byte slot is guarded here first.
+        /// </summary>
+        static void EmitFixedBinPointer(ROM rom, List<Address> list, uint scriptPointer, uint length, string name)
+        {
+            if (!U.isSafetyOffset(U.toOffset(scriptPointer) + 3, rom)) return;
+            Address.AddPointer(list, scriptPointer, length, name, Address.DataTypeEnum.BIN);
+        }
+
+        /// <summary>
+        /// <c>EventBattleDataFE7Form.RecycleOldData</c>: <c>ReInitPointer(script_pointer)</c>
+        /// → an IFR Address {pointer = script_pointer, indexes {}}, block 4, count predicate
+        /// <c>(u32(addr) &amp; 0x800000) != 0x800000</c>. Length = block*(count+1).
+        /// </summary>
+        static void EmitEventBattleDataFE7(ROM rom, List<Address> list, uint scriptPointer)
+        {
+            uint field = U.toOffset(scriptPointer);
+            if (!U.isSafetyOffset(field + 3, rom)) return;
+            uint scriptAddrRaw = rom.u32(field);
+            if (!U.isPointer(scriptAddrRaw)) return;
+            uint scriptAddr = U.toOffset(scriptAddrRaw);
+            if (!U.isSafetyOffset(scriptAddr, rom)) return;
+
+            const uint block = 4;
+            uint count = rom.getBlockDataCount(scriptAddr, block,
+                (i, a) => (rom.u32(a) & 0x800000) != 0x800000);
+            uint length = block * (count + 1);
+            list.Add(new Address(scriptAddr, length, field, "",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+        }
+
+        /// <summary>
+        /// <c>EventMoveDataFE7Form.RecycleOldData</c>: <c>ReInit(script_addr)</c>
+        /// → an IFR Address with pointer = NOT_FOUND (ReInit, NOT ReInitPointer — the
+        /// fresh IFR's BasePointer is 0, which fails isSafetyOffset → NOT_FOUND), block 1,
+        /// a VARIABLE-STRIDE reader (<c>IsAppnedData(u8) ? addr+2 : addr+1</c>;
+        /// IsAppnedData = type∈{9,0xC}) and count predicate
+        /// <c>IsEnableData(u8)</c> (type ≤ 3 || 0xA || 9 || 0xC). Length = block*(count+1)
+        /// = count+1 (VERBATIM WF — the IFR length formula is BlockSize-based even with a
+        /// variable stride). name "FE7MoveData".
+        /// </summary>
+        static void EmitEventMoveDataFE7(ROM rom, List<Address> list, uint scriptPointer)
+        {
+            uint field = U.toOffset(scriptPointer);
+            if (!U.isSafetyOffset(field + 3, rom)) return;
+            uint scriptAddrRaw = rom.u32(field);
+            if (!U.isPointer(scriptAddrRaw)) return;
+            uint scriptAddr = U.toOffset(scriptAddrRaw);
+            if (!U.isSafetyOffset(scriptAddr, rom)) return;
+
+            const uint block = 1;
+            uint count = rom.getBlockDataCount(scriptAddr,
+                (i, a) =>
+                {
+                    uint type = rom.u8(a);
+                    return type <= 3 || type == 0xA || type == 9 || type == 0xC; // IsEnableData
+                },
+                (a) =>
+                {
+                    uint type = rom.u8(a);
+                    if (type == 9 || type == 0xC) return a + 2; // IsAppnedData
+                    return a + 1;
+                },
+                block);
+            uint length = block * (count + 1);
+            // ReInit(addr): BasePointer unset (0) → pointer = NOT_FOUND (a direct addr block).
+            list.Add(new Address(scriptAddr, length, U.NOT_FOUND, "FE7MoveData",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+        }
+
+        /// <summary>
+        /// <c>EventTalkGroupFE7Form.RecycleOldData</c>: <c>ReInitPointer(script_pointer)</c>
+        /// → an IFR Address {pointer = script_pointer, indexes {}}, block 4, count predicate
+        /// <c>i &lt;= 0xD</c> (a FIXED 0xE-entry table). Length = block*(count+1).
+        /// </summary>
+        static void EmitEventTalkGroupFE7(ROM rom, List<Address> list, uint scriptPointer)
+        {
+            uint field = U.toOffset(scriptPointer);
+            if (!U.isSafetyOffset(field + 3, rom)) return;
+            uint scriptAddrRaw = rom.u32(field);
+            if (!U.isPointer(scriptAddrRaw)) return;
+            uint scriptAddr = U.toOffset(scriptAddrRaw);
+            if (!U.isSafetyOffset(scriptAddr, rom)) return;
+
+            const uint block = 4;
+            uint count = rom.getBlockDataCount(scriptAddr, block, (i, a) => i <= 0xD);
+            uint length = block * (count + 1);
+            list.Add(new Address(scriptAddr, length, field, "",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+        }
+
+        /// <summary>
+        /// <c>MenuExtendSplitMenuForm.RecycleOldData</c>: if the terminator at
+        /// <c>addr + 36 + 36*9</c> is 0xFFFFFFFF → <c>AddPointer(36+36*9+4, SplitMenu9)</c>;
+        /// elif at <c>addr + 36 + 36*5</c> → <c>AddPointer(36+36*5+4, SplitMenu5)</c>; else
+        /// fall through to <c>MenuDefinitionForm.MakeAllDataLength(isDirectAddress:true)</c>
+        /// (= <see cref="EmitMenuDefinitionDirect"/>, a count-1 direct-address menu walk).
+        /// </summary>
+        static void EmitMenuExtendSplitMenu(ROM rom, List<Address> list, uint scriptPointer)
+        {
+            uint field = U.toOffset(scriptPointer);
+            if (!U.isSafetyOffset(field + 3, rom)) return;
+            uint addr = rom.p32(field);
+            // WF reads from the DEREFERENCED data addr; addr may be junk — every read guarded.
+
+            const uint menu = 36;
+            uint term9Off = menu + (menu * 9);
+            if (U.isSafetyOffset(addr + term9Off + 3, rom))
+            {
+                uint term = rom.u32(addr + term9Off);
+                if (term == 0xFFFFFFFF)
+                {
+                    Address.AddPointer(list, scriptPointer, term9Off + 4, "SplitMenu9",
+                        Address.DataTypeEnum.SplitMenu9);
+                    return;
+                }
+            }
+            uint term5Off = menu + (menu * 5);
+            if (U.isSafetyOffset(addr + term5Off + 3, rom))
+            {
+                uint term = rom.u32(addr + term5Off);
+                if (term == 0xFFFFFFFF)
+                {
+                    Address.AddPointer(list, scriptPointer, term5Off + 4, "SplitMenu5",
+                        Address.DataTypeEnum.SplitMenu5);
+                    return;
+                }
+            }
+            // General fall-through (WF MenuDefinitionForm.MakeAllDataLength(isDirectAddress:true)).
+            EmitMenuDefinitionDirect(rom, list, scriptPointer);
+        }
+
+        /// <summary>
+        /// <c>MenuDefinitionForm.MakeAllDataLength(list, pointer, isDirectAddress:true)</c>:
+        /// <c>ReInitPointer(pointer, 1)</c> — base = p32(pointer), DataCount FIXED at 1
+        /// (NOT a getBlockDataCount walk). Emits the main MenuDefinition IFR (length =
+        /// block*DataCount, NO +1; type InputFormRef_1; indexes {8,12,16,20,24,28,32}) +
+        /// the single entry's MenuCommand sub-table (<see cref="EmitMenuCommandSubTable"/>)
+        /// and 6 ASM blocks. Reuses the slice-2d MenuDefinition machinery.
+        /// </summary>
+        static void EmitMenuDefinitionDirect(ROM rom, List<Address> list, uint pointer)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer + 3, rom)) return;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            const uint block = 36;
+            const uint dataCount = 1; // ReInitPointer(pointer, 1) — fixed count.
+
+            // AddAddressButDoNotLengthPuls1: length = block * DataCount (NO +1), InputFormRef_1.
+            uint length = block * dataCount;
+            list.Add(new Address(baseAddr, length, pointer, "MenuDefinition",
+                Address.DataTypeEnum.InputFormRef_1, block,
+                new uint[] { 8, 12, 16, 20, 24, 28, 32 }));
+
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint p = baseAddr + i * block;
+                string name = "MenuDef" + i + "_";
+
+                if (!U.isSafetyOffset(8 + p + 3, rom)) continue;
+                uint paddr = rom.p32(8 + p);
+                if (!U.isSafetyOffset(paddr, rom)) continue;
+                EmitMenuCommandSubTable(rom, list, 8 + p, name);
+
+                EmitMenuDefAsm(rom, list, p, 12, name + "_HandleBPress");
+                EmitMenuDefAsm(rom, list, p, 16, name + "_HandleRPress");
+                EmitMenuDefAsm(rom, list, p, 20, name + "_Construction");
+                EmitMenuDefAsm(rom, list, p, 24, name + "_Destruction");
+                EmitMenuDefAsm(rom, list, p, 28, name + "_UnkP28");
+                EmitMenuDefAsm(rom, list, p, 32, name + "_Unk32");
+            }
+        }
+
+        /// <summary>
+        /// <c>ItemRandomChestForm.MakeAllDataLength(list, pointer, appendName)</c> (FE8
+        /// chest objects): <c>ReInitPointer(pointer)</c> → an IFR Address, block 2, count
+        /// predicate <c>u8(addr) != 0</c>, indexes {}, name "RandomChest mapid:&lt;append&gt;".
+        /// Length = block*(count+1).
+        /// </summary>
+        static void EmitItemRandomChest(ROM rom, List<Address> list, uint pointer, string appendName)
+        {
+            uint field = U.toOffset(pointer);
+            if (!U.isSafetyOffset(field + 3, rom)) return;
+            uint addrRaw = rom.u32(field);
+            if (!U.isPointer(addrRaw)) return;
+            uint addr = U.toOffset(addrRaw);
+            if (!U.isSafetyOffset(addr, rom)) return;
+
+            const uint block = 2;
+            uint count = rom.getBlockDataCount(addr, block, (i, a) => rom.u8(a) != 0x00);
+            uint length = block * (count + 1);
+            list.Add(new Address(addr, length, field, "RandomChest mapid:" + appendName,
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+        }
+
+        // WF EventCondForm.IsChestObjectType: FE8 chest=0x14, FE6/7 chest=0x12.
+        static bool IsChestObjectType(ROM rom, uint objectType)
+        {
+            if (rom.RomInfo.version == 8) return objectType == 0x14;
+            return objectType == 0x12;
+        }
+
+        // WF EventCondForm.IsShopObjectType: FE8 shop=0x16-0x18, FE6/7 shop=0x13-0x15.
+        static bool IsShopObjectType(ROM rom, uint objectType)
+        {
+            if (rom.RomInfo.version == 8)
+                return objectType == 0x16 || objectType == 0x17 || objectType == 0x18;
+            return objectType == 0x13 || objectType == 0x14 || objectType == 0x15;
+        }
+
         /// <summary>Turn a descriptor's <see cref="DataCountRule"/> into the
         /// <c>is_data_exists_callback</c> that <see cref="ROM.getBlockDataCount(uint,uint,Func{int,uint,bool})"/> expects.</summary>
         static Func<int, uint, bool> MakeIsDataExists(ROM rom, StructDescriptor d)
@@ -9060,14 +9918,36 @@ namespace FEBuilderGBA
         /// duplicates — keeping the literal clean, not just the public dedup'd view).</summary>
         public static string[] GetNotYetPortedFormsRaw() => (string[])NotYetPortedRaw.Clone();
 
+        /// <summary>Append <paramref name="name"/> to a NotYetPorted snapshot if absent (used by
+        /// <see cref="MakeAllStructPointers"/> to re-report EventCondForm when the event-script
+        /// disassembler is not wired, so the skipped coverage is never silent).</summary>
+        static string[] AppendNotYetPorted(string[] current, string name)
+        {
+            if (System.Array.IndexOf(current, name) >= 0) return current;
+            var extended = new string[current.Length + 1];
+            System.Array.Copy(current, extended, current.Length);
+            extended[current.Length] = name;
+            return extended;
+        }
+
         static readonly string[] NotYetPortedRaw = new[]
             {
                 // event conditions / scripts
-                // (EventCondForm: EventScriptForm.ScanScript event-scan, not in Core.
+                // (EventCondForm PORTED in slice 2u — EmitEventCond + the Core ScanScript BLOCK-emitter
+                //  EmitScanScript (the verbatim port of EventScriptForm.ScanScript: a recursive,
+                //  tracelist-cycle-guarded event-script trace that emits one EVENTSCRIPT Address per
+                //  referenced script + dispatches each pointer-arg to its RecycleOldData reproduction —
+                //  EmitRecycleOldUnits [POINTER_UNIT], EmitEventBattleData/MoveData/TalkGroupFE7 [3 FE7
+                //  IFRs], EmitFixedBinPointer [AI coord/range/calltalk + units-short-text BINs],
+                //  EmitMenuExtendSplitMenu [SplitMenu5/9 const OR EmitMenuDefinitionDirect count=1],
+                //  EmitEventCondAsm [POINTER_ASM]). EmitEventCond loops maps × GetCondSlots, emits the
+                //  EVENTCOND_*/EVENTTRAP frame + per-version ASM AddFunction + FE8 EmitItemRandomChest +
+                //  the trailing EventCond Frame. The disasm path is a HARD prerequisite (EmitEventCond
+                //  THROWS when CoreState.EventScript/CommentCache are unwired, never silently omits).
                 //  EventScript(MakeEventASMMAPList), EventFunctionPointerForm, Command85PointerForm are
                 //  OUT OF SCOPE: emitted by U.AppendAllASMStructPointersList — the ASM/LDR-map path, NOT
                 //  this producer's U.MakeAllStructPointersList data path.)
-                "EventCondForm", "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
+                "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
                 "Command85PointerForm",
                 // text (Huffman)
                 // (MapTerrainNameForm ported in slice 2c — per-entry string-BIN sub-walk; TextDicForm
@@ -9332,11 +10212,15 @@ namespace FEBuilderGBA
                 //      NestedIfr@+28 (block 2, u8!=0); + a trailing absolute AddPointer(0x0B0038, 0x20,
                 //      PAL) common-palette pointer. (FE8U/FE7U non-multibyte variants STAY deferred.)
                 //  STILL deferred (event-scan / recursive / dynamic base / LZ77 CG):
-                //  MonsterWMapProbabilityForm STAYS — although its 5 IFR probability/stage tables
-                //    are flat ROM reads, its MakeAllDataLength ALSO emits EventScriptForm.ScanScript over
-                //    the two skirmish start/end event pointers (no Core ScanScript primitive yet);
-                //    porting only the flat tables would drop those skirmish-event regions = corruption.
-                //  WorldMapEventPointerForm [ScanScript],
+                //  NOTE: the Core ScanScript BLOCK-emitter (EmitScanScript) now EXISTS (slice 2u). The four
+                //  ScanScript-dependent forms below are no longer blocked on the missing primitive — they
+                //  stay only because slice 2u was scoped to EventCondForm. Each is now a small follow-up
+                //  (resolve its base/entry table, then EmitScanScript over its event pointer(s)).
+                //  MonsterWMapProbabilityForm STAYS — its 5 IFR probability/stage tables are flat ROM reads,
+                //    but its MakeAllDataLength ALSO emits ScanScript over the two skirmish start/end event
+                //    pointers; porting only the flat tables would drop those skirmish-event regions =
+                //    corruption, so it is ported as a unit (with EmitScanScript) in a later slice.
+                //  WorldMapEventPointerForm [ScanScript over the world-map event pointer table],
                 //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry],
                 //  MapSettingForm [FE8] ported in slice 2r (EmitMapSetting) — its count rule
                 //    (IsMapSettingEnd, reproduced VERBATIM) needs the WF cached text count

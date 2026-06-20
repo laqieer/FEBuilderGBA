@@ -136,6 +136,20 @@ namespace FEBuilderGBA
         /// </summary>
         public static uint ResolvePlistToEventAddr(ROM rom, uint plist)
         {
+            return ResolvePlistToEventAddr(rom, plist, out _);
+        }
+
+        /// <summary>
+        /// Like <see cref="ResolvePlistToEventAddr(ROM,uint)"/> but ALSO returns
+        /// <paramref name="outPointer"/> — the EVENT-plist table slot
+        /// (<c>tableBase + plist*4</c>) that holds the resolved cond-block address.
+        /// Mirrors WF <c>MapPointerForm.PlistToOffsetAddrFast(EVENT, plist, out pointer)</c>:
+        /// the rebuild producer relocates the cond block through this slot. On any
+        /// failure path <paramref name="outPointer"/> is <see cref="U.NOT_FOUND"/>.
+        /// </summary>
+        public static uint ResolvePlistToEventAddr(ROM rom, uint plist, out uint outPointer)
+        {
+            outPointer = U.NOT_FOUND;
             if (rom?.RomInfo == null || plist == 0) return U.NOT_FOUND;
 
             uint tablePointer = rom.RomInfo.map_event_pointer;
@@ -150,6 +164,7 @@ namespace FEBuilderGBA
             uint eventAddr = rom.p32(entryAddr);
             if (!U.isSafetyOffset(eventAddr, rom)) return U.NOT_FOUND;
 
+            outPointer = entryAddr;
             return eventAddr;
         }
 
@@ -158,6 +173,20 @@ namespace FEBuilderGBA
         /// </summary>
         public static uint GetEventAddrForMap(ROM rom, uint mapId)
         {
+            return GetEventAddrForMap(rom, mapId, out _);
+        }
+
+        /// <summary>
+        /// Like <see cref="GetEventAddrForMap(ROM,uint)"/> but ALSO returns
+        /// <paramref name="mapcondPointer"/> — the EVENT-plist slot that holds the
+        /// cond-block address (WF <c>GetEventAddrWhereMapID(mapid, out pointer)</c>).
+        /// The rebuild producer needs this to emit the <c>EventCond Frame</c> block.
+        /// On any failure path <paramref name="mapcondPointer"/> is
+        /// <see cref="U.NOT_FOUND"/>.
+        /// </summary>
+        public static uint GetEventAddrForMap(ROM rom, uint mapId, out uint mapcondPointer)
+        {
+            mapcondPointer = U.NOT_FOUND;
             if (rom?.RomInfo == null) return U.NOT_FOUND;
 
             // Use the ROM-pinned overload so this delegate never silently reads
@@ -171,7 +200,7 @@ namespace FEBuilderGBA
             uint plist = rom.u8(mapAddr + eventPlistPos);
             if (plist == 0) return U.NOT_FOUND;
 
-            return ResolvePlistToEventAddr(rom, plist);
+            return ResolvePlistToEventAddr(rom, plist, out mapcondPointer);
         }
 
         /// <summary>
