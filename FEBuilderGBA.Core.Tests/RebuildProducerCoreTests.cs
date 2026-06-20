@@ -5907,6 +5907,19 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ex);
         }
 
+        [Fact]
+        public void CalcAIScriptLength_NullOrUnsafeStart_ReturnsZero_NoScan()
+        {
+            // Regression (PR #1293 review): a NULL/unsafe entry must return 0 immediately rather than
+            // scanning from offset 0 + computing a huge length. (Same guard added to CalcAIUnitsLength.)
+            var rom = CreateTestRom(0x2000);
+            Assert.Equal(0u, RebuildProducerCore.CalcAIScriptLength(rom, 0));               // NULL entry
+            Assert.Equal(0u, RebuildProducerCore.CalcAIScriptLength(rom, 0x100));           // below 0x200
+            Assert.Equal(0u, RebuildProducerCore.CalcAIScriptLength(rom, (uint)rom.Data.Length)); // >= EOF
+            Assert.Equal(0u, RebuildProducerCore.CalcAIUnitsLength(rom, 0));
+            Assert.Equal(0u, RebuildProducerCore.CalcAIUnitsLength(rom, (uint)rom.Data.Length));
+        }
+
         // ---- CalcAIUnitsLength (verbatim AIUnitsForm.CalcLength u16==0 walk) -
 
         [Fact]

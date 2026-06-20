@@ -3753,6 +3753,16 @@ namespace FEBuilderGBA
         /// in-bounds. EOF-equivalent to WF (a near-EOF stream simply stops at the clamp).</summary>
         public static uint CalcAIScriptLength(ROM rom, uint addr)
         {
+            // A NULL/unsafe entry (a 0 table slot, or a pointer outside the ROM) must NOT trigger a full
+            // scan from offset 0 + a huge computed length. WF passes p32(slot) straight into CalcLength; on
+            // a valid ROM every AI entry is a real pointer so this never fires, but guarding the start makes
+            // a malformed/NULL entry return 0 -> the AISCRIPT AddAddress is skipped (addr unsafe) AND the
+            // downstream AIUNITS loop (end == start) doesn't run. Output-equivalent to WF on valid ROMs;
+            // far cheaper + no spurious offset-0 emissions on malformed ones.
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
             uint start = addr;
             uint limit = (uint)rom.Data.Length;
 
@@ -3787,6 +3797,13 @@ namespace FEBuilderGBA
         public static uint CalcAIUnitsLength(ROM rom, uint addr)
         {
             addr = U.toOffset(addr);
+            // Same start guard as CalcAIScriptLength: the caller isPointer-checks pp, but isPointer does not
+            // bound it to Data.Length, so guard an out-of-range start to avoid a scan past EOF (return 0 ->
+            // the AIUNITS AddAddress is skipped). Valid-ROM-equivalent.
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
             uint start = addr;
             uint length = (uint)rom.Data.Length;
             for (; addr + 2 <= length; addr += 2)
@@ -3825,8 +3842,11 @@ namespace FEBuilderGBA
                     while ((line = reader.ReadLine()) != null)
                     {
                         // Verbatim PreLoadResourceAI{1,2} filter: skip comment / other-lang lines,
-                        // count everything else (sp.Length <= 0 is never true after Split('\t')).
-                        if (U.IsComment(line) || U.OtherLangLine(line))
+                        // count everything else (sp.Length <= 0 is never true after Split('\t')). Use the
+                        // (line, rom) OtherLangLine overload so the is_multibyte language filter consults the
+                        // passed rom, not CoreState.ROM (the producer's rom==CoreState.ROM invariant makes
+                        // these identical, but the explicit rom keeps the count correct if they ever differ).
+                        if (U.IsComment(line) || U.OtherLangLine(line, rom))
                         {
                             continue;
                         }
