@@ -10284,10 +10284,11 @@ namespace FEBuilderGBA
         // Coverage honesty: like the data-path GetNotYetPortedForms, the ASM
         // producer never silently omits a form. AsmProducerResult.NotYetPorted
         // lists the forms still blocked on an un-ported subsystem (the
-        // PatchForm patch-config scanner + the ProcsScriptForm/OAMSPForm
-        // AsmMapFileAsmCache UI-cache, each its own follow-up slice), so
-        // AsmProducerResult.IsComplete stays false until they land — a wiring
-        // slice must not feed an incomplete list to a real defragment.
+        // PatchForm patch-config scanner + the ProcsScriptForm AsmMapFileAsmCache
+        // UI-cache, each its own follow-up slice; OAMSPForm is PORTED in slice 2w —
+        // it had no AsmMapFileAsmCache dependency), so AsmProducerResult.IsComplete
+        // stays false until they land — a wiring slice must not feed an incomplete
+        // list to a real defragment.
         // ====================================================================
 
         /// <summary>Result of <see cref="AppendAllAsmStructPointers"/>: the forms NOT yet
@@ -10346,9 +10347,11 @@ namespace FEBuilderGBA
                 // GraphicsToolForm.MakeLZ77DataList (only when isUseOtherGraphics) — the LZ77 graphics-
                 // tool subsystem. Out of scope for this foundation; DEFER.
                 "GraphicsToolForm",
-                // OAMSPForm.MakeAllDataLength(ldrmap) (only when isUseOAMSP) — consumes the ldrmap AND
-                // the OAM scan. DEFER alongside the AsmMapFileAsmCache subsystem.
-                "OAMSPForm",
+                // OAMSPForm.MakeAllDataLength(ldrmap) (only when isUseOAMSP) — PORTED in slice 2w
+                // (EmitOAMSP/EmitOAMSPCore + the two pure-binary CalcOAMSP* walkers). It does NOT depend
+                // on AsmMapFileAsmCache (unlike ProcsScriptForm), so it is no longer in this deferred
+                // list. When isUseOAMSP is false the form is intentionally SKIPPED (not unported), so it
+                // is never re-reported here.
             };
 
         /// <summary>
@@ -10379,7 +10382,8 @@ namespace FEBuilderGBA
         /// ProcsScript (deferred) actually consumes it; the other forms just need it present.</param>
         /// <param name="isUseOtherGraphics">WF <c>isUseOtherGraphics</c> — gates GraphicsToolForm
         /// (deferred).</param>
-        /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> — gates OAMSPForm (deferred).</param>
+        /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> — gates OAMSPForm (PORTED in slice 2w via
+        /// <see cref="EmitOAMSP"/>; emitted only when this flag is true, else intentionally skipped).</param>
         public static AsmProducerResult AppendAllAsmStructPointers(ROM rom, List<Address> list,
             List<DisassemblerTrumb.LDRPointer> ldrmap,
             bool isUseOtherGraphics = false, bool isUseOAMSP = false,
@@ -10458,9 +10462,25 @@ namespace FEBuilderGBA
                 EmitMapMiniMapTerrain(rom, list);
             }
 
-            // WF: `if (isUseOtherGraphics)` -> GraphicsToolForm.MakeLZ77DataList — DEFERRED.
-            // WF: `if (isUseOAMSP)` -> OAMSPForm.MakeAllDataLength(ldrmap) — DEFERRED.
-            // Both stay in AsmNotYetPortedRaw regardless of the flags; nothing emitted here.
+            // WF: `if (isUseOtherGraphics)` -> GraphicsToolForm.MakeLZ77DataList — DEFERRED
+            // (stays in AsmNotYetPortedRaw regardless of the flag; nothing emitted here).
+
+            // WF: `if (isUseOAMSP) { Debug.Assert(ldrmap != null); OAMSPForm.MakeAllDataLength(...); }`
+            // PORTED (slice 2w). The form runs OUTSIDE the `ldrmap != null` block — gated solely on the
+            // flag. When the flag is false it is intentionally skipped (never re-reported in NotYetPorted).
+            if (isUseOAMSP)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("AppendAllAsmStructPointers cancelled");
+                    return new AsmProducerResult(notYet, cancelled: true);
+                }
+                // WF Debug.Assert(ldrmap != null): EmitOAMSP tolerates a null map (loop 1 is skipped, the
+                // config-dict loop 2 still runs). Reproduce the WF intent — a null map here is a caller
+                // bug, but we degrade to the dict-only scan rather than throwing in a producer.
+                progress?.Report("OAMSP");
+                EmitOAMSP(rom, list, ldrmap);
+            }
 
             return new AsmProducerResult(notYet, cancelled: false);
         }
@@ -10913,6 +10933,344 @@ namespace FEBuilderGBA
                     }
                 }
             }
+        }
+
+        // ====================================================================
+        // OAMSPForm.MakeAllDataLength (#1261 slice 2w) — the only `isUseOAMSP`-gated
+        // ASM form. WF FEBuilderGBA/OAMSPForm.cs:53-228. CLEAN to port: its two Calc*
+        // helpers are pure binary OAM walkers with NO AsmMapFileAsmCache dependency
+        // (unlike ProcsScriptForm, which CONSUMES the cache and stays deferred). Loop 1
+        // walks the ldrmap; loop 2 walks the oam_name_ config dict; a single
+        // `alreadyMatch` dedups across both. Both Calc* reproduced line-for-line below.
+        // ====================================================================
+
+        /// <summary>
+        /// Core port of <c>OAMSPForm.MakeAllDataLength(structlist, structlist, ldrmap)</c>
+        /// (FEBuilderGBA/OAMSPForm.cs:53-134). Loads the <c>oam_name_</c> config dictionary
+        /// (the WF first line) then delegates to <see cref="EmitOAMSPCore"/>. WF passes the SAME
+        /// <paramref name="list"/> as both the OAMSP list and the OAMSP12 list, so OAM-12 sub-tables
+        /// land in the same accumulating struct list — reproduced.
+        /// </summary>
+        /// <param name="rom">The ROM to scan (MUST be the loaded <see cref="CoreState.ROM"/>; the
+        /// <c>oam_name_</c> config filename is RomInfo-derived).</param>
+        /// <param name="list">The accumulating struct list (appended to).</param>
+        /// <param name="ldrmap">The full-ROM LDR map (<see cref="BuildLdrMap"/>). WF asserts non-null
+        /// at the call site (gated by <c>isUseOAMSP</c>); a null map skips loop 1.</param>
+        public static void EmitOAMSP(ROM rom, List<Address> list,
+            List<DisassemblerTrumb.LDRPointer> ldrmap)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            // WF: U.LoadDicResource(U.ConfigDataFilename("oam_name_")). WF always runs with a valid
+            // BaseDirectory + a present oam_name_ config (shipped under config/data/). The producer may run
+            // headless / before the config tree is staged, so load DEFENSIVELY (see LoadOamNameDicSafe):
+            // null BaseDirectory or a missing file degrades to an empty dict (loop 2 contributes nothing)
+            // instead of an ArgumentNullException / the IsRequiredFileExist ShowError + Debug.Assert.
+            Dictionary<uint, string> oamName = LoadOamNameDicSafe(rom);
+            EmitOAMSPCore(rom, list, ldrmap, oamName);
+        }
+
+        /// <summary>
+        /// Load the <c>oam_name_</c> config dictionary, never throwing or surfacing UI. Mirrors the
+        /// <see cref="LoadConfigTableSafe"/> precedent (the slice-2q anime forms) but for the
+        /// <see cref="U.LoadDicResource"/> dict shape. We do NOT delegate to <see cref="U.LoadDicResource"/>:
+        /// it has no <c>isRequired:false</c> overload (so a MISSING file routes through
+        /// <c>U.IsRequiredFileExist</c> = a <c>ShowError</c> dialog + <c>Debug.Assert(false)</c> on a
+        /// versioned ROM), AND its parse-loop <c>catch</c> calls <c>CoreState.Services.ShowError</c> so a
+        /// PRESENT-but-malformed file (an <c>atoh</c>/<c>Split</c> throw) also surfaces UI / can NRE
+        /// headless. Instead we pre-check <see cref="System.IO.File.Exists"/> (missing -> empty, no assert)
+        /// and INLINE the exact U.LoadDicResource parse loop (U.cs:1772-1792) under a UI-free try/catch.
+        /// The parse is identical to WF (same comment/other-lang skip, same <c>'='</c> split, same
+        /// <c>atoh</c> key / <c>at(sp,1)</c> value) — only the failure mode differs: a missing/unconfigured/
+        /// malformed config degrades to an EMPTY (or partial) dict instead of a dialog. The
+        /// <c>OtherLangLine(line, rom)</c> overload is used (not the <c>CoreState.ROM</c> global one), which
+        /// safe-falls-back when RomInfo is null; output-equivalent (it only toggles whether a <c>{U}</c>/
+        /// <c>{J}</c>-tagged line is skipped, which the downstream parser ignores anyway). A missing/empty
+        /// dict means loop 2 of <see cref="EmitOAMSPCore"/> contributes nothing; the ldrmap loop is
+        /// unaffected (it falls back to the hex name).
+        /// </summary>
+        static Dictionary<uint, string> LoadOamNameDicSafe(ROM rom)
+        {
+            var dic = new Dictionary<uint, string>();
+            try
+            {
+                string filename = U.ConfigDataFilename("oam_name_", rom);
+                if (!System.IO.File.Exists(filename))
+                {
+                    return dic;
+                }
+                // Inlined U.LoadDicResource parse loop (U.cs:1772-1792) — parse-identical to WF, but the
+                // catch SWALLOWS (returns the partial/empty dict) instead of calling ShowError.
+                using (var reader = System.IO.File.OpenText(filename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line, rom)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('=');
+                        dic[U.atoh(sp[0])] = U.at(sp, 1);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Null BaseDirectory (ConfigDataFilename Path.Combine), an unreadable handle, or a malformed
+                // line (atoh/Split throw): never surface UI — return whatever parsed so far (partial/empty).
+            }
+            return dic;
+        }
+
+        /// <summary>
+        /// Verbatim port of the body of <c>OAMSPForm.MakeAllDataLength</c>
+        /// (FEBuilderGBA/OAMSPForm.cs:57-133) with the <c>oam_name_</c> dictionary supplied
+        /// (test seam — lets a synthetic ROM drive the OAM walk without a RomInfo-derived config file).
+        /// Two loops sharing one <c>alreadyMatch</c> dedup map (the second <c>alreadyMatch12</c> dedups
+        /// the OAM-12 sub-tables across both loops):
+        /// <list type="bullet">
+        ///   <item>Loop 1 (ldrmap): for each safe <c>ldr_data</c> at or past
+        ///   <c>compress_image_borderline_address</c>, <see cref="CalcOAMSPLengthAndCheck"/>; if the
+        ///   length is found and <c>&gt;= 12</c>, emit an OAMSP <see cref="Address"/> (pointer =
+        ///   <c>ldr_data_address</c>).</item>
+        ///   <item>Loop 2 (oam_name_ dict): same Calc, threshold <c>&gt;= 4</c>, pointer = NOT_FOUND.</item>
+        /// </list>
+        /// WF's <c>InputFormRef.DoEvents(...)</c> cancel checks are dropped (this producer is driven by
+        /// <see cref="AppendAllAsmStructPointers"/>'s <c>CancellationToken</c>; the per-entry DoEvents was
+        /// a WinForms UI yield).
+        /// </summary>
+        public static void EmitOAMSPCore(ROM rom, List<Address> list,
+            List<DisassemblerTrumb.LDRPointer> ldrmap, Dictionary<uint, string> oamName)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (oamName == null) oamName = new Dictionary<uint, string>();
+
+            // WF reads Program.ROM.RomInfo.compress_image_borderline_address. A synthetic NULL-RomInfo
+            // ROM has no borderline; fall back to 0 (loop 1's `addr < borderline` skip then never fires,
+            // matching "everything past the borderline" on a real ROM). Output-equivalent on real ROMs.
+            uint borderline = rom.RomInfo != null ? rom.RomInfo.compress_image_borderline_address : 0;
+
+            var alreadyMatch = new Dictionary<uint, bool>();
+            var alreadyMatch12 = new Dictionary<uint, bool>();
+
+            // ---- Loop 1: ldrmap ------------------------------------------------
+            if (ldrmap != null)
+            {
+                for (int i = 0; i < ldrmap.Count; i++)
+                {
+                    uint addr = ldrmap[i].ldr_data;
+                    if (!U.isSafetyPointer(addr, rom))
+                    {
+                        continue;
+                    }
+                    addr = U.toOffset(addr);
+                    if (addr < borderline)
+                    {
+                        continue;
+                    }
+
+                    if (alreadyMatch.ContainsKey(addr))
+                    {//既に知っている.
+                        continue;
+                    }
+
+                    string name = U.at(oamName, ldrmap[i].ldr_data_address);
+                    if (name == "")
+                    {
+                        name = U.at(oamName, ldrmap[i].ldr_address);
+                    }
+                    if (name == "")
+                    {
+                        name = U.ToHexString8(ldrmap[i].ldr_data);
+                    }
+                    name = "OAMSP " + name;
+                    // WF accumulates the OAM-12 sub-tables into a LOCAL list (listoam12_local) and only
+                    // AddRange's them into the real list AFTER the parent OAMSP passes its threshold — so
+                    // a NOT_FOUND/below-threshold parent DISCARDS its OAM-12 Addresses (but alreadyMatch12
+                    // still retains them). Reproduce that: local list here, merge only on success.
+                    var listoam12Local = new List<Address>();
+                    uint length = CalcOAMSPLengthAndCheck(rom, addr, name, listoam12Local, alreadyMatch12);
+                    if (U.NOT_FOUND == length)
+                    {
+                        alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
+                        continue;
+                    }
+                    if (length < 4 * 3)
+                    {
+                        alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
+                        continue;
+                    }
+
+                    Address.AddAddress(list, addr, length, ldrmap[i].ldr_data_address, name,
+                        Address.DataTypeEnum.OAMSP);
+                    list.AddRange(listoam12Local); // WF: listoam12.AddRange(listoam12_local)
+                    alreadyMatch.Add(addr, true);
+                }
+            }
+
+            // ---- Loop 2: oam_name_ config dict --------------------------------
+            foreach (var pair in oamName)
+            {
+                uint addr = U.toOffset(pair.Key);
+                if (alreadyMatch.ContainsKey(addr))
+                {//既に知っている.
+                    continue;
+                }
+
+                string name = "OAMSP_ " + pair.Value;
+                var listoam12Local = new List<Address>();
+                uint length = CalcOAMSPLengthAndCheck(rom, addr, name, listoam12Local, alreadyMatch12);
+                if (U.NOT_FOUND == length)
+                {
+                    alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
+                    continue;
+                }
+                if (length < 4)
+                {
+                    alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
+                    continue;
+                }
+
+                Address.AddAddress(list, addr, length, U.NOT_FOUND, name,
+                    Address.DataTypeEnum.OAMSP);
+                list.AddRange(listoam12Local); // WF: listoam12.AddRange(listoam12_local)
+                alreadyMatch.Add(addr, true);
+            }
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>OAMSPForm.CalcLengthAndCheck</c> (FEBuilderGBA/OAMSPForm.cs:186-228):
+        /// walks the OAMSP word table from <paramref name="addr"/> to its <c>0x8X0000XX</c> terminator,
+        /// reading each non-terminator word as a pointer to an OAM-12 sub-table (length via
+        /// <see cref="CalcOAMSPLengthAndCheckOAM12"/>, emitted as OAMSP12, dedup'd via
+        /// <paramref name="alreadyMatch"/>). Returns the word-table byte length, or
+        /// <see cref="U.NOT_FOUND"/> on the first un-decodable word.
+        /// </summary>
+        /// <param name="listoam12Local">The LOCAL OAM-12 accumulator (WF <c>ref listoam12_local</c>): the
+        /// caller merges it into the real struct list only when the parent OAMSP passes its threshold, so a
+        /// NOT_FOUND/below-threshold parent discards these (though <paramref name="alreadyMatch"/> retains
+        /// the OAM-12 addresses).</param>
+        static uint CalcOAMSPLengthAndCheck(ROM rom, uint addr, string name, List<Address> listoam12Local,
+            Dictionary<uint, bool> alreadyMatch)
+        {
+            // EOF/NULL-start guard (the #1261 producer safety discipline): an unsafe start must never
+            // scan from a bad offset. WF reaches Calc* only with a borderline-checked ldrmap pointer or a
+            // config-dict key; on a real ROM those are always safe offsets, so this is output-equivalent
+            // (an unsafe start returns length 0 -> the caller's `< 4*3` / `< 4` threshold skips it).
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint start = addr;
+            // WF: length = Data.Length - 4 (so every u32(addr) read stays in-bounds). Guard the
+            // Data.Length < 4 underflow that WF never hits (real ROMs are megabytes).
+            if (rom.Data.Length < 4)
+            {
+                return 0;
+            }
+            uint length = (uint)(rom.Data.Length - 4);
+            while (addr < length)
+            {
+                uint p = rom.u32(addr);
+                if ((p & (uint)0x88FFFF00) == 0x80000000)
+                {//OAM term 0x8X0000XX
+                    //         0x800000XX or 0x810000XX or 0x820000XX or 0x840000XX
+                    addr += 4;
+                    break;
+                }
+                if ((p & (uint)0x70000000) > 0)
+                {//OAM term
+                    //以下のように、先頭7が入っているものがある.
+                    p = (p & 0x0FFFFFFF); //78 67 EA 3B
+                }
+                if (!U.isSafetyPointer(p, rom))
+                {
+                    //理解不能の命令があったのでOAMではない
+                    return U.NOT_FOUND;
+                }
+
+                uint oam12Addr = U.toOffset(p);
+                //多分奇数の場合 整数に直す??? まったくわからないがそう考えると都合がいい.
+                oam12Addr = DisassemblerTrumb.ProgramAddrToPlain(oam12Addr);
+                if (!alreadyMatch.ContainsKey(oam12Addr))
+                {//まだ知らない
+                    uint oam12length = CalcOAMSPLengthAndCheckOAM12(rom, oam12Addr);
+                    if (oam12length == U.NOT_FOUND)
+                    {
+                        return U.NOT_FOUND;
+                    }
+                    Address.AddAddress(listoam12Local, oam12Addr, oam12length, addr, name + "_OAM",
+                        Address.DataTypeEnum.OAMSP12);
+                    alreadyMatch.Add(oam12Addr, true);
+                }
+
+                addr += 4;
+            }
+            uint ret_length = addr - start;
+            return ret_length;
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>OAMSPForm.CalcLengthAndCheckOAM12</c> (FEBuilderGBA/OAMSPForm.cs:135-184):
+        /// walks 12-byte OAM records from <paramref name="addr"/> to a terminator, returning the byte
+        /// length, or <see cref="U.NOT_FOUND"/> on an OAM-spec violation.
+        /// </summary>
+        static uint CalcOAMSPLengthAndCheckOAM12(ROM rom, uint addr)
+        {
+            // EOF/NULL-start guard: an unsafe start (or one within 12 bytes of EOF) must not scan a bad
+            // offset. On a real ROM the OAMSP pointer always resolves to a safe in-ROM table.
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return U.NOT_FOUND;
+            }
+            uint start = addr;
+            // WF: length = Data.Length - 12 (so every getBinaryData(addr,12) read stays in-bounds).
+            // Guard the Data.Length < 12 underflow WF never hits.
+            if (rom.Data.Length < 12)
+            {
+                return U.NOT_FOUND;
+            }
+            uint length = (uint)(rom.Data.Length - 12);
+            while (addr < length)
+            {
+                byte[] oam = rom.getBinaryData(addr, 12);
+
+                addr += 12;
+                if (oam[0] == 0 && oam[0 + 1] == 0xFF && oam[0 + 2] == 0xFF && oam[0 + 3] == 0xFF)
+                {//FEditorシリアライズを読み込んだときは別終端がある?
+                    break;
+                }
+                if (oam[0] == 0 && oam[1] == 0 && oam[2] == 0 && oam[3] == 0
+                    && oam[4] == 0 && oam[5] == 0 && oam[6] == 0 && oam[7] == 0)
+                {
+                    break;
+                }
+
+                if (oam[0 + 2] == 0xFF && oam[0 + 3] == 0xFF)
+                {//2バイト目と3バイト目が FFだったら 別ルーチン
+                    continue;
+                }
+                if (oam[0] == 0xFF && oam[1] == 0xFF)
+                {//FF FF xx xx なんか特殊命令?
+                    continue;
+                }
+
+                if (oam[0] == 1)
+                {//終端
+                    break;
+                }
+                if (oam[0] == 0)
+                {//データ
+                    continue;
+                }
+
+                //OAM規約違反
+                return U.NOT_FOUND;
+            }
+
+            uint ret_length = addr - start;
+            return ret_length;
         }
     }
 }
