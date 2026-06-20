@@ -479,10 +479,10 @@ namespace FEBuilderGBA.Core.Tests
             // Their deferred siblings (embedded sub-walk / event-scan / dynamic count / patch
             // pointer set) must STAY tracked — porting only some forms while leaving these
             // un-tracked would dangle their pointers during a rebuild.
-            Assert.Contains("MonsterWMapProbabilityForm", notYet); // EventScriptForm.ScanScript
-            // (CCBranchForm is now PORTED in the #1261 producer sweep via ClassDataCount — it is no
-            //  longer a deferred sibling; EventBattleTalkForm stays deferred for its ScanScript.)
-            Assert.Contains("EventBattleTalkForm", notYet);        // per-entry EventScriptForm.ScanScript
+            // (MonsterWMapProbabilityForm + EventBattleTalkForm are now PORTED in slice 2aa — both
+            //  reuse the slice-2u EmitScanScript block-emitter; CCBranchForm is PORTED via ClassDataCount.)
+            Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
+            Assert.DoesNotContain("EventBattleTalkForm", notYet);
             // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g; the MapTerrain
             //  lookup tables are now PORTED in slice 2j — see
             //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings. SongTableForm is now
@@ -641,12 +641,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain("LinkArenaDenyUnitForm", notYet2b);
                 Assert.DoesNotContain("MonsterItemForm", notYet2b);
                 Assert.DoesNotContain("MonsterProbabilityForm", notYet2b);
-                // Deferred sibling forms MUST remain tracked (event-scan / dynamic count / patch).
-                // (CCBranchForm is now PORTED in the #1261 producer sweep — count = ClassDataCount —
-                //  so it is no longer asserted-present here; EventBattleTalkForm stays deferred for its
-                //  per-entry EventScriptForm.ScanScript expansion.)
-                Assert.Contains("MonsterWMapProbabilityForm", notYet2b);
-                Assert.Contains("EventBattleTalkForm", notYet2b);
+                // (CCBranchForm is now PORTED in the #1261 producer sweep — count = ClassDataCount.
+                //  MonsterWMapProbabilityForm + EventBattleTalkForm are now PORTED in slice 2aa — both
+                //  reuse the slice-2u EmitScanScript block-emitter, so the static NotYetPorted no longer
+                //  lists them. NOTE this is the STATIC GetNotYetPortedForms(); the per-run ProducerResult
+                //  would re-report them only when the disassembler is unwired, which this overload bypasses.)
+                Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet2b);
+                Assert.DoesNotContain("EventBattleTalkForm", notYet2b);
                 // (MapTileAnimation1Form is now PORTED in slice 2g, the MapTerrain lookup tables in
                 //  slice 2j, and SongTableForm in slice 2r — so the still-deferred misc sibling tracked
                 //  here is UnitCustomBattleAnimeForm [per-unit custom battle-anime recycle, not in Core].)
@@ -1711,10 +1712,9 @@ namespace FEBuilderGBA.Core.Tests
             // Still deferred (un-ported subsystem) -> must REMAIN:
             foreach (var kept in new[]
             {
-                "EventBattleTalkForm", "EventHaikuForm",
-                "WorldMapEventPointerForm",
-                // (FE8SpellMenuExtendsForm ported in slice 2m -> no longer kept here.)
-                "MonsterWMapProbabilityForm",
+                // (FE8SpellMenuExtendsForm ported in slice 2m -> no longer kept here.
+                //  EventBattleTalkForm/EventHaikuForm/WorldMapEventPointerForm/MonsterWMapProbabilityForm
+                //  ported in slice 2aa -> no longer kept here; asserted GONE below.)
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
                 //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
@@ -1734,6 +1734,12 @@ namespace FEBuilderGBA.Core.Tests
             // slice 2s ported AIScriptForm + ImageBattleAnimeForm -> they must now be GONE.
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+
+            // slice 2aa ported the four FE8 ScanScript-family forms -> they must now be GONE.
+            Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
+            Assert.DoesNotContain("EventBattleTalkForm", notYet);
+            Assert.DoesNotContain("WorldMapEventPointerForm", notYet);
+            Assert.DoesNotContain("EventHaikuForm", notYet);
         }
 
         [Fact]
@@ -1793,7 +1799,7 @@ namespace FEBuilderGBA.Core.Tests
                 string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
                 Assert.DoesNotContain("CCBranchForm", notYet);
                 Assert.DoesNotContain("WorldMapPointForm", notYet);
-                Assert.Contains("EventBattleTalkForm", notYet); // still deferred (ScanScript)
+                Assert.DoesNotContain("EventBattleTalkForm", notYet); // ported in slice 2aa (EmitScanScript)
             }
             finally
             {
@@ -3511,7 +3517,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("AIScriptForm", notYet);
             // deferred siblings STAY (their blocking subsystem is not in Core):
             Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
-            Assert.Contains("MonsterWMapProbabilityForm", notYet);// EventScriptForm.ScanScript skirmish
+            // (MonsterWMapProbabilityForm PORTED in slice 2aa — EmitScanScript skirmish events.)
+            Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
             // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
             //  — see GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.
             //  EventCondForm is PORTED in slice 2u — see
@@ -4393,7 +4400,8 @@ namespace FEBuilderGBA.Core.Tests
             // (NOTE: OPClassDemoForm / OPClassDemoFE7Form were the nested-IFR siblings deferred at
             //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there. MapSettingForm
             //  is ported in slice 2r — its text-count cache is now reproduced by TextDataCount.)
-            Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
+            // (WorldMapEventPointerForm PORTED in slice 2aa — EmitWorldMapEventPointer + EmitScanScript.)
+            Assert.DoesNotContain("WorldMapEventPointerForm", notYet);
             // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
             Assert.DoesNotContain("ImageCGFE7UForm", notYet);
 
@@ -4787,9 +4795,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("OPClassDemoFE7Form", notYet);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            // (MapSettingForm is ported in slice 2r — its text-count cache is now reproduced by TextDataCount.)
-            Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
-            Assert.Contains("MonsterWMapProbabilityForm", notYet); // ScanScript skirmish events
+            // (MapSettingForm is ported in slice 2r — its text-count cache is now reproduced by TextDataCount.
+            //  WorldMapEventPointerForm + MonsterWMapProbabilityForm PORTED in slice 2aa — EmitScanScript.)
+            Assert.DoesNotContain("WorldMapEventPointerForm", notYet);
+            Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
             // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
             Assert.DoesNotContain("ImageCGFE7UForm", notYet);
             // (FE8SpellMenuExtendsForm is ported in slice 2m — see
