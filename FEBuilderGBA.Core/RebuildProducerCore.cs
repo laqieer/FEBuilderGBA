@@ -137,6 +137,14 @@ namespace FEBuilderGBA
             /// +0 name-NULL tie-break, distinct from <see cref="PointerAt"/> which terminates on any
             /// non-pointer).</summary>
             UnitPaletteRule,
+            /// <summary><c>ImageUnitMoveIconFrom.Init</c> rule: the table is class-count-bounded. The cap
+            /// is <c>classCount = ClassForm.DataCount()</c> clamped to <c>[0x7f, 0xff]</c> (<c>&lt;=0 -&gt;
+            /// 0x7f</c>, <c>&gt;0xff -&gt; 0xff</c>) then decremented; the rule is <c>i &gt;= classCount ?
+            /// false : i == 0 ? true : U.isPointerOrNULL(u32(addr+0))</c> (entry 0 always exists; afterward
+            /// the <c>+0</c> image pointer must be a ROM pointer or NULL). Reproduced VERBATIM; the cap is
+            /// computed via <see cref="ClassDataCount"/> (the Core port of <c>ClassForm.DataCount()</c>).
+            /// <see cref="StructDescriptor.RuleOffset"/> selects the checked field (MoveIcon uses 0).</summary>
+            MoveIconRule,
             /// <summary><c>ImageCGForm.Init</c> rule (the 10-split big-CG table): continue while the entry's
             /// <c>+0</c> field is a ROM pointer AND the FIRST u32 at its target is ALSO a ROM pointer
             /// (<c>p = u32(addr+0); isPointer(p) &amp;&amp; isSafetyPointer(p); p2 = u32(toOffset(p));
@@ -226,6 +234,18 @@ namespace FEBuilderGBA
             /// are unused (the type is fixed HEADERTSA, the length is computed). EOF-safe (the dereference is
             /// full-extent-guarded; the length calc rejects a header that does not fit).</summary>
             HeaderTsaPointer,
+            /// <summary>An embedded AP (Animated-Parts) pointer (the unit move-icon animation stream behind a
+            /// pointer). Emits via <see cref="EmitApPointer"/> VERBATIM (reproduces WF
+            /// <c>AddressWinForms.AddAPPointer</c>: reads <c>u32(p + EmbeddedPointerOffset)</c>,
+            /// <c>isSafetyPointer</c>-checks, then adds a <see cref="Address.DataTypeEnum.AP"/> block whose
+            /// length is <see cref="ImageUtilAPCore.CalcAPLength"/> — the AP frame/anime stream parser —
+            /// over the dereferenced target). Matches the per-entry <c>AddAPPointer(list, p + 4, name + " AP",
+            /// isPointerOnly)</c> in <c>ImageUnitMoveIconFrom</c>. The label is taken from
+            /// <see cref="SubWalk.Name"/>; <see cref="SubWalk.FixedLength"/> / <see cref="SubWalk.DataType"/>
+            /// are unused (the type is fixed AP, the length is computed). EOF-safe (the dereference is
+            /// full-extent-guarded; <see cref="ImageUtilAPCore.CalcAPLength"/> returns 0 on a malformed /
+            /// near-EOF stream, never throws).</summary>
+            ApPointer,
         }
 
         /// <summary>One per-entry embedded-data sub-walk applied to every entry of a
@@ -1064,6 +1084,18 @@ namespace FEBuilderGBA
                                 sw.Name != null ? sw.Name(rom, i) : d.Name);
                             break;
 
+                        case SubKind.ApPointer:
+                            // ImageUnitMoveIconFrom per-entry AP column:
+                            // AddressWinForms.AddAPPointer(list, p + 4, name + " AP", isPointerOnly).
+                            // Reads u32(pfield), isSafetyPointer-checks, then adds an AP block whose length
+                            // is ImageUtilAPCore.CalcAPLength (the AP frame/anime stream parser) over the
+                            // dereferenced target. No encoder needed (no string decode). EOF-safe (the
+                            // dereference is full-extent-guarded; CalcAPLength returns 0 on a malformed /
+                            // near-EOF stream — never throws).
+                            EmitApPointer(rom, list, pfield,
+                                sw.Name != null ? sw.Name(rom, i) : d.Name);
+                            break;
+
                         default:
                             // A new/bad SubKind is a programming error — fail loudly rather than
                             // silently skip an embedded block (which would dangle on rebuild).
@@ -1717,6 +1749,49 @@ namespace FEBuilderGBA
             }
             uint length = CalcRomTcsLength(rom, target);
             list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.ROMTCS));
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>AddressWinForms.AddAPPointer(list, pointer, info, isPointerOnly)</c>: the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to an AP (Animated-Parts, unit
+        /// move-icon animation) stream; emit a <see cref="Address.DataTypeEnum.AP"/> block whose length is
+        /// <see cref="ImageUtilAPCore.CalcAPLength"/> (the AP frame/anime stream parser) over the
+        /// dereferenced target. Structurally identical to <see cref="EmitRomTcsPointer"/> — the WF
+        /// <c>AddAPPointer</c>/<c>AddAPAddress</c> pair differs from <c>AddROMTCSPointer</c>/
+        /// <c>AddROMTCSAddress</c> only in <c>CalcAPLength</c> vs <c>CalcROMTCSLength</c> and the
+        /// <c>AP</c> vs <c>ROMTCS</c> data type. The producer always scans real lengths (isPointerOnly
+        /// false). <see cref="ImageUtilAPCore.CalcAPLength"/> is the verbatim Core port of WF
+        /// <c>ImageUtilAP.CalcAPLength</c> (= <c>Parse</c> + <c>GetLength</c>), already covered by the Core
+        /// AP-length tests. EOF-HARDENING: guard the full 4-byte <c>u32(pointer)</c> read extent before
+        /// dereferencing (WF reads it after only a single-byte <c>isSafetyOffset(pointer)</c> check);
+        /// <see cref="ImageUtilAPCore.CalcAPLength"/> itself returns 0 on any malformed / near-EOF stream
+        /// (never throws).
+        /// </summary>
+        public static void EmitApPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (pointer + 4 > (uint)rom.Data.Length)
+            {
+                return;
+            }
+            uint addr = rom.u32(pointer);
+            if (!U.isSafetyPointer(addr, rom))
+            {
+                return;
+            }
+            // WF AddAPPointer(pointer-slot form) -> AddAPAddress(addr, pointer, ...): addr is toOffset'd +
+            // isSafetyOffset-checked inside, then length = CalcAPLength(addr).
+            uint target = U.toOffset(addr);
+            if (!U.isSafetyOffset(target, rom))
+            {
+                return;
+            }
+            uint length = ImageUtilAPCore.CalcAPLength(rom.Data, target);
+            list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.AP));
         }
 
         // -------------------------------------------------------------------------------------------
@@ -4483,6 +4558,23 @@ namespace FEBuilderGBA
                         }
                         return true; // any other value -> valid
                     };
+                case DataCountRule.MoveIconRule:
+                {
+                    // ImageUnitMoveIconFrom.Init verbatim. The class-count cap is computed ONCE (WF
+                    // reads ClassForm.DataCount() once in Init), then clamped to [0x7f,0xff] and
+                    // decremented. The per-entry rule: i>=cap -> stop; i==0 -> always; else the +0
+                    // (RuleOffset) image pointer must be a ROM pointer OR NULL.
+                    uint classCount = ClassDataCount(rom);
+                    if (classCount <= 0) classCount = 0x7f;
+                    else if (classCount > 0xFF) classCount = 0xFF;
+                    classCount--;
+                    return (i, addr) =>
+                    {
+                        if (i >= classCount) return false;
+                        if (i == 0) return true;
+                        return U.isPointerOrNULL(rom.u32(addr + d.RuleOffset));
+                    };
+                }
                 case DataCountRule.NestedPointerAt:
                     return (i, addr) =>
                     {
@@ -4762,9 +4854,11 @@ namespace FEBuilderGBA
             // (DataCount+1)) PLUS a per-entry loop of AddLZ77Pointer / AddPointer columns. The
             // per-entry columns are the SubWalks (Lz77Pointer / FixedPointer). EVERY length is either
             // LZ77.getCompressedSize (EOF-safe, 0 on malformed) or a CONSTANT palette/image size — no
-            // ImageUtil/TSA-header/frame-walk dependency. The forms that DO need such a subsystem
-            // (AddHeaderTSAPointer, ImageUtil*.RecycleOldAnime, config-file g_TSAAnime/g_ROMAnime,
-            // ImageUtilOAM, IsHalfBodyFlag, AddAPPointer) stay in GetNotYetPortedForms.
+            // ImageUtil/TSA-header/frame-walk dependency. (slice 2k added the AddHeaderTSAPointer header-TSA
+            // forms; slice 2n adds ImageUnitMoveIconFrom — its per-entry AP column uses SubKind.ApPointer /
+            // EmitApPointer, whose length is the verbatim Core ImageUtilAPCore.CalcAPLength frame/anime walk.)
+            // The forms that DO still need an un-ported subsystem (ImageUtil*.RecycleOldAnime, config-file
+            // g_TSAAnime/g_ROMAnime, ImageUtilOAM, IsHalfBodyFlag) stay in GetNotYetPortedForms.
 
             // ImageBattleBGForm.MakeAllDataLength — Info "BattleBG", block 12, base battle_bg_pointer,
             // IsDataExists = isPointer(u32+0) && isPointer(u32+4) (TwoU32PointerAt04), pointerIndexes
@@ -4816,6 +4910,29 @@ namespace FEBuilderGBA
                 SubWalks = new List<SubWalk>
                 {
                     new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "WaitUnitIcon " + U.To0xHexString((uint)i) },
+                },
+            });
+
+            // ImageUnitMoveIconFrom.MakeAllDataLength (slice 2n) — Info "MoveUnitIcon", block 8, base
+            // unit_move_icon_pointer, IsDataExists = MoveIconRule (class-count-bounded; i==0 always; else
+            // isPointerOrNULL(u32+0)), pointerIndexes {0,4}. Per entry: LZ77IMG @0 (the move-icon sheet)
+            // + AP @4 (the move-anime stream). The per-entry WF label is name = "MoveUnitIcon " +
+            // To0xHexString(i); the LZ77 column uses that name verbatim and the AP column uses name + " AP".
+            // The AP block's length is ImageUtilAPCore.CalcAPLength (the verbatim Core port of WF
+            // ImageUtilAP.CalcAPLength = Parse + GetLength) over the dereferenced +4 target — see
+            // SubKind.ApPointer / EmitApPointer.
+            l.Add(new StructDescriptor
+            {
+                Name = "MoveUnitIcon",
+                PointerField = r => r.RomInfo.unit_move_icon_pointer,
+                BlockSize = 8,
+                Rule = DataCountRule.MoveIconRule,
+                RuleOffset = 0,
+                PointerIndexes = new uint[] { 0, 4 },
+                SubWalks = new List<SubWalk>
+                {
+                    new SubWalk { EmbeddedPointerOffset = 0, Kind = SubKind.Lz77Pointer, DataType = Address.DataTypeEnum.LZ77IMG, Name = (r, i) => "MoveUnitIcon " + U.To0xHexString((uint)i) },
+                    new SubWalk { EmbeddedPointerOffset = 4, Kind = SubKind.ApPointer, Name = (r, i) => "MoveUnitIcon " + U.To0xHexString((uint)i) + " AP" },
                 },
             });
 
@@ -5827,7 +5944,10 @@ namespace FEBuilderGBA
                 //    ImageMagicFEditorForm/ImageMagicCSACreatorForm/ImageMapActionAnimationForm —
                 //      ImageUtil*.RecycleOldAnime (ImageUtil anime length helpers).
                 //    ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (LZ77-embedded OAM pointers).
-                //    ImageUnitMoveIconFrom — AddAPPointer (ImageUtilAP.CalcAPLength).
+                //  (slice 2n ported ImageUnitMoveIconFrom — its per-entry AP column uses SubKind.ApPointer /
+                //   EmitApPointer, length = ImageUtilAPCore.CalcAPLength [the verbatim Core port of WF
+                //   ImageUtilAP.CalcAPLength = Parse + GetLength, already a tested Core helper]. The count
+                //   rule is MoveIconRule [class-count-bounded]. So it is no longer deferred.)
                 //    ImageRomAnimeForm/ImageTSAAnimeForm — config-file tables (U.ConfigDataFilename
                 //      "romanime_"/"tsaanime_") + dynamic pointer-list frame walks, not RomInfo slots.
                 //    ImagePortraitForm — IsHalfBodyFlag runtime header inspection (+ ImagePortraitFE6Form
@@ -5838,7 +5958,7 @@ namespace FEBuilderGBA
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
                 "ImageBattleAnimeForm",
                 "ImageMagicFEditorForm", "ImageMagicCSACreatorForm",
-                "ImageItemIconForm", "ImageUnitMoveIconFrom",
+                "ImageItemIconForm",
                 "ImageRomAnimeForm",
                 "ImageMapActionAnimationForm", "ImageTSAAnimeForm",
                 "ImageTSAAnime2Form", "ImagePortraitForm",
