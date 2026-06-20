@@ -649,9 +649,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet2b);
                 Assert.DoesNotContain("EventBattleTalkForm", notYet2b);
                 // (MapTileAnimation1Form is now PORTED in slice 2g, the MapTerrain lookup tables in
-                //  slice 2j, and SongTableForm in slice 2r — so the still-deferred misc sibling tracked
-                //  here is UnitCustomBattleAnimeForm [per-unit custom battle-anime recycle, not in Core].)
-                Assert.Contains("UnitCustomBattleAnimeForm", notYet2b);
+                //  slice 2j, SongTableForm in slice 2r, and UnitCustomBattleAnimeForm in slice 2ab — the
+                //  latter is a simple two-level N2/InputFormRef pointer loop, NO anime recycle, so it is
+                //  no longer reported as NotYetPorted.)
+                Assert.DoesNotContain("UnitCustomBattleAnimeForm", notYet2b);
+                // FontForm is also PORTED in slice 2ab (EmitFont — item/text hash-chain + status font +
+                //  the ZH direct-ref codeB walk).
+                Assert.DoesNotContain("FontForm", notYet2b);
 
                 // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
                 // sub-block size needs un-ported PatchUtil detection) — it must be absent from the

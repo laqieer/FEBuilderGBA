@@ -190,6 +190,24 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// The RAW 2-arg codeB stride math — a VERBATIM port of <c>FontZHForm.CalcCodeB(codeA, codeB)</c>
+        /// (no control-code / range guards; just the arithmetic). Used by the ROM-rebuild producer's
+        /// <c>EmitFontZH</c> (which mirrors <c>FontZHForm.MakeCodeBMap</c> -&gt; <c>CalcCodeB(codeA, codeB)</c>
+        /// over the TBL map exactly, including this raw form). Distinct from the guarded single-arg
+        /// <see cref="CalcCodeB(uint)"/>, which the EDITOR uses to reject control codes / out-of-range chars
+        /// (its <c>NOT_FOUND</c> returns would WRONGLY drop entries the producer must emit).
+        /// </summary>
+        public static uint CalcCodeBRaw(uint codeA, uint codeB)
+        {
+            codeA -= 0x81;
+            codeA *= 0x80;
+            codeB -= 0x80;
+            codeB += codeA; // 偏移字数 オフセット語
+            codeB *= 0x54;  // 字体大小 文字サイズ
+            return codeB;
+        }
+
+        /// <summary>
         /// Direct-reference glyph address for <paramref name="moji"/> in the
         /// item/serif ZH font, or <see cref="U.NOT_FOUND"/> when the char can't have
         /// a glyph or the resulting address is out of range.
