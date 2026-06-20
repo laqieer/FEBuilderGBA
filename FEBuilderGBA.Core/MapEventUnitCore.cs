@@ -152,14 +152,18 @@ namespace FEBuilderGBA
             outPointer = U.NOT_FOUND;
             if (rom?.RomInfo == null || plist == 0) return U.NOT_FOUND;
 
-            uint tablePointer = rom.RomInfo.map_event_pointer;
+            uint tablePointer = U.toOffset(rom.RomInfo.map_event_pointer);
             if (tablePointer == 0) return U.NOT_FOUND;
+            // Guard the FULL 4-byte slot (root+3) before each p32: isSafetyOffset(x) alone is a 1-byte
+            // check, so a slot in [Length-3, Length-1] would still throw inside p32->u32->check_safety on a
+            // near-EOF/synthetic ROM. On a valid ROM these are always in-bounds — this only hardens.
+            if (!U.isSafetyOffset(tablePointer + 3, rom)) return U.NOT_FOUND;
 
             uint tableBase = rom.p32(tablePointer);
             if (!U.isSafetyOffset(tableBase, rom)) return U.NOT_FOUND;
 
             uint entryAddr = (uint)(tableBase + plist * 4);
-            if (!U.isSafetyOffset(entryAddr, rom)) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(entryAddr + 3, rom)) return U.NOT_FOUND;
 
             uint eventAddr = rom.p32(entryAddr);
             if (!U.isSafetyOffset(eventAddr, rom)) return U.NOT_FOUND;

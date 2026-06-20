@@ -7395,8 +7395,17 @@ namespace FEBuilderGBA
         public static void EmitScanScript(ROM rom, List<Address> list, uint scriptPointer,
             bool isWithEventUnit, bool isWorldMapEvent, string basename, List<uint> tracelist)
         {
+            // A relocation primitive must NOT silently no-op when its prerequisite is unwired (Copilot
+            // #1296) — that would drop script/data blocks unnoticed. EmitScanScript disassembles via
+            // CoreState.EventScript, so that is its hard prerequisite; throw if absent rather than return.
+            // (The producer's EventCond dispatch gates on the fuller IsEventScriptDisasmReady before reaching
+            // here; a direct caller from another slice must wire CoreState.EventScript.)
             var es = CoreState.EventScript;
-            if (es == null) return; // disasm not wired — caller (EmitEventCond) already hard-errors.
+            if (es == null)
+            {
+                throw new System.InvalidOperationException(
+                    "EmitScanScript requires the event-script disassembler (CoreState.EventScript) to be wired.");
+            }
             ScanScriptRecurse(rom, es, list, scriptPointer, isWithEventUnit, isWorldMapEvent, basename, tracelist, 0);
         }
 
@@ -7411,7 +7420,14 @@ namespace FEBuilderGBA
         static void ScanScriptRecurse(ROM rom, EventScript es, List<Address> list, uint eventPointer,
             bool isWithEventUnit, bool isWorldMapEvent, string basename, List<uint> tracelist, int depth)
         {
-            if (depth > ScanMaxDepth) return;
+            if (depth > ScanMaxDepth)
+            {
+                // Defensive depth cap hit (no WF equiv). Still emit the 0-length alias for the slot, like
+                // every other abort path, so the manifest stays self-consistent — the slot is recorded for
+                // relocation rather than silently dropped, and the tracelist can't mask it as "covered".
+                Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
+                return;
+            }
 
             // WF: event_addr = Program.ROM.u32(event_pointer); guard the full 4-byte slot.
             uint eptr = U.toOffset(eventPointer);
@@ -7489,6 +7505,11 @@ namespace FEBuilderGBA
                 }
                 addr += (uint)size;
             }
+
+            // Defensive step cap exhausted (no WF equiv — a valid script always reaches an exit/unknown
+            // cutoff first). Emit the 0-length alias for the slot, consistent with the UNKNOWN/EOF abort
+            // paths, so the (already tracelist-marked) script is still recorded and not silently dropped.
+            Address.AddPointer(list, eventPointer, 0, basename, Address.DataTypeEnum.EVENTSCRIPT);
         }
 
         /// <summary>
