@@ -599,6 +599,46 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitOAMSP_NullBaseDirectory_DoesNotThrowAndEmitsLdrmapEntries()
+        {
+            // Regression (Copilot PR #1299): EmitOAMSP loads oam_name_ via ConfigDataFilename, which does
+            // Path.Combine(CoreState.BaseDirectory, ...) -> ArgumentNullException when BaseDirectory is null,
+            // and LoadDicResource -> IsRequiredFileExist shows a dialog + Debug.Assert(false) on a missing
+            // file. The producer must degrade to an EMPTY name dict (loop 2 contributes nothing; the ldrmap
+            // loop still emits, falling back to the hex name) instead of throwing/asserting headless.
+            var saved = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                CoreState.BaseDirectory = null; // unconfigured / headless
+
+                uint oamspOff = 0x00E0000;
+                PlantOamspTable(fe8, oamspOff, 0x00E1000, ptrCount: 2);
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOAMSP(fe8, list, ldrmap));
+                Assert.Null(ex); // no ArgumentNullException, no Debug.Assert dialog/throw.
+                // The ldrmap loop still emits (name falls back to the hex ToHexString8(ldr_data)).
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.OAMSP);
+                Assert.Equal(oamspOff, main.Addr);
+                Assert.Contains("OAMSP ", main.Info); // "OAMSP <hex>" — empty config -> hex name fallback.
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        [Fact]
         public void EmitOAMSP_PublicEntry_LoadsConfigAndEmits()
         {
             var saved = CoreState.ROM;

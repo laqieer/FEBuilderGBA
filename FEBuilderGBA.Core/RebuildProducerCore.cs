@@ -10961,10 +10961,43 @@ namespace FEBuilderGBA
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (list == null) throw new ArgumentNullException(nameof(list));
-            // WF: U.LoadDicResource(U.ConfigDataFilename("oam_name_")). The data-path filename is
-            // RomInfo-derived; LoadDicResource returns an empty dict when the file is absent.
-            Dictionary<uint, string> oamName = U.LoadDicResource(U.ConfigDataFilename("oam_name_", rom));
+            // WF: U.LoadDicResource(U.ConfigDataFilename("oam_name_")). WF always runs with a valid
+            // BaseDirectory + a present oam_name_ config (shipped under config/data/). The producer may run
+            // headless / before the config tree is staged, so load DEFENSIVELY (see LoadOamNameDicSafe):
+            // null BaseDirectory or a missing file degrades to an empty dict (loop 2 contributes nothing)
+            // instead of an ArgumentNullException / the IsRequiredFileExist ShowError + Debug.Assert.
+            Dictionary<uint, string> oamName = LoadOamNameDicSafe(rom);
             EmitOAMSPCore(rom, list, ldrmap, oamName);
+        }
+
+        /// <summary>
+        /// Load the <c>oam_name_</c> config dictionary, never throwing or surfacing UI. Mirrors the
+        /// <see cref="LoadConfigTableSafe"/> precedent (the slice-2q anime forms) but for the
+        /// <see cref="U.LoadDicResource"/> dict shape: <see cref="U.LoadDicResource"/> has no
+        /// <c>isRequired:false</c> overload, so it always routes a missing file through
+        /// <c>U.IsRequiredFileExist</c> (a <c>ShowError</c> dialog + <c>Debug.Assert(false)</c> on a
+        /// versioned ROM). We therefore pre-check <see cref="System.IO.File.Exists"/> and only load when the
+        /// file is present; the try/catch additionally covers a null <see cref="CoreState.BaseDirectory"/>
+        /// (<c>U.ConfigDataFilename</c> does <c>Path.Combine(BaseDirectory, …)</c>). Either way a missing/
+        /// unconfigured config tree degrades to an EMPTY dict — the same faithful headless behavior as a
+        /// present-but-empty <c>oam_name_</c> file (loop 2 of <see cref="EmitOAMSPCore"/> contributes
+        /// nothing; the ldrmap loop is unaffected, falling back to the hex name).
+        /// </summary>
+        static Dictionary<uint, string> LoadOamNameDicSafe(ROM rom)
+        {
+            try
+            {
+                string filename = U.ConfigDataFilename("oam_name_", rom);
+                if (!System.IO.File.Exists(filename))
+                {
+                    return new Dictionary<uint, string>();
+                }
+                return U.LoadDicResource(filename);
+            }
+            catch (Exception)
+            {
+                return new Dictionary<uint, string>();
+            }
         }
 
         /// <summary>
