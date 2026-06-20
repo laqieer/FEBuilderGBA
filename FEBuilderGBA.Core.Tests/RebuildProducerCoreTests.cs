@@ -450,10 +450,11 @@ namespace FEBuilderGBA.Core.Tests
             // (TextForm/TextCharCodeForm are ported in slice 2m; OtherTextForm in slice 2q — see
             //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("OtherTextForm", notYet);
-            Assert.Contains("EventCondForm", notYet);
+            // EventCondForm is PORTED in slice 2u (EmitEventCond + the Core ScanScript block-emitter) —
+            // see GetNotYetPortedForms_DropsSlice2uForm_KeepsDeferredSiblings.
+            Assert.DoesNotContain("EventCondForm", notYet);
             // (SongTableForm is ported in slice 2r; AIScriptForm + ImageBattleAnimeForm in slice 2s —
-            //  see GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings. EventCondForm above
-            //  still tracks the deferred coverage here.)
+            //  see GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
@@ -3512,8 +3513,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
             Assert.Contains("MonsterWMapProbabilityForm", notYet);// EventScriptForm.ScanScript skirmish
             // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
-            //  — see GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.)
-            Assert.Contains("EventCondForm", notYet);             // EventScriptForm.ScanScript
+            //  — see GetNotYetPortedForms_DropsSlice2gCoveredForms_KeepsDeferredSiblings.
+            //  EventCondForm is PORTED in slice 2u — see
+            //  RebuildProducerEventCondTests.GetNotYetPortedForms_DropsSlice2uForm_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("EventCondForm", notYet);
             // and the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
