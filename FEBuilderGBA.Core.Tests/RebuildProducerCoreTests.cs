@@ -6511,5 +6511,338 @@ namespace FEBuilderGBA.Core.Tests
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
         }
+
+        // ---- slice 2o: SkillSystems skill-config / skill-assignment forms ---
+        //
+        // The patch-signature scanners (SkillSystemPatchScanner / SkillSystemTextScanner) are tested
+        // separately; here we drive the IFR-building seams (EmitSkillAssignmentMainIfr /
+        // EmitSkillAssignmentLevelUp / EmitSkillConfigFE8NAt) over synthetic ROMs to prove the
+        // main-IFR + level-up-pointer-list + per-entry NestedIfr shapes reproduce the WF
+        // AddAddress/AddAddressInstantIFR/N1 behaviour exactly.
+
+        [Fact]
+        public void EmitSkillAssignmentMainIfr_BuildsMainIfr_LengthPlusOne_AndReturnsDataCount()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint assignP = 0x0400;     // pointer slot
+            uint table = 0x1000;       // base = p32(assignP)
+            rom.write_u32(assignP, Ptr(table));
+            // block 1, rule "u8(addr) != 0" — 5 valid bytes then a 0 terminator -> count 5.
+            for (uint k = 0; k < 5; k++) rom.write_u8(table + k, (byte)(k + 1));
+            rom.write_u8(table + 5, 0x00);
+
+            var list = new List<Address>();
+            uint count = RebuildProducerCore.EmitSkillAssignmentMainIfr(rom, list, assignP,
+                "SkillAssignmentClassSkillSystem", (i, addr) => rom.u8(addr) != 0);
+
+            Assert.Equal(5u, count);
+            Address main = list.Single(a => a.Info == "SkillAssignmentClassSkillSystem");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(assignP, main.Pointer);          // BasePointer = the slot
+            Assert.Equal(1u, main.BlockSize);
+            Assert.Equal(6u, main.Length);                // block * (count + 1) = 1 * 6
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+            Assert.Empty(main.PointerIndexes);
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentMainIfr_UnsafeBase_ReturnsCountZero_EmitsNothing()
+        {
+            // WF AddAddress returns (no emit) when !isSafetyOffset(BaseAddress); the DataCount is still 0.
+            var rom = CreateTestRom(0x10000);
+            uint assignP = 0x0400;
+            rom.write_u32(assignP, 0x00000000);   // base resolves to 0 -> unsafe
+
+            var list = new List<Address>();
+            uint count = RebuildProducerCore.EmitSkillAssignmentMainIfr(rom, list, assignP,
+                "SkillAssignmentClassSkillSystem", (i, addr) => true);
+
+            Assert.Equal(0u, count);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentLevelUp_EmitsListIfr_AndPerEntryNestedIfr()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint assignLevelUpP = 0x0500;   // level-up pointer-list slot
+            uint listTable = 0x1000;        // base of the pointer list = p32(assignLevelUpP)
+            uint lv0 = 0x2000;
+            uint lv1 = 0x3000;
+            rom.write_u32(assignLevelUpP, Ptr(listTable));
+            rom.write_u32(listTable + 0 * 4, Ptr(lv0));   // entry 0 -> N1 @ listTable+0
+            rom.write_u32(listTable + 1 * 4, Ptr(lv1));   // entry 1 -> N1 @ listTable+4
+            // lv0: 3 valid u16 then 0x0000 -> count 3 -> length 2*(3+1)=8.
+            rom.write_u16(lv0 + 0, 0x0101);
+            rom.write_u16(lv0 + 2, 0x0202);
+            rom.write_u16(lv0 + 4, 0x0303);
+            rom.write_u16(lv0 + 6, 0x0000);
+            // lv1: 1 valid u16 then 0xFFFF -> count 1 -> length 2*(1+1)=4.
+            rom.write_u16(lv1 + 0, 0x0505);
+            rom.write_u16(lv1 + 2, 0xFFFF);
+
+            var list = new List<Address>();
+            uint mainDataCount = 2; // the MAIN IFR DataCount (loop bound + fixed count for the list IFR)
+            RebuildProducerCore.EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, mainDataCount,
+                "SkillAssignmentClassLeveList", "SkillAssignmentClassSkillSystem.Levelup");
+
+            // The level-up POINTER-LIST IFR (AddAddressInstantIFR): base = listTable, block 4,
+            // length = 4 * (mainDataCount + 1) = 4 * 3 = 12, pointer = the slot, PI {0}.
+            Address leve = list.Single(a => a.Info == "SkillAssignmentClassLeveList");
+            Assert.Equal(listTable, leve.Addr);
+            Assert.Equal(assignLevelUpP, leve.Pointer);
+            Assert.Equal(4u, leve.BlockSize);
+            Assert.Equal(12u, leve.Length);
+            Assert.Equal(new uint[] { 0 }, leve.PointerIndexes);
+
+            // Per-entry NestedIfr @ listTable+0 (lv0) and listTable+4 (lv1).
+            Address n0 = list.Single(a => a.Info == "SkillAssignmentClassSkillSystem.Levelup0");
+            Assert.Equal(lv0, n0.Addr);
+            Assert.Equal(listTable + 0, n0.Pointer);
+            Assert.Equal(2u, n0.BlockSize);
+            Assert.Equal(8u, n0.Length);
+            Assert.Empty(n0.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, n0.DataType);
+
+            Address n1 = list.Single(a => a.Info == "SkillAssignmentClassSkillSystem.Levelup1");
+            Assert.Equal(lv1, n1.Addr);
+            Assert.Equal(listTable + 4, n1.Pointer);
+            Assert.Equal(4u, n1.Length);
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentLevelUp_UnsafeLevelupList_SkipsOnlyThatEntrysNested()
+        {
+            // WF: !isSafetyOffset(levelupList) -> continue (the loop continues; only that entry's
+            // NestedIfr is skipped). The pointer-list IFR itself is still emitted.
+            var rom = CreateTestRom(0x10000);
+            uint assignLevelUpP = 0x0500;
+            uint listTable = 0x1000;
+            uint lv1 = 0x3000;
+            rom.write_u32(assignLevelUpP, Ptr(listTable));
+            rom.write_u32(listTable + 0 * 4, 0x00000000);  // entry 0 NULL -> continue (no nested)
+            rom.write_u32(listTable + 1 * 4, Ptr(lv1));    // entry 1 valid
+            rom.write_u16(lv1 + 0, 0x0707);
+            rom.write_u16(lv1 + 2, 0x0000);                // count 1
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, 2,
+                "SkillAssignmentClassLeveList", "SkillAssignmentClassSkillSystem.Levelup");
+
+            Assert.Contains(list, a => a.Info == "SkillAssignmentClassLeveList");
+            Assert.DoesNotContain(list, a => a.Info == "SkillAssignmentClassSkillSystem.Levelup0");
+            Assert.Contains(list, a => a.Info == "SkillAssignmentClassSkillSystem.Levelup1");
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentLevelUp_NearEofSlot_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            uint assignLevelUpP = (uint)rom.Data.Length - 2;   // slot near EOF (p32 would overrun)
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, 4,
+                    "SkillAssignmentClassLeveList", "SkillAssignmentClassSkillSystem.Levelup")));
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentLevelUp_ListTableRunsOffEof_NoThrow_BreaksMidLoop()
+        {
+            // The loop bound is the MAIN IFR DataCount (here a large 0x100), NOT a getBlockDataCount over
+            // the pointer list — so assignLevelUpAddr can advance past where a 4-byte read is in bounds.
+            // Plant the list table at the very END of the ROM so the per-entry p32(assignLevelUpAddr) would
+            // overrun within a few iterations; the break must fire instead of throwing.
+            var rom = CreateTestRom(0x1000);
+            uint assignLevelUpP = 0x0400;
+            uint listTable = (uint)rom.Data.Length - 8; // only 2 full 4-byte slots fit before EOF
+            rom.write_u32(assignLevelUpP, Ptr(listTable));
+            // both slots NULL -> continue (no nested); the point is the loop must terminate via the +3 EOF
+            // break once assignLevelUpAddr advances past Data.Length - 4.
+            rom.write_u32(listTable + 0, 0x00000000);
+            rom.write_u32(listTable + 4, 0x00000000);
+
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, 0x100,
+                    "SkillAssignmentClassLeveList", "SkillAssignmentClassSkillSystem.Levelup")));
+            // The pointer-list IFR is still emitted (slot is safe); no nested entries (both NULL).
+            Assert.Contains(list, a => a.Info == "SkillAssignmentClassLeveList");
+            Assert.DoesNotContain(list, a => a.Info.StartsWith("SkillAssignmentClassSkillSystem.Levelup"));
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NAt_OnePerPointer_WithDataCountGreaterThanZero()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint p0 = 0x0400, p1 = 0x0404, p2 = 0x0408;
+            uint t0 = 0x1000, t1 = 0x2000;     // t? = base of icon table; p2 -> empty table
+            uint tEmpty = 0x3000;
+            rom.write_u32(p0, Ptr(t0));
+            rom.write_u32(p1, Ptr(t1));
+            rom.write_u32(p2, Ptr(tEmpty));
+
+            // block 32, rule u16 != 0xFFFF && != 0.
+            // t0: 2 valid entries (u16(addr) non-zero non-FFFF) then a 0x0000 terminator -> count 2.
+            rom.write_u16(t0 + 0 * 32, 0x1111);
+            rom.write_u16(t0 + 1 * 32, 0x2222);
+            rom.write_u16(t0 + 2 * 32, 0x0000);
+            // t1: 1 valid then 0xFFFF -> count 1.
+            rom.write_u16(t1 + 0 * 32, 0x3333);
+            rom.write_u16(t1 + 1 * 32, 0xFFFF);
+            // tEmpty: first entry terminator -> count 0 -> WF "DataCount <= 0 -> continue" -> NO emit.
+            rom.write_u16(tEmpty + 0, 0x0000);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, new uint[] { p0, p1, p2 });
+
+            // p0 and p1 emit (count > 0); p2 (count 0) is skipped.
+            Address a0 = list.Single(a => a.Info == "SkillConfigFE8N" + U.ToHexString(0));
+            Assert.Equal(t0, a0.Addr);
+            Assert.Equal(p0, a0.Pointer);
+            Assert.Equal(32u, a0.BlockSize);
+            Assert.Equal(32u * (2 + 1), a0.Length);   // count 2 -> 32*(2+1)=96
+            Assert.Empty(a0.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, a0.DataType);
+
+            Address a1 = list.Single(a => a.Info == "SkillConfigFE8N" + U.ToHexString(1));
+            Assert.Equal(t1, a1.Addr);
+            Assert.Equal(32u * (1 + 1), a1.Length);   // count 1 -> 64
+
+            Assert.DoesNotContain(list, a => a.Info == "SkillConfigFE8N" + U.ToHexString(2));
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NAt_NullPointerArray_EmitsNothing()
+        {
+            var rom = CreateTestRom();
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, null);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NAt_NearEofPointer_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            uint nearEof = (uint)rom.Data.Length - 2;
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillConfigFE8NAt(rom, list, new uint[] { nearEof })));
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSkillAssignmentClass_NonSkillSystemRom_EmitsNothing()
+        {
+            // On a real FE8U ROM with NO SkillSystems patch installed, SearchSkillSystem != SkillSystem,
+            // so the form emits nothing (the WF early-return). MakeVersionedRom gives a real RomInfo but
+            // a zeroed body -> no patch signature.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // FE8U: version 8, is_multibyte == false
+                CoreState.ROM = fe8;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillAssignmentClass(fe8, list);
+                RebuildProducerCore.EmitSkillAssignmentUnit(fe8, list);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8N_NonSkillSystemRom_EmitsNothing()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var fe8j = MakeVersionedRom("BE8J01"); // FE8J: version 8, is_multibyte == true
+                CoreState.ROM = fe8j;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8j);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigFE8N(fe8j, list);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void UnitDataCount_WalksUnitTable_FixedMaxCount()
+        {
+            // UnitDataCount = getBlockDataCount(p32(unit_pointer), unit_datasize, i < unit_maxcount).
+            // On a real FE8U RomInfo, prove it returns a plausible count (or 0 on an empty body) and
+            // never throws. (The synthetic seams above already prove the IFR shapes; this guards the
+            // RomInfo-bound count helper.)
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                Assert.Equal(8, fe8.RomInfo.version);
+                uint count = 0;
+                Assert.Null(Record.Exception(() => count = RebuildProducerCore.UnitDataCount(fe8)));
+                // unit_pointer's slot in a zeroed body resolves to 0 -> base unsafe -> count 0.
+                Assert.True(count <= fe8.RomInfo.unit_maxcount);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        // ---- coverage tracker: slice 2o drops the 3 RecycleOldAnime-free Skill
+        //      forms, keeps the anime-dependent siblings -------------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2oSkillForms_KeepsAnimeSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2o ports the RecycleOldAnime-FREE Skill subset.
+            Assert.DoesNotContain("SkillAssignmentClassSkillSystemForm", notYet);
+            Assert.DoesNotContain("SkillAssignmentUnitSkillSystemForm", notYet);
+            Assert.DoesNotContain("SkillConfigFE8NSkillForm", notYet);
+
+            // The RecycleOldAnime-dependent Skill siblings STAY (anime length walker not in Core).
+            foreach (var kept in new[]
+            {
+                "SkillConfigSkillSystemForm",
+                "SkillConfigFE8NVer2SkillForm",
+                "SkillConfigFE8NVer3SkillForm",
+            })
+            {
+                Assert.Contains(kept, notYet);
+            }
+
+            // The Group-3 anime/OAM forms (same blocker class) also STAY.
+            foreach (var kept in new[]
+            {
+                "ImageBattleAnimeForm",
+                "ImageMagicFEditorForm",
+                "ImageMagicCSACreatorForm",
+                "ImageMapActionAnimationForm",
+            })
+            {
+                Assert.Contains(kept, notYet);
+            }
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
     }
 }
