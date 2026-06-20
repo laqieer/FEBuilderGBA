@@ -3432,7 +3432,10 @@ namespace FEBuilderGBA
             // DataCount == spellDataCount; reproduce the cap exactly via getBlockDataCount for parity.
             uint magicPointer = rom.RomInfo.magic_effect_pointer;
             uint pointer = U.toOffset(magicPointer);
-            if (!U.isSafetyOffset(pointer, rom))
+            // Guard the FULL 4-byte slot (pointer+3) before p32 — ROM.p32 reads a u32 and would throw on a
+            // near-EOF slot (matches the MapAction emitter's pointer+3 guard; on valid ROMs the RomInfo
+            // slot is always in-bounds).
+            if (!U.isSafetyOffset(pointer + 3, rom))
             {
                 return; // WF AddAddress early-returns when the base/pointer is unsafe.
             }
@@ -3493,18 +3496,21 @@ namespace FEBuilderGBA
         {
             uint dataLen = (uint)rom.Data.Length;
 
-            // WF reads p32(base+0) and u32(base+4/8/12/16) unconditionally up front. Guard base+19 (the
-            // furthest, base+16+3) so a near-EOF base skips rather than throws.
+            // WF reads p32(base+0) and u32(base+4/8/12/16) unconditionally up front. Normalize the base to
+            // an offset (baseOff) and use it for BOTH the bounds guard AND every read + pointer-slot below,
+            // so a GBA-pointer magicBaseAddress cannot slip past the guard or mis-record a slot (in practice
+            // the base is already an offset, so baseOff == magicBaseAddress). Guard base+19 (the furthest,
+            // base+16+3) so a near-EOF base skips rather than throws.
             uint baseOff = U.toOffset(magicBaseAddress);
             if (baseOff + 20 > dataLen)
             {
                 return;
             }
-            uint frameData_offset = rom.p32(magicBaseAddress + 0);
-            uint objRtoL = rom.u32(magicBaseAddress + 4);   // OBJ OAM
-            uint objLtoR = rom.u32(magicBaseAddress + 8);   // OBJ OAM
-            uint bgRtoL  = rom.u32(magicBaseAddress + 12);  // BG OAM
-            uint bgLtoR  = rom.u32(magicBaseAddress + 16);  // BG OAM
+            uint frameData_offset = rom.p32(baseOff + 0);
+            uint objRtoL = rom.u32(baseOff + 4);   // OBJ OAM
+            uint objLtoR = rom.u32(baseOff + 8);   // OBJ OAM
+            uint bgRtoL  = rom.u32(baseOff + 12);  // BG OAM
+            uint bgLtoR  = rom.u32(baseOff + 16);  // BG OAM
 
             if (frameData_offset == 0)
             {
@@ -3535,9 +3541,13 @@ namespace FEBuilderGBA
             for (i = frameDataOff; i < limitter; i += 4)
             {
                 // WF reads d[i+1] and d[i+3] (the terminator/command bytes) — guard i+3 < limitter so the
-                // 4-byte stride read never crosses the clamp.
+                // 4-byte stride read never crosses the clamp. Hitting this is NOT a real 0x80 terminator —
+                // the stream ran out of bytes (truncated/past-EOF), so push i past the limiter to trigger
+                // the post-loop "over the limiter -> do NOT reuse" guard (no FRAME/OAM emitted from a
+                // truncated stream).
                 if (i + 4 > limitter)
                 {
+                    i = limitter + 1;
                     break;
                 }
                 if (d[i + 3] == 0x80)
@@ -3601,17 +3611,18 @@ namespace FEBuilderGBA
             Address.DataTypeEnum frameType = isCsa
                 ? Address.DataTypeEnum.MAGICFRAME_CSA
                 : Address.DataTypeEnum.MAGICFRAME_FEITORADV;
-            Address.AddPointer(list, magicBaseAddress + 0, i - frameDataOff, basename + "FRAME", frameType);
+            Address.AddPointer(list, baseOff + 0, i - frameDataOff, basename + "FRAME", frameType);
 
             // Four OAM blocks (emitted UNCONDITIONALLY, matching WF — the length may be 0). The WF per-block
-            // names differ slightly between FEditorAdv and CSA; reproduce each VERBATIM.
-            Address.AddPointer(list, magicBaseAddress + 4, CalcMagicOamLength(rom, objRtoL, maxObjOAM),
+            // names differ slightly between FEditorAdv and CSA; reproduce each VERBATIM. Pointer slots use
+            // baseOff (the ROM offset) to stay consistent with the bounds guard + reads above.
+            Address.AddPointer(list, baseOff + 4, CalcMagicOamLength(rom, objRtoL, maxObjOAM),
                 basename + "RihtToLeftOAM", Address.DataTypeEnum.MAGICOAM);
-            Address.AddPointer(list, magicBaseAddress + 8, CalcMagicOamLength(rom, objLtoR, maxObjOAM),
+            Address.AddPointer(list, baseOff + 8, CalcMagicOamLength(rom, objLtoR, maxObjOAM),
                 basename + "LeftRightOAM", Address.DataTypeEnum.MAGICOAM); // FEditorAdv + CSA share this name
-            Address.AddPointer(list, magicBaseAddress + 12, CalcMagicOamLength(rom, bgRtoL, maxBGOAM),
+            Address.AddPointer(list, baseOff + 12, CalcMagicOamLength(rom, bgRtoL, maxBGOAM),
                 basename + (isCsa ? "RihtToLeftOAMBG" : "OBJ OAM"), Address.DataTypeEnum.MAGICOAM);
-            Address.AddPointer(list, magicBaseAddress + 16, CalcMagicOamLength(rom, bgLtoR, maxBGOAM),
+            Address.AddPointer(list, baseOff + 16, CalcMagicOamLength(rom, bgLtoR, maxBGOAM),
                 basename + (isCsa ? "LeftRightOAMBG" : "BG OAM"), Address.DataTypeEnum.MAGICOAM);
         }
 

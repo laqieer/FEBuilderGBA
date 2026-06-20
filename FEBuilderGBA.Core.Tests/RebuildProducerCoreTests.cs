@@ -7048,6 +7048,28 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitMagicRecycleOldAnime_TruncatedStream_NoTerminator_EmitsNothing()
+        {
+            // Regression (PR #1288 review): if the frame walk runs out of bytes for the 4-byte command
+            // window (i+4 > limitter) WITHOUT a real 0x80 terminator, the stream is truncated -> treat as
+            // over-limiter and emit NO FRAME/OAM (a length from a truncated stream would mis-relocate).
+            uint size = 0x2000;
+            var rom = CreateTestRom((int)size);
+            uint magicBase = 0x0800;
+            uint frame = size - 6; // 0x1FFA: one 0x85 'continue' then i+4 exceeds the limiter (= Data.Length)
+            rom.write_u32(magicBase + 0, Ptr(frame));
+            // 0x85 at frame+3 -> 'continue', i += 4 -> next iteration i+4 > limitter -> truncation break.
+            rom.write_u8(frame + 3, 0x85);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitMagicRecycleOldAnime(rom, list, magicBase, "Magic:0x0 ", isCsa: false);
+
+            // Truncated -> over the limiter -> nothing emitted (no FRAME, no OAM).
+            Assert.DoesNotContain(list, a => a.Info == "Magic:0x0 FRAME");
+            Assert.Empty(list);
+        }
+
+        [Fact]
         public void EmitMagicRecycleOldAnime_Csa_HasTsaColumn_And32ByteStride()
         {
             var rom = CreateTestRom(0x10000);
