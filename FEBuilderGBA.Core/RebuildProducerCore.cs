@@ -10504,7 +10504,11 @@ namespace FEBuilderGBA
             // p32(BasePointer); if BaseAddress not safe -> BaseAddress = BasePointer = 0.
             uint basePointer = U.toOffset(basePointerField);
             uint baseAddr;
-            if (U.isSafetyOffset(basePointer, rom))
+            // Guard the FULL 4-byte p32 read extent (basePointer + 3), not just the 1-byte
+            // isSafetyOffset(basePointer): a slot in the last 1–3 bytes of a truncated/synthetic ROM
+            // would otherwise make rom.p32 read past EOF and throw. Output-equivalent to WF on valid
+            // ROMs (a real pointer slot is never that close to EOF).
+            if (U.isSafetyOffset(basePointer + 3, rom))
             {
                 baseAddr = rom.p32(basePointer);
                 if (!U.isSafetyOffset(baseAddr, rom))
@@ -10654,7 +10658,9 @@ namespace FEBuilderGBA
             // WF Init -> AddAddress(InputFormRef_MIX, {0}); the per-entry loop is custom (capped).
             uint basePointer = U.toOffset(basePointerField);
             uint baseAddr;
-            if (U.isSafetyOffset(basePointer, rom))
+            // Guard the full 4-byte p32 read extent (basePointer + 3) so a near-EOF slot on a
+            // truncated/synthetic ROM can't make rom.p32 read past the buffer and throw.
+            if (U.isSafetyOffset(basePointer + 3, rom))
             {
                 baseAddr = rom.p32(basePointer);
                 if (!U.isSafetyOffset(baseAddr, rom))
@@ -10738,7 +10744,9 @@ namespace FEBuilderGBA
                 return;
             }
             uint basePointer = U.toOffset(basePointerField);
-            if (!U.isSafetyOffset(basePointer, rom))
+            // Guard the full 4-byte p32 read extent (basePointer + 3): a slot in the last 1–3 bytes
+            // of a truncated/synthetic ROM would otherwise make rom.p32 read past EOF and throw.
+            if (!U.isSafetyOffset(basePointer + 3, rom))
             {
                 return;
             }

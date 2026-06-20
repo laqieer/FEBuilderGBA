@@ -31,8 +31,22 @@ using FEBuilderGBA;
 namespace FEBuilderGBA.Core.Tests
 {
     [Collection("SharedState")]
-    public class RebuildProducerAsmTests
+    public class RebuildProducerAsmTests : IDisposable
     {
+        // xUnit constructs a fresh instance per test and Disposes it after. CreateTestRom mutates the
+        // CoreState.ROM / SystemTextEncoder / EventScript globals; capture the baseline here and restore
+        // it in Dispose so a test that leaves them mutated can't bleed into a later (order-dependent) test.
+        readonly ROM _savedRom = CoreState.ROM;
+        readonly ISystemTextEncoder _savedEncoder = CoreState.SystemTextEncoder;
+        readonly EventScript _savedEventScript = CoreState.EventScript;
+
+        public void Dispose()
+        {
+            CoreState.ROM = _savedRom;
+            CoreState.SystemTextEncoder = _savedEncoder;
+            CoreState.EventScript = _savedEventScript;
+        }
+
         // ---- helpers -------------------------------------------------------
 
         static ROM CreateTestRom(int size = 0x8000)
