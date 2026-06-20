@@ -647,7 +647,8 @@ namespace FEBuilderGBA
             // IsUnHuffmanPatchPointer || Is_RAMPointerArea) with a text_recover_address ReInit fallback,
             // and each entry's BIN length is a Huffman/UnHuffman decode (FETextDecode.huffman_decode /
             // UnHffmanPatchDecode — both headless Core methods, called directly, internally EOF-hardened).
-            // A dedicated emitter reproduces it (its own cancel-check mirrors the WF DoEvents posture).
+            // A dedicated emitter reproduces it; the dispatch below cancel-checks BEFORE calling it
+            // (mirroring the WF DoEvents posture — EmitText itself takes no token / has no inner check).
             // TextCharCodeForm is a flat U8NotEqual descriptor in BuildBatchDescriptors (version-agnostic).
             if (ct.IsCancellationRequested)
             {
@@ -2944,7 +2945,11 @@ namespace FEBuilderGBA
                     int size = 0;
                     if (hasEncoder)
                     {
-                        textdecoder.UnHffmanPatchDecode(unhuffmanAddr, out size);
+                        // The decoders throw FETextException on a broken mask/tree (malformed ROM). The
+                        // producer must NOT abort the whole run — fall back to size 0 (the slot is still
+                        // relocated + target recorded, matching the no-encoder isPointerOnly path).
+                        try { textdecoder.UnHffmanPatchDecode(unhuffmanAddr, out size); }
+                        catch (FETextDecode.FETextException) { size = 0; }
                     }
                     Address.AddAddress(list, unhuffmanAddr, (uint)size, arlistAddr,
                         "Text " + U.ToHexString(i), Address.DataTypeEnum.BIN);
@@ -2955,7 +2960,8 @@ namespace FEBuilderGBA
                     int size = 0;
                     if (hasEncoder)
                     {
-                        textdecoder.huffman_decode(addr, out size);
+                        try { textdecoder.huffman_decode(addr, out size); }
+                        catch (FETextDecode.FETextException) { size = 0; }
                     }
                     Address.AddAddress(list, addr, (uint)size, arlistAddr,
                         "Text " + U.ToHexString(i), Address.DataTypeEnum.BIN);

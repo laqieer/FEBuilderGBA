@@ -5919,44 +5919,51 @@ namespace FEBuilderGBA.Core.Tests
             // No encoder -> the WF isPointerOnly path: per-entry BIN emits with size 0 (the slot is
             // still relocated and the target addr recorded). Avoids the Huffman decode (which needs a
             // valid mask_pointer tree, absent on a bare synthetic ROM).
+            var savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null;
+            try
+            {
+                uint pointer = 0x0400;
+                uint table = 0x1000;
+                uint textNormal = 0x2000;      // normal-pointer text target
+                rom.write_u32(pointer, Ptr(table));
 
-            uint pointer = 0x0400;
-            uint table = 0x1000;
-            uint textNormal = 0x2000;      // normal-pointer text target
-            rom.write_u32(pointer, Ptr(table));
+                // entry 0: a normal ROM pointer -> isPointer branch.
+                rom.write_u32(table + 0 * 4, Ptr(textNormal));
+                // entry 1: an un-Huffman patch pointer (0x88000000..0x8A000000). 0x88001500 ->
+                // ConvertUnHuffmanPatchToPointer -> 0x08001500 -> toOffset -> 0x1500.
+                rom.write_u32(table + 1 * 4, 0x88001500);
+                // entry 2: NOT a pointer / patch / RAM -> terminates the count (count = 2).
+                rom.write_u32(table + 2 * 4, 0x00000005);
 
-            // entry 0: a normal ROM pointer -> isPointer branch.
-            rom.write_u32(table + 0 * 4, Ptr(textNormal));
-            // entry 1: an un-Huffman patch pointer (0x88000000..0x8A000000). 0x88001500 ->
-            // ConvertUnHuffmanPatchToPointer -> 0x08001500 -> toOffset -> 0x1500.
-            rom.write_u32(table + 1 * 4, 0x88001500);
-            // entry 2: NOT a pointer / patch / RAM -> terminates the count (count = 2).
-            rom.write_u32(table + 2 * 4, 0x00000005);
+                var list = new List<Address>();
+                RebuildProducerCore.EmitTextAt(rom, list, pointer);
 
-            var list = new List<Address>();
-            RebuildProducerCore.EmitTextAt(rom, list, pointer);
+                // Main IFR: TEXTPOINTERS, block 4, count 2 -> length 4*(2+1)=12, pointer = slot, PI {0}.
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Assert.Equal(table, main.Addr);
+                Assert.Equal(pointer, main.Pointer);
+                Assert.Equal(4u, main.BlockSize);
+                Assert.Equal(12u, main.Length);
+                Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+                Assert.Equal("Text", main.Info);
 
-            // Main IFR: TEXTPOINTERS, block 4, count 2 -> length 4*(2+1)=12, pointer = slot, PI {0}.
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
-            Assert.Equal(table, main.Addr);
-            Assert.Equal(pointer, main.Pointer);
-            Assert.Equal(4u, main.BlockSize);
-            Assert.Equal(12u, main.Length);
-            Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
-            Assert.Equal("Text", main.Info);
+                // entry 0 BIN: addr = toOffset(Ptr(textNormal)) = textNormal, pointer = slot table+0, size 0.
+                Address e0 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 0);
+                Assert.Equal(textNormal, e0.Addr);
+                Assert.Equal(0u, e0.Length);
+                Assert.Equal("Text " + U.ToHexString(0u), e0.Info);
 
-            // entry 0 BIN: addr = toOffset(Ptr(textNormal)) = textNormal, pointer = slot table+0, size 0.
-            Address e0 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 0);
-            Assert.Equal(textNormal, e0.Addr);
-            Assert.Equal(0u, e0.Length);
-            Assert.Equal("Text " + U.ToHexString(0u), e0.Info);
-
-            // entry 1 BIN: addr = 0x1500 (un-Huffman decoded), pointer = slot table+4, size 0.
-            Address e1 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 4);
-            Assert.Equal(0x1500u, e1.Addr);
-            Assert.Equal(0u, e1.Length);
-            Assert.Equal("Text " + U.ToHexString(1u), e1.Info);
+                // entry 1 BIN: addr = 0x1500 (un-Huffman decoded), pointer = slot table+4, size 0.
+                Address e1 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 4);
+                Assert.Equal(0x1500u, e1.Addr);
+                Assert.Equal(0u, e1.Length);
+                Assert.Equal("Text " + U.ToHexString(1u), e1.Info);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
         }
 
         [Fact]
@@ -5966,34 +5973,82 @@ namespace FEBuilderGBA.Core.Tests
             // the per-entry loop emits NO AddAddress for it (the target lives in RAM, not ROM). Reproduce
             // exactly: the entry contributes to the main IFR length but produces no BIN.
             var rom = CreateTestRom(0x8000);
+            var savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null;
+            try
+            {
+                uint pointer = 0x0400;
+                uint table = 0x1000;
+                rom.write_u32(pointer, Ptr(table));
+                rom.write_u32(table + 0 * 4, 0x03000100);   // is_03RAMPointer -> counted, NOT emitted
+                rom.write_u32(table + 1 * 4, 0x00000005);   // terminates -> count 1
 
-            uint pointer = 0x0400;
-            uint table = 0x1000;
-            rom.write_u32(pointer, Ptr(table));
-            rom.write_u32(table + 0 * 4, 0x03000100);   // is_03RAMPointer -> counted, NOT emitted
-            rom.write_u32(table + 1 * 4, 0x00000005);   // terminates -> count 1
+                var list = new List<Address>();
+                RebuildProducerCore.EmitTextAt(rom, list, pointer);
 
-            var list = new List<Address>();
-            RebuildProducerCore.EmitTextAt(rom, list, pointer);
-
-            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
-            Assert.Equal(4u * (1 + 1), main.Length);    // count 1 -> length 8
-            // No BIN sub-block emitted for the RAM-pointer entry.
-            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Assert.Equal(4u * (1 + 1), main.Length);    // count 1 -> length 8
+                // No BIN sub-block emitted for the RAM-pointer entry.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
         }
 
         [Fact]
         public void EmitTextAt_NearEof_NoThrow()
         {
             var rom = CreateTestRom(0x1000);
+            var savedEncoder = CoreState.SystemTextEncoder;
             CoreState.SystemTextEncoder = null;
-            // Slot near EOF: the +3 guard before p32 must prevent any out-of-bounds read.
-            uint pointer = (uint)rom.Data.Length - 2;
-            var list = new List<Address>();
-            Assert.Null(Record.Exception(() =>
-                RebuildProducerCore.EmitTextAt(rom, list, pointer)));
-            Assert.Empty(list);
+            try
+            {
+                // Slot near EOF: the +3 guard before p32 must prevent any out-of-bounds read.
+                uint pointer = (uint)rom.Data.Length - 2;
+                var list = new List<Address>();
+                Assert.Null(Record.Exception(() =>
+                    RebuildProducerCore.EmitTextAt(rom, list, pointer)));
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
+        }
+
+        [Fact]
+        public void EmitTextAt_EncoderPresent_BrokenMaskTree_DoesNotThrow()
+        {
+            // Regression (PR #1285 review): with an encoder loaded, the per-entry huffman_decode throws
+            // FETextException on a broken mask tree (real RomInfo whose mask_pointer dereferences to an
+            // unsafe tree_base — here the versioned ROM's mask data is all-zero). EmitTextAt must CATCH it
+            // and fall back to size 0 rather than aborting the whole producer run. (A bare CreateTestRom
+            // can't exercise this — its RomInfo is null, so huffman_decode NREs before the mask check; a
+            // real run always has a non-null RomInfo, so FETextException is the realistic failure mode.)
+            var rom = MakeVersionedRom("BE8E01"); // FE8U: non-null RomInfo; mask tree is zero -> unsafe.
+            var savedRom = CoreState.ROM;
+            var savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.ROM = rom;
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+            try
+            {
+                uint pointer = 0x0400, table = 0x1000, textNormal = 0x2000;
+                rom.write_u32(pointer, Ptr(table));
+                rom.write_u32(table + 0 * 4, Ptr(textNormal)); // normal pointer -> isPointer -> huffman_decode throws
+                rom.write_u32(table + 1 * 4, 0x00000005);      // terminate -> count 1
+
+                var list = new List<Address>();
+                Assert.Null(Record.Exception(() => RebuildProducerCore.EmitTextAt(rom, list, pointer)));
+                // The run completes: the main IFR is produced (the per-entry decode was caught -> size 0).
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
         }
 
         // ---- EmitFE8SpellMenuExtendsAt: main IFR + per-entry NestedIfr -------
