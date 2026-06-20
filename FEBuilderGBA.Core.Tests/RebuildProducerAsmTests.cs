@@ -845,6 +845,293 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ====================================================================
+        // EmitGraphicsToolLZ77 / EmitGraphicsToolLZ77At — GraphicsToolForm
+        // .MakeLZ77DataList (slice 2y). The whole-ROM LZ77-image scan.
+        // ====================================================================
+        //
+        // The synthetic-ROM tests drive the scan via the EmitGraphicsToolLZ77At seam (the public
+        // method reads rom.RomInfo, which is NULL on a CreateTestRom). They pass an explicit
+        // ignoreDic + compressBorderline. The RomInfo-driven public EmitGraphicsToolLZ77 and its 3
+        // builders are exercised on a real versioned ROM further below.
+
+        /// <summary>Hand-author a VALID all-literal LZ77 stream (size a multiple of 32 so IsBadImageSize
+        /// passes) at <paramref name="offset"/>; returns its compressed byte length.</summary>
+        static uint WriteLz77Image(ROM rom, uint offset, int uncompSize)
+        {
+            var bytes = new List<byte> { 0x10,
+                (byte)(uncompSize & 0xFF), (byte)((uncompSize >> 8) & 0xFF), (byte)((uncompSize >> 16) & 0xFF) };
+            int written = 0;
+            while (written < uncompSize)
+            {
+                bytes.Add(0x00); // flag: next 8 bytes literal
+                for (int b = 0; b < 8 && written < uncompSize; b++, written++)
+                {
+                    bytes.Add((byte)(0x40 + (written & 0x3F)));
+                }
+            }
+            for (int i = 0; i < bytes.Count; i++) rom.write_u8(offset + (uint)i, bytes[i]);
+            uint clen = LZ77.getCompressedSize(rom.Data, offset);
+            Assert.True(clen > 0, "hand-authored LZ77 stream must be valid");
+            return clen;
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_PlantedLz77Image_EmitsLZ77IMG()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointerLoc = 0x0400;   // location of the candidate pointer (<= borderline -> trusted)
+            uint imageData = 0x2000;    // pointer target (>= borderline)
+            uint borderline = 0x1000;
+            uint clen = WriteLz77Image(rom, imageData, 32); // 32 = 1 tile, multiple of 32
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline);
+
+            Address img = list.Single(a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+            Assert.Equal(imageData, img.Addr);
+            Assert.Equal(clen, img.Length);
+            Assert.Equal(pointerLoc, img.Pointer);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_AddressInIgnoreDic_IsSkipped()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointerLoc = 0x0400;
+            uint imageData = 0x2000;
+            uint borderline = 0x1000;
+            WriteLz77Image(rom, imageData, 32);
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            // The same valid image is now in the ignore set (e.g. a battle-anime frame) -> NOT emitted.
+            var ignore = new Dictionary<uint, bool> { [imageData] = true };
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list, ignore, borderline);
+
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_AddressAlreadyInList_IsSkipped()
+        {
+            // WF MakeIgnoreDictionnaryFromList: an address already tracked in `list` is never re-emitted.
+            var rom = CreateTestRom(0x8000);
+            uint pointerLoc = 0x0400;
+            uint imageData = 0x2000;
+            uint borderline = 0x1000;
+            WriteLz77Image(rom, imageData, 32);
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            var list = new List<Address>();
+            // Pre-seed the list with an Address at imageData (some other form already claimed it).
+            Address.AddAddress(list, imageData, 4, U.NOT_FOUND, "preexisting",
+                Address.DataTypeEnum.BIN);
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline);
+
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_BelowBorderlineTarget_IsSkipped()
+        {
+            // The pointer TARGET (the image) must be >= compress_image_borderline_address.
+            var rom = CreateTestRom(0x8000);
+            uint pointerLoc = 0x0400;
+            uint imageData = 0x0800;    // below the borderline -> rejected
+            uint borderline = 0x1000;
+            WriteLz77Image(rom, imageData, 32);
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline);
+
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_BadImageSize_IsSkipped()
+        {
+            // 40 is NOT a multiple of 32 -> IsBadImageSize -> not emitted.
+            var rom = CreateTestRom(0x8000);
+            uint pointerLoc = 0x0400;
+            uint imageData = 0x2000;
+            uint borderline = 0x1000;
+            WriteLz77Image(rom, imageData, 40);
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline);
+
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_ZeroedRom_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x8000); // all zero -> Data[addr+3] never 0x08/0x09
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), compressBorderline: 0x1000);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_NearEofCandidate_DoesNotThrow()
+        {
+            // A pointer near EOF whose target is also near EOF must not throw on the bound reads.
+            uint size = 0x4000;
+            var rom = CreateTestRom((int)size);
+            uint imageData = size - 0x40;       // a few bytes from EOF
+            uint borderline = 0x1000;
+            WriteLz77Image(rom, imageData, 32);
+            // Plant a pointer right at the last scannable slot.
+            uint pointerLoc = (size - 4) - 4;   // < length(=size-4), 4-aligned region
+            pointerLoc -= pointerLoc % 4;
+            rom.write_u32(pointerLoc, Ptr(imageData));
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline));
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_PreCancelled_EmitsNothing()
+        {
+            // The scan checks ct at the TOP of each iteration, so a pre-cancelled token returns before
+            // any emission (responsive cancellation, not "after the first emit").
+            var rom = CreateTestRom(0x8000);
+            uint borderline = 0x1000;
+            uint imageA = 0x2000, imageB = 0x3000;
+            WriteLz77Image(rom, imageA, 32);
+            WriteLz77Image(rom, imageB, 32);
+            rom.write_u32(0x0400, Ptr(imageA));
+            rom.write_u32(0x0404, Ptr(imageB));
+
+            var cts = new CancellationTokenSource();
+            cts.Cancel(); // pre-cancelled: the loop returns before the first iteration's body.
+            var list = new List<Address>();
+            RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), borderline, cts.Token);
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77At_TinyRom_DoesNotThrow_EmitsNothing()
+        {
+            // A sub-0x104-byte buffer has no scannable slot; the early-size guard prevents the
+            // (uint)(Data.Length-4) underflow that would otherwise blow up the loop bound.
+            var rom = CreateTestRom(0x80);
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitGraphicsToolLZ77At(rom, list,
+                new Dictionary<uint, bool>(), compressBorderline: 0x40));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77_RealRom_BuildsIgnoreSetAndScans()
+        {
+            // The RomInfo-driven public method on a real FE8U ROM: the 3 builders populate the ignore set
+            // from RomInfo / the battle-anime N_-table, and the whole-ROM scan runs without throwing.
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitGraphicsToolLZ77(fe8, list));
+                Assert.Null(ex);
+                // A blank-data versioned ROM has no real images, but the scan must complete cleanly.
+                // (Coverage of the ignore-set builders is via the dedicated builder tests below.)
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitGraphicsToolLZ77_BattleAnimeFrame_IsAddedToIgnoreSet_AndNotEmitted()
+        {
+            // Observable proof that MakeBattleFrameAndOAMDictionary's N_-table walk populates the ignore
+            // set: plant a valid LZ77 image at an N_ entry's frame pointer (+16). The N_ entry itself sits
+            // in the scan range and its +16 slot is a 0x08-tagged pointer to that image — so WITHOUT the
+            // ignore set the scan WOULD emit it. With the battle-anime builder it is ignored.
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                uint borderline = fe8.RomInfo.compress_image_borderline_address; // FE8U = 0xDB000
+                uint listPtr = fe8.RomInfo.image_battle_animelist_pointer;        // RomInfo slot
+                uint nTable = 0x00A00000u;        // 4-padded, in-range
+                uint frameImage = 0x00E00000u;    // 4-padded, >= borderline
+                fe8.write_u32(U.toOffset(listPtr), Ptr(nTable));
+                // one valid entry (block 32): IsDataExists needs pointers at +12/+20/+24; +16 is the frame.
+                for (uint off = 0; off < 32; off += 4) fe8.write_u32(nTable + off, Ptr(0x00C00000u + off));
+                fe8.write_u32(nTable + 16, Ptr(frameImage)); // frame pointer -> the planted image
+                // terminator entry: all-zero -> IsDataExists false (stops the N_ count at 1).
+                for (uint off = 0; off < 32; off += 4) fe8.write_u32(nTable + 32 + off, 0);
+                WriteLz77Image(fe8, frameImage, 32);
+
+                Assert.True(frameImage >= borderline, "frameImage must be past the compress borderline");
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitGraphicsToolLZ77(fe8, list);
+                // The frame image was put in the ignore set by the battle-anime builder -> never emitted.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG
+                                                 && a.Addr == frameImage);
+
+                // Control: with an EMPTY ignore set the SAME ROM DOES emit frameImage (proving the
+                // suppression above is the ignore set, not some other filter rejecting the candidate).
+                var control = new List<Address>();
+                RebuildProducerCore.EmitGraphicsToolLZ77At(fe8, control,
+                    new Dictionary<uint, bool>(), borderline);
+                Assert.Contains(control, a => a.DataType == Address.DataTypeEnum.LZ77IMG
+                                              && a.Addr == frameImage);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void AppendAllAsmStructPointers_UseOtherGraphics_RunsGraphicsToolLZ77()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ldrmap = RebuildProducerCore.BuildLdrMap(fe8);
+                var ex = Record.Exception(() => RebuildProducerCore.AppendAllAsmStructPointers(
+                    fe8, list, ldrmap, isUseOtherGraphics: true));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void AppendAllAsmStructPointers_UseOtherGraphicsFalse_EmitsNoLZ77IMG()
+        {
+            // The gate: with isUseOtherGraphics=false the GraphicsTool scan is intentionally skipped.
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var list = new List<Address>();
+                var ldrmap = RebuildProducerCore.BuildLdrMap(fe8);
+                RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap,
+                    isUseOtherGraphics: false);
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        // ====================================================================
         // EmitEventFunctionPointer — version split (real ROM)
         // ====================================================================
 
@@ -1047,8 +1334,8 @@ namespace FEBuilderGBA.Core.Tests
                 var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap);
                 Assert.False(res.IsComplete);
                 Assert.Contains("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
-                Assert.Contains("GraphicsToolForm", res.NotYetPorted);
-                // OAMSPForm is PORTED in slice 2w, ProcsScriptForm in slice 2x — NOT re-reported as deferred.
+                // OAMSPForm PORTED slice 2w, ProcsScriptForm 2x, GraphicsToolForm 2y — NOT re-reported.
+                Assert.DoesNotContain("GraphicsToolForm", res.NotYetPorted);
                 Assert.DoesNotContain("OAMSPForm", res.NotYetPorted);
                 Assert.DoesNotContain("ProcsScriptForm", res.NotYetPorted);
             }
@@ -1096,8 +1383,8 @@ namespace FEBuilderGBA.Core.Tests
         {
             string[] notYet = RebuildProducerCore.GetAsmNotYetPortedForms();
             Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
-            Assert.Contains("GraphicsToolForm", notYet);
             // The PORTED forms are NOT in the static deferred list.
+            Assert.DoesNotContain("GraphicsToolForm", notYet); // PORTED in slice 2y.
             Assert.DoesNotContain("OAMSPForm", notYet); // PORTED in slice 2w.
             Assert.DoesNotContain("ProcsScriptForm", notYet); // PORTED in slice 2x.
             Assert.DoesNotContain("EventScript(MakeEventASMMAPList)", notYet);
