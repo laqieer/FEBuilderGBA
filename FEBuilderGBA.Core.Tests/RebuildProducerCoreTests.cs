@@ -447,7 +447,10 @@ namespace FEBuilderGBA.Core.Tests
             string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
             Assert.NotEmpty(notYet);
             // The heavy editors that need extraction first must be tracked, not dropped.
-            Assert.Contains("TextForm", notYet);
+            // (TextForm/TextCharCodeForm are ported in slice 2m — see
+            //  GetNotYetPortedForms_DropsSlice2mCoveredForms_KeepsDeferredSiblings; OtherTextForm STAYS,
+            //  its config-file other_text_* table is not ROM-derived.)
+            Assert.Contains("OtherTextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
             Assert.Contains("SongTableForm", notYet);
             // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
@@ -1702,7 +1705,8 @@ namespace FEBuilderGBA.Core.Tests
             {
                 "EventBattleTalkForm", "EventHaikuForm",
                 "WorldMapEventPointerForm",
-                "MapSettingForm", "FE8SpellMenuExtendsForm",
+                // (FE8SpellMenuExtendsForm ported in slice 2m -> no longer kept here.)
+                "MapSettingForm",
                 "MonsterWMapProbabilityForm", "SoundRoomForm",
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
@@ -4765,7 +4769,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("MonsterWMapProbabilityForm", notYet); // ScanScript skirmish events
             // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
             Assert.DoesNotContain("ImageCGFE7UForm", notYet);
-            Assert.Contains("FE8SpellMenuExtendsForm", notYet);  // FindFE8SpellPatchPointer
+            // (FE8SpellMenuExtendsForm is ported in slice 2m — see
+            //  GetNotYetPortedForms_DropsSlice2mCoveredForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("FE8SpellMenuExtendsForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -5858,6 +5864,356 @@ namespace FEBuilderGBA.Core.Tests
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ====================================================================
+        // slice 2m: TextForm (EmitText) + TextCharCodeForm (descriptor) +
+        //           FE8SpellMenuExtendsForm (EmitFE8SpellMenuExtends)
+        // ====================================================================
+
+        // ---- TextCharCodeForm: flat U8NotEqual descriptor (mask_pointer) -----
+
+        [Fact]
+        public void TextCharCode_U8NotEqual255_StopsAtTerminator_EmptyPointerIndexes()
+        {
+            var rom = CreateTestRom();
+            // WF TextCharCodeForm.Init: base mask_pointer, block 4, IsDataExists = u8(addr) != 255,
+            // AddAddress(list, IFR, "TextCharCode", new uint[] {}) — empty PI, default InputFormRef type.
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0 * 4, 0x41);  // valid
+            rom.write_u8(table + 1 * 4, 0x42);  // valid
+            rom.write_u8(table + 2 * 4, 0x43);  // valid
+            rom.write_u8(table + 3 * 4, 0xFF);  // 255 terminator -> count 3
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "TextCharCode",
+                PointerField = _ => pointer,
+                BlockSize = 4,
+                Rule = RebuildProducerCore.DataCountRule.U8NotEqual,
+                RuleOffset = 0,
+                RuleStopValue = 255,
+                PointerIndexes = new uint[] { },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            Address a = Assert.Single(list);
+            Assert.Equal(table, a.Addr);
+            Assert.Equal(pointer, a.Pointer);
+            Assert.Equal(4u, a.BlockSize);
+            Assert.Equal(4u * (3 + 1), a.Length);   // block 4, count 3 -> 16
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, a.DataType);
+            Assert.Empty(a.PointerIndexes);
+        }
+
+        // ---- EmitTextAt: main TEXTPOINTERS IFR + per-entry BIN sub-walks ----
+
+        [Fact]
+        public void EmitTextAt_MainIfr_IsTextPointers_Block4_PI0_AndPerEntryBin()
+        {
+            var rom = CreateTestRom(0x8000);
+            // No encoder -> the WF isPointerOnly path: per-entry BIN emits with size 0 (the slot is
+            // still relocated and the target addr recorded). Avoids the Huffman decode (which needs a
+            // valid mask_pointer tree, absent on a bare synthetic ROM).
+            var savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null;
+            try
+            {
+                uint pointer = 0x0400;
+                uint table = 0x1000;
+                uint textNormal = 0x2000;      // normal-pointer text target
+                rom.write_u32(pointer, Ptr(table));
+
+                // entry 0: a normal ROM pointer -> isPointer branch.
+                rom.write_u32(table + 0 * 4, Ptr(textNormal));
+                // entry 1: an un-Huffman patch pointer (0x88000000..0x8A000000). 0x88001500 ->
+                // ConvertUnHuffmanPatchToPointer -> 0x08001500 -> toOffset -> 0x1500.
+                rom.write_u32(table + 1 * 4, 0x88001500);
+                // entry 2: NOT a pointer / patch / RAM -> terminates the count (count = 2).
+                rom.write_u32(table + 2 * 4, 0x00000005);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitTextAt(rom, list, pointer);
+
+                // Main IFR: TEXTPOINTERS, block 4, count 2 -> length 4*(2+1)=12, pointer = slot, PI {0}.
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Assert.Equal(table, main.Addr);
+                Assert.Equal(pointer, main.Pointer);
+                Assert.Equal(4u, main.BlockSize);
+                Assert.Equal(12u, main.Length);
+                Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+                Assert.Equal("Text", main.Info);
+
+                // entry 0 BIN: addr = toOffset(Ptr(textNormal)) = textNormal, pointer = slot table+0, size 0.
+                Address e0 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 0);
+                Assert.Equal(textNormal, e0.Addr);
+                Assert.Equal(0u, e0.Length);
+                Assert.Equal("Text " + U.ToHexString(0u), e0.Info);
+
+                // entry 1 BIN: addr = 0x1500 (un-Huffman decoded), pointer = slot table+4, size 0.
+                Address e1 = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == table + 4);
+                Assert.Equal(0x1500u, e1.Addr);
+                Assert.Equal(0u, e1.Length);
+                Assert.Equal("Text " + U.ToHexString(1u), e1.Info);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
+        }
+
+        [Fact]
+        public void EmitTextAt_RamPointerEntry_CountedButNotEmitted()
+        {
+            // WF Init's IsDataExists counts a RAM-pointer slot (Is_RAMPointerArea) toward DataCount, but
+            // the per-entry loop emits NO AddAddress for it (the target lives in RAM, not ROM). Reproduce
+            // exactly: the entry contributes to the main IFR length but produces no BIN.
+            var rom = CreateTestRom(0x8000);
+            var savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null;
+            try
+            {
+                uint pointer = 0x0400;
+                uint table = 0x1000;
+                rom.write_u32(pointer, Ptr(table));
+                rom.write_u32(table + 0 * 4, 0x03000100);   // is_03RAMPointer -> counted, NOT emitted
+                rom.write_u32(table + 1 * 4, 0x00000005);   // terminates -> count 1
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitTextAt(rom, list, pointer);
+
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Assert.Equal(4u * (1 + 1), main.Length);    // count 1 -> length 8
+                // No BIN sub-block emitted for the RAM-pointer entry.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
+        }
+
+        [Fact]
+        public void EmitTextAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            var savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.SystemTextEncoder = null;
+            try
+            {
+                // Slot near EOF: the +3 guard before p32 must prevent any out-of-bounds read.
+                uint pointer = (uint)rom.Data.Length - 2;
+                var list = new List<Address>();
+                Assert.Null(Record.Exception(() =>
+                    RebuildProducerCore.EmitTextAt(rom, list, pointer)));
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
+        }
+
+        [Fact]
+        public void EmitTextAt_EncoderPresent_BrokenMaskTree_DoesNotThrow()
+        {
+            // Regression (PR #1285 review): with an encoder loaded, the per-entry huffman_decode throws
+            // FETextException on a broken mask tree (real RomInfo whose mask_pointer dereferences to an
+            // unsafe tree_base — here the versioned ROM's mask data is all-zero). EmitTextAt must CATCH it
+            // and fall back to size 0 rather than aborting the whole producer run. (A bare CreateTestRom
+            // can't exercise this — its RomInfo is null, so huffman_decode NREs before the mask check; a
+            // real run always has a non-null RomInfo, so FETextException is the realistic failure mode.)
+            var rom = MakeVersionedRom("BE8E01"); // FE8U: non-null RomInfo; mask tree is zero -> unsafe.
+            var savedRom = CoreState.ROM;
+            var savedEncoder = CoreState.SystemTextEncoder;
+            CoreState.ROM = rom;
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+            try
+            {
+                uint pointer = 0x0400, table = 0x1000, textNormal = 0x2000;
+                rom.write_u32(pointer, Ptr(table));
+                rom.write_u32(table + 0 * 4, Ptr(textNormal)); // normal pointer -> isPointer -> huffman_decode throws
+                rom.write_u32(table + 1 * 4, 0x00000005);      // terminate -> count 1
+
+                var list = new List<Address>();
+                Assert.Null(Record.Exception(() => RebuildProducerCore.EmitTextAt(rom, list, pointer)));
+                // The run completes: the main IFR is produced (the per-entry decode was caught -> size 0).
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEncoder;
+            }
+        }
+
+        // ---- EmitFE8SpellMenuExtendsAt: main IFR + per-entry NestedIfr -------
+
+        [Fact]
+        public void EmitFE8SpellMenuExtendsAt_MainIfr_AndPerEntryNestedIfr()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint assignLevelUpP = 0x0400;   // the patch-resolved pointer slot
+            uint table = 0x1000;            // base = p32(assignLevelUpP)
+            uint lv0 = 0x2000;              // entry 0 level-up list (N1 sub-table)
+            uint lv1 = 0x3000;              // entry 1 level-up list
+            rom.write_u32(assignLevelUpP, Ptr(table));
+
+            // The main IFR rule is i < 0xFF (a pure count). To bound the synthetic test, plant level-up
+            // pointers in only the first 2 slots and rely on the getBlockDataCount walk: with rule i<0xFF
+            // it would count to 0xFF, so cap the table region by ROM size — instead verify the per-entry
+            // NestedIfr emission for the two populated slots, and that the main IFR is present.
+            rom.write_u32(table + 0 * 4, Ptr(lv0));   // entry 0 -> N1 @ table+0
+            rom.write_u32(table + 1 * 4, Ptr(lv1));   // entry 1 -> N1 @ table+4
+
+            // N1 sub-table block 2, rule u16 != 0xFFFF && != 0:
+            // lv0: 3 valid u16 then 0x0000 terminator -> count 3 -> length 2*(3+1)=8.
+            rom.write_u16(lv0 + 0, 0x0101);
+            rom.write_u16(lv0 + 2, 0x0202);
+            rom.write_u16(lv0 + 4, 0x0303);
+            rom.write_u16(lv0 + 6, 0x0000);
+            // lv1: 1 valid u16 then 0xFFFF terminator -> count 1 -> length 2*(1+1)=4.
+            rom.write_u16(lv1 + 0, 0x0505);
+            rom.write_u16(lv1 + 2, 0xFFFF);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitFE8SpellMenuExtendsAt(rom, list, assignLevelUpP);
+
+            // Main IFR: base = table, block 4, pointer = slot, PI {}, type InputFormRef.
+            Address main = list.Single(a => a.Info == "SkillAssignmentUnitSkillSystem");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(assignLevelUpP, main.Pointer);
+            Assert.Equal(4u, main.BlockSize);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, main.DataType);
+            Assert.Empty(main.PointerIndexes);
+
+            // Per-entry NestedIfr @ table+0 (lv0) and table+4 (lv1).
+            Address n0 = list.Single(a => a.Info == "SkillAssignmentUnitSkillSystem.Levelup0");
+            Assert.Equal(lv0, n0.Addr);
+            Assert.Equal(table + 0, n0.Pointer);
+            Assert.Equal(2u, n0.BlockSize);
+            Assert.Equal(8u, n0.Length);          // count 3 -> 2*(3+1)
+            Assert.Empty(n0.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, n0.DataType);
+
+            Address n1 = list.Single(a => a.Info == "SkillAssignmentUnitSkillSystem.Levelup1");
+            Assert.Equal(lv1, n1.Addr);
+            Assert.Equal(table + 4, n1.Pointer);
+            Assert.Equal(4u, n1.Length);          // count 1 -> 2*(1+1)
+        }
+
+        [Fact]
+        public void EmitFE8SpellMenuExtendsAt_UnsafeLevelupList_ContinuesWithoutNested()
+        {
+            // WF: !isSafetyOffset(levelupList) -> continue (no nested table for that entry, but the loop
+            // keeps going). A NULL level-up pointer must skip ONLY that entry's NestedIfr.
+            var rom = CreateTestRom(0x10000);
+            uint assignLevelUpP = 0x0400;
+            uint table = 0x1000;
+            uint lv1 = 0x3000;
+            rom.write_u32(assignLevelUpP, Ptr(table));
+            rom.write_u32(table + 0 * 4, 0x00000000);  // entry 0 NULL -> continue (no nested)
+            rom.write_u32(table + 1 * 4, Ptr(lv1));    // entry 1 valid
+            rom.write_u16(lv1 + 0, 0x0707);
+            rom.write_u16(lv1 + 2, 0x0000);            // count 1
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitFE8SpellMenuExtendsAt(rom, list, assignLevelUpP);
+
+            Assert.Contains(list, a => a.Info == "SkillAssignmentUnitSkillSystem");
+            Assert.DoesNotContain(list, a => a.Info == "SkillAssignmentUnitSkillSystem.Levelup0");
+            Assert.Contains(list, a => a.Info == "SkillAssignmentUnitSkillSystem.Levelup1");
+        }
+
+        [Fact]
+        public void EmitFE8SpellMenuExtendsAt_NotFoundPointer_EmitsNothing()
+        {
+            var rom = CreateTestRom();
+            var list = new List<Address>();
+            RebuildProducerCore.EmitFE8SpellMenuExtendsAt(rom, list, U.NOT_FOUND);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitFE8SpellMenuExtendsAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x1000);
+            uint assignLevelUpP = (uint)rom.Data.Length - 2;   // slot near EOF
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitFE8SpellMenuExtendsAt(rom, list, assignLevelUpP)));
+            Assert.Empty(list);
+        }
+
+        // ---- coverage tracker: slice 2m drops Text*/FE8SpellMenu, keeps siblings -
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2mCoveredForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2m ports TextForm + TextCharCodeForm + FE8SpellMenuExtendsForm.
+            Assert.DoesNotContain("TextForm", notYet);
+            Assert.DoesNotContain("TextCharCodeForm", notYet);
+            Assert.DoesNotContain("FE8SpellMenuExtendsForm", notYet);
+
+            // OtherTextForm STAYS — it iterates a config FILE (other_text_*), not a RomInfo table.
+            Assert.Contains("OtherTextForm", notYet);
+            // ImageUnitMoveIconFrom STAYS — its AP length needs ImageUtilAP.CalcAPLength (not in Core).
+            Assert.Contains("ImageUnitMoveIconFrom", notYet);
+            // MapSettingForm STAYS — its count rule needs the WF cached text count.
+            Assert.Contains("MapSettingForm", notYet);
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ---- real-FE8U: TextForm decodes real Huffman text sizes -------------
+
+        [Fact]
+        public void EmitText_FE8U_DecodesRealHuffmanTextSizes()
+        {
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip when no ROM available (env-only)
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+                if (rom.RomInfo.version != 8) return; // FE8U-specific
+                // huffman_decode needs a SystemTextEncoder (it decodes the string while sizing it).
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitText(rom, list);
+
+                // Main TEXTPOINTERS IFR present at p32(text_pointer), block 4, PI {0}.
+                uint textBase = rom.p32(rom.RomInfo.text_pointer);
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.TEXTPOINTERS);
+                Assert.Equal(textBase, main.Addr);
+                Assert.Equal(4u, main.BlockSize);
+                Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+                // With a real encoder the per-entry BIN sub-blocks must carry a NON-zero Huffman length
+                // for at least some entries (proves huffman_decode was actually invoked, not the
+                // pointer-only fallback).
+                int sizedBin = list.Count(a => a.DataType == Address.DataTypeEnum.BIN
+                    && a.Info != null && a.Info.StartsWith("Text ") && a.Length > 0);
+                Assert.True(sizedBin > 0, "expected at least one Huffman-sized Text BIN sub-block");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
         }
     }
 }
