@@ -544,6 +544,43 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
                 Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.OAMSP);
+                // WF accumulates OAM-12 into a LOCAL list and only AddRange's on success, so a
+                // below-threshold parent must NOT leak its OAM-12 sub-table into the struct list.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.OAMSP12);
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void EmitOAMSPCore_NotFoundTable_DoesNotLeakOam12()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                uint oamspOff = 0x00E0000;
+                uint oam12Off = 0x00E1000;
+                PlantOam12(fe8, oam12Off);
+                // word 0: a valid OAM-12 pointer (its OAM-12 gets computed + recorded in alreadyMatch12).
+                fe8.write_u32(oamspOff + 0, Ptr(oam12Off));
+                // word 1: an un-decodable word (not a terminator, not a safe pointer after the top-nibble
+                // mask) -> CalcOAMSPLengthAndCheck returns NOT_FOUND -> the parent (and its OAM-12) is
+                // discarded. 0x00000003 has no 0x7-nibble (so no mask) and is not a safe pointer.
+                fe8.write_u32(oamspOff + 4, 0x00000003);
+
+                var ldrmap = new List<DisassemblerTrumb.LDRPointer>
+                {
+                    new DisassemblerTrumb.LDRPointer
+                    {
+                        ldr_data = Ptr(oamspOff), ldr_data_address = 0x00E5000, ldr_address = 0x00E6000,
+                    }
+                };
+                var list = new List<Address>();
+                RebuildProducerCore.EmitOAMSPCore(fe8, list, ldrmap, new Dictionary<uint, string>());
+                // NOT_FOUND parent -> nothing emitted (no OAMSP, and the OAM-12 it computed is discarded).
+                Assert.Empty(list);
             }
             finally { CoreState.ROM = saved; }
         }

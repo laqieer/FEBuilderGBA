@@ -11030,7 +11030,12 @@ namespace FEBuilderGBA
                         name = U.ToHexString8(ldrmap[i].ldr_data);
                     }
                     name = "OAMSP " + name;
-                    uint length = CalcOAMSPLengthAndCheck(rom, addr, name, list, alreadyMatch12);
+                    // WF accumulates the OAM-12 sub-tables into a LOCAL list (listoam12_local) and only
+                    // AddRange's them into the real list AFTER the parent OAMSP passes its threshold — so
+                    // a NOT_FOUND/below-threshold parent DISCARDS its OAM-12 Addresses (but alreadyMatch12
+                    // still retains them). Reproduce that: local list here, merge only on success.
+                    var listoam12Local = new List<Address>();
+                    uint length = CalcOAMSPLengthAndCheck(rom, addr, name, listoam12Local, alreadyMatch12);
                     if (U.NOT_FOUND == length)
                     {
                         alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
@@ -11044,6 +11049,7 @@ namespace FEBuilderGBA
 
                     Address.AddAddress(list, addr, length, ldrmap[i].ldr_data_address, name,
                         Address.DataTypeEnum.OAMSP);
+                    list.AddRange(listoam12Local); // WF: listoam12.AddRange(listoam12_local)
                     alreadyMatch.Add(addr, true);
                 }
             }
@@ -11058,7 +11064,8 @@ namespace FEBuilderGBA
                 }
 
                 string name = "OAMSP_ " + pair.Value;
-                uint length = CalcOAMSPLengthAndCheck(rom, addr, name, list, alreadyMatch12);
+                var listoam12Local = new List<Address>();
+                uint length = CalcOAMSPLengthAndCheck(rom, addr, name, listoam12Local, alreadyMatch12);
                 if (U.NOT_FOUND == length)
                 {
                     alreadyMatch.Add(addr, false); //ダメだったということを記録しておこう
@@ -11072,6 +11079,7 @@ namespace FEBuilderGBA
 
                 Address.AddAddress(list, addr, length, U.NOT_FOUND, name,
                     Address.DataTypeEnum.OAMSP);
+                list.AddRange(listoam12Local); // WF: listoam12.AddRange(listoam12_local)
                 alreadyMatch.Add(addr, true);
             }
         }
@@ -11084,7 +11092,11 @@ namespace FEBuilderGBA
         /// <paramref name="alreadyMatch"/>). Returns the word-table byte length, or
         /// <see cref="U.NOT_FOUND"/> on the first un-decodable word.
         /// </summary>
-        static uint CalcOAMSPLengthAndCheck(ROM rom, uint addr, string name, List<Address> list,
+        /// <param name="listoam12Local">The LOCAL OAM-12 accumulator (WF <c>ref listoam12_local</c>): the
+        /// caller merges it into the real struct list only when the parent OAMSP passes its threshold, so a
+        /// NOT_FOUND/below-threshold parent discards these (though <paramref name="alreadyMatch"/> retains
+        /// the OAM-12 addresses).</param>
+        static uint CalcOAMSPLengthAndCheck(ROM rom, uint addr, string name, List<Address> listoam12Local,
             Dictionary<uint, bool> alreadyMatch)
         {
             // EOF/NULL-start guard (the #1261 producer safety discipline): an unsafe start must never
@@ -11133,7 +11145,7 @@ namespace FEBuilderGBA
                     {
                         return U.NOT_FOUND;
                     }
-                    Address.AddAddress(list, oam12Addr, oam12length, addr, name + "_OAM",
+                    Address.AddAddress(listoam12Local, oam12Addr, oam12length, addr, name + "_OAM",
                         Address.DataTypeEnum.OAMSP12);
                     alreadyMatch.Add(oam12Addr, true);
                 }
