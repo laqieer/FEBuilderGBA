@@ -694,6 +694,43 @@ namespace FEBuilderGBA
             progress?.Report("SupportUnit");
             EmitSupportUnit(rom, list);
 
+            // ---- slice 2o: SkillSystems skill-config / skill-assignment forms ----
+            // WF (U.MakeAllStructPointersList) runs these in the version-agnostic section, gated on
+            // is_multibyte: `is_multibyte == false` (FE8U) emits the two skill-ASSIGNMENT tables (Class +
+            // Unit); `else` (FE8J) emits SkillConfigFE8N. The RecycleOldAnime-dependent siblings
+            // (SkillConfigSkillSystemForm on FE8U; FE8NVer2/FE8NVer3 on FE8J) STAY deferred (anime length
+            // walker + GUI state not in Core). Each emitter ALSO re-checks SearchSkillSystem (mirroring the
+            // WF MakeAllDataLength early-return), so a non-SkillSystem ROM emits nothing. Gate EXACTLY as
+            // WF: a wrong is_multibyte branch would emit the wrong tables = corruption.
+            if (rom.RomInfo.is_multibyte == false)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillAssignmentClass");
+                EmitSkillAssignmentClass(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillAssignmentUnit");
+                EmitSkillAssignmentUnit(rom, list);
+            }
+            else
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillConfigFE8N");
+                EmitSkillConfigFE8N(rom, list);
+            }
+
             if (rom.RomInfo.version == 8)
             {
                 if (ct.IsCancellationRequested)
@@ -1129,6 +1166,30 @@ namespace FEBuilderGBA
                 if (i > 0xff) return false;
                 return rom.u8(addr + 4) != 0;
             });
+        }
+
+        /// <summary>
+        /// The unit-table entry count = <c>UnitForm.DataCount()</c> (WinForms). The FE8U skill
+        /// Assignment "personal" table (<c>SkillAssignmentUnitSkillSystemForm</c>) sizes its block-1
+        /// table by it. Computed VERBATIM from <c>UnitForm.Init</c> (the FE8 path — the only path the
+        /// skill forms reach, since they are <c>!is_multibyte</c>/FE8U-gated; the FE6 <c>+unit_datasize</c>
+        /// ReInit at <c>version == 6</c> does not apply here): walk <c>unit_pointer</c>'s table with block
+        /// <c>unit_datasize</c> and the fixed-count rule <c>i &lt; unit_maxcount</c>. Returns 0 on an
+        /// unsafe/zero pointer (so a missing table yields an empty count, not a throw).
+        /// </summary>
+        public static uint UnitDataCount(ROM rom)
+        {
+            uint pointer = U.toOffset(rom.RomInfo.unit_pointer);
+            // Guard the FULL pointer slot (root+3) before p32 so a near-EOF unit_pointer skips instead of
+            // throwing (stricter than the ClassDataCount model, which reads a RomInfo slot always well
+            // within bounds — behaviour-neutral on real ROMs, EOF-robust on synthetic ones).
+            if (!U.isSafetyOffset(pointer + 3, rom)) return 0;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint block = rom.RomInfo.unit_datasize;
+            if (block == 0) return 0;
+            uint maxcount = rom.RomInfo.unit_maxcount;
+            return rom.getBlockDataCount(baseAddr, block, (i, addr) => i < maxcount);
         }
 
         /// <summary>
@@ -3158,6 +3219,318 @@ namespace FEBuilderGBA
                         return a != 0xFFFF && a != 0;
                     },
                     "SkillAssignmentUnitSkillSystem.Levelup" + i);
+            }
+        }
+
+        // ===================================================================
+        // slice 2o — SkillSystems skill-config / skill-assignment forms
+        // (the RecycleOldAnime-FREE subset). The other Skill forms
+        // (SkillConfigSkillSystemForm / FE8NVer2 / FE8NVer3) STAY deferred:
+        // they call ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime, an
+        // anime length walker not yet in Core (same blocker as the Group-3
+        // ImageUtilOAM/anime forms), plus the Ver2/Ver3 forms read GUI session
+        // state (g_SkillBaseAddress / g_AnimeBaseAddress / g_ICON_LIST_SIZE).
+        //
+        // All base/count scanners are ALREADY in Core, faithfully:
+        //   - SkillSystemTextScanner.SearchSkillSystem  (= WF PatchUtil.SearchSkillSystemLow)
+        //   - SkillSystemPatchScanner.Find{Assign*,Skill}PointerLocation
+        //       (= WF SkillConfigSkillSystemForm.FindSkillPointer, incl. the
+        //        LEVELUP triple-pointer validation + MakeMaskData)
+        //   - SkillSystemTextScanner.FindSkillFE8NVer1/Ver2IconPointers
+        //       (= WF SkillConfigFE8N{,Ver2}SkillForm.FindSkillFE8NVer*IconPointersLow)
+        // and the IFR shapes reuse EmitNestedIfrSub (slice-2i) +
+        // Address.AddAddressInstantIFR + ClassDataCount/UnitDataCount.
+        //
+        // VERSION GATE (corruption-critical): WF (U.MakeAllStructPointersList)
+        // runs these inside `if (is_multibyte == false)` (FE8U) vs `else` (FE8J):
+        //   is_multibyte == false -> SkillAssignmentClass + SkillAssignmentUnit
+        //                            (+ SkillConfigSkillSystem, deferred)
+        //   is_multibyte == true  -> SkillConfigFE8N
+        //                            (+ FE8NVer2, FE8NVer3, deferred)
+        // The producer dispatches on is_multibyte at the call site (in
+        // MakeAllStructPointers), EXACTLY mirroring WF; each emitter ALSO
+        // re-checks SearchSkillSystem (as WF MakeAllDataLength does), so a
+        // non-SkillSystem ROM emits nothing.
+        // ===================================================================
+
+        /// <summary>
+        /// <c>SkillAssignmentClassSkillSystemForm.MakeAllDataLength</c> (slice 2o; FE8U ONLY — gated at
+        /// the WF <c>is_multibyte == false</c> call site). The class -&gt; class-skill assignment table
+        /// plus the per-class level-up skill lists. Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>bail unless <see cref="SkillSystemTextScanner.SkillSystemEnum.SkillSystem"/>;</item>
+        ///   <item>resolve the four pointer SLOTs via the Core scanners
+        ///   (<c>FindSkillPointerLocation("ICON"/"TEXT",0)</c>,
+        ///   <c>FindAssignClassSkillPointerLocation</c>,
+        ///   <c>FindAssignClassLevelUpSkillPointerLocation</c>); if ANY is
+        ///   <see cref="U.NOT_FOUND"/> return (WF checks iconP/textP/assignClassP/assignLevelUpP);</item>
+        ///   <item>main IFR (<c>Init(null, assignClassP)</c>): base <c>p32(assignClassP)</c>, block 1,
+        ///   IsDataExists = <c>i &lt; ClassForm.DataCount() AND (i &lt; 0xFE OR u8(addr) != 0xFF)</c>,
+        ///   name "SkillAssignmentClassSkillSystem", pointerIndexes EMPTY;</item>
+        ///   <item>a level-up POINTER-LIST IFR via <c>AddAddressInstantIFR(assignLevelUpP, 4,
+        ///   mainDataCount, "SkillAssignmentClassLeveList", {0})</c> (fixed count = the MAIN DataCount);</item>
+        ///   <item>per main entry (<c>i &lt; mainDataCount</c>, <c>assignLevelUpAddr = p32(assignLevelUpP) +
+        ///   4*i</c>): if <c>!isSafetyOffset(assignLevelUpAddr)</c> BREAK; <c>levelupList =
+        ///   p32(assignLevelUpAddr)</c>; if <c>!isSafetyOffset(levelupList)</c> CONTINUE; else a nested N1
+        ///   IFR @ <c>assignLevelUpAddr</c> (block 2, rule <c>u16(addr) != 0xFFFF &amp;&amp; != 0</c>),
+        ///   name "SkillAssignmentClassSkillSystem.Levelup" + i.</item>
+        /// </list>
+        /// The N1 nested table is emitted via <see cref="EmitNestedIfrSub"/> (the slice-2i primitive); the
+        /// WF for-loop break/continue ordering is reproduced exactly (the break tests
+        /// <c>assignLevelUpAddr</c> AFTER the for-increment).
+        /// </summary>
+        public static void EmitSkillAssignmentClass(ROM rom, List<Address> list)
+        {
+            if (SkillSystemTextScanner.SearchSkillSystem(rom)
+                != SkillSystemTextScanner.SkillSystemEnum.SkillSystem)
+            {
+                return;
+            }
+
+            uint iconP = SkillSystemPatchScanner.FindSkillPointerLocation(rom, "ICON", 0);
+            uint textP = SkillSystemPatchScanner.FindSkillPointerLocation(rom, "TEXT", 0);
+            uint assignClassP = SkillSystemPatchScanner.FindAssignClassSkillPointerLocation(rom);
+            uint assignLevelUpP = SkillSystemPatchScanner.FindAssignClassLevelUpSkillPointerLocation(rom);
+
+            if (iconP == U.NOT_FOUND) return;
+            if (textP == U.NOT_FOUND) return;
+            if (assignClassP == U.NOT_FOUND) return;
+            if (assignLevelUpP == U.NOT_FOUND) return;
+
+            // Main IFR: Init(null, assignClassP). IsDataExists = i < classDataCount, with a 0xFE+
+            // terminator-byte stop (u8(addr) == 0xFF). classDataCount is captured ONCE (WF captures it
+            // outside the IFR lambda), mirroring the WF closure.
+            uint classDataCount = ClassDataCount(rom);
+            uint mainDataCount = EmitSkillAssignmentMainIfr(rom, list, assignClassP,
+                "SkillAssignmentClassSkillSystem",
+                (i, addr) =>
+                {
+                    if (i >= classDataCount) return false;
+                    if (i >= 0xFE)
+                    {
+                        if (rom.u8(addr) == 0xFF) return false;
+                    }
+                    return true;
+                });
+
+            EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, mainDataCount,
+                "SkillAssignmentClassLeveList", "SkillAssignmentClassSkillSystem.Levelup");
+        }
+
+        /// <summary>
+        /// <c>SkillAssignmentUnitSkillSystemForm.MakeAllDataLength</c> (slice 2o; FE8U ONLY — gated at the
+        /// WF <c>is_multibyte == false</c> call site). The unit -&gt; personal-skill assignment table plus
+        /// the per-unit level-up skill lists. Same shape as <see cref="EmitSkillAssignmentClass"/> with
+        /// the unit scanners, count rule, and names. Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item>bail unless <see cref="SkillSystemTextScanner.SkillSystemEnum.SkillSystem"/>;</item>
+        ///   <item><c>assignUnitP = FindAssignPersonalSkillPointerLocation</c>; if
+        ///   <see cref="U.NOT_FOUND"/> return;</item>
+        ///   <item>main IFR (<c>Init(null, assignUnitP)</c>): base <c>p32(assignUnitP)</c>, block 1,
+        ///   IsDataExists = <c>i &lt; UnitForm.DataCount()</c>, name "SkillAssignmentUnitSkillSystem",
+        ///   pointerIndexes EMPTY;</item>
+        ///   <item><c>assignLevelUpP = FindAssignUnitLevelUpSkillPointerLocation</c>; if
+        ///   <see cref="U.NOT_FOUND"/> return (WF checks this AFTER emitting the main IFR — so a missing
+        ///   level-up pointer still emits the main assignment table);</item>
+        ///   <item>level-up POINTER-LIST IFR via <c>AddAddressInstantIFR(assignLevelUpP, 4, mainDataCount,
+        ///   "SkillAssignmentUnitLeveList", {0})</c>;</item>
+        ///   <item>per main entry: nested N1 IFR @ <c>assignLevelUpAddr</c> (block 2, rule
+        ///   <c>u16(addr) != 0xFFFF &amp;&amp; != 0</c>), name "SkillAssignmentUnitSkillSystem.Levelup" + i.</item>
+        /// </list>
+        /// NOTE the WF ordering difference vs the Class form: the unit form resolves
+        /// <c>assignLevelUpP</c> and returns on NOT_FOUND <i>after</i> emitting the main IFR (the Class
+        /// form resolves all four up front). Reproduced exactly.
+        /// </summary>
+        public static void EmitSkillAssignmentUnit(ROM rom, List<Address> list)
+        {
+            if (SkillSystemTextScanner.SearchSkillSystem(rom)
+                != SkillSystemTextScanner.SkillSystemEnum.SkillSystem)
+            {
+                return;
+            }
+
+            uint assignUnitP = SkillSystemPatchScanner.FindAssignPersonalSkillPointerLocation(rom);
+            if (assignUnitP == U.NOT_FOUND) return;
+
+            // Main IFR: Init(null, assignUnitP). IsDataExists = i < unitDataCount.
+            uint unitDataCount = UnitDataCount(rom);
+            uint mainDataCount = EmitSkillAssignmentMainIfr(rom, list, assignUnitP,
+                "SkillAssignmentUnitSkillSystem",
+                (i, addr) => i < unitDataCount);
+
+            // WF resolves the level-up pointer AFTER the main IFR and returns on NOT_FOUND.
+            uint assignLevelUpP = SkillSystemPatchScanner.FindAssignUnitLevelUpSkillPointerLocation(rom);
+            if (assignLevelUpP == U.NOT_FOUND) return;
+
+            EmitSkillAssignmentLevelUp(rom, list, assignLevelUpP, mainDataCount,
+                "SkillAssignmentUnitLeveList", "SkillAssignmentUnitSkillSystem.Levelup");
+        }
+
+        /// <summary>Shared helper for the Class/Unit skill-assignment MAIN IFR — reproduces
+        /// <c>Init(null, assignP)</c> + <c>AddressWinForms.AddAddress(list, IFR, name, new uint[] {})</c>
+        /// (base = <c>p32(assignP)</c>, block 1, length = <c>1 × (count + 1)</c>, pointer = the slot, or
+        /// <see cref="U.NOT_FOUND"/> if unsafe; pointerIndexes EMPTY). Returns the resolved
+        /// <c>DataCount</c> (the WF <c>InputFormRef.DataCount</c>) so the caller's level-up loop bound and
+        /// <c>AddAddressInstantIFR</c> fixed count match the WF closure — even when the base is unsafe and
+        /// no main Address is emitted (WF would still compute DataCount = 0 over an empty base). The slot
+        /// is guarded (<c>+3</c>) before the <c>p32</c> read.</summary>
+        public static uint EmitSkillAssignmentMainIfr(ROM rom, List<Address> list, uint assignP,
+            string name, Func<int, uint, bool> rule)
+        {
+            const uint block = 1;
+            uint slot = U.toOffset(assignP);
+            if (!U.isSafetyOffset(slot + 3, rom)) return 0;
+            uint baseAddr = rom.p32(slot);
+
+            // WF Init computes DataCount via getBlockDataCount over the (possibly unsafe) base; an unsafe
+            // base yields count 0 (getBlockDataCount returns 0 for addr 0/NOT_FOUND and clamps at EOF).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, rule);
+
+            // AddAddress: emit ONLY when the base is a safe offset (else WF returns without adding).
+            if (U.isSafetyOffset(baseAddr, rom))
+            {
+                uint length = block * (dataCount + 1);
+                uint pointer = U.isSafetyOffset(slot, rom) ? slot : U.NOT_FOUND;
+                list.Add(new Address(baseAddr, length, pointer, name,
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { }));
+            }
+            return dataCount;
+        }
+
+        /// <summary>Shared helper for the Class/Unit skill-assignment LEVEL-UP pointer list — reproduces
+        /// the WF tail VERBATIM:
+        /// <c>AddAddressInstantIFR(list, assignLevelUpP, 4, mainDataCount, listName, {0})</c> followed by
+        /// the per-entry loop (<c>assignLevelUpAddr = p32(assignLevelUpP)</c>, <c>i &lt; mainDataCount</c>,
+        /// <c>+= 4</c>; break on unsafe <c>assignLevelUpAddr</c>, continue on unsafe <c>p32(addr)</c>, else
+        /// a block-2 nested N1 IFR via <see cref="EmitNestedIfrSub"/> named <paramref name="levelupName"/>
+        /// + i). The slot is guarded (<c>+3</c>) before <c>p32(assignLevelUpP)</c>.</summary>
+        public static void EmitSkillAssignmentLevelUp(ROM rom, List<Address> list, uint assignLevelUpP,
+            uint mainDataCount, string listName, string levelupName)
+        {
+            const uint block = 4;
+
+            // EOF guard FIRST: BOTH the AddAddressInstantIFR (which p32s the slot) and the WF
+            // p32(assignLevelUpP) below read the full 4-byte slot. AddAddressInstantIFR's own check is
+            // only isSafetyOffset(pointer) (the START byte) — it would throw on a slot at Data.Length-2.
+            // Guard root+3 once, up front, so a near-EOF slot emits nothing instead of throwing. (WF never
+            // hits this — its slot comes from a valid patch scan — so guarding first is behaviour-neutral
+            // for real ROMs while preserving the WF emit ORDER when the guard passes.)
+            uint slot = U.toOffset(assignLevelUpP);
+            if (!U.isSafetyOffset(slot + 3, rom)) return;
+
+            // AddAddressInstantIFR reproduces the WF "SkillAssignment*LeveList" pointer-list IFR
+            // (fixed count = mainDataCount). It reads CoreState.ROM (== rom by the MakeAllStructPointers
+            // guard) and internally guards the resolved base.
+            Address.AddAddressInstantIFR(list, assignLevelUpP, block, mainDataCount, listName, new uint[] { 0 });
+
+            // Per main entry: WF reads p32(assignLevelUpP) up front, then walks i < mainDataCount.
+            // NOTE the loop bound is the MAIN IFR's DataCount (not a getBlockDataCount over THIS pointer
+            // list), so assignLevelUpAddr can advance past where a 4-byte read is in bounds — guard the
+            // FULL slot (root+3) in the break (WF only checks isSafetyOffset(addr) — the start byte — and
+            // would throw here; the +3 extension is behaviour-neutral on a real ROM whose level-up list is
+            // allocated to mainDataCount entries, and EOF-robust on a truncated/synthetic one).
+            uint assignLevelUpAddr = rom.p32(slot);
+            for (uint i = 0; i < mainDataCount; i++, assignLevelUpAddr += block)
+            {
+                if (!U.isSafetyOffset(assignLevelUpAddr + 3, rom)) break;
+                uint levelupList = rom.p32(assignLevelUpAddr);
+                if (!U.isSafetyOffset(levelupList, rom)) continue;
+
+                // N1_Init: block 2, IsDataExists = u16(addr) != 0xFFFF && u16(addr) != 0.
+                EmitNestedIfrSub(rom, list, assignLevelUpAddr, 2,
+                    (j, addr) =>
+                    {
+                        uint a = rom.u16(addr);
+                        return a != 0xFFFF && a != 0;
+                    },
+                    levelupName + i);
+            }
+        }
+
+        /// <summary>
+        /// <c>SkillConfigFE8NSkillForm.MakeAllDataLength</c> (slice 2o; FE8J ONLY — gated at the WF
+        /// <c>is_multibyte == true</c> / <c>else</c> call site). The FE8N (Ver1) / yugudora / FE8N_ver2
+        /// skill-config icon tables. (Ver3 contributes nothing here — WF returns; the FE8NVer2/Ver3 FORMS
+        /// stay deferred on RecycleOldAnime + GUI state.) Reproduced VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>skill = SearchSkillSystem()</c>; FE8N/yugudora -&gt; Ver1 icon pointers; FE8N_ver3
+        ///   -&gt; return; FE8N_ver2 -&gt; Ver2 icon pointers; else -&gt; return. If the pointer array is
+        ///   null return;</item>
+        ///   <item>main IFR shape (<c>Init(null)</c>): block 32, IsDataExists = <c>u16(addr) != 0xFFFF
+        ///   &amp;&amp; u16(addr) != 0</c>;</item>
+        ///   <item>for each <c>pointer[i]</c>: <c>ReInitPointer(pointer[i])</c> (base = <c>p32(pointer[i])</c>);
+        ///   if the resolved <c>DataCount &lt;= 0</c> CONTINUE (skip — no Address); else
+        ///   <c>AddAddress(list, IFR, "SkillConfigFE8N" + ToHexString(i), {})</c>.</item>
+        /// </list>
+        /// The pointer arrays come from the Core scanners
+        /// (<see cref="SkillSystemTextScanner.FindSkillFE8NVer1IconPointers"/> /
+        /// <see cref="SkillSystemTextScanner.FindSkillFE8NVer2IconPointers"/>), faithful EOF-hardened ports
+        /// of the WF <c>FindSkillFE8NVer*IconPointersLow</c> grep-and-walk. Each per-pointer IFR is emitted
+        /// via <see cref="EmitNestedIfrSub"/> (the slice-2i primitive: base = <c>p32(pointer[i])</c>,
+        /// block 32, length = <c>32 × (count + 1)</c>, pointer = <c>pointer[i]</c>) — but ONLY when the
+        /// computed count is &gt; 0, to reproduce the WF <c>DataCount &lt;= 0 -&gt; continue</c> skip.
+        /// </summary>
+        public static void EmitSkillConfigFE8N(ROM rom, List<Address> list)
+        {
+            uint[] pointer;
+            SkillSystemTextScanner.SkillSystemEnum skill = SkillSystemTextScanner.SearchSkillSystem(rom);
+            if (skill == SkillSystemTextScanner.SkillSystemEnum.FE8N
+                || skill == SkillSystemTextScanner.SkillSystemEnum.yugudora)
+            {
+                pointer = SkillSystemTextScanner.FindSkillFE8NVer1IconPointers(rom);
+            }
+            else if (skill == SkillSystemTextScanner.SkillSystemEnum.FE8N_ver3)
+            {
+                return; // Ver3 does not use this form
+            }
+            else if (skill == SkillSystemTextScanner.SkillSystemEnum.FE8N_ver2)
+            {
+                pointer = SkillSystemTextScanner.FindSkillFE8NVer2IconPointers(rom, out _);
+            }
+            else
+            {
+                return;
+            }
+
+            EmitSkillConfigFE8NAt(rom, list, pointer);
+        }
+
+        /// <summary>SkillConfigFE8N walk from an explicit icon-pointer array (test seam — lets a synthetic
+        /// ROM supply the pointer slots without the FE8N icon-pointer grep / RomInfo). See
+        /// <see cref="EmitSkillConfigFE8N"/> for the verbatim WF reproduction. Emits one block-32 IFR per
+        /// pointer slot whose resolved <c>DataCount &gt; 0</c> (WF's <c>DataCount &lt;= 0 -&gt; continue</c>
+        /// skip), named "SkillConfigFE8N" + ToHexString(i).</summary>
+        public static void EmitSkillConfigFE8NAt(ROM rom, List<Address> list, uint[] pointer)
+        {
+            if (pointer == null) return;
+
+            // Init(null): block 32, IsDataExists = u16(addr) != 0xFFFF && u16(addr) != 0. The N00-N03
+            // unionPrefixList in WF is UI-only (multi-tab editor) and does not affect relocation.
+            const uint block = 32;
+            for (int i = 0; i < pointer.Length; i++)
+            {
+                // WF: ifr.ReInitPointer(pointer[i]); if (ifr.DataCount <= 0) continue;. Reproduce the
+                // DataCount<=0 skip — EmitNestedIfrSub would otherwise emit a length-32 (count 0 -> *1)
+                // Address that WF suppresses.
+                uint slot = U.toOffset(pointer[i]);
+                if (!U.isSafetyOffset(slot + 3, rom)) continue;
+                uint baseAddr = rom.p32(slot);
+                if (!U.isSafetyOffset(baseAddr, rom)) continue;
+                uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                    (j, addr) =>
+                    {
+                        uint pp = rom.u16(addr);
+                        return pp != 0xFFFF && pp != 0;
+                    });
+                if (dataCount <= 0) continue;
+
+                EmitNestedIfrSub(rom, list, pointer[i], block,
+                    (j, addr) =>
+                    {
+                        uint pp = rom.u16(addr);
+                        return pp != 0xFFFF && pp != 0;
+                    },
+                    "SkillConfigFE8N" + U.ToHexString(i));
             }
         }
 
@@ -6031,8 +6404,28 @@ namespace FEBuilderGBA
                 //  AI name lists + isExtrendsROMArea reach Core.)
                 "AIScriptForm",
                 // skills (version/patch dependent)
-                "SkillAssignmentClassSkillSystemForm", "SkillAssignmentUnitSkillSystemForm",
-                "SkillConfigSkillSystemForm", "SkillConfigFE8NSkillForm",
+                // (slice 2o ported the RecycleOldAnime-FREE subset, all dependencies already in Core:
+                //  SkillAssignmentClassSkillSystemForm + SkillAssignmentUnitSkillSystemForm [FE8U,
+                //    is_multibyte==false] — EmitSkillAssignmentClass / EmitSkillAssignmentUnit: the
+                //    SearchSkillSystem gate + Find{Assign*,Skill}PointerLocation scanners (Core
+                //    SkillSystemTextScanner / SkillSystemPatchScanner, verbatim WF ports), a main block-1
+                //    IFR (count = ClassDataCount / UnitDataCount, the Core ClassForm/UnitForm.DataCount
+                //    ports), an AddAddressInstantIFR level-up pointer list, and a per-entry block-2 nested
+                //    N1 IFR via the slice-2i EmitNestedIfrSub primitive.
+                //  SkillConfigFE8NSkillForm [FE8J, is_multibyte==true] — EmitSkillConfigFE8N: the FE8N
+                //    (Ver1)/yugudora/FE8N_ver2 icon tables (Ver3 contributes nothing), pointers from
+                //    SkillSystemTextScanner.FindSkillFE8NVer1/Ver2IconPointers, each a per-pointer block-32
+                //    IFR with the WF DataCount<=0 skip.
+                //  The RecycleOldAnime-DEPENDENT siblings STAY: each calls
+                //  ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime (an anime length walker not yet in
+                //  Core — same blocker class as the Group-3 ImageUtilOAM forms):
+                //    SkillConfigSkillSystemForm [FE8U] — Init(null, basetextP) IFR + a per-anime loop that
+                //      calls RecycleOldAnime on each p32(g_AnimeBaseAddress + 4*i).
+                //    SkillConfigFE8NVer2SkillForm / SkillConfigFE8NVer3SkillForm [FE8J] — RecycleOldAnime
+                //      AND GUI session state (g_SkillBaseAddress / g_AnimeBaseAddress / g_ICON_LIST_SIZE set
+                //      by the Find* scans) + N1..N5 icon sub-tables. Deferred until RecycleOldAnime is in
+                //      Core.)
+                "SkillConfigSkillSystemForm",
                 "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer3SkillForm",
                 // status / menu definition / misc tables needing extra logic
                 // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.
