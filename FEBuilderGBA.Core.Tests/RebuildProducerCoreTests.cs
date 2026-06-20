@@ -6163,8 +6163,9 @@ namespace FEBuilderGBA.Core.Tests
 
             // OtherTextForm STAYS — it iterates a config FILE (other_text_*), not a RomInfo table.
             Assert.Contains("OtherTextForm", notYet);
-            // ImageUnitMoveIconFrom STAYS — its AP length needs ImageUtilAP.CalcAPLength (not in Core).
-            Assert.Contains("ImageUnitMoveIconFrom", notYet);
+            // ImageUnitMoveIconFrom is PORTED in slice 2n (ImageUtilAPCore.CalcAPLength is in Core) ->
+            // it must be GONE (see GetNotYetPortedForms_DropsSlice2nMoveIcon_KeepsDeferredSiblings).
+            Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
             // MapSettingForm STAYS — its count rule needs the WF cached text count.
             Assert.Contains("MapSettingForm", notYet);
 
@@ -6214,6 +6215,301 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
             }
+        }
+
+        // ====================================================================
+        // slice 2n: ImageUnitMoveIconFrom — AP (Animated-Parts) per-entry column
+        // ====================================================================
+
+        /// <summary>Hand-author a VALID, minimal AP (Animated-Parts) stream of a KNOWN length at
+        /// <paramref name="baseOff"/> and return that length. The layout (all offsets relative to base,
+        /// little-endian u16) is traced against ImageUtilAPCore.Parse / WF ImageUtilAP.Parse:
+        /// <list type="bullet">
+        ///   <item>+0  frameDataOffset = 8  (frame-pointer table at base+8)</item>
+        ///   <item>+2  animeTableOffset = 10 (anime-pointer table at base+10)</item>
+        ///   <item>+8  frame-ptr table: ONE u16 = 4 -> frame block at base+8+4 = base+12; minData = 4</item>
+        ///   <item>+10 anime-ptr table: ONE u16 = 10 -> anime block at base+10+10 = base+20</item>
+        ///   <item>+12 frame block: u16 count = 1, then 1 OAM (6 bytes) -> ends at base+20</item>
+        ///   <item>+20 anime block: {wait=5,frame=0}, {wait=0,frame=0} terminator -> ends at base+28</item>
+        /// </list>
+        /// Max extent = 28 (already 4-aligned), so GetLength() = Padding4(28) = 28. The frame-ptr table
+        /// [base+8,base+10) is exactly one u16; the anime-ptr table [base+10, base+8+minData=base+12) is
+        /// exactly one u16.</summary>
+        static uint WriteKnownAP(ROM rom, uint baseOff)
+        {
+            rom.write_u16(baseOff + 0, 8);    // frameDataOffset
+            rom.write_u16(baseOff + 2, 10);   // animeTableOffset
+            rom.write_u16(baseOff + 8, 4);    // frame-ptr table entry -> frame block @ base+12
+            rom.write_u16(baseOff + 10, 10);  // anime-ptr table entry -> anime block @ base+20
+            rom.write_u16(baseOff + 12, 1);   // frame count = 1
+            for (uint k = 14; k < 20; k++) rom.write_u8(baseOff + k, 0x11); // 1 OAM (6 bytes)
+            rom.write_u16(baseOff + 20, 5);   // anime rec1: wait=5
+            rom.write_u16(baseOff + 22, 0);   //            frame=0
+            rom.write_u16(baseOff + 24, 0);   // anime rec2: wait=0 -> terminator
+            rom.write_u16(baseOff + 26, 0);   //            frame=0
+            uint len = ImageUtilAPCore.CalcAPLength(rom.Data, baseOff);
+            Assert.Equal(28u, len); // hand-traced known length (must match the Core/WF parser)
+            return len;
+        }
+
+        [Fact]
+        public void EmitApPointer_EmitsAP_WithCalcAPLength()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointer = 0x0240;
+            uint apData = 0x2000;
+            uint expectLen = WriteKnownAP(rom, apData); // 28
+            rom.write_u32(pointer, Ptr(apData));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitApPointer(rom, list, pointer, "MoveUnitIcon 0x0 AP");
+
+            Address ap = Assert.Single(list);
+            Assert.Equal(Address.DataTypeEnum.AP, ap.DataType);
+            Assert.Equal(apData, ap.Addr);
+            Assert.Equal(expectLen, ap.Length);
+            Assert.Equal(ImageUtilAPCore.CalcAPLength(rom.Data, apData), ap.Length);
+            Assert.Equal(pointer, ap.Pointer);
+            Assert.Equal("MoveUnitIcon 0x0 AP", ap.Info);
+        }
+
+        [Fact]
+        public void EmitApPointer_NullPointerSlot_NoEmit()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointer = 0x0240;
+            rom.write_u32(pointer, 0); // NULL target -> isSafetyPointer false -> no emit
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitApPointer(rom, list, pointer, "AP"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitApPointer_PointerSlotNearEof_NoThrow_NoEmit()
+        {
+            var rom = CreateTestRom(0x1000);
+            // Pointer slot itself within 4 bytes of EOF -> the pointer+4 EOF guard rejects before the u32.
+            uint pointer = (uint)rom.Data.Length - 2;
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitApPointer(rom, list, pointer, "AP"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitApPointer_MalformedAPTarget_EmitsLengthZero_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            uint pointer = 0x0240;
+            uint apData = 0x2000;
+            // animeTableOffset huge -> frame-end (base+animeTableOffset) past EOF -> Parse returns false
+            // -> CalcAPLength returns 0. The Address is still emitted (the slot is relocated), length 0.
+            rom.write_u16(apData + 0, 4);       // frameDataOffset
+            rom.write_u16(apData + 2, 0xFFFF);  // animeTableOffset -> base+0xFFFF past 0x8000 ROM end
+            rom.write_u32(pointer, Ptr(apData));
+            Assert.Equal(0u, ImageUtilAPCore.CalcAPLength(rom.Data, apData)); // confirm unparseable
+
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitApPointer(rom, list, pointer, "AP"));
+            Assert.Null(ex);
+            Address ap = Assert.Single(list);
+            Assert.Equal(Address.DataTypeEnum.AP, ap.DataType);
+            Assert.Equal(apData, ap.Addr);
+            Assert.Equal(0u, ap.Length); // malformed -> length 0 (WF parity)
+        }
+
+        [Fact]
+        public void SubWalk_ApPointer_EmitsAP_ThroughWalkAndAdd()
+        {
+            var rom = CreateTestRom(0x8000);
+            // One-entry table at 0x1000, block 8. Entry +0 -> LZ77 image, entry +4 -> AP stream.
+            uint table = 0x1000;
+            uint pointer = 0x0240;
+            uint imageData = 0x2000;
+            uint apData = 0x3000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0, Ptr(imageData)); // embedded image pointer @ +0
+            rom.write_u32(table + 4, Ptr(apData));    // embedded AP pointer @ +4
+            uint imgLen = WriteLz77AllLiteral(rom, imageData, 100);
+            uint apLen = WriteKnownAP(rom, apData); // 28
+
+            var d = new RebuildProducerCore.StructDescriptor
+            {
+                Name = "MoveUnitIcon",
+                PointerField = _ => pointer,
+                BlockSize = 8,
+                Rule = RebuildProducerCore.DataCountRule.FixedCount,
+                RuleFixedCount = 1,
+                PointerIndexes = new uint[] { 0, 4 },
+                SubWalks = new List<RebuildProducerCore.SubWalk>
+                {
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 0,
+                        Kind = RebuildProducerCore.SubKind.Lz77Pointer,
+                        DataType = Address.DataTypeEnum.LZ77IMG,
+                        Name = (r, i) => "MoveUnitIcon " + U.To0xHexString((uint)i),
+                    },
+                    new RebuildProducerCore.SubWalk
+                    {
+                        EmbeddedPointerOffset = 4,
+                        Kind = RebuildProducerCore.SubKind.ApPointer,
+                        Name = (r, i) => "MoveUnitIcon " + U.To0xHexString((uint)i) + " AP",
+                    },
+                },
+            };
+
+            var list = new List<Address>();
+            RebuildProducerCore.WalkAndAdd(rom, list, d);
+
+            // main IFR (block*(1+1)=16), the LZ77IMG image, and the AP stream.
+            Address img = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+            Assert.Equal(imageData, img.Addr);
+            Assert.Equal(imgLen, img.Length);
+            Assert.Equal(table + 0, img.Pointer);
+
+            Address ap = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.AP);
+            Assert.Equal(apData, ap.Addr);
+            Assert.Equal(apLen, ap.Length);
+            Assert.Equal(table + 4, ap.Pointer); // embedded AP pointer field
+            // WF per-entry name = U.To0xHexString(i) -> "0x00" for i=0 (2-digit min); + " AP".
+            Assert.Equal("MoveUnitIcon 0x00 AP", ap.Info);
+
+            // Per-entry WF order: LZ77 (image) is emitted BEFORE the AP column.
+            int imgIdx = list.FindIndex(a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+            int apIdx = list.FindIndex(a => a.DataType == Address.DataTypeEnum.AP);
+            Assert.True(imgIdx < apIdx, "WF emits AddLZ77Pointer before AddAPPointer per entry");
+        }
+
+        [Fact]
+        public void MoveUnitIconDescriptor_HasExpectedShape()
+        {
+            // BuildBatchDescriptors reads rom.RomInfo.version (Class FE6-vs-FE78 branch), so it needs a
+            // versioned ROM (CreateTestRom has a NULL RomInfo).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                var descs = RebuildProducerCore.BuildBatchDescriptors(fe8);
+                var mui = descs.Single(d => d.Name == "MoveUnitIcon");
+
+                Assert.Equal(8u, mui.BlockSize);
+                Assert.Equal(RebuildProducerCore.DataCountRule.MoveIconRule, mui.Rule);
+                Assert.Equal(0u, mui.RuleOffset);
+                Assert.Equal(new uint[] { 0, 4 }, mui.PointerIndexes);
+                Assert.NotNull(mui.SubWalks);
+                Assert.Equal(2, mui.SubWalks.Count);
+                // @0 -> LZ77IMG (the sheet), @4 -> AP (the move-anime stream).
+                var lz = mui.SubWalks.Single(s => s.EmbeddedPointerOffset == 0);
+                Assert.Equal(RebuildProducerCore.SubKind.Lz77Pointer, lz.Kind);
+                Assert.Equal(Address.DataTypeEnum.LZ77IMG, lz.DataType);
+                var ap = mui.SubWalks.Single(s => s.EmbeddedPointerOffset == 4);
+                Assert.Equal(RebuildProducerCore.SubKind.ApPointer, ap.Kind);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        [Fact]
+        public void MoveIconRule_ClassCountBounded_AndPointerOrNull()
+        {
+            // The MoveIcon table count is bounded by the class table (ClassDataCount, clamped/decremented),
+            // and per entry (after 0) requires isPointerOrNULL(u32+0). Use a versioned ROM so RomInfo
+            // (class_pointer/class_datasize/unit_move_icon_pointer) is populated.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+
+                // --- Plant a small class table so ClassDataCount returns a known small number. ---
+                uint cblock = fe8.RomInfo.class_datasize;
+                Assert.True(cblock > 0);
+                uint classPtrLoc = U.toOffset(fe8.RomInfo.class_pointer);
+                uint classTable = 0x300000;
+                fe8.write_u32(classPtrLoc, Ptr(classTable));
+                // entry 0 always; entry1 u8(+4)=1; entry2 u8(+4)=2; entry3 u8(+4)=0 -> stop => count 3.
+                fe8.write_u8(classTable + 1 * cblock + 4, 1);
+                fe8.write_u8(classTable + 2 * cblock + 4, 2);
+                Assert.Equal(3u, RebuildProducerCore.ClassDataCount(fe8));
+                // classCount=3 -> clamp keeps 3 (in [0x7f? no: 3 < 0x7f] => actually <=0 check only).
+                // WF: if(<=0)0x7f; else if(>0xff)0xff. 3 stays 3. classCount-- => 2. So i>=2 stops:
+                // entries i=0 and i=1 only.
+
+                // --- Plant the move-icon table. ---
+                uint muiPtrLoc = U.toOffset(fe8.RomInfo.unit_move_icon_pointer);
+                uint muiTable = 0x310000;
+                fe8.write_u32(muiPtrLoc, Ptr(muiTable));
+                // entry0 (+0 image, +4 AP) — always counted (i==0).
+                uint img0 = 0x320000, ap0 = 0x330000;
+                fe8.write_u32(muiTable + 0 * 8 + 0, Ptr(img0));
+                fe8.write_u32(muiTable + 0 * 8 + 4, Ptr(ap0));
+                WriteLz77AllLiteral(fe8, img0, 40);
+                WriteKnownAP(fe8, ap0);
+                // entry1 (+0 image NULL is allowed by isPointerOrNULL) — counted (i<classCount=2).
+                fe8.write_u32(muiTable + 1 * 8 + 0, 0); // NULL image pointer (isPointerOrNULL true)
+                fe8.write_u32(muiTable + 1 * 8 + 4, 0); // NULL AP -> no AP emit for this entry
+                // entry2 would be i>=2 -> stopped by the class cap regardless of content.
+                fe8.write_u32(muiTable + 2 * 8 + 0, Ptr(0x340000));
+                fe8.write_u32(muiTable + 2 * 8 + 4, Ptr(0x340000));
+
+                var d = RebuildProducerCore.BuildBatchDescriptors(fe8).Single(x => x.Name == "MoveUnitIcon");
+                var list = new List<Address>();
+                RebuildProducerCore.WalkAndAdd(fe8, list, d);
+
+                // Main IFR present with the move-icon base.
+                Address main = Assert.Single(list, a => a.Info == "MoveUnitIcon");
+                Assert.Equal(muiTable, main.Addr);
+                // DataCount = 2 (entries 0,1) -> length = 8*(2+1) = 24.
+                Assert.Equal(8u * (2u + 1u), main.Length);
+
+                // Exactly ONE AP Address (entry0); entry1 AP is NULL (no emit); entry2 is past the cap.
+                Address ap = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.AP);
+                Assert.Equal(ap0, ap.Addr);
+                Assert.Equal(28u, ap.Length);
+                // Exactly ONE LZ77IMG (entry0); entry1 image is NULL.
+                Address img = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+                Assert.Equal(img0, img.Addr);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        // ---- coverage tracker: slice 2n drops ImageUnitMoveIconFrom ----------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2nMoveIcon_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2n ports ImageUnitMoveIconFrom (AP per-entry column).
+            Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
+
+            // Sibling image forms blocked on an un-ported subsystem STAY:
+            foreach (var kept in new[]
+            {
+                "ImageBattleAnimeForm",      // ImageUtilOAM
+                "ImageMagicFEditorForm",     // ImageUtil*.RecycleOldAnime
+                "ImageItemIconForm",         // out-of-scope icon-SHEET IFR
+                "ImageRomAnimeForm",         // config-file table
+                "ImageTSAAnimeForm", "ImageTSAAnime2Form",
+                "ImagePortraitForm",         // IsHalfBodyFlag runtime header
+            })
+            {
+                Assert.Contains(kept, notYet);
+            }
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
         }
     }
 }
