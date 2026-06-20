@@ -1,0 +1,254 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using FEBuilderGBA;
+using Xunit;
+
+namespace FEBuilderGBA.Tests.Unit
+{
+    /// <summary>
+    /// WF-parity validation harness for the cross-platform ROM-rebuild PRODUCER (#1261 slice 2z-wire).
+    /// <para>
+    /// Proves the Core producer (<see cref="RebuildProducerCore.MakeAllStructPointers"/> +
+    /// <see cref="RebuildProducerCore.AppendAllAsmStructPointers"/>) is byte-faithful to the WinForms
+    /// producer (<c>U.MakeAllStructPointersList</c> + <c>U.AppendAllASMStructPointersList</c>) for every
+    /// form Core has ported. This test MUST live in <c>FEBuilderGBA.Tests</c> (net9.0-windows) because it
+    /// calls the WinForms <c>U</c> producer, which does not exist in the net9.0 Core assembly.
+    /// </para>
+    /// <para>
+    /// <b>Comparison model.</b> WinForms runs every form (including the deferred ones — PatchForm and the
+    /// data-path forms Core has not yet ported); Core runs only the ported subset. So WF's list is a
+    /// SUPERSET. The faithful, regression-proof assertion is therefore:
+    /// <list type="bullet">
+    ///   <item>Every Core entry (keyed by <c>Addr</c>/<c>Length</c>/<c>Pointer</c>/<c>DataType</c>) MUST
+    ///   appear in the WF list — i.e. Core ⊆ WF. A <b>Core-extra</b> (Core emits an entry WF does not)
+    ///   is a real faithfulness regression and FAILS the test with a dump of the first differing entries.</item>
+    ///   <item><b>WF-extras</b> (WF emits entries Core lacks) are EXPECTED — they are the deferred forms
+    ///   (PatchForm + the still-un-ported data-path forms). They are logged but do not fail the test;
+    ///   isolating them here is exactly what keeps PatchForm's known-deferred contribution from masking a
+    ///   real Core regression.</item>
+    ///   <item><b>GraphicsTool LZ77 re-discoveries</b> are the ONE documented, root-caused class of
+    ///   expected Core-extra. The slice-2y GraphicsTool whole-ROM LZ77 scan ignores every image address
+    ///   already in <c>list</c> (<c>MakeIgnoreDictionnaryFromList</c>). WF runs ALL data forms first, so
+    ///   its list claims those images and WF's GraphicsTool ignores them; Core DEFERS some of those forms,
+    ///   so their image addresses are not in Core's list and Core's GraphicsTool legitimately re-discovers
+    ///   them as <c>LZ77IMG</c>. Such a Core-extra is always a <c>LZ77IMG</c> whose data address WF ALSO
+    ///   covers (it is in WF's list via the deferred form). They are bounded and vanish as the deferred
+    ///   forms are ported. The test still FAILS on any Core-extra that is NOT this exact shape (a non-
+    ///   LZ77IMG extra, or a LZ77IMG at an address WF does not know at all = a real regression).</item>
+    /// </list>
+    /// The <c>Info</c>/name field is INFORMATIONAL only (a documented cosmetic divergence — Core and WF
+    /// name some entries differently); name mismatches are never asserted.
+    /// </para>
+    /// <para>
+    /// <b>LDR map.</b> Both sides build the ASM-path LDR map with the SAME WF rebuild args
+    /// (<c>MakeLDRMap(.., 0x100, compress_image_borderline_address, true)</c> — bounded + pointer-only,
+    /// per <c>ToolROMRebuildMake.cs:818</c>), so the ASM producers receive identical input. Core uses
+    /// <see cref="RebuildProducerCore.BuildRebuildLdrMap"/>, which reproduces exactly that.
+    /// </para>
+    /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / most worktrees,
+    /// present in the user's main checkout). When no ROM is found the test returns early (skips) and
+    /// never fails CI.</para>
+    /// </summary>
+    public class RebuildProducerWFParityTests
+    {
+        // WF rebuild flags — match the ToolROMRebuildMake.Make defaults (ToolROMRebuildMake.cs:820-826).
+        const bool IS_PATCH_INSTALL_ONLY = true;
+        const bool IS_PATCH_POINTER_ONLY = false;
+        const bool IS_PATCH_STRUCT_ONLY = false;
+        const bool IS_USE_OTHER_GRAPHICS = true;
+        const bool IS_USE_OAMSP = false;
+
+        [Fact]
+        public void CoreProducer_IsSubsetOf_WinFormsProducer_ForAllPortedForms()
+        {
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return; // cannot locate the solution — skip
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // SKIP-IF-NO-ROM (gitignored, absent in CI)
+
+            // CoreState.BaseDirectory lets the config/patch trees + producer config files resolve.
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                // Skip the WinForms background AsmMap cache rebuild (test-only): the producer only needs
+                // the synchronous base symbol table. Program.IsCommandLine has a private setter.
+                ForceCommandLineMode();
+
+                // Replicate the WinForms Main() pre-init that LoadROM/InitSystem assumes (Program.cs
+                // L60-68): Program.BaseDirectory + a non-null Program.Config. Without them
+                // OptionForm.lang_low() NREs on Program.Config inside InitSystem. The WF app normally
+                // does this in Main; a headless test must do it before the first LoadROM.
+                BootstrapWinFormsProgram(repoRoot);
+
+                // Full WinForms ROM load — populates Program.ROM, every InputFormRef registry, the
+                // PatchForm CheckIF scan, and all PreLoadResource config the WF producer reads.
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // skip if the ROM did not load
+                if (Program.ROM.RomInfo.version != 8) return; // this harness is calibrated on FE8U
+
+                // ---- WinForms producer (the parity reference) ----
+                List<Address> wf = U.MakeAllStructPointersList(false);
+                List<DisassemblerTrumb.LDRPointer> ldrmap = DisassemblerTrumb.MakeLDRMap(
+                    Program.ROM.Data, 0x100, Program.ROM.RomInfo.compress_image_borderline_address, true);
+                U.AppendAllASMStructPointersList(wf, ldrmap,
+                    isPatchInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isPatchPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isPatchStructOnly: IS_PATCH_STRUCT_ONLY,
+                    isUseOtherGraphics: IS_USE_OTHER_GRAPHICS,
+                    isUseOAMSP: IS_USE_OAMSP);
+
+                // ---- Core producer (same flags, same rebuild LDR map) ----
+                RebuildProducerCore.ProducerResult coreData =
+                    RebuildProducerCore.MakeAllStructPointers(Program.ROM);
+                List<DisassemblerTrumb.LDRPointer> coreLdr =
+                    RebuildProducerCore.BuildRebuildLdrMap(Program.ROM);
+                RebuildProducerCore.AppendAllAsmStructPointers(
+                    Program.ROM, coreData.List, coreLdr,
+                    isUseOtherGraphics: IS_USE_OTHER_GRAPHICS, isUseOAMSP: IS_USE_OAMSP);
+                List<Address> core = coreData.List;
+
+                Assert.NotEmpty(wf);
+                Assert.NotEmpty(core);
+
+                // Key on the load-bearing fields (Addr, Length, Pointer, DataType). Name/Info is cosmetic.
+                var wfKeys = new HashSet<Key>(wf.Select(Key.Of));
+                var coreKeys = new HashSet<Key>(core.Select(Key.Of));
+                var wfAddrs = new HashSet<uint>(wf.Select(a => a.Addr));
+
+                // Core entries WF does NOT emit on all 4 fields (Addr/Length/Pointer/DataType).
+                var coreExtras = core.Where(a => !wfKeys.Contains(Key.Of(a))).ToList();
+                // WF-extras = the deferred forms WF still emits (PatchForm + un-ported data-path forms).
+                int wfExtraCount = wfKeys.Count(k => !coreKeys.Contains(k));
+
+                // ---- isolate the ONE documented, root-caused class of expected divergence ----
+                // GraphicsTool LZ77 whole-ROM scan (slice 2y) ignores every image-data address already in
+                // `list` (MakeIgnoreDictionnaryFromList adds a.Addr for each entry). WF runs ALL data forms
+                // first, so its list already claims the images those forms own and WF's GraphicsTool ignores
+                // them. Core DEFERS some of those forms, so their image addresses are NOT in Core's list and
+                // Core's GraphicsTool legitimately RE-DISCOVERS them as LZ77IMG. These are EXPECTED: each
+                // such Core-extra is a LZ77IMG whose data address WF ALSO covers (it is in WF's list, just
+                // via the deferred form's entry, not a GraphicsTool one). When those forms are ported, the
+                // extras vanish. They are bounded and never mask a real regression because we still FAIL on
+                // any Core-extra that is NOT this exact shape.
+                var expectedGfxReDiscovery = coreExtras
+                    .Where(a => a.DataType == Address.DataTypeEnum.LZ77IMG && wfAddrs.Contains(a.Addr))
+                    .ToList();
+                // A REAL regression = a Core-extra that is NOT an expected GraphicsTool re-discovery:
+                // either a non-LZ77IMG entry, or a LZ77IMG at an address WF does not know at all.
+                var realRegressions = coreExtras
+                    .Where(a => !(a.DataType == Address.DataTypeEnum.LZ77IMG && wfAddrs.Contains(a.Addr)))
+                    .Select(Key.Of).Distinct().ToList();
+
+                if (realRegressions.Count > 0)
+                {
+                    const int N = 30;
+                    string dump = string.Join("\n", realRegressions.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"
+                        + $" wfHasAddr={wfAddrs.Contains(k.Addr)}"));
+                    Assert.Fail(
+                        $"Core producer emitted {realRegressions.Count} entr{(realRegressions.Count == 1 ? "y" : "ies")} "
+                        + "NOT present in the WinForms producer and NOT an expected GraphicsTool re-discovery "
+                        + "(faithfulness regression).\n"
+                        + $"WF total={wf.Count}, Core total={core.Count}, WF-only (deferred forms)={wfExtraCount}, "
+                        + $"expected GraphicsTool re-discoveries={expectedGfxReDiscovery.Count}.\n"
+                        + $"First {Math.Min(N, realRegressions.Count)} unexpected Core-only entries:\n{dump}");
+                }
+
+                // PROVEN: every Core entry is either byte-identical to a WF entry OR a documented, bounded
+                // GraphicsTool re-discovery of an image WF already covers via a deferred form. No real
+                // faithfulness regression across the ported forms.
+                Assert.Empty(realRegressions);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        readonly struct Key : IEquatable<Key>
+        {
+            public readonly uint Addr;
+            public readonly uint Length;
+            public readonly uint Pointer;
+            public readonly Address.DataTypeEnum Type;
+            Key(uint addr, uint length, uint pointer, Address.DataTypeEnum type)
+            {
+                Addr = addr; Length = length; Pointer = pointer; Type = type;
+            }
+            public static Key Of(Address a) => new Key(a.Addr, a.Length, a.Pointer, a.DataType);
+            public bool Equals(Key o) => Addr == o.Addr && Length == o.Length
+                                          && Pointer == o.Pointer && Type == o.Type;
+            public override bool Equals(object? o) => o is Key k && Equals(k);
+            public override int GetHashCode() => HashCode.Combine(Addr, Length, Pointer, (int)Type);
+        }
+
+        // Program.IsCommandLine has a private setter; force it on for headless test init.
+        static void ForceCommandLineMode()
+        {
+            try
+            {
+                PropertyInfo? p = typeof(Program).GetProperty(
+                    "IsCommandLine", BindingFlags.Public | BindingFlags.Static);
+                p?.SetValue(null, true, BindingFlags.NonPublic | BindingFlags.Instance, null, null, null);
+            }
+            catch
+            {
+                // Non-fatal: without it InitSystem just runs the synchronous ClearCache instead.
+            }
+        }
+
+        /// <summary>
+        /// Replicate the minimal WinForms <c>Program.Main</c> pre-init that <c>Program.LoadROM</c> →
+        /// <c>InitSystem</c> assumes (Program.cs L60-68): <c>Program.BaseDirectory</c> pointed at the repo
+        /// root (so config/translate trees resolve) and a non-null <c>Program.Config</c> (so
+        /// <c>OptionForm.lang_low()</c> does not NRE). Both have private/internal setters, so this uses
+        /// reflection — strictly test-only setup. <c>Config.at("func_lang","auto")</c> falls back to "auto"
+        /// when <c>config.xml</c> is absent, so an empty Config instance is sufficient.
+        /// </summary>
+        static void BootstrapWinFormsProgram(string repoRoot)
+        {
+            Type prog = typeof(Program);
+
+            // Program.BaseDirectory = repoRoot (private static setter).
+            PropertyInfo? baseDirProp = prog.GetProperty(
+                "BaseDirectory", BindingFlags.Public | BindingFlags.Static);
+            baseDirProp?.SetValue(null, repoRoot);
+
+            // Program.Config = new ConfigWinForms(); Config.Load(repoRoot/config/config.xml).
+            // ConfigWinForms is internal to the FEBuilderGBA assembly — construct it via reflection.
+            PropertyInfo? configProp = prog.GetProperty(
+                "Config", BindingFlags.Public | BindingFlags.Static);
+            if (configProp != null && configProp.GetValue(null) == null)
+            {
+                Type? configType = prog.Assembly.GetType("FEBuilderGBA.ConfigWinForms");
+                if (configType != null)
+                {
+                    object? cfg = Activator.CreateInstance(configType, nonPublic: true);
+                    if (cfg != null)
+                    {
+                        MethodInfo? load = configType.GetMethod("Load", new[] { typeof(string) });
+                        load?.Invoke(cfg, new object[] { Path.Combine(repoRoot, "config", "config.xml") });
+                        configProp.SetValue(null, cfg);
+                        CoreState.Config = (Config)cfg;
+                    }
+                }
+            }
+        }
+
+        static string? FindRepoRoot()
+        {
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            for (int i = 0; i < 12 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+    }
+}
