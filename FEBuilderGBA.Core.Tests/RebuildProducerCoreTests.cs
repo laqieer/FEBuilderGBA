@@ -451,10 +451,11 @@ namespace FEBuilderGBA.Core.Tests
             //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("OtherTextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
-            // (SongTableForm is ported in slice 2r — see
-            //  GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings. AIScriptForm stays deferred
-            //  on its per-entry NAME resolver, so it tracks the still-deferred coverage here.)
-            Assert.Contains("AIScriptForm", notYet);
+            // (SongTableForm is ported in slice 2r; AIScriptForm + ImageBattleAnimeForm in slice 2s —
+            //  see GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings. EventCondForm above
+            //  still tracks the deferred coverage here.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
             // patch detection. (ClassForm WAS deferred for its MoveCost sub-blocks but is ported in
             // slice 2c — see GetNotYetPortedForms_DropsSlice2cCoveredForms_KeepsDeferredSiblings.)
@@ -484,8 +485,9 @@ namespace FEBuilderGBA.Core.Tests
             // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g; the MapTerrain
             //  lookup tables are now PORTED in slice 2j — see
             //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings. SongTableForm is now
-            //  PORTED in slice 2r — see GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings.)
-            Assert.Contains("AIScriptForm", notYet);               // AI name resolver (GetAIName1/2) not in Core
+            //  PORTED in slice 2r; AIScriptForm + ImageBattleAnimeForm in slice 2s — see
+            //  GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
         }
 
         [Fact]
@@ -1720,12 +1722,17 @@ namespace FEBuilderGBA.Core.Tests
                 //  ported in slice 2h -> no longer kept here. OPClassDemoForm + OPClassDemoFE7Form ported
                 //  in slice 2i -> no longer kept here. MapTerrain{BG,Floor}LookupTableForm + MapPointerForm
                 //  + ExtraUnitForm + ExtraUnitFE8UForm ported in slice 2j -> no longer kept here.
-                //  SoundRoomForm + SongTableForm + MapSettingForm ported in slice 2r -> no longer kept here.)
-                "ItemForm", "AIScriptForm", "ImageBattleAnimeForm",
+                //  SoundRoomForm + SongTableForm + MapSettingForm ported in slice 2r -> no longer kept here.
+                //  AIScriptForm + ImageBattleAnimeForm ported in slice 2s -> no longer kept here.)
+                "ItemForm",
             })
             {
                 Assert.Contains(kept, notYet);
             }
+
+            // slice 2s ported AIScriptForm + ImageBattleAnimeForm -> they must now be GONE.
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
         }
 
         [Fact]
@@ -2312,8 +2319,8 @@ namespace FEBuilderGBA.Core.Tests
             // sibling forms that genuinely still need un-ported subsystems STAY.
             Assert.Contains("ItemForm", notYet);
             // (SoundRoomForm ported in slice 2r — see GetNotYetPortedForms_DropsSlice2rForms; AIScriptForm
-            //  stays deferred on its AI name resolver.)
-            Assert.Contains("AIScriptForm", notYet);
+            //  ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
             // (ItemWeaponEffectForm ported in slice 2l — see GetNotYetPortedForms_DropsSlice2lCoveredForms.)
         }
 
@@ -3071,8 +3078,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageCGForm", notYet);
             Assert.DoesNotContain("ImageSystemIconForm", notYet);
             Assert.DoesNotContain("WorldMapImageForm", notYet);
-            // still deferred (need ImageUtil OAM / runtime-inspection subsystems):
-            Assert.Contains("ImageBattleAnimeForm", notYet);
+            // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+            // still deferred (runtime-inspection / out-of-scope subsystems):
             Assert.Contains("ImagePortraitForm", notYet);
             Assert.Contains("ImageItemIconForm", notYet);
             // (ImageTSAAnimeForm / ImageTSAAnime2Form were the config-file TSA-anime siblings here; slice
@@ -3497,8 +3505,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ItemUsagePointerForm", notYet);
             Assert.DoesNotContain("UnitFE6Form", notYet);
 
+            // (AIScriptForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("AIScriptForm", notYet);              // AI bytecode CalcLength + nested LZ77
             Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
             Assert.Contains("MonsterWMapProbabilityForm", notYet);// EventScriptForm.ScanScript skirmish
             // (the 5 map-PLIST forms that were deferred "for slice size" here are now PORTED in slice 2g
@@ -5225,12 +5234,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ExtraUnitFE8UForm", notYet);
 
             // Still deferred (real missing-Core blocker) -> must REMAIN:
-            // (SongTableForm / SoundRoomForm / MapSettingForm are ported in slice 2r — see
-            //  GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings. AIScriptForm stays deferred on
-            //  its AI name resolver, ImageBattleAnimeForm on ImageUtilOAM.)
-            Assert.Contains("AIScriptForm", notYet);                    // AI name resolver (GetAIName1/2)
+            // (SongTableForm / SoundRoomForm / MapSettingForm are ported in slice 2r; AIScriptForm +
+            //  ImageBattleAnimeForm in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet); // NewAllocData = editor session state
-            Assert.Contains("ImageBattleAnimeForm", notYet);            // ImageUtilOAM seat-image walk
             Assert.Contains("ItemForm", notYet);                        // StatBooster size via PatchUtil
 
             // the no-duplicates invariant still holds after the edits.
@@ -5610,8 +5618,9 @@ namespace FEBuilderGBA.Core.Tests
             //  2q ports them — see GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
             Assert.DoesNotContain("ImageTSAAnimeForm", notYet);
+            // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // Other header-less image forms blocked on a different subsystem still stay tracked.
-            Assert.Contains("ImageBattleAnimeForm", notYet);      // ImageUtilOAM OAM frame walk
             Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
 
             // the no-duplicates invariant still holds after the edits.
@@ -5854,6 +5863,452 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(len != U.NOT_FOUND); // bounded, no throw (exact value not asserted)
         }
 
+        // ====================================================================
+        // slice 2s: AIScriptForm (EmitAIScript) + ImageBattleAnimeForm
+        //           (EmitImageBattleAnime)
+        // ====================================================================
+
+        // ---- CalcAIScriptLength (verbatim AIScriptForm.CalcLength walk) ------
+
+        [Fact]
+        public void CalcAIScriptLength_StopsAtExit03_WhenNextNotLabel()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            // instr 0: code 0x03 (EXIT). instr 1: first byte 0x00 (NOT 0x1B/0x1C) -> stop after reading
+            // instr1's first byte. CalcLength: read code@0 (0x03), addr+=16; addr+16<=limit ok; code==0x03
+            // -> nextcode = u8(addr+0) = 0x00 -> not 1B/1C -> break. length consumed = 16.
+            rom.write_u8(addr + 0, 0x03);
+            rom.write_u8(addr + 16, 0x00);
+            Assert.Equal(16u, RebuildProducerCore.CalcAIScriptLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcAIScriptLength_ContinuesPastExit_WhenNext1BLabel()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            // instr0: 0x03 EXIT; instr1 first byte 0x1B (label) -> consume instr1 too (addr += 16);
+            // instr2: 0x03 EXIT; instr3 first byte 0x00 -> stop. Total consumed = 16*3 = 48.
+            rom.write_u8(addr + 0, 0x03);
+            rom.write_u8(addr + 16, 0x1B);   // label -> continue
+            rom.write_u8(addr + 32, 0x03);   // EXIT
+            rom.write_u8(addr + 48, 0x00);   // not label -> stop
+            Assert.Equal(48u, RebuildProducerCore.CalcAIScriptLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcAIScriptLength_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            // start so that addr+16 just fits; the while (addr+16<=limit) clamp bounds every read.
+            uint len = 0;
+            var ex = Record.Exception(() => { len = RebuildProducerCore.CalcAIScriptLength(rom, 0x1FE0); });
+            Assert.Null(ex);
+        }
+
+        // ---- CalcAIUnitsLength (verbatim AIUnitsForm.CalcLength u16==0 walk) -
+
+        [Fact]
+        public void CalcAIUnitsLength_StopsAtU16Zero()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint addr = 0x1000;
+            rom.write_u16(addr + 0, 0x0101);
+            rom.write_u16(addr + 2, 0x0202);
+            rom.write_u16(addr + 4, 0x0000); // terminator
+            Assert.Equal(4u, RebuildProducerCore.CalcAIUnitsLength(rom, addr));
+        }
+
+        [Fact]
+        public void CalcAIUnitsLength_NearEof_NoThrow_ClampedBound()
+        {
+            // An unterminated stream that runs to EOF: the clamped (addr+2<=Length) bound returns the
+            // consumed length without an OOB u16 read.
+            var rom = CreateTestRom(0x2000);
+            uint addr = 0x1FF0;
+            for (uint a = addr; a < 0x2000; a += 2)
+            {
+                rom.write_u16(a, 0x0101); // never zero -> walks to EOF
+            }
+            uint len = 0;
+            var ex = Record.Exception(() => { len = RebuildProducerCore.CalcAIUnitsLength(rom, addr); });
+            Assert.Null(ex);
+            Assert.Equal(0x10u, len); // 0x2000 - 0x1FF0 = 0x10
+        }
+
+        // ---- EmitAIScript: main IFR + per-entry AISCRIPT + AIUNITS sub-blocks
+
+        // Stage ai1_ AND ai2_ config files (the AIScript count cap) + a real FE8U ROM. Runs body with
+        // that ROM; restores all mutated CoreState.
+        static void WithAiConfig(string[] ai1Lines, string[] ai2Lines, Action<ROM> body)
+        {
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+
+            string tempRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "feb_s2s_" + Guid.NewGuid().ToString("N"));
+            string dataDir = System.IO.Path.Combine(tempRoot, "config", "data");
+            System.IO.Directory.CreateDirectory(dataDir);
+            try
+            {
+                if (ai1Lines != null)
+                {
+                    System.IO.File.WriteAllLines(System.IO.Path.Combine(dataDir, "ai1_FE8.txt"), ai1Lines);
+                }
+                if (ai2Lines != null)
+                {
+                    System.IO.File.WriteAllLines(System.IO.Path.Combine(dataDir, "ai2_FE8.txt"), ai2Lines);
+                }
+                CoreState.BaseDirectory = tempRoot;
+                CoreState.Language = "en";
+                var rom = MakeVersionedRom("BE8E01"); // FE8U: version 8, TitleToFilename "FE8"
+                CoreState.ROM = rom; // OtherLangLine reads CoreState.ROM
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                body(rom);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+                try { System.IO.Directory.Delete(tempRoot, true); } catch { /* best effort */ }
+            }
+        }
+
+        [Fact]
+        public void EmitAIScript_MainIfr_PerEntryAiScript_AndAiUnitsSubBlocks()
+        {
+            // 2 config lines -> un-extended cap 2; plant a 2-entry AI1 table below extends_address so the
+            // cap applies (entry 2 is a 3rd valid pointer but i>=AI1.Count(2) stops the count at 2).
+            WithAiConfig(new[] { "00=a", "01=b" }, new[] { "00=c" }, rom =>
+            {
+                uint ai1ptr = rom.RomInfo.ai1_pointer; // FE8U offset, well below extends (0x01000000)
+                uint table = 0x10000;
+                uint aiscript0 = 0x20000;
+                uint aiscript1 = 0x21000;
+                rom.write_u32(ai1ptr, Ptr(table));
+                rom.write_u32(table + 0, Ptr(aiscript0));
+                rom.write_u32(table + 4, Ptr(aiscript1));
+                rom.write_u32(table + 8, Ptr(0x22000)); // 3rd valid ptr -> dropped by the count cap
+
+                // aiscript0: one EXIT instr (0x03) then a 0x00 first byte -> length 16. No +8/+12 ptrs.
+                rom.write_u8(aiscript0 + 0, 0x03);
+                rom.write_u8(aiscript0 + 16, 0x00);
+                // aiscript1: one 0x03 then 0x00 -> length 16, with a +8 AIUNITS data pointer (even).
+                rom.write_u8(aiscript1 + 0, 0x03);
+                rom.write_u8(aiscript1 + 16, 0x00);
+                uint units = 0x23000;
+                rom.write_u32(aiscript1 + 8, Ptr(units)); // even -> AIUNITS BIN
+                rom.write_u16(units + 0, 0x0101);
+                rom.write_u16(units + 2, 0x0000); // u16==0 terminator -> length 2
+
+                // ai2_pointer left as the real FE8U slot pointing at garbage 0 -> p32 unsafe -> emits nothing.
+                rom.write_u32(rom.RomInfo.ai2_pointer, 0);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitAIScript(rom, list);
+
+                // Main AI1 IFR: DataCount 2 -> length 4*(2+1) = 12, pointerIndexes {0}.
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
+                Assert.Equal(table, main.Addr);
+                Assert.Equal(ai1ptr, main.Pointer);
+                Assert.Equal(4u, main.BlockSize);
+                Assert.Equal(12u, main.Length);
+                Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+                // Two AISCRIPT blocks (entry 0, entry 1), each length 16; entry 2 dropped by the count cap.
+                var scripts = list.Where(a => a.DataType == Address.DataTypeEnum.AISCRIPT).ToList();
+                Assert.Equal(2, scripts.Count);
+                Address s0 = scripts.Single(a => a.Addr == aiscript0);
+                Assert.Equal(16u, s0.Length);
+                Assert.Equal(table + 0, s0.Pointer);
+                Assert.StartsWith("AI1 ", s0.Info);
+                Address s1 = scripts.Single(a => a.Addr == aiscript1);
+                Assert.Equal(16u, s1.Length);
+                Assert.Equal(table + 4, s1.Pointer);
+
+                // entry 1's +8 even pointer -> an AIUNITS BIN block, length 2 (u16==0 terminator).
+                Address u = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Addr == units);
+                Assert.Equal(2u, u.Length);
+                Assert.Equal(aiscript1 + 8, u.Pointer);
+            });
+        }
+
+        [Fact]
+        public void EmitAIScript_OddPlus8Pointer_EmitsCallAsmFunction()
+        {
+            WithAiConfig(new[] { "00=a" }, new[] { "00=b" }, rom =>
+            {
+                uint ai1ptr = rom.RomInfo.ai1_pointer;
+                uint table = 0x10000;
+                uint aiscript0 = 0x20000;
+                rom.write_u32(ai1ptr, Ptr(table));
+                rom.write_u32(table + 0, Ptr(aiscript0));
+                rom.write_u8(aiscript0 + 0, 0x03);
+                rom.write_u8(aiscript0 + 16, 0x00); // length 16
+                // +8 ODD pointer -> a thumb CallASM function (AddFunction), NOT an AIUNITS BIN.
+                rom.write_u32(aiscript0 + 8, Ptr(0x24001)); // odd
+                rom.write_u32(rom.RomInfo.ai2_pointer, 0);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitAIScript(rom, list);
+
+                // No AIUNITS BIN for the odd +8 (the BIN list only has none from +8); a Function Address
+                // is emitted instead (AddFunction -> the pointer slot is at aiscript0+8).
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN && a.Pointer == aiscript0 + 8);
+                Assert.Contains(list, a => a.Pointer == aiscript0 + 8); // the CallASM function Address
+            });
+        }
+
+        [Fact]
+        public void EmitAIScript_ClonePointerSlots_EmittedWhenPointer()
+        {
+            // MakeAllDataLengthAISomeByte: for slots i=1,2 at ai1_pointer + i*4, if isPointer(u32(slot))
+            // emit a length-0 POINTER "ClonePointer" Address. (Independent of the main IFR walk.)
+            WithAiConfig(new[] { "00=a" }, new[] { "00=b" }, rom =>
+            {
+                uint ai1ptr = rom.RomInfo.ai1_pointer;
+                uint table = 0x10000;
+                rom.write_u32(ai1ptr, Ptr(table)); // slot 0: the table base (not a ClonePointer slot)
+                rom.write_u32(ai1ptr + 4, Ptr(0x30000)); // slot 1 -> ClonePointer1
+                rom.write_u32(ai1ptr + 8, Ptr(0x31000)); // slot 2 -> ClonePointer2
+                rom.write_u32(rom.RomInfo.ai2_pointer, 0);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitAIScript(rom, list);
+
+                Address c1 = list.Single(a => a.Info == "AI1_ClonePointer1");
+                Assert.Equal(0u, c1.Length);
+                Assert.Equal(Address.DataTypeEnum.POINTER, c1.DataType);
+                Address c2 = list.Single(a => a.Info == "AI1_ClonePointer2");
+                Assert.Equal(0u, c2.Length);
+            });
+        }
+
+        [Fact]
+        public void EmitAIScript_MissingConfig_StillEmitsButCapsAtZero()
+        {
+            // No config tree -> CountConfigDataLines returns 0 -> the un-extended cap is 0, so an
+            // un-extended table emits the main IFR (DataCount 0) but no per-entry blocks. No throw.
+            var savedRom = CoreState.ROM;
+            var savedBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    "feb_s2s_none_" + Guid.NewGuid().ToString("N"));
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                uint ai1ptr = rom.RomInfo.ai1_pointer;
+                uint table = 0x10000;
+                rom.write_u32(ai1ptr, Ptr(table));
+                rom.write_u32(table + 0, Ptr(0x20000)); // valid ptr but i>=cap(0) -> count 0
+                rom.write_u32(rom.RomInfo.ai2_pointer, 0);
+
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitAIScript(rom, list));
+                Assert.Null(ex);
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.AISCRIPT);
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
+            }
+            finally { CoreState.ROM = savedRom; CoreState.BaseDirectory = savedBase; }
+        }
+
+        [Fact]
+        public void EmitAIScript_ExtendedTable_IgnoresConfigCap()
+        {
+            // A table planted in the EXTENDED ROM area (addr >= extends_address) bypasses the config cap:
+            // the count runs until a non-pointer entry, regardless of the config-line count.
+            WithAiConfig(new[] { "00=a" }, new[] { "00=b" }, rom =>
+            {
+                // FE8U extends_address = 0x09000000 -> offset 0x01000000. Plant table above it.
+                uint table = 0x01100000;
+                uint ai1ptr = rom.RomInfo.ai1_pointer;
+                rom.write_u32(ai1ptr, Ptr(table));
+                // 2 valid script pointers then a non-pointer terminator -> count 2 (cap of 1 ignored).
+                rom.write_u32(table + 0, Ptr(0x01200000));
+                rom.write_u32(table + 4, Ptr(0x01210000));
+                rom.write_u32(table + 8, 0x12345678); // not pointer-or-null -> stop
+                // minimal scripts (one EXIT each).
+                rom.write_u8(0x01200000 + 0, 0x03); rom.write_u8(0x01200000 + 16, 0x00);
+                rom.write_u8(0x01210000 + 0, 0x03); rom.write_u8(0x01210000 + 16, 0x00);
+                rom.write_u32(rom.RomInfo.ai2_pointer, 0);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitAIScript(rom, list);
+
+                Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "AI1");
+                Assert.Equal(12u, main.Length); // 4*(2+1) -> DataCount 2 despite cap 1
+            });
+        }
+
+        // ---- EmitImageBattleAnime: per-class IFRs + N_ IFR + per-anime OAM ---
+
+        [Fact]
+        public void EmitImageBattleAnime_NIfr_SectionBin_And4Lz77Pointers()
+        {
+            // A single anime entry with valid +12/+20/+24 pointers (so N_Init counts it). Assert the
+            // "BattleAnime" main IFR + the per-anime section BIN + 4 LZ77 pointers.
+            var savedRom = CoreState.ROM;
+            var savedBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    "feb_s2s_iba_" + Guid.NewGuid().ToString("N"));
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint animePtr = rom.RomInfo.image_battle_animelist_pointer;
+                uint animeTable = 0x100000;
+                rom.write_u32(animePtr, Ptr(animeTable));
+
+                // anime entry 0 (32-byte record). +12 section, +16 frame, +20/+24 OAM, +28 palette.
+                uint section = 0x110000;
+                uint frame = 0x120000;
+                uint oamR = 0x130000;
+                uint oamL = 0x140000;
+                uint pal = 0x150000;
+                rom.write_u32(animeTable + 12, Ptr(section));
+                rom.write_u32(animeTable + 16, Ptr(frame));
+                rom.write_u32(animeTable + 20, Ptr(oamR));
+                rom.write_u32(animeTable + 24, Ptr(oamL));
+                rom.write_u32(animeTable + 28, Ptr(pal));
+                // entry 1 (32 bytes later): +12/+20/+24 NOT all pointers -> N_Init count stops at 1.
+                rom.write_u32(animeTable + 32 + 12, 0);
+
+                // Plant valid all-literal LZ77 streams. The frame decompresses to literals 0x40..0x7F
+                // (never 0x86), so the seat-image sub-walk finds no records (test stays focused on the
+                // section BIN + 4 LZ77 columns). The OAM/palette streams only need a valid
+                // getCompressedSize for their AddLZ77Pointer length.
+                WriteLz77AllLiteral(rom, frame, 32);
+                WriteLz77AllLiteral(rom, oamR, 16);
+                WriteLz77AllLiteral(rom, oamL, 16);
+                WriteLz77AllLiteral(rom, pal, 32);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitImageBattleAnime(rom, list);
+
+                // The N_ "BattleAnime" main IFR: DataCount 1 -> length 32*(1+1)=64, PI {12,16,20,24,28}.
+                Address nMain = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "BattleAnime");
+                Assert.Equal(animeTable, nMain.Addr);
+                Assert.Equal(animePtr, nMain.Pointer);
+                Assert.Equal(32u, nMain.BlockSize);
+                Assert.Equal(64u, nMain.Length);
+                Assert.Equal(new uint[] { 12, 16, 20, 24, 28 }, nMain.PointerIndexes);
+
+                // section BIN: length 0xC*4 = 48, pointer animeTable+12.
+                Address sec = list.Single(a => a.DataType == Address.DataTypeEnum.BIN && a.Addr == section);
+                Assert.Equal(0xC * 4u, sec.Length);
+                Assert.Equal(animeTable + 12, sec.Pointer);
+
+                // 4 LZ77 columns: BATTLEFRAME @ frame, 2x BATTLEOAM @ oamR/oamL, LZ77PAL @ pal.
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.BATTLEFRAME && a.Addr == frame);
+                Assert.Equal(2, list.Count(a => a.DataType == Address.DataTypeEnum.BATTLEOAM));
+                Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.LZ77PAL && a.Addr == pal);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBase;
+            }
+        }
+
+        [Fact]
+        public void EmitImageBattleAnime_NearEof_NoThrow()
+        {
+            var savedRom = CoreState.ROM;
+            var savedBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    "feb_s2s_ibaeof_" + Guid.NewGuid().ToString("N"));
+                var rom = MakeVersionedRom("BE8E01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                // animelist pointer -> a base near the very end of ROM.
+                rom.write_u32(rom.RomInfo.image_battle_animelist_pointer, Ptr((uint)rom.Data.Length - 16));
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageBattleAnime(rom, list));
+                Assert.Null(ex);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBase;
+            }
+        }
+
+        [Fact]
+        public void EmitImageBattleAnime_RunsCleanly_OnEmptyFakeRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8);
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitImageBattleAnime(fe8, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void GetBattleAnimeAddr_VersionGate_FE6Plus48_FE8Plus52()
+        {
+            // CalcUnCompressFrameLength version-gate proxy: the per-class slot offset differs by version.
+            // (Asserted indirectly through EmitImageBattleAnime's per-class IFR pointer slot.)
+            // FE8: +52.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
+                Assert.Equal(8, fe8.RomInfo.version);
+                var fe6 = MakeVersionedRom("AFEJ01");
+                CoreState.ROM = fe6;
+                Assert.Equal(6, fe6.RomInfo.version);
+                // Both run cleanly (the version branch picks +52 / +48 respectively).
+                CoreState.ROM = fe8;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8);
+                var l8 = new List<Address>();
+                Assert.Null(Record.Exception(() => RebuildProducerCore.EmitImageBattleAnime(fe8, l8)));
+                CoreState.ROM = fe6;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe6);
+                var l6 = new List<Address>();
+                Assert.Null(Record.Exception(() => RebuildProducerCore.EmitImageBattleAnime(fe6, l6)));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2s -----------------------
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2s ports AIScriptForm (AI1/AI2 bytecode tables, static name) and ImageBattleAnimeForm
+            // (battle-anime OAM tables, static name on the per-anime OAM info).
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+
+            // sibling forms that genuinely still need un-ported subsystems STAY:
+            Assert.Contains("ItemForm", notYet);                  // PatchUtil StatBooster detection
+            Assert.Contains("ImagePortraitForm", notYet);         // IsHalfBodyFlag runtime header
+            Assert.Contains("ImageItemIconForm", notYet);         // out-of-scope icon-SHEET IFR
+            Assert.Contains("UnitActionPointerForm", notYet);     // PatchUtil SearchUnitActionReworkPatch
+
+            // the no-duplicates invariant still holds after the edits.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
         // ---- NotYetPorted coverage delta for slice 2l -----------------------
 
         [Fact]
@@ -5864,9 +6319,8 @@ namespace FEBuilderGBA.Core.Tests
             // slice 2l ports ItemWeaponEffectForm (PROCS sub-block via CalcProcsLengthAndCheck).
             Assert.DoesNotContain("ItemWeaponEffectForm", notYet);
 
-            // AIScriptForm STAYS — its main-IFR count rule needs the config-file AI name lists
-            // (EventUnitForm.AI1/AI2.Count), not in Core.
-            Assert.Contains("AIScriptForm", notYet);
+            // (AIScriptForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
             // ProcsScriptForm itself STAYS — it is an ASM-path form (MakePatchStructDataList), out of
             // scope for this data-path producer; only its CalcLengthAndCheck length helper is reused.
             Assert.Contains("ProcsScriptForm", notYet);
@@ -6180,10 +6634,12 @@ namespace FEBuilderGBA.Core.Tests
             // it must be GONE (see GetNotYetPortedForms_DropsSlice2nMoveIcon_KeepsDeferredSiblings).
             Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
             // (MapSettingForm WAS deferred here on its WF cached-text-count rule, but slice 2r ports it —
-            //  TextDataCount now reproduces TextForm.GetDataCount() byte-faithfully. AIScriptForm stays
-            //  deferred on its AI name resolver.)
+            //  TextDataCount now reproduces TextForm.GetDataCount() byte-faithfully. AIScriptForm ported
+            //  in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("MapSettingForm", notYet);
-            Assert.Contains("AIScriptForm", notYet);
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            // ItemForm STAYS — StatBooster sub-block size needs un-ported PatchUtil detection.
+            Assert.Contains("ItemForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6512,13 +6968,15 @@ namespace FEBuilderGBA.Core.Tests
             // Sibling image forms blocked on an un-ported subsystem STAY:
             foreach (var kept in new[]
             {
-                "ImageBattleAnimeForm",      // ImageUtilOAM (slice 2p ports the Magic/MapAction siblings)
                 "ImageItemIconForm",         // out-of-scope icon-SHEET IFR
                 "ImagePortraitForm",         // IsHalfBodyFlag runtime header
             })
             {
                 Assert.Contains(kept, notYet);
             }
+            // (ImageBattleAnimeForm was a deferred sibling here; slice 2s ports it — see
+            //  GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // (ImageRomAnimeForm / ImageTSAAnimeForm / ImageTSAAnime2Form were the config-FILE-table
             //  siblings here; slice 2q ports them — see
             //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
@@ -6847,9 +7305,8 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(kept, notYet);
             }
 
-            // The Group-3 OAM form ImageBattleAnimeForm STAYS (slice 2p ports the Magic/MapAction
-            // RecycleOldAnime siblings — see GetNotYetPortedForms_DropsSlice2pAnimeForms_KeepsBattleAnime).
-            Assert.Contains("ImageBattleAnimeForm", notYet);
+            // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6868,8 +7325,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageMagicFEditorForm", notYet);
             Assert.DoesNotContain("ImageMagicCSACreatorForm", notYet);
 
-            // ImageBattleAnimeForm STAYS (needs ClassForm.MakeClassList + two IFRs + seat-dedup state).
-            Assert.Contains("ImageBattleAnimeForm", notYet);
+            // ImageBattleAnimeForm was the deferred OAM sibling at slice 2p (the test name is historical);
+            // it is PORTED in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+            // The RecycleOldAnime-dependent SkillConfig siblings DO still stay tracked at this point.
+            Assert.Contains("SkillConfigSkillSystemForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -7664,10 +8124,10 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImageTSAAnime2Form", notYet);
             Assert.DoesNotContain("ImageRomAnimeForm", notYet);
 
+            // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
             // The remaining image-anime siblings STAY (each blocked on a Core gap):
-            //  ImageBattleAnimeForm (ImageUtilOAM + ClassForm.MakeClassList + seat-dedup),
             //  ImagePortraitForm (IsHalfBodyFlag runtime header), ImageItemIconForm (out of scope).
-            Assert.Contains("ImageBattleAnimeForm", notYet);
             Assert.Contains("ImagePortraitForm", notYet);
             Assert.Contains("ImageItemIconForm", notYet);
 
@@ -8018,13 +8478,13 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("SongTableForm", notYet);
             Assert.DoesNotContain("MapSettingForm", notYet);
 
-            // The siblings flagged by the slice STAY deferred:
-            //  AIScriptForm — its count is now reproducible but the per-entry NAME (GetAIName1/2 ->
-            //    config name list + InputFormRef.GetCommentSA) is not yet in Core.
-            //  ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (the UnCompressFrame seat-image walk)
-            //    + ClassForm.MakeClassList/GetBattleAnimeAddrWhereAddr + the seat-dedup are not in Core.
-            Assert.Contains("AIScriptForm", notYet);
-            Assert.Contains("ImageBattleAnimeForm", notYet);
+            // (AIScriptForm + ImageBattleAnimeForm were the deferred siblings flagged at slice 2r; both
+            //  are now ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
+            Assert.DoesNotContain("AIScriptForm", notYet);
+            Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
+            // Genuinely-still-deferred siblings STAY:
+            Assert.Contains("ItemForm", notYet);          // PatchUtil StatBooster detection
+            Assert.Contains("ImagePortraitForm", notYet); // IsHalfBodyFlag runtime header
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
