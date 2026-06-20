@@ -138,8 +138,9 @@ namespace FEBuilderGBA
             /// non-pointer).</summary>
             UnitPaletteRule,
             /// <summary><c>ImageUnitMoveIconFrom.Init</c> rule: the table is class-count-bounded. The cap
-            /// is <c>classCount = ClassForm.DataCount()</c> clamped to <c>[0x7f, 0xff]</c> (<c>&lt;=0 -&gt;
-            /// 0x7f</c>, <c>&gt;0xff -&gt; 0xff</c>) then decremented; the rule is <c>i &gt;= classCount ?
+            /// is <c>classCount = ClassForm.DataCount()</c> with ONLY the extremes coerced
+            /// (<c>&lt;=0 -&gt; 0x7f</c>, <c>&gt;0xff -&gt; 0xff</c>; values 1..0xff are left UNCHANGED — this is
+            /// NOT a clamp to <c>[0x7f, 0xff]</c>), then decremented; the rule is <c>i &gt;= classCount ?
             /// false : i == 0 ? true : U.isPointerOrNULL(u32(addr+0))</c> (entry 0 always exists; afterward
             /// the <c>+0</c> image pointer must be a ROM pointer or NULL). Reproduced VERBATIM; the cap is
             /// computed via <see cref="ClassDataCount"/> (the Core port of <c>ClassForm.DataCount()</c>).
@@ -4561,7 +4562,8 @@ namespace FEBuilderGBA
                 case DataCountRule.MoveIconRule:
                 {
                     // ImageUnitMoveIconFrom.Init verbatim. The class-count cap is computed ONCE (WF
-                    // reads ClassForm.DataCount() once in Init), then clamped to [0x7f,0xff] and
+                    // reads ClassForm.DataCount() once in Init); ONLY the extremes are coerced (<=0 ->
+                    // 0x7f, >0xFF -> 0xFF; values 1..0xFF stay AS-IS — not a clamp to [0x7f,0xff]), then
                     // decremented. The per-entry rule: i>=cap -> stop; i==0 -> always; else the +0
                     // (RuleOffset) image pointer must be a ROM pointer OR NULL.
                     uint classCount = ClassDataCount(rom);
