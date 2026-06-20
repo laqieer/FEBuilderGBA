@@ -10283,12 +10283,12 @@ namespace FEBuilderGBA
         //
         // Coverage honesty: like the data-path GetNotYetPortedForms, the ASM
         // producer never silently omits a form. AsmProducerResult.NotYetPorted
-        // lists the forms still blocked on an un-ported subsystem (the
-        // PatchForm patch-config scanner + GraphicsToolForm LZ77, each its own
-        // follow-up slice; OAMSPForm is PORTED in slice 2w, ProcsScriptForm in
-        // slice 2x — neither needed the WinForms AsmMapFileAsmCache), so
-        // AsmProducerResult.IsComplete stays false until they land — a wiring
-        // slice must not feed an incomplete list to a real defragment.
+        // lists the forms still blocked on an un-ported subsystem (now ONLY the
+        // PatchForm patch-config scanner, its own follow-up slice; OAMSPForm is
+        // PORTED in slice 2w, ProcsScriptForm in slice 2x, GraphicsToolForm LZ77
+        // in slice 2y — none needed the WinForms AsmMapFileAsmCache), so
+        // AsmProducerResult.IsComplete stays false until PatchForm lands — a
+        // wiring slice must not feed an incomplete list to a real defragment.
         // ====================================================================
 
         /// <summary>Result of <see cref="AppendAllAsmStructPointers"/>: the forms NOT yet
@@ -10343,9 +10343,13 @@ namespace FEBuilderGBA
                 // CONSUMES the ldrmap but no longer needs the WinForms AsmMapFileAsmCache: GetKnownArea is
                 // pure RomInfo reflection, IsStopFlagOn() is replaced by the threaded CancellationToken, and
                 // the 6c_name_ config dict loads headless-safe. So it is no longer in this deferred list.
-                // GraphicsToolForm.MakeLZ77DataList (only when isUseOtherGraphics) — the LZ77 graphics-
-                // tool subsystem. Out of scope for this foundation; DEFER.
-                "GraphicsToolForm",
+                // GraphicsToolForm.MakeLZ77DataList (only when isUseOtherGraphics) — PORTED in slice 2y
+                // (EmitGraphicsToolLZ77 + the 3 ignore-dict builders + IsBadImageSize/IsContinuousPointer).
+                // It needs no un-ported subsystem: the battle-anime ignore set reuses the slice-2s N_-table
+                // resolution, the foot-steps / worldmap-scroll ignore pointers are pure RomInfo p32 reads,
+                // and the whole-ROM LZ77 scan uses Core LZ77.getUncompressSize/getCompressedSize. When
+                // isUseOtherGraphics is false the form is intentionally SKIPPED (not unported), so it is
+                // never re-reported here.
                 // OAMSPForm.MakeAllDataLength(ldrmap) (only when isUseOAMSP) — PORTED in slice 2w
                 // (EmitOAMSP/EmitOAMSPCore + the two pure-binary CalcOAMSP* walkers). It does NOT depend
                 // on AsmMapFileAsmCache (unlike ProcsScriptForm), so it is no longer in this deferred
@@ -10380,7 +10384,8 @@ namespace FEBuilderGBA
         /// UnitIncreaseHeight/MapLoadFunction/MapMiniMap group on <c>ldrmap != null</c>. Only
         /// ProcsScript (deferred) actually consumes it; the other forms just need it present.</param>
         /// <param name="isUseOtherGraphics">WF <c>isUseOtherGraphics</c> — gates GraphicsToolForm
-        /// (deferred).</param>
+        /// (PORTED in slice 2y via <see cref="EmitGraphicsToolLZ77"/>; emitted only when this flag is
+        /// true, else intentionally skipped).</param>
         /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> — gates OAMSPForm (PORTED in slice 2w via
         /// <see cref="EmitOAMSP"/>; emitted only when this flag is true, else intentionally skipped).</param>
         public static AsmProducerResult AppendAllAsmStructPointers(ROM rom, List<Address> list,
@@ -10465,8 +10470,20 @@ namespace FEBuilderGBA
                 EmitMapMiniMapTerrain(rom, list);
             }
 
-            // WF: `if (isUseOtherGraphics)` -> GraphicsToolForm.MakeLZ77DataList — DEFERRED
-            // (stays in AsmNotYetPortedRaw regardless of the flag; nothing emitted here).
+            // WF: `if (isUseOtherGraphics)` -> GraphicsToolForm.MakeLZ77DataList — PORTED (slice 2y).
+            // The LZ77 graphics-tool whole-ROM scan (EmitGraphicsToolLZ77). It runs OUTSIDE the
+            // `ldrmap != null` block — gated solely on the flag (WF U.cs:2648). When the flag is false
+            // the form is intentionally SKIPPED (never re-reported in NotYetPorted, exactly like OAMSP).
+            if (isUseOtherGraphics)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("AppendAllAsmStructPointers cancelled");
+                    return new AsmProducerResult(notYet, cancelled: true);
+                }
+                progress?.Report("GraphicsToolLZ77");
+                EmitGraphicsToolLZ77(rom, list, ct);
+            }
 
             // WF: `if (isUseOAMSP) { Debug.Assert(ldrmap != null); OAMSPForm.MakeAllDataLength(...); }`
             // PORTED (slice 2w). The form runs OUTSIDE the `ldrmap != null` block — gated solely on the
@@ -10486,6 +10503,273 @@ namespace FEBuilderGBA
             }
 
             return new AsmProducerResult(notYet, cancelled: false);
+        }
+
+        // ====================================================================
+        // slice 2y — GraphicsToolForm.MakeLZ77DataList (the isUseOtherGraphics
+        // whole-ROM LZ77-image scan). VERBATIM port of GraphicsToolForm.cs:1146.
+        //
+        // The method builds an ignore-set of the battle-anime frame/OAM/palette
+        // pointers + the foot-steps + worldmap-scroll pointers + every address
+        // already in `list`, then scans the ROM (0x100..EOF step 4) for LZ77
+        // blocks NOT in the ignore set and emits each as an LZ77IMG Address.
+        //
+        // EOF-HARDENING (Core u32/p32 THROW past EOF; WF's didn't): every
+        // computed read guards its FULL extent before the read — the 5
+        // p32(addr+12..28) in the battle-anime builder guard addr+31, the N_-table
+        // per-entry loop breaks at addr+block>Length, and the scan-loop pointer
+        // read p32(addr) is bounded by `addr < Length-4`. LZ77.getUncompressSize/
+        // getCompressedSize bound-check internally (return 0 past EOF).
+        // ====================================================================
+
+        /// <summary>VERBATIM port of <c>GraphicsToolForm.IsBadImageSize</c>: an LZ77 uncompressed size
+        /// is rejected unless it is a tile-sized multiple (>= 8*8/2, &lt; 8/2*32*8*32, % (8*8/2) == 0).</summary>
+        static bool IsBadImageSize(uint imageDataSize)
+        {
+            return (imageDataSize < (8 * 8 / 2)              // not compressed, or too small
+                || imageDataSize >= (8 / 2 * 32 * 8 * 32)    // too big
+                || imageDataSize % (8 * 8 / 2) != 0          // not divisible by 32 (8*8/2)
+                );
+        }
+
+        /// <summary>VERBATIM port of <c>GraphicsToolForm.IsContinuousPointer</c>: an image pointer in the
+        /// data region is trusted only when an adjacent slot also holds a safe pointer (images carry a
+        /// palette/TSA, so a lone pointer is suspicious). Pointers below the compress borderline (program
+        /// region) are always trusted. <paramref name="addr"/> is the location of the candidate pointer;
+        /// <paramref name="length"/> is the WF scan bound (<c>rom.Data.Length - 4</c>);
+        /// <paramref name="compressBorderline"/> is <c>rom.RomInfo.compress_image_borderline_address</c>
+        /// (passed in so the seam works on a RomInfo-less synthetic ROM).
+        /// EOF-HARDENING: the +checkRange reads guard their full u32 extent before reading.</summary>
+        static bool IsContinuousPointer(ROM rom, uint addr, uint length, uint compressBorderline)
+        {
+            if (addr <= compressBorderline)
+            {//program region — scattered pointers are OK
+                return true;
+            }
+
+            //data region — a real image pointer is part of a contiguous pointer run (palette/TSA siblings).
+            for (int checkRange = 4; checkRange <= 0x8; checkRange += 4)
+            {
+                uint a = (uint)(addr - checkRange);
+                if (!U.isSafetyOffset(a + 3, rom))
+                {//cannot safely read the preceding slot — skip it (WF read past 0; harden here)
+                    continue;
+                }
+                uint p = rom.u32(a);
+                if (U.isSafetyPointer(p, rom))
+                {//safe pointer
+                    return true;
+                }
+            }
+            for (int checkRange = 4; checkRange <= 0xC; checkRange += 4)
+            {
+                uint a = (uint)(addr + checkRange);
+                if (a + 4 >= length)
+                {
+                    break;
+                }
+                if (!U.isSafetyOffset(a + 3, rom))
+                {
+                    break;
+                }
+                uint p = rom.u32(a);
+                if (U.isSafetyPointer(p, rom))
+                {//safe pointer
+                    return true;
+                }
+            }
+            //probably a false match.
+            return false;
+        }
+
+        /// <summary>VERBATIM port of <c>GraphicsToolForm.MakeIgnoreDictionnaryFromList</c>: every address
+        /// already in the struct list is added to the ignore set (it is not a free LZ77 image).</summary>
+        static void MakeIgnoreDictionnaryFromList(Dictionary<uint, bool> dic, List<Address> list)
+        {
+            foreach (Address a in list)
+            {
+                dic[a.Addr] = true;
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>SoundFootStepsForm.MakeIgnoreDictionary</c>: add the foot-steps
+        /// data pointer to the ignore set so its LZ77 payload is not mistaken for a free image.</summary>
+        static void MakeSoundFootStepsIgnoreDictionary(ROM rom, Dictionary<uint, bool> dic)
+        {
+            if (!U.isSafetyOffset(rom.RomInfo.sound_foot_steps_data_pointer, rom))
+            {
+                return;
+            }
+            uint pointer = rom.p32(rom.RomInfo.sound_foot_steps_data_pointer);
+            dic[pointer] = true; //foot-steps data — added to avoid confusion with compressed files
+        }
+
+        /// <summary>VERBATIM port of <c>WorldMapPointForm.MakeIgnoreDictionary</c>. NOTE the WF guard is on
+        /// <c>sound_foot_steps_data_pointer</c> (not worldmap_scroll_somedata_pointer) — reproduced exactly,
+        /// quirk and all — then the worldmap-scroll-somedata pointer is added to the ignore set.</summary>
+        static void MakeWorldMapPointIgnoreDictionary(ROM rom, Dictionary<uint, bool> dic)
+        {
+            if (!U.isSafetyOffset(rom.RomInfo.sound_foot_steps_data_pointer, rom))
+            {
+                return;
+            }
+            uint pointer = rom.p32(rom.RomInfo.worldmap_scroll_somedata_pointer);
+            dic[pointer] = true; //worldmap scroll-related data — added to avoid confusion with compressed files
+        }
+
+        /// <summary>VERBATIM port of <c>ImageBattleAnimeForm.MakeBattleFrameAndOAMDictionary</c>: walks the
+        /// battle-anime <c>N_Init</c> table (base/count/block resolved EXACTLY as in
+        /// <see cref="EmitImageBattleAnime"/> PART B — slice 2s) and adds each entry's 5 LZ77 pointers
+        /// (Section @ +12, frame @ +16, OAM1 @ +20, OAM2 @ +24, Palette @ +28) to the ignore set so the
+        /// whole-ROM scan never re-emits a battle-anime frame/OAM/palette as a free image.
+        /// EOF-HARDENING: each per-entry loop iteration guards addr+31 (the highest read p32(addr+28)
+        /// touches addr+28..+31) before the 5 reads, and breaks when an entry would run past EOF.</summary>
+        static void MakeBattleFrameAndOAMDictionary(ROM rom, Dictionary<uint, bool> dic)
+        {
+            // N_Init base/count/block — resolved identically to EmitImageBattleAnime PART B (slice 2s).
+            const uint nBlock = 32; // N_Init BlockSize.
+            uint nBasePointer = U.toOffset(rom.RomInfo.image_battle_animelist_pointer);
+            if (!U.isSafetyOffset(nBasePointer + 3, rom))
+            {
+                return;
+            }
+            uint nBaseAddr = rom.p32(nBasePointer);
+            if (!U.isSafetyOffset(nBaseAddr, rom))
+            {
+                return;
+            }
+
+            uint feditorHint = GetFEditorLengthHint(rom, nBaseAddr);
+            if (feditorHint >= 0xFF)
+            {//余りにでかいヒントは信じない
+                feditorHint = U.NOT_FOUND;
+            }
+
+            uint nDataCount = rom.getBlockDataCount(nBaseAddr, nBlock, (i, a) =>
+            {//N_Init IsDataExists. getBlockDataCount guards a+32<=Length, so u32(a+12/20/24) is in range.
+                if (U.isPointer(rom.u32(a + 12))
+                    && U.isPointer(rom.u32(a + 20))
+                    && U.isPointer(rom.u32(a + 24)))
+                {
+                    return true;
+                }
+                if (feditorHint != U.NOT_FOUND && i < feditorHint)
+                {//不明なデータではあるがFEditorがあるというので信用する.
+                    return true;
+                }
+                return false;
+            });
+
+            // WF: addr = N_InputFormRef.BaseAddress; for (i < DataCount; addr += BlockSize) { 5× p32 }.
+            uint addr = nBaseAddr;
+            for (uint i = 0; i < nDataCount; i++, addr += nBlock)
+            {
+                if (!U.isSafetyOffset(addr + (nBlock - 1), rom))
+                {//entry would run past EOF — the highest read p32(addr+28) needs addr+31 in range.
+                    break;
+                }
+                dic[rom.p32(addr + 12)] = true; //Section
+                dic[rom.p32(addr + 16)] = true; //frame
+                dic[rom.p32(addr + 20)] = true; //OAM1
+                dic[rom.p32(addr + 24)] = true; //OAM2
+                dic[rom.p32(addr + 28)] = true; //Palette
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>GraphicsToolForm.MakeLZ77DataList</c> (slice 2y). Builds the
+        /// ignore set from the 4 builders above (all RomInfo-driven), then delegates the whole-ROM scan to
+        /// <see cref="EmitGraphicsToolLZ77At"/>. WF <c>InputFormRef.DoEvents</c> is replaced by the
+        /// threaded <paramref name="ct"/>. The only divergence vs WF is the static NAME prefix
+        /// (R._("圧縮データ") + the hex addr — cosmetic / relocation-identical).</summary>
+        public static void EmitGraphicsToolLZ77(ROM rom, List<Address> list, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+
+            //誤爆すると面倒なことになるフレームとOAMのデータ群
+            Dictionary<uint, bool> ignoreDic = new Dictionary<uint, bool>();
+            MakeBattleFrameAndOAMDictionary(rom, ignoreDic);
+            MakeSoundFootStepsIgnoreDictionary(rom, ignoreDic);
+            MakeWorldMapPointIgnoreDictionary(rom, ignoreDic);
+            // NOTE: WF adds the existing struct list LAST (MakeIgnoreDictionnaryFromList) so the scan never
+            // re-emits an already-tracked address. EmitGraphicsToolLZ77At does this for us.
+
+            EmitGraphicsToolLZ77At(rom, list, ignoreDic,
+                rom.RomInfo.compress_image_borderline_address, ct);
+        }
+
+        /// <summary>The whole-ROM LZ77 scan half of <see cref="EmitGraphicsToolLZ77"/>, with the
+        /// RomInfo-derived inputs (the pre-built battle-anime/foot-steps/worldmap <paramref name="ignoreDic"/>
+        /// and the <paramref name="compressBorderline"/>) passed in explicitly so a RomInfo-less synthetic
+        /// ROM can exercise the scan/skip/EOF logic directly. Folds in the existing
+        /// <paramref name="list"/> addresses (WF <c>MakeIgnoreDictionnaryFromList</c>), then scans the ROM
+        /// (0x100..<c>Data.Length-4</c>, step 4) for LZ77 blocks not in the ignore set, emitting each as
+        /// an <c>LZ77IMG</c> <see cref="Address"/> (addr/length/pointer/type/order all match WF).</summary>
+        public static void EmitGraphicsToolLZ77At(ROM rom, List<Address> list,
+            Dictionary<uint, bool> ignoreDic, uint compressBorderline, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (ignoreDic == null) throw new ArgumentNullException(nameof(ignoreDic));
+
+            // WF: MakeIgnoreDictionnaryFromList(ignoreDic, list) — every already-tracked address is ignored.
+            MakeIgnoreDictionnaryFromList(ignoreDic, list);
+
+            string name = R._("圧縮データ");
+            uint length = (uint)rom.Data.Length - 4;
+            for (uint addr = 0x100; addr < length; addr += 4)
+            {
+                uint a = (uint)rom.Data[addr + 3];
+                if (a != 0x08 && a != 0x09)
+                {//ignore non-pointers.
+                    continue;
+                }
+                a = rom.p32(addr);
+                if (!U.isSafetyOffset(a, rom))
+                {//ignore dangerous pointers
+                    continue;
+                }
+                if (a < compressBorderline)
+                {
+                    continue;
+                }
+                if (!U.isPadding4(a))
+                {//an lz77 image is always 4-byte padded — anything else cannot be one.
+                    continue;
+                }
+
+                if (ignoreDic.ContainsKey(a))
+                {//battle-anime frame/OAM/etc. lz77 data — skip
+                    continue;
+                }
+
+                //is the pointer target compressed?
+                uint imageDataSize = LZ77.getUncompressSize(rom.Data, a);
+                if (IsBadImageSize(imageDataSize))
+                {
+                    continue;
+                }
+
+                //image pointers appear contiguously — check that.
+                if (!IsContinuousPointer(rom, addr, length, compressBorderline))
+                {
+                    continue;
+                }
+
+                uint getcompsize = LZ77.getCompressedSize(rom.Data, a);
+                if (getcompsize == 0)
+                {
+                    continue;
+                }
+
+                //probably an image.
+                Address.AddAddress(list, a, getcompsize, addr, name + U.To0xHexString(a),
+                    Address.DataTypeEnum.LZ77IMG);
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
         }
 
         // ---- the 6 ldrmap-FREE InputFormRef-table forms (ported) -----------
