@@ -4243,7 +4243,9 @@ namespace FEBuilderGBA
                 {
                     return true;
                 }
-                // 0/4/8 がポインタであればデータがあると考える. (block >= 20 guarantees +8+4 is in bounds.)
+                // 0/4/8 がポインタであればデータがあると考える. (the deepest read is u32(addr+8) = addr+8..+11,
+                // so block >= 12 guarantees it is in bounds — getBlockDataCount bounds addr+block <= Length.
+                // All variants satisfy this: FE6 portrait_datasize=16, FE8/FE7=20.)
                 uint u0 = rom.u32(addr + 0);
                 uint u4 = rom.u32(addr + 4);
                 uint u8 = rom.u32(addr + 8);
