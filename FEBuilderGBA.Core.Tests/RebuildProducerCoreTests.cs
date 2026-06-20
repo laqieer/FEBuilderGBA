@@ -1717,8 +1717,10 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(gone, notYet);
             }
 
-            // Still deferred (un-ported subsystem) -> must REMAIN. The only data-path remainder after
-            // slice 2ad is EventUnitForm(RecycleReserveUnits) (editor session state — NewAllocData).
+            // slice 2ae ported EventUnitForm(RecycleReserveUnits) as a faithful headless NO-OP
+            // (NewAllocData is GUI session state, always empty on a loaded ROM) -> it must now be GONE.
+            // This COMPLETES the data-path producer; the only remaining deferred form is PatchForm (the
+            // ASM epic, tracked in AsmNotYetPortedRaw — NOT in this data-path list).
             // (FE8SpellMenuExtendsForm ported in slice 2m. EventBattleTalk/Haiku/WorldMapEventPointer/
             //  MonsterWMapProbability ported in slice 2aa. StatusOption + SoundFootSteps in 2d.
             //  UnitFE6 + ItemUsagePointer + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon in 2f.
@@ -1726,14 +1728,8 @@ namespace FEBuilderGBA.Core.Tests
             //  + EDStaffRoll + OPPrologue + OPClassFont in 2h. OPClassDemo + OPClassDemoFE7 in 2i.
             //  MapTerrain{BG,Floor}Lookup + MapPointer + ExtraUnit + ExtraUnitFE8U in 2j. SoundRoom +
             //  SongTable + MapSetting in 2r. AIScript + ImageBattleAnime in 2s.
-            //  ItemForm + UnitActionPointerForm in 2ad -> asserted GONE below.)
-            foreach (var kept in new[]
-            {
-                "EventUnitForm(RecycleReserveUnits)",
-            })
-            {
-                Assert.Contains(kept, notYet);
-            }
+            //  ItemForm + UnitActionPointerForm in 2ad. RecycleReserveUnits in 2ae -> all asserted GONE.)
+            Assert.DoesNotContain("EventUnitForm(RecycleReserveUnits)", notYet);
 
             // slice 2s ported AIScriptForm + ImageBattleAnimeForm -> they must now be GONE.
             Assert.DoesNotContain("AIScriptForm", notYet);
@@ -5242,6 +5238,83 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = savedRom; }
         }
 
+        // ---- EmitEventUnitReserveUnits (slice 2ae): faithful headless NO-OP ----
+        // WF EventUnitForm.RecycleReserveUnits iterates the static NewAllocData list, which is GUI
+        // session state (only CreateNewData via the interactive "NEW" dialog ever Adds to it) and is
+        // ALWAYS empty on a loaded ROM. Core has no NewAllocData mechanism, so the faithful reproduction
+        // appends NOTHING. These tests pin that no-op: a zeroed ROM and a populated synthetic FE8 ROM
+        // (with real EventUnit-looking tables present) must BOTH yield an empty list, and the call must
+        // never append to, reorder, or throw on a pre-populated list.
+
+        [Fact]
+        public void EmitEventUnitReserveUnits_ZeroedRom_EmitsNothing()
+        {
+            var rom = CreateTestRom();
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var list = new List<Address>();
+                RebuildProducerCore.EmitEventUnitReserveUnits(rom, list);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitEventUnitReserveUnits_PopulatedSyntheticFE8Rom_EmitsNothing()
+        {
+            // Even with a real-looking EventUnit table planted in the ROM, the producer emits NOTHING
+            // here: WF only recovers reserve regions from the in-memory NewAllocData session list (which
+            // Core never has), NOT from any ROM scan. The ROM-anchored EventUnit data is covered by the
+            // regular RecycleOldUnits scan (EventCond/EventScript), not by this method.
+            var fe8 = MakeVersionedRom("BE8E01");
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = fe8;
+                uint block = fe8.RomInfo.eventunit_data_size;
+                uint scriptPointer = 0x400000;
+                uint unitBase = 0x410000;
+                fe8.write_u32(scriptPointer, Ptr(unitBase));
+                fe8.write_u8(unitBase + 0, 0x10);
+                fe8.write_u8(unitBase + block + 0, 0x11);
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitEventUnitReserveUnits(fe8, list);
+                Assert.Empty(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitEventUnitReserveUnits_DoesNotTouchExistingList_OrThrowOnNullRom()
+        {
+            // Pre-populated list must be left byte-identical (the no-op appends nothing, removes nothing,
+            // reorders nothing); and a null ROM must not throw (the (x, rom) emitter signature parity).
+            var rom = CreateTestRom();
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var sentinel = new Address(0x1000, 4, U.NOT_FOUND, "sentinel",
+                    Address.DataTypeEnum.BIN);
+                var list = new List<Address> { sentinel };
+
+                RebuildProducerCore.EmitEventUnitReserveUnits(rom, list);
+                Assert.Single(list);
+                Assert.Same(sentinel, list[0]);
+
+                // null! — intentionally pass null to the non-nullable param to validate "does not throw"
+                // for the unused ROM argument (the (x, rom) emitter signature parity); keep it CS8625-free.
+                var ex = Record.Exception(() =>
+                    RebuildProducerCore.EmitEventUnitReserveUnits(null!, list));
+                Assert.Null(ex);
+                Assert.Single(list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
         // ---- NotYetPorted coverage delta for slice 2j ----------------------
 
         [Fact]
@@ -5261,7 +5334,9 @@ namespace FEBuilderGBA.Core.Tests
             //  ImageBattleAnimeForm in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet); // NewAllocData = editor session state
+            // (EventUnitForm(RecycleReserveUnits) ported in slice 2ae as a faithful headless NO-OP —
+            //  NewAllocData is GUI session state, always empty on a loaded ROM.)
+            Assert.DoesNotContain("EventUnitForm(RecycleReserveUnits)", notYet);
             // (ItemForm ported in slice 2ad — StatBooster size via the new Core PatchDetection detectors.)
             Assert.DoesNotContain("ItemForm", notYet);
 
@@ -9558,9 +9633,11 @@ namespace FEBuilderGBA.Core.Tests
                 ROM vanilla = BuildWireVanilla();
                 var structList = BuildWireStructList();
 
-                // Data path incomplete (a deferred data-path form), ASM path complete.
+                // Data path incomplete (a synthetic deferred data-path form name — the producer's data
+                // path is in fact complete after slice 2ae, so use a placeholder to drive the incomplete
+                // branch). ASM path complete.
                 var data = new RebuildProducerCore.ProducerResult(
-                    structList, new[] { "EventUnitForm(RecycleReserveUnits)" }, cancelled: false);
+                    structList, new[] { "SomeDeferredDataPathForm" }, cancelled: false);
                 var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
 
                 using (var tmp = new WireTempDir())
@@ -9569,7 +9646,7 @@ namespace FEBuilderGBA.Core.Tests
                     var ex = Assert.Throws<InvalidOperationException>(() =>
                         RebuildProducerCore.MakeWithProducer(
                             data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
-                    Assert.Contains("EventUnitForm(RecycleReserveUnits)", ex.Message);
+                    Assert.Contains("SomeDeferredDataPathForm", ex.Message);
                     Assert.False(System.IO.File.Exists(manifestPath));
                 }
             }
@@ -10127,12 +10204,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ItemForm", notYet);
             Assert.DoesNotContain("UnitActionPointerForm", notYet);
 
-            // The only data-path remainder (a genuine producer form) is
-            // EventUnitForm(RecycleReserveUnits) — editor session state (NewAllocData). The list also
-            // keeps the ASM-path epic PatchForm(MakePatchStructDataList) and the ASM-only ProcsScriptForm
-            // (whose length helper this data path reuses but whose own table is ASM-path) — both out of
-            // scope for the data-path producer, kept so the coverage gate stays honest.
-            Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet);
+            // slice 2ae ports EventUnitForm(RecycleReserveUnits) as a faithful headless NO-OP (NewAllocData
+            // is GUI session state, always empty on a loaded ROM) -> it is now GONE. This COMPLETES the
+            // data-path producer: the list keeps ONLY the ASM-path epic PatchForm(MakePatchStructDataList)
+            // (out of scope for the data-path producer, kept so the coverage gate stays honest).
+            Assert.DoesNotContain("EventUnitForm(RecycleReserveUnits)", notYet);
             Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
         }
 
