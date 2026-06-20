@@ -1980,7 +1980,11 @@ namespace FEBuilderGBA
         {
             try
             {
-                return U.LoadTSVResource(U.ConfigDataFilename(type, rom));
+                // isRequired:false — a missing config file degrades to an empty dict WITHOUT the
+                // ShowError dialog + Debug.Assert(false) that U.IsRequiredFileExist raises on the default
+                // isRequired:true path (which would pop an error for every missing optional config during a
+                // rebuild). The try/catch still covers a null BaseDirectory (ArgumentNullException).
+                return U.LoadTSVResource(U.ConfigDataFilename(type, rom), isRequired: false);
             }
             catch (Exception)
             {
@@ -2205,7 +2209,7 @@ namespace FEBuilderGBA
         /// <c>ImageRomAnimeForm.MakeAllDataLength</c> (slice 2q, version-agnostic call site). WF loads
         /// <c>g_ROMAnime = LoadTSVResource(ConfigDataFilename("romanime_"))</c> (value = [imageWidth, option,
         /// framePointer, tsaPointer, imagePointer, palettePointer, name, …]). Per entry it gates on
-        /// <see cref="CheckRomAnimePonters"/> (pure-ROM), then emits: a 4-byte FRAME pointer + (frameCount*4)
+        /// <see cref="CheckRomAnimePointers"/> (pure-ROM), then emits: a 4-byte FRAME pointer + (frameCount*4)
         /// BIN frame table (frameCount from <see cref="GetRomAnimeFrameCountLow"/>, an <c>u16==0xFFFF</c>
         /// terminator walk; if NOT_FOUND the whole entry is skipped); a 4-byte TSA pointer + one LZ77 TSA per
         /// <see cref="GetRomAnimePointerListCount"/> entry; a 4-byte Image pointer + one LZ77 image per list
@@ -2228,7 +2232,7 @@ namespace FEBuilderGBA
                 uint palettePointer = U.atoh(U.at(sp, 5));
                 string name = U.at(sp, 6);
 
-                if (!CheckRomAnimePonters(rom, framePointer, tsaPointer, imagePointer, palettePointer))
+                if (!CheckRomAnimePointers(rom, framePointer, tsaPointer, imagePointer, palettePointer))
                 {
                     continue;
                 }
@@ -2313,7 +2317,7 @@ namespace FEBuilderGBA
         /// pointer slot is present it must hold a safe pointer, and the TSA/image/palette pointer slots must
         /// each be a safe offset holding a safe pointer. Returns false (skip the entry) otherwise.
         /// EOF-hardened on every <c>u32</c> slot read.</summary>
-        public static bool CheckRomAnimePonters(ROM rom, uint framePointer, uint tsaPointer,
+        public static bool CheckRomAnimePointers(ROM rom, uint framePointer, uint tsaPointer,
             uint imagePointer, uint palettePointer)
         {
             if (U.isSafetyOffset(framePointer, rom))
@@ -7490,7 +7494,7 @@ namespace FEBuilderGBA
                 //   ImageUtilAP.CalcAPLength = Parse + GetLength, already a tested Core helper]. The count
                 //   rule is MoveIconRule [class-count-bounded]. So it is no longer deferred.)
                 //  (slice 2q ported ImageRomAnimeForm [all versions] — EmitImageRomAnime: per romanime_
-                //   config entry, CheckRomAnimePonters gate (pure-ROM), then FRAME ptr + BIN
+                //   config entry, CheckRomAnimePointers gate (pure-ROM), then FRAME ptr + BIN
                 //   (frameCount*4, frameCount = GetRomAnimeFrameCountLow u16==0xFFFF terminator walk),
                 //   TSA/Image ptr + per GetRomAnimePointerListCount entry LZ77 (getCompressedSize,
                 //   pointer-verified), Palette ptr + per GetRomAnimePalettePointerListCount entry PAL

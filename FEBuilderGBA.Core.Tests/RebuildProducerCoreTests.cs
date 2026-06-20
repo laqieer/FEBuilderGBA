@@ -7621,7 +7621,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void CheckRomAnimePonters_ReadsRawU32_NotP32()
+        public void CheckRomAnimePointers_ReadsRawU32_NotP32()
         {
             // Faithfulness: WF checkPonters reads u32(slot) and isSafetyPointer(...) — it does NOT
             // p32-normalize before the check. A slot holding a NON-pointer value must fail the gate.
@@ -7631,12 +7631,12 @@ namespace FEBuilderGBA.Core.Tests
             rom.write_u32(imgPtr, Ptr(0x2000));
             rom.write_u32(palPtr, Ptr(0x2100));
             // framePointer 0 -> isSafetyOffset(0) false -> the frame branch is skipped (WF).
-            bool ok = RebuildProducerCore.CheckRomAnimePonters(rom, 0, tsaPtr, imgPtr, palPtr);
+            bool ok = RebuildProducerCore.CheckRomAnimePointers(rom, 0, tsaPtr, imgPtr, palPtr);
             Assert.False(ok);
 
             // Now make the TSA slot a real pointer -> gate passes.
             rom.write_u32(tsaPtr, Ptr(0x2200));
-            Assert.True(RebuildProducerCore.CheckRomAnimePonters(rom, 0, tsaPtr, imgPtr, palPtr));
+            Assert.True(RebuildProducerCore.CheckRomAnimePointers(rom, 0, tsaPtr, imgPtr, palPtr));
         }
 
         // ---- NotYetPorted coverage delta for slice 2q ----
