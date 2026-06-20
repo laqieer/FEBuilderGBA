@@ -7308,10 +7308,10 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ---- coverage tracker: slice 2o drops the 3 RecycleOldAnime-free Skill
-        //      forms, keeps the anime-dependent siblings -------------------------
+        //      forms; slice 2ac then drops the 3 anime-dependent siblings -------
 
         [Fact]
-        public void GetNotYetPortedForms_DropsSlice2oSkillForms_KeepsAnimeSiblings()
+        public void GetNotYetPortedForms_DropsSlice2oSkillForms_AndSlice2acAnimeSiblings()
         {
             string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
 
@@ -7320,15 +7320,16 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("SkillAssignmentUnitSkillSystemForm", notYet);
             Assert.DoesNotContain("SkillConfigFE8NSkillForm", notYet);
 
-            // The RecycleOldAnime-dependent Skill siblings STAY (anime length walker not in Core).
-            foreach (var kept in new[]
+            // slice 2ac ports the RecycleOldAnime-dependent Skill siblings (RecycleOldAnime reproduced
+            // VERBATIM as EmitSkillSystemsRecycleOldAnime); all three are now DROPPED from NotYetPorted.
+            foreach (var ported in new[]
             {
                 "SkillConfigSkillSystemForm",
                 "SkillConfigFE8NVer2SkillForm",
                 "SkillConfigFE8NVer3SkillForm",
             })
             {
-                Assert.Contains(kept, notYet);
+                Assert.DoesNotContain(ported, notYet);
             }
 
             // (ImageBattleAnimeForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
@@ -7354,12 +7355,607 @@ namespace FEBuilderGBA.Core.Tests
             // ImageBattleAnimeForm was the deferred OAM sibling at slice 2p (the test name is historical);
             // it is PORTED in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // The RecycleOldAnime-dependent SkillConfig siblings DO still stay tracked at this point.
-            Assert.Contains("SkillConfigSkillSystemForm", notYet);
+            // The RecycleOldAnime-dependent SkillConfig siblings are PORTED in slice 2ac — see
+            // GetNotYetPortedForms_DropsSlice2oSkillForms_AndSlice2acAnimeSiblings.
+            Assert.DoesNotContain("SkillConfigSkillSystemForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
             Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // ====================================================================
+        // slice 2ac — SkillConfig SkillSystems anime forms (RecycleOldAnime
+        // reproduced VERBATIM). The explicit-address *At seams drive the
+        // IFR/recycle shapes over synthetic ROMs; a versioned FE8J ROM
+        // (is_multibyte -> SkipCode returns the anime address DIRECTLY) is used
+        // for the recycle walk so no config/patch2 template file is needed.
+        // ====================================================================
+
+        // Write a minimal valid LZ77 stream (tag 0x10, decompressed size 4, one flag byte = all literal,
+        // 4 literal bytes) at `offset`; getCompressedSize then returns a non-zero length. Returns the next
+        // free offset after the stream.
+        static uint WriteTinyLz77(ROM rom, uint offset)
+        {
+            rom.write_u8(offset + 0, 0x10);   // LZ77 tag
+            rom.write_u8(offset + 1, 0x04);   // decompressed size (3 bytes LE) = 4
+            rom.write_u8(offset + 2, 0x00);
+            rom.write_u8(offset + 3, 0x00);
+            rom.write_u8(offset + 4, 0x00);   // flag byte: all 4 blocks uncompressed (literal)
+            rom.write_u8(offset + 5, 0xAA);
+            rom.write_u8(offset + 6, 0xBB);
+            rom.write_u8(offset + 7, 0xCC);
+            rom.write_u8(offset + 8, 0xDD);
+            return offset + 9;
+        }
+
+        // Lay out ONE FE8J skill anime (is_multibyte -> SkipCode direct) at `animeAddr`:
+        //   config block (5 words) @ animeAddr: frames / tsalist / graphiclist / palettelist / soundid
+        //   frames table @ framesAddr: [u16 id, u16 wait]* terminated by 0xFFFF (the `ids` array)
+        //   per unique id: graphiclist[id] -> a tiny LZ77 OBJ; tsalist[id] -> a tiny LZ77 TSA;
+        //                  palettelist[id] -> a 0x20 raw palette
+        // Returns nothing; the caller plants `animeAddr` into the anime pointer list.
+        static void LayoutSkillAnime(ROM rom, uint animeAddr, uint framesAddr, uint listsAddr,
+            uint imgPoolAddr, ushort[] ids)
+        {
+            // Distinct image/tsa/pal blocks per UNIQUE id, packed into imgPoolAddr.
+            var uniq = ids.Distinct().ToArray();
+            uint graphiclist = listsAddr + 0x00;
+            uint tsalist = listsAddr + 0x80;
+            uint palettelist = listsAddr + 0x100;
+
+            uint pool = imgPoolAddr;
+            foreach (ushort id in uniq)
+            {
+                uint objOff = pool; pool = WriteTinyLz77(rom, pool); pool = (pool + 3) & ~3u;
+                uint tsaOff = pool; pool = WriteTinyLz77(rom, pool); pool = (pool + 3) & ~3u;
+                uint palOff = pool; pool += 0x20; pool = (pool + 3) & ~3u;
+                rom.write_u32(graphiclist + (uint)id * 4, Ptr(objOff));
+                rom.write_u32(tsalist + (uint)id * 4, Ptr(tsaOff));
+                rom.write_u32(palettelist + (uint)id * 4, Ptr(palOff));
+            }
+
+            // config block.
+            rom.write_u32(animeAddr + 0, Ptr(framesAddr));
+            rom.write_u32(animeAddr + 4, Ptr(tsalist));
+            rom.write_u32(animeAddr + 8, Ptr(graphiclist));
+            rom.write_u32(animeAddr + 12, Ptr(palettelist));
+            rom.write_u32(animeAddr + 16, 0x3d1); // sound id (raw)
+
+            // frames table.
+            uint f = framesAddr;
+            foreach (ushort id in ids)
+            {
+                rom.write_u16(f + 0, id);
+                rom.write_u16(f + 2, 0x0001); // wait
+                f += 4;
+            }
+            rom.write_u16(f + 0, 0xFFFF); // terminator
+        }
+
+        [Fact]
+        public void EmitSkillSystemsRecycleOldAnime_FE8J_EmitsPerFrameAndConfigBlocks()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01"); // FE8J: is_multibyte -> SkipCode returns addr directly.
+                Assert.True(rom.RomInfo.is_multibyte);
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                // 2 frames, ids {0, 1} (both unique) then terminator -> count 2.
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0, 1 });
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, list, "SkillAnime:0x0 ", false, animeAddr);
+
+                // Per-frame OBJ/TSA/PAL for each of the 2 frames.
+                Assert.Equal(2, list.Count(a => a.Info == "SkillAnime:0x0 OBJ"));
+                Assert.Equal(2, list.Count(a => a.Info == "SkillAnime:0x0 TSA"));
+                Assert.Equal(2, list.Count(a => a.Info == "SkillAnime:0x0 PAL"));
+                // Type check on the per-frame regions.
+                Assert.All(list.Where(a => a.Info == "SkillAnime:0x0 OBJ"),
+                    a => Assert.Equal(Address.DataTypeEnum.LZ77IMG, a.DataType));
+                Assert.All(list.Where(a => a.Info == "SkillAnime:0x0 TSA"),
+                    a => Assert.Equal(Address.DataTypeEnum.LZ77TSA, a.DataType));
+                Assert.All(list.Where(a => a.Info == "SkillAnime:0x0 PAL"),
+                    a => { Assert.Equal(Address.DataTypeEnum.PAL, a.DataType); Assert.Equal(0x20u, a.Length); });
+
+                // The trailing config + 4 list blocks (count 2).
+                Address ptr = list.Single(a => a.Info == "SkillAnime:0x0 POINTER");
+                Assert.Equal(animeAddr, ptr.Addr);
+                Assert.Equal(Address.DataTypeEnum.POINTER, ptr.DataType);
+                Assert.Equal(U.NOT_FOUND, ptr.Pointer);
+                // config == anime (FE8J), so POINTER length = (config - anime) + 20 = 0 + 20 = 20.
+                Assert.Equal(20u, ptr.Length);
+
+                Address rom_frame = list.Single(a => a.Info == "SkillAnime:0x0 ROMANIMEFRAME");
+                Assert.Equal((2u + 1) * 4, rom_frame.Length);   // (count+1)*4
+                Assert.Equal(Address.DataTypeEnum.ROMANIMEFRAME, rom_frame.DataType);
+
+                Assert.Equal(2u * 4, list.Single(a => a.Info == "SkillAnime:0x0 TSALIST").Length);
+                Assert.Equal(2u * 4, list.Single(a => a.Info == "SkillAnime:0x0 IMAGELIST").Length);
+                // The WF "PALETEELIST" typo is preserved for parity.
+                Assert.Equal(2u * 4, list.Single(a => a.Info == "SkillAnime:0x0 PALETEELIST").Length);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillSystemsRecycleOldAnime_FE8J_SharedFrameId_EmittedOnce_ViaRecyclePoolDedup()
+        {
+            // A frame id referenced TWICE in the frames table resolves to the SAME objPointer/tsaPointer/
+            // palPointer, so the recycle pool collapses them (the WF per-frame Add* with no explicit dedup —
+            // the Address list carries duplicate POINTER slots, but each points at the SAME pool slot). We
+            // assert the per-frame Add* fire per FRAME (count 3 for 3 frames) but the underlying pointers
+            // reference only 2 distinct slots.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                // ids {0, 1, 0}: 3 frames, 2 unique ids. count = 3 (per-frame).
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0, 1, 0 });
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, list, "S ", false, animeAddr);
+
+                // 3 OBJ Address entries (one per FRAME), but only 2 DISTINCT graphiclist slots (id 0 twice).
+                var objs = list.Where(a => a.Info == "S OBJ").ToList();
+                Assert.Equal(3, objs.Count);
+                Assert.Equal(2, objs.Select(a => a.Pointer).Distinct().Count());
+                // count is per-frame (3) -> ROMANIMEFRAME length (3+1)*4.
+                Assert.Equal((3u + 1) * 4, list.Single(a => a.Info == "S ROMANIMEFRAME").Length);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillSystemsRecycleOldAnime_NonMultibyteNoTemplate_EmitsNothing()
+        {
+            // FE8U (is_multibyte == false) with NO config/patch2 template files -> SkipCode returns NOT_FOUND
+            // -> nothing emitted (the WF SkipCode template-miss path). Faithful headless behaviour.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8E01"); // FE8U: is_multibyte == false.
+                Assert.False(rom.RomInfo.is_multibyte);
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0, 1 });
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, list, "X ", false, animeAddr);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillSystemsRecycleOldAnime_NearEof_NoThrow()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint nearEof = (uint)rom.Data.Length - 4; // config block (20 bytes) would overrun.
+                var list = new List<Address>();
+                Assert.Null(Record.Exception(() =>
+                    RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, list, "X ", false, nearEof)));
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ---- EmitSkillConfigSkillSystemAt (form 1, FE8U) ----
+
+        [Fact]
+        public void EmitSkillConfigSkillSystemAt_EmitsMainIfr_AndSkillAnimeList()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint basetextP = 0x0400, baseanimeP = 0x0500;
+            uint textTable = 0x1000, animeTable = 0x2000;
+            rom.write_u32(basetextP, Ptr(textTable));
+            rom.write_u32(baseanimeP, Ptr(animeTable));
+            // block-2 IFR, rule i < 255 -> count caps at 255 (or EOF). Plant 3 non-zero u16 entries; the
+            // i<255 rule never stops on data, only at EOF — so count = (0x10000 - textTable)/2 capped at 255.
+            // To keep it small, the i<255 rule means it walks until i==255 -> count 255.
+            for (uint k = 0; k < 4; k++) rom.write_u16(textTable + k * 2, (ushort)(0x1000 + k));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigSkillSystemAt(rom, list, basetextP, baseanimeP);
+
+            Address main = list.Single(a => a.Info == "SkillConfigSkillSystem");
+            Assert.Equal(textTable, main.Addr);
+            Assert.Equal(basetextP, main.Pointer);
+            Assert.Equal(2u, main.BlockSize);
+            Assert.Equal(255u, RomBlockCount(main));     // i<255 -> count 255
+            Assert.Empty(main.PointerIndexes);
+
+            // The "SkillAnime" pointer-list IFR (AddAddressInstantIFR): base = animeTable, block 4,
+            // length = 4 * (255 + 1), pointer = the slot, PI {0}.
+            Address anime = list.Single(a => a.Info == "SkillAnime");
+            Assert.Equal(animeTable, anime.Addr);
+            Assert.Equal(baseanimeP, anime.Pointer);
+            Assert.Equal(4u, anime.BlockSize);
+            Assert.Equal(new uint[] { 0 }, anime.PointerIndexes);
+            Assert.Equal(4u * (255 + 1), anime.Length);
+        }
+
+        // helper: recover the IFR DataCount from an emitted Address (length = block*(count+1)).
+        static uint RomBlockCount(Address a) => (a.Length / a.BlockSize) - 1;
+
+        [Fact]
+        public void EmitSkillConfigSkillSystemAt_PerAnimeRecycleWalk_FE8J()
+        {
+            // Drive form 1's per-anime recycle walk end-to-end on an FE8J ROM (is_multibyte -> SkipCode
+            // direct). The main IFR has a tiny count so the anime loop is bounded; one valid anime entry.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint basetextP = 0x0400, baseanimeP = 0x0500;
+                uint textTable = 0x600, animeTable = 0x800;
+                rom.write_u32(basetextP, Ptr(textTable));
+                rom.write_u32(baseanimeP, Ptr(animeTable));
+                // text table: block-2, rule i<255 -> count caps at 255. To bound the anime loop to ONE entry
+                // we cannot easily cap i<255; instead point the anime table's entry 0 at a valid anime and
+                // leave the rest NULL (RecycleOldAnime skips NULL via isSafetyOffset continue).
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0, 1 });
+                rom.write_u32(animeTable + 0, Ptr(animeAddr)); // entry 0 -> the valid anime.
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigSkillSystemAt(rom, list, basetextP, baseanimeP);
+
+                // The recycle walk for entry 0 fires with the per-skill name "SkillAnime:0x0 ".
+                Assert.Contains(list, a => a.Info == "SkillAnime:0x00 POINTER");
+                Assert.Equal(2, list.Count(a => a.Info == "SkillAnime:0x00 OBJ"));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillConfigSkillSystemAt_NearEofAnimeSlot_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint basetextP = 0x0400;
+            uint baseanimeP = (uint)rom.Data.Length - 2; // slot near EOF.
+            rom.write_u32(basetextP, Ptr(0x1000));
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillConfigSkillSystemAt(rom, list, basetextP, baseanimeP)));
+        }
+
+        [Fact]
+        public void EmitSkillConfigSkillSystem_NonSkillSystemRom_EmitsNothing()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var fe8 = MakeVersionedRom("BE8E01"); // FE8U, no SkillSystem patch -> SearchSkillSystem != SkillSystem.
+                CoreState.ROM = fe8;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8);
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigSkillSystem(fe8, list);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ---- EmitSkillConfigFE8NVer2At (form 2, FE8J) ----
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2At_MainIfr_AnimePointer_NestedAndIcon()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01"); // is_multibyte -> SkipCode direct for the recycle walk.
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint skillBaseP = 0x0400, animeBaseP = 0x0500;
+                uint skillTable = 0x600, animeTable = 0x800;
+                uint iconListSize = 16; // block 16 -> PI {4,8,12}.
+                rom.write_u32(skillBaseP, Ptr(skillTable));
+                rom.write_u32(animeBaseP, Ptr(animeTable));
+
+                // skill table: 2 entries (u8(addr) != 0xFF) then a 0xFF terminator at entry 2.
+                // entry 0 @ skillTable, entry 1 @ skillTable+16.
+                rom.write_u8(skillTable + 0 * 16, 0x10);   // text id low byte, != 0xFF
+                rom.write_u8(skillTable + 1 * 16, 0x11);
+                rom.write_u8(skillTable + 2 * 16, 0xFF);   // terminator
+                // nested N1/N2/N3 pointers for entry 0 (@ +4/+8/+12) -> tiny u8!=0 lists.
+                uint n1 = 0x900, n2 = 0x910, n3 = 0x920;
+                rom.write_u32(skillTable + 0 * 16 + 4, Ptr(n1));
+                rom.write_u32(skillTable + 0 * 16 + 8, Ptr(n2));
+                rom.write_u32(skillTable + 0 * 16 + 12, Ptr(n3));
+                rom.write_u8(n1, 0x05); rom.write_u8(n1 + 1, 0x00);   // 1 entry then 0
+                rom.write_u8(n2, 0x06); rom.write_u8(n2 + 1, 0x00);
+                rom.write_u8(n3, 0x07); rom.write_u8(n3 + 1, 0x00);
+
+                // anime table entry 0 -> valid anime.
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0 });
+                rom.write_u32(animeTable + 0, Ptr(animeAddr));
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, animeBaseP, iconListSize);
+
+                // Main IFR.
+                Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+                Assert.Equal(skillTable, main.Addr);
+                Assert.Equal(skillBaseP, main.Pointer);
+                Assert.Equal(16u, main.BlockSize);
+                Assert.Equal(2u, RomBlockCount(main));         // 2 entries.
+                Assert.Equal(new uint[] { 4, 8, 12 }, main.PointerIndexes);
+
+                // Per-anime POINTER (the AddAddress before the recycle walk).
+                Address animePtr = list.Single(a => a.Info == "SkillAnime:0x00 " && a.DataType == Address.DataTypeEnum.POINTER);
+                Assert.Equal(animeAddr, animePtr.Addr);
+                Assert.Equal(animeTable + 0, animePtr.Pointer);
+                Assert.Equal(4u, animePtr.Length);
+                // recycle walk fired.
+                Assert.Contains(list, a => a.Info == "SkillAnime:0x00 POINTER");
+
+                // Per-entry nested unit/class/item + SkillIcon.
+                Assert.Contains(list, a => a.Info == "SkillUnit:0x00");
+                Assert.Contains(list, a => a.Info == "SkillClass:0x00");
+                Assert.Contains(list, a => a.Info == "SkillItem:0x00");
+                Assert.DoesNotContain(list, a => a.Info == "SkillItem2:0x00"); // block 16 -> no N4.
+                Address icon0 = list.Single(a => a.Info == "SkillIcon:0x00");
+                Assert.Equal(128u, icon0.Length);
+                Assert.Equal(Address.DataTypeEnum.IMG, icon0.DataType);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2At_Block20_AddsN4_AndPi16()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint skillBaseP = 0x0400;
+            uint skillTable = 0x1000;
+            uint iconListSize = 20; // block 20 -> PI {4,8,12,16}, N4 emitted.
+            rom.write_u32(skillBaseP, Ptr(skillTable));
+            rom.write_u8(skillTable + 0 * 20, 0x10);
+            rom.write_u8(skillTable + 1 * 20, 0xFF); // 1 entry then terminator.
+            uint n4 = 0x2000;
+            rom.write_u32(skillTable + 0 * 20 + 16, Ptr(n4));
+            rom.write_u8(n4, 0x09); rom.write_u8(n4 + 1, 0x00);
+
+            var list = new List<Address>();
+            // animeBase 0 -> no anime walk.
+            RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, iconListSize);
+
+            Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+            Assert.Equal(new uint[] { 4, 8, 12, 16 }, main.PointerIndexes);
+            Assert.Contains(list, a => a.Info == "SkillItem2:0x00"); // N4 present at block 20.
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2At_Block24_Pi12NotPi16_ButN4StillEmitted()
+        {
+            // WF asymmetry: the main pointerIndexes use `ifr.BlockSize == 20` (so block 24 -> {4,8,12}, NOT
+            // {4,8,12,16}), while the optional N4 uses `g_ICON_LIST_SIZE >= 20` (so block 24 DOES emit N4).
+            var rom = CreateTestRom(0x10000);
+            uint skillBaseP = 0x0400;
+            uint skillTable = 0x1000;
+            uint iconListSize = 24;
+            rom.write_u32(skillBaseP, Ptr(skillTable));
+            rom.write_u8(skillTable + 0 * 24, 0x10);
+            rom.write_u8(skillTable + 1 * 24, 0xFF);
+            uint n4 = 0x2000;
+            rom.write_u32(skillTable + 0 * 24 + 16, Ptr(n4));
+            rom.write_u8(n4, 0x09); rom.write_u8(n4 + 1, 0x00);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, iconListSize);
+
+            Address main = list.Single(a => a.Info == "SkillConfigFE8NVer2");
+            Assert.Equal(new uint[] { 4, 8, 12 }, main.PointerIndexes);   // block != 20 -> {4,8,12}.
+            Assert.Contains(list, a => a.Info == "SkillItem2:0x00");      // iconListSize >= 20 -> N4 emitted.
+        }
+
+        [Fact]
+        public void EmitSkillSystemsRecycleOldAnime_IsPointerOnly_ForwardedToObjTsa()
+        {
+            // The producer always passes isPointerOnly=false; prove the method THREADS the flag (true ->
+            // OBJ/TSA LZ77 lengths become 0 via AddLZ77Pointer's isPointerOnly path).
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0 });
+
+                var pf = new List<Address>();
+                RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, pf, "P ", true, animeAddr);
+                Assert.All(pf.Where(a => a.Info == "P OBJ"), a => Assert.Equal(0u, a.Length));
+                Assert.All(pf.Where(a => a.Info == "P TSA"), a => Assert.Equal(0u, a.Length));
+
+                var full = new List<Address>();
+                RebuildProducerCore.EmitSkillSystemsRecycleOldAnime(rom, full, "P ", false, animeAddr);
+                Assert.All(full.Where(a => a.Info == "P OBJ"), a => Assert.True(a.Length > 0));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2At_AnimeBaseZero_NoAnimeWalk()
+        {
+            var rom = CreateTestRom(0x10000);
+            uint skillBaseP = 0x0400, skillTable = 0x1000;
+            rom.write_u32(skillBaseP, Ptr(skillTable));
+            rom.write_u8(skillTable + 0 * 16, 0x10);
+            rom.write_u8(skillTable + 1 * 16, 0xFF);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, skillBaseP, 0, 16);
+            Assert.DoesNotContain(list, a => a.Info.StartsWith("SkillAnime"));
+            Assert.Contains(list, a => a.Info == "SkillConfigFE8NVer2");
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2At_NearEofSkillSlot_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint nearEof = (uint)rom.Data.Length - 2;
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillConfigFE8NVer2At(rom, list, nearEof, 0, 16)));
+            Assert.Empty(list);
+        }
+
+        // ---- EmitSkillConfigFE8NVer3At (form 3, FE8J) ----
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer3At_MainIfr_Pi5_AnimeViaU32_NestedN5_AndIcon()
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom("BE8J01");
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+
+                uint skillBaseP = 0x0400, animeBaseP = 0x0500;
+                uint skillTable = 0x600, animeTable = 0x800;
+                uint iconListSize = 24; // block 24 holds the +20 N5 pointer.
+                rom.write_u32(skillBaseP, Ptr(skillTable));
+                rom.write_u32(animeBaseP, Ptr(animeTable));
+
+                rom.write_u8(skillTable + 0 * 24, 0x10);
+                rom.write_u8(skillTable + 1 * 24, 0xFF); // 1 entry then terminator.
+                // nested N1..N5 @ +4/+8/+12/+16/+20.
+                uint nbase = 0x900;
+                for (uint k = 0; k < 5; k++)
+                {
+                    uint np = nbase + k * 0x10;
+                    rom.write_u32(skillTable + 0 * 24 + 4 + k * 4, Ptr(np));
+                    rom.write_u8(np, (byte)(0x05 + k)); rom.write_u8(np + 1, 0x00);
+                }
+
+                uint animeAddr = 0x1000, framesAddr = 0x2000, listsAddr = 0x3000, imgPool = 0x4000;
+                LayoutSkillAnime(rom, animeAddr, framesAddr, listsAddr, imgPool, new ushort[] { 0 });
+                rom.write_u32(animeTable + 0, Ptr(animeAddr));
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigFE8NVer3At(rom, list, skillBaseP, animeBaseP, iconListSize);
+
+                Address main = list.Single(a => a.Info == "SkillConfigFE8NVer3");
+                Assert.Equal(new uint[] { 4, 8, 12, 16, 20 }, main.PointerIndexes);
+                Assert.Equal(24u, main.BlockSize);
+
+                // Per-anime POINTER + recycle.
+                Assert.Contains(list, a => a.Info == "SkillAnime:0x00 " && a.DataType == Address.DataTypeEnum.POINTER);
+                Assert.Contains(list, a => a.Info == "SkillAnime:0x00 POINTER");
+
+                // N1..N5.
+                Assert.Contains(list, a => a.Info == "SkillUnit:0x00");
+                Assert.Contains(list, a => a.Info == "SkillClass:0x00");
+                Assert.Contains(list, a => a.Info == "SkillItem:0x00");
+                Assert.Contains(list, a => a.Info == "SkillItem2:0x00");
+                Assert.Contains(list, a => a.Info == "SkillComplex:0x00");
+                Assert.Equal(128u, list.Single(a => a.Info == "SkillIcon:0x00").Length);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer3At_NearEofSkillSlot_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint nearEof = (uint)rom.Data.Length - 2;
+            var list = new List<Address>();
+            Assert.Null(Record.Exception(() =>
+                RebuildProducerCore.EmitSkillConfigFE8NVer3At(rom, list, nearEof, 0, 24)));
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitSkillConfigFE8NVer2_And_Ver3_NonMatchingRom_EmitNothing()
+        {
+            // FE8J with no Ver2/Ver3 patch -> SearchSkillSystem != FE8N_ver2/ver3 -> nothing.
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var fe8j = MakeVersionedRom("BE8J01");
+                CoreState.ROM = fe8j;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(fe8j);
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSkillConfigFE8NVer2(fe8j, list);
+                RebuildProducerCore.EmitSkillConfigFE8NVer3(fe8j, list);
+                Assert.Empty(list);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
         }
 
         // --- ImageMapActionAnimation ---------------------------------------

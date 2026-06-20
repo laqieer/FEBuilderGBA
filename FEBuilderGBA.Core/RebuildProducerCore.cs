@@ -861,14 +861,17 @@ namespace FEBuilderGBA
             progress?.Report("SupportUnit");
             EmitSupportUnit(rom, list);
 
-            // ---- slice 2o: SkillSystems skill-config / skill-assignment forms ----
-            // WF (U.MakeAllStructPointersList) runs these in the version-agnostic section, gated on
+            // ---- slice 2o + 2ac: SkillSystems skill-config / skill-assignment forms ----
+            // WF (U.MakeAllStructPointersList :2438-2449) runs these in the version-agnostic section, gated on
             // is_multibyte: `is_multibyte == false` (FE8U) emits the two skill-ASSIGNMENT tables (Class +
-            // Unit); `else` (FE8J) emits SkillConfigFE8N. The RecycleOldAnime-dependent siblings
-            // (SkillConfigSkillSystemForm on FE8U; FE8NVer2/FE8NVer3 on FE8J) STAY deferred (anime length
-            // walker + GUI state not in Core). Each emitter ALSO re-checks SearchSkillSystem (mirroring the
-            // WF MakeAllDataLength early-return), so a non-SkillSystem ROM emits nothing. Gate EXACTLY as
-            // WF: a wrong is_multibyte branch would emit the wrong tables = corruption.
+            // Unit) THEN SkillConfigSkillSystem; `else` (FE8J) emits SkillConfigFE8N THEN
+            // SkillConfigFE8NVer2 THEN SkillConfigFE8NVer3. Slice 2o ported the RecycleOldAnime-FREE subset
+            // (Assignment Class/Unit + SkillConfigFE8N); slice 2ac ports the three RecycleOldAnime-DEPENDENT
+            // siblings (SkillConfigSkillSystem on FE8U; FE8NVer2/FE8NVer3 on FE8J), reproducing the WF
+            // RecycleOldAnime VERBATIM as EmitSkillSystemsRecycleOldAnime. Each emitter ALSO re-checks
+            // SearchSkillSystem (mirroring the WF MakeAllDataLength early-return), so a non-matching ROM emits
+            // nothing. Gate EXACTLY as WF — a wrong is_multibyte branch would emit the wrong tables =
+            // corruption — and preserve the WF call ORDER within each branch.
             if (rom.RomInfo.is_multibyte == false)
             {
                 if (ct.IsCancellationRequested)
@@ -886,6 +889,14 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("SkillAssignmentUnit");
                 EmitSkillAssignmentUnit(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillConfigSkillSystem");
+                EmitSkillConfigSkillSystem(rom, list);
             }
             else
             {
@@ -896,6 +907,22 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("SkillConfigFE8N");
                 EmitSkillConfigFE8N(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillConfigFE8NVer2");
+                EmitSkillConfigFE8NVer2(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SkillConfigFE8NVer3");
+                EmitSkillConfigFE8NVer3(rom, list);
             }
 
             if (rom.RomInfo.version == 8)
@@ -5916,12 +5943,14 @@ namespace FEBuilderGBA
 
         // ===================================================================
         // slice 2o — SkillSystems skill-config / skill-assignment forms
-        // (the RecycleOldAnime-FREE subset). The other Skill forms
-        // (SkillConfigSkillSystemForm / FE8NVer2 / FE8NVer3) STAY deferred:
-        // they call ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime, an
-        // anime length walker not yet in Core (same blocker as the Group-3
-        // ImageUtilOAM/anime forms), plus the Ver2/Ver3 forms read GUI session
-        // state (g_SkillBaseAddress / g_AnimeBaseAddress / g_ICON_LIST_SIZE).
+        // (the RecycleOldAnime-FREE subset). The RecycleOldAnime-DEPENDENT
+        // siblings (SkillConfigSkillSystemForm / FE8NVer2 / FE8NVer3) are
+        // ported in slice 2ac (below) by reproducing RecycleOldAnime VERBATIM
+        // as EmitSkillSystemsRecycleOldAnime (the import-adapted Core helper
+        // EnumerateOldAnimeRegions diverges on NAMES + an import-only guard).
+        // The Ver2/Ver3 GUI session state (g_SkillBaseAddress /
+        // g_AnimeBaseAddress / g_ICON_LIST_SIZE) is resolved via the new
+        // SkillSystemTextScanner.FindSkillFE8NVer2/Ver3IconPointersFull.
         //
         // All base/count scanners are ALREADY in Core, faithfully:
         //   - SkillSystemTextScanner.SearchSkillSystem  (= WF PatchUtil.SearchSkillSystemLow)
@@ -6069,7 +6098,18 @@ namespace FEBuilderGBA
         public static uint EmitSkillAssignmentMainIfr(ROM rom, List<Address> list, uint assignP,
             string name, Func<int, uint, bool> rule)
         {
-            const uint block = 1;
+            return EmitSkillAssignmentMainIfr(rom, list, assignP, name, rule, 1);
+        }
+
+        /// <summary>Block-overload of <see cref="EmitSkillAssignmentMainIfr(ROM, List{Address}, uint, string,
+        /// Func{int, uint, bool})"/> for callers whose <c>Init</c> uses a non-1 BlockSize (slice 2ac:
+        /// SkillConfigSkillSystem's <c>Init(null, basetextP)</c> is block 2). Same shape: base =
+        /// <c>p32(assignP)</c>, length = <c>block × (DataCount + 1)</c>, pointer = the slot (or
+        /// <see cref="U.NOT_FOUND"/> if unsafe), emit ONLY if the base is safe; pointerIndexes EMPTY (the WF
+        /// <c>new uint[] {}</c>). Returns the resolved <c>DataCount</c>.</summary>
+        public static uint EmitSkillAssignmentMainIfr(ROM rom, List<Address> list, uint assignP,
+            string name, Func<int, uint, bool> rule, uint block)
+        {
             uint slot = U.toOffset(assignP);
             if (!U.isSafetyOffset(slot + 3, rom)) return 0;
             uint baseAddr = rom.p32(slot);
@@ -6223,6 +6263,552 @@ namespace FEBuilderGBA
                         return pp != 0xFFFF && pp != 0;
                     },
                     "SkillConfigFE8N" + U.ToHexString(i));
+            }
+        }
+
+        // ===================================================================
+        // slice 2ac — SkillConfig SkillSystems ANIME forms (the three
+        // RecycleOldAnime-DEPENDENT siblings deferred by slice 2o):
+        //   SkillConfigSkillSystemForm      [FE8U, is_multibyte == false]
+        //   SkillConfigFE8NVer2SkillForm    [FE8J, is_multibyte == true]
+        //   SkillConfigFE8NVer3SkillForm    [FE8J, is_multibyte == true]
+        // Each walks a skill table and, per anime entry, calls the WF
+        // ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime (an uncompressed
+        // anime-frame-stream length walker).
+        //
+        // CENTRAL FAITHFULNESS DECISION (RecycleOldAnime) — REPRODUCED VERBATIM:
+        // The import-adapted Core helper SkillSystemsAnimeImportCore.
+        // EnumerateOldAnimeRegions emits BYTE-IDENTICAL (addr,length,pointer,
+        // DataTypeEnum) tuples vs the WF RecycleOldAnime, BUT diverges on NAMES
+        // (it hardcodes basename "OLDANIME" where WF uses the per-skill
+        // "SkillAnime:0x.. " name, and names the palette list "PALETTELIST"
+        // where WF has the typo "PALETEELIST") AND adds a
+        // `ReferenceEquals(rom, CoreState.ROM)` import-only guard + an
+        // `excludeRegionAddrs` skip mechanism foreign to the producer walk.
+        // Reusing it would change the emitted Address.Info strings the
+        // FEBuilderGBA.Tests WF-parity suite checks. So this slice REPRODUCES
+        // RecycleOldAnime VERBATIM as a producer-local method
+        // (EmitSkillSystemsRecycleOldAnime) taking the per-skill basename —
+        // exactly the slice-2s posture (EmitImageBattleAnimeOAM). It reuses the
+        // PROVEN Core primitive SkillSystemsAnimeExportCore.SkipCode (itself a
+        // faithful WF SkipCode port: FE8J returns the address directly; FE8U
+        // skips the embedded config/patch2/FE8U/skill/*.dmp program template).
+        // ===================================================================
+
+        /// <summary>
+        /// VERBATIM port of <c>ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime</c>
+        /// (<c>FEBuilderGBA/ImageUtilSkillSystemsAnimeCreator.cs:637</c>): for ONE skill anime at
+        /// <paramref name="animeAddress"/>, emit the per-frame OBJ(LZ77)/TSA(LZ77)/PAL(0x20) regions plus —
+        /// only when the frames-table 0xFFFF terminator is reached within the 1 MB limiter — the program+config
+        /// POINTER block and the four config pointer-list blocks (ROMANIMEFRAME / TSALIST / IMAGELIST /
+        /// PALETEELIST). Reproduces the WF emission ORDER, the per-frame Add*(no dedup; the recycle pool
+        /// collapses repeated ids), and the partial-list bail semantics (a mid-walk unsafe pointer returns the
+        /// PARTIAL list; a limiter hit returns WITHOUT the trailing config blocks). The config address is
+        /// resolved via the PROVEN Core primitive <see cref="SkillSystemsAnimeExportCore.SkipCode"/> (FE8J
+        /// direct; FE8U program-template prefix). All emitted NAMES are WF-identical (per-skill
+        /// <paramref name="basename"/> + suffix, including the WF "PALETEELIST" typo) so the WF-parity suite
+        /// matches. The <c>Address.Add*</c> helpers dereference <see cref="CoreState.ROM"/> internally, so the
+        /// producer (which runs with <c>CoreState.ROM == rom</c>) and the test seams (which set
+        /// <c>CoreState.ROM = rom</c>) drive identical data — exactly the slice-2s ImageBattleAnime posture.
+        /// EOF-HARDENING: every computed read's full extent is guarded (<c>animeAddress + 0x14 &gt; Length</c>
+        /// for the 5-word config block; each per-frame pointer SLOT via <c>objPointer/tsaPointer/palPointer +
+        /// 4</c>; each dereferenced offset via <c>isSafetyOffset(... )</c> / <c>palOffset + 0x20</c>) — all
+        /// reproduced from WF. Threads <paramref name="rom"/>; uses no <c>Program.ROM</c>/<c>CoreState.ROM</c>
+        /// for the reads.
+        /// </summary>
+        public static void EmitSkillSystemsRecycleOldAnime(ROM rom, List<Address> list,
+            string basename, bool isPointerOnly, uint animeAddress)
+        {
+            // WF :639-643 — guard the anime address.
+            animeAddress = U.toOffset(animeAddress);
+            if (!U.isSafetyOffset(animeAddress, rom))
+            {
+                return;
+            }
+
+            // WF :648-652 — resolve the config address (FE8J direct, FE8U skips the embedded program
+            // template). NOT_FOUND ⇒ nothing (the SkipCode primitive is the proven WF SkipCode port).
+            uint anime_config_address = SkillSystemsAnimeExportCore.SkipCode(rom, animeAddress, out _);
+            if (anime_config_address == U.NOT_FOUND)
+            {
+                return;
+            }
+            // WF :653-656 — the 5-word config block must be in range.
+            if (anime_config_address + (4 * 5) > rom.Data.Length)
+            {//範囲外
+                return;
+            }
+
+            // WF :663-666 — the four config pointers (frames / tsalist / graphiclist / palettelist); the
+            // 5th word is the raw sound id (not a pointer).
+            uint frames = rom.p32(anime_config_address + (4 * 0));
+            uint tsalist = rom.p32(anime_config_address + (4 * 1));
+            uint graphiclist = rom.p32(anime_config_address + (4 * 2));
+            uint palettelist = rom.p32(anime_config_address + (4 * 3));
+
+            // WF :669-684 — each config pointer must be safe.
+            if (!U.isSafetyOffset(frames, rom))
+            {
+                return;
+            }
+            if (!U.isSafetyOffset(tsalist, rom))
+            {
+                return;
+            }
+            if (!U.isSafetyOffset(graphiclist, rom))
+            {
+                return;
+            }
+            if (!U.isSafetyOffset(palettelist, rom))
+            {
+                return;
+            }
+
+            // WF :686-688 — the frames table is uncompressed, so cap the scan at 1 MB (clamped to the ROM
+            // size) to avoid a runaway on a corrupt table.
+            uint limitter = frames + 1024 * 1024; //1MBサーチしたらもうあきらめる.
+            limitter = (uint)Math.Min(limitter, rom.Data.Length);
+
+            // WF :690-751 — walk the [u16 id, u16 wait]* frames table to the 0xFFFF terminator. count is
+            // PER-FRAME (not per unique id; the recycle pool collapses repeated-id pointers).
+            uint count = 0;
+            uint n;
+            for (n = frames; n < limitter; n += 4)
+            {
+                uint id = rom.u16(n + 0);
+                //uint wait = rom.u16(n + 2);
+                if (id == 0xFFFF)
+                {
+                    break;
+                }
+
+                uint objPointer = graphiclist + (id * 4);
+                uint tsaPointer = tsalist + (id * 4);
+                uint palPointer = palettelist + (id * 4);
+                count++;
+
+                // WF :706-717 — each per-frame pointer SLOT (and its trailing word) must be safe; a mid-walk
+                // bail returns the PARTIAL list.
+                if (!U.isSafetyOffset(objPointer + 4, rom))
+                {
+                    return;
+                }
+                if (!U.isSafetyOffset(tsaPointer + 4, rom))
+                {
+                    return;
+                }
+                if (!U.isSafetyOffset(palPointer + 4, rom))
+                {
+                    return;
+                }
+                uint objOffset = rom.p32(objPointer);
+                uint tsaOffset = rom.p32(tsaPointer);
+                uint palOffset = rom.p32(palPointer);
+                // WF :721-732 — each dereferenced offset must be safe.
+                if (!U.isSafetyOffset(objOffset, rom))
+                {
+                    return;
+                }
+                if (!U.isSafetyOffset(tsaOffset, rom))
+                {
+                    return;
+                }
+                if (!U.isSafetyOffset(palOffset + 0x20, rom))
+                {
+                    return;
+                }
+
+                // WF :733-750 — add the OBJ image (LZ77), TSA (LZ77) and palette (RAW 0x20) for THIS frame.
+                Address.AddLZ77Pointer(list
+                    , objPointer
+                    , basename + "OBJ"
+                    , isPointerOnly
+                    , Address.DataTypeEnum.LZ77IMG);
+
+                Address.AddLZ77Pointer(list
+                    , tsaPointer
+                    , basename + "TSA"
+                    , isPointerOnly
+                    , Address.DataTypeEnum.LZ77TSA);
+
+                Address.AddPointer(list
+                    , palPointer
+                    , 0x20   //16色*2バイト=0x20バイト
+                    , basename + "PAL"
+                    , Address.DataTypeEnum.PAL);
+            }
+            // WF :752-755 — limiter hit (no terminator found) ⇒ return the PARTIAL list, WITHOUT adding the
+            // trailing config/list blocks.
+            if (n >= limitter)
+            {
+                return;
+            }
+
+            // WF :756-783 — the terminator was reached: add the program+config region and the four
+            // pointer-list blocks. Block sizes mirror WF: frames (count+1)*4, each list count*4.
+            Address.AddAddress(list
+                , animeAddress
+                , anime_config_address - animeAddress + (4 * 5)
+                , U.NOT_FOUND
+                , basename + "POINTER"
+                , Address.DataTypeEnum.POINTER);
+
+            Address.AddPointer(list
+                , anime_config_address + (4 * 0)
+                , (count + 1) * 4
+                , basename + "ROMANIMEFRAME"
+                , Address.DataTypeEnum.ROMANIMEFRAME);
+
+            Address.AddPointer(list
+                , anime_config_address + (4 * 1)
+                , (count) * 4
+                , basename + "TSALIST"
+                , Address.DataTypeEnum.POINTER);
+            Address.AddPointer(list
+                , anime_config_address + (4 * 2)
+                , (count) * 4
+                , basename + "IMAGELIST"
+                , Address.DataTypeEnum.POINTER);
+            Address.AddPointer(list
+                , anime_config_address + (4 * 3)
+                , (count) * 4
+                , basename + "PALETEELIST"   // WF typo "PALETEE" preserved for parity.
+                , Address.DataTypeEnum.POINTER);
+        }
+
+        /// <summary>
+        /// <c>SkillConfigSkillSystemForm.MakeAllDataLength</c> (slice 2ac; FE8U ONLY — gated at the WF
+        /// <c>is_multibyte == false</c> call site, AFTER the two skill-ASSIGNMENT tables). The SkillSystems
+        /// skill-config table (a TEXT-pointer-based block-2 IFR) plus a per-skill anime pointer list + the
+        /// verbatim <see cref="EmitSkillSystemsRecycleOldAnime"/> recycle walk. Reproduced VERBATIM
+        /// (<c>FEBuilderGBA/SkillConfigSkillSystemForm.cs:602</c>):
+        /// <list type="bullet">
+        ///   <item>bail unless <see cref="SkillSystemTextScanner.SkillSystemEnum.SkillSystem"/>;</item>
+        ///   <item>resolve <c>baseiconP / basetextP / baseanimeP</c> via
+        ///   <see cref="SkillSystemPatchScanner.FindSkillPointerLocation"/> ("ICON"/"TEXT"/"ANIME", 0); if
+        ///   ANY is <see cref="U.NOT_FOUND"/> return;</item>
+        ///   <item>main IFR (<c>Init(null, basetextP)</c>): base <c>p32(basetextP)</c>, block 2,
+        ///   IsDataExists = <c>i &lt; 255</c>, name "SkillConfigSkillSystem", pointerIndexes EMPTY;</item>
+        ///   <item>a "SkillAnime" pointer-list IFR via <c>AddAddressInstantIFR(baseanimeP, 4, DataCount,
+        ///   "SkillAnime", {0})</c> (fixed count = the MAIN DataCount);</item>
+        ///   <item>per main entry (<c>i &lt; DataCount</c>, <c>anime = p32(baseanimeP) + 4*i</c>): break if
+        ///   <c>!isSafetyOffset(anime)</c>; <c>addr = p32(anime)</c>; continue if
+        ///   <c>!isSafetyOffset(addr)</c>; else <see cref="EmitSkillSystemsRecycleOldAnime"/> with the
+        ///   per-skill name "SkillAnime:0x&lt;i&gt; ".</item>
+        /// </list>
+        /// The 255-cap IFR <c>DataCount</c> (= WF <c>InputFormRef.DataCount</c>) is captured ONCE and used as
+        /// both the <c>AddAddressInstantIFR</c> fixed count and the anime loop bound (the WF closure). NOTE:
+        /// unlike the Ver2/Ver3 forms, this form does NOT emit a per-entry POINTER Address before the recycle
+        /// walk — reproduced exactly.
+        /// </summary>
+        public static void EmitSkillConfigSkillSystem(ROM rom, List<Address> list)
+        {
+            if (SkillSystemTextScanner.SearchSkillSystem(rom)
+                != SkillSystemTextScanner.SkillSystemEnum.SkillSystem)
+            {
+                return;
+            }
+
+            uint baseiconP = SkillSystemPatchScanner.FindSkillPointerLocation(rom, "ICON", 0);
+            uint basetextP = SkillSystemPatchScanner.FindSkillPointerLocation(rom, "TEXT", 0);
+            uint baseanimeP = SkillSystemPatchScanner.FindSkillPointerLocation(rom, "ANIME", 0);
+
+            if (baseiconP == U.NOT_FOUND) return;
+            if (basetextP == U.NOT_FOUND) return;
+            if (baseanimeP == U.NOT_FOUND) return;
+
+            EmitSkillConfigSkillSystemAt(rom, list, basetextP, baseanimeP);
+        }
+
+        /// <summary>SkillConfigSkillSystem walk from explicit TEXT- and ANIME-pointer SLOTs (test seam — lets
+        /// a synthetic ROM supply the slots without the SkillSystem patch grep). See
+        /// <see cref="EmitSkillConfigSkillSystem"/> for the verbatim WF reproduction. The main block-2 IFR
+        /// "SkillConfigSkillSystem" (count rule <c>i &lt; 255</c>), the "SkillAnime" pointer-list IFR
+        /// (<c>AddAddressInstantIFR(baseanimeP, 4, DataCount, {0})</c>), and the per-anime recycle walk.</summary>
+        public static void EmitSkillConfigSkillSystemAt(ROM rom, List<Address> list,
+            uint basetextP, uint baseanimeP)
+        {
+            const uint block = 2;
+
+            // Init(null, basetextP): block 2, IsDataExists = i < 255. Capture DataCount ONCE (the WF
+            // closure: AddAddressInstantIFR fixed count AND the anime loop bound both use it). The main IFR
+            // is emitted via the shared EmitSkillAssignmentMainIfr helper (base = p32(basetextP), pointer =
+            // the slot or NOT_FOUND if unsafe, length = block * (count + 1), emit only if the base is safe)
+            // — it has EXACTLY the AddressWinForms.AddAddress(IFR, name, {}) shape and returns the DataCount.
+            uint mainDataCount = EmitSkillAssignmentMainIfr(rom, list, basetextP,
+                "SkillConfigSkillSystem", (i, addr) => i < 255, block);
+
+            // The "SkillAnime" pointer-list IFR (fixed count = the MAIN DataCount). AddAddressInstantIFR's
+            // own guard is only isSafetyOffset(START) — guard the FULL slot (+3) first so a near-EOF slot
+            // emits nothing instead of throwing (the slice-2o trap).
+            uint animeSlot = U.toOffset(baseanimeP);
+            if (!U.isSafetyOffset(animeSlot + 3, rom)) return;
+            Address.AddAddressInstantIFR(list, baseanimeP, 4, mainDataCount, "SkillAnime", new uint[] { 0 });
+
+            // Per main entry: WF reads anime = p32(baseanimeP) up front, then walks i < mainDataCount,
+            // anime += 4. The loop bound is the MAIN DataCount (not a getBlockDataCount over THIS list), so
+            // anime can advance past where a 4-byte read is in bounds — guard the FULL slot (anime+3) in the
+            // break (WF only checks isSafetyOffset(anime) — the start byte — and would throw on a truncated
+            // synthetic ROM; the +3 extension is behaviour-neutral on a real ROM whose anime list is
+            // allocated to mainDataCount entries).
+            uint anime = rom.p32(animeSlot);
+            for (uint i = 0; i < mainDataCount; i++, anime += 4)
+            {
+                if (!U.isSafetyOffset(anime + 3, rom))
+                {
+                    break;
+                }
+                uint addr = rom.p32(anime);
+                if (!U.isSafetyOffset(addr, rom))
+                {
+                    continue;
+                }
+                string name = "SkillAnime:" + U.To0xHexString(i) + " ";
+                EmitSkillSystemsRecycleOldAnime(rom, list, name, false, addr);
+            }
+        }
+
+        // The 16-colour skill-icon block: (2*8 * 2*8) / 2 = 128 bytes (16 colours -> /2).
+        const uint SkillIconDataCount = (2 * 8 * 2 * 8) / 2;
+
+        /// <summary>
+        /// <c>SkillConfigFE8NVer2SkillForm.MakeAllDataLength</c> (slice 2ac; FE8J ONLY — gated at the WF
+        /// <c>is_multibyte == true</c> / <c>else</c> call site, AFTER SkillConfigFE8N). The Ver2 skill-config
+        /// table (variable BlockSize <c>g_ICON_LIST_SIZE</c>) + a per-anime POINTER + the verbatim
+        /// <see cref="EmitSkillSystemsRecycleOldAnime"/> recycle walk + per-entry N1..N4 nested unit/class/
+        /// item lists + a SkillIcon IMG block. Reproduced VERBATIM
+        /// (<c>FEBuilderGBA/SkillConfigFE8NVer2SkillForm.cs:1023</c>):
+        /// <list type="bullet">
+        ///   <item>bail unless <see cref="SkillSystemTextScanner.SkillSystemEnum.FE8N_ver2"/>;</item>
+        ///   <item>resolve <c>pointer / g_SkillBaseAddress / g_AnimeBaseAddress / g_ICON_LIST_SIZE</c> via the
+        ///   producer-full scanner <see cref="SkillSystemTextScanner.FindSkillFE8NVer2IconPointersFull"/>
+        ///   (the WF <c>FindSkillFE8NVer2IconPointersLow</c> side-effects); if null/zero/unsafe
+        ///   <c>g_SkillBaseAddress</c> return;</item>
+        ///   <item>main IFR (<c>Init(null)</c>, block <c>g_ICON_LIST_SIZE</c>, rule <c>u8(addr) != 0xFF</c>),
+        ///   name "SkillConfigFE8NVer2", PI = {4,8,12,16} when block == 20 else {4,8,12};</item>
+        ///   <item>if <c>g_AnimeBaseAddress != 0</c>: per main entry, <c>anime = p32(g_AnimeBaseAddress)+4*i</c>;
+        ///   break on unsafe <c>anime</c>; <c>addr = p32(anime)</c>; continue on unsafe <c>addr</c>; else
+        ///   <c>AddAddress(addr, 4, anime, name, POINTER)</c> THEN the recycle walk (name
+        ///   "SkillAnime:0x&lt;i&gt; ");</item>
+        ///   <item>per main entry: N1 (unit) @+4, N2 (class) @+8, N3 (item) @+12 [+ N4 (item2) @+16 when
+        ///   block &gt;= 20] block-1 nested IFRs (rule <c>u8(addr) != 0</c>) + a SkillIcon IMG block of 128
+        ///   bytes (<c>icon = p32(g_SkillBaseAddress) + 128*i</c>).</item>
+        /// </list>
+        /// </summary>
+        public static void EmitSkillConfigFE8NVer2(ROM rom, List<Address> list)
+        {
+            if (SkillSystemTextScanner.SearchSkillSystem(rom)
+                != SkillSystemTextScanner.SkillSystemEnum.FE8N_ver2)
+            {
+                return;
+            }
+
+            if (!SkillSystemTextScanner.FindSkillFE8NVer2IconPointersFull(rom,
+                    out _, out uint skillBase, out uint animeBase, out uint iconListSize))
+            {
+                return;
+            }
+            if (skillBase == 0) return;
+            if (!U.isSafetyOffset(skillBase, rom)) return;
+
+            EmitSkillConfigFE8NVer2At(rom, list, skillBase, animeBase, iconListSize);
+        }
+
+        /// <summary>SkillConfigFE8NVer2 walk from explicit skill-base / anime-base / icon-list-size (test seam
+        /// — lets a synthetic ROM supply the scanner side-effects directly). See
+        /// <see cref="EmitSkillConfigFE8NVer2"/> for the verbatim WF reproduction.</summary>
+        public static void EmitSkillConfigFE8NVer2At(ROM rom, List<Address> list,
+            uint skillBaseAddress, uint animeBaseAddress, uint iconListSize)
+        {
+            uint block = iconListSize;
+            if (block == 0) return; // a zero block would make getBlockDataCount spin; not real data.
+
+            // Main IFR: Init(null) — base = p32(g_SkillBaseAddress), block = g_ICON_LIST_SIZE, rule
+            // u8(addr) != 0xFF. Capture DataCount ONCE (the WF closure: anime loop bound AND N-loop bound).
+            uint slot = U.toOffset(skillBaseAddress);
+            if (!U.isSafetyOffset(slot + 3, rom)) return;
+            uint baseAddr = rom.p32(slot);
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => rom.u8(addr) != 0xFF);
+
+            // WF: PI = {4,8,12,16} when BlockSize == 20 (sizeof 20) else {4,8,12}.
+            uint[] pi = (block == 20) ? new uint[] { 4, 8, 12, 16 } : new uint[] { 4, 8, 12 };
+            if (U.isSafetyOffset(baseAddr, rom))
+            {
+                uint length = block * (dataCount + 1);
+                uint pointer = U.isSafetyOffset(slot, rom) ? slot : U.NOT_FOUND;
+                list.Add(new Address(baseAddr, length, pointer, "SkillConfigFE8NVer2",
+                    Address.DataTypeEnum.InputFormRef, block, pi));
+            }
+
+            // Per-anime POINTER + recycle walk (gated on g_AnimeBaseAddress != 0).
+            if (animeBaseAddress != 0)
+            {
+                uint animeSlot = U.toOffset(animeBaseAddress);
+                if (U.isSafetyOffset(animeSlot + 3, rom))
+                {
+                    uint anime = rom.p32(animeSlot);
+                    for (uint i = 0; i < dataCount; i++, anime += 4)
+                    {
+                        if (!U.isSafetyOffset(anime + 3, rom))
+                        {//WF: if (!isSafetyOffset(anime)) break;
+                            break;
+                        }
+                        uint addr = rom.p32(anime);
+                        if (!U.isSafetyOffset(addr, rom))
+                        {//WF: if (!isSafetyOffset(addr)) continue;
+                            continue;
+                        }
+                        string name = "SkillAnime:" + U.To0xHexString(i) + " ";
+                        // WF emits the per-anime POINTER Address BEFORE the recycle walk.
+                        Address.AddAddress(list, addr, 4, anime, name, Address.DataTypeEnum.POINTER);
+                        EmitSkillSystemsRecycleOldAnime(rom, list, name, false, addr);
+                    }
+                }
+            }
+
+            // Per-entry N1..N4 nested IFRs + SkillIcon IMG. WF walks addr = ifr.BaseAddress (== baseAddr),
+            // icon = p32(g_SkillBaseAddress) (== baseAddr's source), i < dataCount, addr += block,
+            // icon += 128.
+            bool hasN4 = iconListSize >= 20;
+            uint iconWalk = baseAddr; // WF: icon = p32(g_SkillBaseAddress) == baseAddr.
+            uint entryAddr = baseAddr;
+            for (uint i = 0; i < dataCount; i++, entryAddr += block, iconWalk += SkillIconDataCount)
+            {
+                if (!U.isSafetyOffset(entryAddr, rom))
+                {//WF: if (!isSafetyOffset(addr)) break;
+                    break;
+                }
+                EmitSkillUnitClassItemNested(rom, list, entryAddr, i, hasN4 ? 4 : 3, false);
+
+                // SkillIcon IMG (length 128) at icon. WF AddAddress(icon, 128, NOT_FOUND, name, IMG).
+                Address.AddAddress(list, iconWalk, SkillIconDataCount, U.NOT_FOUND,
+                    "SkillIcon:" + U.To0xHexString(i), Address.DataTypeEnum.IMG);
+            }
+        }
+
+        /// <summary>
+        /// <c>SkillConfigFE8NVer3SkillForm.MakeAllDataLength</c> (slice 2ac; FE8J ONLY — gated at the WF
+        /// <c>is_multibyte == true</c> / <c>else</c> call site, AFTER SkillConfigFE8NVer2). The Ver3
+        /// skill-config table + a per-anime POINTER + the verbatim recycle walk + per-entry N1..N5 nested
+        /// lists + a SkillIcon IMG block. Reproduced VERBATIM
+        /// (<c>FEBuilderGBA/SkillConfigFE8NVer3SkillForm.cs:1029</c>). DIFFERENCES vs Ver2:
+        /// <list type="bullet">
+        ///   <item>gate <see cref="SkillSystemTextScanner.SkillSystemEnum.FE8N_ver3"/>; scanner
+        ///   <see cref="SkillSystemTextScanner.FindSkillFE8NVer3IconPointersFull"/> (fixed
+        ///   <c>g_SkillBaseAddress = 0x892A8 + 4</c>);</item>
+        ///   <item>main IFR PI is ALWAYS {4,8,12,16,20}, name "SkillConfigFE8NVer3";</item>
+        ///   <item>the per-anime entry reads <c>anime_pointer_addr = u32(anime)</c>, continues on
+        ///   <c>!isSafetyPointer</c>, then <c>addr = toOffset(anime_pointer_addr)</c> (Ver2 reads
+        ///   <c>p32(anime)</c> directly + an <c>isSafetyOffset</c> guard) — reproduced exactly;</item>
+        ///   <item>five nested IFRs N1..N5 (unit/class/item/item2/complex) @ +4/+8/+12/+16/+20.</item>
+        /// </list>
+        /// </summary>
+        public static void EmitSkillConfigFE8NVer3(ROM rom, List<Address> list)
+        {
+            if (SkillSystemTextScanner.SearchSkillSystem(rom)
+                != SkillSystemTextScanner.SkillSystemEnum.FE8N_ver3)
+            {
+                return;
+            }
+
+            if (!SkillSystemTextScanner.FindSkillFE8NVer3IconPointersFull(rom,
+                    out uint skillBase, out uint animeBase, out uint iconListSize))
+            {
+                return;
+            }
+            if (skillBase == 0) return;
+            if (!U.isSafetyOffset(skillBase, rom)) return;
+
+            EmitSkillConfigFE8NVer3At(rom, list, skillBase, animeBase, iconListSize);
+        }
+
+        /// <summary>SkillConfigFE8NVer3 walk from explicit skill-base / anime-base / icon-list-size (test
+        /// seam). See <see cref="EmitSkillConfigFE8NVer3"/> for the verbatim WF reproduction.</summary>
+        public static void EmitSkillConfigFE8NVer3At(ROM rom, List<Address> list,
+            uint skillBaseAddress, uint animeBaseAddress, uint iconListSize)
+        {
+            uint block = iconListSize;
+            if (block == 0) return;
+
+            uint slot = U.toOffset(skillBaseAddress);
+            if (!U.isSafetyOffset(slot + 3, rom)) return;
+            uint baseAddr = rom.p32(slot);
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => rom.u8(addr) != 0xFF);
+
+            // WF: PI is ALWAYS {4,8,12,16,20}.
+            if (U.isSafetyOffset(baseAddr, rom))
+            {
+                uint length = block * (dataCount + 1);
+                uint pointer = U.isSafetyOffset(slot, rom) ? slot : U.NOT_FOUND;
+                list.Add(new Address(baseAddr, length, pointer, "SkillConfigFE8NVer3",
+                    Address.DataTypeEnum.InputFormRef, block, new uint[] { 4, 8, 12, 16, 20 }));
+            }
+
+            if (animeBaseAddress != 0)
+            {
+                uint animeSlot = U.toOffset(animeBaseAddress);
+                if (U.isSafetyOffset(animeSlot + 3, rom))
+                {
+                    uint anime = rom.p32(animeSlot);
+                    for (uint i = 0; i < dataCount; i++, anime += 4)
+                    {
+                        if (!U.isSafetyOffset(anime + 3, rom))
+                        {//WF: if (!isSafetyOffset(anime)) break;
+                            break;
+                        }
+                        // WF Ver3: anime_pointer_addr = u32(anime); continue on !isSafetyPointer; then
+                        // addr = toOffset(anime_pointer_addr).
+                        uint anime_pointer_addr = rom.u32(anime);
+                        if (!U.isSafetyPointer(anime_pointer_addr, rom))
+                        {
+                            continue;
+                        }
+                        uint addr = U.toOffset(anime_pointer_addr);
+                        string name = "SkillAnime:" + U.To0xHexString(i) + " ";
+                        Address.AddAddress(list, addr, 4, anime, name, Address.DataTypeEnum.POINTER);
+                        EmitSkillSystemsRecycleOldAnime(rom, list, name, false, addr);
+                    }
+                }
+            }
+
+            uint iconWalk = baseAddr;
+            uint entryAddr = baseAddr;
+            for (uint i = 0; i < dataCount; i++, entryAddr += block, iconWalk += SkillIconDataCount)
+            {
+                if (!U.isSafetyOffset(entryAddr, rom))
+                {
+                    break;
+                }
+                // N1..N5 (unit/class/item/item2/complex) @ +4/+8/+12/+16/+20.
+                EmitSkillUnitClassItemNested(rom, list, entryAddr, i, 5, true);
+
+                Address.AddAddress(list, iconWalk, SkillIconDataCount, U.NOT_FOUND,
+                    "SkillIcon:" + U.To0xHexString(i), Address.DataTypeEnum.IMG);
+            }
+        }
+
+        /// <summary>Shared per-entry nested unit/class/item(/item2/complex) list emitter for the Ver2/Ver3
+        /// skill-config forms. Reproduces the WF <c>N{1..5}_Init</c> block-1 IFRs (each
+        /// <c>ReInitPointer(addr + 4*k)</c>, rule <c>u8(addr) != 0</c>) emitted via
+        /// <see cref="EmitNestedIfrSub"/>. <paramref name="count"/> selects how many slots to emit (Ver2: 3
+        /// or 4; Ver3: 5). Names: "SkillUnit", "SkillClass", "SkillItem", then "SkillItem2" + "SkillComplex"
+        /// (when <paramref name="ver3Naming"/>) or "SkillItem2" (Ver2 N4). The embedded pointers are at
+        /// <c>entryAddr + 4</c>, <c>+8</c>, <c>+12</c>, <c>+16</c>, <c>+20</c>.</summary>
+        static void EmitSkillUnitClassItemNested(ROM rom, List<Address> list, uint entryAddr,
+            uint index, int count, bool ver3Naming)
+        {
+            // Names for slots 1..5 (the WF N1..N5 AddAddress info prefixes).
+            string[] names = ver3Naming
+                ? new[] { "SkillUnit:", "SkillClass:", "SkillItem:", "SkillItem2:", "SkillComplex:" }
+                : new[] { "SkillUnit:", "SkillClass:", "SkillItem:", "SkillItem2:" };
+
+            Func<int, uint, bool> rule = (j, addr) => rom.u8(addr) != 0;
+            for (int k = 0; k < count && k < names.Length; k++)
+            {
+                uint pfield = entryAddr + (uint)(4 * (k + 1)); // +4, +8, +12, +16, +20
+                EmitNestedIfrSub(rom, list, pfield, 1, rule, names[k] + U.To0xHexString(index));
             }
         }
 
@@ -10875,17 +11461,20 @@ namespace FEBuilderGBA
                 //    (Ver1)/yugudora/FE8N_ver2 icon tables (Ver3 contributes nothing), pointers from
                 //    SkillSystemTextScanner.FindSkillFE8NVer1/Ver2IconPointers, each a per-pointer block-32
                 //    IFR with the WF DataCount<=0 skip.
-                //  The RecycleOldAnime-DEPENDENT siblings STAY: each calls
-                //  ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime (an anime length walker not yet in
-                //  Core — same blocker class as the Group-3 ImageUtilOAM forms):
-                //    SkillConfigSkillSystemForm [FE8U] — Init(null, basetextP) IFR + a per-anime loop that
-                //      calls RecycleOldAnime on each p32(g_AnimeBaseAddress + 4*i).
-                //    SkillConfigFE8NVer2SkillForm / SkillConfigFE8NVer3SkillForm [FE8J] — RecycleOldAnime
-                //      AND GUI session state (g_SkillBaseAddress / g_AnimeBaseAddress / g_ICON_LIST_SIZE set
-                //      by the Find* scans) + N1..N5 icon sub-tables. Deferred until RecycleOldAnime is in
-                //      Core.)
-                "SkillConfigSkillSystemForm",
-                "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer3SkillForm",
+                //  slice 2ac then ported the three RecycleOldAnime-DEPENDENT siblings by REPRODUCING the WF
+                //  ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime VERBATIM as a producer-local method
+                //  (EmitSkillSystemsRecycleOldAnime — the import-adapted SkillSystemsAnimeImportCore.
+                //  EnumerateOldAnimeRegions emits byte-identical addr/length/pointer/type tuples but diverges
+                //  on NAMES + adds a ReferenceEquals(rom,CoreState.ROM) import guard, so reuse was rejected):
+                //    SkillConfigSkillSystemForm [FE8U] — EmitSkillConfigSkillSystem: Init(null,basetextP)
+                //      block-2 IFR + a "SkillAnime" pointer-list IFR + per-anime RecycleOldAnime.
+                //    SkillConfigFE8NVer2SkillForm / SkillConfigFE8NVer3SkillForm [FE8J] —
+                //      EmitSkillConfigFE8NVer2/Ver3: the GUI session state (g_SkillBaseAddress /
+                //      g_AnimeBaseAddress / g_ICON_LIST_SIZE) is resolved via the new
+                //      SkillSystemTextScanner.FindSkillFE8NVer2/Ver3IconPointersFull (the WF
+                //      FindSkill...IconPointersLow side-effects), plus per-anime POINTER + RecycleOldAnime +
+                //      per-entry N1..N5 unit/class/item nested IFRs + a SkillIcon IMG block. (All three
+                //      removed from this list.)
                 // status / menu definition / misc tables needing extra logic
                 // (StatusUnitsMenuForm + LinkArenaDenyUnitForm ported in slice 2b.
                 //  StatusOptionOrderForm [v7+v8, count-address fixed table] ported in this sweep.
