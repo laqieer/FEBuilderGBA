@@ -680,6 +680,25 @@ namespace FEBuilderGBA
             progress?.Report("Text");
             EmitText(rom, list);
 
+            // ---- slice 2r: SongTableForm (songs + instruments; version-agnostic call site) ----
+            // SongTableForm.MakeAllDataLength is in the WF unconditional section (NOT version-gated). It is
+            // NOT a flat StructDescriptor walk: its base is GetSoundTablePointer (RomInfo slot OR a
+            // signature scan that returns the SLOT, reproduced verbatim), its main IFR is block 8 /
+            // isPointer(u32(addr)) / {0}, and each entry expands the SONG score
+            // (EmitRecycleOldSong = SongUtil.RecycleOldSong: a SONGTRACK header + per-track SONGSCORE blocks
+            // sized from SongMidiCore.ParseTracks' FINE-terminated walk) AND the recursive instrument tree
+            // (EmitRecycleOldInstrument = SongInstrumentForm.RecycleOldInstrument: a block-12 IFR + per-type
+            // DirectSound/Wave/Drum/Multi blocks with a shared visited-list dedup). All pure-ROM walks
+            // (SongDirectSoundWavCore lengths + ParseTracks), NO Drawing / MIDI-import. A dedicated emitter
+            // reproduces it; the dispatch cancel-checks BEFORE calling it (WF DoEvents posture).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("SongTable");
+            EmitSongTable(rom, list);
+
             // ---- slice 2p: OAM / battle-anime length forms (version-agnostic call site) ----
             // ImageMapActionAnimationForm and the two ImageUtilMagic forms (FEditor / CSA) are all in
             // the WF unconditional section, each internally gated (FindAnimationPointer for MapAction;
@@ -908,6 +927,28 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("ImageTSAAnime");
                 EmitImageTSAAnime(rom, list);
+
+                // ---- slice 2r: SoundRoomForm (FE8 path) + MapSettingForm (FE8 only) ----
+                // WF calls SoundRoomForm.MakeAllDataLength in BOTH the version==8 and version==7 branches;
+                // its FE8 path has NO per-entry sub-walk (the C-string name BIN is FE7-only). MapSettingForm
+                // is version==8-only; its per-entry CSTRING name + the IsMapSettingEnd count rule (which
+                // needs the cached TextForm.GetDataCount, now reproduced byte-faithfully by TextDataCount)
+                // are both Core-backed. Each gets its own cancel-check (WF DoEvents posture).
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SoundRoom");
+                EmitSoundRoom(rom, list);
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("MapSetting");
+                EmitMapSetting(rom, list);
             }
 
             if (rom.RomInfo.version == 7)
@@ -919,6 +960,19 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("WorldMapImageFE7");
                 EmitWorldMapImageFE7(rom, list);
+
+                // ---- slice 2r: SoundRoomForm (FE7 path) ----
+                // WF calls SoundRoomForm.MakeAllDataLength in the version==7 branch too; the FE7 path ADDS
+                // the per-entry C-string song-name BIN (length == strlen, NO +1) behind the +12 embedded
+                // pointer (EmitSoundRoom selects it by version). MapSettingForm is NOT in the FE7 branch
+                // (the FE7-multibyte MapSettingFE7Form variant stays deferred — different layout).
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("MakeAllStructPointersList cancelled");
+                    return new ProducerResult(list, notYet, cancelled: true);
+                }
+                progress?.Report("SoundRoom");
+                EmitSoundRoom(rom, list);
 
                 // ---- slice 2q: ImageTSAAnimeForm (FE8 + FE7) ----
                 // WF calls ImageTSAAnimeForm.MakeAllDataLength in the version==7 branch too (NOT FE6).
@@ -7391,6 +7445,528 @@ namespace FEBuilderGBA
             };
         }
 
+        // =====================================================================================
+        // slice 2r: SoundRoom + SongTable + MapSetting (misc tractable forms)
+        // =====================================================================================
+
+        /// <summary>
+        /// <c>SoundRoomForm.MakeAllDataLength</c> (slice 2r). Called in the WF version==8 AND version==7
+        /// branches (NOT FE6). Main IFR: base <c>p32(sound_room_pointer)</c>, block
+        /// <c>sound_room_datasize</c>, IsDataExists = <c>u32(addr)==0xFFFFFFFF</c> stop OR
+        /// <c>i&gt;10 &amp;&amp; IsEmpty(addr, datasize*10)</c> stop (both pure ROM reads), pointerIndexes
+        /// {8,12}, type <see cref="Address.DataTypeEnum.InputFormRef_MIX"/>. On FE7 ONLY (the WF
+        /// <c>version==7</c> guard), each entry additionally tracks its C-string song name: a BIN block
+        /// (length == decoded strlen, NO +1) behind the embedded pointer at +12 — reproduced VERBATIM via
+        /// the existing <see cref="SubKind.BinString"/> sub-walk (WF: <c>getString(p32(addr+12))</c> +
+        /// <c>Address.AddAddress(songname, len, addr+12, BIN)</c>; <see cref="Address.AddAddress"/> already
+        /// filters an unsafe/NULL target, so the BinString <c>isSafetyOffset</c> pre-guard is
+        /// byte-equivalent and harder against a near-EOF read). The name BIN needs a SystemTextEncoder; the
+        /// flat sub-walk loop skips it gracefully (and relocates only the main IFR) when none is loaded.
+        /// </summary>
+        public static void EmitSoundRoom(ROM rom, List<Address> list)
+        {
+            // FE7 adds the per-entry C-string name BIN @ +12; FE8 has no per-entry sub-walk.
+            bool isFE7 = rom.RomInfo.version == 7;
+            var d = new StructDescriptor
+            {
+                Name = "SoundRoom",
+                PointerField = r => r.RomInfo.sound_room_pointer,
+                BlockSize = rom.RomInfo.sound_room_datasize,
+                Rule = DataCountRule.TerminatorWithEmptyGuard,
+                RuleOffset = 0,
+                RuleWidth = 4,
+                RuleStopValue = 0xFFFFFFFF,
+                HasEmptyGuard = true,
+                PointerIndexes = new uint[] { 8, 12 },
+                DataType = Address.DataTypeEnum.InputFormRef_MIX,
+                SubWalks = isFE7
+                    ? new List<SubWalk>
+                      {
+                          new SubWalk { EmbeddedPointerOffset = 12, Kind = SubKind.BinString },
+                      }
+                    : null,
+            };
+            WalkAndAdd(rom, list, d);
+        }
+
+        /// <summary>
+        /// <c>SongTableForm.MakeAllDataLength</c> (slice 2r). Called UNCONDITIONALLY (all versions). The
+        /// song table base is <c>GetSoundTablePointer()</c> (reproduced VERBATIM by
+        /// <see cref="GetSoundTablePointer"/>): the <c>sound_table_pointer</c> RomInfo slot when it
+        /// dereferences to a ROM pointer, else the signature-scanned slot (<see cref="FindSongTablePointer"/>
+        /// — returns the SLOT, not the dereferenced table, so the producer keeps the pointer field to
+        /// relocate), else 0. Main IFR: block 8, IsDataExists = <c>isPointer(u32(addr))</c>
+        /// (<see cref="DataCountRule.PointerAt"/> @0), pointerIndexes {0}. Per entry the song SCORE and the
+        /// instrument tree are tracked by <see cref="EmitRecycleOldSong"/> /
+        /// <see cref="EmitRecycleOldInstrument"/> (the verbatim ports of <c>SongUtil.RecycleOldSong</c> /
+        /// <c>SongInstrumentForm.RecycleOldInstrument</c> — both pure-ROM walks, NO Drawing/MIDI-import).
+        /// </summary>
+        public static void EmitSongTable(ROM rom, List<Address> list)
+        {
+            EmitSongTableAt(rom, list, GetSoundTablePointer(rom));
+        }
+
+        /// <summary>SongTable walk from an explicit base-pointer SLOT (test seam — lets a synthetic ROM
+        /// drive the per-entry recycle without the RomInfo/signature base resolution).</summary>
+        public static void EmitSongTableAt(ROM rom, List<Address> list, uint pointer)
+        {
+            const uint block = 8;
+            pointer = U.toOffset(pointer);
+            // HARDEN: guard the slot's full u32 read (root+3) before p32 — a base-pointer slot within 4
+            // bytes of EOF passes isSafetyOffset but its 4-byte read overruns (ROM.p32 only guards addr,
+            // not addr+3). Valid-ROM-equivalent (the real slot is well inside the ROM).
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // SongTableForm.Init IsDataExists: U.isPointer(u32(addr)). getBlockDataCount bounds
+            // addr+block(8)<=Length, so u32(addr) (addr+3) is always in-bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => U.isPointer(rom.u32(addr)));
+
+            // AddressWinForms.AddAddress(list, IFR, "SongTable", {0}): length = block*(count+1).
+            list.Add(new Address(baseAddr, block * (dataCount + 1), pointer, "SongTable",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            // Per entry: MakeAllDataLength_Song_And_Inst — the SONG score + the instrument tree.
+            uint songpointer = baseAddr;
+            for (int i = 0; i < dataCount; i++, songpointer += block)
+            {
+                uint songaddr = rom.p32(songpointer);
+                if (!U.isSafetyOffset(songaddr, rom))
+                {
+                    continue;
+                }
+
+                EmitRecycleOldSong(rom, list, "Song" + U.ToHexString(i) + " ", songpointer);
+
+                // instpointer = songaddr + 4 (the voicegroup pointer slot lives 4 bytes into the header).
+                EmitRecycleOldInstrument(rom, list, "SongInst" + U.ToHexString(i) + " ", songaddr + 4);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>SongTableForm.GetSoundTablePointer()</c>: the RomInfo
+        /// <c>sound_table_pointer</c> slot when <c>u32(slot)</c> is a ROM pointer, else the
+        /// signature-scanned slot (<see cref="FindSongTablePointer"/>) when it is a safe offset whose
+        /// <c>u32</c> is a ROM pointer, else 0. Returns the pointer SLOT (the dereference is the IFR's job).</summary>
+        public static uint GetSoundTablePointer(ROM rom)
+        {
+            uint p = rom.RomInfo.sound_table_pointer;
+            // Guard the slot's full u32 read (root+3) before reading (WF reads it raw on a valid ROM).
+            if (U.isSafetyOffset(p + 3, rom))
+            {
+                uint a = rom.u32(p);
+                if (U.isPointer(a))
+                {
+                    return p;
+                }
+            }
+            p = FindSongTablePointer(rom);
+            if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+            {
+                uint a = rom.u32(p);
+                if (U.isPointer(a))
+                {
+                    return p;
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>VERBATIM port of <c>SongUtil.FindSongTablePointer(byte[])</c>: grep the 30-byte
+        /// engine signature, the song-table pointer SLOT lives at <c>found + signatureLen + 10</c>; return
+        /// that slot offset when its <c>u32</c> is a ROM pointer, else <c>U.NOT_FOUND</c>. (Distinct from
+        /// Core <c>SongExchangeCore.FindSongTablePointerByScan</c>, which DEREFERENCES and returns the
+        /// TABLE START — the producer needs the SLOT so the pointer field gets relocated.)</summary>
+        public static uint FindSongTablePointer(ROM rom)
+        {
+            byte[] data = rom.Data;
+            byte[] search = new byte[] {
+                0x00, 0xB5, 0x00, 0x04, 0x07, 0x4A, 0x08, 0x49,
+                0x40, 0x0B, 0x40, 0x18, 0x83, 0x88, 0x59, 0x00,
+                0xC9, 0x18, 0x89, 0x00, 0x89, 0x18, 0x0A, 0x68,
+                0x01, 0x68, 0x10, 0x1C, 0x00, 0xF0
+            };
+            uint foundPoint = U.Grep(data, search);
+            if (foundPoint == U.NOT_FOUND)
+            {
+                return U.NOT_FOUND;
+            }
+            uint songpointer = foundPoint + (uint)search.Length + 10;
+            songpointer = U.toOffset(songpointer);
+            // HARDEN: WF reads u32(songpointer) raw; guard the full read extent (root+3) so a signature
+            // match near EOF cannot read past the array (valid-ROM-equivalent — the slot is well inside).
+            if (!U.isSafetyZArray(songpointer + 3, data))
+            {
+                return U.NOT_FOUND;
+            }
+            uint songlist = U.u32(data, songpointer);
+            if (!U.isPointer(songlist))
+            {
+                return U.NOT_FOUND;
+            }
+            return songpointer;
+        }
+
+        /// <summary>VERBATIM port of <c>SongUtil.RecycleOldSong(ref list, basename, track_basepointer)</c>:
+        /// the song HEADER (length <c>8 + trackcount*4</c>, type SONGTRACK) behind the embedded pointer at
+        /// <paramref name="trackBasePointer"/>, plus one SONGSCORE block per track (length
+        /// <c>Padding4(fineaddr - startaddr + 1)</c>, computed from the parsed track stream). The track
+        /// parse is <see cref="SongMidiCore.ParseTracks"/> (the Core port of <c>SongUtil.ParseTrack</c> —
+        /// the same FINE-terminated bytecode walk; only the per-track START / FINE byte addresses are used,
+        /// which the inserted loop-label codes do NOT shift). Pure ROM; no encoder.</summary>
+        public static void EmitRecycleOldSong(ROM rom, List<Address> list, string basename, uint trackBasePointer)
+        {
+            // HARDEN: guard the embedded-pointer slot's full u32 read (root+3) — WF reads it raw after an
+            // isSafetyOffset(slot) check, which does not cover slot+3. EmitSongTableAt always passes an
+            // in-bounds slot (getBlockDataCount bounds base+i*8+8<=Length), but guard for any caller.
+            if (!U.isSafetyOffset(trackBasePointer + 3, rom))
+            {
+                return;
+            }
+            uint trackBaseAddress = rom.u32(trackBasePointer);
+            if (!U.isPointer(trackBaseAddress))
+            {
+                return;
+            }
+            trackBaseAddress = U.toOffset(trackBaseAddress);
+            if (!U.isSafetyOffset(trackBaseAddress, rom))
+            {
+                return;
+            }
+
+            uint trackcount = rom.u8(trackBaseAddress);
+            Address.AddPointer(list, trackBasePointer, 8 + trackcount * 4,
+                basename + "HEADER", Address.DataTypeEnum.SONGTRACK);
+
+            List<SongMidiCore.Track> tracks = SongMidiCore.ParseTracks(rom, trackBaseAddress, trackcount);
+            for (int i = 0; i < tracks.Count; i++)
+            {
+                int len = tracks[i].codes.Count;
+                if (len <= 0)
+                {
+                    continue;
+                }
+                uint startaddr = tracks[i].codes[0].addr;
+                uint fineaddr = tracks[i].codes[len - 1].addr;
+                Address.AddPointer(list, tracks[i].basepointer,
+                    U.Padding4(fineaddr - startaddr + 1),
+                    basename + "TRACK " + U.To0xHexString(i),
+                    Address.DataTypeEnum.SONGSCORE);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>SongInstrumentForm.RecycleOldInstrument(ref list, basename,
+        /// voca_basepointer)</c>: the instrument-list IFR (block 12, pointerIndexes {4,8}) behind the
+        /// embedded pointer, plus per-entry DirectSound / Wave / Drum / MultiSample blocks. RECURSIVE
+        /// (drum @0x80 and multisample @0x40 recurse into a nested voice table) with a shared
+        /// visited-list dedup (skip when <c>list</c> already holds an Address at the same target) — both
+        /// reproduced exactly. The DirectSound length comes from
+        /// <see cref="FEBuilderGBA.Core.SongDirectSoundWavCore"/> (the Core ports of
+        /// <c>SongUtil.GetDirectSoundWaveDataLength</c> / <c>IsDirectSoundData</c> /
+        /// <c>IsDirectSoundWaveCompressedDPCM</c>); Wave is a fixed 16, MultiSample's sample table is a
+        /// fixed 128. Pure ROM; no encoder. The IFR count rule is the verbatim
+        /// <see cref="SongInstrumentExists"/>.</summary>
+        public static void EmitRecycleOldInstrument(ROM rom, List<Address> list, string basename, uint vocaBasePointer)
+        {
+            // HARDEN: guard the embedded-pointer slot's full u32 read (root+3) — WF reads it raw after an
+            // isSafetyOffset(slot) check, which does not cover slot+3 (a near-EOF slot would throw in
+            // ROM.u32's bounds check). Valid-ROM-equivalent. The recursive calls (addr+4 with addr+12<=
+            // Length from getBlockDataCount) are already in-bounds; this covers the top-level entry slot.
+            if (!U.isSafetyOffset(vocaBasePointer + 3, rom))
+            {
+                return;
+            }
+            uint vocaBaseAddress = rom.u32(vocaBasePointer);
+            if (!U.isPointer(vocaBaseAddress))
+            {
+                return;
+            }
+            vocaBaseAddress = U.toOffset(vocaBaseAddress);
+            if (!U.isSafetyOffset(vocaBaseAddress, rom))
+            {
+                return;
+            }
+
+            // Already-recorded dedup (the WF `recycle[i].Addr == voca_baseaddress` scan over the global
+            // list — prevents the same shared voice table from being relocated twice / infinite recursion).
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i].Addr == vocaBaseAddress)
+                {
+                    return;
+                }
+            }
+
+            const uint block = 12;
+            // SongInstrumentForm.Init IsDataExists (verbatim) — block 12, cap i>=128.
+            uint dataCount = rom.getBlockDataCount(vocaBaseAddress, block,
+                (i, addr) => SongInstrumentExists(rom, i, addr));
+
+            // AddressWinForms.AddAddress(list, IFR, basename, {4,8}): length = block*(count+1).
+            list.Add(new Address(vocaBaseAddress, block * (dataCount + 1), vocaBasePointer, basename,
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 4, 8 }));
+
+            uint addr = vocaBaseAddress;
+            for (uint i = 0; i < dataCount; i++, addr += block)
+            {
+                uint type = rom.u8(addr);
+                if (type == 0x00 || type == 0x08 || type == 0x10 || type == 0x18)
+                {//directsound wave
+                    uint songdataAddr = rom.p32(addr + 4);
+                    if (!U.isSafetyOffset(songdataAddr, rom))
+                    {
+                        continue;
+                    }
+                    uint sampleLength = FEBuilderGBA.Core.SongDirectSoundWavCore.GetDirectSoundWaveDataLength(rom, songdataAddr);
+                    if (!U.isSafetyLength(songdataAddr + 12 + 4, sampleLength)
+                        || !FEBuilderGBA.Core.SongDirectSoundWavCore.IsDirectSoundData(rom, songdataAddr))
+                    {//broken — record a length-0 marker (verbatim)
+                        Address.AddPointer(list, addr + 4, 0,
+                            basename + U.To0xHexString((int)i) + "DIRECTSOUND(BROKEN)",
+                            Address.DataTypeEnum.SONGINSTDIRECTSOUND);
+                        continue;
+                    }
+
+                    string name = FEBuilderGBA.Core.SongDirectSoundWavCore.IsDirectSoundWaveCompressedDPCM(rom.Data, songdataAddr)
+                        ? "DIRECTSOUND(DPCM COMPRESSED)"
+                        : "DIRECTSOUND";
+                    Address.AddPointer(list, addr + 4, 12 + 4 + sampleLength,
+                        basename + U.To0xHexString((int)i) + name,
+                        Address.DataTypeEnum.SONGINSTDIRECTSOUND);
+                }
+                else if (type == 0x03 || type == 0x0B)
+                {//wave
+                    uint songdataAddr = rom.p32(addr + 4);
+                    if (!U.isSafetyOffset(songdataAddr, rom))
+                    {
+                        continue;
+                    }
+                    Address.AddPointer(list, addr + 4, 16,
+                        basename + U.To0xHexString((int)i) + "WAVE",
+                        Address.DataTypeEnum.SONGINSTWAVE);
+                }
+                else if (type == 0x80)
+                {//drum (recurse)
+                    uint drumVoices = rom.p32(addr + 4);
+                    if (!U.isSafetyOffset(drumVoices, rom))
+                    {
+                        continue;
+                    }
+                    EmitRecycleOldInstrument(rom, list, basename + U.To0xHexString((int)i) + "DRUM ", addr + 4);
+                }
+                else if (type == 0x40)
+                {//multisample (recurse + a fixed 128-byte sample table)
+                    uint multisampleVoices = rom.p32(addr + 4);
+                    uint sampleLocation = rom.p32(addr + 8);
+                    if (!U.isSafetyOffset(multisampleVoices, rom))
+                    {
+                        continue;
+                    }
+                    if (!U.isSafetyOffset(sampleLocation, rom))
+                    {
+                        continue;
+                    }
+                    EmitRecycleOldInstrument(rom, list, basename + U.To0xHexString((int)i) + "MULTI ", addr + 4);
+                    Address.AddPointer(list, addr + 8, 128,
+                        basename + U.To0xHexString((int)i) + "MULTI2",
+                        Address.DataTypeEnum.BIN);
+                }
+            }
+        }
+
+        /// <summary>VERBATIM port of the <c>SongInstrumentForm.Init</c> IsDataExists predicate: an
+        /// instrument slot "exists" while <c>i &lt; 128</c> AND the type byte at +0 is a known instrument
+        /// type whose data pointer(s) are valid ROM pointers. DirectSound/Wave/Drum (0x00/08/10/18/03/0B/80)
+        /// need <c>u32(addr+4)</c> to be a safe pointer; MultiSample (0x40) needs BOTH <c>u32(addr+4)</c>
+        /// and <c>u32(addr+8)</c>; the "without data" square/noise types (0x01..0x0C subset) always exist;
+        /// any other type terminates. <c>getBlockDataCount</c> guards <c>addr+block(12)&lt;=Length</c>, so
+        /// the <c>+0/+4/+8</c> reads are in-bounds.</summary>
+        public static bool SongInstrumentExists(ROM rom, int i, uint addr)
+        {
+            if (i >= 128)
+            {
+                return false;
+            }
+            uint type = rom.u8(addr + 0);
+            if (type == 0x00 || type == 0x08 || type == 0x10 || type == 0x18 // directsound
+                || type == 0x03 || type == 0x0B // wave
+                || type == 0x80) // drum
+            {
+                uint p = rom.u32(addr + 4);
+                if (!U.isSafetyPointer(p, rom))
+                {
+                    return false;
+                }
+                return true;
+            }
+            if (type == 0x40) // multisamples
+            {
+                uint p = rom.u32(addr + 4);
+                if (!U.isSafetyPointer(p, rom))
+                {
+                    return false;
+                }
+                p = rom.u32(addr + 8);
+                if (!U.isSafetyPointer(p, rom))
+                {
+                    return false;
+                }
+                return true;
+            }
+            if (type == 0x01 || type == 0x02 || type == 0x03 // square wave (without data)
+                || type == 0x04 // noise (without data)
+                || type == 0x09 || type == 0x0A || type == 0x0C) // square wave (without data)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// <c>MapSettingForm.MakeAllDataLength</c> (slice 2r). FE8-only (the WF <c>version==8</c> branch).
+        /// Main IFR: base <c>p32(map_setting_pointer)</c>, block <c>map_setting_datasize</c>, IsDataExists
+        /// = <see cref="IsMapSettingEnd"/> (the verbatim <c>MapSettingForm.IsMapSettingEnd</c>, which needs
+        /// the cached text count <c>TextForm.GetDataCount()</c> — reproduced byte-faithfully by
+        /// <see cref="TextDataCount"/>, the same TextForm IFR count walk WF caches via
+        /// <c>UpdateDataCountCache</c> right before MapSetting runs), pointerIndexes {0}. Per entry: a
+        /// CSTRING block (strlen+1) behind the embedded pointer at +0 (the map-setting name) — emitted by
+        /// this dedicated walker's own per-entry loop calling <see cref="Address.AddCString"/> directly
+        /// (same emission as <c>SubKind.CString</c>, but EmitMapSetting is not a descriptor/SubWalk form).
+        /// NOTE: <c>MapSettingCore.IsMapSettingValid</c>
+        /// is NOT used (its <c>textmax==0</c> guard diverges from WF); this reproduces
+        /// <c>IsMapSettingEnd</c> directly.
+        /// </summary>
+        public static void EmitMapSetting(ROM rom, List<Address> list)
+        {
+            uint block = rom.RomInfo.map_setting_datasize;
+            if (block == 0)
+            {
+                return; // a zero block would make getBlockDataCount spin; not real data.
+            }
+            uint pointer = U.toOffset(rom.RomInfo.map_setting_pointer);
+            // HARDEN: guard the slot's full u32 read (root+3) before p32 (a near-EOF RomInfo pointer would
+            // throw in ROM.u32). Valid-ROM-equivalent (map_setting_pointer is a constant well inside ROM).
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // The text-count cap inside IsMapSettingEnd is constant across the whole walk (WF caches it
+            // once); compute it ONCE so the closure does not re-walk the text table per entry.
+            uint textmax = TextDataCount(rom);
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => IsMapSettingEnd(rom, addr, textmax));
+
+            // AddressWinForms.AddAddress(list, IFR, "MapSetting", {0}): length = block*(count+1).
+            list.Add(new Address(baseAddr, block * (dataCount + 1), pointer, "MapSetting",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            // Per entry: Address.AddCString(list, addr + 0) — the map-setting name C-string (strlen+1).
+            // Needs a SystemTextEncoder; skip gracefully (don't NRE) when none is loaded — the main IFR
+            // is still emitted and the slot relocated.
+            if (CoreState.SystemTextEncoder == null)
+            {
+                return;
+            }
+            uint entry = baseAddr;
+            for (uint i = 0; i < dataCount; i++, entry += block)
+            {
+                Address.AddCString(list, entry + 0);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>MapSettingForm.IsMapSettingEnd(addr)</c> — the per-entry
+        /// "this slot still holds a valid map setting" predicate (WF's name is misleading; it returns TRUE
+        /// while data exists). A <c>u32(addr+0)</c> that is a ROM pointer always exists; otherwise the
+        /// weather / PLIST / four text-id (map name + clear condition) fields must all be in range, where
+        /// the upper bound for the text ids is <paramref name="textmax"/> (= <c>TextForm.GetDataCount()</c>).
+        /// All pure-ROM reads; <c>getBlockDataCount</c> guards <c>addr+block(148)&lt;=Length</c>, so the
+        /// deepest read (<c>u16(addr+0x8A)</c>) is in-bounds.</summary>
+        public static bool IsMapSettingEnd(ROM rom, uint addr, uint textmax)
+        {
+            uint a = rom.u32(addr + 0);
+            if (U.isPointer(a))
+            {
+                return true;
+            }
+
+            // CP-zeroed map guard.
+            uint weather = rom.u8(addr + 12);
+            if (weather >= 0xE)
+            {
+                return false;
+            }
+            uint plistDirect = rom.u32(addr + 4);
+            if (plistDirect == 0 || plistDirect == 0xFFFFFFFF)
+            {
+                plistDirect = rom.u32(addr + 8);
+                if (plistDirect == 0 || plistDirect == 0xFFFFFFFF)
+                {
+                    return false;
+                }
+            }
+            uint map1 = rom.u16(addr + 0x70);
+            if (map1 >= textmax)
+            {
+                return false;
+            }
+            uint map2 = rom.u16(addr + 0x72);
+            if (map2 >= textmax)
+            {
+                return false;
+            }
+            uint clearcond1 = rom.u16(addr + 0x88);
+            if (clearcond1 >= textmax)
+            {
+                return false;
+            }
+            uint clearcond2 = rom.u16(addr + 0x8A);
+            if (clearcond2 >= textmax)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>Byte-faithful reproduction of <c>TextForm.GetDataCount()</c> (the cached text-table
+        /// entry count). WF caches it via <c>TextForm.UpdateDataCountCache</c> inside
+        /// <c>TextForm.MakeAllDataLength</c>, which runs (line 2428) BEFORE <c>MapSettingForm</c> (line
+        /// 2524) — so the cached value equals the TextForm IFR's DataCount computed via the SAME walk
+        /// <see cref="EmitTextAt"/> uses. Returns 0 when the text pointer is unrecoverable (no entries).</summary>
+        public static uint TextDataCount(ROM rom)
+        {
+            const uint block = 4;
+            uint pointer = U.toOffset(rom.RomInfo.text_pointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return 0;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                // WF TextForm.Init: a broken text pointer ReInits to text_recover_address.
+                baseAddr = U.toOffset(rom.RomInfo.text_recover_address);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    return 0;
+                }
+            }
+            return rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => IsTextEntryExists(rom, rom.u32(addr)));
+        }
+
         /// <summary>
         /// The <c>MakeAllDataLength</c> statics from <c>U.MakeAllStructPointersList</c> /
         /// <c>U.AppendAllASMStructPointersList</c> that this slice does <b>not</b> yet port.
@@ -7512,17 +8088,22 @@ namespace FEBuilderGBA
                 "MapMiniMapTerrainImageForm",
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
-                //  and WorldMapBGMForm [FE8, clean] ported in this sweep. SoundFootStepsForm ported in
+                //  and WorldMapBGMForm [FE8, clean] ported in earlier sweeps. SoundFootStepsForm ported in
                 //  slice 2d — Switch2-gated dedicated walker (base/count from sound_foot_steps_switch2_address,
-                //  IsSwitch2Enable gate) + per-entry ASM AddFunction. SoundRoomForm STAYS — its FE7
-                //  path adds a per-entry getString C-string sub-walk + InputFormRef_MIX type.
-                //  SongTableForm STAYS — although its main IFR (sound_table_pointer, block 8, rule
-                //  isPointer(u32(addr)), PI {0}) is trivial, each entry's LENGTH needs SongUtil.RecycleOldSong
-                //  (= SongUtil.ParseTrack, a music-track bytecode/FINE-address walk) + SongInstrumentForm.
-                //  RecycleOldInstrument (an instrument-tree walk) — NEITHER in Core (the Song*Core files are
-                //  MIDI import/export only). Porting just the main IFR would leave the song-score + instrument
-                //  data un-tracked -> dangling pointers on rebuild = corruption.)
-                "SongTableForm", "SoundRoomForm",
+                //  IsSwitch2Enable gate) + per-entry ASM AddFunction.
+                //  SoundRoomForm ported in slice 2r (EmitSoundRoom) — FE8 + FE7 (NOT FE6): main IFR base
+                //  p32(sound_room_pointer), block sound_room_datasize, IsDataExists u32==0xFFFFFFFF /
+                //  i>10 && IsEmpty(addr, datasize*10) (= TerminatorWithEmptyGuard width 4), PI {8,12},
+                //  InputFormRef_MIX. FE7-only per-entry: a string-BIN (length == strlen, NO +1) behind the
+                //  +12 embedded pointer (SubKind.BinString — getString-backed, encoder-skipped gracefully).
+                //  SongTableForm ported in slice 2r (EmitSongTable) — base GetSoundTablePointer (RomInfo slot
+                //  OR a verbatim signature scan returning the SLOT), main IFR block 8 / isPointer(u32(addr))
+                //  / {0}; per entry EmitRecycleOldSong (= SongUtil.RecycleOldSong: SONGTRACK header [8+tc*4]
+                //  + per-track SONGSCORE [Padding4(fine-start+1)] from SongMidiCore.ParseTracks) AND
+                //  EmitRecycleOldInstrument (= SongInstrumentForm.RecycleOldInstrument: a recursive block-12
+                //  IFR with shared visited-list dedup + per-type DirectSound [SongDirectSoundWavCore length] /
+                //  Wave [16] / Drum / Multi [128] blocks). ALL pure-ROM walks — the Song*Core files DO hold
+                //  the parse + DirectSound-length ports the deferral once thought were MIDI-only.)
                 // embedded sub-pointer / event-scan / CString expansion
                 // (ClassForm + StatusParamForm ported in slice 2c — per-entry MoveCost / CString
                 //  sub-walks. ItemForm STAYS: its StatBooster sub-block SIZE depends on un-ported
@@ -7566,14 +8147,17 @@ namespace FEBuilderGBA
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
                 //  slice 2f. AIScriptForm STAYS — its per-entry CalcLength helpers ARE pure ROM walks
                 //  (AIScriptForm.CalcLength = AI 16-byte-opcode terminator walk; AIUnitsForm.CalcLength =
-                //  u16!=0 walk), but its MAIN-IFR COUNT RULE (AIScriptForm.Init IsDataExists) is NOT a pure
-                //  ROM read: in the un-extended-ROM case (the vanilla AI tables) it caps DataCount at the
-                //  config-file AI name lists EventUnitForm.AI1.Count / AI2.Count (loaded from ai1_*/ai2_*
-                //  TSV via PreLoadResourceAI1/2, then padded up to DataCount — circular + editor session
-                //  state), neither of which is in Core. A wrong main count => wrong # of AISCRIPT/AIUnits
-                //  sub-blocks emitted => relocates the wrong bytes on rebuild = corruption. Same shape as
-                //  the MapSettingForm deferral (count rule needs a WF cached resource). Deferred until the
-                //  AI name lists + isExtrendsROMArea reach Core.)
+                //  u16!=0 walk) AND its main-IFR COUNT rule is now reproducible: isExtrendsROMArea is a
+                //  trivial `addr >= toOffset(extends_address)` test, and the un-extended cap = the number of
+                //  data lines in the ai1_/ai2_ config TSV (Program.cs loads PreLoadResourceAI1/2 ONCE at
+                //  ROM-load — NOT editor session state — and DataCount, called inside Init's IsDataExists,
+                //  sees AI{1,2}.Count == the pre-padding config-line-count, so the circularity resolves to
+                //  the TSV line count, loadable headless via the slice-2q ConfigDataFilename/TSV reader).
+                //  The REMAINING blocker is the per-entry NAME (EventUnitForm.GetAIName1/2): faithfully it is
+                //  the loaded config name OR, for padded entries, InputFormRef.GetCommentSA(p32(addr)) — the
+                //  comment-symbol resolver, NOT in Core. The tests assert name verbatim, so a byte-faithful
+                //  port needs the AI name-list loader + GetCommentSA in Core first (the length/count/pointer/
+                //  datatype are all ready). Deferred on the NAME, not the count, until those reach Core.)
                 "AIScriptForm",
                 // skills (version/patch dependent)
                 // (slice 2o ported the RecycleOldAnime-FREE subset, all dependencies already in Core:
@@ -7673,11 +8257,13 @@ namespace FEBuilderGBA
                 //    porting only the flat tables would drop those skirmish-event regions = corruption.
                 //  WorldMapEventPointerForm [ScanScript],
                 //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry],
-                //  MapSettingForm [FE8] STAYS — its count rule (IsMapSettingEnd) needs the WF cached
-                //    text count (TextForm.GetDataCount() / g_GetDataCount_Cache, NOT in Core); the
-                //    extracted MapSettingCore.IsMapSettingValid diverges (its `if (textmax>0)` guard
-                //    returns true when textmax==0, where WF returns false), so the per-entry CString
-                //    count is not yet faithfully reproducible — a wrong count = silent corruption.
+                //  MapSettingForm [FE8] ported in slice 2r (EmitMapSetting) — its count rule
+                //    (IsMapSettingEnd, reproduced VERBATIM) needs the WF cached text count
+                //    TextForm.GetDataCount(); that is now byte-faithfully reproduced by TextDataCount (the
+                //    SAME TextForm IFR count walk EmitText uses, which WF caches via UpdateDataCountCache at
+                //    line 2428, BEFORE MapSetting at line 2524). It does NOT use MapSettingCore.IsMapSetting-
+                //    Valid (whose textmax==0 guard diverges from WF). Main IFR block map_setting_datasize,
+                //    PI {0}; per entry a CSTRING (strlen+1) behind the +0 embedded pointer (SubKind.CString).
                 //  (FE8SpellMenuExtendsForm ported in slice 2m — EmitFE8SpellMenuExtends, FE8U-only: the
                 //   base is resolved by the patch-signature scan FE8SpellMenuPatchScanner.FindFE8Spell-
                 //   PatchPointer (the Core port of WF FindFE8SpellPatchPointer — OldSystem .dmp grep +
@@ -7690,7 +8276,6 @@ namespace FEBuilderGBA
                 "EventBattleTalkForm",
                 "WorldMapEventPointerForm",
                 "EventHaikuForm",
-                "MapSettingForm",
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)

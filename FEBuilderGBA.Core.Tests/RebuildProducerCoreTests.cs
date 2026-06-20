@@ -451,7 +451,10 @@ namespace FEBuilderGBA.Core.Tests
             //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("OtherTextForm", notYet);
             Assert.Contains("EventCondForm", notYet);
-            Assert.Contains("SongTableForm", notYet);
+            // (SongTableForm is ported in slice 2r — see
+            //  GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings. AIScriptForm stays deferred
+            //  on its per-entry NAME resolver, so it tracks the still-deferred coverage here.)
+            Assert.Contains("AIScriptForm", notYet);
             // ItemForm stays DEFERRED: its StatBooster sub-block size depends on un-ported PatchUtil
             // patch detection. (ClassForm WAS deferred for its MoveCost sub-blocks but is ported in
             // slice 2c — see GetNotYetPortedForms_DropsSlice2cCoveredForms_KeepsDeferredSiblings.)
@@ -480,8 +483,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("EventBattleTalkForm", notYet);        // per-entry EventScriptForm.ScanScript
             // (MapTileAnimation1Form/MapTileAnimation2Form are now PORTED in slice 2g; the MapTerrain
             //  lookup tables are now PORTED in slice 2j — see
-            //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings.)
-            Assert.Contains("SongTableForm", notYet);              // SongUtil.ParseTrack/RecycleOldInstrument
+            //  GetNotYetPortedForms_DropsSlice2jCoveredForms_KeepsDeferredSiblings. SongTableForm is now
+            //  PORTED in slice 2r — see GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings.)
+            Assert.Contains("AIScriptForm", notYet);               // AI name resolver (GetAIName1/2) not in Core
         }
 
         [Fact]
@@ -1707,8 +1711,7 @@ namespace FEBuilderGBA.Core.Tests
                 "EventBattleTalkForm", "EventHaikuForm",
                 "WorldMapEventPointerForm",
                 // (FE8SpellMenuExtendsForm ported in slice 2m -> no longer kept here.)
-                "MapSettingForm",
-                "MonsterWMapProbabilityForm", "SoundRoomForm",
+                "MonsterWMapProbabilityForm",
                 // (StatusOptionForm + SoundFootStepsForm ported in slice 2d -> no longer kept here.
                 //  UnitFE6Form + ItemUsagePointerForm + AIPerform*/AIMapSetting/Mant/ArenaEnemyWeapon
                 //  ported in slice 2f -> no longer kept here. MapTileAnimation1Form/MapTileAnimation2Form +
@@ -1716,8 +1719,9 @@ namespace FEBuilderGBA.Core.Tests
                 //  SupportUnitForm + WorldMapPathForm + EDStaffRollForm + OPPrologueForm + OPClassFontForm
                 //  ported in slice 2h -> no longer kept here. OPClassDemoForm + OPClassDemoFE7Form ported
                 //  in slice 2i -> no longer kept here. MapTerrain{BG,Floor}LookupTableForm + MapPointerForm
-                //  + ExtraUnitForm + ExtraUnitFE8UForm ported in slice 2j -> no longer kept here.)
-                "ItemForm", "SongTableForm",
+                //  + ExtraUnitForm + ExtraUnitFE8UForm ported in slice 2j -> no longer kept here.
+                //  SoundRoomForm + SongTableForm + MapSettingForm ported in slice 2r -> no longer kept here.)
+                "ItemForm", "AIScriptForm", "ImageBattleAnimeForm",
             })
             {
                 Assert.Contains(kept, notYet);
@@ -2307,7 +2311,9 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("MenuDefinitionForm", notYet);
             // sibling forms that genuinely still need un-ported subsystems STAY.
             Assert.Contains("ItemForm", notYet);
-            Assert.Contains("SoundRoomForm", notYet);
+            // (SoundRoomForm ported in slice 2r — see GetNotYetPortedForms_DropsSlice2rForms; AIScriptForm
+            //  stays deferred on its AI name resolver.)
+            Assert.Contains("AIScriptForm", notYet);
             // (ItemWeaponEffectForm ported in slice 2l — see GetNotYetPortedForms_DropsSlice2lCoveredForms.)
         }
 
@@ -3901,7 +3907,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("MapTerrainFloorLookupTableForm", notYet);
             Assert.DoesNotContain("MapTerrainBGLookupTableForm", notYet);
             // deferred map siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("MapSettingForm", notYet);                 // IsMapSettingEnd + CString
+            // (MapSettingForm is ported in slice 2r — its IsMapSettingEnd text-count cache is now
+            //  reproduced by TextDataCount. ItemForm stays deferred on its StatBooster PatchUtil size.)
             Assert.Contains("ItemForm", notYet);                       // StatBooster size via PatchUtil
 
             // the no-duplicates invariant still holds after the edits.
@@ -4371,8 +4378,8 @@ namespace FEBuilderGBA.Core.Tests
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
             // (NOTE: OPClassDemoForm / OPClassDemoFE7Form were the nested-IFR siblings deferred at
-            //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there.)
-            Assert.Contains("MapSettingForm", notYet);      // IsMapSettingEnd needs WF text-count cache
+            //  slice 2h; slice 2i below ports them, so they move to DoesNotContain there. MapSettingForm
+            //  is ported in slice 2r — its text-count cache is now reproduced by TextDataCount.)
             Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
             // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
             Assert.DoesNotContain("ImageCGFE7UForm", notYet);
@@ -4767,7 +4774,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("OPClassDemoFE7Form", notYet);
 
             // deferred siblings STAY (their blocking subsystem is not in Core):
-            Assert.Contains("MapSettingForm", notYet);           // IsMapSettingEnd needs WF text-count cache
+            // (MapSettingForm is ported in slice 2r — its text-count cache is now reproduced by TextDataCount.)
             Assert.Contains("WorldMapEventPointerForm", notYet); // ScanScript
             Assert.Contains("MonsterWMapProbabilityForm", notYet); // ScanScript skirmish events
             // (ImageCGFE7UForm is ported in slice 2k — see GetNotYetPortedForms_DropsSlice2kCoveredForms.)
@@ -5218,11 +5225,13 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ExtraUnitFE8UForm", notYet);
 
             // Still deferred (real missing-Core blocker) -> must REMAIN:
-            Assert.Contains("SongTableForm", notYet);                   // SongUtil.ParseTrack/RecycleOldInstrument
+            // (SongTableForm / SoundRoomForm / MapSettingForm are ported in slice 2r — see
+            //  GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings. AIScriptForm stays deferred on
+            //  its AI name resolver, ImageBattleAnimeForm on ImageUtilOAM.)
+            Assert.Contains("AIScriptForm", notYet);                    // AI name resolver (GetAIName1/2)
             Assert.Contains("EventUnitForm(RecycleReserveUnits)", notYet); // NewAllocData = editor session state
-            Assert.Contains("SoundRoomForm", notYet);                   // FE7 CString sub-walk + MIX type
+            Assert.Contains("ImageBattleAnimeForm", notYet);            // ImageUtilOAM seat-image walk
             Assert.Contains("ItemForm", notYet);                        // StatBooster size via PatchUtil
-            Assert.Contains("MapSettingForm", notYet);                  // IsMapSettingEnd text-count cache
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -6170,8 +6179,11 @@ namespace FEBuilderGBA.Core.Tests
             // ImageUnitMoveIconFrom is PORTED in slice 2n (ImageUtilAPCore.CalcAPLength is in Core) ->
             // it must be GONE (see GetNotYetPortedForms_DropsSlice2nMoveIcon_KeepsDeferredSiblings).
             Assert.DoesNotContain("ImageUnitMoveIconFrom", notYet);
-            // MapSettingForm STAYS — its count rule needs the WF cached text count.
-            Assert.Contains("MapSettingForm", notYet);
+            // (MapSettingForm WAS deferred here on its WF cached-text-count rule, but slice 2r ports it —
+            //  TextDataCount now reproduces TextForm.GetDataCount() byte-faithfully. AIScriptForm stays
+            //  deferred on its AI name resolver.)
+            Assert.DoesNotContain("MapSettingForm", notYet);
+            Assert.Contains("AIScriptForm", notYet);
 
             // the no-duplicates invariant still holds after the edits.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -7658,6 +7670,361 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("ImageBattleAnimeForm", notYet);
             Assert.Contains("ImagePortraitForm", notYet);
             Assert.Contains("ImageItemIconForm", notYet);
+
+            // no-duplicates invariant still holds.
+            string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
+            Assert.Equal(raw.Length, raw.Distinct().Count());
+        }
+
+        // =====================================================================
+        // slice 2r: SoundRoom + SongTable + MapSetting
+        // =====================================================================
+
+        /// <summary>Run <paramref name="body"/> with a fresh versioned ROM (for RomInfo) set as
+        /// CoreState.ROM + a headless ASCII encoder, restoring both afterwards.</summary>
+        static void WithVersionedRom(string versionString, Action<ROM> body)
+        {
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                var rom = MakeVersionedRom(versionString);
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                body(rom);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+            }
+        }
+
+        // ---- SoundRoom ----
+
+        [Fact]
+        public void EmitSoundRoom_FE8_MainIfrOnly_NoPerEntryNameBin()
+        {
+            // FE8 (version 8): main IFR base p32(sound_room_pointer), block sound_room_datasize, type
+            // InputFormRef_MIX, PI {8,12}, IsDataExists = u32==0xFFFFFFFF stop. NO per-entry sub-walk
+            // (the C-string name BIN is FE7-only).
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint block = rom.RomInfo.sound_room_datasize; // 16
+                uint slot = rom.RomInfo.sound_room_pointer;   // RomInfo constant
+                uint table = 0x100000;
+                rom.write_u32(slot, Ptr(table));
+                // 2 entries, then a 0xFFFFFFFF terminator at entry 2.
+                rom.write_u32(table + block * 0, Ptr(0x200000)); // song id slot (non-FFFFFFFF)
+                rom.write_u32(table + block * 0 + 12, Ptr(0x210000)); // name ptr (ignored on FE8)
+                rom.write_u32(table + block * 1, Ptr(0x200100));
+                rom.write_u32(table + block * 2, 0xFFFFFFFF); // terminator
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSoundRoom(rom, list);
+
+                Address mainIfr = list.Single(a => a.Info == "SoundRoom" && a.BlockSize == block);
+                Assert.Equal(table, mainIfr.Addr);
+                Assert.Equal(slot, mainIfr.Pointer);
+                Assert.Equal(block * (2u + 1u), mainIfr.Length); // count 2 -> block*(2+1)
+                Assert.Equal(Address.DataTypeEnum.InputFormRef_MIX, mainIfr.DataType);
+                Assert.Equal(new uint[] { 8, 12 }, mainIfr.PointerIndexes);
+
+                // FE8: no per-entry BIN behind +12.
+                Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.BIN);
+                Assert.Single(list); // just the main IFR
+            });
+        }
+
+        [Fact]
+        public void EmitSoundRoom_FE7_EmitsPerEntryNameBin_StrlenNoPlusOne()
+        {
+            // FE7 (version 7): same main IFR, PLUS a per-entry C-string name BIN (length == strlen, NO +1)
+            // behind the embedded pointer at +12.
+            WithVersionedRom("AE7E01", rom => // FE7U
+            {
+                Assert.Equal(7, rom.RomInfo.version);
+                uint block = rom.RomInfo.sound_room_datasize;
+                uint slot = rom.RomInfo.sound_room_pointer;
+                uint table = 0x100000;
+                uint name0 = 0x300000;
+                uint name1 = 0x300100;
+                rom.write_u32(slot, Ptr(table));
+                rom.write_u32(table + block * 0, Ptr(0x200000));
+                rom.write_u32(table + block * 0 + 12, Ptr(name0));
+                rom.write_u32(table + block * 1, Ptr(0x200100));
+                rom.write_u32(table + block * 1 + 12, Ptr(name1));
+                rom.write_u32(table + block * 2, 0xFFFFFFFF);
+                WriteAsciiZ(rom, name0, "HELLO"); // strlen 5
+                WriteAsciiZ(rom, name1, "AB");    // strlen 2
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitSoundRoom(rom, list);
+
+                Address mainIfr = list.Single(a => a.Info == "SoundRoom" && a.BlockSize == block);
+                Assert.Equal(Address.DataTypeEnum.InputFormRef_MIX, mainIfr.DataType);
+
+                Address b0 = list.Single(a => a.Addr == name0);
+                Assert.Equal(5u, b0.Length); // NO +1
+                Assert.Equal(table + block * 0 + 12, b0.Pointer);
+                Assert.Equal(Address.DataTypeEnum.BIN, b0.DataType);
+                Address b1 = list.Single(a => a.Addr == name1);
+                Assert.Equal(2u, b1.Length);
+                Assert.Equal(table + block * 1 + 12, b1.Pointer);
+            });
+        }
+
+        [Fact]
+        public void EmitSoundRoom_FE7_NoEncoder_SkipsNameBin_NoThrow()
+        {
+            WithVersionedRom("AE7E01", rom =>
+            {
+                uint block = rom.RomInfo.sound_room_datasize;
+                uint slot = rom.RomInfo.sound_room_pointer;
+                uint table = 0x100000;
+                rom.write_u32(slot, Ptr(table));
+                rom.write_u32(table + block * 0, Ptr(0x200000));
+                rom.write_u32(table + block * 0 + 12, Ptr(0x300000));
+                rom.write_u32(table + block * 1, 0xFFFFFFFF);
+                WriteAsciiZ(rom, 0x300000, "X");
+                CoreState.SystemTextEncoder = null; // decode would NRE
+
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitSoundRoom(rom, list));
+                Assert.Null(ex);
+                // Main IFR still emitted; the name BIN skipped gracefully.
+                Assert.Single(list);
+                Assert.Equal("SoundRoom", list[0].Info);
+            });
+        }
+
+        // ---- SongTable ----
+
+        [Fact]
+        public void EmitSongTableAt_MainIfr_AndPerSongHeaderTrack()
+        {
+            // Main IFR block 8, isPointer(u32(addr)) rule, PI {0}. Per entry: SONGTRACK header
+            // (8 + trackcount*4) + per-track SONGSCORE (Padding4(fine-start+1)).
+            var rom = CreateTestRom(0x40000);
+            uint slot = 0x1000;       // SongTable base-pointer SLOT
+            uint songTbl = 0x2000;    // the song-pointer table
+            uint song0Hdr = 0x3000;   // song 0's header (pointed by songTbl[0])
+            uint track0 = 0x3100;     // song 0's track 0 data
+
+            rom.write_u32(slot, Ptr(songTbl));
+            rom.write_u32(songTbl + 8 * 0, Ptr(song0Hdr)); // song 0
+            // songTbl[1] = 0 -> not a pointer -> stop (DataCount 1).
+
+            // song 0 header: [trackcount=1][3 unused][voicegroup ptr][track0 ptr]...
+            rom.write_u8(song0Hdr + 0, 0x01);            // trackcount = 1
+            rom.write_u32(song0Hdr + 4, Ptr(0x3800));    // voicegroup pointer (instpointer = song0Hdr+4)
+            rom.write_u32(song0Hdr + 8, Ptr(track0));    // track 0 pointer (header is 8 bytes + tc*4)
+            // track 0 stream: a couple of wait codes then FINE (0xB1).
+            rom.write_u8(track0 + 0, 0x80); // a WAIT code (in WAIT range)
+            rom.write_u8(track0 + 1, 0xB1); // FINE -> track ends here
+
+            // instrument list (so RecycleOldInstrument has something or gracefully stops)
+            // voicegroup @0x3800: one "without data" square-wave instrument then a terminator type.
+            rom.write_u8(0x3800 + 0, 0x01); // square wave (without data) -> exists
+            rom.write_u8(0x3800 + 12, 0xFF); // unknown type -> stop (DataCount 1)
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitSongTableAt(rom, list, slot);
+
+            // Main song-table IFR.
+            Address mainIfr = list.Single(a => a.Info == "SongTable");
+            Assert.Equal(songTbl, mainIfr.Addr);
+            Assert.Equal(slot, mainIfr.Pointer);
+            Assert.Equal(8u * (1u + 1u), mainIfr.Length); // count 1
+            Assert.Equal(new uint[] { 0 }, mainIfr.PointerIndexes);
+
+            // SONGTRACK header behind the song-0 pointer slot: length 8 + 1*4 = 12.
+            Address hdr = list.Single(a => a.DataType == Address.DataTypeEnum.SONGTRACK);
+            Assert.Equal(song0Hdr, hdr.Addr);
+            Assert.Equal(songTbl + 0, hdr.Pointer);
+            Assert.Equal(8u + 1u * 4u, hdr.Length);
+
+            // SONGSCORE for track 0: start=track0+0, fine=track0+1 -> Padding4(1-0+1)=Padding4(2)=4.
+            Address score = list.Single(a => a.DataType == Address.DataTypeEnum.SONGSCORE);
+            Assert.Equal(track0, score.Addr);
+            Assert.Equal(song0Hdr + 8, score.Pointer); // track 0 pointer slot
+            Assert.Equal(4u, score.Length);
+
+            // Instrument list IFR present (block 12, PI {4,8}). U.ToHexString(0) == "00".
+            Address instIfr = list.Single(a => a.Info == "SongInst00 " && a.BlockSize == 12);
+            Assert.Equal(0x3800u, instIfr.Addr);
+            Assert.Equal(song0Hdr + 4, instIfr.Pointer);
+            Assert.Equal(new uint[] { 4, 8 }, instIfr.PointerIndexes);
+        }
+
+        [Fact]
+        public void EmitRecycleOldInstrument_DirectSoundAndWave_AndDedup()
+        {
+            var rom = CreateTestRom(0x40000);
+            uint slot = 0x1000;     // instrument-list base pointer SLOT
+            uint voca = 0x2000;     // the instrument list
+            uint wave = 0x3000;     // directsound wave data target
+
+            rom.write_u32(slot, Ptr(voca));
+            // entry 0: directsound (type 0x00), data @ +4
+            rom.write_u8(voca + 0, 0x00);
+            rom.write_u32(voca + 4, Ptr(wave));
+            // entry 1: wave (type 0x03), data @ +4 -> fixed 16 block
+            rom.write_u8(voca + 12 + 0, 0x03);
+            rom.write_u32(voca + 12 + 4, Ptr(0x3400));
+            // entry 2: terminator (unknown type)
+            rom.write_u8(voca + 24 + 0, 0xFF);
+
+            // Make wave @0x3000 a valid (non-DPCM) DirectSound: head1!=1 (so not DPCM), and a sane length.
+            rom.write_u8(wave + 0, 0x00);            // not DPCM
+            rom.write_u32(wave + 0xC, 0x00000020);   // sample length field (read by GetDirectSoundWaveDataLength)
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitRecycleOldInstrument(rom, list, "Inst ", slot);
+
+            // Instrument list IFR.
+            Address ifr = list.Single(a => a.Info == "Inst " && a.BlockSize == 12);
+            Assert.Equal(voca, ifr.Addr);
+            Assert.Equal(new uint[] { 4, 8 }, ifr.PointerIndexes);
+
+            // DirectSound block present.
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.SONGINSTDIRECTSOUND
+                && a.Addr == wave && a.Pointer == voca + 4);
+            // Wave block: fixed 16.
+            Address w = list.Single(a => a.DataType == Address.DataTypeEnum.SONGINSTWAVE);
+            Assert.Equal(16u, w.Length);
+            Assert.Equal(voca + 12 + 4, w.Pointer);
+
+            // Dedup: calling again with the same voca pointer adds nothing (already recorded).
+            int before = list.Count;
+            RebuildProducerCore.EmitRecycleOldInstrument(rom, list, "Inst2 ", slot);
+            Assert.Equal(before, list.Count);
+        }
+
+        [Fact]
+        public void GetSoundTablePointer_PrefersRomInfoSlot_WhenItDereferences()
+        {
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint slot = rom.RomInfo.sound_table_pointer; // 0x28BC for FE8U
+                rom.write_u32(slot, Ptr(0x100000));          // a ROM pointer -> slot is used
+                Assert.Equal(U.toOffset(slot), RebuildProducerCore.GetSoundTablePointer(rom));
+            });
+        }
+
+        [Fact]
+        public void EmitSongTableAt_NearEofPointer_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint slot = (uint)rom.Data.Length - 2; // a 4-byte read at the slot overruns
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitSongTableAt(rom, list, slot));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitRecycleOldSong_NearEofPointer_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint slot = (uint)rom.Data.Length - 2; // a 4-byte read at the embedded-pointer slot overruns
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitRecycleOldSong(rom, list, "S ", slot));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitRecycleOldInstrument_NearEofPointer_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint slot = (uint)rom.Data.Length - 2; // a 4-byte read at the embedded-pointer slot overruns
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitRecycleOldInstrument(rom, list, "I ", slot));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        // ---- MapSetting ----
+
+        [Fact]
+        public void EmitMapSetting_FE8_MainIfr_AndPerEntryCString()
+        {
+            // FE8-only. Main IFR base p32(map_setting_pointer), block map_setting_datasize, PI {0}; per
+            // entry a CSTRING (strlen+1) behind the +0 embedded pointer. The IsMapSettingEnd count rule
+            // accepts an entry whose +0 field is a ROM pointer (the common case).
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint block = rom.RomInfo.map_setting_datasize; // 148
+                uint slot = U.toOffset(rom.RomInfo.map_setting_pointer);
+                uint table = 0x400000;
+                uint name0 = 0x500000;
+                uint name1 = 0x500100;
+                rom.write_u32(slot, Ptr(table));
+                // entry 0/1: +0 is a ROM pointer (-> IsMapSettingEnd returns true) AND the CString name.
+                rom.write_u32(table + block * 0 + 0, Ptr(name0));
+                rom.write_u32(table + block * 1 + 0, Ptr(name1));
+                // entry 2: +0 is 0 (not a pointer) and weather byte 0xFF (>=0xE) -> IsMapSettingEnd false -> stop.
+                rom.write_u8(table + block * 2 + 12, 0xFF);
+                WriteAsciiZ(rom, name0, "MAPNAME"); // strlen 7 -> CSTRING len 8
+                WriteAsciiZ(rom, name1, "X");       // strlen 1 -> CSTRING len 2
+
+                var list = new List<Address>();
+                RebuildProducerCore.EmitMapSetting(rom, list);
+
+                Address mainIfr = list.Single(a => a.Info == "MapSetting" && a.BlockSize == block);
+                Assert.Equal(table, mainIfr.Addr);
+                Assert.Equal(slot, mainIfr.Pointer);
+                Assert.Equal(block * (2u + 1u), mainIfr.Length); // count 2
+                Assert.Equal(new uint[] { 0 }, mainIfr.PointerIndexes);
+
+                // Per-entry CSTRING (strlen+1).
+                Address c0 = list.Single(a => a.Addr == name0);
+                Assert.Equal(Address.DataTypeEnum.CSTRING, c0.DataType);
+                Assert.Equal(8u, c0.Length); // 7 + 1
+                Assert.Equal(table + block * 0 + 0, c0.Pointer);
+                Address c1 = list.Single(a => a.Addr == name1);
+                Assert.Equal(2u, c1.Length); // 1 + 1
+            });
+        }
+
+        [Fact]
+        public void IsMapSettingEnd_TextIdOutOfRange_ReturnsFalse()
+        {
+            // When +0 is NOT a ROM pointer, the text-id fields must be < textmax. A map-name id >= textmax
+            // terminates the walk (verbatim WF IsMapSettingEnd).
+            WithVersionedRom("BE8E01", rom =>
+            {
+                uint addr = 0x600000;
+                // +0 not a pointer (0), weather valid (<0xE), a PLIST present so we reach the text checks.
+                rom.write_u8(addr + 12, 0x00);          // weather 0
+                rom.write_u32(addr + 4, Ptr(0x111000)); // plist_direct non-zero / non-FFFFFFFF
+                rom.write_u16(addr + 0x70, 50);         // map1 text id
+
+                Assert.True(RebuildProducerCore.IsMapSettingEnd(rom, addr, textmax: 100)); // 50 < 100 -> in range
+                Assert.False(RebuildProducerCore.IsMapSettingEnd(rom, addr, textmax: 10)); // 50 >= 10 -> stop
+            });
+        }
+
+        // ---- NotYetPorted coverage delta for slice 2r ----
+
+        [Fact]
+        public void GetNotYetPortedForms_DropsSlice2rForms_KeepsDeferredSiblings()
+        {
+            string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
+
+            // slice 2r ports SoundRoom (FE7+FE8), SongTable (all versions), MapSetting (FE8).
+            Assert.DoesNotContain("SoundRoomForm", notYet);
+            Assert.DoesNotContain("SongTableForm", notYet);
+            Assert.DoesNotContain("MapSettingForm", notYet);
+
+            // The siblings flagged by the slice STAY deferred:
+            //  AIScriptForm — its count is now reproducible but the per-entry NAME (GetAIName1/2 ->
+            //    config name list + InputFormRef.GetCommentSA) is not yet in Core.
+            //  ImageBattleAnimeForm — ImageUtilOAM.MakeAllDataLength (the UnCompressFrame seat-image walk)
+            //    + ClassForm.MakeClassList/GetBattleAnimeAddrWhereAddr + the seat-dedup are not in Core.
+            Assert.Contains("AIScriptForm", notYet);
+            Assert.Contains("ImageBattleAnimeForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
