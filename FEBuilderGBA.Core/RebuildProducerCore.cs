@@ -10284,11 +10284,11 @@ namespace FEBuilderGBA
         // Coverage honesty: like the data-path GetNotYetPortedForms, the ASM
         // producer never silently omits a form. AsmProducerResult.NotYetPorted
         // lists the forms still blocked on an un-ported subsystem (the
-        // PatchForm patch-config scanner + the ProcsScriptForm AsmMapFileAsmCache
-        // UI-cache, each its own follow-up slice; OAMSPForm is PORTED in slice 2w —
-        // it had no AsmMapFileAsmCache dependency), so AsmProducerResult.IsComplete
-        // stays false until they land — a wiring slice must not feed an incomplete
-        // list to a real defragment.
+        // PatchForm patch-config scanner + GraphicsToolForm LZ77, each its own
+        // follow-up slice; OAMSPForm is PORTED in slice 2w, ProcsScriptForm in
+        // slice 2x — neither needed the WinForms AsmMapFileAsmCache), so
+        // AsmProducerResult.IsComplete stays false until they land — a wiring
+        // slice must not feed an incomplete list to a real defragment.
         // ====================================================================
 
         /// <summary>Result of <see cref="AppendAllAsmStructPointers"/>: the forms NOT yet
@@ -10338,12 +10338,11 @@ namespace FEBuilderGBA
                 // patch pointer relocates the wrong bytes = silent corruption — DEFER until the patch-
                 // config subsystem reaches Core (its own follow-up slice).
                 "PatchForm(MakePatchStructDataList)",
-                // ProcsScriptForm.MakeAllDataLength(ldrmap) — the only form (besides the optional OAMSP)
-                // that CONSUMES the ldrmap. Its FindProc walk depends on Program.AsmMapFileAsmCache
-                // (IsStopFlagOn() / GetKnownArea() — a WinForms UI cache) + the 6c_name_ config dic. The
-                // ldrmap itself is Core-buildable (DisassemblerTrumb.MakeLDRMap), but the AsmMapFileAsmCache
-                // dependency is not — DEFER until that cache reaches Core (its own follow-up slice).
-                "ProcsScriptForm",
+                // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED in slice 2x (EmitProcsScript /
+                // EmitProcsScriptCore + ROMInfoLoadResourceKnownArea + Load6cNameDicSafe). Its FindProc walk
+                // CONSUMES the ldrmap but no longer needs the WinForms AsmMapFileAsmCache: GetKnownArea is
+                // pure RomInfo reflection, IsStopFlagOn() is replaced by the threaded CancellationToken, and
+                // the 6c_name_ config dict loads headless-safe. So it is no longer in this deferred list.
                 // GraphicsToolForm.MakeLZ77DataList (only when isUseOtherGraphics) — the LZ77 graphics-
                 // tool subsystem. Out of scope for this foundation; DEFER.
                 "GraphicsToolForm",
@@ -10415,8 +10414,12 @@ namespace FEBuilderGBA
             // reproduce the gate faithfully: with no ldrmap, none of this group runs.
             if (ldrmap != null)
             {
-                // ProcsScriptForm.MakeAllDataLength(ldrmap) — DEFERRED (AsmMapFileAsmCache). Nothing here.
-                progress?.Report("ProcsScriptForm (deferred)");
+                // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED (slice 2x). The FIRST form inside the
+                // `if (ldrmap != null)` block (WF U.cs:2624). Its FindProc walk no longer needs the WinForms
+                // AsmMapFileAsmCache: GetKnownArea is a pure RomInfo reflection (ROMInfoLoadResourceKnownArea),
+                // IsStopFlagOn() is replaced by `ct`, and the 6c_name_ config dict is loaded headless-safe.
+                progress?.Report("ProcsScriptForm");
+                EmitProcsScript(rom, list, ldrmap, ct);
 
                 if (ct.IsCancellationRequested)
                 {
@@ -11271,6 +11274,481 @@ namespace FEBuilderGBA
 
             uint ret_length = addr - start;
             return ret_length;
+        }
+
+        // ====================================================================
+        // slice 2x — ProcsScriptForm.MakeAllDataLength(structlist, ldrmap)
+        // (FEBuilderGBA/ProcsScriptForm.cs:265-294 + the nested FindProc class
+        // L122-253). The PROCS (map-anime "6C") bytecode tables, discovered by
+        // walking the LDR map and the 6c_name_ config dict, validated by the
+        // already-ported VERBATIM CalcProcsLengthAndCheck terminator walk, then
+        // recursed into child Procs / ASM routines.
+        //
+        // WinForms→Core substitutions (each faithful, no relocation drift):
+        //   - Program.AsmMapFileAsmCache.GetKnownArea() => a pure RomInfo
+        //     reflection (ROMInfoLoadResourceKnownArea, the verbatim port of
+        //     AsmMapFile.ROMInfoLoadResource, isWithOutProcs:true);
+        //   - Program.AsmMapFileAsmCache.IsStopFlagOn() => the threaded
+        //     CancellationToken (ct.ThrowIfCancellationRequested, matching the
+        //     rest of AppendAllAsmStructPointers);
+        //   - U.LoadDicResource(ConfigDataFilename("6c_name_")) => the
+        //     headless-safe Load6cNameDicSafe (the slice-2w LoadOamNameDicSafe
+        //     idiom: File.Exists pre-check + inlined parse loop under a
+        //     UI-free swallow, never ShowError / NRE on a null BaseDirectory);
+        //   - every Program.ROM => the threaded `rom`, every read EOF-guarded.
+        //
+        // NAME fidelity: Get6CName2 / MakeProcNameByAddr / GetProcsName are
+        // reproduced. The ONE unavoidable simplification (cosmetic, relocation-
+        // identical — same precedent as EmitItemWeaponEffect/EmitAIScript) is
+        // Get6CNameAddr's WinForms TextForm.Direct(stringPointer) tail: that
+        // helper dereferences an in-bytecode ASCII pointer through a WinForms
+        // text decoder NOT in Core (FETextDecode.Direct takes a TEXT-ID, wrong
+        // semantics), and its result feeds only the Address.Info string (never
+        // addr/length/pointer/DataType/emission-order). When both config name
+        // hints are empty the producer keeps the "Procs " prefix without the
+        // dereferenced tail.
+        // ====================================================================
+
+        /// <summary>WF <c>ProcsScriptForm.hasASMRoutine</c> (ProcsScriptForm.cs:106): opcodes whose
+        /// <c>parg</c> is an ASM-routine pointer (2/3/4/0x14/0x16/0x18). Verbatim.</summary>
+        static bool HasProcsASMRoutine(uint code)
+        {
+            return (code == 0x2 || code == 0x3 || code == 0x4 || code == 0x14 || code == 0x16 || code == 0x18);
+        }
+
+        /// <summary>WF <c>ProcsScriptForm.hasChildProcs</c> (ProcsScriptForm.cs:110): opcodes whose
+        /// <c>parg</c> nests a child PROCS table (5..0xA, or 0xD). Verbatim.</summary>
+        static bool HasProcsChildProcs(uint code)
+        {
+            return (code >= 0x5 && code <= 0xA) || code == 0xD;
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>AsmMapFile.ROMInfoLoadResource</c> (FEBuilderGBA/AsmMapFile.cs:197-257),
+        /// parameterized by <paramref name="rom"/> (replacing every <c>Program.ROM</c>). Reflects over the
+        /// <c>uint</c> properties of <paramref name="rom"/>'s <c>RomInfo</c> whose name contains
+        /// <c>_pointer</c> / <c>_address</c> (skipping <c>"procs"</c>-named ones when
+        /// <paramref name="isWithOutProcs"/>), recording each resolvable address (and, for a
+        /// <c>_pointer</c>, the once-dereferenced <c>_address</c>) as a known-area <see cref="AsmMapSt"/>.
+        /// Used by the PROCS walk as the "this is a different data table, do not mis-scan it as Procs"
+        /// filter. Pure reflection + Core-available guards (<c>U.toOffset</c>/<c>isSafetyOffset</c>/
+        /// <c>toPointer</c>/<c>isPointer</c> + <c>rom.u32</c>). The once-dereferenced <c>rom.u32(addr)</c>
+        /// read is EOF-guarded by an EXPLICIT <c>isSafetyOffset(addr + 3, rom)</c> check (the start guard
+        /// <c>isSafetyOffset(addr)</c> only proves <c>addr</c> is in-bounds, NOT the full 4-byte extent —
+        /// Core's <c>u32</c> throws when <c>addr+4 &gt; Length</c>). On any real ROM a RomInfo
+        /// <c>_pointer</c> never sits in the last 3 bytes, so the extra guard is output-equivalent to WF
+        /// (which reads <c>Program.ROM.u32(addr)</c> under the same start guard); a slot that close to EOF
+        /// simply skips recording its dereferenced <c>_address</c> instead of throwing.
+        /// </summary>
+        public static void ROMInfoLoadResourceKnownArea(ROM rom, Dictionary<uint, AsmMapSt> asmMap, bool isWithOutProcs)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (asmMap == null) throw new ArgumentNullException(nameof(asmMap));
+            if (rom.RomInfo == null)
+            {
+                // A synthetic NULL-RomInfo ROM has no known-area table; WF always runs on a versioned ROM.
+                return;
+            }
+
+            //せっかくなので、ROMで判明しているデータも追加する.
+            System.Reflection.MemberInfo[] members = rom.RomInfo.GetType().GetMembers();
+            foreach (System.Reflection.MemberInfo info in members)
+            {
+                if (info.MemberType != System.Reflection.MemberTypes.Property)
+                {
+                    continue;
+                }
+                System.Reflection.PropertyInfo field = (System.Reflection.PropertyInfo)info;
+                if (field.PropertyType != typeof(uint))
+                {
+                    continue;
+                }
+
+                if (isWithOutProcs)
+                {
+                    if (info.Name.IndexOf("procs") >= 0)
+                    {
+                        continue;
+                    }
+                }
+
+                if (info.Name.IndexOf("_pointer") >= 0)
+                {
+                    uint addr = (uint)field.GetValue(rom.RomInfo, null);
+                    addr = U.toOffset(addr);
+                    if (addr > 0 && U.isSafetyOffset(addr, rom))
+                    {
+                        uint pointer = U.toPointer(addr);
+
+                        AsmMapSt p = new AsmMapSt();
+                        p.Name = info.Name;
+                        asmMap[pointer] = p;
+
+                        // EOF-guard the FULL 4-byte extent before the deref: isSafetyOffset(addr) above only
+                        // proves addr is in-bounds, and Core's rom.u32 throws when addr+4 > Length. A slot
+                        // within 3 bytes of EOF skips its dereferenced _address (never happens on a real ROM).
+                        if (U.isSafetyOffset(addr + 3, rom))
+                        {
+                            uint pointer2 = rom.u32(addr);
+                            if (U.isPointer(pointer2))
+                            {
+                                p = new AsmMapSt();
+                                p.Name = info.Name.Replace("_pointer", "_address");
+                                asmMap[pointer2] = p;
+                            }
+                        }
+                    }
+                }
+
+                if (info.Name.IndexOf("_address") >= 0)
+                {
+                    uint addr = (uint)field.GetValue(rom.RomInfo, null);
+                    addr = U.toOffset(addr);
+                    if (addr > 0 && U.isSafetyOffset(addr, rom))
+                    {
+                        uint pointer = U.toPointer(addr);
+                        AsmMapSt p = new AsmMapSt();
+                        p.Name = info.Name;
+                        asmMap[pointer] = p;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load the <c>6c_name_</c> config dictionary (WF <c>FindProc</c> ctor's first line,
+        /// ProcsScriptForm.cs:131), never throwing or surfacing UI. Identical idiom to the slice-2w
+        /// <see cref="LoadOamNameDicSafe"/>: a <see cref="System.IO.File.Exists"/> pre-check (missing ->
+        /// empty, no <c>IsRequiredFileExist</c> ShowError + Debug.Assert) plus the inlined
+        /// <see cref="U.LoadDicResource"/> parse loop (U.cs:1772-1792) under a UI-free try/catch (a present-
+        /// but-malformed file degrades to a partial dict instead of <c>CoreState.Services.ShowError</c>).
+        /// Uses the <c>OtherLangLine(line, rom)</c> overload (not the <c>CoreState.ROM</c> global), which
+        /// only toggles whether a <c>{U}</c>/<c>{J}</c>-tagged line is skipped (output-equivalent). A
+        /// missing/empty dict means loop 2 of <see cref="EmitProcsScriptCore"/> contributes nothing; the
+        /// ldrmap loop is unaffected.
+        /// </summary>
+        static Dictionary<uint, string> Load6cNameDicSafe(ROM rom)
+        {
+            var dic = new Dictionary<uint, string>();
+            try
+            {
+                string filename = U.ConfigDataFilename("6c_name_", rom);
+                if (!System.IO.File.Exists(filename))
+                {
+                    return dic;
+                }
+                using (var reader = System.IO.File.OpenText(filename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (U.IsComment(line) || U.OtherLangLine(line, rom)) continue;
+                        line = U.ClipComment(line);
+                        if (line == "") continue;
+                        string[] sp = line.Split('=');
+                        dic[U.atoh(sp[0])] = U.at(sp, 1);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Null BaseDirectory, an unreadable handle, or a malformed line: never surface UI —
+                // return whatever parsed so far (partial/empty).
+            }
+            return dic;
+        }
+
+        /// <summary>WF <c>ProcsScriptForm.Get6CNameAddr</c> (ProcsScriptForm.cs:62-84) is NOT reproduced:
+        /// it dereferences an in-bytecode ASCII string pointer through the WinForms <c>TextForm.Direct</c>
+        /// (no Core equivalent — <c>FETextDecode.Direct</c> takes a text-ID, wrong semantics) to build a
+        /// COSMETIC name tail. Per the EmitItemWeaponEffect/EmitAIScript precedent, the Address <c>Info</c>
+        /// is cosmetic (never affects addr/length/pointer/DataType/order), so the producer keeps the
+        /// <c>"Procs "</c> prefix without the dereferenced tail. This helper reproduces only the
+        /// HINT-selection logic of <c>Get6CName2</c> (ProcsScriptForm.cs:87-104): use the per-pointer config
+        /// name, else the per-addr config name, else the bare prefix.</summary>
+        static string Get6CName2(string hint, string hint2)
+        {
+            string name = "Procs ";
+            if (hint.Length > 0)
+            {
+                name += hint;
+            }
+            else if (hint2.Length > 0)
+            {
+                name += hint2;
+            }
+            // else: WF appends Get6CNameAddr (TextForm.Direct tail) — cosmetic only, dropped (see summary).
+            return name;
+        }
+
+        /// <summary>WF <c>ProcsScriptForm.GetProcsName</c> (ProcsScriptForm.cs:256-263): a bare
+        /// <c>"Procs "</c> info gets the address appended for the per-record CallASM label.</summary>
+        static string GetProcsName(Address a)
+        {
+            if (a.Info == "Procs ")
+            {
+                return a.Info + U.ToHexString(a.Addr);
+            }
+            return a.Info;
+        }
+
+        /// <summary>
+        /// Core port of <c>ProcsScriptForm.MakeAllDataLength(structlist, ldrmap)</c>
+        /// (FEBuilderGBA/ProcsScriptForm.cs:265-294). Loads the <c>6c_name_</c> config dictionary
+        /// (the WF <c>FindProc</c> ctor's first line) headless-safe, then delegates to
+        /// <see cref="EmitProcsScriptCore"/>.
+        /// </summary>
+        /// <param name="rom">The ROM to scan (MUST be the loaded <see cref="CoreState.ROM"/>; the
+        /// <c>6c_name_</c> config filename is RomInfo-derived).</param>
+        /// <param name="list">The accumulating struct list (appended to).</param>
+        /// <param name="ldrmap">The full-ROM LDR map (<see cref="BuildLdrMap"/>). WF gates this whole form
+        /// on a non-null map; a null map skips loop 1 (loop 2 / the config-dict scan still runs).</param>
+        /// <param name="ct">Cancellation (replaces WF <c>AsmMapFileAsmCache.IsStopFlagOn()</c>).</param>
+        public static void EmitProcsScript(ROM rom, List<Address> list,
+            List<DisassemblerTrumb.LDRPointer> ldrmap, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            Dictionary<uint, string> procsName = Load6cNameDicSafe(rom);
+            EmitProcsScriptCore(rom, list, ldrmap, procsName, ct);
+        }
+
+        /// <summary>
+        /// Verbatim port of <c>ProcsScriptForm.MakeAllDataLength</c> + its nested <c>FindProc</c> class
+        /// (FEBuilderGBA/ProcsScriptForm.cs:122-294) with the <c>6c_name_</c> dictionary supplied (test seam
+        /// — lets a synthetic ROM drive the Procs walk without a RomInfo-derived config file). WF builds the
+        /// discovered Procs into a LOCAL list (so the per-record CallASM/CString sub-walk iterates exactly
+        /// the discovered Procs, not whatever else was already in <paramref name="list"/>), then AddRange's
+        /// it into the real list and finally walks each discovered Procs for embedded ASM-routine / set-name
+        /// pointers — reproduced.
+        /// <list type="bullet">
+        ///   <item><c>FindProc</c>: <c>knownArea</c> = <see cref="ROMInfoLoadResourceKnownArea"/>
+        ///   (isWithOutProcs:true); <c>ProcsNameByAddr</c> = <see cref="MakeProcNameByAddr"/>; loop 1 over
+        ///   <paramref name="ldrmap"/> (<c>ldr_data</c>/<c>ldr_data_address</c>), loop 2 over the config dict
+        ///   (deref <c>rom.u32(pointer)</c>); both skip <c>knownArea</c>/<c>alreadyMatch</c>; each calls
+        ///   <see cref="FindProcOne"/>.</item>
+        ///   <item><c>FindProcOne</c>: <see cref="CalcProcsLengthAndCheck"/> + the <c>IsTooShort</c> (&gt;=16)
+        ///   gate for non-child entries + <c>Address.AddAddress(..., PROCS)</c> + record <c>alreadyMatch</c> +
+        ///   recurse into child Procs (<see cref="HasProcsChildProcs"/> -> <c>p32(addr+4)</c>).</item>
+        ///   <item>per-record sub-walk: <see cref="HasProcsASMRoutine"/> -> <c>AddFunction(addr+4, ...)</c>
+        ///   when <c>p32(addr+4)!=0</c>; code <c>0x01</c> -> <c>AddCString(addr+4)</c>.</item>
+        /// </list>
+        /// Every computed read is EOF-guarded: the per-8-byte loops bound on <c>end = addr + length</c> where
+        /// <c>length</c> came from the EOF-clamped <see cref="CalcProcsLengthAndCheck"/>, so each
+        /// <c>p32(addr+4)</c>/<c>u8(addr)</c> within <c>[addr, end)</c> is in-bounds; the
+        /// <c>U.isSafetyOffset(addr+7, rom)</c> belt-and-braces guard before the +4 p32 reads keeps a
+        /// boundary record (where <c>end</c> sits within 8 bytes of EOF) safe. The recursion is dedup'd via
+        /// <c>alreadyMatch</c> (no infinite loop on a self-referential child pointer).
+        /// </summary>
+        public static void EmitProcsScriptCore(ROM rom, List<Address> list,
+            List<DisassemblerTrumb.LDRPointer> ldrmap, Dictionary<uint, string> procsName,
+            CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (procsName == null) procsName = new Dictionary<uint, string>();
+
+            var procs = new List<Address>();
+            var alreadyMatch = new Dictionary<uint, bool>();
+
+            // FindProc ctor (ProcsScriptForm.cs:129-180): the addr->name map + the known-area filter.
+            Dictionary<uint, string> procsNameByAddr = MakeProcNameByAddr(rom, procsName);
+            var knownArea = new Dictionary<uint, AsmMapSt>();
+            ROMInfoLoadResourceKnownArea(rom, knownArea, isWithOutProcs: true);
+
+            // ---- Loop 1: ldrmap (FindProc ctor L137-156) -----------------------
+            if (ldrmap != null)
+            {
+                for (int i = 0; i < ldrmap.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested(); // WF: if (IsStopFlagOn()) return;
+
+                    uint addr = ldrmap[i].ldr_data;
+                    if (!U.isSafetyPointer(addr, rom))
+                    {
+                        continue;
+                    }
+                    if (knownArea.ContainsKey(addr))
+                    {//既知のエリア 別のデータのテーブルを誤参照
+                        continue;
+                    }
+                    addr = U.toOffset(addr);
+                    if (alreadyMatch.ContainsKey(addr))
+                    {//既に知っている.
+                        continue;
+                    }
+                    FindProcOne(rom, procs, alreadyMatch, procsName, procsNameByAddr,
+                        ldrmap[i].ldr_data_address, addr, child6C: false);
+                }
+            }
+
+            // ---- Loop 2: 6c_name_ config dict (FindProc ctor L157-178) ---------
+            foreach (var pair in procsName)
+            {
+                ct.ThrowIfCancellationRequested(); // WF: if (IsStopFlagOn()) return;
+
+                uint pointer = pair.Key;
+                pointer = U.toOffset(pointer);
+                if (!U.isSafetyOffset(pointer, rom))
+                {
+                    continue;
+                }
+                // EOF-guard the FULL u32 extent (pointer+3) before the deref (the #1261 producer discipline).
+                // The start guard isSafetyOffset(pointer) above only proves `pointer` is in-bounds, NOT that
+                // pointer+3 is — Core's rom.u32 throws when pointer+4 > Length, so this explicit extent guard
+                // is required (a config slot within 3 bytes of EOF is skipped instead of throwing).
+                if (!U.isSafetyOffset(pointer + 3, rom))
+                {
+                    continue;
+                }
+                uint addr = rom.u32(pointer);
+                if (knownArea.ContainsKey(addr))
+                {//既知のエリア 別のデータのテーブルを誤参照
+                    continue;
+                }
+                addr = U.toOffset(addr);
+                if (alreadyMatch.ContainsKey(addr))
+                {//既に知っている.
+                    continue;
+                }
+                FindProcOne(rom, procs, alreadyMatch, procsName, procsNameByAddr,
+                    pointer, addr, child6C: false);
+            }
+
+            // MakeAllDataLength L267-293: append the discovered Procs, then walk each for attached data.
+            list.AddRange(procs); //発見したProcsを追加.
+
+            foreach (Address a in procs)
+            {
+                uint addr = a.Addr;
+                uint end = addr + a.Length;
+                for (; addr < end; addr += 8)
+                {
+                    // EOF-guard the full +4 p32 extent (addr+7) before the read. `end` came from the
+                    // EOF-clamped CalcProcsLengthAndCheck so every in-range record is in-bounds, but a
+                    // boundary record (end within 8 bytes of EOF) is made explicit-safe here.
+                    if (!U.isSafetyOffset(addr + 7, rom))
+                    {
+                        break;
+                    }
+                    uint code = rom.u8(addr);
+
+                    if (HasProcsASMRoutine(code))
+                    {//呼び出しているASM関数
+                        uint arg = rom.p32(addr + 4);
+                        if (arg != 0)
+                        {
+                            Address.AddFunction(list, addr + 4, GetProcsName(a) + " CallASM");
+                        }
+                    }
+                    else if (code == 0x01)
+                    {//Set name
+                        Address.AddCString(list, addr + 4);
+                    }
+                }
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>FindProc.MakeProcNameByAddr</c> (ProcsScriptForm.cs:182-200):
+        /// builds an addr->name map by dereferencing each safe config pointer
+        /// (<c>p = rom.u32(key); ret[toOffset(p)] = value</c>). The <c>key+3</c> / <c>p</c> reads are
+        /// EOF-guarded (isSafetyOffset on the key, isSafetyPointer on the dereferenced value).</summary>
+        static Dictionary<uint, string> MakeProcNameByAddr(ROM rom, Dictionary<uint, string> procsName)
+        {
+            var ret = new Dictionary<uint, string>();
+            foreach (var pair in procsName)
+            {
+                if (!U.isSafetyOffset(pair.Key, rom))
+                {
+                    continue;
+                }
+                if (!U.isSafetyOffset(pair.Key + 3, rom))
+                {
+                    continue;
+                }
+                uint p = rom.u32(pair.Key);
+                if (!U.isSafetyPointer(p, rom))
+                {
+                    continue;
+                }
+                p = U.toOffset(p);
+                ret[p] = pair.Value;
+            }
+            return ret;
+        }
+
+        /// <summary>WF <c>FindProc.IsTooShort</c> (ProcsScriptForm.cs:202-210): a non-child Procs must be at
+        /// least 2 records (16 bytes) long. NOTE the WF method name is inverted — it returns <c>true</c>
+        /// when the length is ACCEPTABLE (&gt;= 16); reproduced verbatim.</summary>
+        static bool IsTooShort(uint length)
+        {
+            if (length >= 8 * 2)
+            {
+                return true;
+            }
+            //短すぎる
+            return false;
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>FindProc.FindProcOne</c> (ProcsScriptForm.cs:212-253): validate a candidate
+        /// PROCS at <paramref name="addr"/> via <see cref="CalcProcsLengthAndCheck"/>; on success (and, for a
+        /// non-child entry, the <see cref="IsTooShort"/> &gt;=16 gate) emit a PROCS <see cref="Address"/>,
+        /// record <paramref name="alreadyMatch"/>, then recurse into each child-Procs opcode's pointer. A
+        /// rejected candidate records <c>alreadyMatch[addr]=false</c> (so it is not retried). The recursion
+        /// is bounded by <paramref name="alreadyMatch"/> (a child already matched <c>true</c> is skipped).
+        /// </summary>
+        static void FindProcOne(ROM rom, List<Address> list, Dictionary<uint, bool> alreadyMatch,
+            Dictionary<uint, string> procsName, Dictionary<uint, string> procsNameByAddr,
+            uint pointer, uint addr, bool child6C)
+        {
+            uint length = CalcProcsLengthAndCheck(rom, addr);
+            if (U.NOT_FOUND == length)
+            {
+                alreadyMatch[addr] = false; //ダメだったということを記録しておこう
+                return;
+            }
+
+            if (child6C == false)
+            {
+                if (IsTooShort(length) == false)
+                {
+                    alreadyMatch[addr] = false; //ダメだったということを記録しておこう
+                    return;
+                }
+            }
+
+            string name = Get6CName2(U.at(procsName, pointer), U.at(procsNameByAddr, addr));
+            Address.AddAddress(list, addr, length, pointer, name, Address.DataTypeEnum.PROCS);
+            alreadyMatch[addr] = true;
+
+            uint end = addr + length;
+            for (; addr < end; addr += 8)
+            {
+                // EOF-guard the full +4 p32 extent (addr+7) before the read. `end` came from the EOF-clamped
+                // CalcProcsLengthAndCheck so every in-range record is in-bounds; a boundary record (end within
+                // 8 bytes of EOF) is made explicit-safe here (WF reads p32(addr+4) unconditionally).
+                if (!U.isSafetyOffset(addr + 7, rom))
+                {
+                    break;
+                }
+                uint code = rom.u8(addr);
+                if (HasProcsChildProcs(code))
+                {
+                    uint arg = rom.p32(addr + 4);
+
+                    bool result;
+                    if (alreadyMatch.TryGetValue(arg, out result))
+                    {//既に知っている.
+                        if (result)
+                        {
+                            continue;
+                        }
+                    }
+                    FindProcOne(rom, list, alreadyMatch, procsName, procsNameByAddr,
+                        addr + 4, arg, child6C: true);
+                }
+            }
         }
     }
 }
