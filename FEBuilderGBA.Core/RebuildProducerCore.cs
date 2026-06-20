@@ -7836,8 +7836,10 @@ namespace FEBuilderGBA
         /// the cached text count <c>TextForm.GetDataCount()</c> — reproduced byte-faithfully by
         /// <see cref="TextDataCount"/>, the same TextForm IFR count walk WF caches via
         /// <c>UpdateDataCountCache</c> right before MapSetting runs), pointerIndexes {0}. Per entry: a
-        /// CSTRING block (strlen+1) behind the embedded pointer at +0 (the map-setting name) — reproduced
-        /// via the existing <see cref="SubKind.CString"/> sub-walk. NOTE: <c>MapSettingCore.IsMapSettingValid</c>
+        /// CSTRING block (strlen+1) behind the embedded pointer at +0 (the map-setting name) — emitted by
+        /// this dedicated walker's own per-entry loop calling <see cref="Address.AddCString"/> directly
+        /// (same emission as <c>SubKind.CString</c>, but EmitMapSetting is not a descriptor/SubWalk form).
+        /// NOTE: <c>MapSettingCore.IsMapSettingValid</c>
         /// is NOT used (its <c>textmax==0</c> guard diverges from WF); this reproduces
         /// <c>IsMapSettingEnd</c> directly.
         /// </summary>
