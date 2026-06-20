@@ -813,6 +813,21 @@ namespace FEBuilderGBA
                 progress?.Report("MakeAllStructPointersList cancelled");
                 return new ProducerResult(list, notYet, cancelled: true);
             }
+            // ---- slice 2ae: EventUnitForm.RecycleReserveUnits (WF U.cs:2485, between
+            // ArenaEnemyWeaponForm and ImageMapActionAnimationForm) — faithful headless NO-OP. WF iterates
+            // EventUnitForm.NewAllocData (GUI session state, always empty on a loaded ROM); the saved
+            // reserve units are recovered by the regular EventUnit scan (RecycleOldUnits via EventCond /
+            // EventScript, already ported). Empirically proven (RebuildProducerWFParityTests) that WF
+            // emits ZERO "NEW EVENT UNIT" entries on the real ROM. Completes the data-path producer
+            // (only PatchForm — the ASM epic — remains). See EmitEventUnitReserveUnits.
+            progress?.Report("EventUnitReserveUnits");
+            EmitEventUnitReserveUnits(rom, list);
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
             progress?.Report("ImageMapActionAnimation");
             EmitImageMapActionAnimation(rom, list);
 
@@ -8321,6 +8336,56 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// <c>EventUnitForm.RecycleReserveUnits(ref list)</c> (WF <c>EventUnitForm.cs:1746-1755</c>;
+        /// called from the producer in <c>U.MakeAllStructPointersList</c> at <c>U.cs:2485</c>, between
+        /// <c>ArenaEnemyWeaponForm.MakeAllDataLength</c> and
+        /// <c>ImageMapActionAnimationForm.MakeAllDataLength</c>). Reproduced VERBATIM as an explicit,
+        /// documented <b>NO-OP</b> — the faithful headless reproduction, following the
+        /// <see cref="EmitMapLoadFunction"/> precedent (a WF producer call that contributes ZERO Address
+        /// records is reproduced as a no-op rather than "fixed", so the Core rebuild manifest matches the
+        /// app's byte-for-byte).
+        /// <para>
+        /// <b>Why a no-op is faithful (empirically proven, slice 2ae).</b> WF
+        /// <c>RecycleReserveUnits</c> iterates the static field <c>EventUnitForm.NewAllocData</c>
+        /// (<c>EventUnitForm.cs:1660</c>, declared as an EMPTY <c>new List&lt;AddrResult&gt;()</c>) and
+        /// emits one <c>RecycleOldUnitsLow(ref list, "NEW", ..)</c> region per entry. <c>NewAllocData</c>
+        /// is <b>EDITOR SESSION STATE</b>: its ONLY producer is <c>CreateNewData</c>
+        /// (<c>EventUnitForm.cs:1665-1698</c>, line 1689 <c>NewAllocData.Add(..)</c>), which is gated on
+        /// the interactive <c>EventUnitNewAllocForm.ShowDialog()</c> returning <c>DialogResult.OK</c>
+        /// (line 1674) — reachable only from the GUI "NEW" button (<c>NewButton_Click</c>, line 1661).
+        /// The other references only DRAIN it: <c>AppendNoWriteNewData</c> removes saved entries
+        /// (1700-1724), <c>ClearNewData</c> resets it (1725-1728), <c>ReallocUnrelatedData</c> only
+        /// relocates an existing entry's address on an expand event (1029-1038). On any freshly
+        /// loaded/saved ROM <c>NewAllocData</c> is therefore EMPTY → WF emits ZERO entries here. The
+        /// newly-allocated unit regions a prior live session created were SAVED into the ROM and anchored
+        /// by normal pointers; on reload they are recovered by the regular EventUnit scan
+        /// (<c>EventUnitForm.RecycleOldUnits</c>, called from the per-map event-condition scan
+        /// <c>EventCondForm.cs:2748</c> and the event-script scan <c>EventScriptForm.cs:498</c>) — both
+        /// already in the Core producer. Core has NO <c>NewAllocData</c> mechanism at all (it never opens
+        /// the NEW dialog), so emitting anything here would FABRICATE entries WF never emits — corrupting
+        /// the rebuild (the recycle free-list is the complement of the producer list). Hence: no-op.
+        /// </para>
+        /// <para>EMPIRICAL PROOF: the FEBuilderGBA.Tests WF-parity harness
+        /// (<c>RebuildProducerWFParityTests.WinFormsProducer_EmitsNoReserveUnitEntries_OnLoadedRom</c>)
+        /// runs the real WF <c>U.MakeAllStructPointersList</c> on <c>roms/FE8U.gba</c> and asserts ZERO
+        /// entries whose <c>Info</c> starts with <c>"NEW EVENT UNIT"</c> (the exact name
+        /// <c>RecycleOldUnitsLow("NEW", ..)</c> would produce) — confirming WF itself emits nothing here
+        /// on a loaded ROM, so the Core no-op omits nothing real.</para>
+        /// </summary>
+        /// <param name="rom">unused — present for the <c>(x, rom)</c> producer-emitter signature parity.</param>
+        /// <param name="list">unused — VERBATIM no-op: nothing is appended.</param>
+        public static void EmitEventUnitReserveUnits(ROM rom, List<Address> list)
+        {
+            // VERBATIM no-op. See the method doc-comment for the empirical proof: WF
+            // RecycleReserveUnits iterates EventUnitForm.NewAllocData (GUI-session-only; always empty on a
+            // loaded ROM) and so emits ZERO Address records headless. Emitting ANYTHING here would
+            // fabricate entries the WF producer never emits and corrupt the rebuild free-list. Core has no
+            // NewAllocData mechanism, so the faithful reproduction is to append nothing.
+            _ = rom;
+            _ = list;
+        }
+
+        /// <summary>
         /// Reproduces <c>EventUnitForm.RecycleOldUnits(ref list, basename, script_pointer)</c> +
         /// <c>RecycleOldUnitsLow</c> (slice 2j). The WF helper recovers the EVENT-UNIT region behind an
         /// embedded script pointer (the <c>script_pointer</c> field of an ExtraUnit entry): it
@@ -11825,10 +11890,17 @@ namespace FEBuilderGBA
                 //  0x37EE4 + flag BINs @ i*0x14+0x37E10; version==8 && !is_multibyte = FE8U table @ 0x37D88
                 //  block 8). Both expand each entry via EventUnitForm.RecycleOldUnits, reproduced verbatim
                 //  by EmitRecycleOldUnits (an EventUnit IFR + the v8 per-entry COORD BIN sub-blocks — pure
-                //  ROM reads, no Form/disasm). EventUnitForm.RecycleReserveUnits STAYS — it iterates the
-                //  static NewAllocData list, which is EDITOR SESSION STATE (newly-allocated unit regions
-                //  recorded during live editing), NOT a ROM-derived table; it is always empty headless, so
-                //  the producer emits nothing for it — kept listed so the coverage gate stays honest.)
+                //  ROM reads, no Form/disasm). EventUnitForm.RecycleReserveUnits PORTED in slice 2ae as a
+                //  faithful headless NO-OP (EmitEventUnitReserveUnits, MapLoadFunction precedent): it
+                //  iterates the static NewAllocData list, which is EDITOR SESSION STATE (newly-allocated
+                //  unit regions recorded during live editing via the GUI "NEW" button — CreateNewData,
+                //  gated on EventUnitNewAllocForm.ShowDialog), NOT a ROM-derived table; it is ALWAYS empty
+                //  on a loaded ROM, so WF emits ZERO entries here (empirically proven on roms/FE8U.gba by
+                //  RebuildProducerWFParityTests.WinFormsProducer_EmitsNoReserveUnitEntries_OnLoadedRom).
+                //  Saved reserve units are recovered by the regular EventUnit scan (RecycleOldUnits via
+                //  EventCond/EventScript, already ported). Core has no NewAllocData mechanism, so the
+                //  no-op omits nothing real. THIS COMPLETES THE DATA-PATH PRODUCER — only PatchForm (the
+                //  ASM epic, in AsmNotYetPortedRaw) remains.)
                 // (UnitCustomBattleAnimeForm [FE7-only] ported in slice 2ab — EmitUnitCustomBattleAnime: the
                 //  N2 main pointer-table IFR (base unit_custom_battle_anime_pointer, block 4, rule
                 //  i==0?true:isPointer(u32), PI {0}) via AddAddressInstantIFR, then per N2 entry a
@@ -11836,7 +11908,9 @@ namespace FEBuilderGBA
                 //  EmitNestedIfrSub primitive. NO anime-recycle, NO patch detection, NO sub-length — the
                 //  inner IFR's default +blocksize NextAddrCallback makes its getBlockDataCount identical to
                 //  EmitNestedIfrSub's 3-arg walk.)
-                "EventUnitForm(RecycleReserveUnits)",
+                // (EventUnitForm(RecycleReserveUnits) PORTED in slice 2ae as a faithful headless NO-OP —
+                //  EmitEventUnitReserveUnits, removed from this list; see the ExtraUnit comment above. This
+                //  COMPLETES the data-path producer; only PatchForm (the ASM epic) remains.)
                 // monster / world map / ED / support (FE8/FE7/FE6 variants)
                 // (MonsterItemForm + MonsterProbabilityForm ported in slice 2b.
                 //  This sweep ported the CLEAN per-version tables: EDForm [FE8 ×4], EDFE7Form [FE7 ×5],

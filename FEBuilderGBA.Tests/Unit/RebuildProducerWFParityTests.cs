@@ -174,6 +174,74 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        /// <summary>
+        /// EMPIRICAL PROOF for #1261 slice 2ae: the WinForms producer
+        /// (<c>U.MakeAllStructPointersList</c>) emits ZERO <c>EventUnitForm.RecycleReserveUnits</c>
+        /// entries on a freshly-loaded ROM — confirming the Core
+        /// <see cref="RebuildProducerCore.EmitEventUnitReserveUnits"/> no-op omits nothing real.
+        /// <para>
+        /// <c>RecycleReserveUnits</c> (EventUnitForm.cs:1746) iterates the static
+        /// <c>EventUnitForm.NewAllocData</c> list (EventUnitForm.cs:1660, declared EMPTY); its ONLY
+        /// producer is the interactive "NEW" button (<c>CreateNewData</c> → <c>NewAllocData.Add</c>,
+        /// EventUnitForm.cs:1689, gated on <c>EventUnitNewAllocForm.ShowDialog()==OK</c>). On a loaded ROM
+        /// with no live NEW clicks, <c>NewAllocData</c> is empty, so <c>RecycleReserveUnits</c> emits
+        /// nothing. Each entry it WOULD emit goes through <c>RecycleOldUnitsLow(ref list, "NEW", ..)</c>
+        /// (EventUnitForm.cs:1776), whose <c>Info</c> is <c>"NEW" + " EVENT UNIT"</c> (and, on FE8,
+        /// per-entry <c>"NEW EVENT UNIT COORD &lt;i&gt;"</c>). So filtering the WF producer list by
+        /// <c>Info.StartsWith("NEW EVENT UNIT")</c> and asserting count==0 directly proves the no-op safe.
+        /// </para>
+        /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree;
+        /// present in the user's main checkout, found by walking up to a root that has BOTH the solution
+        /// AND the ROM).</para>
+        /// </summary>
+        [Fact]
+        public void WinFormsProducer_EmitsNoReserveUnitEntries_OnLoadedRom()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — skip
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // SKIP-IF-NO-ROM (gitignored, absent in CI)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // skip if the ROM did not load
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U
+
+                // The full WF data-path producer (the parity reference). It DOES call
+                // EventUnitForm.RecycleReserveUnits(ref list) at U.cs:2485.
+                List<Address> wf = U.MakeAllStructPointersList(false);
+                Assert.NotEmpty(wf);
+
+                // RecycleReserveUnits → RecycleOldUnitsLow(ref list, "NEW", ..) names every entry
+                // "NEW EVENT UNIT" (+ FE8 "NEW EVENT UNIT COORD <i>"). On a loaded ROM NewAllocData is
+                // empty, so there must be ZERO such entries. A non-zero count would mean WF CAN emit
+                // reserve-unit entries from a loaded ROM — which would make the Core no-op UNSAFE.
+                var reserveEntries = wf
+                    .Where(a => a.Info != null && a.Info.StartsWith("NEW EVENT UNIT", StringComparison.Ordinal))
+                    .ToList();
+
+                Assert.True(reserveEntries.Count == 0,
+                    $"EMPIRICAL PROOF FAILED: the WinForms producer emitted {reserveEntries.Count} "
+                    + "RecycleReserveUnits entr"
+                    + (reserveEntries.Count == 1 ? "y" : "ies")
+                    + " (Info starts with \"NEW EVENT UNIT\") on a freshly-loaded ROM. This means "
+                    + "EventUnitForm.NewAllocData was NOT empty on load, so the Core "
+                    + "EmitEventUnitReserveUnits no-op is NOT a faithful reproduction. First few: "
+                    + string.Join("; ", reserveEntries.Take(5).Select(a =>
+                        $"[{a.Info}] Addr=0x{a.Addr:X} Len=0x{a.Length:X}")));
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
         // ----------------------------------------------------------------
         readonly struct Key : IEquatable<Key>
         {
@@ -251,6 +319,29 @@ namespace FEBuilderGBA.Tests.Unit
             for (int i = 0; i < 12 && dir != null; i++)
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Like <see cref="FindRepoRoot"/> but walks up to a root that has BOTH the solution AND
+        /// <c>roms/FE8U.gba</c>. The worktree root has the solution but NOT the gitignored ROM, so a
+        /// plain <c>FindRepoRoot</c> would resolve to the worktree and skip; the ROM lives in the user's
+        /// main checkout, which is an ancestor of the worktree (<c>&lt;main&gt;/.claude/worktrees/X</c>).
+        /// Walking up to the first ancestor that has both lets the slice-2ae empirical proof actually run
+        /// locally while still cleanly skipping in CI (where no ancestor has the ROM).
+        /// </summary>
+        static string? FindRepoRootWithRom()
+        {
+            string? dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            for (int i = 0; i < 16 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))
+                    && File.Exists(Path.Combine(dir, "roms", "FE8U.gba")))
+                {
+                    return dir;
+                }
                 dir = Path.GetDirectoryName(dir);
             }
             return null;
