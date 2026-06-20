@@ -1030,6 +1030,59 @@ namespace FEBuilderGBA
                 }
                 progress?.Report("MapSetting");
                 EmitMapSetting(rom, list);
+
+                // ---- slice 2aa: the four FE8 ScanScript-family data-path forms ----
+                // WF (U.MakeAllStructPointersList, version==8 branch) calls, in this relative
+                // order: MonsterWMapProbabilityForm, EventBattleTalkForm, WorldMapEventPointerForm,
+                // EventHaikuForm. Each references event scripts (EventScriptForm.ScanScript), so
+                // each reuses the slice-2u block-emitter EmitScanScript — whose hard prerequisite
+                // is the event-script disassembler. Mirror the EventCondForm posture EXACTLY: when
+                // the disasm IS wired, emit all four; when it is NOT, skip them AND re-report all
+                // four in NotYetPorted (so the omitted ScanScript blocks are never silent and
+                // IsComplete stays false). The flat IFR tables share the same gate because a
+                // partial emit (tables but no traced scripts) would corrupt a relocation rebuild.
+                if (IsEventScriptDisasmReady(rom))
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("MonsterWMapProbability");
+                    EmitMonsterWMapProbability(rom, list);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("EventBattleTalk");
+                    EmitEventBattleTalk(rom, list);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("WorldMapEventPointer");
+                    EmitWorldMapEventPointer(rom, list);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("EventHaiku");
+                    EmitEventHaiku(rom, list);
+                }
+                else
+                {
+                    progress?.Report("ScanScript-family FE8 forms (skipped — disassembler not wired)");
+                    notYet = AppendNotYetPorted(notYet, "MonsterWMapProbabilityForm");
+                    notYet = AppendNotYetPorted(notYet, "EventBattleTalkForm");
+                    notYet = AppendNotYetPorted(notYet, "WorldMapEventPointerForm");
+                    notYet = AppendNotYetPorted(notYet, "EventHaikuForm");
+                }
             }
 
             if (rom.RomInfo.version == 7)
@@ -9924,6 +9977,217 @@ namespace FEBuilderGBA
                 (i, addr) => IsTextEntryExists(rom, rom.u32(addr)));
         }
 
+        // ====================================================================
+        // slice 2aa — four FE8 ScanScript-family data-path forms.
+        //
+        // Each of these WF forms (version==8 only) references event scripts and so
+        // reuses the slice-2u block-emitter EmitScanScript (the verbatim port of
+        // EventScriptForm.ScanScript). Like EmitEventCond they have a HARD
+        // prerequisite on the event-script disassembler — the producer body gates
+        // their dispatch on IsEventScriptDisasmReady and re-reports all four in
+        // NotYetPorted when it is unwired (so the omitted script blocks are never
+        // silent). Each emitter ALSO self-checks via EmitScanScript's own throw, so
+        // a direct caller cannot silently drop coverage either.
+        //
+        // The flat IFR main tables are emitted via Address.AddAddressInstantIFR
+        // (the exact Core equivalent of AddressWinForms.AddAddress(list, IFR, name,
+        // pointerIndexes): addr = p32(pointer), length = block*(count+1), guarded).
+        // ====================================================================
+
+        /// <summary>
+        /// VERBATIM port of <c>MonsterWMapProbabilityForm.MakeAllDataLength</c>
+        /// (MonsterWMapProbabilityForm.cs:156). Emits the five flat IFR probability /
+        /// stage tables (base-point + the Eirika/Ephraim stage and probability tables,
+        /// the latter four reached by <c>ReInitPointer</c> in WF) then runs
+        /// <see cref="EmitScanScript"/> over the two world-map skirmish start/end event
+        /// pointers (a single shared tracelist, isWithEventUnit=true, isWorldMapEvent=true).
+        /// </summary>
+        public static void EmitMonsterWMapProbability(ROM rom, List<Address> list)
+        {
+            // Init: base_point table, block 1, IsDataExists i < 0x9, name "MonsterWMapProbability", PI {}.
+            EmitInstantIfrTable(rom, list, rom.RomInfo.monster_wmap_base_point_pointer, 1,
+                (i, addr) => i < 0x9, "MonsterWMapProbability", EmptyPI);
+
+            // N1_Init: block 1, IsDataExists i < 0xB; ReInitPointer to the two stage pointers.
+            EmitInstantIfrTable(rom, list, rom.RomInfo.monster_wmap_stage_1_pointer, 1,
+                (i, addr) => i < 0xB, "MonsterWMapStageEirika", EmptyPI);
+            EmitInstantIfrTable(rom, list, rom.RomInfo.monster_wmap_stage_2_pointer, 1,
+                (i, addr) => i < 0xB, "MonsterWMapStageEphraim", EmptyPI);
+
+            // N2_Init: block 9, IsDataExists i < 0xB; ReInitPointer to the two probability pointers.
+            EmitInstantIfrTable(rom, list, rom.RomInfo.monster_wmap_probability_1_pointer, 9,
+                (i, addr) => i < 0xB, "MonsterWMapProbabilityEirika", EmptyPI);
+            EmitInstantIfrTable(rom, list, rom.RomInfo.monster_wmap_probability_2_pointer, 9,
+                (i, addr) => i < 0xB, "MonsterWMapProbabilityEphraim", EmptyPI);
+
+            // The two skirmish start/end events (WF: one shared tracelist, isWithEventUnit=true,
+            // isWorldMapEvent=true). EmitScanScript guards the slot's full 4-byte read internally.
+            var tracelist = new List<uint>();
+            EmitScanScript(rom, list, rom.RomInfo.worldmap_skirmish_startevent_pointer, true, true,
+                "FreeMapStartEvent", tracelist);
+            EmitScanScript(rom, list, rom.RomInfo.worldmap_skirmish_endevent_pointer, true, true,
+                "FreeMapEndEvent", tracelist);
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>EventBattleTalkForm.MakeAllDataLength</c>
+        /// (EventBattleTalkForm.cs:95). Emits the main "EventBattleTalkForm" IFR (block 16,
+        /// PI {12}) then, per entry, traces the special-event pointer at <c>addr+12</c> via
+        /// <see cref="EmitScanScript"/> (isWithEventUnit=true, isWorldMapEvent=false) when
+        /// it is a safe pointer.
+        /// </summary>
+        public static void EmitEventBattleTalk(ROM rom, List<Address> list)
+        {
+            const string name = "EventBattleTalkForm";
+            EmitTalkLikeForm(rom, list, rom.RomInfo.event_ballte_talk_pointer, 16, 10,
+                spEventOffset: 12, name, name);
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>EventHaikuForm.MakeAllDataLength</c> (EventHaikuForm.cs:99).
+        /// Emits the main "Haiku" IFR (block 12, PI {8}) then, per entry, traces the
+        /// special-event pointer at <c>addr+8</c> via <see cref="EmitScanScript"/>
+        /// (isWithEventUnit=true, isWorldMapEvent=false) when it is a safe pointer.
+        /// </summary>
+        public static void EmitEventHaiku(ROM rom, List<Address> list)
+        {
+            EmitTalkLikeForm(rom, list, rom.RomInfo.event_haiku_pointer, 12, 10,
+                spEventOffset: 8, "Haiku", "Haiku");
+        }
+
+        /// <summary>
+        /// Shared body for the two FE8 "talk record" forms (EventBattleTalk / Haiku):
+        /// both Init with a terminator-plus-empty-guard IFR rule (<c>u16(addr)==0xFFFF</c>
+        /// terminator; <c>i &gt; 10 &amp;&amp; IsEmpty(addr, block*10)</c> guard) and per entry
+        /// ScanScript the special-event pointer at <c>addr + spEventOffset</c> (the same
+        /// field that is the IFR pointer column). Reproduces both WF
+        /// <c>MakeAllDataLength</c>s VERBATIM.
+        /// </summary>
+        static void EmitTalkLikeForm(ROM rom, List<Address> list, uint pointerField, uint block,
+            int emptyGuardThreshold, uint spEventOffset, string ifrName, string eventNameBase)
+        {
+            uint pointer = U.toOffset(pointerField);
+            if (!U.isSafetyOffset(pointer + 3, rom)) return;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            uint dataCount = rom.getBlockDataCount(baseAddr, block,
+                (i, addr) => IsTalkRecordExists(rom, addr, i, block, emptyGuardThreshold));
+
+            // AddressWinForms.AddAddress(list, IFR, name, { spEventOffset }): length = block*(count+1).
+            Address.AddAddressInstantIFR(list, pointer, block, dataCount, ifrName,
+                new uint[] { spEventOffset });
+
+            var tracelist = new List<uint>();
+            uint addr2 = baseAddr;
+            for (uint i = 0; i < dataCount; i++, addr2 += block)
+            {
+                uint slot = addr2 + spEventOffset;
+                // WF: spEventP = ROM.u32(addr + spEventOffset); skip unless isSafetyPointer.
+                if (!U.isSafetyOffset(slot + 3, rom)) continue;
+                uint spEventP = rom.u32(slot);
+                if (!U.isSafetyPointer(spEventP, rom)) continue;
+
+                uint unitid = rom.u8(addr2 + 0);
+                string eventName = eventNameBase + " " + U.ToHexString(unitid);
+                EmitScanScript(rom, list, slot, true, false, eventName, tracelist);
+            }
+        }
+
+        /// <summary>VERBATIM port of the EventBattleTalk/Haiku <c>Init</c> IsDataExists rule
+        /// (both forms share it): <c>u16(addr)==0xFFFF</c> terminator; otherwise
+        /// <c>i &gt; threshold &amp;&amp; IsEmpty(addr, block*threshold)</c> false; else true.
+        /// All reads are EOF-guarded (getBlockDataCount already bounds addr+block&lt;=Length,
+        /// and IsEmpty is internally EOF-safe).</summary>
+        static bool IsTalkRecordExists(ROM rom, uint addr, int i, uint block, int threshold)
+        {
+            if (rom.u16(addr) == 0xFFFF)
+            {
+                return false;
+            }
+            if (i > threshold && rom.IsEmpty(addr, block * (uint)threshold))
+            {//終端符号を無視して 0x00等を利用している人がいるため
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// VERBATIM port of <c>WorldMapEventPointerForm.MakeAllDataLength</c>
+        /// (WorldMapEventPointerForm.cs:247). Emits the two world-map event pointer IFR
+        /// tables ("WorldMapEvent Before" on <c>worldmap_event_on_stageclear_pointer</c> and
+        /// "WorldMapEvent After" on <c>worldmap_event_on_stageselect_pointer</c>, block 4,
+        /// PI {0}), running <see cref="EmitScanScript"/> per table entry, then the three
+        /// fixed opening / Eirika-ending / Ephraim-ending events. One shared tracelist;
+        /// every ScanScript call is isWithEventUnit=true, isWorldMapEvent=true.
+        /// </summary>
+        public static void EmitWorldMapEventPointer(ROM rom, List<Address> list)
+        {
+            var tracelist = new List<uint>();
+
+            EmitWorldMapEventTable(rom, list, rom.RomInfo.worldmap_event_on_stageclear_pointer,
+                "WorldMapEvent Before", tracelist);
+            EmitWorldMapEventTable(rom, list, rom.RomInfo.worldmap_event_on_stageselect_pointer,
+                "WorldMapEvent After", tracelist);
+
+            EmitScanScript(rom, list, rom.RomInfo.oping_event_pointer, true, true,
+                "OpeningEvent", tracelist);
+            EmitScanScript(rom, list, rom.RomInfo.ending1_event_pointer, true, true,
+                "EirikaEnding", tracelist);
+            EmitScanScript(rom, list, rom.RomInfo.ending2_event_pointer, true, true,
+                "EphraimEnding", tracelist);
+        }
+
+        /// <summary>One WorldMapEventPointer IFR table: block 4, IsDataExists
+        /// <c>i==0 ? true : isPointer(u32(addr))</c>, PI {0}; per entry ScanScript the slot
+        /// pointer (isWithEventUnit=true, isWorldMapEvent=true) over the shared tracelist.</summary>
+        static void EmitWorldMapEventTable(ROM rom, List<Address> list, uint pointerField,
+            string name, List<uint> tracelist)
+        {
+            const uint block = 4;
+            uint pointer = U.toOffset(pointerField);
+            if (!U.isSafetyOffset(pointer + 3, rom)) return;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                if (i == 0) return true;
+                return U.isPointer(rom.u32(addr));
+            });
+
+            // AddressWinForms.AddAddress(list, IFR, name, {0}): length = block*(count+1).
+            Address.AddAddressInstantIFR(list, pointer, block, dataCount, name, new uint[] { 0 });
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                string entryName = name + " " + U.To0xHexString(i);
+                EmitScanScript(rom, list, p, true, true, entryName, tracelist);
+            }
+        }
+
+        /// <summary>Emit one flat IFR table via the Core equivalent of
+        /// <c>AddressWinForms.AddAddress(list, IFR, name, pointerIndexes)</c>: resolve the
+        /// base, count it with <paramref name="isDataExists"/>, and emit the IFR Address
+        /// (length = block*(count+1)). Used by <see cref="EmitMonsterWMapProbability"/> for
+        /// its five flat tables (the Init / ReInitPointer tables — with <c>self==null</c> a
+        /// ReInitPointer count is the SAME 3-arg getBlockDataCount as Init).</summary>
+        static void EmitInstantIfrTable(ROM rom, List<Address> list, uint pointerField, uint block,
+            Func<int, uint, bool> isDataExists, string name, uint[] pointerIndexes)
+        {
+            if (block == 0) return; // a zero block would make getBlockDataCount spin; not real data.
+            uint pointer = U.toOffset(pointerField);
+            if (!U.isSafetyOffset(pointer + 3, rom)) return;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, isDataExists);
+            Address.AddAddressInstantIFR(list, pointer, block, dataCount, name, pointerIndexes);
+        }
+
+        static readonly uint[] EmptyPI = new uint[] { };
+
         /// <summary>
         /// The <c>MakeAllDataLength</c> statics from <c>U.MakeAllStructPointersList</c> /
         /// <c>U.AppendAllASMStructPointersList</c> that this slice does <b>not</b> yet port.
@@ -10242,17 +10506,23 @@ namespace FEBuilderGBA
                 //      PI {0,8,28}; per entry CString@+0, Lz77@+8 (LZ77IMG), anime-guard@+28, then N2
                 //      NestedIfr@+28 (block 2, u8!=0); + a trailing absolute AddPointer(0x0B0038, 0x20,
                 //      PAL) common-palette pointer. (FE8U/FE7U non-multibyte variants STAY deferred.)
+                //  slice 2aa ported the four FE8 ScanScript-family data-path forms (each reuses the
+                //  slice-2u EmitScanScript block-emitter; the producer body gates their dispatch on
+                //  IsEventScriptDisasmReady and re-reports them in NotYetPorted when it is unwired,
+                //  exactly like EventCondForm — so the omitted script blocks are never silent):
+                //    MonsterWMapProbabilityForm [FE8] — EmitMonsterWMapProbability: five flat IFR
+                //      probability/stage tables (base-point block 1 rule i<0x9; the Eirika/Ephraim
+                //      stage block 1 + probability block 9 tables, rule i<0xB, reached by WF's
+                //      ReInitPointer — with self==null a ReInitPointer count is the SAME 3-arg
+                //      getBlockDataCount), then EmitScanScript over the two skirmish start/end events.
+                //    EventBattleTalkForm [FE8] — EmitEventBattleTalk: main IFR block 16 PI {12},
+                //      terminator u16==0xFFFF + i>10 IsEmpty(block*10) guard; per entry ScanScript the
+                //      special-event pointer @ addr+12 when isSafetyPointer.
+                //    EventHaikuForm [FE8] — EmitEventHaiku: same shape, block 12 PI {8}, event @ addr+8.
+                //    WorldMapEventPointerForm [FE8] — EmitWorldMapEventPointer: two event-pointer IFR
+                //      tables (block 4 rule i==0?true:isPointer(u32), PI {0}) each ScanScript per entry,
+                //      then the three fixed opening / Eirika-ending / Ephraim-ending events.
                 //  STILL deferred (event-scan / recursive / dynamic base / LZ77 CG):
-                //  NOTE: the Core ScanScript BLOCK-emitter (EmitScanScript) now EXISTS (slice 2u). The four
-                //  ScanScript-dependent forms below are no longer blocked on the missing primitive — they
-                //  stay only because slice 2u was scoped to EventCondForm. Each is now a small follow-up
-                //  (resolve its base/entry table, then EmitScanScript over its event pointer(s)).
-                //  MonsterWMapProbabilityForm STAYS — its 5 IFR probability/stage tables are flat ROM reads,
-                //    but its MakeAllDataLength ALSO emits ScanScript over the two skirmish start/end event
-                //    pointers; porting only the flat tables would drop those skirmish-event regions =
-                //    corruption, so it is ported as a unit (with EmitScanScript) in a later slice.
-                //  WorldMapEventPointerForm [ScanScript over the world-map event pointer table],
-                //  EventBattleTalkForm + EventHaikuForm [FE8, ScanScript per-entry],
                 //  MapSettingForm [FE8] ported in slice 2r (EmitMapSetting) — its count rule
                 //    (IsMapSettingEnd, reproduced VERBATIM) needs the WF cached text count
                 //    TextForm.GetDataCount(); that is now byte-faithfully reproduced by TextDataCount (the
@@ -10268,10 +10538,6 @@ namespace FEBuilderGBA
                 //   assignLevelUpAddr (block 2, u16 != 0xFFFF && != 0) via the slice-2i primitive.)
                 //  (ImageCGFE7UForm ported in slice 2k — EmitImageCGFE7U, the FE7U 16-byte big-CG IFR
                 //   with the per-entry flag@+0 16-color-vs-10-split + HEADER-TSA.))
-                "MonsterWMapProbabilityForm",
-                "EventBattleTalkForm",
-                "WorldMapEventPointerForm",
-                "EventHaikuForm",
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)

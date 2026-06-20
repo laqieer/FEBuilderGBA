@@ -532,11 +532,11 @@ namespace FEBuilderGBA.Core.Tests
             string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
             // EventCondForm is now ported (EmitEventCond + EmitScanScript).
             Assert.DoesNotContain("EventCondForm", notYet);
-            // Its ScanScript-dependent siblings stay tracked (scoped out of slice 2u).
-            Assert.Contains("MonsterWMapProbabilityForm", notYet);
-            Assert.Contains("WorldMapEventPointerForm", notYet);
-            Assert.Contains("EventBattleTalkForm", notYet);
-            Assert.Contains("EventHaikuForm", notYet);
+            // Its ScanScript-dependent siblings were ported in slice 2aa (each reuses EmitScanScript).
+            Assert.DoesNotContain("MonsterWMapProbabilityForm", notYet);
+            Assert.DoesNotContain("WorldMapEventPointerForm", notYet);
+            Assert.DoesNotContain("EventBattleTalkForm", notYet);
+            Assert.DoesNotContain("EventHaikuForm", notYet);
         }
 
         [Fact]
