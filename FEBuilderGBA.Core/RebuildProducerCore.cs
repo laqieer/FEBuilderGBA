@@ -3806,13 +3806,19 @@ namespace FEBuilderGBA
 
             // ItemForm.Init IsDataExists == the existing ItemRule (reproduced once in MakeIsDataExists):
             // i<=0xff; FE8U checks only isPointerOrNULL(u32(addr+12)); else both +12 and +16.
+            // getBlockDataCount only guarantees addr+block<=Length; for the vanilla item_datasize (>=20)
+            // the +12/+16 reads are always in-bounds, but a too-small synthetic block could let u32 read
+            // past EOF. Guard the FULL 4-byte read extent first (Copilot PR #1309 review) — a slot whose
+            // u32 window would exceed EOF is "no data" (false), identical to WF on valid item blocks.
             Func<int, uint, bool> itemRule = (i, addr) =>
             {
                 if (i > 0xff) return false;
+                if (!U.isSafetyOffset(addr + 15, rom)) return false; // u32(addr+12) -> addr+12..addr+15
                 if (rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte == false)
                 {
                     return U.isPointerOrNULL(rom.u32(addr + 12));
                 }
+                if (!U.isSafetyOffset(addr + 19, rom)) return false; // u32(addr+16) -> addr+16..addr+19
                 return U.isPointerOrNULL(rom.u32(addr + 12))
                     && U.isPointerOrNULL(rom.u32(addr + 16));
             };
@@ -4001,7 +4007,12 @@ namespace FEBuilderGBA
                 return 0;
             }
 
-            uint hintAddr = rom.RomInfo.unitaction_function_pointer - 0x100;
+            // WF: hintAddr = unitaction_function_pointer - 0x100. Clamp the subtraction so a slot < 0x100
+            // does not underflow to a huge uint (Copilot PR #1309 review). Harmless today (U.Grep returns
+            // NOT_FOUND when start > end) but the clamp keeps the start address well-defined; on every real
+            // FE* ROM the slot is >> 0x100, so this is output-equivalent to WF.
+            uint uafp = rom.RomInfo.unitaction_function_pointer;
+            uint hintAddr = uafp >= 0x100 ? uafp - 0x100 : 0;
 
             byte[] bin;
             try

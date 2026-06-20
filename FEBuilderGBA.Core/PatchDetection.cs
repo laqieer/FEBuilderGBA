@@ -473,7 +473,7 @@ namespace FEBuilderGBA
         // SkillSystemPatchScanner.IsClassSkillExtends(rom) — see the
         // duplicate-source consolidation done by gap-sweep #415 +
         // gap-sweep #416. Both WinForms (SkillConfigSkillSystemForm.cs)
-        // and Avalonia (SkillAssignmentClassSkillSystemViewModel,
+        // and Avalonia (SkillAssignmentClassCSkillSysViewModel,
         // SkillAssignmentClassSkillSystemViewModel) route through that
         // single helper.
 
