@@ -300,6 +300,145 @@ namespace FEBuilderGBA
             return pointer.ToArray();
         }
 
+        /// <summary>
+        /// The FULL side-effect resolution of WF <c>SkillConfigFE8NVer2SkillForm.
+        /// FindSkillFE8NVer2IconPointersLow</c> — the existing
+        /// <see cref="FindSkillFE8NVer2IconPointers(ROM, out uint)"/> only returns the pointer slots +
+        /// <c>g_SkillBaseAddress</c> (slot[4]); the ROM-rebuild producer ALSO needs the
+        /// <c>g_AnimeBaseAddress</c> and <c>g_ICON_LIST_SIZE</c> the WF form computes as side effects (the
+        /// main IFR BlockSize, the {4,8,12} vs {4,8,12,16} pointerIndexes, and the anime pointer-list base).
+        /// Reproduced VERBATIM (incl. the <c>u16(0x70B96) == 0</c> gate, the 2019-Nov variable-length-struct
+        /// branch [slot 8 = anime, iconListSize from slot 11], and the 2018-original branch [slot 3 nazo
+        /// pointer appended, then slot 5 = anime]). EOF-HARDENED (each read guarded). Returns false (all outs
+        /// zero) when the pointer chain is absent or too short — exactly the WF <c>return null</c>.
+        /// </summary>
+        public static bool FindSkillFE8NVer2IconPointersFull(ROM rom,
+            out uint[] pointers, out uint skillBaseAddress, out uint animeBaseAddress, out uint iconListSize)
+        {
+            pointers = null;
+            skillBaseAddress = 0;
+            animeBaseAddress = 0;
+            iconListSize = 16; // WF g_ICON_LIST_SIZE default.
+
+            if (rom?.Data == null) return false;
+            if (!U.isSafetyOffset(0x89268 + 4 + 3, rom)) return false;
+            uint iconExPointer = rom.u32(0x89268 + 4);
+            if (!U.isSafetyPointer(iconExPointer, rom)) return false;
+
+            byte[] need = new byte[] { 0x50, 0x93, 0x08, 0x08, 0x48, 0x93, 0x08, 0x08 };
+            uint iconPointers = U.Grep(rom.Data, need, 0xE00000, 0, 4);
+            if (iconPointers == U.NOT_FOUND) return false;
+            if (iconPointers < (uint)(4 * 5)) return false;
+            iconPointers = iconPointers - (4 * 5);
+
+            var pointer = new List<uint>();
+            for (uint p = iconPointers; ; p += 4)
+            {
+                if (!U.isSafetyOffset(p + 3, rom)) break;
+                uint pp = rom.u32(p);
+                if (!U.isSafetyPointer(pp, rom)) break;
+                pp = U.toOffset(pp);
+                if (pp < 0xE00000) continue; // distinguish from API pointers
+                pointer.Add(p);
+            }
+            if (pointer.Count <= 4) return false;
+            skillBaseAddress = pointer[4];
+
+            // WF: if (Program.ROM.u16(0x70B96) == 0x00) { ... resolve ICON_LIST_SIZE + anime ... }
+            if (U.isSafetyOffset(0x70B96 + 1, rom) && rom.u16(0x70B96) == 0x00)
+            {
+                // ICON_LIST_SIZE candidate at slot 11.
+                uint p11 = iconPointers + (4 * 11);
+                if (U.isSafetyOffset(p11 + 3, rom))
+                {
+                    uint candidate = rom.u32(p11);
+                    if (candidate >= 16 && candidate <= 40 && (candidate % 4 == 0))
+                    {//2019 11月後半 開発版 — 構造体が可変長になった
+                        iconListSize = candidate;
+                        // slot 8 is the anime pointer.
+                        uint p8 = iconPointers + (4 * 8);
+                        if (U.isSafetyOffset(p8 + 3, rom))
+                        {
+                            uint anime_pointer = rom.u32(p8);
+                            if (U.isSafetyPointer(anime_pointer, rom))
+                            {
+                                animeBaseAddress = rom.p32(U.toOffset(p8));
+                            }
+                        }
+                    }
+                    else
+                    {//2018年版を元にしたFEBuilderGBAオリジナル拡張版 anime pointer
+                        uint p3 = iconPointers + (4 * 3);
+                        if (U.isSafetyOffset(p3 + 3, rom))
+                        {
+                            uint nazo_pointer = rom.u32(p3);
+                            if (U.isSafetyPointer(nazo_pointer, rom))
+                            {//バージョンによって、ポインタ数が違うので、参考値程度に・・・
+                                pointer.Add(U.toOffset(nazo_pointer));
+                            }
+                        }
+                        if (pointer.Count > 5)
+                        {//この場合、5番目のポインタがアニメになります。
+                            uint slot5 = pointer[5];
+                            if (U.isSafetyOffset(slot5 + 3, rom))
+                            {
+                                animeBaseAddress = rom.p32(slot5);
+                            }
+                        }
+                    }
+                }
+            }
+            pointers = pointer.ToArray();
+            return true;
+        }
+
+        /// <summary>
+        /// The FULL side-effect resolution of WF <c>SkillConfigFE8NVer3SkillForm.
+        /// FindSkillFE8NVer3IconPointersLow</c> — the existing <see cref="IsFE8NVer3"/> is detection-only.
+        /// The ROM-rebuild producer needs <c>g_SkillBaseAddress</c> (the fixed slot <c>0x892A8 + 4</c>),
+        /// <c>g_ICON_LIST_SIZE</c> (<c>u32(0x892A8 + 8)</c>), and <c>g_AnimeBaseAddress</c>
+        /// (<c>toOffset(u32(0x892A8 + 20))</c>). Reproduced VERBATIM (incl. the iconExPointer + skl-table
+        /// safety gates and the <c>iconListSize &lt;= 0 || &gt; 100</c> reject). EOF-HARDENED. Returns false
+        /// (all outs zero) on any failed gate — exactly the WF <c>return null</c>.
+        /// </summary>
+        public static bool FindSkillFE8NVer3IconPointersFull(ROM rom,
+            out uint skillBaseAddress, out uint animeBaseAddress, out uint iconListSize)
+        {
+            skillBaseAddress = 0;
+            animeBaseAddress = 0;
+            iconListSize = 0;
+
+            if (rom?.Data == null) return false;
+            if (!U.isSafetyOffset(0x89268 + 4 + 3, rom)) return false;
+            uint iconExPointer = rom.u32(0x89268 + 4);
+            if (!U.isSafetyPointer(iconExPointer, rom)) return false;
+
+            if (!U.isSafetyOffset(0x892A8 + 4 + 3, rom)) return false;
+            uint skl_table = rom.u32(0x892A8 + 4);
+            if (!U.isSafetyPointer(skl_table, rom)) return false;
+            skillBaseAddress = 0x892A8 + 4;
+
+            if (!U.isSafetyOffset(0x892A8 + 8 + 3, rom)) return false;
+            iconListSize = rom.u32(0x892A8 + 8);
+            if (iconListSize <= 0 || iconListSize > 100)
+            {
+                iconListSize = 0;
+                skillBaseAddress = 0;
+                return false;
+            }
+
+            // skl_anime_table at 0x892A8 + 20 (== 0x892BC).
+            if (U.isSafetyOffset(0x892A8 + 20 + 3, rom))
+            {
+                uint skl_anime_table = rom.u32(0x892A8 + 20);
+                if (U.isSafetyPointer(skl_anime_table, rom))
+                {
+                    animeBaseAddress = U.toOffset(skl_anime_table);
+                }
+            }
+            return true;
+        }
+
         // ---- WF SkillConfigFE8NVer3SkillForm.FindSkillFE8NVer3IconPointersLow ----
         // Detection-only (Ver3 contributes no skill text to the export filter).
         static bool IsFE8NVer3(ROM rom)
