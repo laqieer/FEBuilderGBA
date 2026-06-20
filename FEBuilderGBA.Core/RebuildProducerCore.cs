@@ -9966,8 +9966,11 @@ namespace FEBuilderGBA
                 //  the trailing EventCond Frame. The disasm path is a HARD prerequisite (EmitEventCond
                 //  THROWS when CoreState.EventScript/CommentCache are unwired, never silently omits).
                 //  EventScript(MakeEventASMMAPList), EventFunctionPointerForm, Command85PointerForm are
-                //  OUT OF SCOPE: emitted by U.AppendAllASMStructPointersList — the ASM/LDR-map path, NOT
-                //  this producer's U.MakeAllStructPointersList data path.)
+                //  OUT OF SCOPE for this DATA path: they are emitted by U.AppendAllASMStructPointersList —
+                //  the ASM/LDR-map path. They ARE ported by the ASM-path producer below
+                //  (AppendAllAsmStructPointers / EmitEventAsmMapList / EmitEventFunctionPointer /
+                //  EmitCommand85Pointer, slice 2v); they remain in THIS data-path NotYetPorted list
+                //  because U.MakeAllStructPointersList itself does not emit them.)
                 "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
                 "Command85PointerForm",
                 // text (Huffman)
@@ -10267,5 +10270,641 @@ namespace FEBuilderGBA
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
                 "PatchForm(MakePatchStructDataList)", "ProcsScriptForm",
             };
+
+        // ====================================================================
+        // ASM-path producer (slice 2v) — the Core port of
+        // U.AppendAllASMStructPointersList (FEBuilderGBA/U.cs).
+        //
+        // The data-path producer above (MakeAllStructPointers) covers
+        // U.MakeAllStructPointersList. A safe ROM rebuild ALSO needs the
+        // function / LDR-map pointers that the WinForms ASM-path producer
+        // emits — the per-form "Init(IFR) -> AddAddress(InputFormRef_ASM/_MIX)
+        // -> MakeList() -> AddFunctions(0)" tables behind a switch/LDR.
+        //
+        // Coverage honesty: like the data-path GetNotYetPortedForms, the ASM
+        // producer never silently omits a form. AsmProducerResult.NotYetPorted
+        // lists the forms still blocked on an un-ported subsystem (the
+        // PatchForm patch-config scanner + the ProcsScriptForm/OAMSPForm
+        // AsmMapFileAsmCache UI-cache, each its own follow-up slice), so
+        // AsmProducerResult.IsComplete stays false until they land — a wiring
+        // slice must not feed an incomplete list to a real defragment.
+        // ====================================================================
+
+        /// <summary>Result of <see cref="AppendAllAsmStructPointers"/>: the forms NOT yet
+        /// ported by the ASM-path producer (mirrors <see cref="ProducerResult"/> for the
+        /// data path). <see cref="IsComplete"/> is the "safe to wire into a real rebuild"
+        /// gate for the ASM half.</summary>
+        public sealed class AsmProducerResult
+        {
+            /// <summary>The <c>MakeAllDataLength</c> ASM-path statics NOT yet ported
+            /// (see <see cref="GetAsmNotYetPortedForms"/>).</summary>
+            public IReadOnlyList<string> NotYetPorted { get; }
+            /// <summary>True only when every WinForms ASM-path producer static has a Core
+            /// equivalent. While false the ASM half is UNSAFE to feed to a real defragment.</summary>
+            public bool IsComplete => NotYetPorted.Count == 0;
+            /// <summary>True if cancellation was observed mid-run.</summary>
+            public bool Cancelled { get; }
+
+            public AsmProducerResult(IReadOnlyList<string> notYetPorted, bool cancelled)
+            {
+                NotYetPorted = notYetPorted;
+                Cancelled = cancelled;
+            }
+        }
+
+        /// <summary>The ASM-path <c>MakeAllDataLength</c> statics still blocked on an un-ported
+        /// subsystem. De-dup'd (the count is an <see cref="AsmProducerResult.IsComplete"/> gate, so
+        /// a duplicate would make it unreliable). The disasm-gated forms
+        /// (<c>EventScript(MakeEventASMMAPList)</c>) are NOT in this static list — they ARE ported,
+        /// but <see cref="AppendAllAsmStructPointers"/> re-reports them at runtime when the
+        /// event-script disassembler is not wired (so the skip is never silent).</summary>
+        public static string[] GetAsmNotYetPortedForms()
+        {
+            return System.Linq.Enumerable.ToArray(
+                   System.Linq.Enumerable.Distinct(AsmNotYetPortedRaw));
+        }
+
+        /// <summary>The un-deduplicated source list (exposed so a test can assert it has no
+        /// duplicates — keeping the literal clean, not just the public dedup'd view).</summary>
+        public static string[] GetAsmNotYetPortedFormsRaw() => (string[])AsmNotYetPortedRaw.Clone();
+
+        static readonly string[] AsmNotYetPortedRaw = new[]
+            {
+                // PatchForm.MakePatchStructDataList (the FIRST, unconditional call) — walks the
+                // installed-patch tree via ScanPatchs(GetPatchDirectory()) + CheckIFFast + the per-TYPE
+                // MakePatchStructDataListForADDR/EA/BIN/SWITCH/STRUCT/IMAGE helpers. The whole PatchForm
+                // class is an un-ported WinForms file (patch-config file scanning + DoEvents). A wrong
+                // patch pointer relocates the wrong bytes = silent corruption — DEFER until the patch-
+                // config subsystem reaches Core (its own follow-up slice).
+                "PatchForm(MakePatchStructDataList)",
+                // ProcsScriptForm.MakeAllDataLength(ldrmap) — the only form (besides the optional OAMSP)
+                // that CONSUMES the ldrmap. Its FindProc walk depends on Program.AsmMapFileAsmCache
+                // (IsStopFlagOn() / GetKnownArea() — a WinForms UI cache) + the 6c_name_ config dic. The
+                // ldrmap itself is Core-buildable (DisassemblerTrumb.MakeLDRMap), but the AsmMapFileAsmCache
+                // dependency is not — DEFER until that cache reaches Core (its own follow-up slice).
+                "ProcsScriptForm",
+                // GraphicsToolForm.MakeLZ77DataList (only when isUseOtherGraphics) — the LZ77 graphics-
+                // tool subsystem. Out of scope for this foundation; DEFER.
+                "GraphicsToolForm",
+                // OAMSPForm.MakeAllDataLength(ldrmap) (only when isUseOAMSP) — consumes the ldrmap AND
+                // the OAM scan. DEFER alongside the AsmMapFileAsmCache subsystem.
+                "OAMSPForm",
+            };
+
+        /// <summary>
+        /// Build the full-ROM LDR pointer map (= WF <c>DisassemblerTrumb.MakeLDRMap(Program.ROM.Data,
+        /// 0x100)</c>, the value <c>AsmMapFileAsmCache.GetLDRMapCache</c> caches). Pure-ROM, fully in
+        /// Core — exposed so the ASM producer and its tests share one builder.
+        /// </summary>
+        public static List<DisassemblerTrumb.LDRPointer> BuildLdrMap(ROM rom)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            return DisassemblerTrumb.MakeLDRMap(rom.Data, 0x100);
+        }
+
+        /// <summary>
+        /// Core port of <c>U.AppendAllASMStructPointersList</c> — the ASM/LDR-map producer half.
+        /// Appends the function/LDR-map pointer <see cref="Address"/>es to <paramref name="list"/>
+        /// (which is normally the data-path producer's list, so the two halves combine into the full
+        /// known-struct manifest). Returns an <see cref="AsmProducerResult"/> whose
+        /// <see cref="AsmProducerResult.NotYetPorted"/> surfaces the still-deferred forms.
+        /// </summary>
+        /// <param name="rom">The ROM to scan. MUST be <see cref="CoreState.ROM"/> (the
+        /// <see cref="Address"/> length/offset validation is CoreState-bound — same posture as
+        /// <see cref="MakeAllStructPointers"/>).</param>
+        /// <param name="list">The accumulating struct list (appended to).</param>
+        /// <param name="ldrmap">The full-ROM LDR map (<see cref="BuildLdrMap"/>). May be <c>null</c>:
+        /// the WF producer gates the ProcsScript/EventScript/EventFunction/Command85/ItemEffect/
+        /// UnitIncreaseHeight/MapLoadFunction/MapMiniMap group on <c>ldrmap != null</c>. Only
+        /// ProcsScript (deferred) actually consumes it; the other forms just need it present.</param>
+        /// <param name="isUseOtherGraphics">WF <c>isUseOtherGraphics</c> — gates GraphicsToolForm
+        /// (deferred).</param>
+        /// <param name="isUseOAMSP">WF <c>isUseOAMSP</c> — gates OAMSPForm (deferred).</param>
+        public static AsmProducerResult AppendAllAsmStructPointers(ROM rom, List<Address> list,
+            List<DisassemblerTrumb.LDRPointer> ldrmap,
+            bool isUseOtherGraphics = false, bool isUseOAMSP = false,
+            IProgress<string> progress = null, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (!ReferenceEquals(rom, CoreState.ROM))
+            {
+                throw new ArgumentException(
+                    "RebuildProducerCore.AppendAllAsmStructPointers must scan the loaded CoreState.ROM "
+                    + "(Address length/offset validation is bound to CoreState.ROM).", nameof(rom));
+            }
+
+            string[] notYet = GetAsmNotYetPortedForms();
+
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("AppendAllAsmStructPointers cancelled");
+                return new AsmProducerResult(notYet, cancelled: true);
+            }
+
+            // WF call 1 (UNCONDITIONAL): PatchForm.MakePatchStructDataList — DEFERRED (already in
+            // AsmNotYetPortedRaw; nothing emitted here).
+            progress?.Report("PatchForm (deferred)");
+
+            // WF: `if (ldrmap != null) { ... }`. Of these forms only ProcsScript consumes the ldrmap;
+            // the other 6 just need it present (the gate marks "full-ROM disasm available"). We
+            // reproduce the gate faithfully: with no ldrmap, none of this group runs.
+            if (ldrmap != null)
+            {
+                // ProcsScriptForm.MakeAllDataLength(ldrmap) — DEFERRED (AsmMapFileAsmCache). Nothing here.
+                progress?.Report("ProcsScriptForm (deferred)");
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("AppendAllAsmStructPointers cancelled");
+                    return new AsmProducerResult(notYet, cancelled: true);
+                }
+
+                // EventScript(MakeEventASMMAPList) — needs the event-script disassembler. PORTED, but
+                // re-reported in NotYetPorted when the disasm is unwired (never silently omitted),
+                // mirroring the data-path EventCond gate.
+                if (IsEventScriptDisasmReady(rom))
+                {
+                    progress?.Report("EventScript(MakeEventASMMAPList)");
+                    EmitEventAsmMapList(rom, list);
+                }
+                else
+                {
+                    progress?.Report("EventScript(MakeEventASMMAPList) (skipped — disassembler not wired)");
+                    notYet = AppendNotYetPorted(notYet, "EventScript(MakeEventASMMAPList)");
+                }
+
+                if (ct.IsCancellationRequested)
+                {
+                    progress?.Report("AppendAllAsmStructPointers cancelled");
+                    return new AsmProducerResult(notYet, cancelled: true);
+                }
+                progress?.Report("EventFunctionPointer");
+                EmitEventFunctionPointer(rom, list);
+
+                progress?.Report("Command85Pointer");
+                EmitCommand85Pointer(rom, list);
+
+                progress?.Report("ItemEffectPointer");
+                EmitItemEffectPointer(rom, list);
+
+                progress?.Report("UnitIncreaseHeight");
+                EmitUnitIncreaseHeight(rom, list);
+
+                progress?.Report("MapLoadFunction");
+                EmitMapLoadFunction(rom, list);
+
+                progress?.Report("MapMiniMapTerrain");
+                EmitMapMiniMapTerrain(rom, list);
+            }
+
+            // WF: `if (isUseOtherGraphics)` -> GraphicsToolForm.MakeLZ77DataList — DEFERRED.
+            // WF: `if (isUseOAMSP)` -> OAMSPForm.MakeAllDataLength(ldrmap) — DEFERRED.
+            // Both stay in AsmNotYetPortedRaw regardless of the flags; nothing emitted here.
+
+            return new AsmProducerResult(notYet, cancelled: false);
+        }
+
+        // ---- the 6 ldrmap-FREE InputFormRef-table forms (ported) -----------
+        //
+        // Each reproduces VERBATIM its WF XxxForm.MakeAllDataLength, which is the canonical
+        //   InputFormRef ifr = Init(null);   [+ ReInit for switch-gated forms]
+        //   AddressWinForms.AddAddress(list, ifr, name, {0}, <type>);
+        //   AddFunctions(list, ifr.MakeList(), 0, name);
+        // idiom. The shared reproduction is EmitAsmPointerTable below (the same shape the data-path
+        // EmitSoundFootSteps already uses): AddAddress emits the main IFR Address (length =
+        // block*(DataCount+1), pointer = BasePointer-or-NOT_FOUND, guarded by isSafetyOffset(base));
+        // then one Address.AddFunction per entry at base+i*block (EOF-bounded like MakeList).
+
+        /// <summary>
+        /// Shared reproduction of the WF <c>Init(null) -> AddAddress(IFR, name, {0}, type) ->
+        /// AddFunctions(MakeList(), 0, name)</c> idiom for a pointer-to-table ASM form whose base is a
+        /// RomInfo pointer slot (<c>basePointerField</c>) and whose DataCount is driven by
+        /// <paramref name="isDataExists"/>. Reproduces <c>AddressWinForms.AddAddress</c> +
+        /// <c>InputFormRef</c> ctor + <c>InputFormRef.MakeList</c> VERBATIM:
+        /// <list type="bullet">
+        ///   <item><c>basePointer = toOffset(basePointerField)</c>; if safe, <c>base = p32(basePointer)</c>;
+        ///   if that is not safe, both become 0 (WF Init's pointer-not-safe fallback) and nothing is
+        ///   emitted.</item>
+        ///   <item><c>dataCount = getBlockDataCount(base, block, isDataExists)</c>.</item>
+        ///   <item>main IFR Address: length <c>block*(dataCount+1)</c>, pointer = <c>basePointer</c> when
+        ///   it is a safe offset else <c>NOT_FOUND</c>, type <paramref name="mainType"/>, blockSize
+        ///   <paramref name="block"/>, pointerIndexes <c>{0}</c> — emitted only when
+        ///   <c>isSafetyOffset(base)</c> (matching AddAddress's guard).</item>
+        ///   <item>per entry <c>i &lt; dataCount</c>: <c>AddFunction(base + i*block)</c>, EOF-bounded
+        ///   (<c>entryAddr + block &gt; Data.Length</c> -> break, matching <c>MakeList</c>).</item>
+        /// </list>
+        /// </summary>
+        public static void EmitAsmPointerTable(ROM rom, List<Address> list, uint basePointerField, uint block,
+            Func<int, uint, bool> isDataExists, string name, Address.DataTypeEnum mainType)
+        {
+            if (block == 0) return; // getBlockDataCount would never advance — a descriptor bug, not data.
+
+            // WF InputFormRef.Init: BasePointer = toOffset(basepointer); if safe -> BaseAddress =
+            // p32(BasePointer); if BaseAddress not safe -> BaseAddress = BasePointer = 0.
+            uint basePointer = U.toOffset(basePointerField);
+            uint baseAddr;
+            if (U.isSafetyOffset(basePointer, rom))
+            {
+                baseAddr = rom.p32(basePointer);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    baseAddr = 0;
+                    basePointer = 0;
+                }
+            }
+            else
+            {
+                baseAddr = 0;
+                basePointer = 0; // WF: BasePointer stays 0/NOT_FOUND in this branch.
+            }
+
+            EmitAsmPointerTableFrom(rom, list, baseAddr, basePointer, block, isDataExists, name, mainType);
+        }
+
+        /// <summary>Lower half of <see cref="EmitAsmPointerTable"/> taking an already-resolved
+        /// <paramref name="baseAddr"/> + <paramref name="basePointer"/> (test seam, and the path the
+        /// switch-gated forms use after their ReInit). See that method for the verbatim WF mapping.</summary>
+        static void EmitAsmPointerTableFrom(ROM rom, List<Address> list, uint baseAddr, uint basePointer,
+            uint block, Func<int, uint, bool> isDataExists, string name, Address.DataTypeEnum mainType)
+        {
+            if (block == 0) return;
+
+            // WF AddressWinForms.AddAddress: emit nothing when !isSafetyOffset(BaseAddress). A base of 0
+            // (the Init pointer-not-safe fallback, or a switch-disabled ReInit) is not a safe offset.
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            // WF CalcDataCountWhenSelfNULL: getBlockDataCount(BaseAddress, BlockSize, IsDataExists).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, isDataExists);
+
+            // WF AddressWinForms.AddAddress: length = BlockSize * (DataCount + 1); pointer = BasePointer
+            // when isSafetyOffset(BasePointer) else NOT_FOUND.
+            uint length = block * (dataCount + 1);
+            uint pointer = U.isSafetyOffset(basePointer, rom) ? basePointer : U.NOT_FOUND;
+            list.Add(new Address(baseAddr, length, pointer, name, mainType, block, new uint[] { 0 }));
+
+            // WF AddFunctions(list, ifr.MakeList(), 0, name): one ASM function per entry at the entry
+            // block address itself. MakeList yields up to DataCount entries, stopping the moment a block
+            // would run past EOF (addr + BlockSize > Data.Length); reproduce that bound so a corrupted/
+            // too-large count near EOF truncates instead of throwing in AddFunction's u32 read.
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint entryAddr = baseAddr + i * block;
+                if (entryAddr + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                Address.AddFunction(list, entryAddr, name);
+            }
+        }
+
+        /// <summary>
+        /// <c>EventFunctionPointerForm.MakeAllDataLength</c> (ASM path). On <c>version &lt;= 7</c> WF
+        /// delegates to <c>EventFunctionPointerFE7Form.MakeAllDataLength</c> (a single table, block 8,
+        /// IsDataExists <c>isPointer &amp;&amp; IsValueOdd &amp;&amp; u32(addr+4) &lt; 0x10</c>); on
+        /// version &gt;= 8 it emits TWO tables (main <c>event_function_pointer_table_pointer</c> +
+        /// world-map <c>event_function_pointer_table2_pointer</c>), block 4, IsDataExists
+        /// <c>isPointer &amp;&amp; IsValueOdd</c>. Both via the InputFormRef_ASM table idiom. Reproduced
+        /// VERBATIM.
+        /// </summary>
+        public static void EmitEventFunctionPointer(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+
+            if (rom.RomInfo.version <= 7)
+            {
+                // EventFunctionPointerFE7Form: block 8; isPointer && IsValueOdd && u32(addr+4) < 0x10.
+                EmitAsmPointerTable(rom, list, rom.RomInfo.event_function_pointer_table_pointer, 8,
+                    (int i, uint addr) =>
+                    {
+                        uint a = rom.u32(addr);
+                        if (!U.isPointer(a)) return false;
+                        if (!U.IsValueOdd(a)) return false;
+                        uint b = rom.u32(addr + 4);
+                        if (b >= 0x10) return false; // size?/category?
+                        return true;
+                    },
+                    "EventFunctionPointer", Address.DataTypeEnum.InputFormRef_ASM);
+                return;
+            }
+
+            // version >= 8: two tables, block 4, isPointer && IsValueOdd.
+            Func<int, uint, bool> v8Exists = (int i, uint addr) =>
+            {
+                uint a = rom.u32(addr);
+                if (!U.isPointer(a)) return false;
+                if (!U.IsValueOdd(a)) return false;
+                return true;
+            };
+            EmitAsmPointerTable(rom, list, rom.RomInfo.event_function_pointer_table_pointer, 4,
+                v8Exists, "EventFunctionPointer", Address.DataTypeEnum.InputFormRef_ASM);
+            EmitAsmPointerTable(rom, list, rom.RomInfo.event_function_pointer_table2_pointer, 4,
+                v8Exists, "EventFunctionPointer Worldmap", Address.DataTypeEnum.InputFormRef_ASM);
+        }
+
+        /// <summary>
+        /// <c>Command85PointerForm.MakeAllDataLength</c> (ASM path). One table at
+        /// <c>command_85_pointer_table_pointer</c>, block 4, IsDataExists
+        /// <c>isPointerOrNULL(u32) &amp;&amp; (u32==0 || u32 &gt; 0x08000100)</c> (NULL slots are kept).
+        /// InputFormRef_ASM idiom. Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitCommand85Pointer(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+            EmitAsmPointerTable(rom, list, rom.RomInfo.command_85_pointer_table_pointer, 4,
+                (int i, uint addr) =>
+                {
+                    uint a = rom.u32(addr);
+                    if (!U.isPointerOrNULL(a)) return false;
+                    if (a == 0) return true;            // null slots exist; keep them.
+                    if (a <= 0x08000100) return false;
+                    return true;
+                },
+                "Command85Pointer", Address.DataTypeEnum.InputFormRef_ASM);
+        }
+
+        /// <summary>
+        /// <c>ItemEffectPointerForm.MakeAllDataLength</c> (ASM path). The main IFR is the
+        /// <c>item_effect_pointer_table_pointer</c> table (block 4, IsDataExists
+        /// <c>isPointerOrNULL(u32) &amp;&amp; (u32==0 || (u32 &gt; 0x08000100 &amp;&amp; i &lt;= 0xFD))</c>,
+        /// type InputFormRef_MIX). Unlike the other forms it does NOT call <c>AddFunctions</c> over the
+        /// whole list: it caps the per-entry ASM functions at
+        /// <c>min(magic_effect_original_data_count, list.Count)</c> (entries past that are magic
+        /// tables). Reproduced VERBATIM.
+        /// </summary>
+        public static void EmitItemEffectPointer(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+            EmitItemEffectPointerAt(rom, list, rom.RomInfo.item_effect_pointer_table_pointer,
+                rom.RomInfo.magic_effect_original_data_count);
+        }
+
+        /// <summary>ItemEffectPointer walk from an explicit base-pointer field + magic-count cap (test
+        /// seam — lets a synthetic ROM supply both without populating RomInfo). See
+        /// <see cref="EmitItemEffectPointer"/> for the verbatim WF reproduction.</summary>
+        public static void EmitItemEffectPointerAt(ROM rom, List<Address> list, uint basePointerField,
+            uint magicOriginalCount)
+        {
+            const uint block = 4;
+            string name = "ItemEffectPointer";
+
+            // WF Init -> AddAddress(InputFormRef_MIX, {0}); the per-entry loop is custom (capped).
+            uint basePointer = U.toOffset(basePointerField);
+            uint baseAddr;
+            if (U.isSafetyOffset(basePointer, rom))
+            {
+                baseAddr = rom.p32(basePointer);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    baseAddr = 0;
+                    basePointer = 0;
+                }
+            }
+            else
+            {
+                baseAddr = 0;
+                basePointer = 0;
+            }
+            if (!U.isSafetyOffset(baseAddr, rom)) return; // AddAddress guard.
+
+            Func<int, uint, bool> isDataExists = (int i, uint addr) =>
+            {
+                uint a = rom.u32(addr);
+                if (!U.isPointerOrNULL(a)) return false;
+                if (a == 0) return true;            // null slots exist; keep them.
+                if (a <= 0x08000100) return false;
+                if (i > 0xfd) return false;
+                return true;
+            };
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, isDataExists);
+
+            uint length = block * (dataCount + 1);
+            uint pointer = U.isSafetyOffset(basePointer, rom) ? basePointer : U.NOT_FOUND;
+            list.Add(new Address(baseAddr, length, pointer, name,
+                Address.DataTypeEnum.InputFormRef_MIX, block, new uint[] { 0 }));
+
+            // WF: arlist = MakeList(); limit = min(magic_effect_original_data_count, arlist.Count);
+            // for i in [0,limit): AddFunction(arlist[i].addr, ...). arlist[i].addr = base + i*block
+            // (MakeList yields one entry per block, EOF-bounded). The cap is the ORIGINAL-magic count;
+            // entries at/after it are the magic table, handled by the data-path producer.
+            uint limit = Math.Min(magicOriginalCount, dataCount);
+            for (uint i = 0; i < limit; i++)
+            {
+                uint entryAddr = baseAddr + i * block;
+                if (entryAddr + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                Address.AddFunction(list, entryAddr, name);
+            }
+        }
+
+        /// <summary>
+        /// <c>UnitIncreaseHeightForm.MakeAllDataLength</c> (ASM path). Switch2-gated: WF <c>ReInit</c>
+        /// resolves <c>base = p32(unit_increase_height_pointer)</c> + <c>count = u8(switch2+2)</c>, but
+        /// only when <c>IsSwitch2Enable(switch2)</c> AND <c>isSafetyOffset(base)</c> (else NOT_FOUND ->
+        /// nothing). DataCount = count + 1. The IsDataExists is irrelevant (WF Init's is <c>return
+        /// false</c> and ReInit supplies the count explicitly), so the per-entry loop runs over the
+        /// fixed <c>count+1</c> entries. InputFormRef_ASM idiom. Reproduced VERBATIM.
+        /// <para>CRITICAL: WF <c>Init</c> passes basepointer <c>0</c> and <c>ReInit</c> sets only
+        /// <c>BaseAddress</c> (NOT <c>BasePointer</c>), so the IFR's <c>BasePointer</c> stays 0 and
+        /// <c>AddAddress</c> sets the main Address pointer = <c>NOT_FOUND</c> (the base is reached via the
+        /// Switch2 LDR, not a RomInfo pointer slot — same as SoundFootSteps).</para>
+        /// </summary>
+        public static void EmitUnitIncreaseHeight(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+            EmitSwitch2GatedAsmTable(rom, list,
+                rom.RomInfo.unit_increase_height_switch2_address,
+                rom.RomInfo.unit_increase_height_pointer,
+                "UnitIncreaseHeight");
+        }
+
+        /// <summary>Switch2-gated fixed-count ASM table (UnitIncreaseHeight). Exposed-internal seam
+        /// taking explicit switch2 + base-pointer addresses (test seam). See
+        /// <see cref="EmitUnitIncreaseHeight"/> for the verbatim WF mapping (incl. the NOT_FOUND main
+        /// pointer — the IFR BasePointer is 0 after ReInit).</summary>
+        public static void EmitSwitch2GatedAsmTable(ROM rom, List<Address> list, uint switch2Addr,
+            uint basePointerField, string name)
+        {
+            const uint block = 4;
+
+            // WF ReInit: enable-gate, then base resolution + safety. Either failing => NOT_FOUND => no emit.
+            if (!ItemUsagePointerCore.IsSwitch2Enable(rom, switch2Addr))
+            {
+                return;
+            }
+            uint basePointer = U.toOffset(basePointerField);
+            if (!U.isSafetyOffset(basePointer, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(basePointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF ReInit: !isSafetyOffset(addr) -> NOT_FOUND.
+            }
+            // WF: count = u8(switch2 + 2); ifr.ReInit(addr, count + 1) -> DataCount = count + 1.
+            uint count = rom.u8(switch2Addr + 2);
+            uint dataCount = count + 1;
+
+            // WF AddAddress: length = block * (DataCount + 1). The IFR BasePointer is 0 (Init's 3rd arg;
+            // ReInit sets only BaseAddress), so AddAddress sets pointer = NOT_FOUND (not the RomInfo slot
+            // that LDR-loads the base). Identical posture to SoundFootSteps.
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, U.NOT_FOUND, name,
+                Address.DataTypeEnum.InputFormRef_ASM, block, new uint[] { 0 }));
+
+            for (uint i = 0; i < dataCount; i++)
+            {
+                uint entryAddr = baseAddr + i * block;
+                if (entryAddr + block > (uint)rom.Data.Length)
+                {
+                    break;
+                }
+                Address.AddFunction(list, entryAddr, name);
+            }
+        }
+
+        /// <summary>
+        /// <c>MapLoadFunctionForm.MakeAllDataLength</c> (ASM path). NOTE: WF's <c>MakeAllDataLength</c>
+        /// calls <c>Init(null)</c> but — unlike its ctor / IsEnterChapterAlways — does NOT call
+        /// <c>ReInit</c>. <c>Init</c> passes basepointer 0, so <c>BaseAddress = 0</c>, and AddAddress's
+        /// <c>!isSafetyOffset(base)</c> guard emits NOTHING and <c>MakeList()</c> returns empty. So this
+        /// form contributes NO Address records — reproduced VERBATIM (a no-op), preserving the WF
+        /// behaviour exactly rather than "fixing" it (a behaviour change here would diverge the rebuild
+        /// manifest from the app's). The switch1 gate is still reproduced for documentation parity but is
+        /// unreachable given base 0.
+        /// </summary>
+        public static void EmitMapLoadFunction(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+            // WF MakeAllDataLength: Init(null) with basepointer 0 -> BaseAddress 0; no ReInit. AddAddress
+            // guards on isSafetyOffset(0)==false and emits nothing; MakeList over BaseAddress 0 yields
+            // nothing. The form is effectively a no-op in the WF producer. We reproduce that no-op
+            // (basePointerField 0 -> EmitAsmPointerTable's not-safe branch -> base 0 -> AddAddress guard).
+            EmitAsmPointerTable(rom, list, 0, 4,
+                (int i, uint addr) => false,
+                "MapLoadFunction", Address.DataTypeEnum.InputFormRef_ASM);
+        }
+
+        /// <summary>
+        /// <c>MapMiniMapTerrainImageForm.MakeAllDataLength</c> (ASM path). One table at
+        /// <c>map_minimap_tile_array_pointer</c>, block 4, IsDataExists
+        /// <c>i &lt; map_terrain_type_count</c> (a fixed-count walk). InputFormRef_ASM idiom. Reproduced
+        /// VERBATIM.
+        /// </summary>
+        public static void EmitMapMiniMapTerrain(ROM rom, List<Address> list)
+        {
+            if (rom?.RomInfo == null) return;
+            EmitMapMiniMapTerrainAt(rom, list, rom.RomInfo.map_minimap_tile_array_pointer,
+                rom.RomInfo.map_terrain_type_count);
+        }
+
+        /// <summary>MapMiniMapTerrain walk from an explicit base-pointer field + terrain count (test
+        /// seam — lets a synthetic ROM supply both without populating RomInfo). See
+        /// <see cref="EmitMapMiniMapTerrain"/> for the verbatim WF reproduction.</summary>
+        public static void EmitMapMiniMapTerrainAt(ROM rom, List<Address> list, uint basePointerField,
+            uint terrainCount)
+        {
+            EmitAsmPointerTable(rom, list, basePointerField, 4,
+                (int i, uint addr) => i < terrainCount,
+                "MapMiniMapTerrain", Address.DataTypeEnum.InputFormRef_ASM);
+        }
+
+        /// <summary>
+        /// Core port of <c>EventScriptWinForms.MakeEventASMMAPList</c> — runs BOTH WF passes:
+        /// <c>(isEventOnly=false, "CALL_ASM_FROM_EVENT ")</c> then <c>(isEventOnly=true, "CALL_EVENT ")</c>.
+        /// Walks every <c>CoreState.EventScript.Scripts</c> entry; for each 4-byte-aligned word that is a
+        /// safe pointer:
+        /// <list type="bullet">
+        ///   <item>thumb bit set (<c>&amp;1</c>): only in the ASM pass — emit an
+        ///   <see cref="Address.DataTypeEnum.ASM"/> at <c>ProgramAddrToPlain(toOffset(addr))</c>.</item>
+        ///   <item>thumb bit clear: only in the EVENT pass — GrepPointer the word in the ROM; if found,
+        ///   <see cref="EmitScanScript"/> traces it (recursive event-script block emit); else emit a
+        ///   0-length <see cref="Address.DataTypeEnum.EVENTSCRIPT"/> alias at <c>toOffset(addr)</c>.</item>
+        /// </list>
+        /// A single shared <c>tracelist</c> spans both the EmitScanScript walks (matching WF's per-call
+        /// <c>tracelist</c> — WF allocates one per <c>MakeEventASMMAPList(...)</c> call, and the event
+        /// pass is one call). REQUIRES the event-script disassembler (<see cref="CoreState.EventScript"/>);
+        /// the caller gates on <see cref="IsEventScriptDisasmReady"/>.
+        /// </summary>
+        public static void EmitEventAsmMapList(ROM rom, List<Address> list)
+        {
+            // WF MakeEventASMMAPList(list): two passes.
+            EmitEventAsmMapListPass(rom, list, isEventOnly: false, prefix: "CALL_ASM_FROM_EVENT ");
+            EmitEventAsmMapListPass(rom, list, isEventOnly: true, prefix: "CALL_EVENT ");
+        }
+
+        static void EmitEventAsmMapListPass(ROM rom, List<Address> list, bool isEventOnly, string prefix)
+        {
+            var es = CoreState.EventScript;
+            if (es == null)
+            {
+                throw new InvalidOperationException(
+                    "EmitEventAsmMapList requires the event-script disassembler (CoreState.EventScript) "
+                    + "to be wired. Without it the CALL_ASM/CALL_EVENT regions would be silently dropped "
+                    + "from the rebuild relocation list (corruption).");
+            }
+
+            // WF: one tracelist per MakeEventASMMAPList(list,isEventOnly,prefix,false) call.
+            var tracelist = new List<uint>();
+
+            EventScript.Script[] scripts = es.Scripts;
+            for (int i = 0; i < scripts.Length; i++)
+            {
+                EventScript.Script script = scripts[i];
+                if (script == null || script.Data == null)
+                {
+                    continue;
+                }
+                int length = script.Data.Length / 4;
+                for (int n = 0; n < length; n++)
+                {
+                    uint addr = U.u32(script.Data, (uint)n * 4);
+                    if (!U.isSafetyPointer(addr))
+                    {
+                        continue;
+                    }
+
+                    string name = script.Info == null ? "" : string.Join("", script.Info);
+                    if ((addr & 0x01) == 0x01)
+                    {//thumb
+                        if (isEventOnly == true)
+                        {
+                            continue;
+                        }
+                        uint a = U.toOffset(addr);
+                        a = DisassemblerTrumb.ProgramAddrToPlain(a);
+                        Address.AddAddress(list, a, 0, U.NOT_FOUND,
+                            "CALL_ASM_FROM_EVENT " + name, Address.DataTypeEnum.ASM);
+                    }
+                    else
+                    {//normal event command
+                        if (isEventOnly == false)
+                        {
+                            continue;
+                        }
+                        // WF non-isPointerOnly path: GrepPointer the word; if found, ScanScript-trace it,
+                        // else add a 0-length EVENTSCRIPT alias.
+                        uint eventPointer = U.GrepPointer(rom.Data, U.toOffset(addr), 0x0500000);
+                        if (eventPointer != U.NOT_FOUND)
+                        {
+                            EmitScanScript(rom, list, eventPointer, true, false,
+                                "CALL_EVENT " + name, tracelist);
+                        }
+                        else
+                        {
+                            uint a = U.toOffset(addr);
+                            Address.AddAddress(list, a, 0, U.NOT_FOUND,
+                                "CALL_EVENT " + name, Address.DataTypeEnum.EVENTSCRIPT);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
