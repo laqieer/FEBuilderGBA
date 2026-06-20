@@ -650,11 +650,7 @@ namespace FEBuilderGBA
             // sub-block behind the embedded pointer at +8, whose length is a PROCS-bytecode
             // terminator walk (ProcsScriptForm.CalcLengthAndCheck — pure u16/u32/getString reads,
             // reproduced VERBATIM as CalcProcsLengthAndCheck). A dedicated emitter reproduces it
-            // (its own cancel-check mirrors the WF DoEvents posture). AIScriptForm STAYS deferred —
-            // its main-IFR count rule caps DataCount at the config-file AI name lists
-            // (EventUnitForm.AI1/AI2.Count, NOT in Core), so the entry count is not faithfully
-            // reproducible from ROM bytes (a wrong count = wrong # of AISCRIPT/AIUnits sub-blocks =
-            // corruption); see GetNotYetPortedForms.
+            // (its own cancel-check mirrors the WF DoEvents posture).
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -662,6 +658,24 @@ namespace FEBuilderGBA
             }
             progress?.Report("ItemWeaponEffect");
             EmitItemWeaponEffect(rom, list);
+
+            // ---- slice 2s: AIScript (AI1 / AI2 bytecode tables; version-agnostic) ----
+            // AIScriptForm.MakeAllDataLength is in the WF unconditional section (NOT version-gated). Its
+            // per-entry length walks (CalcAIScriptLength / CalcAIUnitsLength) are pure-ROM terminator
+            // scans, and its main-IFR DataCount caps an un-extended table at the ai{1,2}_ config-line
+            // count (CountConfigDataLines — the same IsComment/OtherLangLine filter PreLoadResourceAI{1,2}
+            // uses, degrading to 0 when the config tree is absent). The ONLY divergence is the per-entry
+            // NAME (WF's GetAIName1/2 -> a config name list OR InputFormRef.GetCommentSA, neither in Core):
+            // the producer uses a STATIC name, which is relocation-identical (the established
+            // ItemWeaponEffect precedent). A dedicated emitter reproduces it (cancel-check mirrors the WF
+            // DoEvents posture).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("AIScript");
+            EmitAIScript(rom, list);
 
             // ---- slice 2m: TextForm (Huffman text; version-agnostic) ----
             // TextForm.MakeAllDataLength is in the WF unconditional section (NOT version-gated). It is NOT
@@ -707,11 +721,9 @@ namespace FEBuilderGBA
             // expands every table entry via a verbatim ImageUtil*.RecycleOldAnime length walk (a pure-ROM
             // anime-stream terminator scan; the OAM column length is the verbatim CalcMagicOamLength port
             // of WF ImageUtilMagicFEditor.calcOAMLength). Each gets a dedicated emitter with its own
-            // cancel-check, mirroring the WF DoEvents posture. ImageBattleAnimeForm (ImageUtilOAM
-            // MakeAllDataLength — the UnCompressFrame-embedded seat-image walk) and the
-            // RecycleOldAnime-dependent SkillConfig siblings STAY deferred (see GetNotYetPortedForms):
-            // ImageBattleAnime additionally needs ClassForm.MakeClassList + the per-class two-IFR /
-            // seat-dedup machinery, a larger surface left for a later slice.
+            // cancel-check, mirroring the WF DoEvents posture. The RecycleOldAnime-dependent SkillConfig
+            // siblings STAY deferred (see GetNotYetPortedForms). ImageBattleAnimeForm is PORTED in slice 2s
+            // (EmitImageBattleAnime — wired just below).
             if (ct.IsCancellationRequested)
             {
                 progress?.Report("MakeAllStructPointersList cancelled");
@@ -719,6 +731,25 @@ namespace FEBuilderGBA
             }
             progress?.Report("ImageMapActionAnimation");
             EmitImageMapActionAnimation(rom, list);
+
+            // ---- slice 2s: ImageBattleAnime (battle-anime OAM tables; version-agnostic) ----
+            // ImageBattleAnimeForm.MakeAllDataLength is in the WF unconditional section (NOT version-gated;
+            // the per-class GetBattleAnimeAddrWhereAddr is version-gated internally — +48 FE6 / +52 FE7+FE8).
+            // Three parts: the per-class "BattleAnimeSeting" IFRs (ClassForm.MakeClassList reproduced via
+            // MakeClassListAddrs), the N_ "BattleAnime" animelist IFR (FEditorHint via CoreState.Config), and
+            // the per-anime OAM walk (EmitImageBattleAnimeOAM = ImageUtilOAM.MakeAllDataLength — section BIN +
+            // 4 LZ77 pointers + the UnCompressFrame-embedded seat-image sub-walk, dedup'd across entries via a
+            // shared seatNumberList). All deps are Core (UnCompressFrame = FETextEncode/LZ77/getBinaryData +
+            // CalcUnCompressFrameLength; AddLZ77Pointer/Address). The ONLY divergence is the per-anime OAM
+            // `info` (WF decodes the anime name via getString — relocation-irrelevant; the producer uses a
+            // static name). A dedicated emitter reproduces it (cancel-check mirrors the WF DoEvents posture).
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("MakeAllStructPointersList cancelled");
+                return new ProducerResult(list, notYet, cancelled: true);
+            }
+            progress?.Report("ImageBattleAnime");
+            EmitImageBattleAnime(rom, list);
 
             if (ct.IsCancellationRequested)
             {
@@ -3679,6 +3710,695 @@ namespace FEBuilderGBA
                 }
             }
             return addr - start;
+        }
+
+        // ===================================================================
+        // slice 2s — AIScriptForm (AI1 / AI2 bytecode tables; version-agnostic
+        // call site). A dedicated emitter (EmitAIScript) reproduces
+        // AIScriptForm.MakeAllDataLength VERBATIM:
+        //   - the main IFR per AI table (block 4, IsDataExists reproduced
+        //     inline from AIScriptForm.Init, pointerIndexes {0}),
+        //   - the per-table "ClonePointer" slots (AISomeByte, length 0),
+        //   - the per-entry AISCRIPT block (length = CalcAIScriptLength, the
+        //     verbatim AIScriptForm.CalcLength 16-byte-opcode terminator walk),
+        //   - and per 16-byte AISCRIPT slot the embedded +8/+12 pointers: a
+        //     thumb function (AddFunction) for an odd +8, else an AIUNITS BIN
+        //     block (length = CalcAIUnitsLength, the verbatim AIUnitsForm.CalcLength
+        //     u16==0 terminator walk).
+        // STATIC NAME divergence (the ONLY divergence, relocation-identical — see
+        // EmitItemWeaponEffect): WF labels each entry with the per-entry AI name
+        // (EventUnitForm.GetAIName1/2 -> a config name list OR
+        // InputFormRef.GetCommentSA, neither in Core). The Address `name` is
+        // COSMETIC (does not affect addr/length/pointer/DataType/order, i.e. the
+        // relocation manifest is byte-identical), so the producer uses a STATIC
+        // name "AI<n> 0x<i>" — dropping ONLY the GetAIName1/2 part. The
+        // length/count/pointer/DataType are reproduced byte-faithfully.
+        //
+        // COUNT rule: the main IFR DataCount (AIScriptForm.Init's IsDataExists)
+        // caps an un-extended AI table at EventUnitForm.AI{1,2}.Count — which, at
+        // the moment IsDataExists reads it, equals the number of DATA LINES in the
+        // ai1_/ai2_ config TSV (PreLoadResourceAI{1,2} loads those lines BEFORE
+        // padding the list up to DataCount, so the un-extended cap resolves to the
+        // config-line count). The producer recomputes that count headlessly from
+        // the ai1_/ai2_ config files (CountConfigDataLines, the same
+        // IsComment/OtherLangLine filter PreLoadResourceAI{1,2} uses), gracefully
+        // degrading to 0 when the config tree is absent.
+        // ===================================================================
+
+        /// <summary>VERBATIM port of <c>AIScriptForm.CalcLength</c>: walk the AI bytecode of
+        /// 16-byte fixed instructions from <paramref name="addr"/>, stopping at the EXIT opcode
+        /// (<c>u8(addr+0)==0x03</c>) UNLESS the next instruction's first byte is a 0x1B/0x1C label
+        /// (then it continues past one more instruction). Returns the consumed byte length. Pure ROM
+        /// reads; the WF <c>while (addr + 16 &lt;= limit)</c> clamp guarantees <c>u8(addr+0)</c> is
+        /// in-bounds. EOF-equivalent to WF (a near-EOF stream simply stops at the clamp).</summary>
+        public static uint CalcAIScriptLength(ROM rom, uint addr)
+        {
+            // A NULL/unsafe entry (a 0 table slot, or a pointer outside the ROM) must NOT trigger a full
+            // scan from offset 0 + a huge computed length. WF passes p32(slot) straight into CalcLength; on
+            // a valid ROM every AI entry is a real pointer so this never fires, but guarding the start makes
+            // a malformed/NULL entry return 0 -> the AISCRIPT AddAddress is skipped (addr unsafe) AND the
+            // downstream AIUNITS loop (end == start) doesn't run. Output-equivalent to WF on valid ROMs;
+            // far cheaper + no spurious offset-0 emissions on malformed ones.
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint start = addr;
+            uint limit = (uint)rom.Data.Length;
+
+            while (addr + 16 <= limit)
+            {
+                uint code = rom.u8(addr + 0);
+                addr += 16; //命令は16バイト固定.
+                if (addr + 16 > limit)
+                {
+                    break;
+                }
+                if (code == 0x03)
+                {//EXIT
+                    //1命令先読みして1Bラベルがあるかどうかを見るあるならまだ続く
+                    uint nextcode = rom.u8(addr + 0);
+                    if (!(nextcode == 0x1B || nextcode == 0x1C))
+                    {//1B or 1Cではないので終わり.
+                        break;
+                    }
+                    addr += 16;
+                }
+            }
+            return addr - start;
+        }
+
+        /// <summary>VERBATIM port of <c>AIUnitsForm.CalcLength</c>: from <c>toOffset(addr)</c>, walk
+        /// 2 bytes at a time until <c>u16==0x00</c>; returns the consumed byte length. Pure ROM reads.
+        /// EOF-HARDENING: WF's loop bound is <c>addr &lt; Data.Length</c>, so the final iteration could
+        /// read <c>u16(Length-1)</c> (1 byte OOB) on a non-terminated stream; the producer clamps the
+        /// bound to <c>addr + 2 &lt;= Length</c> (valid-ROM-equivalent: a real AIUNITS stream is
+        /// 0-terminated well before EOF, so the clamp only differs on a malformed unterminated tail).</summary>
+        public static uint CalcAIUnitsLength(ROM rom, uint addr)
+        {
+            addr = U.toOffset(addr);
+            // Same start guard as CalcAIScriptLength: the caller isPointer-checks pp, but isPointer does not
+            // bound it to Data.Length, so guard an out-of-range start to avoid a scan past EOF (return 0 ->
+            // the AIUNITS AddAddress is skipped). Valid-ROM-equivalent.
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint start = addr;
+            uint length = (uint)rom.Data.Length;
+            for (; addr + 2 <= length; addr += 2)
+            {
+                if (rom.u16(addr) == 0x00)
+                {
+                    break;
+                }
+            }
+            return addr - start;
+        }
+
+        /// <summary>
+        /// Count the DATA lines of an <c>ai1_</c>/<c>ai2_</c> config TSV (the per-entry AI name list),
+        /// reproducing the line filter <c>EventUnitForm.PreLoadResourceAI{1,2}</c> uses
+        /// (<c>!(U.IsComment(line) || U.OtherLangLine(line))</c>) — every other line increments the count
+        /// (the WF <c>sp.Length &lt;= 0</c> guard is never true). This is the un-extended-table cap the
+        /// AIScript main-IFR <c>IsDataExists</c> compares <c>i</c> against (<c>AI{1,2}.Count</c>). Never
+        /// throws: a missing/unconfigured config tree (null BaseDirectory, missing file) yields 0 — the
+        /// same faithful headless behavior as an empty config (WF's <c>IsRequiredFileExist</c> false path
+        /// leaves <c>AI{1,2}</c> empty before padding).
+        /// </summary>
+        static int CountConfigDataLines(string type, ROM rom)
+        {
+            try
+            {
+                string fullfilename = U.ConfigDataFilename(type, rom);
+                if (!System.IO.File.Exists(fullfilename))
+                {
+                    return 0;
+                }
+                int count = 0;
+                using (System.IO.StreamReader reader = System.IO.File.OpenText(fullfilename))
+                {
+                    string line;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        // Verbatim PreLoadResourceAI{1,2} filter: skip comment / other-lang lines,
+                        // count everything else (sp.Length <= 0 is never true after Split('\t')). Use the
+                        // (line, rom) OtherLangLine overload so the is_multibyte language filter consults the
+                        // passed rom, not CoreState.ROM (the producer's rom==CoreState.ROM invariant makes
+                        // these identical, but the explicit rom keeps the count correct if they ever differ).
+                        if (U.IsComment(line) || U.OtherLangLine(line, rom))
+                        {
+                            continue;
+                        }
+                        count++;
+                    }
+                }
+                return count;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// <c>AIScriptForm.MakeAllDataLength</c> (slice 2s, version-agnostic call site). For each of the
+        /// two AI tables (<c>ai1_pointer</c>, <c>ai2_pointer</c>): skip if the slot is 0, else emit
+        /// <see cref="EmitAIScriptSub"/> (the main IFR + per-entry AISCRIPT / AIUNITS sub-blocks) and
+        /// <see cref="EmitAIScriptSomeByte"/> (the two ClonePointer slots). Reproduced VERBATIM; only the
+        /// entry NAME is static (relocation-identical — see the slice-2s header above).
+        /// </summary>
+        public static void EmitAIScript(ROM rom, List<Address> list)
+        {
+            // WF: addlist = { ai1_pointer, ai2_pointer }.
+            uint[] addlist = new uint[] { rom.RomInfo.ai1_pointer, rom.RomInfo.ai2_pointer };
+            // The IsDataExists count cap reads AI{1,2}.Count == the ai{1,2}_ config-line count.
+            int ai1Count = CountConfigDataLines("ai1_", rom);
+            int ai2Count = CountConfigDataLines("ai2_", rom);
+
+            for (int aiType = 0; aiType < addlist.Length; aiType++)
+            {
+                uint aiAddr = addlist[aiType];
+                if (aiAddr == 0)
+                {//WF: if (aiAddr == 0) continue;
+                    continue;
+                }
+                EmitAIScriptSub(rom, list, aiAddr, aiType, aiType == 0 ? ai1Count : ai2Count, ai1Count, ai2Count);
+                EmitAIScriptSomeByte(rom, list, aiAddr, aiType);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>AIScriptForm.MakeAllDataLengthAISomeByte</c>: for slots
+        /// <c>i=1,2</c> at <c>aiAddr + i*4</c>, if <c>isPointer(u32(slot))</c> emit a length-0 POINTER
+        /// "ClonePointer" Address (<c>AddPointer(slot, 0, ...)</c>). EOF-HARDENING: WF reads
+        /// <c>u32(aiAddr+i*4)</c> unguarded; the producer guards the 4-byte extent first.</summary>
+        public static void EmitAIScriptSomeByte(ROM rom, List<Address> list, uint aiAddr, int aiType)
+        {
+            for (uint i = 1; i < 3; i++)
+            {
+                uint addr = aiAddr + (i * 4);
+                // EOF-harden: u32(addr) reads addr..addr+3.
+                if (addr + 4 > (uint)rom.Data.Length)
+                {
+                    continue;
+                }
+                uint p = rom.u32(addr);
+                if (!U.isPointer(p))
+                {
+                    continue;
+                }
+                Address.AddPointer(list, addr, 0, "AI" + (aiType + 1) + "_ClonePointer" + i,
+                    Address.DataTypeEnum.POINTER);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>AIScriptForm.MakeAllDataLengthSub</c>: the main IFR
+        /// (<c>AddressWinForms.AddAddress(IFR, "AI<n>", {0})</c>) followed by the per-entry AISCRIPT
+        /// block + its embedded +8/+12 AIUNITS / CallASM pointers. The IFR DataCount reproduces
+        /// <c>AIScriptForm.Init</c>'s <c>IsDataExists</c> inline. Only the per-entry NAME is static
+        /// ("AI&lt;n&gt; 0x&lt;i&gt;") — see the slice-2s header (relocation-identical).</summary>
+        static void EmitAIScriptSub(ROM rom, List<Address> list, uint aiAddr, int aiType,
+            int thisCount, int ai1Count, int ai2Count)
+        {
+            // WF: InputFormRef.ReInitPointer(aiAddr) -> BasePointer = toOffset(aiAddr),
+            // BaseAddress = p32(BasePointer). Reproduce that, then the AddressWinForms.AddAddress(IFR)
+            // emission (addr = BaseAddress, length = block*(DataCount+1), pointer = BasePointer or
+            // NOT_FOUND, type InputFormRef, block 4, pointerIndexes {0}).
+            const uint block = 4;
+            uint basePointer = U.toOffset(aiAddr);
+            // InputFormRef.Init guards BasePointer; an unsafe slot -> BaseAddress 0, emit nothing.
+            if (!U.isSafetyOffset(basePointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(basePointer);
+            // WF Init: if !isSafetyOffset(BaseAddress) -> BaseAddress = 0, BasePointer = 0 (DataCount 0,
+            // AddAddress returns without emitting). Mirror by bailing out here.
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return;
+            }
+
+            uint p32ai1 = ResolveAiTableBase(rom, rom.RomInfo.ai1_pointer);
+            uint p32ai2 = ResolveAiTableBase(rom, rom.RomInfo.ai2_pointer);
+            uint extendsBase = U.toOffset(rom.RomInfo.extends_address);
+
+            // DataCount: getBlockDataCount(BaseAddress, 4, IsDataExists). IsDataExists reproduces
+            // AIScriptForm.Init verbatim (with the AI{1,2}.Count cap == config-line count).
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                uint a = rom.u32(addr); // getBlockDataCount guarantees addr+4<=Length.
+                if (!U.isPointerOrNULL(a))
+                {
+                    return false;
+                }
+                // U.isExtrendsROMArea(addr) == addr >= toOffset(extends_address).
+                if (addr >= extendsBase)
+                {//拡張済みなのでサイズは終端まで
+                }
+                else
+                {//未拡張
+                    uint comparebase = addr - (uint)(block * i);
+                    if (comparebase == p32ai1)
+                    {
+                        if (i >= ai1Count)
+                        {
+                            return false;
+                        }
+                    }
+                    else if (comparebase == p32ai2)
+                    {
+                        if (i >= ai2Count)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+            // Main IFR Address (AddressWinForms.AddAddress(list, IFR, "AI<n>", {0})).
+            uint mainLength = block * (dataCount + 1);
+            uint mainPointer = U.isSafetyOffset(basePointer, rom) ? basePointer : U.NOT_FOUND;
+            list.Add(new Address(baseAddr, mainLength, mainPointer, "AI" + (aiType + 1),
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                if (!U.isSafetyOffset(p, rom))
+                {
+                    continue;
+                }
+
+                // STATIC NAME (the only divergence): WF appends GetAIName1/2(i) here.
+                string name = "AI" + (aiType + 1) + " " + U.To0xHexString(i);
+
+                uint aiscript = rom.p32(p);
+                uint length = CalcAIScriptLength(rom, aiscript);
+
+                Address.AddAddress(list, aiscript, length, p, name, Address.DataTypeEnum.AISCRIPT);
+
+                uint end = aiscript + length;
+                for (uint k = aiscript; k < end; k += 16)
+                {
+                    // EOF-harden: u32(k+8)/u32(k+12) read up to k+15. CalcAIScriptLength bounds each
+                    // 16-byte block within [aiscript, aiscript+length) by addr+16<=Length, so k+15 <
+                    // k+16 <= Length already holds for k < end; guard anyway for robustness.
+                    if (k + 16 > (uint)rom.Data.Length)
+                    {
+                        break;
+                    }
+                    uint pp;
+                    pp = rom.u32(k + 8);
+                    if (U.isPointer(pp))
+                    {
+                        if ((pp % 2) == 1)
+                        {//thumbプログラムコード
+                            Address.AddFunction(list, k + 8, name + " CallASM");
+                        }
+                        else
+                        {//データ
+                            Address.AddAddress(list, pp, CalcAIUnitsLength(rom, pp), k + 8, name,
+                                Address.DataTypeEnum.BIN);
+                        }
+                    }
+                    pp = rom.u32(k + 12);
+                    if (U.isPointer(pp))
+                    {
+                        Address.AddAddress(list, pp, CalcAIUnitsLength(rom, pp), k + 12, name,
+                            Address.DataTypeEnum.BIN);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Resolve an AI table base the way <c>AIScriptForm.Init</c>'s IsDataExists does
+        /// (<c>Program.ROM.p32(ai{1,2}_pointer)</c>) for the per-entry <c>baseaddr ==</c> comparison.
+        /// Returns <see cref="U.NOT_FOUND"/> when the slot is an unsafe offset (so the comparison can
+        /// never match — the same effect as WF reading a garbage slot, since a real table base is a safe
+        /// offset).</summary>
+        static uint ResolveAiTableBase(ROM rom, uint slot)
+        {
+            uint s = U.toOffset(slot);
+            if (!U.isSafetyOffset(s + 3, rom))
+            {
+                return U.NOT_FOUND;
+            }
+            return rom.p32(s);
+        }
+
+        // ===================================================================
+        // slice 2s — ImageBattleAnimeForm (battle-animation OAM tables;
+        // version-agnostic call site). A dedicated emitter (EmitImageBattleAnime)
+        // reproduces ImageBattleAnimeForm.MakeAllDataLength VERBATIM:
+        //   PART A (per-class BattleAnimeSeting IFR): for each class
+        //     (ClassForm.MakeClassList -> the class-table addrs), resolve
+        //     GetBattleAnimeAddrWhereAddr (version-gated +48 FE6 / +52 FE7+FE8),
+        //     and if the anime-setting addr is safe emit the "BattleAnimeSeting"
+        //     main IFR (block 4, IsDataExists = u32(addr)!=0, pointerIndexes {}).
+        //   PART B (the N_ animelist IFR): the "BattleAnime" main IFR (base
+        //     image_battle_animelist_pointer, block 32, IsDataExists =
+        //     (isPointer(u32+12)&&isPointer(u32+20)&&isPointer(u32+24)) ||
+        //     (FEditorHint!=NOT_FOUND && i<FEditorHint), pointerIndexes
+        //     {12,16,20,24,28}). FEditorHint = GetFEditorLengthHint (config-gated;
+        //     reproduced via CoreState.Config "func_lookup_feditor", default off).
+        //   PART C (per-anime OAM walk): per anime entry, ImageUtilOAM.MakeAllDataLength
+        //     (EmitImageBattleAnimeOAM) — a fixed section BIN + 4 LZ77 pointers
+        //     (frame / 2x OAM / palette) + the UnCompressFrame-embedded seat-image
+        //     sub-walk (dedup'd across entries via a shared seatNumberList).
+        // STATIC NAME divergence (the ONLY divergence, relocation-identical — see
+        // EmitItemWeaponEffect): WF's per-anime ImageUtilOAM name reads
+        // ROM.getString(base,12) (the anime name, needs a SystemTextEncoder); the
+        // producer drops ONLY that decoded name (the `info` string is COSMETIC —
+        // does not affect addr/length/pointer/DataType/order). All lengths/counts/
+        // pointers/DataTypes are reproduced byte-faithfully.
+        // ===================================================================
+
+        /// <summary>The list of class-table entry addresses = <c>ClassForm.MakeClassList()</c>
+        /// (<c>Init(null).MakeList()</c>). Reproduces <c>ClassForm.Init</c> VERBATIM (base
+        /// <c>class_pointer</c>, block <c>class_datasize</c>, count = the <c>i==0||(i&lt;=0xff &amp;&amp;
+        /// u8(addr+4)!=0)</c> rule — the same as <see cref="ClassDataCount"/>) and yields one addr per
+        /// entry (<c>baseAddr + i*block</c>). The name (slot 2 of the WF IFR) is irrelevant —
+        /// <c>MakeAllDataLength</c> only consumes the addrs. Returns an empty list on an unsafe/zero
+        /// pointer (faithful headless behavior).</summary>
+        static List<uint> MakeClassListAddrs(ROM rom)
+        {
+            var result = new List<uint>();
+            uint pointer = U.toOffset(rom.RomInfo.class_pointer);
+            if (!U.isSafetyOffset(pointer, rom)) return result;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
+            uint block = rom.RomInfo.class_datasize;
+            if (block == 0) return result;
+            uint count = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+            {
+                if (i == 0) return true;
+                if (i > 0xff) return false;
+                return rom.u8(addr + 4) != 0;
+            });
+            uint p = baseAddr;
+            for (uint i = 0; i < count; i++, p += block)
+            {
+                result.Add(p);
+            }
+            return result;
+        }
+
+        /// <summary>VERBATIM port of <c>ClassForm.GetBattleAnimeAddrWhereAddr</c>: from a class addr,
+        /// the anime-setting pointer slot is at <c>+48</c> (FE6) / <c>+52</c> (FE7+FE8); returns
+        /// <c>p32(slot)</c> as the anime-setting addr and reports the slot via <paramref name="outPointer"/>.
+        /// EOF-HARDENING: WF reads <c>p32(addr+48/52)</c> after only <c>isSafetyOffset(addr)</c>; the
+        /// producer guards the full slot extent (slot+3) so a near-EOF class addr yields NOT_FOUND.</summary>
+        static uint GetBattleAnimeAddrWhereAddr(ROM rom, uint classAddr, out uint outPointer)
+        {
+            if (!U.isSafetyOffset(classAddr, rom))
+            {
+                outPointer = U.NOT_FOUND;
+                return U.NOT_FOUND;
+            }
+            uint slot = (rom.RomInfo.version == 6) ? classAddr + 48 : classAddr + 52;
+            outPointer = slot;
+            if (slot + 4 > (uint)rom.Data.Length)
+            {
+                return U.NOT_FOUND;
+            }
+            return rom.p32(slot);
+        }
+
+        /// <summary>VERBATIM port of <c>InputFormRef.GetFEditorLengthHint</c>: the FEditor-Adv list-length
+        /// hint stored 4 bytes BEFORE <paramref name="dataOffset"/>. Gated on the config option
+        /// <c>func_lookup_feditor</c> (default "0" = None -> always NOT_FOUND; the same default the WF
+        /// OptionForm reads); when enabled, returns <c>u32(dataOffset-4)</c> if it is in <c>[100, 1024)</c>,
+        /// else NOT_FOUND. Pure ROM read + a CoreState.Config lookup (the config is set in the real app /
+        /// CLI; a null Config degrades to the default-off path).</summary>
+        static uint GetFEditorLengthHint(ROM rom, uint dataOffset)
+        {
+            // OptionForm.lookup_feditor() == (lookup_feditor_enum)atoi(Config.at("func_lookup_feditor","0"));
+            // Lookup == 1. Default "0" (None) -> do NOT use the hint.
+            string cfg = CoreState.Config?.at("func_lookup_feditor", "0") ?? "0";
+            if (U.atoi(cfg) != 1)
+            {
+                return U.NOT_FOUND;
+            }
+            if (!U.isSafetyOffset(dataOffset - 4, rom))
+            {
+                return U.NOT_FOUND;
+            }
+            uint value = rom.u32(dataOffset - 4);
+            if (value >= 1024)
+            {//大きすぎる
+                return U.NOT_FOUND;
+            }
+            if (value < 100)
+            {//小さすぎる、別の値では？
+                return U.NOT_FOUND;
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// <c>ImageBattleAnimeForm.MakeAllDataLength</c> (slice 2s, version-agnostic call site). See the
+        /// slice-2s header for the three-part structure. Reproduced VERBATIM; the ONLY divergence is the
+        /// per-anime OAM `info` string (WF decodes the anime name, the producer uses a static name —
+        /// relocation-identical).
+        /// </summary>
+        public static void EmitImageBattleAnime(ROM rom, List<Address> list)
+        {
+            const uint classBlock = 4; // ImageBattleAnimeForm.Init BlockSize (per-class BattleAnimeSeting).
+
+            // ---- PART A: per-class "BattleAnimeSeting" IFRs ----
+            List<uint> classList = MakeClassListAddrs(rom);
+            for (uint cid = 0; cid < classList.Count; cid++)
+            {
+                uint pointer;
+                uint classAddr = classList[(int)cid];
+                uint addr = GetBattleAnimeAddrWhereAddr(rom, classAddr, out pointer);
+                if (!U.isSafetyOffset(addr, rom))
+                {//WF: if (!isSafetyOffset(addr)) continue;
+                    continue;
+                }
+
+                // WF: InputFormRef.ReInitPointer(pointer) -> BasePointer = toOffset(pointer),
+                // BaseAddress = p32(BasePointer), DataCount from Init's IsDataExists (u32(addr)!=0).
+                uint basePointer = U.toOffset(pointer);
+                if (!U.isSafetyOffset(basePointer + 3, rom))
+                {
+                    continue;
+                }
+                uint baseAddr = rom.p32(basePointer);
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {//Init: unsafe BaseAddress -> 0/0 -> AddAddress emits nothing.
+                    continue;
+                }
+                uint dataCount = rom.getBlockDataCount(baseAddr, classBlock, (i, a) =>
+                {//ImageBattleAnimeForm.Init IsDataExists: u32(a+0) != 0. getBlockDataCount guards a+4<=Length.
+                    return rom.u32(a + 0) != 0;
+                });
+
+                string selfname = "BattleAnimeSeting:" + U.To0xHexString(cid);
+                uint length = classBlock * (dataCount + 1);
+                uint mainPointer = U.isSafetyOffset(basePointer, rom) ? basePointer : U.NOT_FOUND;
+                // WF AddAddress(IFR, name, new uint[] { }) -> pointerIndexes empty.
+                list.Add(new Address(baseAddr, length, mainPointer, selfname,
+                    Address.DataTypeEnum.InputFormRef, classBlock, new uint[] { }));
+            }
+
+            // ---- PART B: the N_ "BattleAnime" animelist IFR ----
+            const uint nBlock = 32; // N_Init BlockSize.
+            uint nBasePointer = U.toOffset(rom.RomInfo.image_battle_animelist_pointer);
+            if (!U.isSafetyOffset(nBasePointer + 3, rom))
+            {
+                return;
+            }
+            uint nBaseAddr = rom.p32(nBasePointer);
+            if (!U.isSafetyOffset(nBaseAddr, rom))
+            {
+                return;
+            }
+
+            // N_Init: FEditorHint = GetFEditorLengthHint(p32(image_battle_animelist_pointer)); if it is
+            // >= 0xFF (too big) it is discarded.
+            uint feditorHint = GetFEditorLengthHint(rom, nBaseAddr);
+            if (feditorHint >= 0xFF)
+            {//余りにでかいヒントは信じない
+                feditorHint = U.NOT_FOUND;
+            }
+
+            uint nDataCount = rom.getBlockDataCount(nBaseAddr, nBlock, (i, a) =>
+            {//N_Init IsDataExists. getBlockDataCount guards a+32<=Length, so u32(a+12/20/24) is in range.
+                if (U.isPointer(rom.u32(a + 12))
+                    && U.isPointer(rom.u32(a + 20))
+                    && U.isPointer(rom.u32(a + 24)))
+                {
+                    return true;
+                }
+                if (feditorHint != U.NOT_FOUND && i < feditorHint)
+                {//不明なデータではあるがFEditorがあるというので信用する.
+                    return true;
+                }
+                return false;
+            });
+
+            uint nLength = nBlock * (nDataCount + 1);
+            uint nMainPointer = U.isSafetyOffset(nBasePointer, rom) ? nBasePointer : U.NOT_FOUND;
+            list.Add(new Address(nBaseAddr, nLength, nMainPointer, "BattleAnime",
+                Address.DataTypeEnum.InputFormRef, nBlock, new uint[] { 12, 16, 20, 24, 28 }));
+
+            // ---- PART C: per-anime OAM walk (ImageUtilOAM.MakeAllDataLength) ----
+            // 戦闘アニメーションはlz77圧縮の中にポインタがある特殊形式です — the seatNumberList dedups
+            // shared seat images ACROSS anime entries (a seat image referenced by 2 animes is emitted once).
+            var seatNumberList = new List<uint>(256);
+            uint walkAddr = nBaseAddr;
+            for (int i = 0; i < nDataCount; i++, walkAddr += nBlock)
+            {
+                if (!U.isSafetyOffset(12 + walkAddr + 4, rom))
+                {//WF: if (!isSafetyOffset(12 + addr + 4)) break;
+                    break;
+                }
+                uint section = rom.p32(12 + walkAddr);
+                if (!U.isSafetyOffset(section, rom))
+                {//WF: if (!isSafetyOffset(section)) break;
+                    break;
+                }
+                string selfname = "BattleAnime:" + U.To0xHexString((uint)(i + 1));
+                EmitImageBattleAnimeOAM(rom, list, selfname, walkAddr, seatNumberList);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImageUtilOAM.MakeAllDataLength</c> (the producer always scans real
+        /// lengths, isPointerOnly==false). For one anime at <paramref name="battleanimeBaseaddress"/>:
+        /// a fixed <c>0xC*4</c>-byte section BIN @ +12, four LZ77 pointers (frame @ +16, 2× OAM @ +20/+24,
+        /// palette @ +28), then the UnCompressFrame-decompressed frame stream's embedded seat-image
+        /// pointers (each a 0x86-tagged 4-byte field at +4 of a 12-byte record) emitted as
+        /// BATTLEFRAMEIMG LZ77 addresses, dedup'd via the shared <paramref name="seatNumberList"/>.
+        /// STATIC NAME (the only divergence): WF prefixes the info with ROM.getString(base,12) — the
+        /// producer drops that decoded anime name (cosmetic / relocation-identical).
+        /// EOF-HARDENING: the <c>isSafetyZArray(base+32-1)</c> guard (WF) covers the +12..+31 header reads;
+        /// the frame-stream loop is bounded by the decompressed-array length + an explicit i+8 ZArray check.</summary>
+        public static void EmitImageBattleAnimeOAM(ROM rom, List<Address> list, string info,
+            uint battleanimeBaseaddress, List<uint> seatNumberList)
+        {
+            // WF: if (!isSafetyZArray(base + 32 - 1)) return; — guards the +12..+31 p32 reads.
+            if (!U.isSafetyZArray(battleanimeBaseaddress + 32 - 1, rom.Data))
+            {
+                return;
+            }
+
+            // WF prefixes info with " " + getString(base,12) (the anime name) before the per-column
+            // " section"/" frame"/... suffixes. STATIC-NAME divergence: drop the decoded name entirely
+            // (cosmetic / relocation-identical) and append the suffixes directly to the passed-in name.
+            uint sectionData = rom.p32(battleanimeBaseaddress + 12); //セクションデータ 固定長
+            uint frameData_offset = rom.p32(battleanimeBaseaddress + 16);
+            // (rightToLeftOAM / leftToRightOAM / palettes offsets at +20/+24/+28 are read by the
+            //  AddLZ77Pointer calls below; WF reads them into locals only for the magic-motion path.)
+
+            // 解凍する. 固定長のsectionData以外はLZ77で圧縮されている.
+            byte[] frameData_UZ = UnCompressBattleFrame(rom, frameData_offset);
+
+            Address.AddAddress(list, sectionData, 0xC * 4, battleanimeBaseaddress + 12,
+                info + " section", Address.DataTypeEnum.BIN);
+            Address.AddLZ77Pointer(list, battleanimeBaseaddress + 16, info + " frame", false,
+                Address.DataTypeEnum.BATTLEFRAME);
+            Address.AddLZ77Pointer(list, battleanimeBaseaddress + 20, info + " rightToLeftOAM", false,
+                Address.DataTypeEnum.BATTLEOAM);
+            Address.AddLZ77Pointer(list, battleanimeBaseaddress + 24, info + " leftToRightOAM", false,
+                Address.DataTypeEnum.BATTLEOAM);
+            Address.AddLZ77Pointer(list, battleanimeBaseaddress + 28, info + " palettes", false,
+                Address.DataTypeEnum.LZ77PAL);
+
+            int number = 0;
+            for (int i = 0; i < frameData_UZ.Length; i += 4)
+            {
+                if (!U.isSafetyZArray((uint)(i + 8), frameData_UZ))
+                {
+                    break;
+                }
+                if (frameData_UZ[i + 3] != 0x86)
+                {
+                    continue;
+                }
+                //シート画像をリサイクルリストに突っ込む.
+                uint imageOffset = U.u32(frameData_UZ, (uint)(i + 4));
+                if (U.isPointer(imageOffset))
+                {
+                    imageOffset = U.toOffset(imageOffset);
+                    if (seatNumberList.IndexOf(imageOffset) < 0)
+                    {
+                        //lz77された中にあるのでポインタは存在しない.
+                        Address.AddLZ77Address(list, imageOffset, U.NOT_FOUND,
+                            info + " seat" + number, false, Address.DataTypeEnum.BATTLEFRAMEIMG);
+                        number++;
+                        seatNumberList.Add(imageOffset);
+                    }
+                }
+                i = i + 4 + 4; // 4+4+ 4 = 12
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImageUtilOAM.UnCompressFrame</c>: decompress a battle-anime frame
+        /// stream. If the frame pointer is an UnHuffman-patch pointer, read the raw (uncompressed) frame
+        /// bytes (length = <see cref="CalcUnCompressFrameLength"/>); else LZ77-decompress. Returns an empty
+        /// array on an out-of-range / undecompressable pointer (LZ77.decompress and getBinaryData are
+        /// EOF-safe). All deps are Core (FETextEncode / LZ77 / getBinaryData).</summary>
+        static byte[] UnCompressBattleFrame(ROM rom, uint frameAddr)
+        {
+            //FEの戦闘アニメフレームはlz77で圧縮されています。
+            //無圧縮フレームというデータ構造もある.
+            if (FETextEncode.IsUnHuffmanPatchPointer(frameAddr))
+            {
+                frameAddr = FETextEncode.ConvertUnHuffmanPatchToPointer(frameAddr);
+                frameAddr = U.toOffset(frameAddr);
+                uint length = CalcUnCompressFrameLength(rom, frameAddr);
+                return rom.getBinaryData(frameAddr, length);
+            }
+            else
+            {
+                frameAddr = U.toOffset(frameAddr);
+                return LZ77.decompress(rom.Data, frameAddr);
+            }
+        }
+
+        /// <summary>VERBATIM port of <c>ImageUtilOAM.CalcUnCompressFrameLength</c>: walk an uncompressed
+        /// frame stream of 4-byte records from <paramref name="frameDataOffset"/>, counting 0x80-terminated
+        /// frames (up to 0xC), skipping 0x86 image records (+8) and 0x85 / unknown records (+0). A 1MB
+        /// limiter caps a runaway. EOF-HARDENING: WF's <c>frameData[i+3]</c> read is bounded only by
+        /// <c>i &lt; limitter = min(start+1MB, Length)</c>, so on a non-terminated tail it could read up to
+        /// <c>Length+2</c> (OOB); the producer clamps the loop bound to <c>i + 4 &lt;= limitter</c>
+        /// (valid-ROM-equivalent: a real frame stream is 0x80-terminated well within the ROM, so the clamp
+        /// only differs on a malformed unterminated tail).</summary>
+        public static uint CalcUnCompressFrameLength(ROM rom, uint frameDataOffset)
+        {
+            //圧縮されていないデータなので、事故防止のため リミッターをかける.
+            uint limitter = frameDataOffset + 1024 * 1024; //1MBサーチしたらもうあきらめる.
+            limitter = (uint)Math.Min(limitter, rom.Data.Length);
+            byte[] frameData = rom.Data;
+            uint i;
+            uint frameCount = 0;
+            for (i = frameDataOffset; i + 4 <= limitter; i += 4)
+            {
+                if (frameData[i + 3] == 0x80)
+                {//終端データ
+                    frameCount++;
+                    i += 4;
+                    if (frameCount > 0xC)
+                    {//アニメはフレーム0xCまである
+                        break;
+                    }
+                    continue;
+                }
+                else if (frameData[i + 3] != 0x86)
+                {
+                    if (frameData[i + 3] == 0x85)
+                    {
+                        continue;
+                    }
+                    //不明な命令.
+                    continue;
+                }
+                i += 8;
+            }
+            return i - frameDataOffset;
         }
 
         // ===================================================================
@@ -8061,10 +8781,15 @@ namespace FEBuilderGBA
                 //      Magic_Append_SpellTable block, and per spell (p32==dim/no_dim) EmitMagicRecycleOldAnime
                 //      (the verbatim WF RecycleOldAnime: FEditorAdv 28-byte / CSA 32-byte+TSA records; the OAM
                 //      column length is the verbatim CalcMagicOamLength port of WF calcOAMLength).
-                //  ImageBattleAnimeForm STAYS — ImageUtilOAM.MakeAllDataLength (the UnCompressFrame-embedded
-                //  seat-image walk IS Core-reproducible, but the form additionally needs ClassForm.MakeClassList
-                //  + ClassForm.GetBattleAnimeAddrWhereAddr + two IFRs (Init per-class + N_Init) + a seat-image
-                //  dedup list threaded across entries — a larger surface left for a later slice.)
+                //  ImageBattleAnimeForm PORTED in slice 2s (EmitImageBattleAnime) — all its deps reached Core:
+                //  the per-class "BattleAnimeSeting" IFRs (ClassForm.MakeClassList = MakeClassListAddrs +
+                //  GetBattleAnimeAddrWhereAddr version-gated +48/+52), the N_ "BattleAnime" animelist IFR
+                //  (FEditorHint via CoreState.Config), and the per-anime OAM walk (EmitImageBattleAnimeOAM =
+                //  ImageUtilOAM.MakeAllDataLength — section BIN + 4 LZ77 pointers + the UnCompressFrame-embedded
+                //  seat-image sub-walk, dedup'd across entries via a shared seatNumberList; UnCompressFrame =
+                //  FETextEncode/LZ77/getBinaryData + CalcUnCompressFrameLength, all Core). Only the per-anime
+                //  OAM `info` name is static (WF's getString-decoded anime name is cosmetic / relocation-
+                //  identical — the ItemWeaponEffect precedent). See GetNotYetPortedForms_DropsSlice2sForms.)
                 //  (slice 2n ported ImageUnitMoveIconFrom — its per-entry AP column uses SubKind.ApPointer /
                 //   EmitApPointer, length = ImageUtilAPCore.CalcAPLength [the verbatim Core port of WF
                 //   ImageUtilAP.CalcAPLength = Parse + GetLength, already a tested Core helper]. The count
@@ -8082,7 +8807,6 @@ namespace FEBuilderGBA
                 //      image / palette to relocate) whose count rule reads a hardcoded FE7U magic addr.
                 //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
                 //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
-                "ImageBattleAnimeForm",
                 "ImageItemIconForm",
                 "ImagePortraitForm",
                 "MapMiniMapTerrainImageForm",
@@ -8145,20 +8869,17 @@ namespace FEBuilderGBA
                 // AI scripts (disasm)
                 // (AIMapSettingForm [flat u8!=0xFF table], AIPerformStaffForm + AIPerformItemForm
                 //  [flat u16!=0 table + per-entry ASM AddFunction @4 via SubKind.AsmFunction] ported in
-                //  slice 2f. AIScriptForm STAYS — its per-entry CalcLength helpers ARE pure ROM walks
-                //  (AIScriptForm.CalcLength = AI 16-byte-opcode terminator walk; AIUnitsForm.CalcLength =
-                //  u16!=0 walk) AND its main-IFR COUNT rule is now reproducible: isExtrendsROMArea is a
-                //  trivial `addr >= toOffset(extends_address)` test, and the un-extended cap = the number of
-                //  data lines in the ai1_/ai2_ config TSV (Program.cs loads PreLoadResourceAI1/2 ONCE at
-                //  ROM-load — NOT editor session state — and DataCount, called inside Init's IsDataExists,
-                //  sees AI{1,2}.Count == the pre-padding config-line-count, so the circularity resolves to
-                //  the TSV line count, loadable headless via the slice-2q ConfigDataFilename/TSV reader).
-                //  The REMAINING blocker is the per-entry NAME (EventUnitForm.GetAIName1/2): faithfully it is
-                //  the loaded config name OR, for padded entries, InputFormRef.GetCommentSA(p32(addr)) — the
-                //  comment-symbol resolver, NOT in Core. The tests assert name verbatim, so a byte-faithful
-                //  port needs the AI name-list loader + GetCommentSA in Core first (the length/count/pointer/
-                //  datatype are all ready). Deferred on the NAME, not the count, until those reach Core.)
-                "AIScriptForm",
+                //  slice 2f. AIScriptForm PORTED in slice 2s (EmitAIScript) — per AI table (ai1_/ai2_):
+                //  the main IFR (block 4, IsDataExists = isPointerOrNULL(u32) with the un-extended cap =
+                //  CountConfigDataLines("ai{1,2}_") [isExtrendsROMArea = addr >= toOffset(extends_address)],
+                //  PI {0}) + the two ClonePointer slots (AISomeByte, length-0 POINTER) + per entry an
+                //  AISCRIPT block (length = CalcAIScriptLength = the verbatim AIScriptForm.CalcLength
+                //  16-byte-opcode terminator walk) and per 16-byte slot the embedded +8/+12 pointers
+                //  (odd +8 -> AddFunction CallASM; else an AIUNITS BIN block of length CalcAIUnitsLength =
+                //  the verbatim AIUnitsForm.CalcLength u16==0 walk). Only the per-entry NAME is STATIC
+                //  ("AI<n> 0x<i>") — WF appends GetAIName1/2 (a config name list OR InputFormRef.GetCommentSA,
+                //  neither in Core), which is COSMETIC / relocation-identical (the ItemWeaponEffect
+                //  static-name precedent). See GetNotYetPortedForms_DropsSlice2sForms.)
                 // skills (version/patch dependent)
                 // (slice 2o ported the RecycleOldAnime-FREE subset, all dependencies already in Core:
                 //  SkillAssignmentClassSkillSystemForm + SkillAssignmentUnitSkillSystemForm [FE8U,
