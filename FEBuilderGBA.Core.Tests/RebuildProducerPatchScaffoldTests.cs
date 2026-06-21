@@ -258,6 +258,38 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MakePatchStructDataListCore_Version0Rom_WithPatchTreePresent_DoesNotScanRoot()
+        {
+            // Regression for the version-0 root-scan bug (Copilot PR #1311): a no-version
+            // ROM must NOT fall through ResolvePatchDirectory("") -> the config/patch2 ROOT
+            // and recurse EVERY version's PATCH_*.txt. With a fully populated FE8U tree
+            // present under the base dir, the empty-version guard must short-circuit so
+            // NOTHING is scanned (no progress reports, empty list).
+            string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(patchDir);
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_A.txt"), new[]
+            {
+                "NAME=PatchA",
+                "TYPE=STRUCT",
+                "P0:POINTER=0x100",
+            });
+
+            var rom = new ROM(); // unrecognized -> version 0 -> SafePatchVersionFolder ""
+            rom.SwapNewROMDataDirect(new byte[0x8000]);
+            CoreState.ROM = rom;
+            CoreState.BaseDirectory = _tempDir;
+
+            var reports = new List<string>();
+            var list = new List<Address>();
+            RebuildProducerCore.MakePatchStructDataListCore(
+                rom, list, isPointerOnly: false, isInstallOnly: false, isStructOnly: false,
+                progress: new TestProgress(reports.Add));
+
+            Assert.Empty(list);     // guard short-circuits before any directory walk
+            Assert.Empty(reports);  // NO patch was scanned -> no per-patch progress
+        }
+
+        [Fact]
         public void MakePatchStructDataListCore_WithPatches_StubsEmitNothing_ReportsProgress()
         {
             // A real patch tree with two STRUCT patches that PASS the gate. Every TYPE arm
