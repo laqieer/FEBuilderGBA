@@ -12599,13 +12599,26 @@ namespace FEBuilderGBA
         /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true the BIN length is 0.</param>
         public static void EmitPatchAddr(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
         {
+            // Public-helper guards (consistent with CalcAddrLength / MakePointerIndexes): throw
+            // a clear ArgumentNullException rather than an unhelpful NRE on bad input. The
+            // orchestrator always passes a valid rom/list and a LoadPatch result whose Param is
+            // non-null, so these never fire on the real producer path.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
             string address_string = U.at(patch.Param, "ADDRESS");
             if (address_string.Length <= 0)
             {
                 return;
             }
 
-            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName);
+            // Path.GetDirectoryName can return null (e.g. a PatchFileName with no directory part);
+            // normalize to "" so the resolver never receives a null basedir (avoids $FGREP
+            // exception-driven control flow). WF's basedir can be null, but ResolvePatchAddress ->
+            // Resolve treats null/"" identically, so "" is byte-faithful.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
             string[] address_sp;
             uint addr;
             if (address_string[0] == '$')
@@ -12663,7 +12676,18 @@ namespace FEBuilderGBA
         /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true the BIN length is 0.</param>
         public static void EmitPatchSwitch(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
         {
-            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName);
+            // Public-helper guards (consistent with CalcAddrLength / MakePointerIndexes): throw a
+            // clear ArgumentNullException rather than an unhelpful NRE on bad input. The
+            // orchestrator always passes a valid rom/list and a LoadPatch result whose Param is
+            // non-null, so these never fire on the real producer path.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // Normalize basedir to "" (Path.GetDirectoryName can return null) — byte-faithful for
+            // the resolver, which treats null/"" identically. See EmitPatchAddr note.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
             foreach (var pair in patch.Param)
             {
                 if (pair.Key.IndexOf("ONN:") != 0)

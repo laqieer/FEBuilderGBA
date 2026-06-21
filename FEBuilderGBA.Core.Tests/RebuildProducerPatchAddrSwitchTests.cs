@@ -39,7 +39,8 @@ namespace FEBuilderGBA.Core.Tests
         readonly ROM _savedRom = CoreState.ROM;
         readonly string _savedLang = CoreState.Language;
         readonly string _savedBaseDir = CoreState.BaseDirectory;
-        string _tempDir;
+        // Only the orchestrator integration test creates a temp patch tree; nullable by design.
+        string? _tempDir;
 
         public RebuildProducerPatchAddrSwitchTests()
         {
@@ -237,6 +238,39 @@ namespace FEBuilderGBA.Core.Tests
 
         // ---- per-token isSafetyOffset SKIP (literal list) -------------------
 
+        // ---- public-helper null guards (consistent with CalcAddrLength) -----
+
+        [Fact]
+        public void EmitPatchAddr_NullArgs_Throw()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            var patch = MakePatch("p", ("ADDRESS", "0x1000"));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(null, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, null, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, list, null, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchAddr(rom, list, noParam, false));
+        }
+
+        [Fact]
+        public void EmitPatchAddr_NullPatchFileName_NormalizesBasedir_NoThrow()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            // PatchFileName null -> Path.GetDirectoryName(null) would throw; the "" normalization
+            // keeps a literal-address ADDR (no $FGREP) emitting normally.
+            var patch = new PatchInstallCore.PatchSt
+            {
+                Name = "NoFile",
+                PatchFileName = null,
+                Param = new Dictionary<string, string> { ["ADDRESS"] = "0x1000" }
+            };
+            var ex = Record.Exception(() => RebuildProducerCore.EmitPatchAddr(rom, list, patch, false));
+            Assert.Null(ex);
+            Assert.Single(list, a => a.Addr == 0x1000u && a.Info == "NoFile@ADDRESS");
+        }
+
         [Fact]
         public void EmitPatchAddr_PerTokenUnsafe_SkipsOnlyThatEntry()
         {
@@ -372,6 +406,19 @@ namespace FEBuilderGBA.Core.Tests
             var a = Single(list, "Z@SWITCH");
             Assert.Equal(0x4000u, a.Addr);
             Assert.DoesNotContain(list, x => x.Addr == 0x100u);
+        }
+
+        [Fact]
+        public void EmitPatchSwitch_NullArgs_Throw()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            var patch = MakePatch("p", ("ONN:0x1000", "AA"));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(null, list, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, null, patch, false));
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, list, null, false));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() => RebuildProducerCore.EmitPatchSwitch(rom, list, noParam, false));
         }
 
         // ====================================================================
