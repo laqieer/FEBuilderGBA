@@ -236,6 +236,117 @@ namespace FEBuilderGBA.Core.Tests
                 && a.Addr == target && a.Length == 32u);
         }
 
+        [Fact]
+        public void NewTargetSelectionStruct_EmitPatchBIN_EmitsLengthZeroDefault_VerbatimWf()
+        {
+            // End-to-end through EmitPatchBIN: a NEW_TARGET mapping in the BIN arm falls through
+            // the WF default arm (WF :6398-6406) and emits a LENGTH-0 NEW_TARGET_SELECTION_STRUCT
+            // Address — VERBATIM WF (the BIN arm, unlike the EA arm at WF :6287, does NOT call
+            // Address.AddNewTargetSelectionStruct). This pins the documented BIN/EA asymmetry and
+            // proves the traced range DOES survive into EmitPatchBIN's output (Copilot #1333).
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            uint slot = 0x980000;
+            uint target = 0x981000;
+            WritePointer(rom, slot, target);
+            byte[] needle = rom.getBinaryData(slot, 4u);
+            var patch = MakeBinPatch(dir, "nt",
+                ("NEW_TARGET_SELECTION_STRUCT", Grep4(needle)));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchBIN(rom, list, patch, isPointerOnly: false);
+
+            // The mapping flows through (NOT dropped) — emitted as a length-0 NEW_TARGET Address.
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT
+                && a.Addr == target && a.Length == 0u);
+        }
+
+        [Fact]
+        public void EditPatch_EmitPatchBIN_StructDataAndPointerSurvive_VerbatimWf()
+        {
+            // End-to-end through EmitPatchBIN: the EDIT_PATCH STRUCT POINTER (default MIX) + DATA
+            // (default MIX) mappings flow through the WF default arm as LENGTH-0 MIX Addresses
+            // (verbatim WF :6398-6406). Proves the traced trailer ranges reach EmitPatchBIN output.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            uint slot = 0x990000;
+            uint structAddr = 0x991000;
+            WritePointer(rom, slot, structAddr);
+            byte[] needle = rom.getBinaryData(slot, 4u);
+
+            string editFile = Path.Combine(dir, "edit_struct.txt");
+            File.WriteAllText(editFile, string.Join("\n", new[]
+            {
+                "TYPE=STRUCT",
+                "POINTER=" + Grep4(needle),
+                "DATASIZE=0x4",
+                "DATACOUNT=0x2",
+            }));
+            var patch = MakeBinPatch(dir, "ep", ("EDIT_PATCH", "edit_struct.txt"));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchBIN(rom, list, patch, isPointerOnly: false);
+
+            // Both the POINTER slot and the struct DATA flow through as MIX length-0 Addresses.
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.MIX && a.Addr == slot);
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.MIX && a.Addr == structAddr);
+        }
+
+        [Fact]
+        public void EditPatch_EmitPatchBIN_NestedBinUnusedBinSurvivesWithLength_VerbatimWf()
+        {
+            // A nested-BIN EDIT_PATCH CLEAR range is UNUSEDBIN-typed, which DOES hit a non-default
+            // arm (WF :6378-6387) and keeps its real length through EmitPatchBIN — proving the
+            // recursive trailer mappings reach the BIN producer output with the correct length.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            uint clearAddr = 0x9A0000;
+            uint clearLen = 0x20;
+            string editFile = Path.Combine(dir, "edit_bin.txt");
+            File.WriteAllText(editFile, string.Join("\n", new[]
+            {
+                "TYPE=BIN",
+                "CLEAR:0x" + clearAddr.ToString("X") + ":0x" + clearLen.ToString("X") + "=x",
+            }));
+            var patch = MakeBinPatch(dir, "ep", ("EDIT_PATCH", "edit_bin.txt"));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchBIN(rom, list, patch, isPointerOnly: false);
+
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.UNUSEDBIN
+                && a.Addr == clearAddr && a.Length == clearLen);
+        }
+
+        [Fact]
+        public void EditPatch_EmitPatchEA_NestedStructDataSurvives()
+        {
+            // End-to-end through EmitPatchEA: the EA arm's default branch (WF :6301-6309) also
+            // emits a length-0 Address for the EDIT_PATCH STRUCT DATA (default MIX) — proving the
+            // EDIT_PATCH trailer reaches the EA producer output too.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            File.WriteAllText(Path.Combine(dir, "main.event"), "// empty\n");
+            uint slot = 0x9B0000;
+            uint structAddr = 0x9B1000;
+            WritePointer(rom, slot, structAddr);
+            byte[] needle = rom.getBinaryData(slot, 4u);
+
+            string editFile = Path.Combine(dir, "edit_struct.txt");
+            File.WriteAllText(editFile, string.Join("\n", new[]
+            {
+                "TYPE=STRUCT",
+                "POINTER=" + Grep4(needle),
+                "DATASIZE=0x4",
+                "DATACOUNT=0x2",
+            }));
+            var patch = MakeEaPatch(dir, "ep", "main.event", ("EDIT_PATCH", "edit_struct.txt"));
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchEA(rom, list, patch, isPointerOnly: false);
+
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.MIX && a.Addr == structAddr);
+        }
+
         // ====================================================================
         // 2. EDIT_PATCH trailer (WF :4600) — PORTED
         // ====================================================================
@@ -367,6 +478,38 @@ namespace FEBuilderGBA.Core.Tests
                 && m.addr == clearAddr);
             Assert.NotNull(cleared);
             Assert.Equal(clearLen, cleared.length);
+        }
+
+        [Fact]
+        public void EditPatch_StructZeroDataSize_RecordsUntraceable_NeverThrows()
+        {
+            // A malformed STRUCT EDIT_PATCH with DATASIZE=0 (or absent) must NOT throw / abort the
+            // producer; it records an honest omission and emits no struct (Copilot #1333). WF's
+            // double-division would also yield "no struct" via +Infinity->0; this guard makes that
+            // explicit + platform-independent.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            uint slot = 0x9C0000;
+            uint structAddr = 0x9C1000;
+            WritePointer(rom, slot, structAddr);
+            byte[] needle = rom.getBinaryData(slot, 4u);
+
+            string editFile = Path.Combine(dir, "edit_bad.txt");
+            File.WriteAllText(editFile, string.Join("\n", new[]
+            {
+                "TYPE=STRUCT",
+                "POINTER=" + Grep4(needle),
+                "DATASIZE=0x0",                       // zero datasize.
+                "DATACOUNT=$GREP4 0x99 0x88 0x77 0x66", // macro branch -> would divide by datasize.
+            }));
+            var patch = MakeBinPatch(dir, "ep", ("EDIT_PATCH", "edit_bad.txt"));
+
+            var untraceable = new List<string>();
+            var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch, untraceable);
+
+            // No DATA struct emitted; the gap is recorded; no exception.
+            Assert.DoesNotContain(map, m => m.key == "DATA");
+            Assert.Contains(untraceable, s => s.Contains("DATASIZE"));
         }
 
         [Fact]

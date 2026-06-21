@@ -13978,6 +13978,20 @@ namespace FEBuilderGBA
             }
 
             uint datasize = U.atoi0x(U.at(editpatchSt.Param, "DATASIZE"));   // WF :4731
+            // Fault-safety (Copilot #1333 review): a malformed/missing DATASIZE parses to 0. WF's
+            // `(double)datasize` division (WF :4744) does NOT throw on 0 (float div -> +Infinity ->
+            // (uint)Math.Ceiling -> 0 -> the `datacount <= 0` guard returns NOT_FOUND), and the
+            // literal-count branch would later compute length = datacount*0 = 0. Either way the
+            // result is "no struct". Make that explicit and platform-independent (the
+            // double->uint Infinity conversion is technically unspecified) by recording the gap
+            // and returning NOT_FOUND up front. Byte-identical to WF for every valid patch
+            // (datasize > 0); only a corrupt nested patch reaches here.
+            if (datasize == 0)
+            {
+                untraceable.Add(R._("EDIT_PATCH STRUCT has no/zero DATASIZE; skipped: {0}",
+                    editpatchSt.PatchFileName ?? ""));
+                return U.NOT_FOUND;
+            }
 
             uint datacount;
             string datacount_str = U.at(editpatchSt.Param, "DATACOUNT");
@@ -13989,7 +14003,7 @@ namespace FEBuilderGBA
                     return U.NOT_FOUND;
                 }
                 if (datacount >= struct_address)
-                {//WF :4742-4745 — ceil((end - start) / datasize).
+                {//WF :4742-4745 — ceil((end - start) / datasize). datasize > 0 (guarded above).
                     datacount = (uint)Math.Ceiling((datacount - struct_address) / (double)datasize);
                 }
             }
@@ -14466,8 +14480,16 @@ namespace FEBuilderGBA
         ///
         /// <para>The trailing WF helpers run inside the trace this method calls:
         /// <c>AppendNewTargetSelectionStruct</c> / <c>TraceEditPatch</c> (:5213-5218) are PORTED
-        /// (s2pf-16) and feed extra mappings into the EmitPatch loop; <c>AppendMenuPatch</c>
-        /// (MENU) is WinForms-only and is a LOUD REJECT (never silently omitted).</para>
+        /// (s2pf-16) and feed extra mappings into this loop; <c>AppendMenuPatch</c> (MENU) is
+        /// WinForms-only and is a LOUD REJECT (never silently omitted). <b>BIN-arm length note
+        /// (verbatim WF):</b> those trailer mappings are typed NEW_TARGET_SELECTION_STRUCT (from
+        /// AppendNewTargetSelectionStruct) or MIX/IMG (from the EDIT_PATCH STRUCT/IMAGE trace),
+        /// none of which match the POINTER/POINTER_ASM/BIN/UNUSEDBIN/JUMPTOHACK arms — so they
+        /// emit through the <b>length-0 default arm (WF :6398-6406)</b>. This is INTENTIONAL WF
+        /// behaviour: <c>MakePatchStructDataListForBIN</c> does NOT mirror the EA arm's NEW_TARGET
+        /// 32-byte <see cref="Address.AddNewTargetSelectionStruct"/> expansion (WF :6287, EA-only).
+        /// A nested EDIT_PATCH <c>BIN</c>/<c>EA</c> patch's OWN mappings (e.g. UNUSEDBIN) still keep
+        /// their real lengths via the recursive trace + the normal per-type arms.</para>
         /// </summary>
         /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
@@ -14554,7 +14576,18 @@ namespace FEBuilderGBA
                             Address.DataTypeEnum.BIN);
                     }
                     else
-                    {//WF :6398-6406
+                    {//WF :6398-6406 — the default arm: a single length-0 Address typed by m.type.
+                        // This is where the s2pf-16 TRAILER mappings land in the BIN arm:
+                        // NEW_TARGET_SELECTION_STRUCT and the EDIT_PATCH STRUCT DATA/POINTER (default
+                        // MIX) + IMAGE (IMG) mappings all fall through here and emit a LENGTH-0
+                        // Address. This is VERBATIM WF: MakePatchStructDataListForBIN (WF :6398-6406)
+                        // routes every non-{POINTER,POINTER_ASM,BIN,UNUSEDBIN,JUMPTOHACK} type to this
+                        // length-0 default — it does NOT mirror the EA arm's NEW_TARGET 32-byte
+                        // Address.AddNewTargetSelectionStruct expansion (WF :6287, EA-ONLY). The
+                        // BIN/EA asymmetry is intentional in WF and reproduced faithfully here; a
+                        // length divergence in either direction would corrupt the rebuild free list.
+                        // (The traced m.length IS preserved on the BinMapping for any future
+                        // consumer; only the emitted Address length follows WF's length-0 default.)
                         Address.AddAddress(list,
                             m.addr, 0, U.NOT_FOUND,
                             patch.Name + "@" + m.filename + "@BIN",
