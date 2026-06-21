@@ -38,6 +38,8 @@ namespace FEBuilderGBA.Core.Tests
         readonly string _savedLang = CoreState.Language;
         readonly string _savedBaseDir = CoreState.BaseDirectory;
         readonly ISystemTextEncoder _savedEncoder = CoreState.SystemTextEncoder;
+        readonly EventScript _savedEventScript = CoreState.EventScript;
+        readonly IEtcCache _savedCommentCache = CoreState.CommentCache;
         string? _tempDir;
 
         public RebuildProducerPatchStructTests()
@@ -51,6 +53,8 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.Language = _savedLang;
             CoreState.BaseDirectory = _savedBaseDir;
             CoreState.SystemTextEncoder = _savedEncoder;
+            CoreState.EventScript = _savedEventScript;
+            CoreState.CommentCache = _savedCommentCache;
             try { if (_tempDir != null && Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); } catch { }
         }
 
@@ -508,8 +512,9 @@ namespace FEBuilderGBA.Core.Tests
         // unknown type. THIS IS INTENTIONAL FOR s2pf-5: the precise sub-walked TARGET length is
         // ported in s2pf-6..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
         // precise WF length — the partial WF-parity test EXCLUDES these types accordingly.
+        // NOTE: EVENT was REMOVED from this interim group in s2pf-6 — it now runs the real
+        // EventScriptForm.ScanScript walk (see the EmitPatchStruct_EventArm_* tests below).
         [Theory]
-        [InlineData("EVENT")]                     // -> s2pf-6
         [InlineData("PatchImage_HEADERTSA")]      // -> s2pf-7
         [InlineData("AP")]                        // -> s2pf-8
         [InlineData("ROMTCS")]                    // -> s2pf-8
@@ -537,6 +542,116 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x9000u, mix.Addr);
             Assert.Equal(0u, mix.Length);
             Assert.EndsWith("DATA 0", mix.Info);
+        }
+
+        // ====================================================================
+        // 4b. The EVENT arm (s2pf-6) — the REAL EventScriptForm.ScanScript walk
+        //     (WF PatchForm.cs:6553-6557), reproduced via EmitScanScript and gated
+        //     on IsEventScriptDisasmReady (the EventCondForm slice-2u convention).
+        // ====================================================================
+
+        // Wire CoreState so IsEventScriptDisasmReady(rom) is TRUE: ROM == rom, an EventScript with
+        // the planted ENDA opcode is set, and a CommentCache is present. Returns the rom (already
+        // CoreState.ROM from MakeRom). The Dispose() above restores EventScript/CommentCache.
+        static ROM MakeRomWithDisasm()
+        {
+            var rom = MakeRom();
+            var es = new EventScript();
+            // The only opcode the EVENT walk needs is the terminator ENDA (0x0A) — IsExitCode true.
+            typeof(EventScript).GetProperty("Scripts")!
+                .SetValue(es, new[] { EventScript.ParseScriptLine("0A000000\tENDA [TERM]") });
+            CoreState.EventScript = es;
+            CoreState.CommentCache = new HeadlessEtcCache();
+            return rom;
+        }
+
+        // Plant a one-command (ENDA) event script at `eventAddr` and a GBA pointer to it at `slot`.
+        static void PlantEvent(ROM rom, uint slot, uint eventAddr)
+        {
+            PlantPointer(rom, slot, eventAddr);     // slot -> toPointer(eventAddr)
+            rom.write_u32(eventAddr, 0x0000000A);   // ENDA [TERM]
+        }
+
+        [Fact]
+        public void EmitPatchStruct_EventArm_DisasmReady_EmitsEventScriptBlock()
+        {
+            // WF 6553-6557: EventScriptForm.ScanScript(list, p, true, false, patchname+" DATA "+n, tracelist).
+            // The address passed is `p` (the FIELD slot), NOT rom.p32(p); ScanScript derefs it internally.
+            var rom = MakeRomWithDisasm();
+            const uint table = 0x2000;
+            uint slot = table + 0;          // p = struct_address + 0*datasize + 0
+            uint eventAddr = 0x9000;
+            PlantEvent(rom, slot, eventAddr);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("Ev",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:EVENT", "0")), isPointerOnly: false);
+
+            // The EVENT walk emits one EVENTSCRIPT block: target = eventAddr, slot/pointer = p (the
+            // FIELD slot), length = one 4-byte ENDA command. NOT a length-0 MIX placeholder.
+            var evt = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.EVENTSCRIPT);
+            Assert.Equal(eventAddr, evt.Addr);
+            Assert.Equal(slot, evt.Pointer);        // ScanScript was given `p` (the FIELD), not p32(p)
+            Assert.Equal(4u, evt.Length);           // precise: one ENDA, NOT 0
+            Assert.EndsWith("DATA 0", evt.Info);    // WF info: patchname + " DATA " + n
+            // No MIX placeholder is emitted for the EVENT field anymore.
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_EventArm_DisasmNotWired_SkipsWalk_NoThrow_NoMix()
+        {
+            // Disasm-unavailable path (slice-2u convention): EmitScanScript would THROW, so the EVENT
+            // dispatch GATES on IsEventScriptDisasmReady and SKIPS the walk when it is unwired. The skip
+            // is NOT silent — PatchForm stays in AsmNotYetPortedRaw unconditionally (the standing gate
+            // token until s2pf-11). The dispatch must NOT throw and must NOT fall back to a MIX placeholder
+            // (a length-0 MIX would mis-size the embedded pointer's target on a live rebuild).
+            var rom = MakeRom();
+            CoreState.EventScript = null;       // disasm NOT wired
+            CoreState.CommentCache = null;
+            const uint table = 0x2000;
+            PlantEvent(rom, table + 0, 0x9000);
+
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() => RebuildProducerCore.EmitPatchStruct(rom, list,
+                MakePatch("Ev",
+                    ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                    ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                    ("P0:EVENT", "0")), isPointerOnly: false));
+
+            Assert.Null(ex); // the orchestrator never throws just because disasm is unwired
+            // The MAIN @STRUCT entry is still emitted; only the EVENT block is skipped.
+            Assert.Contains(list, a => a.Info != null && a.Info.EndsWith("@STRUCT"));
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.EVENTSCRIPT);
+            // CRITICAL: no MIX placeholder for the skipped EVENT field.
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_EventArm_SharedTracelist_DedupsAcrossEntries()
+        {
+            // WF 6545 allocates the tracelist ONCE per STRUCT; two entries whose EVENT fields point to
+            // the SAME event script emit the block ONCE — the second reference becomes a zero-length
+            // alias EVENTSCRIPT pointer for ITS slot.
+            var rom = MakeRomWithDisasm();
+            const uint table = 0x2000, datasize = 4, datacount = 2;
+            uint eventAddr = 0x9000;
+            // both entry slots point to the SAME event.
+            PlantEvent(rom, table + 0 * datasize, eventAddr);
+            PlantPointer(rom, table + 1 * datasize, eventAddr);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("Ev2",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "2"),
+                ("P0:EVENT", "0")), isPointerOnly: false);
+
+            var blocks = list.FindAll(a => a.DataType == Address.DataTypeEnum.EVENTSCRIPT);
+            // Exactly one real block (length>0) at eventAddr; one zero-length alias for the 2nd slot.
+            Assert.Single(blocks, b => b.Addr == eventAddr && b.Length == 4u);
+            Assert.Single(blocks, b => b.Length == 0u && b.Pointer == table + 1 * datasize);
         }
 
         // ====================================================================
