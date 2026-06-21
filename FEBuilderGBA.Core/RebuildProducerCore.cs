@@ -2539,7 +2539,10 @@ namespace FEBuilderGBA
             // identical. AddAddressInstantIFR then re-derefs pointer (== baseAddr) and emits length
             // blockSize*(count+1) - matching AddressWinForms.AddAddress(IFR, ..., {}).
             uint count = rom.getBlockDataCount(baseAddr, blockSize, isDataExists);
-            Address.AddAddressInstantIFR(list, pointer, blockSize, count, info, new uint[] { });
+            // Reuse the shared empty pointerIndexes array (EmptyPI) rather than allocating a new
+            // uint[] per call — this emitter runs inside the nested per-STRUCT-entry loop, so a
+            // fresh allocation each call is avoidable GC churn (Copilot PR #1320 review).
+            Address.AddAddressInstantIFR(list, pointer, blockSize, count, info, EmptyPI);
         }
 
         // -------------------------------------------------------------------------------------------
