@@ -776,7 +776,6 @@ namespace FEBuilderGBA.Tests.Unit
                 // attribute by the Info markers those arms stamp: WF EA entries end "@EA"/"@PROCS"/
                 // "@Pointer_Array"/"@NEW_TARGET_SELECTION_STRUCT" and BIN entries end "@BIN"/"@UNUSEDBIN"
                 // (PatchForm.cs:6259-6422) — plus the per-mapping SymbolUtil entries those same arms add.
-                var coreInfos = new HashSet<string>(coreAll.Where(a => a.Info != null).Select(a => a.Info));
                 var wfOnly = wfAll.Where(a => !coreKeys.Contains(Key.Of(a))).ToList();
                 int wfOnlyGap = new HashSet<Key>(wfOnly.Select(Key.Of)).Count;
 
@@ -791,18 +790,23 @@ namespace FEBuilderGBA.Tests.Unit
                 // Core.Tests (GetAsmNotYetPortedForms contains the token + IsComplete is false), not by this
                 // ROM's installed set. So the gap is DOCUMENTED, not required to be > 0.
                 //
-                // Whatever the gap is, EVERY WF-only entry must be attributable to an EA/BIN-arm Info
-                // marker — a WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently
-                // dropped an entry (a Core deficit in an already-ported arm), which we DO fail on.
+                // Whatever the gap is, EVERY WF-only entry must be attributable to the EA/BIN arms — a
+                // WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently dropped an
+                // entry (a Core deficit in an already-ported arm), which we DO fail on.
                 bool IsEaBinAttributed(Address a)
                 {
+                    // PRECISE attribution by the markers the EA/BIN arms (PatchForm.cs:6259-6422) stamp:
+                    //   (1) the per-mapping AddAddress entries' Info ends @EA / @BIN / @UNUSEDBIN / @PROCS /
+                    //       @Pointer_Array / @NEW_TARGET_SELECTION_STRUCT;
+                    //   (2) the symbol side-entries SymbolUtil.ProcessSymbolByList + the patch-level
+                    //       ProcessSymbolByList(list, patch) add are Address.AddCommentData -> a length-0
+                    //       DataTypeEnum.Comment entry. BOTH ProcessSymbolByList call-sites are EXCLUSIVELY
+                    //       inside the EA (6266) and BIN (6324) arms — Core's ADDR/SWITCH/IMAGE/STRUCT arms
+                    //       emit NO Comment entries — so a Comment WF-only entry is necessarily an EA/BIN
+                    //       symbol side-entry (this is far more specific than the previous "not in Core's
+                    //       Info set" fallback, which could hide a real deficit in a ported non-EA/BIN arm).
+                    if (a.DataType == Address.DataTypeEnum.Comment) return true;
                     if (a.Info == null) return false;
-                    // The per-mapping SymbolUtil entries an EA/BIN arm adds carry a symbol name, not an
-                    // @EA/@BIN suffix; they are only emitted alongside an EA/BIN mapping, so if Core never
-                    // ran the EA/BIN arm they appear WF-only too. Attribute by the @EA/@BIN family suffixes
-                    // OR by the entry being absent from Core's emitted Info set (i.e. produced only on WF's
-                    // EA/BIN path). The suffix check is the precise signal; the membership check covers the
-                    // symbol side-entries without over-broadening.
                     string info = a.Info;
                     if (info.EndsWith("@EA", StringComparison.Ordinal)) return true;
                     if (info.EndsWith("@BIN", StringComparison.Ordinal)) return true;
@@ -810,9 +814,6 @@ namespace FEBuilderGBA.Tests.Unit
                     if (info.EndsWith("@PROCS", StringComparison.Ordinal)) return true;
                     if (info.EndsWith("@Pointer_Array", StringComparison.Ordinal)) return true;
                     if (info.EndsWith("@NEW_TARGET_SELECTION_STRUCT", StringComparison.Ordinal)) return true;
-                    // A symbol side-entry of an EA/BIN mapping: not in Core's emitted Info set (Core never
-                    // ran the EA/BIN arm) — attributable to the deferred EA/BIN subsystem.
-                    if (!coreInfos.Contains(info)) return true;
                     return false;
                 }
 

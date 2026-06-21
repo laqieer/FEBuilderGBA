@@ -417,20 +417,24 @@ namespace FEBuilderGBA.Core.Tests
             // honest-omission convention covered by the "PatchForm(MakePatchStructDataList)" gate token.
             string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
             Directory.CreateDirectory(patchDir);
-            // Two install-passing EA/BIN patches (no IF lines -> CheckIF "" != "E"; isInstallOnly=true ->
-            // IsMakePatchStructDataListTarget admits a non-STRUCT/IMAGE only on CheckIF "I", so set IF=...
-            // to make CheckIF return "I"). We give each an ADDRESS the EA/BIN trace WOULD use if ported,
-            // proving the SKIP is by TYPE (not by a missing param).
+            // Two INSTALLED EA/BIN patches that reach the EA/BIN dispatch under the LIVE producer flag
+            // (isInstallOnly=true). IsMakePatchStructDataListTarget admits a non-STRUCT/IMAGE only on
+            // CheckIF=="I"; a PATCHED_IF line whose bytes MATCH the ROM returns "I" — the all-zero
+            // synthetic ROM reads 0x00 0x00 at offset 0x1000, so each patch is "installed". We also give
+            // each an ADDRESS the EA/BIN trace WOULD use if ported, proving the SKIP is by TYPE (the patch
+            // is admitted and reaches the EA/BIN arm), not by the install gate or a missing param.
             File.WriteAllLines(Path.Combine(patchDir, "PATCH_EA.txt"), new[]
             {
                 "NAME=PatchEA",
                 "TYPE=EA",
+                "PATCHED_IF:0x001000=0x00 0x00",
                 "ADDRESS=0x800100",
             });
             File.WriteAllLines(Path.Combine(patchDir, "PATCH_BIN.txt"), new[]
             {
                 "NAME=PatchBIN",
                 "TYPE=BIN",
+                "PATCHED_IF:0x001000=0x00 0x00",
                 "ADDRESS=0x800200",
             });
 
@@ -440,15 +444,19 @@ namespace FEBuilderGBA.Core.Tests
 
             var reports = new List<string>();
             var list = new List<Address>();
-            // Use the SAME flags as the live producer (ToolROMRebuildMake.cs:820): isInstallOnly=true so
-            // the EA/BIN patches reach the dispatch (gated only by CheckIF, which is "" here = NOT "E").
+            // The SAME flags as the live producer (ToolROMRebuildMake.cs:820): isInstallOnly=true. Both
+            // patches are installed (CheckIF=="I"), so each is ADMITTED and reaches its EA/BIN dispatch
+            // arm — where it is SKIPPED (no emission, never a throw). Each admitted patch reports progress
+            // once, so the report count proves the patches really reached the dispatch (not gated out).
             var ex = Record.Exception(() =>
                 RebuildProducerCore.MakePatchStructDataListCore(
-                    fe8, list, isPointerOnly: false, isInstallOnly: false, isStructOnly: false,
+                    fe8, list, isPointerOnly: false, isInstallOnly: true, isStructOnly: false,
                     progress: new TestProgress(reports.Add)));
 
-            Assert.Null(ex);          // EA/BIN never throw out of the producer
-            Assert.Empty(list);       // EA/BIN emit NOTHING (honest skip — no guessed entry)
+            Assert.Null(ex);                 // EA/BIN never throw out of the producer
+            Assert.Empty(list);              // EA/BIN emit NOTHING (honest skip — no guessed entry)
+            Assert.Equal(2, reports.Count);  // both EA/BIN patches were ADMITTED and reached the dispatch
+            Assert.All(reports, r => Assert.StartsWith("Check Patch ", r));
         }
 
         // ====================================================================
