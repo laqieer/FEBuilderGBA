@@ -5482,6 +5482,94 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(list);
         }
 
+        // ---- slice s2pf-8: EmitApPointer / EmitProcsPointer (the PatchForm STRUCT
+        //      AP/PROCS arms; ROMTCS already covered above). AddressWinForms.AddAPPointer /
+        //      AddProcsPointer -> EmitApPointer / EmitProcsPointer.
+
+        [Fact]
+        public void EmitApPointer_EmitsAP_WithCalcApLength()
+        {
+            // WF AddAPPointer -> AddAPAddress: length = ImageUtilAP.CalcAPLength(addr), typed AP.
+            // CalcAPLength never throws and returns 0 on an unparseable stream; EmitApPointer ALWAYS
+            // emits (unlike PROCS). Cross-check the emitted length against CalcAPLength directly.
+            var rom = CreateTestRom(0x10000);
+            uint apData = 0x2000;
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, Ptr(apData));
+            uint expected = ImageUtilAPCore.CalcAPLength(rom.Data, apData);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitApPointer(rom, list, pointerSlot, "MoveIcon AP");
+
+            Address a = Assert.Single(list);
+            Assert.Equal(apData, a.Addr);
+            Assert.Equal(expected, a.Length);
+            Assert.Equal(pointerSlot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.AP, a.DataType);
+        }
+
+        [Fact]
+        public void EmitApPointer_PointerSlotNearEOF_EmitsNothing_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitApPointer(rom, list, 0x8000 - 1, "X"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitProcsPointer_ValidProcs_EmitsPROCS_WithCalcLength()
+        {
+            // WF AddProcsPointer -> AddProcsAddress: length = ProcsScriptForm.CalcLengthAndCheck(addr)
+            // (= CalcProcsLengthAndCheck), typed PROCS.
+            var rom = CreateTestRom(0x10000);
+            uint procsData = 0x2000;
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, Ptr(procsData));
+            uint expected = PlantProcsStream(rom, procsData); // valid PROCS -> 16
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsPointer(rom, list, pointerSlot, "Map PROCS");
+
+            Address a = Assert.Single(list);
+            Assert.Equal(procsData, a.Addr);
+            Assert.Equal(expected, a.Length);
+            Assert.Equal(pointerSlot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.PROCS, a.DataType);
+        }
+
+        [Fact]
+        public void EmitProcsPointer_NotFound_SkipsEntirely_NoEmit()
+        {
+            // WF AddProcsAddress: `if (length == U.NOT_FOUND) return;` — a non-PROCS target is SKIPPED
+            // (NEVER a zero/guessed length). Unknown opcode 0x07FF -> CalcProcsLengthAndCheck NOT_FOUND.
+            var rom = CreateTestRom(0x10000);
+            uint procsData = 0x2000;
+            uint pointerSlot = 0x1000;
+            rom.write_u32(pointerSlot, Ptr(procsData));
+            rom.write_u16(procsData + 0, 0x07FF);
+            rom.write_u16(procsData + 2, 0x0000);
+            rom.write_u32(procsData + 4, 0x00000000);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitProcsPointer(rom, list, pointerSlot, "X");
+
+            Assert.Empty(list); // skipped — no PROCS Address
+        }
+
+        [Fact]
+        public void EmitProcsPointer_PointerSlotNearEOF_EmitsNothing_NoThrow()
+        {
+            var rom = CreateTestRom(0x8000);
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitProcsPointer(rom, list, 0x8000 - 1, "X"));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
         [Fact]
         public void EmitImageBGAt_NormalEntry_EmitsMainIfrAndPerEntryColumns()
         {
