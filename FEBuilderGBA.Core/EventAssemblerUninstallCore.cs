@@ -169,6 +169,36 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Result of the producer-only PROCS handler (<see cref="ProcsEmitHandler"/>):
+        /// the reconstructed PROCS <see cref="BinMapping"/> (or <c>null</c> when its length
+        /// could not be determined — i.e. <c>CalcProcsLengthAndCheck == NOT_FOUND</c>, the
+        /// WF skip-on-NOT_FOUND case), plus the advanced <c>lastMatchAddr</c> baseline the
+        /// walker must adopt for the next block. Mirrors the tail of WF
+        /// <c>PatchForm.TraceEAPatchedMapping</c>'s PROCS branch (5437-5471).
+        /// </summary>
+        internal struct ProcsEmitResult
+        {
+            /// <summary>The PROCS mapping, or null to skip (WF <c>continue</c> on NOT_FOUND).</summary>
+            public BinMapping Mapping;
+            /// <summary>The new <c>lastMatchAddr</c> baseline for the next block.</summary>
+            public uint NewLastMatchAddr;
+        }
+
+        /// <summary>
+        /// Producer-only hook that resolves a PROCS block's address+length and builds its
+        /// <see cref="BinMapping"/>. The uninstall path passes <c>null</c> (PROCS length
+        /// detection is WinForms-only there → the block is recorded as untraceable and
+        /// skipped, byte-identical to the original walk). The rebuild-producer EA arm
+        /// (#1261 s2pf-14) passes a handler backed by
+        /// <c>RebuildProducerCore.CalcProcsLengthAndCheck</c> so a real PROCS is EMITTED
+        /// (skipping a live PROCS in the producer would silently corrupt the rebuild free
+        /// list). Receives the ROM, the PROCS <see cref="EAUtilCore.Data"/>, and the
+        /// <c>lastMatchAddr</c> baseline ALREADY advanced by <c>Append</c> + Padding4
+        /// (exactly as WF does at the TOP of its PROCS branch, before the GREP/length).
+        /// </summary>
+        internal delegate ProcsEmitResult ProcsEmitHandler(ROM rom, EAUtilCore.Data data, uint advancedLastMatchAddr);
+
+        /// <summary>
         /// The byte-identical EA DataList walk shared by the uninstall trace
         /// (<see cref="TraceEAFile"/>) and the rebuild-producer EA arm (#1261 s2pf-14).
         /// Walks the parsed <paramref name="ea"/> entries (ORG / ASM / MIX / LYN /
@@ -185,6 +215,13 @@ namespace FEBuilderGBA
         /// inline <see cref="TraceEAFile"/> walk — the only difference is that the ROM it
         /// reads is passed explicitly rather than re-read from <see cref="CoreState.ROM"/>
         /// (the uninstall caller passes <c>CoreState.ROM</c>, so the result is identical).</para>
+        ///
+        /// <para>The ONLY divergence between the two callers is <paramref name="procsHandler"/>:
+        /// when <c>null</c> (uninstall, the default) a PROCS block is recorded as
+        /// untraceable and skipped (WinForms-only length detection); when supplied
+        /// (producer) the handler reproduces WF's PROCS emit (GREP + CalcProcsLengthAndCheck,
+        /// skip ONLY on NOT_FOUND). Every other branch is identical for both callers, so the
+        /// uninstall behaviour is NOT regressed.</para>
         /// </summary>
         /// <param name="rom">The ROM the expanded blocks are GREP-matched against (the
         /// current/patched ROM for the uninstall path). Must be non-null with a non-null
@@ -192,7 +229,11 @@ namespace FEBuilderGBA
         /// <param name="ea">The parsed EA file whose <see cref="EAUtilCore.DataList"/> is walked.</param>
         /// <param name="binMappings">Accumulator for the reconstructed ranges (appended to).</param>
         /// <param name="untraceable">Accumulator for blocks that could not be traced (appended to).</param>
-        internal static void EmitEaDataList(ROM rom, EAUtilCore ea, List<BinMapping> binMappings, List<string> untraceable)
+        /// <param name="procsHandler">Producer-only PROCS emit hook (see
+        /// <see cref="ProcsEmitHandler"/>); <c>null</c> for the uninstall path, which skips
+        /// PROCS as residue exactly as before.</param>
+        internal static void EmitEaDataList(ROM rom, EAUtilCore ea, List<BinMapping> binMappings, List<string> untraceable,
+            ProcsEmitHandler procsHandler = null)
         {
             uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
 
@@ -373,13 +414,35 @@ namespace FEBuilderGBA
                     lastMatchAddr += data.Append;
                     lastMatchAddr = U.Padding4(lastMatchAddr);
 
-                    // PROCS length detection (ProcsScriptForm.CalcLengthAndCheck) is
-                    // WinForms-only; without it the length is unknown, so we skip the
-                    // range itself — identical to the WinForms tracer's `continue` when
-                    // CalcLengthAndCheck returns NOT_FOUND. Record it as residue so the
-                    // caller can warn. (See class doc scope note.)
-                    untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
-                        string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
+                    if (procsHandler == null)
+                    {
+                        // UNINSTALL path (byte-identical to the original walk): PROCS length
+                        // detection (ProcsScriptForm.CalcLengthAndCheck) is WinForms-only;
+                        // without it the length is unknown, so we skip the range itself —
+                        // identical to the WinForms tracer's `continue` when CalcLengthAndCheck
+                        // returns NOT_FOUND. Record it as residue so the caller can warn.
+                        // (See class doc scope note.)
+                        untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
+                            string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
+                        continue;
+                    }
+
+                    // PRODUCER path (#1261 s2pf-14): the handler reproduces WF's PROCS emit
+                    // (PatchForm.cs:5437-5471) — GREP the BINData from the borderline, then
+                    // CalcProcsLengthAndCheck the resolved address; on NOT_FOUND it returns a
+                    // null Mapping (verbatim WF `continue` at 5453-5455), and we record the
+                    // skip as residue (honest omission — NEVER a guessed length). The walker
+                    // keeps the handler's advanced lastMatchAddr either way.
+                    ProcsEmitResult pr = procsHandler(rom, data, lastMatchAddr);
+                    lastMatchAddr = pr.NewLastMatchAddr;
+                    if (pr.Mapping == null)
+                    {
+                        untraceable.Add(R._("PROCS table (length detection failed): {0}",
+                            string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
+                        continue;
+                    }
+                    EraseORG(binMappings, pr.Mapping);
+                    binMappings.Add(pr.Mapping);
                     continue;
                 }
                 else
