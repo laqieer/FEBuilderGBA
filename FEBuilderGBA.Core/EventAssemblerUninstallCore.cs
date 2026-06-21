@@ -212,10 +212,10 @@ namespace FEBuilderGBA
                         type = Address.DataTypeEnum.MIX,
                     };
 
-                    if (U.isSafetyOffset(addr + 64))
+                    if (U.isSafetyOffset(addr + 64, rom))
                     {//長さが不明なので比較するとき困るので適当に64バイトほど取得します.
                         b.bin = rom.getBinaryData(addr, 64);
-                        b.mask = MakeMaskAddress(b.bin, addr);
+                        b.mask = MakeMaskAddress(b.bin, addr, rom);
                     }
                     else
                     {
@@ -235,7 +235,7 @@ namespace FEBuilderGBA
                     }
                     //展開されるものを生成して、GREP検索する必要があります.
                     bool[] isSkip;
-                    byte[] mod = ReadMod(data.BINData, out isSkip);
+                    byte[] mod = ReadMod(data.BINData, out isSkip, rom);
 
                     //可変なので、maskパターンを作って検索します.
                     uint addr = U.GrepPatternMatch(rom.Data, mod, isSkip, lastMatchAddr, 0, 4);
@@ -318,7 +318,7 @@ namespace FEBuilderGBA
                         bin = rom.getBinaryData(addr, length),
                         type = Address.DataTypeEnum.PATCH_ASM,
                     };
-                    b.mask = MakeMaskAddress(b.bin, addr);
+                    b.mask = MakeMaskAddress(b.bin, addr, rom);
 
                     binMappings.Add(b);
 
@@ -334,7 +334,7 @@ namespace FEBuilderGBA
                     for (; addr + 3 < rom.Data.Length; addr += 4)
                     {
                         uint a = rom.u32(addr);
-                        if (!U.isSafetyPointer(a))
+                        if (!U.isSafetyPointer(a, rom))
                         {
                             break;
                         }
@@ -412,7 +412,7 @@ namespace FEBuilderGBA
                     }
                     else
                     {
-                        b.mask = MakeMaskAddress(b.bin, addr);
+                        b.mask = MakeMaskAddress(b.bin, addr, rom);
                     }
 
                     EraseORG(binMappings, b);
@@ -636,24 +636,30 @@ namespace FEBuilderGBA
 
         // ---- Trace helpers (ports of the PatchForm private statics) ---------------
         //
-        // These five are pure (no ROM read) and are exposed internal static for the
-        // rebuild-producer EA arm (#1261 s2pf-14), which calls them — together with
-        // <see cref="EmitEaDataList"/> — to stay byte-identical to this verified #1242
-        // uninstall trace. Visibility is the ONLY change; behaviour is unchanged.
+        // These are exposed internal static for the rebuild-producer EA arm (#1261
+        // s2pf-14), which calls them — together with <see cref="EmitEaDataList"/> — to
+        // stay byte-identical to this verified #1242 uninstall trace. MakeMaskAddress /
+        // ReadMod take an explicit ROM (matching the ROM-explicit walker — they only used
+        // CoreState.ROM for the isSafetyOffset length bound, threaded through now);
+        // MakeLynMaskPattern / MakeFullMask / EraseORG are pure (no ROM read). Behaviour
+        // is unchanged: the uninstall caller passes CoreState.ROM, and the
+        // U.isSafetyOffset(uint, ROM) overload is the same formula as U.isSafetyOffset(uint).
 
         // Port of PatchForm.MakeMaskAddress: mask the LDR-pointer bytes inside a code
         // block so the address-dependent words don't break a GREP pattern match.
         /// <summary>
         /// Mask the LDR-pointer bytes inside a code block so the address-dependent words
-        /// don't break a GREP pattern match. Pure (no ROM read). Exposed for the
-        /// rebuild-producer EA arm, s2pf-14; byte-identical to the uninstall walk.
+        /// don't break a GREP pattern match. ROM-explicit (only reads
+        /// <paramref name="rom"/> for the <see cref="U.isSafetyOffset(uint, ROM)"/> length
+        /// bound). Exposed for the rebuild-producer EA arm, s2pf-14; byte-identical to the
+        /// uninstall walk (which passes <see cref="CoreState.ROM"/>).
         /// </summary>
-        internal static bool[] MakeMaskAddress(byte[] original, uint base_address)
+        internal static bool[] MakeMaskAddress(byte[] original, uint base_address, ROM rom)
         {
             bool[] isSkip = new bool[original.Length];
 
             base_address = U.toOffset(base_address);
-            if (!U.isSafetyOffset(base_address))
+            if (!U.isSafetyOffset(base_address, rom))
             {
                 return isSkip;
             }
@@ -680,13 +686,14 @@ namespace FEBuilderGBA
         // base 0 (matching ReadMod with an empty sp[]).
         /// <summary>
         /// Build the GREP mask for an ASM/MIX block off base 0 (instant-EA path has no
-        /// per-key address-move args). Pure (no ROM read). Exposed for the
-        /// rebuild-producer EA arm, s2pf-14; byte-identical to the uninstall walk.
+        /// per-key address-move args). ROM-explicit (forwards <paramref name="rom"/> to
+        /// <see cref="MakeMaskAddress"/>). Exposed for the rebuild-producer EA arm,
+        /// s2pf-14; byte-identical to the uninstall walk (which passes <see cref="CoreState.ROM"/>).
         /// </summary>
-        internal static byte[] ReadMod(byte[] b, out bool[] isSkip)
+        internal static byte[] ReadMod(byte[] b, out bool[] isSkip, ROM rom)
         {
             uint chaddr = 0; // U.atoi0x(U.at(sp, 2)) with an empty sp == 0
-            isSkip = MakeMaskAddress(b, chaddr);
+            isSkip = MakeMaskAddress(b, chaddr, rom);
             return b;
         }
 
