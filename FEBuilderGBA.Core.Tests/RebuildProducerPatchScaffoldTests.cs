@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Xunit;
 using FEBuilderGBA;
@@ -399,6 +400,192 @@ namespace FEBuilderGBA.Core.Tests
                 RebuildProducerCore.MakePatchStructDataListCore(null, new List<Address>(), false, false, false));
             Assert.Throws<ArgumentNullException>(() =>
                 RebuildProducerCore.MakePatchStructDataListCore(fe8, null, false, false, false));
+        }
+
+        // ====================================================================
+        // s2pf-11 — EA/BIN are HONEST no-op skips (no emission, no throw).
+        // ====================================================================
+
+        [Fact]
+        public void MakePatchStructDataListCore_EaAndBinPatches_AreSkipped_NoEmission_NoThrow()
+        {
+            // The orchestrator dispatches TYPE=EA -> MakePatchStructDataListForEA and TYPE=BIN ->
+            // MakePatchStructDataListForBIN in WF (both drive TracePatchedMapping). That trace subsystem
+            // is NOT yet in Core (the NEXT phase after s2pf-11), so the orchestrator SKIPS those patches:
+            // no Address is emitted (a guessed entry would be corruption) and it does NOT throw (a throw
+            // would abort the whole producer run on FE8U, which carries TYPE=EA/BIN patches). This is the
+            // honest-omission convention covered by the "PatchForm(MakePatchStructDataList)" gate token.
+            string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(patchDir);
+            // Two install-passing EA/BIN patches (no IF lines -> CheckIF "" != "E"; isInstallOnly=true ->
+            // IsMakePatchStructDataListTarget admits a non-STRUCT/IMAGE only on CheckIF "I", so set IF=...
+            // to make CheckIF return "I"). We give each an ADDRESS the EA/BIN trace WOULD use if ported,
+            // proving the SKIP is by TYPE (not by a missing param).
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_EA.txt"), new[]
+            {
+                "NAME=PatchEA",
+                "TYPE=EA",
+                "ADDRESS=0x800100",
+            });
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_BIN.txt"), new[]
+            {
+                "NAME=PatchBIN",
+                "TYPE=BIN",
+                "ADDRESS=0x800200",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            var fe8 = MakeVersionedRom("BE8E01");
+            CoreState.ROM = fe8;
+
+            var reports = new List<string>();
+            var list = new List<Address>();
+            // Use the SAME flags as the live producer (ToolROMRebuildMake.cs:820): isInstallOnly=true so
+            // the EA/BIN patches reach the dispatch (gated only by CheckIF, which is "" here = NOT "E").
+            var ex = Record.Exception(() =>
+                RebuildProducerCore.MakePatchStructDataListCore(
+                    fe8, list, isPointerOnly: false, isInstallOnly: false, isStructOnly: false,
+                    progress: new TestProgress(reports.Add)));
+
+            Assert.Null(ex);          // EA/BIN never throw out of the producer
+            Assert.Empty(list);       // EA/BIN emit NOTHING (honest skip — no guessed entry)
+        }
+
+        // ====================================================================
+        // s2pf-11 — the orchestrator is WIRED into AppendAllAsmStructPointers as
+        // the first unconditional call; the gate token STAYS (EA/BIN deferred).
+        // ====================================================================
+
+        [Fact]
+        public void AppendAllAsmStructPointers_WiresPatchForm_EmitsAddrEntries_TokenStays()
+        {
+            // After s2pf-11, AppendAllAsmStructPointers calls MakePatchStructDataListCore FIRST
+            // (WF U.cs:2619 order) with the rebuild flags isInstallOnly=true/isPointerOnly=false/
+            // isStructOnly=false (ToolROMRebuildMake.cs:820). With an INSTALLED TYPE=ADDR patch in the
+            // tree, the live producer must now emit the @ADDRESS entry — proving the wiring is real
+            // (not a no-op). The token STAYS: IsComplete is false and PatchForm is still re-reported.
+            string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(patchDir);
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_ADDR.txt"), new[]
+            {
+                "NAME=PatchAddr",
+                "TYPE=ADDR",
+                // The live producer uses isInstallOnly=true, which admits a non-STRUCT ADDR only on
+                // CheckIF=="I". A PATCHED_IF line whose bytes MATCH the ROM returns "I" (installed): the
+                // all-zero synthetic ROM reads 0x00 0x00 at offset 0x1000, so this patch is "installed".
+                "PATCHED_IF:0x001000=0x00 0x00",
+                // A safe ROM offset (>= 0x200; well inside a 0x0100_0000 image) for the ADDR emission.
+                "ADDRESS=0x001000",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            // AppendAllAsmStructPointers requires rom == CoreState.ROM and a versioned ROM. The default
+            // 16 MiB image is large enough for the ADDR offset; no ldrmap is needed for the PatchForm call.
+            var fe8 = MakeVersionedRom("BE8E01");
+            CoreState.ROM = fe8;
+
+            var list = new List<Address>();
+            // The wiring uses the WF rebuild flags internally; ldrmap=null skips the gated group (fine —
+            // we only assert the PatchForm half ran).
+            var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap: null);
+
+            // The wiring is LIVE: the installed ADDR patch's entry was emitted by the first unconditional call.
+            Assert.Contains(list, a => a.Info != null && a.Info.EndsWith("@ADDRESS", StringComparison.Ordinal));
+            // The token STAYS: EA/BIN deferred -> never complete -> PatchForm still re-reported.
+            Assert.False(res.IsComplete);
+            Assert.Contains("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
+        }
+
+        [Fact]
+        public void AppendAllAsmStructPointers_PatchFormCancel_ReturnsCancelled_NoThrow()
+        {
+            // A pre-cancelled token must be observed by the wired PatchForm call (the orchestrator
+            // early-returns the partial list; the wrapper then re-checks ct and reports cancelled).
+            string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(patchDir);
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_ADDR.txt"), new[]
+            {
+                "NAME=PatchAddr",
+                "TYPE=ADDR",
+                "PATCHED_IF:0x001000=0x00 0x00",
+                "ADDRESS=0x001000",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            var fe8 = MakeVersionedRom("BE8E01");
+            CoreState.ROM = fe8;
+
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            var list = new List<Address>();
+            AsmProducerResultLike res = null;
+            var ex = Record.Exception(() =>
+            {
+                var r = RebuildProducerCore.AppendAllAsmStructPointers(
+                    fe8, list, ldrmap: null, ct: cts.Token);
+                res = new AsmProducerResultLike(r.Cancelled, r.IsComplete);
+            });
+
+            Assert.Null(ex);                 // cancel never throws out of the producer
+            Assert.NotNull(res);
+            Assert.True(res.Cancelled);      // the wired PatchForm cancel propagated to a cancelled result
+        }
+
+        // Tiny value capture so the lambda above can surface the result fields without a closure-captured local.
+        sealed class AsmProducerResultLike
+        {
+            public bool Cancelled { get; }
+            public bool IsComplete { get; }
+            public AsmProducerResultLike(bool cancelled, bool isComplete)
+            {
+                Cancelled = cancelled; IsComplete = isComplete;
+            }
+        }
+
+        [Fact]
+        public void MakeWithProducer_StillRefuses_ListsPatchForm_FromLiveAsmDeferredList()
+        {
+            // The completeness gate (MakeWithProducer) must REFUSE while PatchForm is incomplete. After
+            // s2pf-11 the orchestrator is WIRED but EA/BIN are still deferred, so the LIVE
+            // GetAsmNotYetPortedForms() still contains the token -> the ASM half's IsComplete is false ->
+            // MakeWithProducer throws an InvalidOperationException naming PatchForm and never drives
+            // RebuildMakeCore.Make. This is the load-bearing safety invariant: the still-incomplete
+            // producer can never reach a real defragment. We use the LIVE deferred list (not a synthetic
+            // token) so the test fails the day someone removes the token without porting EA/BIN.
+            var modifiedRom = new ROM();
+            byte[] modified = new byte[0x10000];
+            for (uint i = 0; i < 0x100; i++) modified[i] = (byte)(0x11 + i);
+            modifiedRom.SwapNewROMDataDirect((byte[])modified.Clone());
+            var prevRom = CoreState.ROM;
+            CoreState.ROM = modifiedRom;
+            try
+            {
+                var vanilla = new ROM();
+                vanilla.SwapNewROMDataDirect(new byte[0x1000]);
+
+                // A COMPLETE data result + the LIVE-incomplete asm result (its NotYetPorted is the real
+                // deferred list, which STILL contains the PatchForm token because EA/BIN are deferred).
+                var data = new RebuildProducerCore.ProducerResult(
+                    new List<Address>(), Array.Empty<string>(), cancelled: false);
+                string[] liveAsmNotYet = RebuildProducerCore.GetAsmNotYetPortedForms();
+                Assert.Contains("PatchForm(MakePatchStructDataList)", liveAsmNotYet);
+                var asm = new RebuildProducerCore.AsmProducerResult(liveAsmNotYet, cancelled: false);
+                Assert.False(asm.IsComplete);
+
+                string manifest = Path.Combine(_tempDir, "out.rebuild");
+                var ex = Assert.Throws<InvalidOperationException>(() =>
+                    RebuildProducerCore.MakeWithProducer(
+                        data, asm, modified, vanilla, 0x1000u, manifest));
+
+                Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
+                Assert.Contains("not yet ported", ex.Message);
+                Assert.False(File.Exists(manifest)); // gate refused before Make -> no manifest
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
         }
 
         // ====================================================================
