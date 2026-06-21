@@ -12045,10 +12045,11 @@ namespace FEBuilderGBA
                 // (s2pf-4) + STRUCT skeleton & SAFE arms (s2pf-5) are LIVE in Core, but this token STAYS
                 // until s2pf-11 because (a) EA/BIN are still no-op stubs, AND (b) the STRUCT arm's
                 // FORM-BOUND fields are STILL routed through a DOCUMENTED INTERIM default-MIX (length-0
-                // MIX placeholder) — they are upgraded to precise sub-walked lengths in s2pf-7..10
-                // (HEADERTSA=7, AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
-                // BattleAnime=10). EVENT is now PRECISE (s2pf-6: the EventScriptForm.ScanScript walk via
-                // EmitScanScript, disasm-gated). See EmitPatchStruct's block comment for the full audit
+                // MIX placeholder) — they are upgraded to precise sub-walked lengths in s2pf-8..10
+                // (AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
+                // BattleAnime=10). EVENT (s2pf-6: the EventScriptForm.ScanScript walk via EmitScanScript,
+                // disasm-gated) and PatchImage_HEADERTSA (s2pf-7: EmitHeaderTsaPointer / CalcHeaderTsaLength)
+                // are now PRECISE. See EmitPatchStruct's block comment for the full audit
                 // table. Until the remaining interim arms land, a wrong/zero patch-pointer length relocates
                 // the wrong bytes = silent corruption — so the gate stays CLOSED (no live rebuild) until
                 // the WHOLE arm is precise.
@@ -12514,10 +12515,11 @@ namespace FEBuilderGBA
                 }
                 else if (type == "STRUCT")
                 {
-                    // s2pf-5/6: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461).
+                    // s2pf-5/6/7: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461).
                     // Skeleton + SAFE arms (ASM/CSTRING/PatchImage_*/default) + EVENT (s2pf-6,
-                    // EmitScanScript, disasm-gated) ported REAL; the REMAINING FORM-BOUND arms route
-                    // through a DOCUMENTED INTERIM default-MIX (upgraded s2pf-7..10). SAFE: the gate
+                    // EmitScanScript, disasm-gated) + PatchImage_HEADERTSA (s2pf-7, EmitHeaderTsaPointer)
+                    // ported REAL; the REMAINING FORM-BOUND arms route
+                    // through a DOCUMENTED INTERIM default-MIX (upgraded s2pf-8..10). SAFE: the gate
                     // token stays in AsmNotYetPortedRaw (no live rebuild) until s2pf-11. See
                     // EmitPatchStruct's block comment for the audit table of interim types -> slices.
                     EmitPatchStruct(rom, list, patch, isPointerOnly);
@@ -12746,14 +12748,13 @@ namespace FEBuilderGBA
         // (IMAGE_POINTER / ZIMAGE_POINTER / Z256IMAGE_POINTER / TSA_POINTER /
         // ZTSA_POINTER / [Z]HEADERTSA_POINTER / PALETTE_POINTER|PALETTE_ADDRESS);
         // each safe one emits a single Address sized by PatchImageVariantLength
-        // and typed per WF (IMG / LZ77IMG / TSA / LZ77TSA / PAL). The WIDTH/HEIGHT
-        // (default "8") feed the raw 4bpp/TSA sizes; PALETTE (default "1") the count.
+        // and typed per WF (IMG / LZ77IMG / TSA / LZ77TSA / HEADERTSA / PAL). The
+        // WIDTH/HEIGHT (default "8") feed the raw 4bpp/TSA sizes; PALETTE (default "1") the count.
         //
-        // DEFERRED (this slice ports 6 of the 8 variants — 6/8):
-        //   - HEADERTSA_POINTER (the NON-Z header-TSA variant, WF :6798): its length
-        //     needs CalcByteLengthForHeaderTSAData (slice s2pf-7), so it is LEFT
-        //     UNHANDLED here (NOT emitted with a wrong/zero length). See the
-        //     `// s2pf-7: HEADERTSA_POINTER` marker below.
+        // ALL 8 variants ported (8/8). The last deferred variant —
+        //   - HEADERTSA_POINTER (the NON-Z header-TSA variant, WF :6798) — is now wired
+        //     in slice s2pf-7 via EmitHeaderTsaPointer -> CalcHeaderTsaLength (= WF
+        //     ImageUtil.CalcByteLengthForHeaderTSAData). See the `HEADERTSA_POINTER` arm below.
         //
         // The length math is factored into PatchImageVariantLength so the s2pf-5
         // STRUCT `PatchImage_*` per-entry arms (WF :6563-6642) reuse the EXACT same
@@ -12767,13 +12768,15 @@ namespace FEBuilderGBA
         /// <c>convertBinAddressString(v, 0, 0x100, basedir)</c>), dereferences the pointer
         /// (<c>rom.u32</c>), and — when both the pointer slot and the target are safe — emits one
         /// <see cref="Address"/> whose length is <see cref="PatchImageVariantLength"/> and whose
-        /// <see cref="Address.DataTypeEnum"/> matches the variant (IMG / LZ77IMG / TSA / LZ77TSA / PAL).
+        /// <see cref="Address.DataTypeEnum"/> matches the variant (IMG / LZ77IMG / TSA / LZ77TSA /
+        /// HEADERTSA / PAL).
         /// WIDTH/HEIGHT default "8" (4bpp = w*h/2, TSA = w*h/32); PALETTE count defaults "1" (count*0x20).
         /// LZ77 lengths come from EOF-safe <see cref="LZ77.getCompressedSize(byte[],uint)"/>.
-        /// <para><b>6 of 8 variants ported.</b> <c>HEADERTSA_POINTER</c> (the non-Z header-TSA, WF :6798)
-        /// is DEFERRED to s2pf-7 (needs <c>CalcByteLengthForHeaderTSAData</c>) and is intentionally NOT
-        /// emitted here. The two header-TSA pointer FIELDS otherwise tracked by WF's
-        /// <c>AddHeaderTSAPointer</c> are out of this slice's scope.</para>
+        /// <para><b>All 8 variants ported.</b> <c>HEADERTSA_POINTER</c> (the non-Z header-TSA, WF :6798)
+        /// is wired in slice s2pf-7 via <see cref="EmitHeaderTsaPointer"/> (WF
+        /// <c>AddHeaderTSAPointer</c> -&gt; <see cref="CalcHeaderTsaLength"/> = WF
+        /// <c>ImageUtil.CalcByteLengthForHeaderTSAData</c>); it emits a
+        /// <see cref="Address.DataTypeEnum.HEADERTSA"/> region.</para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
@@ -12825,11 +12828,21 @@ namespace FEBuilderGBA
             EmitPatchImageVariant(rom, list, patch, basedir, "ZTSA_POINTER", "ZTSA", false,
                 width, height, paletteCount, Address.DataTypeEnum.LZ77TSA);
 
-            // ---- HEADERTSA_POINTER (WF :6798) -> DEFERRED to s2pf-7 ----------
-            // s2pf-7: HEADERTSA_POINTER. The non-Z header-TSA variant's length needs
-            // CalcByteLengthForHeaderTSAData (WF AddHeaderTSAPointer -> ImageUtil), which is slice
-            // s2pf-7. NOT emitted here (emitting a wrong/zero length would mis-size or orphan the
-            // header-TSA region during a rebuild). Left intentionally unhandled.
+            // ---- HEADERTSA_POINTER (WF :6798) -> EmitHeaderTsaPointer (s2pf-7) ----
+            // WF 6798-6806: p = atOffset(.., "HEADERTSA_POINTER", basedir); if (isSafetyOffset(p)) {
+            //   a = u32(p); if (isSafetyPointer(a)) AddHeaderTSAPointer(list, p, Name+"@HEADERTSA_POINTER", false); }.
+            // AddHeaderTSAPointer (= Core EmitHeaderTsaPointer) re-derefs p and re-checks both gates
+            // internally, then sizes the region via CalcHeaderTsaLength (= WF
+            // ImageUtil.CalcByteLengthForHeaderTSAData). So the WF outer u32(p)+isSafetyPointer(a)
+            // pre-check is redundant with EmitHeaderTsaPointer's own gates (emit iff BOTH safe — no
+            // double-emit, no behavioural change). EmitHeaderTsaPointer is EOF-hardened (it guards the
+            // full 4-byte deref extent before u32), so a near-EOF slot is a clean skip rather than the
+            // throw WF's bare u32(p) would hit on a malformed ROM.
+            uint pHeaderTsa = ResolvePatchAddress(rom, U.at(patch.Param, "HEADERTSA_POINTER", "0"), 0, 0x100, basedir);
+            if (U.isSafetyOffset(pHeaderTsa, rom))
+            {
+                EmitHeaderTsaPointer(rom, list, pHeaderTsa, patch.Name + "@HEADERTSA_POINTER");
+            }
 
             // ---- ZHEADERTSA_POINTER (WF :6807) -> LZ77 length, LZ77TSA ------
             // NOTE: this is the COMPRESSED header-TSA variant; its length IS a plain LZ77
@@ -12925,6 +12938,10 @@ namespace FEBuilderGBA
         ///   <item><c>ZIMAGE</c> / <c>Z256IMAGE</c> / <c>ZTSA</c> / <c>ZHEADERTSA</c> -&gt;
         ///         <c>LZ77.getCompressedSize(rom.Data, addr)</c> (EOF-safe; 0 on a malformed/near-EOF
         ///         stream — never throws, never reads past EOF).</item>
+        ///   <item><c>HEADERTSA</c> -&gt; <see cref="CalcHeaderTsaLength"/> (WF
+        ///         <c>ImageUtil.CalcByteLengthForHeaderTSAData</c>: <c>2 + (x+1)*(y+1)*2</c> from the
+        ///         2-byte master header at <paramref name="addr"/>; EOF-safe 0 when the header itself
+        ///         does not fit).</item>
         ///   <item><c>PALETTE</c> -&gt; <c>paletteCount*0x20</c> (count 16-color palettes).</item>
         /// </list>
         /// <paramref name="addr"/> is the already-dereferenced, <c>toOffset</c>'d target (only the LZ77
@@ -12935,7 +12952,7 @@ namespace FEBuilderGBA
         /// the following data on a rebuild).</para>
         /// </summary>
         /// <param name="rom">ROM whose <c>Data</c> the LZ77 variants scan — passed explicitly.</param>
-        /// <param name="variantKey">One of IMAGE / TSA / ZIMAGE / Z256IMAGE / ZTSA / ZHEADERTSA / PALETTE.</param>
+        /// <param name="variantKey">One of IMAGE / TSA / ZIMAGE / Z256IMAGE / ZTSA / ZHEADERTSA / HEADERTSA / PALETTE.</param>
         /// <param name="addr">The dereferenced target offset (read only by the LZ77 variants).</param>
         /// <param name="width">Image width in pixels (IMG/TSA only).</param>
         /// <param name="height">Image height in pixels (IMG/TSA only).</param>
@@ -12956,6 +12973,13 @@ namespace FEBuilderGBA
                 case "ZHEADERTSA":
                     // WF :6761/6772/6794/6814 — EOF-safe LZ77 compressed length.
                     return LZ77.getCompressedSize(rom.Data, addr);
+                case "HEADERTSA":
+                    // WF AddHeaderTSAPointer -> ImageUtil.CalcByteLengthForHeaderTSAData (the non-Z
+                    // header-TSA variant, ported as CalcHeaderTsaLength in slice 2k). The 2-byte master
+                    // header {x, y} (each stored value = dimension minus one) prefixes (x+1)*(y+1) 16-bit
+                    // cells; total = 2 + (x+1)*(y+1)*2 (EOF-safe 0 when the header itself does not fit).
+                    // <paramref name="addr"/> is the already-dereferenced, toOffset'd target.
+                    return CalcHeaderTsaLength(rom, addr);
                 case "PALETTE":
                     return paletteCount * 0x20;          // WF :6826/6835 — count*0x20 PAL bytes.
                 default:
@@ -12992,9 +13016,13 @@ namespace FEBuilderGBA
         //       IsEventScriptDisasmReady (the EventCondForm convention). The per-STRUCT
         //       `tracelist` (WF 6545) is allocated ONCE before the entry loop and shared
         //       across every EVENT arm. No longer interim.
+        //   (B'') PatchImage_HEADERTSA — ported REAL in s2pf-7 (WF 6605-6613): the non-Z
+        //       header-TSA field -> AddHeaderTSAPointer (= EmitHeaderTsaPointer, sized by
+        //       CalcHeaderTsaLength = WF ImageUtil.CalcByteLengthForHeaderTSAData), typed
+        //       HEADERTSA. No longer interim (was interim default-MIX through s2pf-5/6).
         //   (C) the REMAINING FORM-BOUND arms (BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/
         //       VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
-        //       BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA) — routed
+        //       BATTLEBGLISTPOINTER/AOERANGEPOINTER) — routed
         //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
         //       INTERIM (each marked `INTERIM default-MIX -> upgraded in s2pf-N`).
         //       This is SAFE because the gate token "PatchForm(MakePatchStructDataList)"
@@ -13002,9 +13030,9 @@ namespace FEBuilderGBA
         //       it MUST be upgraded before the token is removed, else those embedded
         //       pointers' TARGET regions are never relocated (residue corruption).
         //
-        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT is DONE):
+        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT + HEADERTSA DONE):
         //     EVENT                     -> s2pf-6  DONE (EmitScanScript, disasm-gated)
-        //     PatchImage_HEADERTSA      -> s2pf-7  (CalcByteLengthForHeaderTSAData)
+        //     PatchImage_HEADERTSA      -> s2pf-7  DONE (EmitHeaderTsaPointer / CalcHeaderTsaLength)
         //     AP / ROMTCS / PROCS       -> s2pf-8
         //     VENNOUWEAPONLOCK          -> s2pf-9
         //     AOERANGEPOINTER           -> s2pf-9
@@ -13041,11 +13069,12 @@ namespace FEBuilderGBA
         /// pointerIndexes[n]</c> IN ORDER, dispatching on the field type via
         /// <see cref="EmitPatchStructEntry"/>.
         /// <para>
-        /// <b>This slice (s2pf-5/6)</b> ports the skeleton + the SAFE terminal arms
+        /// <b>This slice (s2pf-5/6/7)</b> ports the skeleton + the SAFE terminal arms
         /// (ASM / CSTRING / PatchImage_* / WF's <c>default</c> MIX) + the EVENT arm (s2pf-6: the
-        /// <see cref="EmitScanScript"/> event-script walk, disasm-gated). The REMAINING FORM-BOUND
-        /// arms route through the same MIX <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-7..10)
-        /// — SAFE only while the gate token stays deferred. See the block comment above.
+        /// <see cref="EmitScanScript"/> event-script walk, disasm-gated) + PatchImage_HEADERTSA (s2pf-7:
+        /// <see cref="EmitHeaderTsaPointer"/>). The REMAINING FORM-BOUND arms route through the same MIX
+        /// <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-8..10) — SAFE only while the gate token
+        /// stays deferred. See the block comment above.
         /// </para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — passed explicitly. MUST also be
@@ -13205,14 +13234,15 @@ namespace FEBuilderGBA
         /// <summary>
         /// One per-entry pointer-field dispatch for <see cref="EmitPatchStruct"/> — the WF
         /// per-field <c>if/else if</c> chain (FEBuilderGBA/PatchForm.cs:6553-6733), factored into
-        /// a switch so the later slices s2pf-7..10 replace each remaining INTERIM arm body in place
-        /// (EVENT was upgraded in s2pf-6).
+        /// a switch so the later slices s2pf-8..10 replace each remaining INTERIM arm body in place
+        /// (EVENT was upgraded in s2pf-6; PatchImage_HEADERTSA in s2pf-7).
         /// <para>
-        /// <b>Dispatch contract for s2pf-7..10:</b> each fully-implemented arm emits a PRECISE
-        /// length (EVENT runs the <see cref="EmitScanScript"/> walk); each remaining INTERIM form-bound
-        /// arm falls into <see cref="EmitPatchStructDefaultMix"/> (a length-0 MIX placeholder) and is
-        /// marked with the slice that upgrades it. To upgrade an arm, give its <c>case</c> a real body
-        /// (sized like the WF helper it ports) and drop it from the interim group — the call shape
+        /// <b>Dispatch contract for s2pf-8..10:</b> each fully-implemented arm emits a PRECISE
+        /// length (EVENT runs the <see cref="EmitScanScript"/> walk; PatchImage_HEADERTSA runs
+        /// <see cref="EmitHeaderTsaPointer"/>); each remaining INTERIM form-bound arm falls into
+        /// <see cref="EmitPatchStructDefaultMix"/> (a length-0 MIX placeholder) and is marked with the
+        /// slice that upgrades it. To upgrade an arm, give its <c>case</c> a real body (sized like the
+        /// WF helper it ports) and drop it from the interim group — the call shape
         /// (<paramref name="p"/>, <paramref name="patchname"/>, <paramref name="n"/>) is exactly what
         /// the WF helpers receive.
         /// </para>
@@ -13345,17 +13375,34 @@ namespace FEBuilderGBA
                     }
                     break;
 
+                case "PatchImage_HEADERTSA":
+                    // WF 6605-6613: non-Z header-TSA -> AddHeaderTSAPointer (= Core EmitHeaderTsaPointer,
+                    // sized by CalcHeaderTsaLength = WF ImageUtil.CalcByteLengthForHeaderTSAData), typed
+                    // HEADERTSA, named "<patchname> HEADERTSA <n>". WF first derefs `a = p32(p)` and pre-gates
+                    // on `isSafetyOffset(a)` BEFORE delegating; reproduced verbatim. EmitHeaderTsaPointer
+                    // re-derefs p (via u32, EOF-hardened) and re-checks both gates internally, so the WF
+                    // pre-check is a redundant guard (emit iff the slot+target are both safe — no double-emit).
+                    {
+                        // WF: uint a = Program.ROM.p32(p); if (U.isSafetyOffset(a)) { ... }. rom.p32 is
+                        // EOF-safe (returns 0 for p >= Data.Length); guard p+3 so a near-EOF slot does not
+                        // read past EOF (matching the Core-wide slot+3 convention; EmitHeaderTsaPointer also
+                        // self-guards the full deref extent). On a clean skip nothing is emitted.
+                        if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+                        {
+                            uint a = rom.p32(p);
+                            if (U.isSafetyOffset(a, rom))
+                            {
+                                EmitHeaderTsaPointer(rom, list, p, patchname + " HEADERTSA " + n);
+                            }
+                        }
+                    }
+                    break;
+
                 // ---- INTERIM default-MIX (this slice) — form-bound arms ---------
                 // Each routes through EmitPatchStructDefaultMix (= WF's own `default`,
                 // length-0 MIX). This DIVERGES from WF (WF emits the precise sub-walked
                 // TARGET region); SAFE only while the gate token stays deferred. The
                 // partial WF-parity test EXCLUDES these types.
-
-                case "PatchImage_HEADERTSA":
-                    // INTERIM default-MIX -> upgraded in s2pf-7 (CalcByteLengthForHeaderTSAData; the
-                    // WF non-Z HEADERTSA arm at 6605 uses AddHeaderTSAPointer, a WinForms ImageUtil call).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
-                    break;
 
                 case "AP":
                     // INTERIM default-MIX -> upgraded in s2pf-8 (AddAPPointer).
@@ -13455,8 +13502,9 @@ namespace FEBuilderGBA
         /// <see cref="Address.AddPointer"/> derefs <paramref name="p"/> (via <see cref="CoreState.ROM"/>)
         /// and adds the TARGET as a MIX region whose span the relocator resolves from the length-0
         /// placeholder — so the embedded pointer's target stays TRACKED. Also the INTERIM landing for
-        /// the REMAINING FORM-BOUND arms (each upgraded to a precise length in s2pf-7..10; EVENT is
-        /// already precise via <see cref="EmitScanScript"/>).
+        /// the REMAINING FORM-BOUND arms (each upgraded to a precise length in s2pf-8..10; EVENT is
+        /// already precise via <see cref="EmitScanScript"/>, PatchImage_HEADERTSA via
+        /// <see cref="EmitHeaderTsaPointer"/>).
         /// </summary>
         static void EmitPatchStructDefaultMix(ROM rom, List<Address> list, uint p, string patchname, int n)
         {

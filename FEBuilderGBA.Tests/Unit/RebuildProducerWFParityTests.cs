@@ -372,39 +372,37 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// PARTIAL WF-parity for #1261 slice s2pf-4 — the PatchForm producer TYPE=IMAGE dispatch arm
-        /// (<see cref="RebuildProducerCore.EmitPatchImage"/>, 6 of 8 variants). Both the WinForms
+        /// PARTIAL WF-parity for #1261 slice s2pf-4/7 — the PatchForm producer TYPE=IMAGE dispatch arm
+        /// (<see cref="RebuildProducerCore.EmitPatchImage"/>, ALL 8 variants). Both the WinForms
         /// reference (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForIMAGE</c>,
         /// PatchForm.cs:6738) and the Core orchestrator (<see cref="RebuildProducerCore.MakePatchStructDataListCore"/>)
         /// run on the SAME real FE8U ROM with the SAME rebuild flags (the <c>ToolROMRebuildMake.Make</c>
-        /// callsite). Each side is FILTERED to the IMAGE arm's six ported variants — which surface as
-        /// EIGHT Info suffixes because the PALETTE variant emits under two param keys (<c>@PALETTE_POINTER</c>
+        /// callsite). Each side is FILTERED to the IMAGE arm's ported variants — which surface as
+        /// NINE Info suffixes because the PALETTE variant emits under two param keys (<c>@PALETTE_POINTER</c>
         /// for the deref form and <c>@PALETTE_ADDRESS</c> for the direct-address else-fallback), and ZIMAGE
         /// covers both <c>@ZIMAGE_POINTER</c> and the <c>@Z256IMAGE_POINTER</c> alias (Info ends
         /// <c>@IMAGE_POINTER</c> / <c>@ZIMAGE_POINTER</c> / <c>@Z256IMAGE_POINTER</c> / <c>@TSA_POINTER</c> /
-        /// <c>@ZTSA_POINTER</c> / <c>@ZHEADERTSA_POINTER</c> / <c>@PALETTE_POINTER</c> / <c>@PALETTE_ADDRESS</c>) —
-        /// then compared as Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType) — Info/name
-        /// is cosmetic (Core's leaner LoadPatch omits the patch Name, so its Info is just "@VARIANT"; WF
-        /// prepends the patch name). A Core-extra (Core emits an IMAGE entry WF does not) is a faithfulness
-        /// regression and FAILS.
-        /// <para><b>HEADERTSA_POINTER EXCLUDED (deferred to s2pf-7).</b> The NON-Z header-TSA variant
-        /// (<c>@HEADERTSA_POINTER</c>, WF <c>AddHeaderTSAPointer</c> -&gt; <c>DataTypeEnum.HEADERTSA</c>) needs
-        /// <c>CalcByteLengthForHeaderTSAData</c> (slice s2pf-7) and is NOT ported here. WF emits it; Core does
-        /// not — so it is filtered OUT of BOTH sides (by both its name AND the HEADERTSA data type) before the
-        /// comparison. The remaining six variants are asserted Core ⊆ WF. WF-extras among the SIX (an IMAGE
-        /// entry WF emits that Core lacks) are tolerated only if Core's gate legitimately diverges — but the
-        /// gate + resolver are faithful ports, so they are LOGGED (not asserted) exactly as the
-        /// subset-direction harness does, keeping the teeth on the regression direction (Core-extra).</para>
+        /// <c>@ZTSA_POINTER</c> / <c>@ZHEADERTSA_POINTER</c> / <c>@HEADERTSA_POINTER</c> / <c>@PALETTE_POINTER</c> /
+        /// <c>@PALETTE_ADDRESS</c>) — then compared as Core ⊆ WF on the load-bearing fields
+        /// (Addr/Length/Pointer/DataType) — Info/name is cosmetic (Core's leaner LoadPatch omits the patch
+        /// Name, so its Info is just "@VARIANT"; WF prepends the patch name). A Core-extra (Core emits an
+        /// IMAGE entry WF does not) is a faithfulness regression and FAILS.
+        /// <para><b>HEADERTSA_POINTER NOW INCLUDED (s2pf-7).</b> The NON-Z header-TSA variant
+        /// (<c>@HEADERTSA_POINTER</c>, WF <c>AddHeaderTSAPointer</c> -&gt; <c>DataTypeEnum.HEADERTSA</c>) is
+        /// wired via <c>EmitHeaderTsaPointer</c> / <c>CalcHeaderTsaLength</c> (= WF
+        /// <c>ImageUtil.CalcByteLengthForHeaderTSAData</c>); it is compared on BOTH sides like the other
+        /// variants. WF-extras (an IMAGE entry WF emits that Core lacks) are LOGGED (not asserted) exactly as
+        /// the subset-direction harness does, keeping the teeth on the regression direction (Core-extra).</para>
         /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree,
         /// present in the user's main checkout). When no ROM is found the test returns early (Pass).</para>
         /// <para><b>NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT</b> (same posture as the
         /// ADDR/SWITCH harness): an un-init submodule yields no IMAGE patch files, so both filtered lists are
-        /// empty and Core ⊆ WF holds trivially. The branch-level verification (all six variants, the /2-vs-/32
-        /// raw sizes, the palette count, the LZ77 lengths, the per-variant safety gates, the HEADERTSA
-        /// deferral) is carried by the synthetic Core.Tests (<c>RebuildProducerPatchImageTests</c>).</para>
+        /// empty and Core ⊆ WF holds trivially. The branch-level verification (all eight variants, the
+        /// /2-vs-/32 raw sizes, the palette count, the LZ77 lengths, the header-TSA byte length, the
+        /// per-variant safety gates) is carried by the synthetic Core.Tests (<c>RebuildProducerPatchImageTests</c>).</para>
         /// </summary>
         [Fact]
-        public void CorePatchImageArm_IsSubsetOf_WinFormsPatchProducer_ExcludingHeaderTsa()
+        public void CorePatchImageArm_IsSubsetOf_WinFormsPatchProducer_AllVariants()
         {
             string? repoRoot = FindRepoRootWithRom();
             if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
@@ -438,22 +436,21 @@ namespace FEBuilderGBA.Tests.Unit
                     isInstallOnly: IS_PATCH_INSTALL_ONLY,
                     isStructOnly: IS_PATCH_STRUCT_ONLY);
 
-                // The six PORTED IMAGE variant param-key suffixes (HEADERTSA_POINTER deliberately ABSENT).
+                // ALL eight ported IMAGE variant param-key suffixes (HEADERTSA_POINTER now INCLUDED — s2pf-7).
                 string[] portedSuffixes =
                 {
                     "@IMAGE_POINTER", "@ZIMAGE_POINTER", "@Z256IMAGE_POINTER",
                     "@TSA_POINTER", "@ZTSA_POINTER", "@ZHEADERTSA_POINTER",
+                    "@HEADERTSA_POINTER",
                     "@PALETTE_POINTER", "@PALETTE_ADDRESS",
                 };
 
-                // An IMAGE arm entry for one of the SIX ported variants. EXCLUDES the deferred
-                // HEADERTSA_POINTER both by name (@HEADERTSA_POINTER) AND by its HEADERTSA data type
-                // (defence in depth: WF's AddHeaderTSAPointer always tags DataTypeEnum.HEADERTSA).
+                // An IMAGE arm entry for one of the ported variants (all eight). HEADERTSA_POINTER is now
+                // wired (s2pf-7), so it is INCLUDED (its @HEADERTSA_POINTER suffix is in portedSuffixes and
+                // its DataTypeEnum.HEADERTSA is no longer filtered out).
                 bool IsPortedImageEntry(Address a)
                 {
                     if (a.Info == null) return false;
-                    if (a.DataType == Address.DataTypeEnum.HEADERTSA) return false; // deferred variant
-                    if (a.Info.EndsWith("@HEADERTSA_POINTER", StringComparison.Ordinal)) return false;
                     foreach (string s in portedSuffixes)
                     {
                         if (a.Info.EndsWith(s, StringComparison.Ordinal)) return true;
@@ -469,10 +466,10 @@ namespace FEBuilderGBA.Tests.Unit
 
                 // Core-extras = Core emits a (ported) IMAGE key WF does not. ALWAYS a faithfulness
                 // regression -> FAIL. WF-extras (WF emits a ported-IMAGE key Core lacks) are logged but
-                // not asserted (subset direction), mirroring the data-path harness — the deferred
-                // HEADERTSA is already excluded, so a WF-extra among the six would signal a gate divergence
-                // worth surfacing, not a silent-drop the way ADDR/SWITCH's exact-equality catches it. Core
-                // ⊆ WF is the load-bearing guarantee for this 6-of-8 slice.
+                // not asserted (subset direction), mirroring the data-path harness — all eight variants
+                // are now ported, so a WF-extra would signal a gate divergence worth surfacing, not a
+                // silent-drop the way ADDR/SWITCH's exact-equality catches it. Core ⊆ WF is the
+                // load-bearing guarantee for this (now 8-of-8) slice.
                 var coreExtras = coreImg.Where(a => !wfKeys.Contains(Key.Of(a)))
                                         .Select(Key.Of).Distinct().ToList();
                 int wfExtraCount = wfKeys.Count(k => !coreKeys.Contains(k));
@@ -491,9 +488,9 @@ namespace FEBuilderGBA.Tests.Unit
                         + $"First {Math.Min(N, coreExtras.Count)} Core-only entries:\n{dump}");
                 }
 
-                // PROVEN: every Core IMAGE entry (of the six ported variants) is byte-identical to a WF
-                // entry on (Addr/Length/Pointer/DataType) — no faithfulness regression — with the deferred
-                // HEADERTSA_POINTER excluded from both sides (or both empty when config/patch2 is absent).
+                // PROVEN: every Core IMAGE entry (of all eight ported variants, including HEADERTSA_POINTER)
+                // is byte-identical to a WF entry on (Addr/Length/Pointer/DataType) — no faithfulness
+                // regression (or both empty when config/patch2 is absent).
                 Assert.Empty(coreExtras);
             }
             finally
@@ -515,18 +512,22 @@ namespace FEBuilderGBA.Tests.Unit
         /// <c>EventScriptForm.ScanScript</c> walk's <c>@STRUCT DATA n</c> EVENTSCRIPT/IFR/BIN entries) —
         /// then compared Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType). A Core-extra
         /// (Core emits a STRUCT entry WF does not) is a faithfulness regression and FAILS.
-        /// <para><b>EVENT is NOW INCLUDED (s2pf-6).</b> Its <c>@STRUCT DATA n</c> entries are emitted by the
+        /// <para><b>EVENT is INCLUDED (s2pf-6).</b> Its <c>@STRUCT DATA n</c> entries are emitted by the
         /// real ScanScript walk (<see cref="RebuildProducerCore.EmitScanScript"/>), disasm-gated; they are
         /// non-MIX (EVENTSCRIPT for the script blocks, IFR/BIN for POINTER_UNIT/AICOORDINATE sub-data), so
         /// the filter includes any non-MIX <c>@STRUCT DATA n</c> entry.</para>
-        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-7..10).</b> The
+        /// <para><b>PatchImage_HEADERTSA is NOW INCLUDED (s2pf-7).</b> The non-Z header-TSA field
+        /// (<c>@STRUCT HEADERTSA n</c>, WF <c>AddHeaderTSAPointer</c> -&gt; <c>DataTypeEnum.HEADERTSA</c>) is
+        /// wired via <see cref="RebuildProducerCore.EmitHeaderTsaPointer"/>; its <c>@STRUCT HEADERTSA </c>
+        /// info token + HEADERTSA data type are compared on BOTH sides.</para>
+        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-8..10).</b> The
         /// BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
-        /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA fields are
+        /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER fields are
         /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
         /// slice — they INTENTIONALLY diverge from WF (WF emits the precise sub-walked TARGET region). So
-        /// every MIX-typed <c>... DATA </c>-suffixed entry (and the HEADERTSA data type) is filtered OUT of
-        /// BOTH sides before the comparison. Those arms gain their own parity teeth in s2pf-7..10, and the
-        /// FULL STRUCT parity (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
+        /// every MIX-typed <c>... DATA </c>-suffixed entry is filtered OUT of BOTH sides before the
+        /// comparison. Those arms gain their own parity teeth in s2pf-8..10, and the FULL STRUCT parity
+        /// (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
         /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
         /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
         /// patch within the merged producer list. The CSTRING arm's byte-faithfulness is carried by the
@@ -575,21 +576,22 @@ namespace FEBuilderGBA.Tests.Unit
                     isStructOnly: IS_PATCH_STRUCT_ONLY);
 
                 // A FULLY-IMPLEMENTED STRUCT-arm entry: the MAIN struct entry (Info ends "@STRUCT") OR a
-                // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/PALETTE) OR
-                // an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the EventScriptForm.ScanScript
-                // walk emits — EVENTSCRIPT script blocks + their POINTER_UNIT/AICOORDINATE sub-data IFR/BIN
-                // blocks). The STILL-INTERIM form-bound arms (HEADERTSA s2pf-7 / AP/ROMTCS/PROCS s2pf-8 /
-                // Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime s2pf-10) emit "@STRUCT DATA n"
-                // as a length-0 MIX placeholder — those DIVERGE from WF this slice and are EXCLUDED. Since
-                // EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed "@STRUCT DATA " entry, a
-                // simple rule cleanly separates the two: a MIX-typed DATA entry is interim (EXCLUDE), any
-                // other DATA entry came from the now-precise EVENT walk (INCLUDE). HEADERTSA data type stays
-                // deferred. CSTRING is out of merged-list scope (named the decoded string) — see doc-comment.
-                string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " PALETTE " };
+                // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/HEADERTSA/
+                // PALETTE) OR an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the
+                // EventScriptForm.ScanScript walk emits — EVENTSCRIPT script blocks + their
+                // POINTER_UNIT/AICOORDINATE sub-data IFR/BIN blocks). The STILL-INTERIM form-bound arms
+                // (AP/ROMTCS/PROCS s2pf-8 / Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime
+                // s2pf-10) emit "@STRUCT DATA n" as a length-0 MIX placeholder — those DIVERGE from WF this
+                // slice and are EXCLUDED. Since EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed
+                // "@STRUCT DATA " entry, a simple rule cleanly separates the two: a MIX-typed DATA entry is
+                // interim (EXCLUDE), any other DATA entry came from the now-precise EVENT walk (INCLUDE).
+                // PatchImage_HEADERTSA is now precise (s2pf-7), emitting a "@STRUCT HEADERTSA n" / HEADERTSA
+                // entry — INCLUDED via the safeArmTokens. CSTRING is out of merged-list scope (named the
+                // decoded string) — see doc-comment.
+                string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " HEADERTSA ", " PALETTE " };
                 bool IsImplementedStructEntry(Address a)
                 {
                     if (a.Info == null) return false;
-                    if (a.DataType == Address.DataTypeEnum.HEADERTSA) return false;   // deferred (s2pf-7)
                     // A per-entry "... DATA n" entry: the STILL-INTERIM arms emit it as a length-0 MIX
                     // placeholder (EXCLUDE); the EVENT walk (s2pf-6) emits EVENTSCRIPT/IFR/BIN (INCLUDE).
                     if (a.Info.Contains("@STRUCT DATA ", StringComparison.Ordinal))
