@@ -543,32 +543,28 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.EventScript = null; // disasm unwired -> EventCondForm re-reported at runtime
 
                 RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
-                // s2pf-17 (CAPSTONE): the STATIC data-path list is empty, so the ONLY reasons this run is
-                // incomplete are the RUNTIME re-reports — the disasm re-report (EventCondForm always, plus
-                // on FE8 the four ScanScript-family forms) AND, on a non-multibyte FE8 (FE8U), the two
-                // version-gated forms OPClassFontFE8UForm/OPClassDemoFE8UForm that Core does not yet port
-                // (#1261 soundness fix: WF's `version==8 && !is_multibyte` branch emits them — 68 entries
-                // on a vanilla FE8U — so leaving them out of NotYetPorted would FALSELY claim completeness
-                // and a rebuild would silently drop those regions). A disasm-wired FE8J (multibyte) run
-                // would have an empty NotYetPorted; the FE8U run is incomplete via these gates. Every
-                // remaining entry MUST be one of the documented runtime-gated forms (no stale static form).
+                // The STATIC data-path list is empty, so the ONLY reason this run is incomplete is the
+                // RUNTIME disasm re-report — EventCondForm always, plus on FE8 the four ScanScript-family
+                // forms — when EventScript is unwired. As of #1261 the two FE8U version-gated OPClass forms
+                // (OPClassFontFE8UForm/OPClassDemoFE8UForm) ARE ported (EmitOPClassFontFE8U /
+                // EmitOPClassDemoFE8U) and emit at the WF call-site, so they are NO LONGER re-reported —
+                // the #1338 soundness re-close has been legitimately re-opened for these two forms. With
+                // the disasm WIRED a vanilla FE8U run would have an empty NotYetPorted; here the disasm is
+                // deliberately unwired, so the run is incomplete via the disasm gates ONLY. Every remaining
+                // entry MUST be one of the documented runtime-gated (disasm) forms — no version-gated form,
+                // no stale static form.
                 Assert.False(result.IsComplete);
                 Assert.NotEmpty(result.NotYetPorted);
                 Assert.Contains("EventCondForm", result.NotYetPorted);
-                // On FE8U (non-multibyte) the two version-gated FE8U forms MUST be re-reported — the
-                // load-bearing soundness assertion (without this, the 68-entry gap is silent corruption).
-                if (rom.RomInfo.version == 8 && !rom.RomInfo.is_multibyte)
-                {
-                    Assert.Contains("OPClassFontFE8UForm", result.NotYetPorted);
-                    Assert.Contains("OPClassDemoFE8UForm", result.NotYetPorted);
-                }
+                // The two FE8U OPClass forms are ported now — they MUST NOT appear in NotYetPorted.
+                Assert.DoesNotContain("OPClassFontFE8UForm", result.NotYetPorted);
+                Assert.DoesNotContain("OPClassDemoFE8UForm", result.NotYetPorted);
                 string[] runtimeGated =
                 {
-                    // disasm-gated (event-script scan)
+                    // disasm-gated (event-script scan) — the ONLY remaining runtime gap on a disasm-unwired
+                    // FE8U run (the FE8U OPClass forms are ported as of #1261).
                     "EventCondForm", "MonsterWMapProbabilityForm", "EventBattleTalkForm",
                     "WorldMapEventPointerForm", "EventHaikuForm",
-                    // version-gated FE8U non-multibyte forms not yet ported (#1261 soundness)
-                    "OPClassFontFE8UForm", "OPClassDemoFE8UForm",
                 };
                 Assert.All(result.NotYetPorted, f => Assert.Contains(f, runtimeGated));
                 Assert.False(result.Cancelled);
@@ -584,7 +580,7 @@ namespace FEBuilderGBA.Core.Tests
         // ---- real-FE8U parity: the batch finds the known tables -------------
 
         [Fact]
-        public void MakeAllStructPointersList_FE8U_FindsBatchTables_AndDefersItem()
+        public void MakeAllStructPointersList_FE8U_FindsBatchTables_AndItem()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
@@ -690,13 +686,20 @@ namespace FEBuilderGBA.Core.Tests
                 //  the ZH direct-ref codeB walk).
                 Assert.DoesNotContain("FontForm", notYet2b);
 
-                // FAITHFULNESS / COMPLETENESS-SAFETY: ItemForm is NOT emitted (its StatBooster
-                // sub-block size needs un-ported PatchUtil detection) — it must be absent from the
-                // list AND tracked in NotYetPorted so a rebuild does not silently drop its
-                // sub-blocks. ClassForm IS emitted as of slice 2c (covered by the dedicated
-                // MakeAllStructPointersList_FE8U_FindsClassMoveCostSubBlocks_AndDefersItem test).
+                // ItemForm IS emitted as of slice 2ad (EmitItem — main IFR {12,16} + the per-entry
+                // StatBooster / ItemEffectiveness BIN sub-blocks, sized via the ported PatchDetection
+                // detectors). The earlier "Item deferred" assertion was STALE (it predated slice 2ad).
+                // Verify the main "Item" IFR is present at the real item_pointer base, block item_datasize.
                 uint itemBase = rom.p32(rom.RomInfo.item_pointer);
-                Assert.DoesNotContain(list, a => a.Addr == itemBase && a.Info == "Item");
+                Address item = list.FirstOrDefault(a => a.Addr == itemBase && a.Info == "Item");
+                Assert.NotNull(item);
+                Assert.Equal(rom.RomInfo.item_datasize, item.BlockSize);
+                Assert.Equal(new uint[] { 12, 16 }, item.PointerIndexes);
+                // length = block * (count + 1). Assert the block-multiple FIRST (so a count of >= 1 means
+                // length >= 2*block) without the unsigned `/ block - 1` subtraction, which would wrap to a
+                // huge uint if Length ever regressed below BlockSize and mask the bug (Copilot PR #1340).
+                Assert.True(item.Length >= 2u * item.BlockSize,
+                    "Item length must cover at least one entry + the terminator block (count >= 1)");
 
                 // The progress collector must have received reports (per-descriptor + summary).
                 lock (progressLines)
@@ -4103,7 +4106,9 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = fe8u;
                 Assert.False(fe8u.RomInfo.is_multibyte);
                 var descs = RebuildProducerCore.BuildBatchDescriptors(fe8u);
-                // OPClassFontForm is FE8-multibyte ONLY (the FE8U path uses OPClassFontFE8UForm, deferred).
+                // OPClassFontForm is FE8-multibyte ONLY, so it is NOT a batch StructDescriptor on FE8U.
+                // The FE8U path uses OPClassFontFE8UForm (#1261), emitted by the dedicated
+                // EmitOPClassFontFE8U at the version==8 && !is_multibyte call site — NOT via this batch.
                 Assert.DoesNotContain(descs, x => x.Name == "OPClassFont");
             }
             finally { CoreState.ROM = savedRom; }
@@ -4771,6 +4776,270 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoFE7At(rom, list, pointer));
             Assert.Null(ex);
+        }
+
+        // ---- EmitOPClassFontFE8UAt (#1261; FE8U non-multibyte): main IFR + per-record LZ77IMG ----
+
+        [Fact]
+        public void EmitOPClassFontFE8UAt_EmitsMainIfr_AndPerRecordLz77()
+        {
+            // WF Init: block 4, rule i <= 0x7a, PI {0}. Per entry: a = p32(p); if (a<=0) continue; else
+            // AddLZ77Pointer@+0 (LZ77IMG, "OPClassFont 0x<i>"). Plant 3 entries: #0,#2 valid LZ77 images,
+            // #1 NULL (skipped). A terminator can't fire from the i<=0x7a rule, so cap via a small ROM:
+            // size the table so the 4th block runs past EOF -> getBlockDataCount stops at addr+4>Length.
+            var rom = CreateTestRom(0x6000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint img0 = 0x2000;
+            uint img2 = 0x2800;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u32(table + 0 * 4, Ptr(img0)); // entry 0 -> valid image
+            rom.write_u32(table + 1 * 4, 0);         // entry 1 -> NULL (a<=0) -> skipped
+            rom.write_u32(table + 2 * 4, Ptr(img2)); // entry 2 -> valid image
+            uint len0 = WriteLz77AllLiteral(rom, img0, 64);
+            uint len2 = WriteLz77AllLiteral(rom, img2, 32);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassFontFE8UAt(rom, list, pointer);
+
+            // Main IFR: block 4, name "OPClassFont", PI {0}, length = 4*(DataCount+1). On a 0x6000 ROM the
+            // i<=0x7a rule keeps walking (0x7a=122) until addr+4>Length, so DataCount is large; assert the
+            // shape (block/PI/name/addr/pointer) rather than an exact length.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassFont");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(4u, main.BlockSize);
+            Assert.Equal(new uint[] { 0 }, main.PointerIndexes);
+
+            // Per-record LZ77 images: entry 0 + entry 2 emitted, entry 1 (NULL) skipped.
+            Address l0 = list.Single(a => a.DataType == Address.DataTypeEnum.LZ77IMG && a.Addr == img0);
+            Assert.Equal(len0, l0.Length);
+            Assert.Equal(table + 0 * 4, l0.Pointer);
+            Assert.Equal("OPClassFont " + U.To0xHexString(0u), l0.Info);
+
+            Address l2 = list.Single(a => a.DataType == Address.DataTypeEnum.LZ77IMG && a.Addr == img2);
+            Assert.Equal(len2, l2.Length);
+            Assert.Equal(table + 2 * 4, l2.Pointer);
+            Assert.Equal("OPClassFont " + U.To0xHexString(2u), l2.Info);
+
+            // Entry 1 (NULL pointer) emitted NO LZ77 image.
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG && a.Pointer == table + 1 * 4);
+        }
+
+        [Fact]
+        public void EmitOPClassFontFE8UAt_CountRuleIsFixed_iLessEqual0x7a()
+        {
+            // The i<=0x7a rule is a FIXED count (independent of ROM bytes). With a ROM large enough that
+            // addr+4<=Length never trips before i=0x7b, DataCount caps at 0x7b (123 = 0x7a+1).
+            var rom = CreateTestRom(0x40000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
+            // leave the whole table zeroed -> every entry NULL -> no LZ77, but the count rule still walks.
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassFontFE8UAt(rom, list, pointer);
+
+            Address main = list.Single(a => a.Info == "OPClassFont");
+            // DataCount = 0x7b (the rule returns false at i=0x7b) -> length = 4*(0x7b+1).
+            Assert.Equal(4u * (0x7bu + 1u), main.Length);
+            // All-NULL table -> no per-record LZ77 emitted.
+            Assert.DoesNotContain(list, a => a.DataType == Address.DataTypeEnum.LZ77IMG);
+        }
+
+        [Fact]
+        public void EmitOPClassFontFE8UAt_NullSlot_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x4000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, 0); // slot NULL -> p32 -> 0 -> !isSafetyOffset(base) -> early return
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassFontFE8UAt(rom, list, pointer);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitOPClassFontFE8UAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FFC)); // base near EOF (root+3 == 0x1FFF, last valid byte)
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassFontFE8UAt(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        // ---- EmitOPClassDemoFE8UAt (#1261; FE8U non-multibyte): main IFR + CString + ONE N2 ----
+
+        [Fact]
+        public void EmitOPClassDemoFE8UAt_EmitsMainIfr_CString_AndN2NestedIfr()
+        {
+            // WF Init: block 20 (0x14), rule u8(addr+0xF) <= 6, PI {16}. WF N2_Init: block 2, rule
+            // u8(addr) != 0x00. Per entry: AddCString@+0, anime-guard@+16, then N2 NestedIfr@+16.
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint className = 0x2000;  // CString target (entry +0 pointer)
+            uint n2Base = 0x3000;     // N2 sub-table (entry +16 pointer)
+            rom.write_u32(pointer, Ptr(table));
+
+            // entry 0: u8(+0xF) <= 6 -> valid. entry 1: u8(+0xF) = 7 -> terminate -> DataCount 1.
+            rom.write_u8(table + 0 * 20 + 0xF, 0x06); // boundary: 6 IS valid (<= 6)
+            rom.write_u8(table + 1 * 20 + 0xF, 0x07);
+            // embedded pointers for entry 0:
+            rom.write_u32(table + 0, Ptr(className)); // +0 class-name CString
+            rom.write_u32(table + 16, Ptr(n2Base));   // +16 N2 anime sub-table
+            // class-name string "AB\0" -> CString length 3
+            rom.write_u8(className + 0, (byte)'A');
+            rom.write_u8(className + 1, (byte)'B');
+            rom.write_u8(className + 2, 0x00);
+            // N2 sub-table block 2, rule u8(addr)!=0: 2 valid then 0 terminator.
+            rom.write_u8(n2Base + 0, 0x10);
+            rom.write_u8(n2Base + 2, 0x20);
+            rom.write_u8(n2Base + 4, 0x00); // terminator -> N2 count 2
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
+
+            // Main IFR: block 20, DataCount 1 -> length 20*(1+1)=40, pointerIndexes {16}.
+            Address main = list.Single(a => a.DataType == Address.DataTypeEnum.InputFormRef && a.Info == "OPClassDemo");
+            Assert.Equal(table, main.Addr);
+            Assert.Equal(pointer, main.Pointer);
+            Assert.Equal(20u, main.BlockSize);
+            Assert.Equal(40u, main.Length);
+            Assert.Equal(new uint[] { 16 }, main.PointerIndexes);
+
+            // CString at +0: length strlen+1 = 3.
+            Address cstr = list.Single(a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == className);
+            Assert.Equal(3u, cstr.Length);
+            Assert.Equal(table + 0, cstr.Pointer);
+
+            // N2 nested IFR @ +16: block 2, count 2 -> length 2*(2+1)=6, pointer = table+16, const name.
+            Address n2 = list.Single(a => a.Info == "OPClassDemo_Anime");
+            Assert.Equal(n2Base, n2.Addr);
+            Assert.Equal(table + 16, n2.Pointer);
+            Assert.Equal(2u, n2.BlockSize);
+            Assert.Equal(6u, n2.Length);
+            Assert.Empty(n2.PointerIndexes);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, n2.DataType);
+
+            // FE8U form has only ONE nested table (N2 @ +16) — NO N1/JPName (that is the multibyte form).
+            Assert.DoesNotContain(list, a => a.Info == "OPClassDemo_JPName");
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE8UAt_UnsafeAnime_SkipsN2_KeepsCString()
+        {
+            // If the embedded anime pointer (+16) is unsafe (NULL), WF `continue`s -> N2 is NOT emitted,
+            // but the +0 CString (emitted BEFORE the guard) still is.
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            uint className = 0x2000;
+            rom.write_u32(pointer, Ptr(table));
+            rom.write_u8(table + 0xF, 0x00);          // entry 0 valid
+            rom.write_u8(table + 20 + 0xF, 0x07);     // entry 1 terminates
+            rom.write_u32(table + 0, Ptr(className));  // CString OK
+            rom.write_u8(className + 0, (byte)'X'); rom.write_u8(className + 1, 0x00);
+            rom.write_u32(table + 16, 0);              // anime NULL -> unsafe -> skip N2
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
+
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.CSTRING && a.Addr == className);
+            Assert.DoesNotContain(list, a => a.Info == "OPClassDemo_Anime");
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE8UAt_CountRule_Boundary6Valid_7Terminates()
+        {
+            // The FE8U rule is u8(addr+0xF) <= 6 (NOT the multibyte <= 4). 7 entries with +0xF == 6 (valid),
+            // then an 8th with +0xF == 7 terminates -> DataCount 7 -> length 20*(7+1)=160.
+            var rom = CreateTestRom(0x10000);
+            uint pointer = 0x0400;
+            uint table = 0x1000;
+            rom.write_u32(pointer, Ptr(table));
+            for (uint i = 0; i < 7; i++) rom.write_u8(table + i * 20 + 0xF, 0x06);
+            rom.write_u8(table + 7 * 20 + 0xF, 0x07); // terminates
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
+
+            Address main = list.Single(a => a.Info == "OPClassDemo");
+            Assert.Equal(20u * (7u + 1u), main.Length);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE8UAt_NullSlot_EmitsNothing()
+        {
+            var rom = CreateTestRom(0x4000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, 0);
+            var list = new List<Address>();
+            RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE8UAt_NearEof_NoThrow()
+        {
+            var rom = CreateTestRom(0x2000);
+            uint pointer = 0x0400;
+            rom.write_u32(pointer, Ptr(0x1FF0)); // base near EOF
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoFE8UAt(rom, list, pointer));
+            Assert.Null(ex);
+        }
+
+        // ---- version/multibyte gate: FE8U OPClass forms emitted (no longer re-reported) ----
+
+        [Fact]
+        public void MakeAllStructPointers_FE8U_NonMultibyte_DoesNotReportOPClassFE8UForms()
+        {
+            // #1338 RE-REPORTED OPClassFontFE8UForm + OPClassDemoFE8UForm in NotYetPorted on a vanilla
+            // FE8U (version==8 && !is_multibyte), keeping IsComplete FALSE. #1261 ports them, so they
+            // emit at the WF call-site position and the re-report is REMOVED.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8u = MakeVersionedRom("BE8E01"); // FE8U: version 8, is_multibyte == false
+                CoreState.ROM = fe8u;
+                Assert.False(fe8u.RomInfo.is_multibyte);
+                var result = RebuildProducerCore.MakeAllStructPointers(fe8u);
+                Assert.DoesNotContain("OPClassFontFE8UForm", result.NotYetPorted);
+                Assert.DoesNotContain("OPClassDemoFE8UForm", result.NotYetPorted);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitOPClassFontFE8U_RunsCleanly_OnEmptyFakeFE8URom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8u = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8u;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassFontFE8U(fe8u, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void EmitOPClassDemoFE8U_RunsCleanly_OnEmptyFakeFE8URom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var fe8u = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8u;
+                var list = new List<Address>();
+                var ex = Record.Exception(() => RebuildProducerCore.EmitOPClassDemoFE8U(fe8u, list));
+                Assert.Null(ex);
+            }
+            finally { CoreState.ROM = savedRom; }
         }
 
         // ---- version gate: OPClassDemo present on multibyte, absent otherwise ----

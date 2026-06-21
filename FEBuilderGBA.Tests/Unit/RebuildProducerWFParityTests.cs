@@ -171,75 +171,62 @@ namespace FEBuilderGBA.Tests.Unit
                 // faithfulness regression across the ported forms.
                 Assert.Empty(realRegressions);
 
-                // ---- #1261 SOUNDNESS: the WF-only gap is EXACTLY the un-ported FE8U forms ----
-                // s2pf-17 (CAPSTONE) claimed an EXACT Core==WF (gap=0) on vanilla FE8U, but that was
-                // UNSOUND: WF's `version==8 && !is_multibyte` branch (U.cs:2535-2536) also runs
-                // OPClassFontFE8UForm + OPClassDemoFE8UForm, which Core's producer does NOT yet port (the
-                // multibyte OPClassFont/OPClassDemo forms it DOES port are distinct). On a vanilla FE8U
-                // those two FE8U forms emit 68 relocation entries (1 OPClassFont IFR + 1 OPClassFont
-                // LZ77IMG + 1 OPClassDemo IFR + 65 per-record OPClassDemo_Anime IFR/CString sub-walk
-                // entries) — a real WF-only gap that reproduces WITH the disassembler wired. Dropping them
-                // in a rebuild = silent ROM corruption. The #1261 soundness fix RE-REPORTS the two forms in
-                // the producer's NotYetPorted at RUNTIME (so IsComplete is FALSE on a vanilla FE8U and
-                // MakeWithProducer refuses), rather than silently omitting them. So the honest invariants on
-                // a vanilla FE8U are:
+                // ---- #1261 GATE RE-OPEN: EXACT Core == WF on vanilla FE8U (gap = 0) ----
+                // The s2pf-17 (CAPSTONE) gap=0 claim was UNSOUND because WF's `version==8 && !is_multibyte`
+                // branch (U.cs:2535-2536) ALSO runs OPClassFontFE8UForm + OPClassDemoFE8UForm, which Core
+                // did NOT port — on a vanilla FE8U those two forms emit ~68 relocation entries (1 OPClassFont
+                // IFR + 1 OPClassFont LZ77IMG + 1 OPClassDemo IFR + ~65 per-record OPClassDemo_Anime
+                // IFR/CString sub-walk entries) — a real WF-only gap that reproduces WITH the disassembler
+                // wired. #1338 RE-CLOSED the gate by re-reporting those two forms in NotYetPorted. As of
+                // #1261 those two FE8U forms ARE ported (EmitOPClassFontFE8U / EmitOPClassDemoFE8U at the WF
+                // call-site position), so the WF-only gap collapses to ZERO, the #1338 re-report is removed,
+                // and the gate legitimately RE-OPENS. The honest invariants on a vanilla FE8U are now:
                 //   (1) NO Core-only entries (Core never emits an entry WF lacks — already asserted above);
-                //   (2) the WF-only entries are EXACTLY the OPClassFontFE8U/OPClassDemoFE8U forms' output
-                //       (attributed by their Info names) — any OTHER WF-only entry = a ported form silently
-                //       dropped a region (a real Core deficit) and FAILS;
-                //   (3) coreData.IsComplete is FALSE (the gate is correctly CLOSED on FE8U), so the rebuild
-                //       refuses to feed this incomplete list to Make.
-                // When OPClassFontFE8U/OPClassDemoFE8U are ported, the gap collapses to 0, IsComplete opens,
-                // and assertion (3) flips — at which point this block tightens back to gap==0.
+                //   (2) NO WF-only entries — the symmetric difference is EMPTY (every WF entry, including the
+                //       OPClass FE8U output, is matched by Core on Addr/Length/Pointer/DataType);
+                //   (3) coreData.IsComplete is TRUE (the gate is correctly OPEN) and NotYetPorted no longer
+                //       lists the two FE8U OPClass forms.
+                // This is the REAL-ROM gap=0 proof: the ONLY trustworthy completeness check (an empty static
+                // NotYetPortedRaw does NOT prove soundness — #1338 showed that). NEVER weaken/skip this to
+                // force green; the disasm-wired real-ROM gap=0 is the only proof of completeness.
                 var wfOnlyKeys = wfKeys.Where(k => !coreKeys.Contains(k)).ToList();
                 var coreOnlyKeys = coreKeys.Where(k => !wfKeys.Contains(k)).ToList();
 
                 // (1) No Core-only entries — Core is a strict subset of WF.
                 Assert.Empty(coreOnlyKeys);
 
-                // (2) Attribute every WF-only entry to the two un-ported FE8U forms by Info name. The WF
-                // Address objects carry the form name in Info ("OPClassFont", "OPClassFont 0x<i>",
-                // "OPClassDemo", "OPClassDemo_Anime"). Build a set of the WF-only KEYS that ARE so
-                // attributed, then assert NO WF-only key falls outside it.
-                static bool IsUnportedFe8uForm(Address a)
-                {
-                    if (a.Info == null) return false;
-                    string info = a.Info;
-                    return info == "OPClassFont"
-                        || info.StartsWith("OPClassFont ", StringComparison.Ordinal)
-                        || info == "OPClassDemo"
-                        || info.StartsWith("OPClassDemo_", StringComparison.Ordinal);
-                }
-                var attributedKeys = new HashSet<Key>(
-                    wf.Where(a => !coreKeys.Contains(Key.Of(a)) && IsUnportedFe8uForm(a)).Select(Key.Of));
-                var unattributedWfOnly = wfOnlyKeys.Where(k => !attributedKeys.Contains(k)).ToList();
-                if (unattributedWfOnly.Count != 0)
+                // (2) No WF-only entries either — the gap is EXACTLY zero. A residual WF-only entry would
+                // mean a ported form (OPClass FE8U or otherwise) silently dropped a real region; dump it.
+                if (wfOnlyKeys.Count != 0)
                 {
                     const int N = 30;
-                    string dump = string.Join("\n", unattributedWfOnly.Take(N).Select(k =>
-                        $"  WF-only  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    // Annotate each WF-only key with the WF Info name(s) that produced it, to aid triage.
+                    var wfByKey = wf.GroupBy(Key.Of).ToDictionary(g => g.Key, g => g.First().Info ?? "<null>");
+                    string dump = string.Join("\n", wfOnlyKeys.Take(N).Select(k =>
+                        $"  WF-only  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"
+                        + $"  Info=\"{(wfByKey.TryGetValue(k, out var inf) ? inf : "?")}\""));
                     Assert.Fail(
-                        "#1261 soundness: found WF-only entries NOT attributable to the un-ported FE8U forms "
-                        + "(OPClassFontFE8U/OPClassDemoFE8U) — a PORTED form silently dropped a real region "
-                        + "(Core deficit).\n"
+                        "#1261 gate-open: found WF-only entries — the vanilla FE8U Core==WF gap is NOT zero, so "
+                        + "a PORTED form silently dropped a real region (Core deficit). The gate must NOT be "
+                        + "re-opened with a non-zero real-ROM gap.\n"
                         + $"WF total={wf.Count}, Core total={core.Count}, WF-only={wfOnlyKeys.Count}, "
-                        + $"attributed to FE8U forms={attributedKeys.Count}, unattributed={unattributedWfOnly.Count}.\n"
+                        + $"Core-only={coreOnlyKeys.Count}.\n"
                         + dump);
                 }
-                Assert.Empty(unattributedWfOnly);
+                Assert.Empty(wfOnlyKeys);
 
-                // (3) The gate is CORRECTLY CLOSED on a vanilla FE8U (the 68-entry gap is honestly tracked,
-                // not silently dropped) — MakeWithProducer therefore refuses, no corruption.
-                Assert.False(coreData.IsComplete,
-                    "vanilla FE8U: OPClassFontFE8U/OPClassDemoFE8U are un-ported, so the producer's "
-                    + "IsComplete MUST be false (the gate re-closed for soundness) — see "
-                    + "RebuildProducerCore.MakeAllStructPointers FE8U non-multibyte re-report.");
-                Assert.Contains("OPClassFontFE8UForm", coreData.NotYetPorted);
-                Assert.Contains("OPClassDemoFE8UForm", coreData.NotYetPorted);
+                // (3) The gate is CORRECTLY OPEN on a vanilla FE8U (gap = 0, every region honestly tracked),
+                // and the two FE8U OPClass forms are no longer re-reported.
+                Assert.True(coreData.IsComplete,
+                    "vanilla FE8U: OPClassFontFE8U/OPClassDemoFE8U are now PORTED and the real-ROM gap is "
+                    + "zero, so the producer's IsComplete MUST be true (the gate legitimately re-opened) — "
+                    + "see RebuildProducerCore.MakeAllStructPointers FE8U non-multibyte branch (#1261).");
+                Assert.DoesNotContain("OPClassFontFE8UForm", coreData.NotYetPorted);
+                Assert.DoesNotContain("OPClassDemoFE8UForm", coreData.NotYetPorted);
                 System.Console.WriteLine(
-                    $"[#1261 soundness] vanilla FE8U: WF total={wf.Count}, Core total={core.Count}, "
-                    + $"WF-only (un-ported OPClassFontFE8U/OPClassDemoFE8U)={wfOnlyKeys.Count}, "
-                    + $"Core-only=0, IsComplete={coreData.IsComplete} (gate correctly CLOSED).");
+                    $"[#1261 gate-open] vanilla FE8U: WF total={wf.Count}, Core total={core.Count}, "
+                    + $"WF-only={wfOnlyKeys.Count}, Core-only={coreOnlyKeys.Count}, "
+                    + $"IsComplete={coreData.IsComplete} (gate correctly OPEN — real-ROM gap=0).");
             }
             finally
             {
@@ -927,26 +914,27 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// #1261 SOUNDNESS: <see cref="RebuildProducerCore.MakeWithProducer(ROM, ROM, uint, string, bool, bool, IProgress{string}, System.Threading.CancellationToken)"/>
-        /// on a real VANILLA FE8U MUST REFUSE (never proceed/write the manifest), because Core does not yet
-        /// port the two FE8U non-multibyte forms OPClassFontFE8UForm / OPClassDemoFE8UForm that WF's
-        /// <c>version==8 &amp;&amp; !is_multibyte</c> branch emits (68 relocation entries on a vanilla FE8U).
+        /// #1261 GATE RE-OPEN: the two FE8U non-multibyte forms OPClassFontFE8UForm / OPClassDemoFE8UForm
+        /// (WF's <c>version==8 &amp;&amp; !is_multibyte</c> branch, U.cs:2535-2536) are now PORTED
+        /// (<see cref="RebuildProducerCore.EmitOPClassFontFE8U"/> /
+        /// <see cref="RebuildProducerCore.EmitOPClassDemoFE8U"/>), so the per-run data-path producer on a
+        /// real VANILLA FE8U is now <see cref="RebuildProducerCore.ProducerResult.IsComplete"/> and NO LONGER
+        /// re-reports those two forms. The #1338 runtime re-report that kept the gate CLOSED has been removed.
         /// <para>
-        /// s2pf-17 (CAPSTONE) wrongly cleared the STATIC NotYetPorted list AND, on the user's main checkout
-        /// where the s2pf-18 $FGREP install-resolution makes the EA/BIN backstop resolve to NotInstalled,
-        /// <c>MakeWithProducer</c> PROCEEDED — writing a manifest that would drive a rebuild DROPPING those
-        /// 68 un-enumerated OPClassDemo/OPClassFont regions (the rebuild treats every region NOT in the
-        /// struct list as free) = silent ROM corruption. The #1261 fix RE-REPORTS the two un-ported forms in
-        /// the producer's NotYetPorted at RUNTIME on a non-multibyte FE8 (FE8U), so the IsComplete gate stays
-        /// CLOSED and <c>MakeWithProducer</c> REFUSES (InvalidOperationException naming the two forms) — no
-        /// corruption. This test asserts that refusal (and that it is the IsComplete gate's "not yet ported"
-        /// refusal naming OPClassFontFE8U/OPClassDemoFE8U, NOT the s2pf-12 EA/BIN backstop, NOT the removed
-        /// PatchForm token).
+        /// This test pins the inverse of the old #1338 assertion: the producer's NotYetPorted MUST NOT list
+        /// the two FE8U OPClass forms, IsComplete MUST be true, and <see cref="RebuildProducerCore.MakeWithProducer"/>
+        /// MUST NOT refuse with the "not yet ported" OPClass gate. The companion gap=0 parity proof
+        /// (<see cref="CoreProducer_IsSubsetOf_WinFormsProducer_ForAllPortedForms"/>) is what authorizes the
+        /// re-open (WF-only=0, Core-only=0, disasm wired). NOTE: <c>MakeWithProducer</c> may still refuse via
+        /// the SEPARATE per-ROM s2pf-12 EA/BIN backstop (<c>PatchFormHasUnportableInstalledPatch</c>) when the
+        /// $FGREP install-resolution resolves an installed-but-unemittable EA/BIN patch; that is an unrelated,
+        /// still-load-bearing soundness net. So we assert ONLY that any refusal is NOT the OPClass "not yet
+        /// ported" gate (and proceeding, when it happens, is legitimate now that the gap is 0).
         /// </para>
         /// <para>NON-FATAL when no ROM / un-init submodule (early-exit Pass), same posture as the siblings.</para>
         /// </summary>
         [Fact]
-        public void MakeWithProducer_OnVanillaFE8U_RefusesViaIsCompleteGate_UnportedOpClassFe8uForms()
+        public void MakeWithProducer_OnVanillaFE8U_GateReopened_NoOpClassFe8uRefusal()
         {
             string? repoRoot = FindRepoRootWithRom();
             if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
@@ -965,56 +953,58 @@ namespace FEBuilderGBA.Tests.Unit
                 if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
                 if (Program.ROM.RomInfo.is_multibyte) return; // FE8U is non-multibyte; FE8J is a different gate
 
-                // The STATIC lists stay empty (these forms are version-gated, re-reported at runtime, not
-                // listed statically). The PER-RUN producer result is what carries the FE8U gate.
+                // The STATIC lists stay empty (every data-path form ported; version-gated forms never went
+                // into the static list). The PER-RUN producer result now carries an OPEN FE8U gate.
                 Assert.Empty(RebuildProducerCore.GetAsmNotYetPortedForms());
                 Assert.Empty(RebuildProducerCore.GetNotYetPortedForms());
-                // PER-RUN: the producer re-reports the two un-ported FE8U forms (the soundness invariant).
+                // PER-RUN: the producer NO LONGER re-reports the two FE8U OPClass forms (they emit now).
                 RebuildProducerCore.ProducerResult dataRun =
                     RebuildProducerCore.MakeAllStructPointers(Program.ROM);
-                Assert.False(dataRun.IsComplete);
-                Assert.Contains("OPClassFontFE8UForm", dataRun.NotYetPorted);
-                Assert.Contains("OPClassDemoFE8UForm", dataRun.NotYetPorted);
+                Assert.True(dataRun.IsComplete,
+                    "#1261 gate-open: with OPClassFontFE8U/OPClassDemoFE8U ported the vanilla FE8U data-path "
+                    + "producer MUST be IsComplete (no version-gated re-report remains).");
+                Assert.DoesNotContain("OPClassFontFE8UForm", dataRun.NotYetPorted);
+                Assert.DoesNotContain("OPClassDemoFE8UForm", dataRun.NotYetPorted);
 
-                ROM vanilla = Program.ROM; // (manifest base — content irrelevant to the refuse branch)
-                string tmp = Path.Combine(Path.GetTempPath(), "s1261_sound_" + Guid.NewGuid().ToString("N"));
+                ROM vanilla = Program.ROM; // (manifest base — content irrelevant to the gate decision)
+                string tmp = Path.Combine(Path.GetTempPath(), "s1261_open_" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(tmp);
                 try
                 {
                     string manifestPath = Path.Combine(tmp, "vanilla.rebuild");
                     InvalidOperationException? refusal = null;
-                    bool proceeded = false;
                     try
                     {
                         RebuildProducerCore.MakeWithProducer(
                             Program.ROM, vanilla, 0x00800000u, manifestPath,
                             isUseOtherGraphics: IS_USE_OTHER_GRAPHICS, isUseOAMSP: IS_USE_OAMSP);
-                        proceeded = true;
                     }
                     catch (InvalidOperationException ex)
                     {
-                        refusal = ex;
+                        refusal = ex; // a refusal here can ONLY be the s2pf-12 EA/BIN backstop now.
                     }
 
-                    // MUST REFUSE — proceeding would write a manifest that drops the 68 OPClass* regions.
-                    Assert.False(proceeded,
-                        "#1261 soundness: MakeWithProducer on a vanilla FE8U MUST refuse (the un-ported "
-                        + "OPClassFontFE8U/OPClassDemoFE8U forms make IsComplete false) — proceeding would "
-                        + "drop their 68 un-enumerated regions = silent ROM corruption.");
-                    Assert.NotNull(refusal);
-                    Assert.False(File.Exists(manifestPath),
-                        "gate-closed REFUSE: no .rebuild manifest may be written");
-                    // The refusal MUST be the IsComplete "not yet ported" gate naming the two FE8U forms —
-                    // NOT the removed PatchForm token, and NOT only the s2pf-12 EA/BIN backstop (which would
-                    // mask the real coverage gap behind an EA/BIN message).
-                    Assert.Contains("not yet ported", refusal!.Message);
-                    Assert.Contains("OPClassFontFE8UForm", refusal.Message);
-                    Assert.Contains("OPClassDemoFE8UForm", refusal.Message);
-                    Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", refusal.Message);
-                    System.Console.WriteLine(
-                        "[#1261 soundness] MakeWithProducer on vanilla FE8U REFUSED via the IsComplete gate "
-                        + "(un-ported OPClassFontFE8U/OPClassDemoFE8U) — SOUND, no silent 68-entry drop. "
-                        + "Refusal: " + refusal.Message);
+                    // The OPClass "not yet ported" gate is GONE — whatever happens, it MUST NOT be that gate.
+                    if (refusal != null)
+                    {
+                        Assert.DoesNotContain("OPClassFontFE8UForm", refusal.Message);
+                        Assert.DoesNotContain("OPClassDemoFE8UForm", refusal.Message);
+                        // MakeWithProducer throws BEFORE calling RebuildMakeCore.Make, so a refusal (the
+                        // EA/BIN backstop) must guarantee NO .rebuild manifest was written — a partial/empty
+                        // manifest despite an error would be a regression (Copilot PR #1340 review).
+                        Assert.False(File.Exists(manifestPath),
+                            "a MakeWithProducer refusal must not write a .rebuild manifest");
+                        System.Console.WriteLine(
+                            "[#1261 gate-open] MakeWithProducer on vanilla FE8U: the OPClass IsComplete gate is "
+                            + "OPEN; any remaining refusal is the SEPARATE s2pf-12 EA/BIN backstop. Message: "
+                            + refusal.Message);
+                    }
+                    else
+                    {
+                        System.Console.WriteLine(
+                            "[#1261 gate-open] MakeWithProducer on vanilla FE8U PROCEEDED (gap=0, gate open, "
+                            + "no unemittable EA/BIN patch) — SOUND.");
+                    }
                 }
                 finally
                 {
