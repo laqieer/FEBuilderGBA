@@ -989,6 +989,11 @@ namespace FEBuilderGBA.Tests.Unit
                     {
                         Assert.DoesNotContain("OPClassFontFE8UForm", refusal.Message);
                         Assert.DoesNotContain("OPClassDemoFE8UForm", refusal.Message);
+                        // MakeWithProducer throws BEFORE calling RebuildMakeCore.Make, so a refusal (the
+                        // EA/BIN backstop) must guarantee NO .rebuild manifest was written — a partial/empty
+                        // manifest despite an error would be a regression (Copilot PR #1340 review).
+                        Assert.False(File.Exists(manifestPath),
+                            "a MakeWithProducer refusal must not write a .rebuild manifest");
                         System.Console.WriteLine(
                             "[#1261 gate-open] MakeWithProducer on vanilla FE8U: the OPClass IsComplete gate is "
                             + "OPEN; any remaining refusal is the SEPARATE s2pf-12 EA/BIN backstop. Message: "

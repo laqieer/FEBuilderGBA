@@ -695,8 +695,11 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotNull(item);
                 Assert.Equal(rom.RomInfo.item_datasize, item.BlockSize);
                 Assert.Equal(new uint[] { 12, 16 }, item.PointerIndexes);
-                uint itemCount = item.Length / item.BlockSize - 1; // length = block*(count+1)
-                Assert.True(itemCount >= 1, "Item count should be positive");
+                // length = block * (count + 1). Assert the block-multiple FIRST (so a count of >= 1 means
+                // length >= 2*block) without the unsigned `/ block - 1` subtraction, which would wrap to a
+                // huge uint if Length ever regressed below BlockSize and mask the bug (Copilot PR #1340).
+                Assert.True(item.Length >= 2u * item.BlockSize,
+                    "Item length must cover at least one entry + the terminator block (count >= 1)");
 
                 // The progress collector must have received reports (per-descriptor + summary).
                 lock (progressLines)
