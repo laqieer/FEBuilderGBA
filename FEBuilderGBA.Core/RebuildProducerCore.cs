@@ -12341,17 +12341,18 @@ namespace FEBuilderGBA
                 // installed-patch tree via ScanPatchs(GetPatchDirectory()) + CheckIFFast + the per-TYPE
                 // MakePatchStructDataListForADDR/EA/BIN/SWITCH/STRUCT/IMAGE helpers. Ported INCREMENTALLY
                 // in the #1261 option-B s2pf-* slices: the orchestrator + ADDR/SWITCH (s2pf-3) + IMAGE
-                // (s2pf-4) + STRUCT skeleton & SAFE arms (s2pf-5) are LIVE in Core, but this token STAYS
-                // until s2pf-11 because (a) EA/BIN are still no-op stubs, AND (b) the STRUCT arm's
-                // FORM-BOUND fields are STILL routed through a DOCUMENTED INTERIM default-MIX (length-0
-                // MIX placeholder) — they are upgraded to precise sub-walked lengths in s2pf-8..10
-                // (AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
-                // BattleAnime=10). EVENT (s2pf-6: the EventScriptForm.ScanScript walk via EmitScanScript,
-                // disasm-gated) and PatchImage_HEADERTSA (s2pf-7: EmitHeaderTsaPointer / CalcHeaderTsaLength)
-                // are now PRECISE. See EmitPatchStruct's block comment for the full audit
-                // table. Until the remaining interim arms land, a wrong/zero patch-pointer length relocates
-                // the wrong bytes = silent corruption — so the gate stays CLOSED (no live rebuild) until
-                // the WHOLE arm is precise.
+                // (s2pf-4/7) + the FULL STRUCT path (skeleton/SAFE arms s2pf-5, EVENT s2pf-6,
+                // HEADERTSA s2pf-7, AP/ROMTCS/PROCS s2pf-8, the six deterministic form-arms s2pf-9,
+                // BATTLEANIMEPOINTER s2pf-10) are all LIVE + PRECISE, AND the orchestrator is now WIRED
+                // into AppendAllAsmStructPointers (s2pf-11). This token NEVERTHELESS STAYS because the
+                // TYPE=EA and TYPE=BIN arms are STILL no-op skips: WF emits Address entries for those via
+                // PatchForm.TracePatchedMapping (the EA/BIN bin-mapping trace subsystem), which is NOT yet
+                // in Core. So Core's PatchForm output is a faithful SUBSET of WF's (Core⊆WF — never a
+                // Core-extra) but NOT a superset (missing every EA/BIN entry). Emitting a wrong/guessed
+                // EA/BIN length would relocate the wrong bytes = silent corruption, so the producer
+                // SKIPS those patches honestly and the gate stays CLOSED (IsComplete false; no live
+                // rebuild) until the EA/BIN subsystem (TracePatchedMapping) lands in Core — the NEXT
+                // phase. See EmitPatchStruct's block comment for the STRUCT-arm audit table.
                 "PatchForm(MakePatchStructDataList)",
                 // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED in slice 2x (EmitProcsScript /
                 // EmitProcsScriptCore + ROMInfoLoadResourceKnownArea + Load6cNameDicSafe). Its FindProc walk
@@ -12425,9 +12426,27 @@ namespace FEBuilderGBA
                 return new AsmProducerResult(notYet, cancelled: true);
             }
 
-            // WF call 1 (UNCONDITIONAL): PatchForm.MakePatchStructDataList — DEFERRED (already in
-            // AsmNotYetPortedRaw; nothing emitted here).
-            progress?.Report("PatchForm (deferred)");
+            // WF call 1 (UNCONDITIONAL): PatchForm.MakePatchStructDataList (WF U.cs:2619) — now WIRED
+            // LIVE (s2pf-11). The orchestrator emits the ADDR/SWITCH/IMAGE/STRUCT patch entries (all
+            // precise after s2pf-3..10); its EA/BIN TYPE arms are still HONEST no-op skips (the EA/BIN
+            // trace subsystem, WF's TracePatchedMapping, is the NEXT phase). Because EA/BIN are not yet
+            // emitted, Core's PatchForm output is a faithful SUBSET of WF's (Core⊆WF, never a Core-extra)
+            // but NOT a superset — so "PatchForm(MakePatchStructDataList)" STAYS in AsmNotYetPortedRaw
+            // (IsComplete stays false; the MakeWithProducer gate stays CLOSED). WF arg values traced from
+            // ToolROMRebuildMake.cs:820 (isPatchInstallOnly:true, isPatchPointerOnly:false,
+            // isPatchStructOnly:false) -> Core (isPointerOnly:false, isInstallOnly:true, isStructOnly:false).
+            progress?.Report("PatchForm");
+            MakePatchStructDataListCore(rom, list,
+                isPointerOnly: false, isInstallOnly: true, isStructOnly: false,
+                progress: progress, ct: ct);
+            // WF's per-patch DoEvents early-returns the PARTIALLY built list on cancel; the orchestrator
+            // mirrors that (returns leaving `list` intact, never throws). Re-check `ct` here so this
+            // wrapper reports the cancel the same way the rest of AppendAllAsmStructPointers does.
+            if (ct.IsCancellationRequested)
+            {
+                progress?.Report("AppendAllAsmStructPointers cancelled");
+                return new AsmProducerResult(notYet, cancelled: true);
+            }
 
             // WF: `if (ldrmap != null) { ... }`. Of these forms only ProcsScript consumes the ldrmap;
             // the other 6 just need it present (the gate marks "full-ROM disasm available"). We
@@ -12720,17 +12739,23 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// SCAFFOLD orchestrator (s2pf-1) for the WinForms
+        /// Orchestrator (s2pf-1..11) for the WinForms
         /// <c>PatchForm.MakePatchStructDataList</c> (FEBuilderGBA/PatchForm.cs:7126).
         /// Scans the installed-patch tree for <paramref name="rom"/> and walks each patch
         /// through the same gate WF uses (<see cref="PatchHardCodeScanner.isCanonicalSkip"/>
         /// -> <see cref="PatchHardCodeScanner.CheckIF"/> -> <see cref="IsMakePatchStructDataListTarget"/>),
         /// then dispatches on the patch TYPE.
         /// <para>
-        /// In THIS slice EVERY per-TYPE arm is a documented NO-OP STUB — nothing is added to
-        /// <paramref name="list"/>. The orchestrator is defined + unit-tested but is NOT wired
-        /// into <see cref="AppendAllAsmStructPointers"/> (wiring = s2pf-11), and
-        /// "PatchForm(MakePatchStructDataList)" stays in <see cref="AsmNotYetPortedRaw"/>.
+        /// The ADDR/SWITCH/IMAGE/STRUCT TYPE arms are fully ported + precise (s2pf-3..10) and emit
+        /// into <paramref name="list"/>. The orchestrator is now WIRED into
+        /// <see cref="AppendAllAsmStructPointers"/> as the first unconditional call (s2pf-11). The
+        /// TYPE=EA and TYPE=BIN arms remain HONEST no-op skips — WF emits those via
+        /// <c>TracePatchedMapping</c> (the EA/BIN trace subsystem, the NEXT phase), so Core's output is a
+        /// faithful SUBSET of WF's (Core⊆WF, never a Core-extra) but not a superset. Because EA/BIN are
+        /// not yet emitted, "PatchForm(MakePatchStructDataList)" STAYS in
+        /// <see cref="AsmNotYetPortedRaw"/> (<see cref="AsmProducerResult.IsComplete"/> stays false; the
+        /// <see cref="MakeWithProducer(ROM, ROM, uint, string, bool, bool, IProgress{string}, CancellationToken)"/>
+        /// rebuild gate stays CLOSED).
         /// </para>
         /// <para>
         /// The ROM is passed EXPLICITLY (never CoreState.ROM / Program.ROM): WF reads
@@ -12799,13 +12824,26 @@ namespace FEBuilderGBA
                     // s2pf-3: TYPE=ADDR handler (WF MakePatchStructDataListForADDR @:6213).
                     EmitPatchAddr(rom, list, patch, isPointerOnly);
                 }
-                else if (type == "EA")
+                else if (type == "EA" || type == "BIN")
                 {
-                    // s2pf-4: TYPE=EA handler (WF MakePatchStructDataListForEA @:6259). STUB.
-                }
-                else if (type == "BIN")
-                {
-                    // s2pf-5: TYPE=BIN handler (WF MakePatchStructDataListForBIN @:6317). STUB.
+                    // TYPE=EA (WF MakePatchStructDataListForEA @:6259) and TYPE=BIN (WF
+                    // MakePatchStructDataListForBIN @:6317) are GENUINELY DEFERRED — they are the
+                    // remaining phase AFTER this slice (s2pf-11). Both WF arms drive
+                    // PatchForm.TracePatchedMapping(patch) (the EA/BIN bin-mapping trace subsystem) and
+                    // emit one Address per traced BinMapping. That trace subsystem is NOT yet in Core.
+                    //
+                    // HONEST OMISSION (the established EventCond/disasm-gate convention): we SKIP this
+                    // patch's emission entirely — we do NOT emit a wrong/guessed entry (a partial or
+                    // guessed Address would relocate the wrong bytes = silent ROM corruption), and we do
+                    // NOT throw (a throw here would abort the whole producer run on FE8U, which carries
+                    // TYPE=EA/BIN patches such as AI_TalkAI, 16_tracks, 1RNMode, 256colors, ASMC_*). The
+                    // skip is what makes Core a faithful SUBSET of WF (Core⊆WF): every entry Core DOES
+                    // emit is in WF's list, and the EA/BIN entries WF emits are exactly the ones Core
+                    // lacks. The visible re-report of this incompleteness is the gate token
+                    // "PatchForm(MakePatchStructDataList)" in AsmNotYetPortedRaw — it keeps
+                    // AsmProducerResult.IsComplete false so the MakeWithProducer rebuild gate stays
+                    // CLOSED. The token (and gate) are removed only when the EA/BIN trace subsystem
+                    // (TracePatchedMapping) lands in Core — the NEXT phase.
                 }
                 else if (type == "SWITCH")
                 {

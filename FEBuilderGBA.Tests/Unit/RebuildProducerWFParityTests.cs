@@ -677,6 +677,214 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        /// <summary>
+        /// FULL-PRODUCER WF-parity for #1261 slice s2pf-11 — the PatchForm producer orchestrator is now
+        /// WIRED into the live ASM producer (<see cref="RebuildProducerCore.AppendAllAsmStructPointers"/>),
+        /// so this asserts <b>Core⊆WF over the ENTIRE PatchForm output</b> (all TYPE arms at once), strictly,
+        /// with NO LZ77IMG / GraphicsTool exception (Copilot CLI #1323 required-strengthening finding: the
+        /// sibling merged-list subset harness exempts any Core-extra LZ77IMG at a WF-known address as a
+        /// GraphicsTool re-discovery, which could mask a bad Core-only PatchForm IMAGE entry — so PatchForm is
+        /// validated HERE, isolated from that exception, by comparing the patch producer DIRECTLY).
+        /// <para>
+        /// Both sides run the WHOLE patch producer on the SAME real FE8U ROM with the SAME rebuild flags
+        /// (<c>isPointerOnly=false, isInstallOnly=true, isStructOnly=false</c> — the
+        /// <c>ToolROMRebuildMake.Make</c> → <c>AppendAllASMStructPointersList</c> callsite,
+        /// ToolROMRebuildMake.cs:820): WF <c>PatchForm.MakePatchStructDataList</c> (the parity reference,
+        /// which DOES emit the TYPE=EA/TYPE=BIN entries via <c>TracePatchedMapping</c>) vs Core
+        /// <see cref="RebuildProducerCore.MakePatchStructDataListCore"/> (which SKIPS EA/BIN — the deferred
+        /// subsystem). The assertion is:
+        /// <list type="bullet">
+        ///   <item><b>Core⊆WF, STRICT.</b> EVERY Core-emitted entry (keyed Addr/Length/Pointer/DataType)
+        ///   MUST be in WF's list. ANY Core-extra — including a stray PatchForm <c>LZ77IMG</c> — FAILS (no
+        ///   GraphicsTool exception here). This is the load-bearing no-corruption proof.</item>
+        ///   <item><b>Core⊉WF (strict subset) — the WF-only gap is EVERY entry attributable to the deferred
+        ///   TYPE=EA/TYPE=BIN arms.</b> The test asserts every WF-only entry is EA/BIN-attributed (by the
+        ///   <c>@EA</c>/<c>@BIN</c>/<c>@PROCS</c>/… Info markers those arms stamp, plus their symbol
+        ///   side-entries) — a WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently
+        ///   dropped a real entry, which FAILS. The gap count + installed EA/BIN patch count are reported.</item>
+        /// </list>
+        /// <b>KEY FINDING:</b> on a freshly-loaded VANILLA FE8U, NO EA/BIN patches are INSTALLED
+        /// (<c>CheckIF != "I"</c>), so WF's EA/BIN arms emit nothing and the gap is legitimately 0
+        /// (WF total == Core total). The gate token STAYS for a STRUCTURAL reason — the EA/BIN arms are
+        /// un-ported CODE, so a ROM that DID carry installed EA/BIN patches would expose entries Core cannot
+        /// emit. That structural invariant is asserted by the Core.Tests
+        /// (<c>GetAsmNotYetPortedForms</c> contains the token + <c>IsComplete</c> false), so this ROM-level
+        /// test DOCUMENTS the gap rather than requiring it to be <c>&gt; 0</c>.
+        /// </para>
+        /// <para>SKIP-IF-NO-ROM + NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT (same posture as
+        /// the per-arm harnesses): no ROM / un-init submodule → both lists empty → Core⊆WF holds trivially.</para>
+        /// </summary>
+        [Fact]
+        public void CorePatchProducer_IsStrictSubsetOf_WinFormsPatchProducer_EaBinGapDocumented()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
+
+                PatchForm.ClearCheckIF();
+
+                // ---- WinForms reference: the WHOLE patch producer (emits EA/BIN via TracePatchedMapping) ----
+                var wfAll = new List<Address>();
+                PatchForm.MakePatchStructDataList(wfAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // ---- Core: the WHOLE orchestrator, same flags + same ROM (skips EA/BIN) ----
+                var coreAll = new List<Address>();
+                RebuildProducerCore.MakePatchStructDataListCore(Program.ROM, coreAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                var wfKeys = new HashSet<Key>(wfAll.Select(Key.Of));
+                var coreKeys = new HashSet<Key>(coreAll.Select(Key.Of));
+
+                // STRICT Core⊆WF over the ENTIRE patch output — NO LZ77IMG/GraphicsTool exception. A Core
+                // entry not in WF (any DataType, any address) is a faithfulness regression and FAILS.
+                var coreExtras = coreAll.Where(a => !wfKeys.Contains(Key.Of(a)))
+                                        .Select(Key.Of).Distinct().ToList();
+                if (coreExtras.Count > 0)
+                {
+                    const int N = 30;
+                    string dump = string.Join("\n", coreExtras.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    Assert.Fail(
+                        $"Core PatchForm producer emitted {coreExtras.Count} entr"
+                        + (coreExtras.Count == 1 ? "y" : "ies")
+                        + " NOT present in the WinForms patch producer (faithfulness regression — STRICT, "
+                        + "no GraphicsTool exception).\n"
+                        + $"WF patch total={wfAll.Count}, Core total={coreAll.Count}.\n"
+                        + $"First {Math.Min(N, coreExtras.Count)} Core-only entries:\n{dump}");
+                }
+                Assert.Empty(coreExtras); // PROVEN: Core⊆WF strictly over ALL PatchForm entries.
+
+                // The WF-only gap = entries WF emits that Core lacks. Every WF-only entry MUST be
+                // attributable to the deferred TYPE=EA/TYPE=BIN arms (the reason the token stays). We
+                // attribute by the Info markers those arms stamp: WF EA entries end "@EA"/"@PROCS"/
+                // "@Pointer_Array"/"@NEW_TARGET_SELECTION_STRUCT" and BIN entries end "@BIN"/"@UNUSEDBIN"
+                // (PatchForm.cs:6259-6422) — plus the per-mapping SymbolUtil entries those same arms add.
+                var wfOnly = wfAll.Where(a => !coreKeys.Contains(Key.Of(a))).ToList();
+                int wfOnlyGap = new HashSet<Key>(wfOnly.Select(Key.Of)).Count;
+
+                // Count the installed TYPE=EA / TYPE=BIN patches in the FE8U tree (the gap's source).
+                int eaBinPatchCount = CountInstalledEaBinPatches(Program.ROM);
+
+                // KEY FINDING (documented, not a bug): a freshly-loaded VANILLA FE8U has NO EA/BIN patches
+                // INSTALLED (CheckIF != "I"), so WF's EA/BIN arms emit NOTHING and the gap is legitimately
+                // 0 — WF total == Core total here. The gate token nevertheless STAYS for a STRUCTURAL reason
+                // (the EA/BIN arms are un-ported CODE, so any ROM that DID carry installed EA/BIN patches
+                // would expose entries Core cannot emit); that structural invariant is asserted by the
+                // Core.Tests (GetAsmNotYetPortedForms contains the token + IsComplete is false), not by this
+                // ROM's installed set. So the gap is DOCUMENTED, not required to be > 0.
+                //
+                // Whatever the gap is, EVERY WF-only entry must be attributable to the EA/BIN arms — a
+                // WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently dropped an
+                // entry (a Core deficit in an already-ported arm), which we DO fail on.
+                bool IsEaBinAttributed(Address a)
+                {
+                    // PRECISE attribution by the markers the EA/BIN arms (PatchForm.cs:6259-6422) stamp:
+                    //   (1) the per-mapping AddAddress entries' Info ends @EA / @BIN / @UNUSEDBIN / @PROCS /
+                    //       @Pointer_Array / @NEW_TARGET_SELECTION_STRUCT;
+                    //   (2) the symbol side-entries SymbolUtil.ProcessSymbolByList + the patch-level
+                    //       ProcessSymbolByList(list, patch) add are Address.AddCommentData -> a length-0
+                    //       DataTypeEnum.Comment entry. BOTH ProcessSymbolByList call-sites are EXCLUSIVELY
+                    //       inside the EA (6266) and BIN (6324) arms — Core's ADDR/SWITCH/IMAGE/STRUCT arms
+                    //       emit NO Comment entries — so a Comment WF-only entry is necessarily an EA/BIN
+                    //       symbol side-entry (this is far more specific than the previous "not in Core's
+                    //       Info set" fallback, which could hide a real deficit in a ported non-EA/BIN arm).
+                    if (a.DataType == Address.DataTypeEnum.Comment) return true;
+                    if (a.Info == null) return false;
+                    string info = a.Info;
+                    if (info.EndsWith("@EA", StringComparison.Ordinal)) return true;
+                    if (info.EndsWith("@BIN", StringComparison.Ordinal)) return true;
+                    if (info.EndsWith("@UNUSEDBIN", StringComparison.Ordinal)) return true;
+                    if (info.EndsWith("@PROCS", StringComparison.Ordinal)) return true;
+                    if (info.EndsWith("@Pointer_Array", StringComparison.Ordinal)) return true;
+                    if (info.EndsWith("@NEW_TARGET_SELECTION_STRUCT", StringComparison.Ordinal)) return true;
+                    return false;
+                }
+
+                var unattributed = wfOnly.Where(a => !IsEaBinAttributed(a)).Select(Key.Of).Distinct().ToList();
+                if (unattributed.Count > 0)
+                {
+                    const int N = 30;
+                    string dump = string.Join("\n", unattributed.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    Assert.Fail(
+                        $"Found {unattributed.Count} WF-only PatchForm entr"
+                        + (unattributed.Count == 1 ? "y" : "ies")
+                        + " NOT attributable to the deferred EA/BIN arms — a PORTED arm silently dropped a "
+                        + "real entry (Core deficit).\n"
+                        + $"WF total={wfAll.Count}, Core total={coreAll.Count}, WF-only gap={wfOnlyGap}, "
+                        + $"installed EA/BIN patches={eaBinPatchCount}.\n"
+                        + $"First {Math.Min(N, unattributed.Count)} unattributed WF-only entries:\n{dump}");
+                }
+                Assert.Empty(unattributed); // every WF-only entry is the deferred EA/BIN subset.
+
+                // DOCUMENTED (visible in test output): Core⊆WF strictly; the WF-only gap (if any) is
+                // entirely the deferred EA/BIN entries; on a vanilla FE8U with no EA/BIN installed the gap
+                // is 0 (WF==Core). The token stays for the structural EA/BIN-un-ported reason.
+                System.Console.WriteLine(
+                    $"[s2pf-11] PatchForm parity: WF total={wfAll.Count}, Core total={coreAll.Count}, "
+                    + $"Core-extras={coreExtras.Count} (MUST be 0), WF-only gap (all EA/BIN-attributed)={wfOnlyGap}, "
+                    + $"installed TYPE=EA/BIN patches={eaBinPatchCount}.");
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        /// <summary>
+        /// Count the installed TYPE=EA / TYPE=BIN patches for the loaded ROM — the entry source for the
+        /// deferred EA/BIN gap. Walks the same <c>config/patch2/&lt;version&gt;</c> tree the producer scans
+        /// (via the Core scanner so it stays headless) and counts patches whose TYPE is EA/BIN and that pass
+        /// the install gate the producer applies (CheckIF != "E"; for non-STRUCT/IMAGE under isInstallOnly
+        /// the producer further requires CheckIF == "I"). Returns 0 when the submodule is un-init.
+        /// </summary>
+        static int CountInstalledEaBinPatches(ROM rom)
+        {
+            try
+            {
+                string version = rom.RomInfo?.VersionToFilename ?? "";
+                if (string.IsNullOrEmpty(version)) return 0;
+                string patchDir = PatchHardCodeScanner.ResolvePatchDirectory(version);
+                List<PatchInstallCore.PatchSt> patchs = PatchHardCodeScanner.ScanPatchs(rom, patchDir, "en");
+                int n = 0;
+                foreach (PatchInstallCore.PatchSt p in patchs)
+                {
+                    if (PatchHardCodeScanner.isCanonicalSkip(p)) continue;
+                    string type = U.at(p.Param, "TYPE");
+                    if (type != "EA" && type != "BIN") continue;
+                    string checkIF = PatchHardCodeScanner.CheckIF(rom, p);
+                    // Mirror IsMakePatchStructDataListTarget for non-STRUCT/IMAGE under isInstallOnly=true.
+                    if (RebuildProducerCore.IsMakePatchStructDataListTarget(
+                            type, checkIF, isInstallOnly: IS_PATCH_INSTALL_ONLY, isStructOnly: IS_PATCH_STRUCT_ONLY))
+                    {
+                        n++;
+                    }
+                }
+                return n;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
         // ----------------------------------------------------------------
         readonly struct Key : IEquatable<Key>
         {
