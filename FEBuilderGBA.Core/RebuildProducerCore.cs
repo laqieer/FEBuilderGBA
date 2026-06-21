@@ -13246,6 +13246,349 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-14 of 17).
+        //
+        // The TYPE=EA producer ARM (NOT yet wired into the orchestrator — that is
+        // s2pf-17; the orchestrator's EA case stays a stub this slice). Faithful Core
+        // port of WinForms:
+        //   - TraceEAPatchedMappingForProducer  <- PatchForm.TraceEAPatchedMapping  (:5247)
+        //   - EmitPatchEA                        <- PatchForm.MakePatchStructDataListForEA (:6259)
+        //
+        // TRACE reuses the s2pf-13 walker EventAssemblerUninstallCore.EmitEaDataList so the
+        // ORG/ASM/MIX/LYN/LYNHOOK/POINTER_ARRAY/BIN/mask/GREP/EraseORG logic stays
+        // byte-identical between the in-place UNINSTALL (#1242) and this PRODUCER arm. The
+        // ONE divergence the producer needs is PROCS: the uninstall path SKIPS PROCS as
+        // residue (its WinForms-only length detector is absent), but the PRODUCER MUST EMIT
+        // PROCS — a missed live PROCS in the rebuild free list = silent corruption. We inject
+        // that via the EmitEaDataList procsHandler hook, backed by the verbatim WF length
+        // detector CalcProcsLengthAndCheck (= ProcsScriptForm.CalcLengthAndCheck, WF :5452),
+        // skipping ONLY on NOT_FOUND (verbatim WF `continue` at :5453).
+        //
+        // The MULTI-EVENT-FILE loop (WF :5253-5264) is reproduced here: every *.event under
+        // the patch dir (recursive) plus the EA= main file (added if a .txt-only patch hid
+        // it). GREP misses on ASM/MIX/LYN/BIN are recorded on `untraceable` by EmitEaDataList
+        // (honest omission, never silent — a range WF would cover that Core drops would be
+        // corruption). NO Program.ROM / CoreState.ROM read — `rom` is threaded explicitly.
+        //
+        // DEFERRED to s2pf-16 (the WF trailers at :5508-5512, driven by extra patch params):
+        //   TraceEditPatch (EDIT_PATCH), AppendMenuPatch (MENU),
+        //   AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT). They emit nothing
+        //   for a bare {TYPE=EA, EA=...} patch, but a real FE8U EA patch can carry those
+        //   params, so they are left as a marked TODO rather than guessed.
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.TraceEAPatchedMapping</c>
+        /// (FEBuilderGBA/PatchForm.cs:5247) for the rebuild PRODUCER. Traces where a
+        /// TYPE=EA patch's blocks were mapped into <paramref name="rom"/> and returns the
+        /// reconstructed <see cref="EventAssemblerUninstallCore.BinMapping"/>s.
+        ///
+        /// <para>Walks every <c>*.event</c> file under the patch directory (recursive,
+        /// WF <c>U.Directory_GetFiles_Safe(dir, "*.event", AllDirectories)</c>) plus the
+        /// <c>EA=</c> main file added if a non-<c>.event</c> patch hid it (WF
+        /// <c>U.AddIfNotExist</c>), skipping FBG temp wrappers. Each file is parsed by
+        /// <see cref="EAUtilCore"/> and walked by the shared s2pf-13
+        /// <see cref="EventAssemblerUninstallCore.EmitEaDataList"/> — so the
+        /// ORG/ASM/MIX/LYN/LYNHOOK/POINTER_ARRAY/BIN trace stays byte-identical to the
+        /// verified #1242 uninstall trace.</para>
+        ///
+        /// <para><b>PROCS divergence (the producer-only behaviour):</b> unlike the uninstall
+        /// path, this arm EMITS PROCS. A <see cref="EventAssemblerUninstallCore.ProcsEmitHandler"/>
+        /// is injected that reproduces WF's PROCS branch (:5437-5471): advance the baseline
+        /// by <c>Append</c>+Padding4 (done by the walker), GREP the BINData from the
+        /// borderline, then <see cref="CalcProcsLengthAndCheck"/> the resolved address —
+        /// emitting a <see cref="Address.DataTypeEnum.PROCS"/> mapping, or skipping ONLY on
+        /// NOT_FOUND (verbatim WF <c>continue</c> at :5453; the skip is recorded as
+        /// untraceable, never a guessed length).</para>
+        ///
+        /// <para><b>Honest omission:</b> any block the trace cannot reconstruct (a GREP miss
+        /// on ASM/MIX/LYN/BIN, a NOT_FOUND PROCS, an un-hinted inline PNG raster) is appended
+        /// to <paramref name="untraceable"/> — a range WF would have covered that Core
+        /// silently dropped would be free-list corruption.</para>
+        ///
+        /// <para>The WF trailers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
+        /// <c>AppendNewTargetSelectionStruct</c> (:5508-5512) are DEFERRED to s2pf-16.</para>
+        /// </summary>
+        /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="patch">The TYPE=EA patch (its <c>PatchFileName</c> dir is walked; its <c>EA=</c> param adds the main file).</param>
+        /// <param name="untraceable">Accumulator for blocks that could not be traced (GREP miss, NOT_FOUND PROCS). Optional; pass to surface coverage gaps.</param>
+        /// <returns>The reconstructed bin-mappings, in trace order.</returns>
+        public static List<EventAssemblerUninstallCore.BinMapping> TraceEAPatchedMappingForProducer(
+            ROM rom, PatchInstallCore.PatchSt patch, List<string> untraceable = null)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+            // RomInfo is read by the walker (compress_image_borderline_address GREP seed) and
+            // by the PROCS handler. The orchestrator only reaches the EA arm for an identified
+            // ROM, but guard so a bad direct caller gets a clean ArgumentException, not an NRE.
+            if (rom.RomInfo == null) throw new ArgumentNullException(nameof(rom) + ".RomInfo");
+
+            var binMappings = new List<EventAssemblerUninstallCore.BinMapping>();
+            if (untraceable == null)
+            {
+                untraceable = new List<string>();
+            }
+
+            // WF: string dir = Path.GetDirectoryName(patch.PatchFileName);
+            //     string[] files = U.Directory_GetFiles_Safe(dir, "*.event", AllDirectories);
+            // Normalize a null dir (PatchFileName with no directory part) to "" — Directory
+            // enumeration on "" would throw, so an empty dir yields no .event files (only the
+            // EA= main file, if its combined path exists). This matches WF's effective result
+            // for a patch with no directory context.
+            string dir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+            string[] files;
+            if (dir.Length == 0)
+            {
+                files = new string[0];
+            }
+            else
+            {
+                files = U.Directory_GetFiles_Safe(dir, "*.event", System.IO.SearchOption.AllDirectories);
+            }
+
+            // WF :5256-5264 — the main-process file may be a .txt the *.event scan missed; add
+            // it. WF: string ea = U.at(patch.Param,"EA"); if GetFilenameExt(ea) != ".EVENT" {
+            //   ea = Path.Combine(dir, ea); files = U.AddIfNotExist(files, ea); }
+            {
+                string ea = U.at(patch.Param, "EA");
+                if (U.GetFilenameExt(ea) != ".EVENT")
+                {
+                    ea = System.IO.Path.Combine(dir, ea);
+                    files = U.AddIfNotExist(files, ea);
+                }
+            }
+
+            // The PROCS emit hook (producer-only). Reproduces WF TraceEAPatchedMapping's PROCS
+            // branch tail (:5442-5471): the walker has ALREADY advanced lastMatchAddr by
+            // Append+Padding4 (WF :5439-5440) and passes it in as `advanced`. We GREP the
+            // BINData from the borderline (WF :5443-5450), then CalcProcsLengthAndCheck the
+            // resolved address (WF :5452 = ProcsScriptForm.CalcLengthAndCheck). On NOT_FOUND we
+            // return a null Mapping (verbatim WF `continue` at :5453) and DO NOT advance past
+            // the block. On success we build the PROCS BinMapping and advance
+            // lastMatchAddr = addr + length (WF :5471).
+            EventAssemblerUninstallCore.ProcsEmitHandler procsHandler = (r, data, advanced) =>
+            {
+                uint addr = advanced;
+                if (data.BINData != null && data.BINData.Length > 0)
+                {
+                    uint foundAddr = U.Grep(r.Data, data.BINData,
+                        r.RomInfo.compress_image_borderline_address, 0, 4);
+                    if (foundAddr != U.NOT_FOUND)
+                    {
+                        addr = foundAddr;
+                    }
+                }
+
+                uint length = CalcProcsLengthAndCheck(r, addr);
+                if (length == U.NOT_FOUND)
+                {//WF :5453 — length unknown; skip (do NOT guess). Baseline stays `advanced`.
+                    return new EventAssemblerUninstallCore.ProcsEmitResult
+                    {
+                        Mapping = null,
+                        NewLastMatchAddr = advanced,
+                    };
+                }
+
+                var b = new EventAssemblerUninstallCore.BinMapping
+                {
+                    key = data.DataType.ToString(),
+                    filename = data.Name,
+                    addr = addr,
+                    length = length,
+                    // EOF-guard the binary read (length came from the EOF-clamped
+                    // CalcProcsLengthAndCheck, so addr+length is in-bounds, but guard the
+                    // start defensively — a bad GREP/Append could still land near EOF).
+                    bin = U.isSafetyOffset(addr, r) ? r.getBinaryData(addr, length) : new byte[0],
+                    mask = EventAssemblerUninstallCore.MakeFullMask(length),
+                    type = Address.DataTypeEnum.PROCS,
+                };
+                return new EventAssemblerUninstallCore.ProcsEmitResult
+                {
+                    Mapping = b,
+                    NewLastMatchAddr = addr + length,
+                };
+            };
+
+            foreach (string fullfilename in files)
+            {
+                if (EAUtilCore.IsFBGTemp(fullfilename))
+                {
+                    continue;
+                }
+                if (string.IsNullOrEmpty(fullfilename) || !System.IO.File.Exists(fullfilename))
+                {//WF's EAUtil ctor would throw on a missing file; the producer skips it and
+                 //records the gap rather than aborting the whole rebuild.
+                    untraceable.Add(R._("EA event file not found: {0}", fullfilename ?? ""));
+                    continue;
+                }
+
+                EAUtilCore ea;
+                try
+                {
+                    ea = new EAUtilCore(fullfilename);
+                }
+                catch (Exception ex)
+                {//Honour "never abort the producer": a bad .event becomes a recorded gap.
+                    untraceable.Add(R._("Could not read the event file: {0}", ex.Message));
+                    continue;
+                }
+
+                // Parser-level untraceable blocks (un-hinted inline PNG rasters).
+                untraceable.AddRange(ea.UntraceableNotes);
+
+                // The shared s2pf-13 walker — byte-identical to the uninstall trace for every
+                // block EXCEPT PROCS, which procsHandler now EMITS for the producer.
+                EventAssemblerUninstallCore.EmitEaDataList(rom, ea, binMappings, untraceable, procsHandler);
+            }
+
+            // s2pf-16: WF :5507-5512 trailers (TraceEditPatch / AppendMenuPatch /
+            // AppendNewTargetSelectionStruct) are DEFERRED — they act on extra patch params
+            // (EDIT_PATCH / MENU / NEW_TARGET_SELECTION_STRUCT) and emit nothing for a bare
+            // {TYPE=EA, EA=...} patch. Left as a marked TODO, NOT guessed.
+
+            return binMappings;
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForEA</c>
+        /// (FEBuilderGBA/PatchForm.cs:6259), the TYPE=EA producer arm. <b>NOT yet wired into
+        /// the orchestrator</b> — the <see cref="MakePatchStructDataListCore"/> EA case stays
+        /// a stub until s2pf-17; this method is the tested API that slice will call.
+        ///
+        /// <para>Early-returns when <c>ASMMAP</c> is false (WF :6261-6265 — the patch opts out
+        /// of the ASM map). Then ports the SYMBOL= side-channel inline (WF
+        /// <c>ProcessSymbolByList(list, patch)</c> at :6266 = read the <c>SYMBOL=</c> param,
+        /// combine with the patch dir, and feed <see cref="SymbolUtil.ProcessSymbolToList"/>),
+        /// traces the patch via <see cref="TraceEAPatchedMappingForProducer"/>, and emits one
+        /// <see cref="Address"/> per <see cref="EventAssemblerUninstallCore.BinMapping"/> by
+        /// its <c>type</c>:</para>
+        /// <list type="bullet">
+        ///   <item><c>POINTER_ARRAY</c> -&gt; <see cref="Address.AddPointerArray"/> (inner MIX), WF :6280.</item>
+        ///   <item><c>NEW_TARGET_SELECTION_STRUCT</c> -&gt; <see cref="Address.AddNewTargetSelectionStruct"/>, WF :6287.</item>
+        ///   <item><c>PROCS</c> -&gt; <see cref="Address.AddAddress"/> typed PROCS (length 0 when <paramref name="isPointerOnly"/>), WF :6293.</item>
+        ///   <item>else -&gt; <see cref="Address.AddAddress"/> typed by the mapping's own type (length 0 when pointer-only), WF :6303.</item>
+        /// </list>
+        /// <para>Each non-empty mapping filename additionally drives
+        /// <see cref="SymbolUtil.ProcessSymbolByList(System.Collections.Generic.List{Address}, string, string, uint)"/>
+        /// (WF :6311-6314, the per-block ELF/sym.txt symbol channel). The per-mapping
+        /// <c>U.isSafetyOffset</c> guard skips only that mapping — verbatim WF :6273.</para>
+        ///
+        /// <para>The trailing WF helpers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
+        /// <c>AppendNewTargetSelectionStruct</c> live inside
+        /// <c>TraceEAPatchedMapping</c> (:5508-5512), DEFERRED to s2pf-16.</para>
+        /// </summary>
+        /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=EA patch whose <c>EA=</c>/<c>SYMBOL=</c>/<c>ASMMAP</c> params drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true the emitted PROCS/EA lengths are 0 (pointer-only pass).</param>
+        public static void EmitPatchEA(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with EmitPatchAddr / EmitPatchSwitch): throw a clear
+            // ArgumentNullException rather than an unhelpful NRE. The orchestrator always passes a
+            // valid rom/list and a LoadPatch result whose Param is non-null.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // WF :6261-6265 — ASMMAP=false opts the patch OUT of the ASM map; emit nothing.
+            string use_asmmap = U.at(patch.Param, "ASMMAP", "true");
+            if (U.stringbool(use_asmmap) == false)
+            {
+                return;
+            }
+
+            // WF :6266 — ProcessSymbolByList(list, patch). The WF private static (PatchForm.cs
+            // :9537) needs NO Form state: it reads the SYMBOL= param, combines it with the
+            // patch dir, reads the file, and calls SymbolUtil.ProcessSymbolToList (already in
+            // Core). Ported inline below.
+            ProcessPatchSymbolByList(list, patch);
+
+            // WF :6268 — string basedir = Path.GetDirectoryName(patch.PatchFileName);
+            // Normalize null -> "" so the per-block symbol channel never receives a null dir.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            // WF :6269 — TracePatchedMapping(patch) dispatches to TraceEAPatchedMapping for
+            // TYPE=EA. We call the producer trace directly (the orchestrator only routes EA
+            // patches here). untraceable gaps are surfaced via the trace; the producer keeps
+            // emitting the ranges it COULD reconstruct (honest subset).
+            List<EventAssemblerUninstallCore.BinMapping> map =
+                TraceEAPatchedMappingForProducer(rom, patch);
+
+            foreach (EventAssemblerUninstallCore.BinMapping m in map)
+            {
+                uint a = m.addr;
+                if (!U.isSafetyOffset(a, rom))
+                {//WF :6273 — skip only this mapping.
+                    continue;
+                }
+
+                if (m.type == Address.DataTypeEnum.POINTER_ARRAY)
+                {//WF :6278-6284
+                    Address.AddPointerArray(list,
+                        a, m.length,
+                        patch.Name + "@" + m.filename + "@Pointer_Array",
+                        Address.DataTypeEnum.MIX);
+                }
+                else if (m.type == Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT)
+                {//WF :6285-6290
+                    Address.AddNewTargetSelectionStruct(list,
+                        a, U.NOT_FOUND,
+                        patch.Name + "@" + m.filename + "@NEW_TARGET_SELECTION_STRUCT");
+                }
+                else if (m.type == Address.DataTypeEnum.PROCS)
+                {//WF :6291-6300
+                    Address.AddAddress(list,
+                        a,
+                        isPointerOnly ? 0 : m.length,
+                        U.NOT_FOUND,
+                        patch.Name + "@" + m.filename + "@PROCS",
+                        Address.DataTypeEnum.PROCS);
+                }
+                else
+                {//WF :6301-6309
+                    Address.AddAddress(list,
+                        a,
+                        isPointerOnly ? 0 : m.length,
+                        U.NOT_FOUND,
+                        patch.Name + "@" + m.filename + "@EA",
+                        m.type);
+                }
+
+                if (m.filename != "")
+                {//WF :6311-6314 — per-block ELF/sym.txt symbol channel (already in Core).
+                    SymbolUtil.ProcessSymbolByList(list, basedir, m.filename, m.addr);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.ProcessSymbolByList(List&lt;Address&gt;, PatchSt)</c>
+        /// (FEBuilderGBA/PatchForm.cs:9537) — the <c>SYMBOL=</c> side-channel. Reads the
+        /// <c>SYMBOL=</c> param, combines it with the patch directory, and (when the file
+        /// exists) feeds its contents to <see cref="SymbolUtil.ProcessSymbolToList"/> with
+        /// base address 0. Needs NO Form state (only patch params + a file read), so it is
+        /// ported inline. No-op when <c>SYMBOL=</c> is absent or the file is missing.
+        /// </summary>
+        static void ProcessPatchSymbolByList(List<Address> list, PatchInstallCore.PatchSt patch)
+        {
+            string symbol = U.at(patch.Param, "SYMBOL", "");
+            if (symbol == "")
+            {
+                return;
+            }
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+            symbol = System.IO.Path.Combine(basedir, symbol);
+            if (!System.IO.File.Exists(symbol))
+            {
+                return;
+            }
+            string symbolData = System.IO.File.ReadAllText(symbol);
+            SymbolUtil.ProcessSymbolToList(list, patch.Name, symbolData, 0);
+        }
+
+        // ====================================================================
         // PatchForm producer — option-B epic (#1261, sub-slice s2pf-4 of 11).
         //
         // The TYPE=IMAGE terminal arm. Faithful Core port of WinForms
