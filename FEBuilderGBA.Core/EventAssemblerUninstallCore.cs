@@ -232,10 +232,21 @@ namespace FEBuilderGBA
         /// <param name="procsHandler">Producer-only PROCS emit hook (see
         /// <see cref="ProcsEmitHandler"/>); <c>null</c> for the uninstall path, which skips
         /// PROCS as residue exactly as before.</param>
-        internal static void EmitEaDataList(ROM rom, EAUtilCore ea, List<BinMapping> binMappings, List<string> untraceable,
-            ProcsEmitHandler procsHandler = null)
+        /// <param name="initialLastMatchAddr">The starting GREP/POINTER_ARRAY/PROCS baseline.
+        /// <c>null</c> (the uninstall caller's default) seeds it from
+        /// <c>rom.RomInfo.compress_image_borderline_address</c> — byte-identical to the
+        /// original single-file walk. The PRODUCER's multi-event-file loop passes the value
+        /// RETURNED by the previous file's call, so the baseline is CARRIED ACROSS files
+        /// exactly as WF <c>PatchForm.TraceEAPatchedMapping</c> does (it seeds
+        /// <c>lastMatchAddr</c> ONCE at :5266, BEFORE the <c>foreach (files)</c> loop at
+        /// :5268). Without this, file 2+ would re-seed at the borderline and a duplicate
+        /// pattern earlier in free space could be mis-selected (Copilot PR #1329 finding).</param>
+        /// <returns>The advanced <c>lastMatchAddr</c> after walking this file — the producer
+        /// threads it into the next file's call to preserve the cross-file baseline.</returns>
+        internal static uint EmitEaDataList(ROM rom, EAUtilCore ea, List<BinMapping> binMappings, List<string> untraceable,
+            ProcsEmitHandler procsHandler = null, uint? initialLastMatchAddr = null)
         {
-            uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
+            uint lastMatchAddr = initialLastMatchAddr ?? rom.RomInfo.compress_image_borderline_address;
 
             for (int n = 0; n < ea.DataList.Count; n++)
             {
@@ -484,6 +495,11 @@ namespace FEBuilderGBA
                     lastMatchAddr = addr + length;
                 }
             }
+
+            // Return the advanced baseline so the producer's multi-event-file loop can carry
+            // it into the next file (WF seeds lastMatchAddr ONCE before its foreach). The
+            // uninstall caller walks a single file and ignores this.
+            return lastMatchAddr;
         }
 
         /// <summary>

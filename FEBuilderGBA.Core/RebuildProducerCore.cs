@@ -13410,6 +13410,12 @@ namespace FEBuilderGBA
                 };
             };
 
+            // WF :5266 — seed lastMatchAddr ONCE at the borderline, BEFORE the file loop
+            // (:5268), so the GREP/POINTER_ARRAY/PROCS baseline is CARRIED ACROSS every
+            // .event file. Re-seeding per file (the bug Copilot PR #1329 flagged) would let
+            // a duplicate pattern earlier in free space be mis-selected for file 2+.
+            uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
+
             foreach (string fullfilename in files)
             {
                 if (EAUtilCore.IsFBGTemp(fullfilename))
@@ -13438,8 +13444,11 @@ namespace FEBuilderGBA
                 untraceable.AddRange(ea.UntraceableNotes);
 
                 // The shared s2pf-13 walker — byte-identical to the uninstall trace for every
-                // block EXCEPT PROCS, which procsHandler now EMITS for the producer.
-                EventAssemblerUninstallCore.EmitEaDataList(rom, ea, binMappings, untraceable, procsHandler);
+                // block EXCEPT PROCS, which procsHandler now EMITS for the producer. Thread
+                // lastMatchAddr IN (the baseline reached by prior files) and OUT (its advanced
+                // value) so it persists across files exactly as WF's single seed does.
+                lastMatchAddr = EventAssemblerUninstallCore.EmitEaDataList(
+                    rom, ea, binMappings, untraceable, procsHandler, lastMatchAddr);
             }
 
             // s2pf-16: WF :5507-5512 trailers (TraceEditPatch / AppendMenuPatch /
