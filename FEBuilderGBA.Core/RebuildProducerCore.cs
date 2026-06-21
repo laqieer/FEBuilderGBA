@@ -984,7 +984,7 @@ namespace FEBuilderGBA
 
                 // ---- slice 2i: OPClassDemo (FE8-multibyte ONLY) ----
                 // WF calls OPClassDemoForm.MakeAllDataLength inside `version==8 && is_multibyte` (the
-                // FE8U non-multibyte path uses OPClassDemoFE8UForm, still deferred). Per-entry nested
+                // FE8U non-multibyte path uses OPClassDemoFE8UForm, ported in #1261 below). Per-entry nested
                 // N1/N2 IFR sub-tables (block 1/2) reached via embedded pointers @ +8/+24 — a dedicated
                 // emitter (EmitOPClassDemo) reproduces the form-specific dual-guard ordering.
                 if (rom.RomInfo.is_multibyte)
@@ -1018,6 +1018,32 @@ namespace FEBuilderGBA
                 }
                 else
                 {
+                    // ---- #1261 FE8U OPClass forms (FE8 NON-multibyte ONLY) ----
+                    // WF's `version==8 && !is_multibyte` branch (U.cs:2535-2536) calls, IN ORDER:
+                    //   OPClassFontFE8UForm.MakeAllDataLength → OPClassDemoFE8UForm.MakeAllDataLength →
+                    //   ExtraUnitFE8UForm.MakeAllDataLength → FE8SpellMenuExtendsForm.MakeAllDataLength.
+                    // These two OPClass FE8U forms are DISTINCT from the multibyte OPClassFont/OPClassDemo
+                    // (slice 2h/2i) emitted in the is_multibyte block above — different count rules / block
+                    // sizes / nested-table layout (see EmitOPClassFontFE8U / EmitOPClassDemoFE8U). They were
+                    // previously RE-REPORTED at runtime (the #1338 soundness re-close) because Core didn't
+                    // port them; now that they ARE ported, they EMIT here at the WF call-site position and
+                    // the #1338 re-report is REMOVED.
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("OPClassFontFE8U");
+                    EmitOPClassFontFE8U(rom, list);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        progress?.Report("MakeAllStructPointersList cancelled");
+                        return new ProducerResult(list, notYet, cancelled: true);
+                    }
+                    progress?.Report("OPClassDemoFE8U");
+                    EmitOPClassDemoFE8U(rom, list);
+
                     if (ct.IsCancellationRequested)
                     {
                         progress?.Report("MakeAllStructPointersList cancelled");
@@ -1041,25 +1067,10 @@ namespace FEBuilderGBA
                     progress?.Report("FE8SpellMenuExtends");
                     EmitFE8SpellMenuExtends(rom, list);
 
-                    // ---- #1261 SOUNDNESS: OPClassFontFE8U + OPClassDemoFE8U are NOT yet ported ----
-                    // WF's `version==8 && !is_multibyte` branch (U.cs:2535-2536) ALSO calls
-                    // OPClassFontFE8UForm.MakeAllDataLength + OPClassDemoFE8UForm.MakeAllDataLength —
-                    // distinct non-multibyte forms from the multibyte OPClassFont/OPClassDemo (slice 2h/2i)
-                    // Core ports above. On a vanilla FE8U these two FE8U forms emit 68 relocation entries
-                    // (1 OPClassFont IFR + 1 OPClassFont LZ77IMG + 1 OPClassDemo IFR + 65 per-record
-                    // OPClassDemo_Anime IFR/CString sub-walk entries). They were never ported to the Core
-                    // producer (the slice-2i note: "FE8U/FE7U non-mb STAY deferred"), but s2pf-17 removed
-                    // them from the STATIC NotYetPorted list anyway, FALSELY opening IsComplete on FE8U.
-                    // A rebuild driven by that would DROP all 68 regions = silent ROM corruption.
-                    // RE-REPORT them at RUNTIME (the same posture as EventCondForm when the disasm is
-                    // unwired) so IsComplete is correctly FALSE on a vanilla FE8U and MakeWithProducer
-                    // refuses rather than dropping the regions. The STATIC GetNotYetPortedForms() stays
-                    // empty (these are version-gated, not version-agnostic), and the multibyte FE8J path
-                    // — where Core DOES port OPClassFont/OPClassDemo — remains complete. Porting the two
-                    // FE8U forms (the EmitNestedIfrSub + SubKind.CString primitives exist) is the path to
-                    // re-open the gate; until then this re-close keeps the rebuild SOUND.
-                    notYet = AppendNotYetPorted(notYet, "OPClassFontFE8UForm");
-                    notYet = AppendNotYetPorted(notYet, "OPClassDemoFE8UForm");
+                    // (#1261) OPClassFontFE8U + OPClassDemoFE8U are now PORTED and emitted at the WF
+                    // call-site position above (before ExtraUnitFE8U), so the #1338 runtime re-report that
+                    // kept IsComplete FALSE on a vanilla FE8U is REMOVED. The FE8U non-multibyte producer
+                    // path is now sound w.r.t. these two forms.
                 }
 
                 // ---- slice 2t: ImagePortraitForm (FE8 + FE7 call sites) ----
@@ -7620,7 +7631,8 @@ namespace FEBuilderGBA
         /// <summary>
         /// <c>OPClassDemoForm.MakeAllDataLength</c> (slice 2i; FE8-multibyte ONLY — gated at the
         /// <c>version == 8 &amp;&amp; is_multibyte</c> call site, like OPClassFont; the FE8U non-multibyte
-        /// path is <c>OPClassDemoFE8UForm</c>, still deferred). Main IFR: base
+        /// path is <c>OPClassDemoFE8UForm</c>, ported in #1261 as
+        /// <see cref="EmitOPClassDemoFE8U"/>). Main IFR: base
         /// <c>op_class_demo_pointer</c>, block 28, IsDataExists = <c>u8(addr+0xF) &lt;= 4</c>,
         /// emitted via <c>AddAddress(list, IFR, "OPClassDemo", {0, 8, 24})</c>. Per main-table entry
         /// (<c>addr = base + i*28</c>, <c>i &lt; DataCount</c>), VERBATIM:
@@ -7702,6 +7714,167 @@ namespace FEBuilderGBA
                 // N2_InputFormRef.ReInitPointer(addr + 24); AddAddress(N2, "OPClassDemo_Anime", {}).
                 // N2_Init: block 2, IsDataExists = u8(addr) != 0x00.
                 EmitNestedIfrSub(rom, list, p + 24, 2,
+                    (j, addr) => rom.u8(addr) != 0x00,
+                    "OPClassDemo_Anime");
+            }
+        }
+
+        /// <summary>
+        /// <c>OPClassFontFE8UForm.MakeAllDataLength</c> (#1261 FE8U; FE8 NON-multibyte ONLY — gated at the
+        /// WF <c>version == 8 &amp;&amp; !is_multibyte</c> call site (U.cs:2535), alongside
+        /// OPClassDemoFE8U/ExtraUnitFE8U/FE8SpellMenuExtends). This is a DISTINCT form from the multibyte
+        /// <c>OPClassFontForm</c> (slice 2h, the StructDescriptor in the version==8 is_multibyte block):
+        /// same base <c>op_class_font_pointer</c> and block 4, but a DIFFERENT count rule and a per-entry
+        /// NULL guard. WF <c>Init</c>: base <c>op_class_font_pointer</c>, block 4, IsDataExists =
+        /// <c>i &lt;= 0x7a</c> (a FIXED-count rule — NOT the multibyte <c>isPointer(u32(addr))</c>).
+        /// VERBATIM:
+        /// <list type="bullet">
+        ///   <item>Main IFR via <c>AddAddress(list, IFR, "OPClassFont", {0})</c> — base = p32(slot),
+        ///   length = block × (DataCount + 1), pointer = slot (or NOT_FOUND), pointerIndexes {0}.</item>
+        ///   <item>Per main-table entry (<c>p = base + i*4</c>, <c>i &lt; DataCount</c>): read
+        ///   <c>a = p32(p)</c>; <c>if (a &lt;= 0) continue;</c> (skip a NULL embedded pointer); else
+        ///   <c>AddLZ77Pointer(list, p, "OPClassFont 0x&lt;i&gt;", isPointerOnly, LZ77IMG)</c> — the
+        ///   per-record compressed font image. The producer always scans real lengths
+        ///   (<c>isPointerOnly: false</c>; see <see cref="SubKind.Lz77Pointer"/>).</item>
+        /// </list>
+        /// The main IFR's pointerIndex {0} relocates the per-entry embedded image-pointer FIELD; the
+        /// per-record AddLZ77Pointer relocates the pointed-at compressed image DATA.
+        /// </summary>
+        public static void EmitOPClassFontFE8U(ROM rom, List<Address> list)
+        {
+            EmitOPClassFontFE8UAt(rom, list, rom.RomInfo.op_class_font_pointer);
+        }
+
+        /// <summary>OPClassFontFE8U walk from an explicit pointer slot (test seam — lets a synthetic ROM
+        /// supply it without populating RomInfo). See <see cref="EmitOPClassFontFE8U"/> for the verbatim
+        /// WF reproduction.</summary>
+        public static void EmitOPClassFontFE8UAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 4;
+
+            // Main IFR (AddAddress(IFR, "OPClassFont", {0})): base = p32(toOffset(slot)), pointer = slot.
+            // Guard the full slot (root+3) before p32 so a near-EOF slot emits nothing instead of throwing.
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // AddAddress early-returns when !isSafetyOffset(BaseAddress).
+            }
+
+            // IsDataExists = i <= 0x7a (a fixed count — independent of ROM bytes). getBlockDataCount stops
+            // either at the rule (i==0x7b) or when addr+4>Length, whichever comes first.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) => i <= 0x7a);
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "OPClassFont",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 0 }));
+
+            // Per-entry expansion. getBlockDataCount guarantees addr+4<=Length for i<dataCount, so the
+            // p32(p) read (deepest p+3) is in bounds.
+            uint p = baseAddr;
+            for (uint i = 0; i < dataCount; i++, p += block)
+            {
+                // WF: uint a = ROM.p32(p); if (a <= 0) continue; (skip a NULL/zero embedded pointer).
+                // p32 returns toOffset(u32(p)) or 0 if out of bounds; a <= 0 (uint) == a == 0.
+                uint a = rom.p32(p);
+                if (a == 0)
+                {
+                    continue;
+                }
+                // AddLZ77Pointer(list, p, "OPClassFont 0x<i>", isPointerOnly=false, LZ77IMG). The producer
+                // always scans real lengths (LZ77.getCompressedSize); AddLZ77Pointer does its own
+                // isSafetyPointer guard + EOF-safe length (getCompressedSize == 0 on a malformed stream).
+                Address.AddLZ77Pointer(list, p,
+                    "OPClassFont " + U.To0xHexString((uint)i),
+                    false,
+                    Address.DataTypeEnum.LZ77IMG);
+            }
+        }
+
+        /// <summary>
+        /// <c>OPClassDemoFE8UForm.MakeAllDataLength</c> (#1261 FE8U; FE8 NON-multibyte ONLY — gated at the
+        /// WF <c>version == 8 &amp;&amp; !is_multibyte</c> call site (U.cs:2536), alongside
+        /// OPClassFontFE8U/ExtraUnitFE8U/FE8SpellMenuExtends). This is a DISTINCT form from the multibyte
+        /// <c>OPClassDemoForm</c> (slice 2i, <see cref="EmitOPClassDemo"/>): same base
+        /// <c>op_class_demo_pointer</c> but a DIFFERENT block size (20 / 0x14, NOT 28), a different count
+        /// rule, a single nested table (N2 at +16, NOT the N1@+8/N2@+24 pair), and a single guard.
+        /// WF <c>Init</c>: base <c>op_class_demo_pointer</c>, block 20, IsDataExists = <c>u8(addr+0xF) &lt;= 6</c>
+        /// (NOT the multibyte <c>&lt;= 4</c>). WF <c>N2_Init</c>: block 2, IsDataExists = <c>u8(addr) != 0x00</c>.
+        /// VERBATIM:
+        /// <list type="bullet">
+        ///   <item>Main IFR via <c>AddAddress(list, IFR, "OPClassDemo", {16})</c> — base = p32(slot),
+        ///   length = block × (DataCount + 1), pointer = slot (or NOT_FOUND), pointerIndexes {16}
+        ///   (the embedded anime-pointer field).</item>
+        ///   <item>Per main-table entry (<c>addr = base + i*20</c>, <c>i &lt; DataCount</c>):
+        ///   <c>AddCString(list, 0 + addr)</c> — the class-name CString pointer at entry offset +0;
+        ///   then guard <c>anime = p32(addr + 16)</c>; if <c>!isSafetyOffset(anime)</c> continue;
+        ///   else N2 nested IFR @ <c>addr + 16</c>: block 2, rule <c>u8(addr) != 0x00</c>,
+        ///   name "OPClassDemo_Anime" (a CONSTANT name — WF uses no per-index suffix here).</item>
+        /// </list>
+        /// The N2 nested IFR is emitted via <see cref="EmitNestedIfrSub"/> (the slice-2i primitive — its
+        /// internal <c>ReInitPointer</c> reproduces the WF <c>anime = p32(addr+16)</c> guard + the
+        /// <c>getBlockDataCount</c> walk). The main IFR's pointerIndex {16} relocates the embedded
+        /// anime-pointer FIELD.
+        /// </summary>
+        public static void EmitOPClassDemoFE8U(ROM rom, List<Address> list)
+        {
+            EmitOPClassDemoFE8UAt(rom, list, rom.RomInfo.op_class_demo_pointer);
+        }
+
+        /// <summary>OPClassDemoFE8U walk from an explicit pointer slot (test seam — lets a synthetic ROM
+        /// supply it without populating RomInfo). See <see cref="EmitOPClassDemoFE8U"/> for the verbatim
+        /// WF reproduction.</summary>
+        public static void EmitOPClassDemoFE8UAt(ROM rom, List<Address> list, uint rawPointer)
+        {
+            const uint block = 20;
+
+            // Main IFR (AddAddress(IFR, "OPClassDemo", {16})): base = p32(toOffset(slot)), pointer = slot.
+            // Guard the full slot (root+3) before p32 so a near-EOF slot emits nothing instead of throwing.
+            uint pointer = U.toOffset(rawPointer);
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // AddAddress early-returns when !isSafetyOffset(BaseAddress).
+            }
+
+            // IsDataExists = u8(addr+0xF) <= 6. getBlockDataCount only fires while addr+20<=Length, so the
+            // +0xF read is always in bounds.
+            uint dataCount = rom.getBlockDataCount(baseAddr, block, (i, addr) =>
+                rom.u8(addr + 0xF) <= 6);
+
+            uint length = block * (dataCount + 1);
+            list.Add(new Address(baseAddr, length, pointer, "OPClassDemo",
+                Address.DataTypeEnum.InputFormRef, block, new uint[] { 16 }));
+
+            // Per-entry expansion. getBlockDataCount guarantees addr+block(20)<=Length for i<dataCount, so
+            // the CString pointer @ addr+0 and the anime pointer @ addr+16 (deepest addr+19) are in bounds.
+            uint addr2 = baseAddr;
+            for (uint i = 0; i < dataCount; i++, addr2 += block)
+            {
+                // Address.AddCString(list, 0 + addr): the class-name CString pointer at entry offset +0.
+                Address.AddCString(list, 0 + addr2);
+
+                // WF guards the embedded anime pointer (anime = p32(addr+16)) before emitting N2. A
+                // NULL/unsafe pointer skips the nested table for this entry. EmitNestedIfrSub repeats this
+                // guard internally (ReInitPointer reads p32(addr+16) + isSafetyOffset-checks subBase), so a
+                // pre-guard here is faithful to WF's explicit `if (!isSafetyOffset(anime)) continue;`.
+                uint anime = rom.p32(addr2 + 16);
+                if (!U.isSafetyOffset(anime, rom))
+                {
+                    continue;
+                }
+
+                // N2_InputFormRef.ReInitPointer(addr + 16); AddAddress(N2, "OPClassDemo_Anime", {}).
+                // N2_Init: block 2, IsDataExists = u8(addr) != 0x00. Constant name (no per-index suffix).
+                EmitNestedIfrSub(rom, list, addr2 + 16, 2,
                     (j, addr) => rom.u8(addr) != 0x00,
                     "OPClassDemo_Anime");
             }
@@ -10829,8 +11002,8 @@ namespace FEBuilderGBA
                 {
                     // OPClassFontForm.MakeAllDataLength (FE8, slice 2h) — called in the WF version==8
                     // branch ONLY inside `if (is_multibyte)` (the FE8U non-multibyte path uses
-                    // OPClassFontFE8UForm, which is a different — still-deferred — form). Gated
-                    // identically here. Info "OPClassFont", block 4, base op_class_font_pointer,
+                    // OPClassFontFE8UForm, a different form — ported in #1261 as EmitOPClassFontFE8U).
+                    // Gated identically here. Info "OPClassFont", block 4, base op_class_font_pointer,
                     // IsDataExists = isPointer(u32(addr+0)) (PointerAt @0), pointerIndexes {0}. Per entry:
                     // ONE LZ77IMG column at 0, labelled "OPClassFont 0x<i>" (U.To0xHexString) verbatim.
                     l.Add(new StructDescriptor
@@ -12271,7 +12444,15 @@ namespace FEBuilderGBA
                 //    OPClassDemoFE7Form [FE7-multibyte] — EmitOPClassDemoFE7: main block 32, rule i<=0x41,
                 //      PI {0,8,28}; per entry CString@+0, Lz77@+8 (LZ77IMG), anime-guard@+28, then N2
                 //      NestedIfr@+28 (block 2, u8!=0); + a trailing absolute AddPointer(0x0B0038, 0x20,
-                //      PAL) common-palette pointer. (FE8U/FE7U non-multibyte variants STAY deferred.)
+                //      PAL) common-palette pointer.
+                //  #1261 ported the two FE8U non-multibyte OPClass forms (gated at version==8 &&
+                //  !is_multibyte, U.cs:2535-2536; distinct count rules / block sizes from the multibyte
+                //  siblings above), removing the #1338 runtime re-report that kept FE8U IsComplete FALSE:
+                //    OPClassFontFE8UForm — EmitOPClassFontFE8U: main block 4, rule i<=0x7a, PI {0}; per
+                //      entry a<=0?continue : AddLZ77Pointer@+0 (LZ77IMG, "OPClassFont 0x<i>").
+                //    OPClassDemoFE8UForm — EmitOPClassDemoFE8U: main block 20 (0x14), rule u8(+0xF)<=6,
+                //      PI {16}; per entry CString@+0, anime-guard@+16, then ONE N2 NestedIfr@+16 (block 2,
+                //      u8!=0, constant name "OPClassDemo_Anime"). (FE7U non-multibyte variants STAY deferred.)
                 //  slice 2aa ported the four FE8 ScanScript-family data-path forms (each reuses the
                 //  slice-2u EmitScanScript block-emitter; the producer body gates their dispatch on
                 //  IsEventScriptDisasmReady and re-reports them in NotYetPorted when it is unwired,
