@@ -502,6 +502,134 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        /// <summary>
+        /// PARTIAL WF-parity for #1261 slice s2pf-5 — the PatchForm producer TYPE=STRUCT dispatch arm
+        /// (<see cref="RebuildProducerCore.EmitPatchStruct"/>). Both the WinForms reference
+        /// (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForSTRUCT</c>,
+        /// PatchForm.cs:6461) and the Core orchestrator
+        /// (<see cref="RebuildProducerCore.MakePatchStructDataListCore"/>) run on the SAME real FE8U ROM
+        /// with the SAME rebuild flags. Each side is FILTERED to the FULLY-IMPLEMENTED STRUCT arms only —
+        /// the MAIN struct InputFormRef entry (Info ends <c>@STRUCT</c>) + the per-entry ASM and
+        /// PatchImage_* arms (Info contains <c>@STRUCT </c> then <c>ASM</c>/<c>IMAGE</c>/<c>TSA</c>/
+        /// <c>ZTSA</c>/<c>ZHEADERTSA</c>/<c>PALETTE</c>) — then compared Core ⊆ WF on the load-bearing
+        /// fields (Addr/Length/Pointer/DataType). A Core-extra (Core emits a STRUCT entry WF does not) is a
+        /// faithfulness regression and FAILS.
+        /// <para><b>THE INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-6..10).</b> The
+        /// EVENT/BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
+        /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA fields are
+        /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
+        /// slice — they INTENTIONALLY diverge from WF (WF emits the precise sub-walked TARGET region). So
+        /// every <c>... DATA </c>-suffixed entry (and the HEADERTSA data type) is filtered OUT of BOTH
+        /// sides before the comparison. Those arms gain their own parity teeth in s2pf-6..10, and the FULL
+        /// STRUCT parity (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
+        /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
+        /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
+        /// patch within the merged producer list. The CSTRING arm's byte-faithfulness is carried by the
+        /// synthetic <c>RebuildProducerPatchStructTests.EmitPatchStruct_CStringField_*</c>.</para>
+        /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree,
+        /// present in the user's main checkout). When no ROM is found the test returns early (Pass).</para>
+        /// <para><b>NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT</b> (same posture as the
+        /// ADDR/SWITCH + IMAGE harnesses): an un-init submodule yields no STRUCT patch files, so both
+        /// filtered lists are empty and Core ⊆ WF holds trivially. The branch-level verification (the
+        /// skeleton arithmetic, the DATACOUNT guards, every safe arm, the 6624-6632 defect, the interim
+        /// default-MIX) is carried by the synthetic Core.Tests (<c>RebuildProducerPatchStructTests</c>).</para>
+        /// </summary>
+        [Fact]
+        public void CorePatchStructArm_IsSubsetOf_WinFormsPatchProducer_ExcludingInterimFormArms()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
+
+                PatchForm.ClearCheckIF();
+
+                // ---- WinForms reference: the public patch producer, same flags as the rebuild ----
+                var wfAll = new List<Address>();
+                PatchForm.MakePatchStructDataList(wfAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // ---- Core: the orchestrator, same flags + the SAME ROM ----
+                var coreAll = new List<Address>();
+                RebuildProducerCore.MakePatchStructDataListCore(Program.ROM, coreAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // A FULLY-IMPLEMENTED STRUCT-arm entry: the MAIN struct entry (Info ends "@STRUCT") OR a
+                // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/PALETTE).
+                // EXCLUDES the interim form-bound arms (the "... DATA n" MIX placeholders, which DIVERGE
+                // from WF this slice) and the deferred HEADERTSA data type. CSTRING is out of merged-list
+                // scope (named the decoded string, not "@STRUCT") — see the doc-comment.
+                string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " PALETTE " };
+                bool IsImplementedStructEntry(Address a)
+                {
+                    if (a.Info == null) return false;
+                    if (a.DataType == Address.DataTypeEnum.HEADERTSA) return false;   // deferred (s2pf-7)
+                    // The interim form-bound arms emit "<name>@STRUCT DATA n" (Core MIX) — EXCLUDE.
+                    if (a.Info.Contains("@STRUCT DATA ", StringComparison.Ordinal)) return false;
+                    // The MAIN struct InputFormRef entry: Info ends "@STRUCT".
+                    if (a.Info.EndsWith("@STRUCT", StringComparison.Ordinal)) return true;
+                    // A per-entry safe arm: "...@STRUCT <ARM> ..." for one of the implemented arms.
+                    if (a.Info.IndexOf("@STRUCT", StringComparison.Ordinal) < 0) return false;
+                    foreach (string t in safeArmTokens)
+                    {
+                        if (a.Info.Contains("@STRUCT" + t, StringComparison.Ordinal)) return true;
+                    }
+                    return false;
+                }
+
+                var wfStruct = wfAll.Where(IsImplementedStructEntry).ToList();
+                var coreStruct = coreAll.Where(IsImplementedStructEntry).ToList();
+
+                var wfKeys = new HashSet<Key>(wfStruct.Select(Key.Of));
+
+                // Core-extras = Core emits an implemented-STRUCT key WF does not. ALWAYS a faithfulness
+                // regression -> FAIL. WF-extras (WF emits an implemented-STRUCT key Core lacks) are NOT
+                // asserted (subset direction): the interim form-bound arms are already excluded, so a
+                // WF-extra among the implemented arms would signal a gate divergence worth surfacing, not
+                // a silent drop. Core ⊆ WF is the load-bearing guarantee for this skeleton+safe-arms slice.
+                var coreExtras = coreStruct.Where(a => !wfKeys.Contains(Key.Of(a)))
+                                           .Select(Key.Of).Distinct().ToList();
+
+                if (coreExtras.Count > 0)
+                {
+                    const int N = 30;
+                    string dump = string.Join("\n", coreExtras.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    Assert.Fail(
+                        $"Core PatchForm STRUCT arm emitted {coreExtras.Count} (implemented-arm) entr"
+                        + (coreExtras.Count == 1 ? "y" : "ies")
+                        + " NOT present in the WinForms patch producer (faithfulness regression).\n"
+                        + $"WF implemented-STRUCT total={wfStruct.Count}, Core total={coreStruct.Count}.\n"
+                        + $"First {Math.Min(N, coreExtras.Count)} Core-only entries:\n{dump}");
+                }
+
+                // PROVEN: every Core STRUCT entry (of the implemented skeleton + safe arms) is
+                // byte-identical to a WF entry on (Addr/Length/Pointer/DataType) — no faithfulness
+                // regression — with the interim form-bound arms excluded from both sides (or both empty
+                // when config/patch2 is absent). FULL parity (no exclusions) lands at s2pf-11.
+                Assert.Empty(coreExtras);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
         // ----------------------------------------------------------------
         readonly struct Key : IEquatable<Key>
         {

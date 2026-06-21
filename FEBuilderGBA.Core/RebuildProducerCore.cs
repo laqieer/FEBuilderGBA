@@ -12040,10 +12040,16 @@ namespace FEBuilderGBA
             {
                 // PatchForm.MakePatchStructDataList (the FIRST, unconditional call) — walks the
                 // installed-patch tree via ScanPatchs(GetPatchDirectory()) + CheckIFFast + the per-TYPE
-                // MakePatchStructDataListForADDR/EA/BIN/SWITCH/STRUCT/IMAGE helpers. The whole PatchForm
-                // class is an un-ported WinForms file (patch-config file scanning + DoEvents). A wrong
-                // patch pointer relocates the wrong bytes = silent corruption — DEFER until the patch-
-                // config subsystem reaches Core (its own follow-up slice).
+                // MakePatchStructDataListForADDR/EA/BIN/SWITCH/STRUCT/IMAGE helpers. Ported INCREMENTALLY
+                // in the #1261 option-B s2pf-* slices: the orchestrator + ADDR/SWITCH (s2pf-3) + IMAGE
+                // (s2pf-4) + STRUCT skeleton & SAFE arms (s2pf-5) are LIVE in Core, but this token STAYS
+                // until s2pf-11 because (a) EA/BIN are still no-op stubs, AND (b) the STRUCT arm's
+                // FORM-BOUND fields are routed through a DOCUMENTED INTERIM default-MIX (length-0 MIX
+                // placeholder) — they are upgraded to precise sub-walked lengths in s2pf-6..10 (EVENT=6,
+                // HEADERTSA=7, AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
+                // BattleAnime=10). See EmitPatchStruct's block comment for the full audit table. Until
+                // those land, a wrong/zero patch-pointer length relocates the wrong bytes = silent
+                // corruption — so the gate stays CLOSED (no live rebuild) until the WHOLE arm is precise.
                 "PatchForm(MakePatchStructDataList)",
                 // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED in slice 2x (EmitProcsScript /
                 // EmitProcsScriptCore + ROMInfoLoadResourceKnownArea + Load6cNameDicSafe). Its FindProc walk
@@ -12506,7 +12512,13 @@ namespace FEBuilderGBA
                 }
                 else if (type == "STRUCT")
                 {
-                    // s2pf-7: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461). STUB.
+                    // s2pf-5: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461).
+                    // Skeleton + SAFE arms (ASM/CSTRING/PatchImage_*/default) ported REAL; the
+                    // FORM-BOUND arms route through a DOCUMENTED INTERIM default-MIX (upgraded
+                    // s2pf-6..10). SAFE: the gate token stays in AsmNotYetPortedRaw (no live
+                    // rebuild) until s2pf-11. See EmitPatchStruct's block comment for the audit
+                    // table of interim types -> upgrade slices.
+                    EmitPatchStruct(rom, list, patch, isPointerOnly);
                 }
                 else if (type == "IMAGE")
                 {
@@ -12950,6 +12962,465 @@ namespace FEBuilderGBA
                     throw new ArgumentOutOfRangeException(nameof(variantKey), variantKey,
                         "Unknown PatchImage variant key.");
             }
+        }
+
+        // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-5 of 11).
+        //
+        // The TYPE=STRUCT terminal arm — the STRUCTURAL HEART of the PatchForm
+        // producer. Faithful Core port of WinForms
+        // PatchForm.MakePatchStructDataListForSTRUCT (FEBuilderGBA/PatchForm.cs:6461).
+        // A TYPE=STRUCT patch describes a fixed-stride table (struct_address,
+        // DATASIZE, DATACOUNT) plus per-entry embedded-pointer fields (P<n>:type).
+        // EmitPatchStruct emits ONE MAIN InputFormRef Address for the table body,
+        // then walks every entry, visiting each pointer field IN ORDER and
+        // dispatching on its type.
+        //
+        // SCOPE OF THIS SLICE (5/11):
+        //   (A) the STRUCT SKELETON (WF 6461-6552) — VERBATIM: struct_address
+        //       resolution (POINTER deref vs ADDRESS direct), DATASIZE/DATACOUNT
+        //       (literal + `$`-macro, start_offset = struct_address), the
+        //       early-returns, the MAIN Address (datasize*(datacount+1), iftType).
+        //   (B) the SAFE terminal arms — ported REAL: ASM/ASM_SWITCH/ASM_NOWARNING
+        //       (AddFunction), CSTRING (AddCString), PatchImage_* (AddAddress sized
+        //       by PatchImageVariantLength), and WF's OWN `default` (AddPointer MIX).
+        //   (C) the FORM-BOUND arms (EVENT/BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/
+        //       VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
+        //       BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA) — routed
+        //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
+        //       INTERIM (each marked `INTERIM default-MIX -> upgraded in s2pf-N`).
+        //       This is SAFE because the gate token "PatchForm(MakePatchStructDataList)"
+        //       STAYS in AsmNotYetPortedRaw — no live rebuild runs until s2pf-11 — but
+        //       it MUST be upgraded before the token is removed, else those embedded
+        //       pointers' TARGET regions are never relocated (residue corruption).
+        //
+        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table):
+        //     EVENT                     -> s2pf-6
+        //     PatchImage_HEADERTSA      -> s2pf-7  (CalcByteLengthForHeaderTSAData)
+        //     AP / ROMTCS / PROCS       -> s2pf-8
+        //     VENNOUWEAPONLOCK          -> s2pf-9
+        //     AOERANGEPOINTER           -> s2pf-9
+        //     SMEPROMOLIST              -> s2pf-9
+        //     CLASSLIST                 -> s2pf-9
+        //     TERRAINBATTLELISTPOINTER  -> s2pf-9
+        //     BATTLEBGLISTPOINTER       -> s2pf-9
+        //     BATTLEANIMEPOINTER        -> s2pf-10
+        //
+        // FAITHFULNESS NOTE — the WF 6624-6632 COPY-PASTE DEFECT is REPRODUCED
+        // VERBATIM: the SECOND `else if (type == "PatchImage_ZTSA")` (WF 6624) is a
+        // dead/shadowed duplicate of the FIRST PatchImage_ZTSA arm (WF 6595) — the C#
+        // if/else-if chain reaches the FIRST match, so the second branch NEVER fires.
+        // Reproducing WF's literal arm ORDER keeps the dead branch dead exactly as in
+        // WF (a real PatchImage_ZTSA field emits LZ77IMG named " ZTSA ", never the
+        // dead block's LZ77TSA " ZHEADERTSA "). The intended-but-dead ZHEADERTSA arm
+        // (WF 6614) emits LZ77IMG named " ZHEADERTSA " (NO index suffix). See the test
+        // EmitPatchStruct_Ztsa_ReproducesWf6595_NotTheDeadDefect.
+        //
+        // ROM threading: rom is threaded for the p32 derefs/length math; AddFunction/
+        // AddCString/AddPointer read CoreState.ROM internally, so the orchestrator's
+        // caller MUST set CoreState.ROM == rom (same convention as the data-path / ASM
+        // producers — the gate token stays deferred, so no live caller exists yet).
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForSTRUCT</c>
+        /// (FEBuilderGBA/PatchForm.cs:6461). Resolves the table base (<c>POINTER</c> deref or
+        /// <c>ADDRESS</c> direct), reads <c>DATASIZE</c>/<c>DATACOUNT</c> (literal or
+        /// <c>$</c>-macro, with <c>start_offset = struct_address</c>), emits the MAIN
+        /// InputFormRef <see cref="Address"/> for the whole table body
+        /// (<c>datasize*(datacount+1)</c>, typed by <see cref="MakePointerIndexes"/>), then walks
+        /// every entry and visits each embedded pointer field <c>p = struct_address + i*datasize +
+        /// pointerIndexes[n]</c> IN ORDER, dispatching on the field type via
+        /// <see cref="EmitPatchStructEntry"/>.
+        /// <para>
+        /// <b>This slice (s2pf-5)</b> ports the skeleton + the SAFE terminal arms
+        /// (ASM / CSTRING / PatchImage_* / WF's <c>default</c> MIX). The FORM-BOUND arms route
+        /// through the same MIX <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-6..10) —
+        /// SAFE only while the gate token stays deferred. See the block comment above.
+        /// </para>
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — passed explicitly. MUST also be
+        /// <see cref="CoreState.ROM"/> (the ASM/CSTRING/MIX arms' <see cref="Address.AddFunction"/>/
+        /// <see cref="Address.AddCString"/>/<see cref="Address.AddPointer"/> read CoreState.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=STRUCT patch whose POINTER/ADDRESS/DATASIZE/DATACOUNT +
+        /// P&lt;n&gt;:type fields drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — forwarded to the AP/ROMTCS/PROCS
+        /// arms (interim this slice).</param>
+        public static void EmitPatchStruct(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with EmitPatchAddr / EmitPatchImage): throw a clear
+            // ArgumentNullException rather than an unhelpful NRE. The orchestrator always passes a
+            // valid rom/list and a LoadPatch result whose Param is non-null.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // WF: string basedir = Path.GetDirectoryName(patch.PatchFileName);
+            // Normalize null -> "" so the resolver never receives a null basedir (see EmitPatchAddr).
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            // ---- struct_address: POINTER deref vs ADDRESS direct (WF 6464-6493) --
+            uint struct_address;
+            uint struct_pointer = U.NOT_FOUND;
+            string pointer_str = U.at(patch.Param, "POINTER");
+            if (pointer_str != "")
+            {
+                // WF: struct_pointer = convertBinAddressString(pointer_str, 8, 0, basedir);
+                struct_pointer = ResolvePatchAddress(rom, pointer_str, 8, 0, basedir);
+                if (!U.isSafetyOffset(struct_pointer, rom))
+                {
+                    return;
+                }
+                // Guard the FULL 4-byte slot before rom.p32 reads it. WF's verbatim
+                // Program.ROM.p32(struct_pointer) after isSafetyOffset(struct_pointer) returns 0 for
+                // struct_pointer >= Data.Length (p32's own guard), but a struct_pointer in the LAST 3
+                // bytes would read past EOF inside u32. rom.p32 internally only checks `>= Data.Length`,
+                // so harden the slot+3 here (skips a near-EOF slot gracefully; never on valid ROMs).
+                if (!U.isSafetyOffset(struct_pointer + 3, rom))
+                {
+                    return;
+                }
+                struct_address = rom.p32(struct_pointer);
+                if (!U.isSafetyOffset(struct_address, rom))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                string address_str = U.at(patch.Param, "ADDRESS");
+                if (address_str == "")
+                {
+                    return;
+                }
+                // WF: struct_address = convertBinAddressString(address_str, 8, 0, basedir);
+                struct_address = ResolvePatchAddress(rom, address_str, 8, 0, basedir);
+                if (!U.isSafetyOffset(struct_address, rom))
+                {
+                    return;
+                }
+                struct_pointer = U.NOT_FOUND;
+            }
+
+            // ---- DATASIZE (WF 6495-6499) ----------------------------------------
+            uint datasize = U.atoi0x(U.at(patch.Param, "DATASIZE"));
+            if (datasize <= 0)
+            {
+                return;
+            }
+
+            // ---- DATACOUNT: `$`-macro grep vs literal (WF 6501-6531) ------------
+            uint datacount;
+            string datacount_str = U.at(patch.Param, "DATACOUNT");
+            if (datacount_str.Length > 0 && datacount_str[0] == '$')
+            {//grep等 — WF: convertBinAddressString(datacount_str, 8, struct_address, basedir).
+                // NOTE the start_offset is struct_address (NOT 0): the `$`-grep finds the table END
+                // and the count is the byte span / datasize.
+                datacount = ResolvePatchAddress(rom, datacount_str, 8, struct_address, basedir);
+                if (datacount == U.NOT_FOUND)
+                {
+                    return;
+                }
+                if (datacount >= struct_address)
+                {
+                    datacount = (uint)Math.Ceiling((datacount - struct_address) / (double)datasize);
+                }
+                // WF Debug.Assert(false); return; — a span/datasize >= 0xffff is a corrupt/huge count;
+                // never emit it (the assert is a DEBUG-only diagnostic; the return is the real guard).
+                if (datacount >= 0xffff)
+                {
+                    return;
+                }
+            }
+            else
+            {//直値 (literal)
+                datacount = U.atoi0x(datacount_str);
+            }
+            // WF 6525-6531: datacount <= 0 returns ONLY when DATACOUNT was absent ("" yields atoi0x 0);
+            // an explicit "0" falls through (datacount stays 0 -> the per-entry loop simply does not run,
+            // but the MAIN Address is still emitted with length datasize*(0+1)). Reproduced verbatim.
+            if (datacount <= 0)
+            {
+                if (datacount_str == "")
+                {
+                    return;
+                }
+            }
+
+            // ---- pointer-index/type parse + iftType (WF 6532-6534) --------------
+            string[] typeArray;
+            Address.DataTypeEnum iftType;
+            uint[] pointerIndexes = MakePointerIndexes(patch, out typeArray, out iftType);
+
+            // ---- the MAIN struct Address (WF 6536-6543) -------------------------
+            // length = datasize*(datacount+1): WF sizes the body for datacount entries PLUS one
+            // (the +1 covers the terminator/sentinel row the editors append). iftType + blockSize
+            // (=datasize) + pointerIndexes drive the InputFormRef re-walk. The struct_pointer is the
+            // table's own POINTER slot (NOT_FOUND for the ADDRESS form). NOTE: WF uses `new Address(..)`
+            // + list.Add directly here (NOT Address.AddAddress), so the InputFormRef entry is added
+            // even when struct_pointer == NOT_FOUND — reproduced with the same ctor.
+            string patchname = patch.Name + "@STRUCT";
+            list.Add(new Address(struct_address
+                , datasize * (datacount + 1)
+                , struct_pointer
+                , patchname
+                , iftType
+                , datasize
+                , pointerIndexes));
+
+            // ---- per-entry pointer-field walk (WF 6545-6735) --------------------
+            // addr = struct_address + i*datasize; for each pointer index n, p = addr +
+            // pointerIndexes[n], visited IN ORDER. EOF-guard is inside EmitPatchStructEntry.
+            uint addr = struct_address;
+            for (int i = 0; i < datacount; i++, addr += datasize)
+            {
+                for (int n = 0; n < pointerIndexes.Length; n++)
+                {
+                    uint p = addr + pointerIndexes[n];
+                    string type = typeArray[n];
+                    EmitPatchStructEntry(rom, list, patch, basedir, isPointerOnly,
+                        type, p, patchname, n);
+                }
+            }
+        }
+
+        /// <summary>
+        /// One per-entry pointer-field dispatch for <see cref="EmitPatchStruct"/> — the WF
+        /// per-field <c>if/else if</c> chain (FEBuilderGBA/PatchForm.cs:6553-6733), factored into
+        /// a switch so the later slices s2pf-6..10 replace each INTERIM arm body in place.
+        /// <para>
+        /// <b>Dispatch contract for s2pf-6..10:</b> each fully-implemented arm emits a PRECISE
+        /// length; each INTERIM form-bound arm falls into <see cref="EmitPatchStructDefaultMix"/>
+        /// (a length-0 MIX placeholder) and is marked with the slice that upgrades it. To upgrade an
+        /// arm, give its <c>case</c> a real body (sized like the WF helper it ports) and drop it from
+        /// the interim group — the call shape (<paramref name="p"/>, <paramref name="patchname"/>,
+        /// <paramref name="n"/>) is exactly what the WF helpers receive.
+        /// </para>
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — threaded for the p32 derefs / length math.</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The owning STRUCT patch (the PatchImage arms read its WIDTH/HEIGHT/PALETTE).</param>
+        /// <param name="basedir">The patch dir (for the WIDTH/HEIGHT/PALETTE <c>$</c>-macros).</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — forwarded to the AP/ROMTCS/PROCS interim arms.</param>
+        /// <param name="type">The pointer field type (<c>typeArray[n]</c>).</param>
+        /// <param name="p">The field address <c>struct_address + i*datasize + pointerIndexes[n]</c>.</param>
+        /// <param name="patchname">The struct's <c>Name@STRUCT</c> info prefix.</param>
+        /// <param name="n">The pointer-index ordinal (for the per-field info suffix).</param>
+        static void EmitPatchStructEntry(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch,
+            string basedir, bool isPointerOnly, string type, uint p, string patchname, int n)
+        {
+            switch (type)
+            {
+                // ---- FULLY IMPLEMENTED — SAFE terminal arms ---------------------
+
+                case "PatchImage_IMAGE":
+                    // WF 6563: raw 4bpp image -> w*h/2, IMG. WIDTH/HEIGHT default "0" (NOT "8" — the
+                    // STRUCT arm's atOffset uses the helper default, unlike the IMAGE TYPE arm).
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "IMAGE",
+                        Address.DataTypeEnum.IMG, patchname + " IMAGE " + n);
+                    break;
+
+                case "PatchImage_ZIMAGE":
+                    // WF 6574: LZ77 image -> getCompressedSize, LZ77IMG. NOTE WF names this " IMAGE "
+                    // (NO index suffix) — reproduced verbatim.
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "ZIMAGE",
+                        Address.DataTypeEnum.LZ77IMG, patchname + " IMAGE ");
+                    break;
+
+                case "PatchImage_TSA":
+                    // WF 6584: raw TSA -> w*h/32, TSA.
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "TSA",
+                        Address.DataTypeEnum.TSA, patchname + " TSA " + n);
+                    break;
+
+                case "PatchImage_ZTSA":
+                    // WF 6595: LZ77 TSA -> getCompressedSize, LZ77IMG named " ZTSA ".
+                    // (This is the LIVE PatchImage_ZTSA arm; the WF 6624 duplicate is DEAD — see below.)
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "ZTSA",
+                        Address.DataTypeEnum.LZ77IMG, patchname + " ZTSA " + n);
+                    break;
+
+                case "PatchImage_ZHEADERTSA":
+                    // WF 6614: LZ77 header-TSA -> getCompressedSize, LZ77IMG named " ZHEADERTSA "
+                    // (NO index suffix). Its length is a plain LZ77 getCompressedSize (no header-TSA
+                    // byte-length calc), so it IS ported here (unlike the non-Z HEADERTSA below).
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "ZHEADERTSA",
+                        Address.DataTypeEnum.LZ77IMG, patchname + " ZHEADERTSA ");
+                    break;
+
+                // FAITHFULNESS — the WF 6624-6632 COPY-PASTE DEFECT: WF has a SECOND
+                // `else if (type == "PatchImage_ZTSA")` block (intended for ZHEADERTSA, emitting
+                // LZ77TSA named " ZHEADERTSA " + n). In WF's if/else-if chain it is UNREACHABLE
+                // (the FIRST PatchImage_ZTSA case at WF 6595 already handles that type). The switch
+                // here has the SAME effect — there is no second "PatchImage_ZTSA" label (a duplicate
+                // case would not even compile), so the dead block is reproduced by its ABSENCE: a
+                // PatchImage_ZTSA field always takes the live arm above, never the dead block's
+                // LZ77TSA path. This matches WF byte-for-byte (the parity harness asserts it).
+
+                case "PatchImage_PALETTE":
+                    // WF 6634: palette -> count*0x20, PAL. PALETTE default "1".
+                    EmitPatchStructImage(rom, list, patch, basedir, p, "PALETTE",
+                        Address.DataTypeEnum.PAL, patchname + " PALETTE " + n);
+                    break;
+
+                case "ASM":
+                case "ASM_SWITCH":
+                case "ASM_NOWARNING":
+                    // WF 6677: deref-safe ASM function pointer -> AddFunction (length 0, disassembled).
+                    {
+                        uint a = rom.p32(p);
+                        if (U.isSafetyOffset(a, rom))
+                        {
+                            // WF guards `Program.ROM.p32(p)` safe, then AddFunction(list, p, ..) re-reads
+                            // p via CoreState.ROM.u32 — so the slot must be fully in range. p32 already
+                            // returned a safe `a`, which means p..p+3 were read; guard p+3 to be explicit.
+                            if (U.isSafetyOffset(p + 3, rom))
+                            {
+                                Address.AddFunction(list, p, patchname + " ASM " + n);
+                            }
+                        }
+                    }
+                    break;
+
+                case "CSTRING":
+                    // WF 6716: AddCString(list, p) — deref the CSTRING pointer at p, add the string body.
+                    // AddCString itself guards the slot + the deref; just guard p+3 for the u32 read.
+                    if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+                    {
+                        Address.AddCString(list, p);
+                    }
+                    break;
+
+                // ---- INTERIM default-MIX (this slice) — form-bound arms ---------
+                // Each routes through EmitPatchStructDefaultMix (= WF's own `default`,
+                // length-0 MIX). This DIVERGES from WF (WF emits the precise sub-walked
+                // TARGET region); SAFE only while the gate token stays deferred. The
+                // partial WF-parity test EXCLUDES these types.
+
+                case "EVENT":
+                    // INTERIM default-MIX -> upgraded in s2pf-6 (EventScriptForm.ScanScript walk).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "PatchImage_HEADERTSA":
+                    // INTERIM default-MIX -> upgraded in s2pf-7 (CalcByteLengthForHeaderTSAData; the
+                    // WF non-Z HEADERTSA arm at 6605 uses AddHeaderTSAPointer, a WinForms ImageUtil call).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "AP":
+                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddAPPointer).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "ROMTCS":
+                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddROMTCSPointer).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "PROCS":
+                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddProcsPointer).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "VENNOUWEAPONLOCK":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (VennouWeaponLockForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "AOERANGEPOINTER":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (AOERANGEForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "SMEPROMOLIST":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (SMEPromoListForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "CLASSLIST":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (SomeClassListForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "TERRAINBATTLELISTPOINTER":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (MapTerrainFloorLookupTableForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "BATTLEBGLISTPOINTER":
+                    // INTERIM default-MIX -> upgraded in s2pf-9 (MapTerrainBGLookupTableForm.MakeDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                case "BATTLEANIMEPOINTER":
+                    // INTERIM default-MIX -> upgraded in s2pf-10 (ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength).
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+
+                default:
+                    // WF 6725: `default` (不明なポインタ / unknown pointer) -> AddPointer(p, 0, .., MIX).
+                    // This is WF's OWN faithful default — it keeps the embedded pointer's TARGET region
+                    // TRACKED (length 0 = the relocator resolves the real span), NOT a shortcut.
+                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// The PatchImage_* per-entry arm body shared by <see cref="EmitPatchStructEntry"/> (WF
+        /// 6563-6642). Resolves WIDTH/HEIGHT (default "0") and PALETTE (default "1") via
+        /// <see cref="ResolvePatchAddress"/>, dereferences <paramref name="p"/> (<c>rom.p32</c>) and,
+        /// when the target is safe, emits one <see cref="Address"/> sized by
+        /// <see cref="PatchImageVariantLength"/> (<paramref name="variantKey"/>), typed
+        /// <paramref name="type"/>, named <paramref name="info"/>.
+        /// <para>NOTE: WF's STRUCT PatchImage arms call <c>atOffset(Param,"WIDTH")</c> with the helper
+        /// DEFAULT "0" (NOT "8" like the TYPE=IMAGE arm); a missing WIDTH/HEIGHT therefore yields a
+        /// 0-length raw image — faithful to WF. PALETTE defaults "1" (WF 6639).</para>
+        /// </summary>
+        static void EmitPatchStructImage(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch,
+            string basedir, uint p, string variantKey, Address.DataTypeEnum type, string info)
+        {
+            // WF: uint a = Program.ROM.p32(p); if (U.isSafetyOffset(a)) { ... }. rom.p32 is EOF-safe
+            // (returns 0 for p >= Data.Length); guard p+3 so a near-EOF slot does not read past EOF.
+            if (!U.isSafetyOffset(p, rom) || !U.isSafetyOffset(p + 3, rom))
+            {
+                return;
+            }
+            uint a = rom.p32(p);
+            if (!U.isSafetyOffset(a, rom))
+            {
+                return;
+            }
+            // WF STRUCT PatchImage arms: atOffset(Param,"WIDTH") default "0", PALETTE default "1".
+            uint width = ResolvePatchAddress(rom, U.at(patch.Param, "WIDTH", "0"), 0, 0x100, basedir);
+            uint height = ResolvePatchAddress(rom, U.at(patch.Param, "HEIGHT", "0"), 0, 0x100, basedir);
+            uint paletteCount = ResolvePatchAddress(rom, U.at(patch.Param, "PALETTE", "1"), 0, 0x100, basedir);
+            uint len = PatchImageVariantLength(rom, variantKey, a, width, height, paletteCount);
+            Address.AddAddress(list, a, len, p, info, type);
+        }
+
+        /// <summary>
+        /// WF's OWN <c>default</c> arm (FEBuilderGBA/PatchForm.cs:6725): emit a length-0
+        /// <c>InputFormRef_MIX</c> pointer at <paramref name="p"/> named <c>patchname DATA n</c>.
+        /// <see cref="Address.AddPointer"/> derefs <paramref name="p"/> (via <see cref="CoreState.ROM"/>)
+        /// and adds the TARGET as a MIX region whose span the relocator resolves from the length-0
+        /// placeholder — so the embedded pointer's target stays TRACKED. Also the s2pf-5 INTERIM landing
+        /// for every FORM-BOUND arm (each upgraded to a precise length in s2pf-6..10).
+        /// </summary>
+        static void EmitPatchStructDefaultMix(ROM rom, List<Address> list, uint p, string patchname, int n)
+        {
+            // AddPointer reads CoreState.ROM.u32(p) after its own isSafetyOffset(p) guard; that throws
+            // only if p is in the last 3 bytes. Guard p+3 here so a near-EOF slot is a clean skip (WF's
+            // verbatim AddPointer after no extra guard would throw there). `rom` is accepted for a uniform
+            // arm signature + the EOF guard; the deref itself is CoreState.ROM-bound (== rom by contract).
+            if (!U.isSafetyOffset(p, rom) || !U.isSafetyOffset(p + 3, rom))
+            {
+                return;
+            }
+            Address.AddPointer(list, p, 0, patchname + " DATA " + n, Address.DataTypeEnum.MIX);
         }
 
         // ====================================================================

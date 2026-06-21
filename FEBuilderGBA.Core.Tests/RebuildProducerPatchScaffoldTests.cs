@@ -317,9 +317,11 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakePatchStructDataListCore_WithPatches_StubsEmitNothing_ReportsProgress()
         {
-            // A real patch tree with two STRUCT patches that PASS the gate. Every TYPE arm
-            // is a NO-OP STUB this slice, so the list MUST stay empty even though the gate
-            // admits the patches. Progress is reported once per admitted patch.
+            // A real patch tree with two STRUCT patches that PASS the gate. As of s2pf-5 the STRUCT
+            // arm is WIRED (no longer a stub), but these patches have NO top-level POINTER/ADDRESS
+            // param (only a P0:POINTER pointer-INDEX field), so EmitPatchStruct early-returns before
+            // emitting a table base — the list still MUST stay empty even though the gate admits the
+            // patches. Progress is reported once per admitted patch.
             string patchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
             Directory.CreateDirectory(patchDir);
             File.WriteAllLines(Path.Combine(patchDir, "PATCH_A.txt"), new[]
@@ -346,7 +348,7 @@ namespace FEBuilderGBA.Core.Tests
             RebuildProducerCore.MakePatchStructDataListCore(
                 fe8, list, isPointerOnly: false, isInstallOnly: false, isStructOnly: false, progress: progress);
 
-            Assert.Empty(list); // STUBS emit nothing this slice
+            Assert.Empty(list); // no table base in these patches -> EmitPatchStruct early-returns
             // Both STRUCT patches pass the gate, so the per-patch progress fires twice.
             // (PatchHardCodeScanner.LoadPatch is the leaner Core scanner — it sets only
             // PatchFileName + Param, NOT Name, so the WF "Check Patch <name>" message has
