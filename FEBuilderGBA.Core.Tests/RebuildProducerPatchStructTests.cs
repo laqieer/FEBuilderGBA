@@ -584,42 +584,23 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ====================================================================
-        // 4. The FORM-BOUND arms -> INTERIM default-MIX (this slice ONLY)
+        // 4. The FORM-BOUND arms -> ALL PRECISE as of s2pf-10 (NO interim remains)
         // ====================================================================
 
-        // Each interim form-bound type is routed through the same default-MIX placeholder as an
-        // unknown type. THIS IS INTENTIONAL FOR s2pf-5: the precise sub-walked TARGET length is
-        // ported in s2pf-9..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
-        // precise WF length — the partial WF-parity test EXCLUDES these types accordingly.
-        // NOTE: EVENT was REMOVED from this interim group in s2pf-6 (it runs the real
-        // EventScriptForm.ScanScript walk — see EmitPatchStruct_EventArm_*),
-        // PatchImage_HEADERTSA in s2pf-7 (it runs EmitHeaderTsaPointer — see
-        // EmitPatchStruct_HeaderTsaField_* below), AP/ROMTCS/PROCS in s2pf-8 (they run
-        // EmitApPointer/EmitRomTcsPointer/EmitProcsPointer — see EmitPatchStruct_ApField_* /
-        // _RomTcsField_* / _ProcsField_* below), and the SIX deterministic STRUCT forms
-        // (VENNOUWEAPONLOCK/AOERANGEPOINTER/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
-        // BATTLEBGLISTPOINTER) in s2pf-9 (they run the precise length-walks — see
-        // EmitPatchStruct_VennouWeaponLockField_* etc. below). Only BATTLEANIMEPOINTER (s2pf-10)
-        // remains interim default-MIX.
-        [Theory]
-        [InlineData("BATTLEANIMEPOINTER")]        // -> s2pf-10 (the LAST interim form-bound arm)
-        public void EmitPatchStruct_FormBoundArm_IsInterimDefaultMix(string fieldType)
-        {
-            var rom = MakeRom();
-            const uint table = 0x2000;
-            PlantPointer(rom, table + 0, 0x9000);
-            var list = new List<Address>();
-            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("FB",
-                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
-                ("DATASIZE", "4"), ("DATACOUNT", "1"),
-                ("P0:" + fieldType, "0")), isPointerOnly: false);
-
-            // INTERIM: emitted as the length-0 MIX placeholder (NOT the precise sub-walked region).
-            var mix = Assert.Single(list, a => a.DataType == Address.DataTypeEnum.MIX);
-            Assert.Equal(0x9000u, mix.Addr);
-            Assert.Equal(0u, mix.Length);
-            Assert.EndsWith("DATA 0", mix.Info);
-        }
+        // Every STRUCT form-bound type now emits its precise WF sub-walked TARGET region — the
+        // INTERIM default-MIX group is EMPTY. The historic interim placeholder test
+        // (EmitPatchStruct_FormBoundArm_IsInterimDefaultMix) was REMOVED in s2pf-10 because its sole
+        // remaining InlineData, BATTLEANIMEPOINTER, is now precise (see
+        // EmitPatchStruct_BattleAnimeField_* below). The migration order was: EVENT (s2pf-6, real
+        // EventScriptForm.ScanScript walk — EmitPatchStruct_EventArm_*), PatchImage_HEADERTSA (s2pf-7,
+        // EmitHeaderTsaPointer — EmitPatchStruct_HeaderTsaField_*), AP/ROMTCS/PROCS (s2pf-8,
+        // EmitApPointer/EmitRomTcsPointer/EmitProcsPointer — EmitPatchStruct_ApField_* / _RomTcsField_* /
+        // _ProcsField_*), the SIX deterministic STRUCT forms (s2pf-9, VENNOUWEAPONLOCK/AOERANGEPOINTER/
+        // SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER — the precise length-walks
+        // EmitPatchStruct_VennouWeaponLockField_* etc.), and finally BATTLEANIMEPOINTER (s2pf-10, the LAST
+        // — block-4 u32!=0 SETTING IFR). The partial WF-parity comparison now covers ALL form-bound types
+        // (no exclusions); only WF's genuine `default` (unknown pointer -> length-0 MIX, which keeps the
+        // TARGET tracked) remains a length-0 MIX, which IS faithful to WF.
 
         // ====================================================================
         // 4a'. The AP / ROMTCS / PROCS arms (s2pf-8) — the REAL pointer-emitters
@@ -947,6 +928,63 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
         }
 
+        // ---- s2pf-10: BATTLEANIMEPOINTER — the LAST interim form-bound arm, now precise.
+        //      WF ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength (PatchForm.cs:6558): the per-field
+        //      SETTING walk = Init(null) (block 4, IsDataExists u32(addr+0)!=0) -> ReInitPointer(p) ->
+        //      AddAddress(IFR, name, new uint[]{}) (EMPTY pointerIndexes). length = 4*(count+1). This is
+        //      NOT the slice-2s full-path per-class MakeAllDataLength (EmitImageBattleAnime).
+
+        [Fact]
+        public void EmitPatchStruct_BattleAnimeField_EmitsBlock4U32Ifr_EmptyPI()
+        {
+            // Plant 3 non-zero u32 setting entries then a 0x00000000 terminator -> count = 3,
+            // length = 4*(3+1) = 16, block 4, type InputFormRef, EMPTY pointerIndexes.
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u32(target + 0, 0x11223344);
+            rom.write_u32(target + 4, 0x55667788);
+            rom.write_u32(target + 8, 0x99AABBCC);
+            rom.write_u32(target + 12, 0x00000000); // terminator (u32 == 0)
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("BA",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:BATTLEANIMEPOINTER", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(4u * (3u + 1u), a.Length); // 16
+            Assert.Equal(4u, a.BlockSize);
+            Assert.EndsWith("DATA 0", a.Info);
+            // EMPTY pointerIndexes — the setting block is flat (no embedded sub-pointers to walk).
+            Assert.Empty(a.PointerIndexes);
+            // NOT the interim default-MIX placeholder.
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_BattleAnimeField_ImmediateTerminator_LengthIsFour()
+        {
+            // u32 == 0 at the very base -> count = 0, length = 4*(0+1) = 4 (the lone terminator slot).
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u32(target + 0, 0x00000000); // terminator at base
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("BA0",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:BATTLEANIMEPOINTER", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(4u, a.Length); // 4*(0+1)
+            Assert.Equal(4u, a.BlockSize);
+        }
+
         [Theory]
         [InlineData("TERRAINBATTLELISTPOINTER")]
         [InlineData("BATTLEBGLISTPOINTER")]
@@ -987,15 +1025,16 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("CLASSLIST")]
         [InlineData("TERRAINBATTLELISTPOINTER")]
         [InlineData("BATTLEBGLISTPOINTER")]
-        public void EmitPatchStruct_S2pf9Field_UnsafeTarget_EmitsNothing(string fieldType)
+        [InlineData("BATTLEANIMEPOINTER")] // s2pf-10
+        public void EmitPatchStruct_FormBoundField_UnsafeTarget_EmitsNothing(string fieldType)
         {
-            // The slot derefs below the 0x200 safety floor -> every s2pf-9 arm skips (no emission,
-            // and NOT the interim default-MIX placeholder either).
+            // The slot derefs below the 0x200 safety floor -> every precise form-bound arm skips
+            // (no emission, and NOT a default-MIX placeholder either).
             var rom = MakeRom();
             const uint table = 0x2000;
             U.write_u32(rom.Data, table + 0, U.toPointer(0x100)); // target below safety floor
             var list = new List<Address>();
-            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("US9",
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("USB",
                 ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
                 ("DATASIZE", "4"), ("DATACOUNT", "1"),
                 ("P0:" + fieldType, "0")), isPointerOnly: false);
@@ -1013,7 +1052,8 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("CLASSLIST")]
         [InlineData("TERRAINBATTLELISTPOINTER")]
         [InlineData("BATTLEBGLISTPOINTER")]
-        public void EmitPatchStruct_S2pf9Field_SlotNearEof_NoThrow(string fieldType)
+        [InlineData("BATTLEANIMEPOINTER")] // s2pf-10
+        public void EmitPatchStruct_FormBoundField_SlotNearEof_NoThrow(string fieldType)
         {
             // A pointer FIELD sitting in the last 3 bytes -> the slot+3 EOF guard makes a clean skip
             // (no throw) rather than reading p32/u32 past EOF.

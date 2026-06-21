@@ -2504,8 +2504,33 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Shared per-STRUCT-field InputFormRef emitter for the SME/CLASS/TERRAIN/BG arms - the verbatim
-        /// effect of WF <c>InputFormRef.ReInitPointer(pointer)</c> +
+        /// Reproduces WinForms <c>ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength(list, pointer,
+        /// selfname)</c> (FEBuilderGBA/ImageBattleAnimeForm.cs:876; the STRUCT arm at PatchForm.cs:6558,
+        /// type BATTLEANIMEPOINTER): the <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a
+        /// battle-anime SETTING block (block size 4, terminated by the first <c>u32 == 0</c>); emit ONE
+        /// <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length <c>4*(count+1)</c> where
+        /// <c>count = getBlockDataCount(addr, 4, u32!=0)</c>.
+        /// <para><b>This is the per-STRUCT-field <c>MakeDataLength</c> SETTING walk, NOT the full-path
+        /// per-class/N_-table <c>MakeAllDataLength</c></b> (that walk - the slice-2s
+        /// <c>EmitImageBattleAnime</c> / <c>ImageBattleAnime*ImportCore</c> port - enumerates EVERY class's
+        /// animation list and is irrelevant here, where the arm receives a SINGLE setting pointer). WF's
+        /// <c>MakeBattleAnimeSettingDataLength</c> is exactly <c>Init(null)</c> (block 4, IsDataExists
+        /// <c>u32(addr+0) != 0</c>; ImageBattleAnimeForm.cs:74-82) -> <c>ReInitPointer(pointer)</c> ->
+        /// <c>AddressWinForms.AddAddress(list, IFR, selfname, new uint[]{})</c> (EMPTY pointerIndexes - the
+        /// setting block is flat, no embedded sub-pointers to walk). That is the IDENTICAL ReInitPointer +
+        /// empty-PI shape as the s2pf-9 SME/CLASS/TERRAIN/BG arms, so this reuses the shared
+        /// <see cref="EmitPatchStructBlockListIFR"/> helper with blockSize 4 and predicate <c>u32 != 0</c>
+        /// (same EOF-hardening: the full-slot slot+3 guard before the p32 deref).</para>
+        /// </summary>
+        public static void EmitBattleAnimeSettingPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            EmitPatchStructBlockListIFR(rom, list, pointer, info, 4,
+                (i, a) => rom.u32(a) != 0);
+        }
+
+        /// <summary>
+        /// Shared per-STRUCT-field InputFormRef emitter for the SME/CLASS/TERRAIN/BG/BATTLEANIME arms - the
+        /// verbatim effect of WF <c>InputFormRef.ReInitPointer(pointer)</c> +
         /// <c>AddressWinForms.AddAddress(list, IFR, info, {})</c>: deref <paramref name="pointer"/> to the
         /// table base, count entries via <c>getBlockDataCount(base, blockSize, isDataExists)</c>, and emit
         /// ONE <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length
@@ -13306,15 +13331,17 @@ namespace FEBuilderGBA
         //       REAL in s2pf-9 (WF 6691-6724): each is a DETERMINISTIC pure-ROM length walk
         //       (0x00-terminator BIN / 4+w*h BIN / block-2 u16!=0 IFR / block-1 u8!=0 IFR /
         //       fixed map_terrain_type_count IFR) reproduced VERBATIM. No longer interim.
-        //   (D) the LAST remaining FORM-BOUND arm (BATTLEANIMEPOINTER) - routed
-        //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
-        //       INTERIM (marked `INTERIM default-MIX -> upgraded in s2pf-10`).
-        //       This is SAFE because the gate token "PatchForm(MakePatchStructDataList)"
-        //       STAYS in AsmNotYetPortedRaw — no live rebuild runs until s2pf-11 — but
-        //       it MUST be upgraded before the token is removed, else those embedded
-        //       pointers' TARGET regions are never relocated (residue corruption).
+        //   (D) BATTLEANIMEPOINTER — ported REAL in s2pf-10 (WF 6558-6561): the per-STRUCT-field
+        //       SETTING walk ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength (Init block 4,
+        //       IsDataExists u32(addr+0)!=0; ReInitPointer; AddAddress empty-PI) reproduced VERBATIM as
+        //       EmitBattleAnimeSettingPointer (the shared EmitPatchStructBlockListIFR with blockSize 4 +
+        //       predicate u32!=0, length 4*(count+1), EMPTY pointerIndexes). This is the per-field
+        //       MakeDataLength SETTING block — NOT the full-path per-class MakeAllDataLength (slice-2s
+        //       EmitImageBattleAnime). With this the INTERIM default-MIX group is EMPTY: EVERY STRUCT
+        //       form-bound arm is now precise; only WF's genuine `default` (unknown pointer -> length-0
+        //       MIX, which keeps the TARGET tracked — NOT a shortcut) + the EA/BIN no-op stubs remain.
         //
-        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT + HEADERTSA + AP/ROMTCS/PROCS DONE):
+        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table — ALL DONE, the interim group is now EMPTY):
         //     EVENT                     -> s2pf-6  DONE (EmitScanScript, disasm-gated)
         //     PatchImage_HEADERTSA      -> s2pf-7  DONE (EmitHeaderTsaPointer / CalcHeaderTsaLength)
         //     AP / ROMTCS / PROCS       -> s2pf-8  DONE (EmitApPointer / EmitRomTcsPointer / EmitProcsPointer)
@@ -13324,7 +13351,7 @@ namespace FEBuilderGBA
         //     CLASSLIST                 -> s2pf-9  DONE (EmitSomeClassListPointer / block-1 u8!=0 IFR)
         //     TERRAINBATTLELISTPOINTER  -> s2pf-9  DONE (EmitMapTerrainLookupPointer / fixed map_terrain_type_count IFR)
         //     BATTLEBGLISTPOINTER       -> s2pf-9  DONE (EmitMapTerrainLookupPointer / fixed map_terrain_type_count IFR)
-        //     BATTLEANIMEPOINTER        -> s2pf-10
+        //     BATTLEANIMEPOINTER        -> s2pf-10 DONE (EmitBattleAnimeSettingPointer / block-4 u32!=0 IFR — the LAST)
         //
         // FAITHFULNESS NOTE — the WF 6624-6632 COPY-PASTE DEFECT is REPRODUCED
         // VERBATIM: the SECOND `else if (type == "PatchImage_ZTSA")` (WF 6624) is a
@@ -13353,12 +13380,15 @@ namespace FEBuilderGBA
         /// pointerIndexes[n]</c> IN ORDER, dispatching on the field type via
         /// <see cref="EmitPatchStructEntry"/>.
         /// <para>
-        /// <b>This slice (s2pf-5/6/7)</b> ports the skeleton + the SAFE terminal arms
-        /// (ASM / CSTRING / PatchImage_* / WF's <c>default</c> MIX) + the EVENT arm (s2pf-6: the
+        /// <b>As of s2pf-10 EVERY arm is precise</b> — the skeleton + the SAFE terminal arms
+        /// (ASM / CSTRING / PatchImage_* / WF's genuine <c>default</c> MIX) + the EVENT arm (s2pf-6: the
         /// <see cref="EmitScanScript"/> event-script walk, disasm-gated) + PatchImage_HEADERTSA (s2pf-7:
-        /// <see cref="EmitHeaderTsaPointer"/>). The REMAINING FORM-BOUND arms route through the same MIX
-        /// <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-8..10) — SAFE only while the gate token
-        /// stays deferred. See the block comment above.
+        /// <see cref="EmitHeaderTsaPointer"/>) + AP/ROMTCS/PROCS (s2pf-8) + the SIX deterministic
+        /// FORM-BOUND arms (s2pf-9) + BATTLEANIMEPOINTER (s2pf-10:
+        /// <see cref="EmitBattleAnimeSettingPointer"/>). The INTERIM default-MIX group is now EMPTY: only
+        /// WF's genuine <c>default</c> (unknown pointer -> length-0 MIX, which keeps the TARGET tracked) +
+        /// the EA/BIN no-op stubs remain. The gate token stays deferred until s2pf-11 wires the producer.
+        /// See the block comment above.
         /// </para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — passed explicitly. MUST also be
@@ -13743,11 +13773,14 @@ namespace FEBuilderGBA
                     }
                     break;
 
-                // ---- INTERIM default-MIX (this slice) — form-bound arms ---------
-                // Each routes through EmitPatchStructDefaultMix (= WF's own `default`,
-                // length-0 MIX). This DIVERGES from WF (WF emits the precise sub-walked
-                // TARGET region); SAFE only while the gate token stays deferred. The
-                // partial WF-parity test EXCLUDES these types.
+                // ---- PRECISE FORM-BOUND arms (s2pf-9..10 — ALL ported) ----------
+                // Every STRUCT form-bound type below now emits its precise WF sub-walked
+                // TARGET region (NO interim default-MIX remains: VENNOUWEAPONLOCK/
+                // AOERANGEPOINTER/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
+                // BATTLEBGLISTPOINTER in s2pf-9, BATTLEANIMEPOINTER in s2pf-10 — the LAST).
+                // The partial WF-parity test now compares ALL of these (no exclusions). Only
+                // WF's genuine `default` (unknown pointer -> length-0 MIX) + the EA/BIN no-op
+                // stubs remain non-precise, which IS faithful to WF.
 
                 case "VENNOUWEAPONLOCK":
                     // WF 6691-6695: VennouWeaponLockForm.MakeDataLength(list, p, patchname + " DATA " + n)
@@ -13796,8 +13829,14 @@ namespace FEBuilderGBA
                     break;
 
                 case "BATTLEANIMEPOINTER":
-                    // INTERIM default-MIX -> upgraded in s2pf-10 (ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6558-6561: ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength(list, p,
+                    // patchname + " DATA " + n) -> EmitBattleAnimeSettingPointer (IFR, block 4, count =
+                    // getBlockDataCount(base, 4, u32!=0), length = 4*(count+1); EMPTY pointerIndexes - the
+                    // setting block is flat). This is the per-STRUCT-field SETTING walk (WF
+                    // MakeBattleAnimeSettingDataLength = Init+ReInitPointer+empty-PI AddAddress), NOT the
+                    // full-path per-class MakeAllDataLength (slice-2s EmitImageBattleAnime). Self-guards the
+                    // slot + the deref (slot+3 before p32). s2pf-10: the LAST interim form-bound arm.
+                    EmitBattleAnimeSettingPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 default:

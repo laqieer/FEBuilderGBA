@@ -500,7 +500,7 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// PARTIAL WF-parity for #1261 slice s2pf-5..9 — the PatchForm producer TYPE=STRUCT dispatch arm
+        /// PARTIAL WF-parity for #1261 slice s2pf-5..10 — the PatchForm producer TYPE=STRUCT dispatch arm
         /// (<see cref="RebuildProducerCore.EmitPatchStruct"/>). Both the WinForms reference
         /// (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForSTRUCT</c>,
         /// PatchForm.cs:6461) and the Core orchestrator
@@ -538,12 +538,17 @@ namespace FEBuilderGBA.Tests.Unit
         /// <see cref="RebuildProducerCore.EmitSomeClassListPointer"/>/
         /// <see cref="RebuildProducerCore.EmitMapTerrainLookupPointer"/>; being non-MIX they pass the
         /// <c>@STRUCT DATA n</c> non-MIX include filter and are compared Core — WF on BOTH sides.</para>
-        /// <para><b>ONLY BATTLEANIMEPOINTER IS STILL EXCLUDED (deferred to s2pf-10).</b> It alone is
-        /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
-        /// slice — it INTENTIONALLY diverges from WF (WF emits the precise sub-walked TARGET region). So the
-        /// MIX-typed <c>@STRUCT DATA n</c> entry is filtered OUT of BOTH sides before the comparison. That
-        /// arm gains its own parity teeth in s2pf-10, and the FULL STRUCT parity (no exclusions) lands at
-        /// s2pf-11 when the gate token is removed.</para>
+        /// <para><b>BATTLEANIMEPOINTER IS NOW INCLUDED (s2pf-10) — NO FORM-BOUND ARM IS EXCLUDED.</b> It
+        /// emits a precise <c>@STRUCT DATA n</c> InputFormRef (block 4, length <c>4*(count+1)</c>) via
+        /// <see cref="RebuildProducerCore.EmitBattleAnimeSettingPointer"/> (the per-field SETTING walk =
+        /// WF <c>ImageBattleAnimeForm.MakeBattleAnimeSettingDataLength</c>), so being non-MIX it passes the
+        /// <c>@STRUCT DATA n</c> non-MIX include filter and is compared Core — WF on BOTH sides. This makes
+        /// the comparison the <b>FULL set of STRUCT field-type arms</b> (no per-arm exclusions remain). The
+        /// ONLY entries still filtered out are WF's genuine <c>default</c> (unknown-pointer) length-0 MIX
+        /// <c>@STRUCT DATA n</c> entries — which WF emits too, so the MIX-DATA filter is SYMMETRIC (Core and
+        /// WF both drop them) and faithful (a non-ported field type is not a slice-10 arm). The
+        /// orchestrator-LEVEL full parity (the merged producer list, gate token removed) lands at
+        /// s2pf-11.</para>
         /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
         /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
         /// patch within the merged producer list. The CSTRING arm's byte-faithfulness is carried by the
@@ -553,11 +558,12 @@ namespace FEBuilderGBA.Tests.Unit
         /// <para><b>NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT</b> (same posture as the
         /// ADDR/SWITCH + IMAGE harnesses): an un-init submodule yields no STRUCT patch files, so both
         /// filtered lists are empty and Core ⊆ WF holds trivially. The branch-level verification (the
-        /// skeleton arithmetic, the DATACOUNT guards, every safe arm, the 6624-6632 defect, the interim
-        /// default-MIX) is carried by the synthetic Core.Tests (<c>RebuildProducerPatchStructTests</c>).</para>
+        /// skeleton arithmetic, the DATACOUNT guards, every safe arm, the 6624-6632 defect, the precise
+        /// BATTLEANIMEPOINTER SETTING walk) is carried by the synthetic Core.Tests
+        /// (<c>RebuildProducerPatchStructTests</c>).</para>
         /// </summary>
         [Fact]
-        public void CorePatchStructArm_IsSubsetOf_WinFormsPatchProducer_ExcludingInterimFormArms()
+        public void CorePatchStructArm_IsSubsetOf_WinFormsPatchProducer_AllFormArmsIncluded()
         {
             string? repoRoot = FindRepoRootWithRom();
             if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
@@ -597,26 +603,27 @@ namespace FEBuilderGBA.Tests.Unit
                 // AP/ROMTCS/PROCS) OR an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the
                 // EventScriptForm.ScanScript walk emits — EVENTSCRIPT script blocks + their
                 // POINTER_UNIT/AICOORDINATE sub-data IFR/BIN blocks). The s2pf-9 form-bound arms
-                // (Vennou/AOE -> BIN, SMEPromo/SomeClass/Terrain* -> IFR) now emit a PRECISE non-MIX
-                // "@STRUCT DATA n" entry (INCLUDE). The LAST still-interim arm, BattleAnime (s2pf-10), emits
-                // "@STRUCT DATA n" as a length-0 MIX placeholder — it DIVERGES from WF this slice and is
-                // EXCLUDED. Since EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed "@STRUCT
-                // DATA " entry, a simple rule cleanly separates the two: a MIX-typed DATA entry is interim
-                // (EXCLUDE), any other DATA entry came from a now-precise arm — the EVENT walk (s2pf-6) or
-                // one of the six s2pf-9 forms (INCLUDE).
+                // (Vennou/AOE -> BIN, SMEPromo/SomeClass/Terrain* -> IFR) and BATTLEANIMEPOINTER (s2pf-10:
+                // block-4 u32!=0 SETTING IFR) now ALL emit a PRECISE non-MIX "@STRUCT DATA n" entry
+                // (INCLUDE). The ONLY MIX-typed "@STRUCT DATA " entries left are WF's genuine `default`
+                // (unknown-pointer) emissions — Core reproduces that verbatim (EmitPatchStructDefaultMix),
+                // so a MIX-typed DATA entry is the WF default on BOTH sides (EXCLUDE, symmetric); any other
+                // DATA entry came from a now-precise arm — the EVENT walk (s2pf-6), the six s2pf-9 forms, or
+                // BATTLEANIMEPOINTER (s2pf-10) (INCLUDE).
                 // PatchImage_HEADERTSA is now precise (s2pf-7), emitting a "@STRUCT HEADERTSA n" / HEADERTSA
                 // entry — INCLUDED via the safeArmTokens. AP/ROMTCS/PROCS are now precise (s2pf-8), emitting
                 // "@STRUCT AP/ROMTCS/PROCS n" — INCLUDED via the safeArmTokens (their named, non-DATA info
-                // tokens). The six s2pf-9 forms (Vennou/AOE/SME/Class/Terrain/BG) emit "@STRUCT DATA n" with
-                // a non-MIX type, so they are INCLUDED by the non-MIX DATA rule above (NOT the safeArmTokens
-                // list, which keys on named non-DATA tokens). CSTRING is out of merged-list scope (named the
-                // decoded string) — see doc-comment.
+                // tokens). The six s2pf-9 forms (Vennou/AOE/SME/Class/Terrain/BG) + BATTLEANIMEPOINTER
+                // (s2pf-10) emit "@STRUCT DATA n" with a non-MIX type, so they are INCLUDED by the non-MIX
+                // DATA rule above (NOT the safeArmTokens list, which keys on named non-DATA tokens). CSTRING
+                // is out of merged-list scope (named the decoded string) — see doc-comment.
                 string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " HEADERTSA ", " PALETTE ", " AP ", " ROMTCS ", " PROCS " };
                 bool IsImplementedStructEntry(Address a)
                 {
                     if (a.Info == null) return false;
-                    // A per-entry "... DATA n" entry: the STILL-INTERIM arms emit it as a length-0 MIX
-                    // placeholder (EXCLUDE); the EVENT walk (s2pf-6) emits EVENTSCRIPT/IFR/BIN (INCLUDE).
+                    // A per-entry "... DATA n" entry: WF's genuine `default` (unknown pointer) emits it as a
+                    // length-0 MIX (EXCLUDE, symmetric on both sides); every precise arm — the EVENT walk
+                    // (s2pf-6), the six s2pf-9 forms, BATTLEANIMEPOINTER (s2pf-10) — emits non-MIX (INCLUDE).
                     if (a.Info.Contains("@STRUCT DATA ", StringComparison.Ordinal))
                     {
                         return a.DataType != Address.DataTypeEnum.MIX;
@@ -639,9 +646,9 @@ namespace FEBuilderGBA.Tests.Unit
 
                 // Core-extras = Core emits an implemented-STRUCT key WF does not. ALWAYS a faithfulness
                 // regression -> FAIL. WF-extras (WF emits an implemented-STRUCT key Core lacks) are NOT
-                // asserted (subset direction): the interim form-bound arms are already excluded, so a
+                // asserted (subset direction): only WF's symmetric `default` MIX is excluded, so a
                 // WF-extra among the implemented arms would signal a gate divergence worth surfacing, not
-                // a silent drop. Core ⊆ WF is the load-bearing guarantee for this skeleton+safe-arms slice.
+                // a silent drop. Core ⊆ WF is the load-bearing guarantee for this full-form-arm slice.
                 var coreExtras = coreStruct.Where(a => !wfKeys.Contains(Key.Of(a)))
                                            .Select(Key.Of).Distinct().ToList();
 
@@ -658,10 +665,10 @@ namespace FEBuilderGBA.Tests.Unit
                         + $"First {Math.Min(N, coreExtras.Count)} Core-only entries:\n{dump}");
                 }
 
-                // PROVEN: every Core STRUCT entry (of the implemented skeleton + safe arms) is
+                // PROVEN: every Core STRUCT entry (of the implemented skeleton + ALL form-bound arms) is
                 // byte-identical to a WF entry on (Addr/Length/Pointer/DataType) — no faithfulness
-                // regression — with the interim form-bound arms excluded from both sides (or both empty
-                // when config/patch2 is absent). FULL parity (no exclusions) lands at s2pf-11.
+                // regression — with only WF's symmetric `default` MIX excluded from both sides (or both
+                // empty when config/patch2 is absent). The orchestrator-LEVEL full parity lands at s2pf-11.
                 Assert.Empty(coreExtras);
             }
             finally
