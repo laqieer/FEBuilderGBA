@@ -12251,8 +12251,9 @@ namespace FEBuilderGBA
         ///   <item>non-STRUCT while <paramref name="isStructOnly"/>: excluded.</item>
         ///   <item>IMAGE: included unless CheckIF == "E".</item>
         ///   <item>otherwise (non STRUCT/IMAGE) while <paramref name="isInstallOnly"/>:
-        ///   excluded if CheckIF == "E"; if not installed ("I") then excluded unless it is
-        ///   a STRUCT/IMAGE (which by construction it is not at this point, so excluded).</item>
+        ///   excluded if CheckIF == "E"; if NOT installed (CheckIF != "I") then excluded
+        ///   unless it is a STRUCT/IMAGE (which by construction it is not at this point, so
+        ///   excluded). CheckIF "I" = installed (see <see cref="PatchHardCodeScanner.CheckIF"/>).</item>
         ///   <item>else included.</item>
         /// </list>
         /// </summary>
@@ -12338,6 +12339,15 @@ namespace FEBuilderGBA
                 string type = U.at(sp, 1);
                 string value = pair.Value;
 
+                // WF reads key[1] directly (PatchForm.cs:7190). A 1-char key (e.g. a
+                // malformed "P=..." line) would IndexOutOfRange there. Guard the length
+                // and skip — behavior-identical for every valid pointer key (P0..P9, all
+                // length >= 2) and only converts the malformed-key crash into a skip,
+                // honoring the Core "never throws" posture.
+                if (key.Length < 2)
+                {
+                    continue;
+                }
                 if (!U.isnum(key[1]))
                 {
                     continue;
@@ -12422,9 +12432,17 @@ namespace FEBuilderGBA
 
             // WF: ScanPatchs(GetPatchDirectory(), false). GetPatchDirectory() =
             // Program.BaseDirectory/config/patch2/{Program.ROM.RomInfo.VersionToFilename}.
-            // Core threads the rom explicitly: version 0 (no recognized ROM) -> empty patch
-            // dir -> ScanPatchs returns an empty list (matching WF ScanPatchs' version==0 guard).
+            // WF ScanPatchs short-circuits at the TOP: `if (version == 0) return patchs;`.
+            // Reproduce that guard EXPLICITLY here: SafePatchVersionFolder returns "" for
+            // version 0 / no RomInfo, and ResolvePatchDirectory("") would otherwise resolve
+            // to the config/patch2 ROOT and make ScanPatchs recurse EVERY version's
+            // PATCH_*.txt (SearchOption.AllDirectories) — gating in unrelated patches. So a
+            // missing/empty version yields an empty list before any directory walk.
             string version = SafePatchVersionFolder(rom);
+            if (string.IsNullOrEmpty(version))
+            {
+                return;
+            }
             string patchDir = PatchHardCodeScanner.ResolvePatchDirectory(version);
             string lang = CoreState.Language ?? "en";
 

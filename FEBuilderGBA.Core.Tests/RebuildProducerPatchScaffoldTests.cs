@@ -188,6 +188,23 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MakePointerIndexes_MalformedShortKey_SkippedWithoutThrow()
+        {
+            // A 1-char key (e.g. a malformed "P=..." line) must NOT crash on key[1];
+            // it is skipped. A valid pointer field after it is still collected.
+            var patch = MakePatch("p",
+                ("TYPE", "STRUCT"),
+                ("P", "0x100"),            // malformed: length 1 -> skipped (no IndexOutOfRange)
+                ("P3:POINTER", "0x300"));
+
+            uint[] idx = RebuildProducerCore.MakePointerIndexes(patch, out string[] types, out Address.DataTypeEnum ift);
+
+            Assert.Equal(new uint[] { 3 }, idx);
+            Assert.Equal(new[] { "POINTER" }, types);
+            Assert.Equal(Address.DataTypeEnum.InputFormRef, ift);
+        }
+
+        [Fact]
         public void MakePointerIndexes_NoPointerFields_Empty_InputFormRef()
         {
             var patch = MakePatch("p", ("TYPE", "BIN"), ("ADDRESS", "0x100"));
