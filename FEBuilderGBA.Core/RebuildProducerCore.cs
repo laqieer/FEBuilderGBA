@@ -11926,7 +11926,13 @@ namespace FEBuilderGBA
             return extended;
         }
 
-        static readonly string[] NotYetPortedRaw = new[]
+        // s2pf-17 (CAPSTONE): this DATA-path NotYetPorted array is now EMPTY (explicitly typed
+        // `new string[]` since an empty implicit `new[]{}` cannot infer its element type). Every form
+        // U.MakeAllStructPointersList emits is ported to the data-path producer MakeAllStructPointers;
+        // the only residual coverage gate is EventCondForm, re-reported AT RUNTIME (not statically here)
+        // by MakeAllStructPointers when the event-script disassembler is unwired. The comments below are
+        // the per-slice porting ledger (kept as the historical record of WHERE each form landed).
+        static readonly string[] NotYetPortedRaw = new string[]
             {
                 // event conditions / scripts
                 // (EventCondForm PORTED in slice 2u — EmitEventCond + the Core ScanScript BLOCK-emitter
@@ -11942,12 +11948,16 @@ namespace FEBuilderGBA
                 //  THROWS when CoreState.EventScript/CommentCache are unwired, never silently omits).
                 //  EventScript(MakeEventASMMAPList), EventFunctionPointerForm, Command85PointerForm are
                 //  OUT OF SCOPE for this DATA path: they are emitted by U.AppendAllASMStructPointersList —
-                //  the ASM/LDR-map path. They ARE ported by the ASM-path producer below
-                //  (AppendAllAsmStructPointers / EmitEventAsmMapList / EmitEventFunctionPointer /
-                //  EmitCommand85Pointer, slice 2v); they remain in THIS data-path NotYetPorted list
-                //  because U.MakeAllStructPointersList itself does not emit them.)
-                "EventScript(MakeEventASMMAPList)", "EventFunctionPointerForm",
-                "Command85PointerForm",
+                //  the ASM/LDR-map path, NOT U.MakeAllStructPointersList (the data path THIS array gates).
+                //  They ARE ported by the ASM-path producer (AppendAllAsmStructPointers /
+                //  EmitEventAsmMapList / EmitEventFunctionPointer / EmitCommand85Pointer, slice 2v).
+                //  s2pf-17 (CAPSTONE): they are REMOVED from this DATA-path NotYetPorted array. They were
+                //  never emitted by the data-path producer (MakeAllStructPointers), so leaving them here
+                //  kept the COMBINED producer's data.IsComplete false even though the ASM path fully
+                //  covers them — masking real combined coverage. The ASM half handles them; the
+                //  EventScript(MakeEventASMMAPList) disasm gate is enforced at runtime by
+                //  AppendAllAsmStructPointers (re-reported in AsmProducerResult.NotYetPorted when the
+                //  event-script disassembler is unwired), so dropping the static entries here is sound.
                 // text (Huffman)
                 // (MapTerrainNameForm ported in slice 2c — per-entry string-BIN sub-walk; TextDicForm
                 //  ported in this sweep — 3 clean tables (dic_main/chaptor/title).
@@ -12047,8 +12057,11 @@ namespace FEBuilderGBA
                 //        pointerIndexes {0,4,8}, simpler RecyclePortraitFE6: FACE LZ77 / MAP FACE IMG@+4 /
                 //        PAL@+8; no halfbody). See GetNotYetPortedForms_DropsSlice2tForms.)
                 //    MapMiniMapTerrainImageForm — InputFormRef_ASM + AddFunctions, called from the
-                //      AppendAllASMStructPointersList ASM path, not this producer's data path.)
-                "MapMiniMapTerrainImageForm",
+                //      AppendAllASMStructPointersList ASM path, NOT this producer's data path. PORTED by
+                //      the ASM-path producer (AppendAllAsmStructPointers / EmitMapMiniMapTerrain, slice
+                //      2v). s2pf-17 (CAPSTONE): REMOVED from this DATA-path array — the data-path producer
+                //      never emitted it, so leaving it here kept the combined data.IsComplete false even
+                //      though the ASM half fully covers it.)
                 // songs / sound (recycle, embedded inst)
                 // (SoundRoomCGForm [FE7, clean u32-FFFFFFFF table], SoundRoomFE6Form [FE6, clean],
                 //  and WorldMapBGMForm [FE8, clean] ported in earlier sweeps. SoundFootStepsForm ported in
@@ -12274,7 +12287,20 @@ namespace FEBuilderGBA
                 // patch / procs / ASM — OUT OF SCOPE for this data-path producer: these are emitted by
                 // U.AppendAllASMStructPointersList (the ASM/LDR-map path), NOT U.MakeAllStructPointersList.
                 // (EventFunctionPointerForm / Command85PointerForm above are likewise ASM-path forms.)
-                "PatchForm(MakePatchStructDataList)", "ProcsScriptForm",
+                //
+                // s2pf-17 (CAPSTONE): this DATA-path array is now EMPTY. "PatchForm(MakePatchStructDataList)"
+                // and "ProcsScriptForm" were the last two entries; BOTH are ASM-path forms emitted by
+                // U.AppendAllASMStructPointersList (the ASM producer AppendAllAsmStructPointers — PatchForm
+                // via MakePatchStructDataListCore with EA/BIN now wired, ProcsScript via EmitProcsScript,
+                // slice 2x), NOT by the data-path producer MakeAllStructPointers (= U.MakeAllStructPointers-
+                // List). Keeping them in THIS data-path array kept data.IsComplete false even though the
+                // data path never emitted them and the ASM path fully covers them — masking real combined
+                // (data+asm) coverage. They are tracked by the ASM half (AsmNotYetPortedRaw is itself now
+                // empty — see s2pf-17 there). The data-path producer's ONLY residual runtime gate is
+                // EventCondForm, which MakeAllStructPointers re-reports in NotYetPorted at runtime when the
+                // event-script disassembler is unwired (never a static entry here). With the disasm wired
+                // (every real rebuild + the FE8U parity test), this array stays empty and data.IsComplete
+                // is true — completing the data-path producer's coverage of U.MakeAllStructPointersList.
             };
 
         // ====================================================================
@@ -12335,25 +12361,21 @@ namespace FEBuilderGBA
         /// duplicates — keeping the literal clean, not just the public dedup'd view).</summary>
         public static string[] GetAsmNotYetPortedFormsRaw() => (string[])AsmNotYetPortedRaw.Clone();
 
-        static readonly string[] AsmNotYetPortedRaw = new[]
+        // s2pf-17 (CAPSTONE): this ASM-path NotYetPorted array is now EMPTY (explicitly typed
+        // `new string[]` since an empty implicit `new[]{}` cannot infer its element type). The last
+        // entry, "PatchForm(MakePatchStructDataList)", is REMOVED now that the TYPE=EA and TYPE=BIN
+        // dispatch arms are WIRED LIVE into MakePatchStructDataListCore (s2pf-17, calling EmitPatchEA /
+        // EmitPatchBIN — the trace subsystems TraceEAPatchedMappingForProducer / TraceBINPatchedMapping-
+        // ForProducer landed in s2pf-14/15 + the s2pf-16 trailers). Core's PatchForm output is now a
+        // faithful SUPERSET-complete reproduction of WF's (Core⊆WF AND Core⊇WF on a ROM whose EA/BIN
+        // patches are all traceable) — every ADDR/SWITCH/IMAGE/STRUCT/EA/BIN entry WF emits is emitted by
+        // Core; the only un-emittable case (a MENU patch / an untraceable EA/BIN GREP miss) is a LOUD
+        // REJECT recorded on `untraceable`, AND the per-ROM s2pf-12 backstop
+        // (PatchFormHasUnportableInstalledPatch) refuses the WHOLE rebuild for such a ROM so no bytes are
+        // ever silently dropped. So the token is gone, AsmProducerResult.IsComplete can flip true, and
+        // the MakeWithProducer gate OPENS — guarded by the s2pf-12 backstop as the per-ROM soundness net.
+        static readonly string[] AsmNotYetPortedRaw = new string[]
             {
-                // PatchForm.MakePatchStructDataList (the FIRST, unconditional call) — walks the
-                // installed-patch tree via ScanPatchs(GetPatchDirectory()) + CheckIFFast + the per-TYPE
-                // MakePatchStructDataListForADDR/EA/BIN/SWITCH/STRUCT/IMAGE helpers. Ported INCREMENTALLY
-                // in the #1261 option-B s2pf-* slices: the orchestrator + ADDR/SWITCH (s2pf-3) + IMAGE
-                // (s2pf-4/7) + the FULL STRUCT path (skeleton/SAFE arms s2pf-5, EVENT s2pf-6,
-                // HEADERTSA s2pf-7, AP/ROMTCS/PROCS s2pf-8, the six deterministic form-arms s2pf-9,
-                // BATTLEANIMEPOINTER s2pf-10) are all LIVE + PRECISE, AND the orchestrator is now WIRED
-                // into AppendAllAsmStructPointers (s2pf-11). This token NEVERTHELESS STAYS because the
-                // TYPE=EA and TYPE=BIN arms are STILL no-op skips: WF emits Address entries for those via
-                // PatchForm.TracePatchedMapping (the EA/BIN bin-mapping trace subsystem), which is NOT yet
-                // in Core. So Core's PatchForm output is a faithful SUBSET of WF's (Core⊆WF — never a
-                // Core-extra) but NOT a superset (missing every EA/BIN entry). Emitting a wrong/guessed
-                // EA/BIN length would relocate the wrong bytes = silent corruption, so the producer
-                // SKIPS those patches honestly and the gate stays CLOSED (IsComplete false; no live
-                // rebuild) until the EA/BIN subsystem (TracePatchedMapping) lands in Core — the NEXT
-                // phase. See EmitPatchStruct's block comment for the STRUCT-arm audit table.
-                "PatchForm(MakePatchStructDataList)",
                 // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED in slice 2x (EmitProcsScript /
                 // EmitProcsScriptCore + ROMInfoLoadResourceKnownArea + Load6cNameDicSafe). Its FindProc walk
                 // CONSUMES the ldrmap but no longer needs the WinForms AsmMapFileAsmCache: GetKnownArea is
@@ -12426,15 +12448,18 @@ namespace FEBuilderGBA
                 return new AsmProducerResult(notYet, cancelled: true);
             }
 
-            // WF call 1 (UNCONDITIONAL): PatchForm.MakePatchStructDataList (WF U.cs:2619) — now WIRED
-            // LIVE (s2pf-11). The orchestrator emits the ADDR/SWITCH/IMAGE/STRUCT patch entries (all
-            // precise after s2pf-3..10); its EA/BIN TYPE arms are still HONEST no-op skips (the EA/BIN
-            // trace subsystem, WF's TracePatchedMapping, is the NEXT phase). Because EA/BIN are not yet
-            // emitted, Core's PatchForm output is a faithful SUBSET of WF's (Core⊆WF, never a Core-extra)
-            // but NOT a superset — so "PatchForm(MakePatchStructDataList)" STAYS in AsmNotYetPortedRaw
-            // (IsComplete stays false; the MakeWithProducer gate stays CLOSED). WF arg values traced from
-            // ToolROMRebuildMake.cs:820 (isPatchInstallOnly:true, isPatchPointerOnly:false,
-            // isPatchStructOnly:false) -> Core (isPointerOnly:false, isInstallOnly:true, isStructOnly:false).
+            // WF call 1 (UNCONDITIONAL): PatchForm.MakePatchStructDataList (WF U.cs:2619) — WIRED
+            // LIVE since s2pf-11, and now COMPLETE (s2pf-17): the orchestrator emits the
+            // ADDR/SWITCH/IMAGE/STRUCT patch entries (precise after s2pf-3..10) AND the EA/BIN entries
+            // (s2pf-17 routes TYPE=EA -> EmitPatchEA, TYPE=BIN -> EmitPatchBIN, reproducing the WF
+            // dispatch PatchForm.cs:7149-7156 via the s2pf-14/15 trace subsystems + s2pf-16 trailers).
+            // Core's PatchForm output is now a faithful reproduction of WF's (Core⊆WF AND, for a ROM
+            // whose EA/BIN patches are all traceable, Core⊇WF) — so "PatchForm(MakePatchStructDataList)"
+            // is REMOVED from AsmNotYetPortedRaw (IsComplete can flip true; the MakeWithProducer gate
+            // OPENS, guarded by the s2pf-12 per-ROM backstop for any un-emittable installed patch). WF
+            // arg values traced from ToolROMRebuildMake.cs:820 (isPatchInstallOnly:true,
+            // isPatchPointerOnly:false, isPatchStructOnly:false) -> Core (isPointerOnly:false,
+            // isInstallOnly:true, isStructOnly:false).
             progress?.Report("PatchForm");
             MakePatchStructDataListCore(rom, list,
                 isPointerOnly: false, isInstallOnly: true, isStructOnly: false,
@@ -12739,23 +12764,25 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Orchestrator (s2pf-1..11) for the WinForms
+        /// Orchestrator (s2pf-1..17) for the WinForms
         /// <c>PatchForm.MakePatchStructDataList</c> (FEBuilderGBA/PatchForm.cs:7126).
         /// Scans the installed-patch tree for <paramref name="rom"/> and walks each patch
         /// through the same gate WF uses (<see cref="PatchHardCodeScanner.isCanonicalSkip"/>
         /// -> <see cref="PatchHardCodeScanner.CheckIF"/> -> <see cref="IsMakePatchStructDataListTarget"/>),
         /// then dispatches on the patch TYPE.
         /// <para>
-        /// The ADDR/SWITCH/IMAGE/STRUCT TYPE arms are fully ported + precise (s2pf-3..10) and emit
-        /// into <paramref name="list"/>. The orchestrator is now WIRED into
-        /// <see cref="AppendAllAsmStructPointers"/> as the first unconditional call (s2pf-11). The
-        /// TYPE=EA and TYPE=BIN arms remain HONEST no-op skips — WF emits those via
-        /// <c>TracePatchedMapping</c> (the EA/BIN trace subsystem, the NEXT phase), so Core's output is a
-        /// faithful SUBSET of WF's (Core⊆WF, never a Core-extra) but not a superset. Because EA/BIN are
-        /// not yet emitted, "PatchForm(MakePatchStructDataList)" STAYS in
-        /// <see cref="AsmNotYetPortedRaw"/> (<see cref="AsmProducerResult.IsComplete"/> stays false; the
+        /// ALL six TYPE arms are now WIRED LIVE: ADDR/SWITCH/IMAGE/STRUCT (s2pf-3..10) AND TYPE=EA
+        /// (<see cref="EmitPatchEA"/>) / TYPE=BIN (<see cref="EmitPatchBIN"/>) (s2pf-17, reproducing the
+        /// WF dispatch PatchForm.cs:7149-7156 via the s2pf-14/15 trace subsystems + s2pf-16 trailers).
+        /// The orchestrator is the first unconditional call in <see cref="AppendAllAsmStructPointers"/>
+        /// (s2pf-11). Core's output is now a faithful reproduction of WF's (Core⊆WF AND, for a ROM whose
+        /// EA/BIN patches are all traceable, Core⊇WF); the only un-emittable case (a MENU patch or an
+        /// untraceable EA/BIN GREP miss) is a LOUD REJECT recorded on the trace's <c>untraceable</c> list,
+        /// and the per-ROM s2pf-12 backstop (<see cref="PatchFormHasUnportableInstalledPatch"/>) refuses
+        /// the WHOLE rebuild for such a ROM. So "PatchForm(MakePatchStructDataList)" is REMOVED from
+        /// <see cref="AsmNotYetPortedRaw"/> (<see cref="AsmProducerResult.IsComplete"/> can flip true; the
         /// <see cref="MakeWithProducer(ROM, ROM, uint, string, bool, bool, IProgress{string}, CancellationToken)"/>
-        /// rebuild gate stays CLOSED).
+        /// rebuild gate OPENS, guarded by the s2pf-12 backstop).
         /// </para>
         /// <para>
         /// The ROM is passed EXPLICITLY (never CoreState.ROM / Program.ROM): WF reads
@@ -12824,26 +12851,25 @@ namespace FEBuilderGBA
                     // s2pf-3: TYPE=ADDR handler (WF MakePatchStructDataListForADDR @:6213).
                     EmitPatchAddr(rom, list, patch, isPointerOnly);
                 }
-                else if (type == "EA" || type == "BIN")
+                else if (type == "EA")
                 {
-                    // TYPE=EA (WF MakePatchStructDataListForEA @:6259) and TYPE=BIN (WF
-                    // MakePatchStructDataListForBIN @:6317) are GENUINELY DEFERRED — they are the
-                    // remaining phase AFTER this slice (s2pf-11). Both WF arms drive
-                    // PatchForm.TracePatchedMapping(patch) (the EA/BIN bin-mapping trace subsystem) and
-                    // emit one Address per traced BinMapping. That trace subsystem is NOT yet in Core.
-                    //
-                    // HONEST OMISSION (the established EventCond/disasm-gate convention): we SKIP this
-                    // patch's emission entirely — we do NOT emit a wrong/guessed entry (a partial or
-                    // guessed Address would relocate the wrong bytes = silent ROM corruption), and we do
-                    // NOT throw (a throw here would abort the whole producer run on FE8U, which carries
-                    // TYPE=EA/BIN patches such as AI_TalkAI, 16_tracks, 1RNMode, 256colors, ASMC_*). The
-                    // skip is what makes Core a faithful SUBSET of WF (Core⊆WF): every entry Core DOES
-                    // emit is in WF's list, and the EA/BIN entries WF emits are exactly the ones Core
-                    // lacks. The visible re-report of this incompleteness is the gate token
-                    // "PatchForm(MakePatchStructDataList)" in AsmNotYetPortedRaw — it keeps
-                    // AsmProducerResult.IsComplete false so the MakeWithProducer rebuild gate stays
-                    // CLOSED. The token (and gate) are removed only when the EA/BIN trace subsystem
-                    // (TracePatchedMapping) lands in Core — the NEXT phase.
+                    // s2pf-17 (CAPSTONE): TYPE=EA handler (WF MakePatchStructDataListForEA @:6259),
+                    // wired LIVE. The EA arm + its trace subsystem (TraceEAPatchedMappingForProducer =
+                    // WF TraceEAPatchedMapping, reusing the s2pf-13 EmitEaDataList walker) and the
+                    // s2pf-16 trailers (NEW_TARGET_SELECTION_STRUCT / EDIT_PATCH ported; MENU loud-
+                    // reject) all landed in s2pf-14/16. The orchestrator now routes EA patches here
+                    // instead of skipping them, completing the WF dispatch (PatchForm.cs:7149-7152).
+                    EmitPatchEA(rom, list, patch, isPointerOnly);
+                }
+                else if (type == "BIN")
+                {
+                    // s2pf-17 (CAPSTONE): TYPE=BIN handler (WF MakePatchStructDataListForBIN @:6317),
+                    // wired LIVE. The BIN arm + its from-scratch trace subsystem
+                    // (TraceBINPatchedMappingForProducer = WF TraceBINPatchedMapping: JUMP/$FREEAREA/
+                    // SLIDE/CLEAR re-location) + the shared s2pf-16 trailers landed in s2pf-15/16. The
+                    // orchestrator now routes BIN patches here, completing the WF dispatch
+                    // (PatchForm.cs:7153-7156).
+                    EmitPatchBIN(rom, list, patch, isPointerOnly);
                 }
                 else if (type == "SWITCH")
                 {
@@ -14937,7 +14963,8 @@ namespace FEBuilderGBA
         // ROM threading: rom is threaded for the p32 derefs/length math; AddFunction/
         // AddCString/AddPointer read CoreState.ROM internally, so the orchestrator's
         // caller MUST set CoreState.ROM == rom (same convention as the data-path / ASM
-        // producers — the gate token stays deferred, so no live caller exists yet).
+        // producers). As of s2pf-17 the gate is OPEN (the EA/BIN arms are wired), so a
+        // live MakeWithProducer caller DOES reach this arm — guarded by the s2pf-12 backstop.
         // ====================================================================
 
         /// <summary>
@@ -14957,9 +14984,9 @@ namespace FEBuilderGBA
         /// <see cref="EmitHeaderTsaPointer"/>) + AP/ROMTCS/PROCS (s2pf-8) + the SIX deterministic
         /// FORM-BOUND arms (s2pf-9) + BATTLEANIMEPOINTER (s2pf-10:
         /// <see cref="EmitBattleAnimeSettingPointer"/>). The INTERIM default-MIX group is now EMPTY: only
-        /// WF's genuine <c>default</c> (unknown pointer -> length-0 MIX, which keeps the TARGET tracked) +
-        /// the EA/BIN no-op stubs remain. The gate token stays deferred until s2pf-11 wires the producer.
-        /// See the block comment above.
+        /// WF's genuine <c>default</c> (unknown pointer -> length-0 MIX, which keeps the TARGET tracked)
+        /// remains. The EA/BIN arms are no longer no-op stubs — they are wired LIVE (s2pf-17), and the
+        /// gate token is removed. See the block comment above.
         /// </para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — passed explicitly. MUST also be
@@ -15709,10 +15736,19 @@ namespace FEBuilderGBA
         // NotYetPorted) — there is intentionally NO --force / bypass: an
         // incomplete producer must never reach Make.
         //
-        // Current state: the data-path NotYetPorted (GetNotYetPortedForms) is
-        // non-empty and the ASM-path keeps PatchForm(MakePatchStructDataList)
-        // in AsmNotYetPortedRaw, so the gate is CURRENTLY ALWAYS CLOSED — that
-        // is correct, honest and safe until those subsystems land in Core.
+        // Current state (s2pf-17 CAPSTONE): BOTH NotYetPorted lists are now EMPTY —
+        // the data-path array is empty (only the runtime EventCondForm disasm gate
+        // remains, and a real rebuild always has the disassembler wired), and the
+        // ASM-path "PatchForm(MakePatchStructDataList)" token is removed (the EA/BIN
+        // arms are wired LIVE). So the IsComplete gate can flip TRUE and OPEN. The
+        // per-ROM s2pf-12 backstop (PatchFormHasUnportableInstalledPatch) runs FIRST
+        // in the public MakeWithProducer and remains the LOAD-BEARING soundness net:
+        // a ROM carrying an installed-but-unemittable EA/BIN patch (a MENU patch, or
+        // an Unknown $FGREP-signature install) STILL refuses — so the gate is open AND
+        // sound (no --force, no bypass). On a vanilla FE8U the gate is open; whether
+        // MakeWithProducer then PROCEEDS or the s2pf-12 backstop OVER-refuses depends on
+        // the $FGREP file-inclusion install-resolution (the s2pf-18 prerequisite) — see
+        // the test CorePatchProducer_* and the MakeWithProducer docstring.
         // ====================================================================
 
         /// <summary>
@@ -15754,15 +15790,21 @@ namespace FEBuilderGBA
         /// naming the still-deferred forms and does NOT call Make. Rationale: Make relocates only
         /// the listed structs and treats every unlisted region as free (free-list = COMPLEMENT of
         /// the list), so an incomplete list = silently dropped/mis-typed bytes = ROM corruption.
-        /// There is deliberately no bypass. Because PatchForm (and the remaining data-path forms)
-        /// stay deferred, this gate is CURRENTLY ALWAYS CLOSED — the safe, honest default.
+        /// There is deliberately no bypass. As of s2pf-17 BOTH lists are empty (every form ported;
+        /// the data path's only residual gate is the runtime EventCondForm disasm check, satisfied on
+        /// a real rebuild), so this gate can flip OPEN. It is NOT the only safety net: the per-ROM
+        /// s2pf-12 backstop (<see cref="PatchFormHasUnportableInstalledPatch"/>) runs FIRST and refuses
+        /// any ROM carrying an installed-but-unemittable EA/BIN patch (a MENU patch or an Unknown
+        /// $FGREP-signature install) — so the gate is open AND sound.
         /// </para>
         /// <para>
-        /// <b>FORWARD-LOOKING.</b> <see cref="RebuildMakeCore.Make"/> still omits several WinForms
-        /// post-producer phases (<c>AppendLDR</c>, the hardcoded-pointer search, <c>OptimizeList</c>,
-        /// <c>ProcssPointer</c>) — it takes the supplied list as authoritative. That is harmless while
-        /// this gate is closed, but before any future patch OPENS the gate on real ROMs those phases
-        /// need their own completeness proof/gate. Porting them is a separate item, not this wiring slice.
+        /// <b>FORWARD-LOOKING (post-gate, NOT a blocker for the IsComplete flip).</b>
+        /// <see cref="RebuildMakeCore.Make"/> still omits several WinForms post-producer phases
+        /// (<c>AppendLDR</c>, the hardcoded-pointer search, <c>OptimizeList</c> /
+        /// <c>OptimizeList_SameAddr</c> / <c>OptimizeList_MeaninglessPointer</c>, <c>ProcssPointer</c>) —
+        /// it takes the supplied list as authoritative. The s2pf-17 gate-open enables the <c>.rebuild</c>
+        /// MANIFEST producer; it is NOT yet a verified end-to-end ROM rewrite. Those phases need their own
+        /// completeness proof/gate before a real ROM is rewritten — a separate future item, not this slice.
         /// </para>
         /// </summary>
         /// <param name="rom">The loaded ROM to rebuild — MUST be <see cref="CoreState.ROM"/> (the
@@ -15833,9 +15875,10 @@ namespace FEBuilderGBA
         /// <summary>
         /// Internal seam (NOT a bypass — it applies the SAME cancel + IsComplete gate): delegates to
         /// <see cref="RebuildMakeCore.Make"/> from already-built producer results. Exists so a test can
-        /// exercise the Make-delegation path with a synthetic COMPLETE result (empty
-        /// <c>NotYetPorted</c>) — which the live producers cannot currently produce while PatchForm and
-        /// the remaining data-path forms stay deferred — and the throw path with an incomplete result.
+        /// exercise the Make-delegation path with a synthetic COMPLETE result (empty <c>NotYetPorted</c>)
+        /// AND the throw path with an incomplete result, independent of whichever live ROM is loaded. As of
+        /// s2pf-17 the live producers CAN report complete (every form ported; the data path's only residual
+        /// gate is the runtime EventCondForm disasm check), so this seam is no longer a test-only construct.
         /// </summary>
         /// <param name="data">The data-path result; the gate is applied to it AND <see cref="ProducerResult.List"/>
         /// is the EXACT list emitted to <see cref="RebuildMakeCore.Make"/> — there is no separate list

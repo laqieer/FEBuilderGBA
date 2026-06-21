@@ -1322,8 +1322,14 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void AppendAllAsmStructPointers_IsNeverComplete_DeferredFormsReported()
+        public void AppendAllAsmStructPointers_IncompleteOnlyViaDisasmGate_TokenRemoved()
         {
+            // s2pf-17 (CAPSTONE): the static "PatchForm(MakePatchStructDataList)" token is REMOVED
+            // (the EA/BIN arms are wired LIVE). The ASM-path producer is therefore NO LONGER
+            // statically incomplete — its ONLY residual coverage gate is the RUNTIME
+            // EventScript(MakeEventASMMAPList) disasm check. Here CoreState.EventScript is unwired, so
+            // EventScript is re-reported and IsComplete is false; the reason is the disasm gate, NOT a
+            // static deferred form. The token, ProcsScript, OAMSP, GraphicsTool must all be absent.
             var saved = CoreState.ROM;
             try
             {
@@ -1332,14 +1338,29 @@ namespace FEBuilderGBA.Core.Tests
                 var list = new List<Address>();
                 var ldrmap = RebuildProducerCore.BuildLdrMap(fe8);
                 var res = RebuildProducerCore.AppendAllAsmStructPointers(fe8, list, ldrmap);
+                // Incomplete here ONLY because the event-script disassembler is unwired.
                 Assert.False(res.IsComplete);
-                Assert.Contains("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
+                Assert.Contains("EventScript(MakeEventASMMAPList)", res.NotYetPorted);
+                // The PatchForm token is GONE (EA/BIN wired in s2pf-17).
+                Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", res.NotYetPorted);
                 // OAMSPForm PORTED slice 2w, ProcsScriptForm 2x, GraphicsToolForm 2y — NOT re-reported.
                 Assert.DoesNotContain("GraphicsToolForm", res.NotYetPorted);
                 Assert.DoesNotContain("OAMSPForm", res.NotYetPorted);
                 Assert.DoesNotContain("ProcsScriptForm", res.NotYetPorted);
             }
             finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void GetAsmNotYetPortedForms_IsEmpty_AfterTokenRemoved()
+        {
+            // s2pf-17 (CAPSTONE): the STATIC ASM-path deferred list is now EMPTY. Every ASM-path form is
+            // ported; EventScript(MakeEventASMMAPList) is gated only at RUNTIME (re-reported by
+            // AppendAllAsmStructPointers when the disassembler is unwired), never a static entry. So the
+            // static GetAsmNotYetPortedForms() — which AsmProducerResult.IsComplete is keyed on for a
+            // disasm-wired run — must be empty.
+            string[] notYet = RebuildProducerCore.GetAsmNotYetPortedForms();
+            Assert.Empty(notYet);
         }
 
         [Fact]
@@ -1379,10 +1400,12 @@ namespace FEBuilderGBA.Core.Tests
         // ====================================================================
 
         [Fact]
-        public void GetAsmNotYetPortedForms_ListsDeferredForms_NoDuplicates()
+        public void GetAsmNotYetPortedForms_AllFormsPorted_NoDuplicates()
         {
             string[] notYet = RebuildProducerCore.GetAsmNotYetPortedForms();
-            Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
+            // s2pf-17 (CAPSTONE): the PatchForm token is REMOVED (EA/BIN arms wired LIVE), so the static
+            // ASM-path deferred list is now EMPTY.
+            Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", notYet);
             // The PORTED forms are NOT in the static deferred list.
             Assert.DoesNotContain("GraphicsToolForm", notYet); // PORTED in slice 2y.
             Assert.DoesNotContain("OAMSPForm", notYet); // PORTED in slice 2w.
@@ -1391,6 +1414,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("EventFunctionPointerForm", notYet);
             Assert.DoesNotContain("Command85PointerForm", notYet);
             Assert.DoesNotContain("MapMiniMapTerrainImageForm", notYet);
+            Assert.Empty(notYet); // every ASM-path form ported; list empty.
 
             string[] raw = RebuildProducerCore.GetAsmNotYetPortedFormsRaw();
             var dups = raw.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
