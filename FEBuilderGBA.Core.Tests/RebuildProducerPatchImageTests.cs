@@ -5,9 +5,9 @@
 //   RebuildProducerCore.PatchImageVariantLength = the reusable per-variant length math
 //                                                 (factored so s2pf-5 STRUCT PatchImage_* reuses it).
 //
-// 6 of 8 variants ported (HEADERTSA_POINTER DEFERRED to s2pf-7 — needs
-// CalcByteLengthForHeaderTSAData). Coverage (synthetic in-memory FE8U ROM +
-// synthetic PatchSt — no real GBA ROM file, mirroring RebuildProducerPatchAddrSwitchTests):
+// ALL 8 variants ported (HEADERTSA_POINTER wired in s2pf-7 via EmitHeaderTsaPointer /
+// CalcHeaderTsaLength = WF CalcByteLengthForHeaderTSAData). Coverage (synthetic in-memory
+// FE8U ROM + synthetic PatchSt — no real GBA ROM file, mirroring RebuildProducerPatchAddrSwitchTests):
 //   1. EmitPatchImage:
 //        - IMAGE_POINTER    -> w*h/2,  IMG     (raw 4bpp)
 //        - ZIMAGE_POINTER   -> LZ77,   LZ77IMG (hand-authored stream, getCompressedSize)
@@ -15,16 +15,16 @@
 //        - TSA_POINTER      -> w*h/32, TSA
 //        - ZTSA_POINTER     -> LZ77,   LZ77TSA
 //        - ZHEADERTSA_POINTER -> LZ77, LZ77TSA
+//        - HEADERTSA_POINTER -> 2+(x+1)*(y+1)*2, HEADERTSA (s2pf-7)
 //        - PALETTE_POINTER  -> count*0x20, PAL  (count default 1; explicit count)
 //        - PALETTE_ADDRESS  -> count*0x20, PAL  (direct address, pointer slot NOT_FOUND;
 //                              only when PALETTE_POINTER absent/unsafe)
 //        - WIDTH/HEIGHT default "8"; PALETTE default "1"
 //        - emitted Address addr/length/pointer/type/name byte-faithful to WF
-//        - HEADERTSA_POINTER (the NON-Z variant) is NOT (wrongly) emitted — DEFERRED.
 //        - per-variant safety gates (p==0 for IMAGE/ZIMAGE/Z256IMAGE; unsafe slot; unsafe target)
 //        - all-variants-absent -> nothing (no-op), null-arg guards.
 //   2. PatchImageVariantLength: the raw math (IMAGE=w*h/2, TSA=w*h/32, PALETTE=count*0x20,
-//      LZ77 variants = getCompressedSize), and the unknown-key throw.
+//      LZ77 variants = getCompressedSize, HEADERTSA=2+(x+1)*(y+1)*2), and the unknown-key throw.
 //   3. Integration through the public orchestrator MakePatchStructDataListCore on a staged
 //      config/patch2 tree (proves the IMAGE switch arm is wired).
 //   4. The no-patch-dir invariant is re-asserted in RebuildProducerPatchScaffoldTests; this
@@ -121,6 +121,16 @@ namespace FEBuilderGBA.Core.Tests
             return clen;
         }
 
+        // Plant a header-TSA master header {x, y} (each stored value = dimension minus one) at `offset`
+        // and return the WF byte length: 2 + (x+1)*(y+1)*2 (the body cells are left zero — the length
+        // depends only on the 2-byte header, matching CalcHeaderTsaLength = WF CalcByteLengthForHeaderTSAData).
+        static uint WriteHeaderTsa(ROM rom, uint offset, byte x, byte y)
+        {
+            rom.write_u8(offset + 0, x);
+            rom.write_u8(offset + 1, y);
+            return 2u + ((uint)x + 1) * ((uint)y + 1) * 2;
+        }
+
         // ====================================================================
         // 1. PatchImageVariantLength — the reusable math (WF :6738 lengths)
         // ====================================================================
@@ -163,6 +173,33 @@ namespace FEBuilderGBA.Core.Tests
             uint at = 0x3000;
             uint expect = WriteLz77AllLiteral(rom, at, 16);
             Assert.Equal(expect, RebuildProducerCore.PatchImageVariantLength(rom, key, at, 8, 8, 1));
+        }
+
+        [Fact]
+        public void PatchImageVariantLength_HeaderTsa_MatchesCalcByteLengthForHeaderTSAData()
+        {
+            var rom = MakeRom();
+            // WF ImageUtil.CalcByteLengthForHeaderTSAData: 2 + (x+1)*(y+1)*2 from the 2-byte master
+            // header. Plant {0x07, 0x03} -> (7+1)*(3+1)=32 cells -> 2 + 32*2 = 66 bytes. The +1 on BOTH
+            // dimensions and the /2-vs-/32 axes must not be swapped (an off-by-one mis-sizes the region).
+            uint at = 0x3000;
+            uint expect = WriteHeaderTsa(rom, at, 0x07, 0x03);
+            Assert.Equal(66u, expect);
+            Assert.Equal(expect, RebuildProducerCore.PatchImageVariantLength(rom, "HEADERTSA", at, 8, 8, 1));
+        }
+
+        [Fact]
+        public void PatchImageVariantLength_HeaderTsa_NearEof_IsZero_NoThrow()
+        {
+            var rom = MakeRom();
+            // pos + 2 >= Length -> WF returns 0 (the 2-byte header itself does not fit). Out-of-bounds
+            // header -> 0 length (the caller's safety gate then skips emission — NOT a 0-length region
+            // that would drop following tiles).
+            uint len = 0;
+            uint nearEof = (uint)rom.Data.Length - 1;
+            var ex = Record.Exception(() => len = RebuildProducerCore.PatchImageVariantLength(rom, "HEADERTSA", nearEof, 8, 8, 1));
+            Assert.Null(ex);
+            Assert.Equal(0u, len);
         }
 
         [Fact]
@@ -340,37 +377,74 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain(list, a => a.Info == "Both@PALETTE_ADDRESS");
         }
 
-        // ---- the DEFERRED HEADERTSA_POINTER (NON-Z) must NOT be emitted ------
+        // ---- the HEADERTSA_POINTER (NON-Z) variant (s2pf-7) -----------------
 
         [Fact]
-        public void EmitPatchImage_HeaderTsaPointer_IsDeferred_EmitsNothing()
+        public void EmitPatchImage_HeaderTsaPointer_EmitsHeaderTsa_WithCalcLength()
         {
             var rom = MakeRom();
-            PlantPointer(rom, 0x1000, 0x2000);
+            const uint slot = 0x1000, target = 0x2000;
+            PlantPointer(rom, slot, target);
+            // WF 6798: AddHeaderTSAPointer(list, p, Name+"@HEADERTSA_POINTER", false) -> length =
+            // CalcByteLengthForHeaderTSAData(target) = 2 + (x+1)*(y+1)*2, typed HEADERTSA.
+            uint expect = WriteHeaderTsa(rom, target, 0x0F, 0x01); // (15+1)*(1+1)=32 -> 2 + 32*2 = 66
+            Assert.Equal(66u, expect);
+
             var list = new List<Address>();
-            // HEADERTSA_POINTER (non-Z) needs CalcByteLengthForHeaderTSAData (s2pf-7). It is NOT
-            // ported in this slice: the producer must NOT emit a wrong/zero-length entry for it.
             RebuildProducerCore.EmitPatchImage(rom, list,
                 MakePatch("H", ("TYPE", "IMAGE"), ("HEADERTSA_POINTER", "0x1000")), isPointerOnly: false);
 
-            Assert.Empty(list);
-            Assert.DoesNotContain(list, a => a.Info != null && a.Info.Contains("HEADERTSA_POINTER"));
+            var a = Single(list, "H@HEADERTSA_POINTER");
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(expect, a.Length);
+            Assert.Equal(slot, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.HEADERTSA, a.DataType);
         }
 
         [Fact]
-        public void EmitPatchImage_HeaderTsaDeferred_DoesNotBlockOtherVariants()
+        public void EmitPatchImage_HeaderTsaPointer_AlongsideOtherVariants()
         {
             var rom = MakeRom();
             PlantPointer(rom, 0x1000, 0x2000); // IMAGE
-            PlantPointer(rom, 0x1100, 0x2100); // HEADERTSA (deferred)
+            PlantPointer(rom, 0x1100, 0x2100); // HEADERTSA
+            uint expect = WriteHeaderTsa(rom, 0x2100, 0x07, 0x03); // 2 + 32*2 = 66
             var list = new List<Address>();
-            // The deferred HEADERTSA_POINTER must be a clean skip — the sibling IMAGE_POINTER still emits.
+            // Both the IMAGE_POINTER and the (now-ported) HEADERTSA_POINTER emit, in order.
             RebuildProducerCore.EmitPatchImage(rom, list,
                 MakePatch("M", ("TYPE", "IMAGE"),
                           ("IMAGE_POINTER", "0x1000"), ("HEADERTSA_POINTER", "0x1100")), isPointerOnly: false);
 
             Assert.Single(list, a => a.Info == "M@IMAGE_POINTER");
-            Assert.DoesNotContain(list, a => a.Info != null && a.Info.Contains("HEADERTSA_POINTER"));
+            var h = Single(list, "M@HEADERTSA_POINTER");
+            Assert.Equal(0x2100u, h.Addr);
+            Assert.Equal(expect, h.Length);
+            Assert.Equal(Address.DataTypeEnum.HEADERTSA, h.DataType);
+        }
+
+        [Fact]
+        public void EmitPatchImage_HeaderTsaPointer_UnsafeTarget_Skips()
+        {
+            var rom = MakeRom();
+            // Pointer slot is safe but the dereferenced target is NOT a safe pointer (points below floor).
+            U.write_u32(rom.Data, 0x1000, U.toPointer(0x100));
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchImage(rom, list,
+                MakePatch("U", ("TYPE", "IMAGE"), ("HEADERTSA_POINTER", "0x1000")), isPointerOnly: false);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitPatchImage_HeaderTsaPointer_SlotNearEof_Skips_NoThrow()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            // Slot within the last 3 bytes: EmitHeaderTsaPointer's full-extent EOF guard skips cleanly.
+            uint nearEof = (uint)rom.Data.Length - 1;
+            var ex = Record.Exception(() => RebuildProducerCore.EmitPatchImage(rom, list,
+                MakePatch("E", ("TYPE", "IMAGE"), ("HEADERTSA_POINTER", "0x" + nearEof.ToString("X"))),
+                isPointerOnly: false));
+            Assert.Null(ex);
+            Assert.Empty(list);
         }
 
         // ---- safety gates --------------------------------------------------

@@ -129,6 +129,15 @@ namespace FEBuilderGBA.Core.Tests
             return clen;
         }
 
+        // Plant a header-TSA master header {x, y} at `offset` and return the WF byte length
+        // (2 + (x+1)*(y+1)*2 = CalcHeaderTsaLength = WF ImageUtil.CalcByteLengthForHeaderTSAData).
+        static uint WriteHeaderTsa(ROM rom, uint offset, byte x, byte y)
+        {
+            rom.write_u8(offset + 0, x);
+            rom.write_u8(offset + 1, y);
+            return 2u + ((uint)x + 1) * ((uint)y + 1) * 2;
+        }
+
         // ====================================================================
         // 1. The MAIN struct Address (WF 6536-6543) — POINTER and ADDRESS forms
         // ====================================================================
@@ -485,6 +494,52 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitPatchStruct_HeaderTsaField_EmitsHeaderTsaWithCalcLength()
+        {
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            const uint target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            // WF 6605-6613: non-Z header-TSA -> AddHeaderTSAPointer -> length =
+            // CalcByteLengthForHeaderTSAData(target) = 2 + (x+1)*(y+1)*2, typed HEADERTSA,
+            // named "... HEADERTSA <n>" (n is the field ORDINAL, here 0).
+            uint expect = WriteHeaderTsa(rom, target, 0x07, 0x03); // (7+1)*(3+1)=32 -> 2 + 32*2 = 66
+            Assert.Equal(66u, expect);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("HT",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:PatchImage_HEADERTSA", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.Addr == target);
+            Assert.Equal(expect, a.Length);
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.Equal(Address.DataTypeEnum.HEADERTSA, a.DataType);
+            Assert.EndsWith("HEADERTSA 0", a.Info);
+            // NOT the interim default-MIX placeholder (no length-0 MIX entry).
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_HeaderTsaField_UnsafeTarget_EmitsNoHeaderTsa()
+        {
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            // Slot derefs to an unsafe target (below the 0x200 floor) -> WF's `if (isSafetyOffset(a))`
+            // pre-gate fails -> nothing emitted (NO HEADERTSA, NO MIX placeholder).
+            U.write_u32(rom.Data, table + 0, U.toPointer(0x100));
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("HU",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:PatchImage_HEADERTSA", "0")), isPointerOnly: false);
+
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.HEADERTSA);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
         public void EmitPatchStruct_UnknownType_DefaultMixPlaceholder()
         {
             var rom = MakeRom();
@@ -510,12 +565,13 @@ namespace FEBuilderGBA.Core.Tests
 
         // Each interim form-bound type is routed through the same default-MIX placeholder as an
         // unknown type. THIS IS INTENTIONAL FOR s2pf-5: the precise sub-walked TARGET length is
-        // ported in s2pf-6..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
+        // ported in s2pf-8..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
         // precise WF length — the partial WF-parity test EXCLUDES these types accordingly.
-        // NOTE: EVENT was REMOVED from this interim group in s2pf-6 — it now runs the real
-        // EventScriptForm.ScanScript walk (see the EmitPatchStruct_EventArm_* tests below).
+        // NOTE: EVENT was REMOVED from this interim group in s2pf-6 (it runs the real
+        // EventScriptForm.ScanScript walk — see EmitPatchStruct_EventArm_*), and
+        // PatchImage_HEADERTSA in s2pf-7 (it runs EmitHeaderTsaPointer — see
+        // EmitPatchStruct_HeaderTsaField_* below).
         [Theory]
-        [InlineData("PatchImage_HEADERTSA")]      // -> s2pf-7
         [InlineData("AP")]                        // -> s2pf-8
         [InlineData("ROMTCS")]                    // -> s2pf-8
         [InlineData("PROCS")]                     // -> s2pf-8
