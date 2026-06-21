@@ -51,7 +51,9 @@ namespace FEBuilderGBA.Core.Tests
             try { if (Directory.Exists(_tempDir)) Directory.Delete(_tempDir, true); } catch { }
         }
 
-        static ROM MakeVersionedRom(string versionString, int size = 0x0200_0000)
+        // 16 MiB is the FE8 LoadLow minimum (Rom.cs requires >= 0x0100_0000); keeping it
+        // at the minimum cuts per-test allocation/GC pressure vs a 32 MiB buffer.
+        static ROM MakeVersionedRom(string versionString, int size = 0x0100_0000)
         {
             var rom = new ROM();
             bool ok = rom.LoadLow("fake.gba", new byte[size], versionString);
@@ -202,6 +204,16 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(new uint[] { 3 }, idx);
             Assert.Equal(new[] { "POINTER" }, types);
             Assert.Equal(Address.DataTypeEnum.InputFormRef, ift);
+        }
+
+        [Fact]
+        public void MakePointerIndexes_NullPatchOrParam_Throws()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                RebuildProducerCore.MakePointerIndexes(null, out _, out _));
+            var noParam = new PatchInstallCore.PatchSt { Name = "p", PatchFileName = "p.txt", Param = null };
+            Assert.Throws<ArgumentNullException>(() =>
+                RebuildProducerCore.MakePointerIndexes(noParam, out _, out _));
         }
 
         [Fact]

@@ -12294,6 +12294,10 @@ namespace FEBuilderGBA
                 else if (checkIF != "I")
                 {//インストールされていないので無視したいのだが...
                     //構造体と画像は性質上インストールできない
+                    // NOTE: this STRUCT/IMAGE branch is unreachable (STRUCT and IMAGE already
+                    // return earlier), but it is reproduced VERBATIM from WF PatchForm.cs:6878-6881
+                    // for byte-faithful parity — intentionally NOT pruned so the Core port mirrors
+                    // its WinForms source exactly.
                     if (type == "STRUCT" || type == "IMAGE")
                     {//構造体または画像
                         return true;
@@ -12322,12 +12326,27 @@ namespace FEBuilderGBA
         /// order to map pointer slots to struct fields — a different order corrupts
         /// multi-pointer structs.
         /// </para>
+        /// <para>
+        /// This DELIBERATELY enumerates the shared <c>PatchSt.Param</c>
+        /// <see cref="System.Collections.Generic.Dictionary{TKey,TValue}"/> directly, exactly
+        /// as the WinForms original does — the whole patch pipeline (LoadPatch, CheckIF, the
+        /// per-TYPE emitters) reads the same dict in the same insertion order, so matching WF
+        /// here means matching that enumeration. Substituting an ordered collection would
+        /// DIVERGE from WF and the other Param consumers; the faithful contract is "iterate
+        /// Param as WF iterates it". (.NET preserves Dictionary insertion order absent
+        /// removals, which patch parse never does — both WF and this port depend on that.)
+        /// </para>
         /// </summary>
         public static uint[] MakePointerIndexes(PatchInstallCore.PatchSt patch
             , out string[] out_typeArray
             , out Address.DataTypeEnum out_iftType
             )
         {
+            // Public helper: guard like the other public Core helpers (ArgumentNullException),
+            // rather than NRE inside the foreach, on a null patch / uninitialized Param.
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
             bool hasASM = false;
             bool hasNoASM = false;
             List<string> typeArray = new List<string>();
@@ -12337,7 +12356,8 @@ namespace FEBuilderGBA
                 string[] sp = pair.Key.Split(':');
                 string key = sp[0];
                 string type = U.at(sp, 1);
-                string value = pair.Value;
+                // (WF also reads pair.Value into an unused local here; the value is not
+                // needed for the index/type parse, so it is not bound in the Core port.)
 
                 // WF reads key[1] directly (PatchForm.cs:7190). A 1-char key (e.g. a
                 // malformed "P=..." line) would IndexOutOfRange there. Guard the length
