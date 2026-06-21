@@ -163,6 +163,37 @@ namespace FEBuilderGBA
             // Carry over parser-level untraceable blocks (un-hinted inline PNG rasters).
             result.Untraceable.AddRange(ea.UntraceableNotes);
 
+            EmitEaDataList(rom, ea, binMappings, result.Untraceable);
+
+            return result;
+        }
+
+        /// <summary>
+        /// The byte-identical EA DataList walk shared by the uninstall trace
+        /// (<see cref="TraceEAFile"/>) and the rebuild-producer EA arm (#1261 s2pf-14).
+        /// Walks the parsed <paramref name="ea"/> entries (ORG / ASM / MIX / LYN /
+        /// LYNHOOK / POINTER_ARRAY / PROCS / BIN), building the
+        /// <see cref="BinMapping"/>s it can reconstruct into <paramref name="binMappings"/>
+        /// by GREP-matching the expanded bytes against <paramref name="rom"/> from a
+        /// monotonically advancing <c>lastMatchAddr</c> baseline (seeded at
+        /// <c>RomInfo.compress_image_borderline_address</c>), and recording any block it
+        /// could NOT trace (GREP miss, guarded PROCS) into <paramref name="untraceable"/>.
+        ///
+        /// <para>Exposed (internal static, ROM-explicit) for the rebuild-producer EA arm,
+        /// s2pf-14; this is the ONE walker both the uninstall path and the producer arm
+        /// call, so they stay byte-identical. Behaviour is unchanged from the original
+        /// inline <see cref="TraceEAFile"/> walk — the only difference is that the ROM it
+        /// reads is passed explicitly rather than re-read from <see cref="CoreState.ROM"/>
+        /// (the uninstall caller passes <c>CoreState.ROM</c>, so the result is identical).</para>
+        /// </summary>
+        /// <param name="rom">The ROM the expanded blocks are GREP-matched against (the
+        /// current/patched ROM for the uninstall path). Must be non-null with a non-null
+        /// <c>RomInfo</c> — the callers guard this before calling.</param>
+        /// <param name="ea">The parsed EA file whose <see cref="EAUtilCore.DataList"/> is walked.</param>
+        /// <param name="binMappings">Accumulator for the reconstructed ranges (appended to).</param>
+        /// <param name="untraceable">Accumulator for blocks that could not be traced (appended to).</param>
+        internal static void EmitEaDataList(ROM rom, EAUtilCore ea, List<BinMapping> binMappings, List<string> untraceable)
+        {
             uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
 
             for (int n = 0; n < ea.DataList.Count; n++)
@@ -181,10 +212,10 @@ namespace FEBuilderGBA
                         type = Address.DataTypeEnum.MIX,
                     };
 
-                    if (U.isSafetyOffset(addr + 64))
+                    if (U.isSafetyOffset(addr + 64, rom))
                     {//長さが不明なので比較するとき困るので適当に64バイトほど取得します.
                         b.bin = rom.getBinaryData(addr, 64);
-                        b.mask = MakeMaskAddress(b.bin, addr);
+                        b.mask = MakeMaskAddress(b.bin, addr, rom);
                     }
                     else
                     {
@@ -204,13 +235,13 @@ namespace FEBuilderGBA
                     }
                     //展開されるものを生成して、GREP検索する必要があります.
                     bool[] isSkip;
-                    byte[] mod = ReadMod(data.BINData, out isSkip);
+                    byte[] mod = ReadMod(data.BINData, out isSkip, rom);
 
                     //可変なので、maskパターンを作って検索します.
                     uint addr = U.GrepPatternMatch(rom.Data, mod, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
                     {//パッチが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add(R._("{0} block not found in ROM: {1}",
+                        untraceable.Add(R._("{0} block not found in ROM: {1}",
                             data.DataType.ToString(), BlockName(data.Name)));
                         continue;
                     }
@@ -248,7 +279,7 @@ namespace FEBuilderGBA
                     uint addr = U.GrepPatternMatch(rom.Data, data.BINData, isSkip, lastMatchAddr, 0, 4);
                     if (addr == U.NOT_FOUND)
                     {//LYN ELFが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add(R._("LYN block not found in ROM: {0}", BlockName(data.Name)));
+                        untraceable.Add(R._("LYN block not found in ROM: {0}", BlockName(data.Name)));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -287,7 +318,7 @@ namespace FEBuilderGBA
                         bin = rom.getBinaryData(addr, length),
                         type = Address.DataTypeEnum.PATCH_ASM,
                     };
-                    b.mask = MakeMaskAddress(b.bin, addr);
+                    b.mask = MakeMaskAddress(b.bin, addr, rom);
 
                     binMappings.Add(b);
 
@@ -303,7 +334,7 @@ namespace FEBuilderGBA
                     for (; addr + 3 < rom.Data.Length; addr += 4)
                     {
                         uint a = rom.u32(addr);
-                        if (!U.isSafetyPointer(a))
+                        if (!U.isSafetyPointer(a, rom))
                         {
                             break;
                         }
@@ -347,7 +378,7 @@ namespace FEBuilderGBA
                     // range itself — identical to the WinForms tracer's `continue` when
                     // CalcLengthAndCheck returns NOT_FOUND. Record it as residue so the
                     // caller can warn. (See class doc scope note.)
-                    result.Untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
+                    untraceable.Add(R._("PROCS table (length detection is WinForms-only): {0}",
                         string.IsNullOrEmpty(data.Name) ? R._("(label)") : data.Name));
                     continue;
                 }
@@ -361,7 +392,7 @@ namespace FEBuilderGBA
                     uint addr = U.Grep(rom.Data, data.BINData, lastMatchAddr);
                     if (addr == U.NOT_FOUND)
                     {//BINが見つからなかった — 復元できない残骸として記録する.
-                        result.Untraceable.Add(R._("BIN block not found in ROM: {0}", BlockName(data.Name)));
+                        untraceable.Add(R._("BIN block not found in ROM: {0}", BlockName(data.Name)));
                         continue;
                     }
                     uint length = (uint)data.BINData.Length;
@@ -381,7 +412,7 @@ namespace FEBuilderGBA
                     }
                     else
                     {
-                        b.mask = MakeMaskAddress(b.bin, addr);
+                        b.mask = MakeMaskAddress(b.bin, addr, rom);
                     }
 
                     EraseORG(binMappings, b);
@@ -390,8 +421,6 @@ namespace FEBuilderGBA
                     lastMatchAddr = addr + length;
                 }
             }
-
-            return result;
         }
 
         /// <summary>
@@ -606,15 +635,31 @@ namespace FEBuilderGBA
         }
 
         // ---- Trace helpers (ports of the PatchForm private statics) ---------------
+        //
+        // These are exposed internal static for the rebuild-producer EA arm (#1261
+        // s2pf-14), which calls them — together with <see cref="EmitEaDataList"/> — to
+        // stay byte-identical to this verified #1242 uninstall trace. MakeMaskAddress /
+        // ReadMod take an explicit ROM (matching the ROM-explicit walker — they only used
+        // CoreState.ROM for the isSafetyOffset length bound, threaded through now);
+        // MakeLynMaskPattern / MakeFullMask / EraseORG are pure (no ROM read). Behaviour
+        // is unchanged: the uninstall caller passes CoreState.ROM, and the
+        // U.isSafetyOffset(uint, ROM) overload is the same formula as U.isSafetyOffset(uint).
 
         // Port of PatchForm.MakeMaskAddress: mask the LDR-pointer bytes inside a code
         // block so the address-dependent words don't break a GREP pattern match.
-        static bool[] MakeMaskAddress(byte[] original, uint base_address)
+        /// <summary>
+        /// Mask the LDR-pointer bytes inside a code block so the address-dependent words
+        /// don't break a GREP pattern match. ROM-explicit (only reads
+        /// <paramref name="rom"/> for the <see cref="U.isSafetyOffset(uint, ROM)"/> length
+        /// bound). Exposed for the rebuild-producer EA arm, s2pf-14; byte-identical to the
+        /// uninstall walk (which passes <see cref="CoreState.ROM"/>).
+        /// </summary>
+        internal static bool[] MakeMaskAddress(byte[] original, uint base_address, ROM rom)
         {
             bool[] isSkip = new bool[original.Length];
 
             base_address = U.toOffset(base_address);
-            if (!U.isSafetyOffset(base_address))
+            if (!U.isSafetyOffset(base_address, rom))
             {
                 return isSkip;
             }
@@ -639,16 +684,27 @@ namespace FEBuilderGBA
         // Port of PatchForm.ReadMod(string[], byte[], out bool[]) — the instant-EA path
         // has no per-key address-move args, so chaddr is 0 and the mask is built off
         // base 0 (matching ReadMod with an empty sp[]).
-        static byte[] ReadMod(byte[] b, out bool[] isSkip)
+        /// <summary>
+        /// Build the GREP mask for an ASM/MIX block off base 0 (instant-EA path has no
+        /// per-key address-move args). ROM-explicit (forwards <paramref name="rom"/> to
+        /// <see cref="MakeMaskAddress"/>). Exposed for the rebuild-producer EA arm,
+        /// s2pf-14; byte-identical to the uninstall walk (which passes <see cref="CoreState.ROM"/>).
+        /// </summary>
+        internal static byte[] ReadMod(byte[] b, out bool[] isSkip, ROM rom)
         {
             uint chaddr = 0; // U.atoi0x(U.at(sp, 2)) with an empty sp == 0
-            isSkip = MakeMaskAddress(b, chaddr);
+            isSkip = MakeMaskAddress(b, chaddr, rom);
             return b;
         }
 
         //lynによってインポートされるelfのマスクパターンを作ります。
         // Port of PatchForm.MakeLynMaskPattern.
-        static bool[] MakeLynMaskPattern(byte[] bin)
+        /// <summary>
+        /// Build the GREP mask for a lyn-imported ELF (mask the all-zero 4-byte words
+        /// lyn relocates). Pure (no ROM read). Exposed for the rebuild-producer EA arm,
+        /// s2pf-14; byte-identical to the uninstall walk.
+        /// </summary>
+        internal static bool[] MakeLynMaskPattern(byte[] bin)
         {
             bool[] isSkip = new bool[bin.Length];
             for (int i = 0; i + 3 < bin.Length; i += 4)
@@ -665,7 +721,12 @@ namespace FEBuilderGBA
         }
 
         // Port of PatchForm.MakeFullMask.
-        static bool[] MakeFullMask(uint length)
+        /// <summary>
+        /// Build an all-true mask of <paramref name="length"/> bytes (POINTER_ARRAY,
+        /// where every byte is address-dependent). Pure (no ROM read). Exposed for the
+        /// rebuild-producer EA arm, s2pf-14; byte-identical to the uninstall walk.
+        /// </summary>
+        internal static bool[] MakeFullMask(uint length)
         {
             bool[] r = new bool[length];
             for (int i = 0; i < length; i++)
@@ -677,7 +738,12 @@ namespace FEBuilderGBA
 
         // Port of PatchForm.EraseORG: a later concrete mapping at the same address
         // supersedes a provisional ORG mapping there.
-        static void EraseORG(List<BinMapping> binMappings, BinMapping b)
+        /// <summary>
+        /// Drop a provisional ORG mapping superseded by a later concrete mapping at the
+        /// same address. Pure (no ROM read). Exposed for the rebuild-producer EA arm,
+        /// s2pf-14; byte-identical to the uninstall walk.
+        /// </summary>
+        internal static void EraseORG(List<BinMapping> binMappings, BinMapping b)
         {
             for (int i = 0; i < binMappings.Count; i++)
             {
