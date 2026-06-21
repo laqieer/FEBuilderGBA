@@ -335,6 +335,42 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TraceBin_FreeArea_TwoBlocks_AdvanceBaseline_MatchSecondCopy()
+        {
+            // Rigorous lastMatchAddr-advance coverage (Copilot #1331): TWO $FREEAREA blocks
+            // share the SAME byte pattern, PLANTED at two distinct ROM addresses (the install
+            // order). If the trace did NOT advance lastMatchAddr to addr+length after the first
+            // hit, the SECOND GREP would re-match the FIRST (earliest) copy — corruption. With
+            // the advance, the second entry matches the SECOND copy.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            byte[] pat = { 0xC0, 0xDE, 0xF0, 0x0D, 0xBA, 0xAD, 0xF0, 0x0D };
+            uint border = rom.RomInfo.compress_image_borderline_address;
+            uint first = ((border + 0x40000) + 3) & ~3u;
+            uint second = first + 0x10000;      // a SECOND, later copy of the same pattern.
+            Write(rom, first, pat);
+            Write(rom, second, pat);
+            File.WriteAllBytes(Path.Combine(dir, "a.dmp"), pat);
+            File.WriteAllBytes(Path.Combine(dir, "b.dmp"), pat);
+
+            // Two distinct dict keys, both with sp[1]=="$FREEAREA" (sp[2] chaddr 0/1 yields no
+            // LDR mask for this pointer-free pattern, so the masks are identical all-false).
+            var patch = MakeBinPatch(dir, "two",
+                ("BIN:$FREEAREA:0", "a.dmp"),
+                ("BIN:$FREEAREA:1", "b.dmp"));
+
+            var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
+
+            var a = ByKey(map, "BIN:$FREEAREA:0");
+            var b = ByKey(map, "BIN:$FREEAREA:1");
+            Assert.NotNull(a);
+            Assert.NotNull(b);
+            Assert.Equal(first, a.addr);        // first hit at the first planted copy.
+            Assert.Equal(second, b.addr);       // advanced => second hit at the SECOND copy.
+            Assert.NotEqual(a.addr, b.addr);    // would be EQUAL if the baseline did not advance.
+        }
+
+        [Fact]
         public void TraceBin_FreeArea_NoMatch_IsSkipped()
         {
             var rom = MakeRom();
@@ -381,6 +417,37 @@ namespace FEBuilderGBA.Core.Tests
             string dir = NewTempDir();
             // sp.Length < 3 => WF :5141 continue. "SLIDE:0x800000" has only 2 fields.
             var patch = MakeBinPatch(dir, "s", ("SLIDE:0x800000", "0x800008"));
+
+            var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
+
+            Assert.Empty(map);
+        }
+
+        [Fact]
+        public void TraceSlide_DestBelowOrEqualAddr_IsSkipped_NoUnderflow()
+        {
+            // Producer fault-safety (Copilot #1331): a malformed SLIDE with dest <= addr would
+            // underflow `dest_addr - addr` to a huge uint => OOM on new bool[length]. We skip it.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            uint addr = 0x800010;
+            uint dest = 0x800000;   // dest < addr => skip (no allocation).
+            var patch = MakeBinPatch(dir, "s",
+                ("SLIDE:0x" + addr.ToString("X") + ":x", "0x" + dest.ToString("X")));
+
+            var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
+
+            Assert.Empty(map);
+        }
+
+        [Fact]
+        public void TraceClear_MissingLengthField_IsSkipped_NoCrash()
+        {
+            // Producer fault-safety (Copilot #1331): WF guards sp.Length<2 but reads sp[2]
+            // (length). A malformed `CLEAR:0x800000` (no length) would throw. We skip it.
+            var rom = MakeRom();
+            string dir = NewTempDir();
+            var patch = MakeBinPatch(dir, "c", ("CLEAR:0x800000", "x"));
 
             var map = RebuildProducerCore.TraceBINPatchedMappingForProducer(rom, patch);
 

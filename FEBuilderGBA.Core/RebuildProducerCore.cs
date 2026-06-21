@@ -13890,6 +13890,19 @@ namespace FEBuilderGBA
                     continue;
                 }
 
+                // Producer fault-safety (Copilot #1331 review): WF computes the unsigned
+                // `dest_addr - addr` with NO ordering guard (WF :5156). A valid SLIDE always
+                // has dest_addr > addr (the moved region is [addr, dest_addr)), but a
+                // malformed/typoed key with dest_addr <= addr would underflow to a huge
+                // uint32 here and then allocate `new bool[length]` / read getBinaryData with
+                // an unbounded size (OOM). Skip such an entry — this changes NOTHING for any
+                // real patch (dest_addr > addr) and keeps the producer from aborting the whole
+                // rebuild on bad input, consistent with the honest-omission convention.
+                if (dest_addr <= addr)
+                {
+                    continue;
+                }
+
                 uint length = dest_addr - addr;       // WF :5156
                 byte[] bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0];
                 bool[] mask = new bool[length];
@@ -13918,8 +13931,15 @@ namespace FEBuilderGBA
                 {//WF :5179
                     continue;
                 }
-                if (sp.Length < 2)
-                {//WF :5183
+                // WF :5183 guards `sp.Length < 2` but then unconditionally reads sp[2] for the
+                // length (WF :5196) — a latent IndexOutOfRangeException on a malformed key like
+                // `CLEAR:0x800000` (no length field). A real CLEAR key is always
+                // `CLEAR:<addr>:<length>` (3 fields), so this never triggers in practice; the
+                // producer tightens the guard to `< 3` (Copilot #1331 review) so bad input is
+                // skipped, NOT crashed — faithful to WF for every valid key, fault-safe for the
+                // rest. (s2pf-16 may surface such a malformed entry as untraceable.)
+                if (sp.Length < 3)
+                {
                     continue;
                 }
 
