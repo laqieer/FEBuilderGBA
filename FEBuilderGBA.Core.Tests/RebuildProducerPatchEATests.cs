@@ -208,9 +208,14 @@ namespace FEBuilderGBA.Core.Tests
             }
 
             File.WriteAllBytes(Path.Combine(dir, "blk.bin"), pattern);
-            // Two event files. The dir *.event scan returns them sorted; both #incbin blk.bin.
-            // Name them so the ordering is deterministic (a_, b_). Each is a separate file →
-            // each gets its own EmitEaDataList call; the baseline must persist between them.
+            // Two separate event files, both #incbin blk.bin → each gets its own
+            // EmitEaDataList call, so the baseline must persist BETWEEN the calls. The
+            // assertion below is ORDER-INDEPENDENT (U.Directory_GetFiles_Safe does NOT sort —
+            // GetFiles order is unspecified): whichever file is walked first matches the lower
+            // copy and advances the baseline past it, so the other file matches the higher
+            // copy — both copies are claimed regardless of which file comes first. A per-file
+            // baseline reset, by contrast, would re-match the FIRST copy in BOTH files and
+            // drop the second copy, in any order.
             File.WriteAllText(Path.Combine(dir, "a_first.event"), "#incbin \"blk.bin\" // HINT=BIN\r\n");
             File.WriteAllText(Path.Combine(dir, "b_second.event"), "#incbin \"blk.bin\" // HINT=BIN\r\n");
 
