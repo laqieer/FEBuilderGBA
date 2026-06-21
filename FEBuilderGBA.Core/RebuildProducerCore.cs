@@ -13270,11 +13270,13 @@ namespace FEBuilderGBA
         // (honest omission, never silent — a range WF would cover that Core drops would be
         // corruption). NO Program.ROM / CoreState.ROM read — `rom` is threaded explicitly.
         //
-        // DEFERRED to s2pf-16 (the WF trailers at :5508-5512, driven by extra patch params):
-        //   TraceEditPatch (EDIT_PATCH), AppendMenuPatch (MENU),
-        //   AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT). They emit nothing
-        //   for a bare {TYPE=EA, EA=...} patch, but a real FE8U EA patch can carry those
-        //   params, so they are left as a marked TODO rather than guessed.
+        // TRAILERS (WF :5508-5512, s2pf-16): the three shared trace trailers run at the tail.
+        //   * AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT) + TraceEditPatch
+        //     (EDIT_PATCH) are ROM-DETERMINISTIC and are PORTED (see the shared s2pf-16 helpers
+        //     above EmitPatchEA). They emit nothing for a bare {TYPE=EA, EA=...} patch but
+        //     re-locate the nested/target ranges when a real FE8U EA patch carries them.
+        //   * AppendMenuPatch (MENU) is WinForms-only (live menu editor state) and is a LOUD
+        //     REJECT onto `untraceable` (RejectMenuPatch) — never a silent omission.
         // ====================================================================
 
         /// <summary>
@@ -13306,12 +13308,14 @@ namespace FEBuilderGBA
         /// to <paramref name="untraceable"/> — a range WF would have covered that Core
         /// silently dropped would be free-list corruption.</para>
         ///
-        /// <para>The WF trailers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
-        /// <c>AppendNewTargetSelectionStruct</c> (:5508-5512) are DEFERRED to s2pf-16.</para>
+        /// <para>The WF trailers <c>AppendNewTargetSelectionStruct</c> (NEW_TARGET_SELECTION_STRUCT)
+        /// and <c>TraceEditPatch</c> (EDIT_PATCH) at :5508-5512 are PORTED (s2pf-16) and run at the
+        /// tail. <c>AppendMenuPatch</c> (MENU) is WinForms-only and is a LOUD REJECT onto
+        /// <paramref name="untraceable"/> (never silently omitted).</para>
         /// </summary>
         /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="patch">The TYPE=EA patch (its <c>PatchFileName</c> dir is walked; its <c>EA=</c> param adds the main file).</param>
-        /// <param name="untraceable">Accumulator for blocks that could not be traced (GREP miss, NOT_FOUND PROCS). Optional; pass to surface coverage gaps.</param>
+        /// <param name="untraceable">Accumulator for blocks that could not be traced (GREP miss, NOT_FOUND PROCS, MENU reject). Optional; pass to surface coverage gaps.</param>
         /// <returns>The reconstructed bin-mappings, in trace order.</returns>
         public static List<EventAssemblerUninstallCore.BinMapping> TraceEAPatchedMappingForProducer(
             ROM rom, PatchInstallCore.PatchSt patch, List<string> untraceable = null)
@@ -13452,9 +13456,21 @@ namespace FEBuilderGBA
             }
 
             // s2pf-16: WF :5507-5512 trailers (TraceEditPatch / AppendMenuPatch /
-            // AppendNewTargetSelectionStruct) are DEFERRED — they act on extra patch params
-            // (EDIT_PATCH / MENU / NEW_TARGET_SELECTION_STRUCT) and emit nothing for a bare
-            // {TYPE=EA, EA=...} patch. Left as a marked TODO, NOT guessed.
+            // AppendNewTargetSelectionStruct), driven by extra patch params. They emit nothing
+            // for a bare {TYPE=EA, EA=...} patch, but a real FE8U EA patch can carry these.
+            //   * TraceEditPatch (EDIT_PATCH) + AppendNewTargetSelectionStruct
+            //     (NEW_TARGET_SELECTION_STRUCT) are ROM-deterministic -> PORTED here, in WF
+            //     order, so a patch carrying them re-locates the nested/target ranges instead
+            //     of silently dropping them from the rebuild free list.
+            //   * AppendMenuPatch (MENU: EA_EXTENDS_UNITMENU/GAMEMENU/ITEMMENU) reads live
+            //     MenuDefinitionForm.Get{Unit,Game,Item}MenuPointer + MenuCommandForm editor
+            //     state (WinForms-only) and is NOT portable -> LOUD REJECT: any such param is
+            //     recorded on `untraceable` (never silently omitted). The s2pf-12 reject gate
+            //     already refuses the whole rebuild for these params; recording here makes the
+            //     reason SPECIFIC + VISIBLE rather than a generic refusal.
+            TraceEditPatch(rom, binMappings, patch, untraceable);            // WF :5508
+            RejectMenuPatch(patch, untraceable);                            // WF :5510 (loud reject)
+            AppendNewTargetSelectionStruct(rom, patch, binMappings, untraceable); // WF :5512
 
             return binMappings;
         }
@@ -13483,9 +13499,10 @@ namespace FEBuilderGBA
         /// (WF :6311-6314, the per-block ELF/sym.txt symbol channel). The per-mapping
         /// <c>U.isSafetyOffset</c> guard skips only that mapping — verbatim WF :6273.</para>
         ///
-        /// <para>The trailing WF helpers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
-        /// <c>AppendNewTargetSelectionStruct</c> live inside
-        /// <c>TraceEAPatchedMapping</c> (:5508-5512), DEFERRED to s2pf-16.</para>
+        /// <para>The trailing WF helpers run inside the trace this method calls:
+        /// <c>AppendNewTargetSelectionStruct</c> / <c>TraceEditPatch</c> (:5508-5512) are PORTED
+        /// (s2pf-16) and feed extra mappings into the EmitPatch loop; <c>AppendMenuPatch</c>
+        /// (MENU) is WinForms-only and is a LOUD REJECT (never silently omitted).</para>
         /// </summary>
         /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
@@ -13598,6 +13615,434 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-16 of 17).
+        //
+        // The THREE SHARED TRACE TRAILERS that run at the tail of BOTH
+        // TraceEAPatchedMapping (WF :5508-5512) and TraceBINPatchedMapping (WF :5214-5218).
+        // They are TYPE-independent — each acts purely on patch.Param + deterministic ROM
+        // reads — so a single Core port of each serves both the EA and BIN producer arms.
+        //
+        //   1. AppendNewTargetSelectionStruct (WF :5534-5580) — ROM-DETERMINISTIC -> PORTED.
+        //      For every NEW_TARGET_SELECTION_STRUCT param: convertBinAddressString GREP loop
+        //      -> rom.u32 deref -> isSafetyPointer -> a 32-byte NEW_TARGET_SELECTION_STRUCT
+        //      BinMapping. The EmitPatch{EA,BIN} loop already routes a m.type ==
+        //      NEW_TARGET_SELECTION_STRUCT mapping to Address.AddNewTargetSelectionStruct.
+        //
+        //   2. TraceEditPatch (WF :4600-4686) — param + ROM-DETERMINISTIC -> PORTED. For every
+        //      EDIT_PATCH param: LoadPatch the referenced patch and, by its nested TYPE, trace
+        //      STRUCT (pointer/data) / IMAGE (via EmitPatchImage) / BIN|EA (recursive
+        //      TracePatchedMapping). All dependencies are already in Core.
+        //
+        //   3. AppendMenuPatch (WF :5583-5641) — the ONLY genuinely non-portable trailer (live
+        //      MenuDefinitionForm.Get{Unit,Game,Item}MenuPointer + MenuCommandForm editor
+        //      state, WinForms-only). It is a LOUD REJECT: any EA_EXTENDS_UNITMENU/GAMEMENU/
+        //      ITEMMENU param is recorded on `untraceable` (NEVER silently omitted — WF emits a
+        //      36-byte MENU struct we cannot reconstruct headless). The s2pf-12 reject gate
+        //      already refuses the whole rebuild for these params; this records the SPECIFIC
+        //      reason so the refusal is visible, not generic.
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.AppendNewTargetSelectionStruct</c>
+        /// (FEBuilderGBA/PatchForm.cs:5534). For each <c>NEW_TARGET_SELECTION_STRUCT</c> param
+        /// (matched by substring, like WF), runs the
+        /// <see cref="ResolvePatchAddress"/> (= WF <c>convertBinAddressString(value, 0, lastAddr,
+        /// basedir)</c>) GREP loop, dereferences each found pointer slot (<c>rom.u32</c>), and —
+        /// when the target is a safe pointer — appends a 32-byte
+        /// <see cref="Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT"/>
+        /// <see cref="EventAssemblerUninstallCore.BinMapping"/>. The EmitPatch{EA,BIN} loop then
+        /// routes that mapping to <see cref="Address.AddNewTargetSelectionStruct"/> (the 8-pointer
+        /// constructor/destructor walk). NO Program.ROM read — <paramref name="rom"/> is threaded.
+        /// </summary>
+        /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="patch">The patch whose <c>NEW_TARGET_SELECTION_STRUCT</c> params drive the trace.</param>
+        /// <param name="binMappings">Accumulator the 32-byte structs are appended to.</param>
+        /// <param name="untraceable">Coverage-gap accumulator (a near-EOF slot that WF's bare u32 would throw on is recorded, not crashed).</param>
+        static void AppendNewTargetSelectionStruct(
+            ROM rom, PatchInstallCore.PatchSt patch,
+            List<EventAssemblerUninstallCore.BinMapping> binMappings, List<string> untraceable)
+        {
+            // WF :5536 — string basedir = Path.GetDirectoryName(patch.PatchFileName).
+            // Normalize null -> "" so the resolver never receives a null basedir.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            foreach (var pair in patch.Param)
+            {
+                // WF :5543 — substring match (NOT an exact key), so a colon-suffixed key
+                // (e.g. NEW_TARGET_SELECTION_STRUCT:0) also matches. Reproduced verbatim.
+                if (pair.Key.IndexOf("NEW_TARGET_SELECTION_STRUCT", StringComparison.Ordinal) < 0)
+                {
+                    continue;
+                }
+
+                string addrstring = pair.Value;
+                uint lastAddr = 0x100;       // WF :5549 — GREP scan floor.
+
+                while (true)
+                {
+                    // WF :5553 — convertBinAddressString(addrstring, 0, lastAddr, basedir).
+                    uint foundAddr = ResolvePatchAddress(rom, addrstring, 0, lastAddr, basedir);
+                    if (foundAddr == U.NOT_FOUND)
+                    {//WF :5554 — no more matches.
+                        break;
+                    }
+                    lastAddr = foundAddr + 4;   // WF :5558 — advance past this slot.
+
+                    // WF :5560 — uint addr = Program.ROM.u32(foundAddr). WF reads the 4-byte
+                    // pointer slot directly; convertBinAddressString returned a GREP hit within
+                    // the ROM, so the slot is normally in-bounds, but guard the FULL 4-byte
+                    // extent (U.u32 throws on OOB) so a near-EOF foundAddr is a recorded gap
+                    // rather than a producer-aborting throw (honest-omission convention).
+                    if (!U.isSafetyOffset(foundAddr + 3, rom))
+                    {
+                        untraceable.Add(R._("NEW_TARGET_SELECTION_STRUCT pointer slot near EOF; skipped: {0}",
+                            U.To0xHexString(foundAddr)));
+                        continue;
+                    }
+                    uint addr = rom.u32(foundAddr);
+                    if (!U.isSafetyPointer(addr))
+                    {//WF :5561-5564 — not a valid pointer; skip this slot.
+                        continue;
+                    }
+                    addr = U.toOffset(addr);   // WF :5565
+
+                    uint length = 8 * 4;       // WF :5567 — the 32-byte struct.
+
+                    var b = new EventAssemblerUninstallCore.BinMapping
+                    {
+                        key = "NEW_TARGET_SELECTION_STRUCT",          // WF :5570
+                        filename = "NEW_TARGET_SELECTION_STRUCT",     // WF :5571
+                        addr = addr,                                  // WF :5572
+                        length = length,                              // WF :5573
+                        // WF :5574 — getBinaryData(addr, length); the overload EOF-clamps, so a
+                        // struct partly past EOF is read short rather than throwing (faithful).
+                        bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0],
+                        mask = EventAssemblerUninstallCore.MakeFullMask(length),  // WF :5575
+                        type = Address.DataTypeEnum.NEW_TARGET_SELECTION_STRUCT,  // WF :5576
+                    };
+                    binMappings.Add(b);        // WF :5578
+                }
+            }
+        }
+
+        /// <summary>
+        /// LOUD REJECT for WinForms <c>PatchForm.AppendMenuPatch</c> (FEBuilderGBA/PatchForm.cs:5583).
+        /// The WF helper emits a 36-byte <c>MENU</c> struct for each installed
+        /// <c>EA_EXTENDS_UNITMENU</c> / <c>EA_EXTENDS_GAMEMENU</c> / <c>EA_EXTENDS_ITEMMENU</c>
+        /// param by reading LIVE <c>MenuDefinitionForm.Get{Unit,Game,Item}MenuPointer</c> +
+        /// <c>MenuCommandForm</c> editor state — neither of which is GUI-free, so it cannot be
+        /// reproduced headless. Rather than SILENTLY OMIT the 36-byte struct (= a range WF would
+        /// keep live that the rebuild free list would corrupt), every such param is RECORDED on
+        /// <paramref name="untraceable"/>. The s2pf-12 reject gate already refuses the whole
+        /// rebuild for a patch carrying these params; this makes the refusal reason SPECIFIC +
+        /// VISIBLE (the named param), not a generic "EA/BIN unsupported" message.
+        /// </summary>
+        static void RejectMenuPatch(PatchInstallCore.PatchSt patch, List<string> untraceable)
+        {
+            foreach (var pair in patch.Param)
+            {
+                // WF :5591/:5595/:5599 — substring match on the three menu-extend keys.
+                if (pair.Key.IndexOf("EA_EXTENDS_UNITMENU", StringComparison.Ordinal) >= 0
+                    || pair.Key.IndexOf("EA_EXTENDS_GAMEMENU", StringComparison.Ordinal) >= 0
+                    || pair.Key.IndexOf("EA_EXTENDS_ITEMMENU", StringComparison.Ordinal) >= 0)
+                {
+                    untraceable.Add(R._(
+                        "MENU patch ({0}) requires the live menu editor (MenuDefinitionForm/MenuCommandForm) and cannot be traced headless; its 36-byte MENU struct is NOT in the rebuild free list. Rebuild refused for this patch.",
+                        pair.Key));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.TraceEditPatch</c>
+        /// (FEBuilderGBA/PatchForm.cs:4600). For every <c>EDIT_PATCH</c> param with a non-empty
+        /// value, loads the referenced patch (<see cref="PatchInstallCore.LoadPatch"/>) and
+        /// traces its nested ranges by the nested patch's <c>TYPE</c>: <c>STRUCT</c> (pointer/data
+        /// walk), <c>IMAGE</c> (via <see cref="EmitPatchImage"/>), or <c>BIN</c>/<c>EA</c>
+        /// (recursive <see cref="TraceBINPatchedMappingForProducer"/> /
+        /// <see cref="TraceEAPatchedMappingForProducer"/>). NO Program.ROM read — <paramref name="rom"/>
+        /// is threaded. A missing/unparsable EDIT_PATCH file is recorded on
+        /// <paramref name="untraceable"/> (WF asserts + returns; the producer never aborts).
+        /// </summary>
+        static void TraceEditPatch(
+            ROM rom, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt patchSt, List<string> untraceable)
+        {
+            foreach (var pair in patchSt.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+
+                if (key == "EDIT_PATCH" && pair.Value != "")
+                {//WF :4607
+                    TraceEditPatchLow(rom, pair.Value, binMappings, patchSt, untraceable);
+                }
+            }
+        }
+
+        // WF :4614 — resolve the EDIT_PATCH=<file> reference (relative to the patch dir), parse
+        // it, and dispatch by its nested TYPE. WF LoadPatch(editpatch, isScanOnly:true) is the
+        // scan-only parse; Core PatchInstallCore.LoadPatch populates the SAME Param +
+        // PatchFileName (a superset — it also sets Name/Date), which is all the nested trace
+        // reads, so it is behaviourally equivalent here.
+        static void TraceEditPatchLow(
+            ROM rom, string editpatch, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt patchSt, List<string> untraceable)
+        {
+            string basedir = System.IO.Path.GetDirectoryName(patchSt.PatchFileName) ?? "";
+            editpatch = System.IO.Path.Combine(basedir, editpatch);
+
+            if (!System.IO.File.Exists(editpatch))
+            {//WF :4619-4623 — Debug.Assert(false); return. The producer records the gap.
+                untraceable.Add(R._("EDIT_PATCH file not found: {0}", editpatch));
+                return;
+            }
+            PatchInstallCore.PatchSt editpatchSt;
+            try
+            {
+                editpatchSt = PatchInstallCore.LoadPatch(editpatch);
+            }
+            catch (Exception ex)
+            {//Honour "never abort the producer": a bad EDIT_PATCH becomes a recorded gap.
+                untraceable.Add(R._("Could not read the EDIT_PATCH file: {0}", ex.Message));
+                return;
+            }
+            if (editpatchSt == null)
+            {//WF :4625-4629 — Debug.Assert(false); return (no TYPE= line).
+                untraceable.Add(R._("EDIT_PATCH is not a valid patch (no TYPE=): {0}", editpatch));
+                return;
+            }
+
+            basedir = System.IO.Path.GetDirectoryName(editpatchSt.PatchFileName) ?? "";  // WF :4631
+            string type = U.at(editpatchSt.Param, "TYPE");
+            if (type == "STRUCT")
+            {//WF :4633
+                TraceEditPatchStruct(rom, binMappings, editpatchSt, basedir, untraceable);
+            }
+            else if (type == "IMAGE")
+            {//WF :4637 — 画像.
+                TraceEditPatchImage(rom, binMappings, editpatchSt);
+            }
+            else if (type == "BIN" || type == "EA")
+            {//WF :4641 — BIN patch or a nested EA.
+                TraceEditPatchNest(rom, binMappings, editpatchSt, untraceable);
+            }
+        }
+
+        // WF :4646 — recursive nest: trace the inner BIN/EA patch and append its mappings.
+        static void TraceEditPatchNest(
+            ROM rom, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt editpatchSt, List<string> untraceable)
+        {
+            // WF TracePatchedMapping(editpatchSt) dispatches by the inner TYPE. We dispatch to
+            // the matching producer trace directly (the same routing the orchestrator uses).
+            string type = U.at(editpatchSt.Param, "TYPE");
+            List<EventAssemblerUninstallCore.BinMapping> nest;
+            if (type == "BIN")
+            {
+                nest = TraceBINPatchedMappingForProducer(rom, editpatchSt, untraceable);
+            }
+            else // "EA"
+            {
+                nest = TraceEAPatchedMappingForProducer(rom, editpatchSt, untraceable);
+            }
+            binMappings.AddRange(nest);   // WF :4649
+        }
+
+        // WF :4651 — trace an IMAGE EDIT_PATCH: build the IMAGE struct list (EmitPatchImage =
+        // WF MakePatchStructDataListForIMAGE) and wrap each resolved Address as a "DATA"
+        // BinMapping (image data needs no LDR mask — WF `new bool[binmap.addr]`, reproduced).
+        static void TraceEditPatchImage(
+            ROM rom, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt editpatchSt)
+        {
+            var list = new List<Address>();
+            // WF :4654 — MakePatchStructDataListForIMAGE(list, false, editpatchSt). The Core
+            // port's signature is EmitPatchImage(rom, list, patch, isPointerOnly) — isPointerOnly
+            // false matches WF's literal `false`.
+            EmitPatchImage(rom, list, editpatchSt, false);
+
+            foreach (Address a in list)
+            {
+                uint addr = a.Addr;
+                var binmap = new EventAssemblerUninstallCore.BinMapping
+                {
+                    addr = addr,                 // WF :4659
+                    filename = a.Info,           // WF :4660
+                    key = "DATA",                // WF :4661
+                    length = a.Length,           // WF :4662
+                    // WF :4663 — getBinaryData(addr, length) (EOF-clamping overload). Guard the
+                    // start so a malformed Address near EOF is read short, not thrown.
+                    bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, a.Length) : new byte[0],
+                    // WF :4664 — image data, NO LDR mask: WF writes `new bool[binmap.addr]`, an
+                    // ADDR-sized (NOT length-sized) all-false mask. That is a WF wart: the mask is
+                    // never consumed for image data, but sizing it by the ROM offset allocates up
+                    // to ~16M bools (16MB) PER image entry — an unbounded producer allocation /
+                    // OOM. Following the established producer fault-safety convention (Copilot
+                    // #1331's SLIDE-underflow guard), we emit the SAME all-false mask sized to the
+                    // data LENGTH: byte-identical for every consumer (the mask is all-false either
+                    // way and never read on the producer path) without the runaway allocation.
+                    mask = new bool[a.Length],
+                    type = a.DataType,           // WF :4665
+                };
+                binMappings.Add(binmap);         // WF :4666
+            }
+        }
+
+        // WF :4670 — trace a STRUCT EDIT_PATCH across all installed copies (each install adds
+        // +16 to the search start). Loops until TraceEditPatchStructInner returns NOT_FOUND.
+        static void TraceEditPatchStruct(
+            ROM rom, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt editpatchSt, string basedir, List<string> untraceable)
+        {
+            uint struct_address = 0x0;
+            while (true)
+            {//WF :4673 — search for possibly-multiple installs.
+                struct_address = TraceEditPatchStructInner(rom, binMappings, editpatchSt, struct_address, basedir, untraceable);
+
+                if (struct_address == U.NOT_FOUND)
+                {//WF :4677
+                    break;
+                }
+
+                struct_address += 16;   // WF :4682
+            }
+        }
+
+        // WF :4686 — resolve ONE installed copy of a STRUCT EDIT_PATCH. Returns the struct
+        // address found (so the caller can advance past it) or NOT_FOUND to stop.
+        static uint TraceEditPatchStructInner(
+            ROM rom, List<EventAssemblerUninstallCore.BinMapping> binMappings,
+            PatchInstallCore.PatchSt editpatchSt, uint search_start_addr, string basedir,
+            List<string> untraceable)
+        {
+            uint struct_address;
+            string pointer_str = U.at(editpatchSt.Param, "POINTER");
+            if (pointer_str == "")
+            {//WF :4690
+                string address_str = U.at(editpatchSt.Param, "ADDRESS");
+                if (address_str == "")
+                {//WF :4693-4696
+                    return U.NOT_FOUND;
+                }
+                // WF :4697 — resolves convertBinAddressString(pointer_str, ...) where pointer_str
+                // is "" here (a WF quirk: ADDRESS is read but pointer_str is resolved). Resolve("")
+                // returns NOT_FOUND -> isSafetyOffset(NOT_FOUND) false -> return NOT_FOUND.
+                // Reproduced VERBATIM for parity (the ADDRESS-only STRUCT branch never resolves).
+                struct_address = ResolvePatchAddress(rom, pointer_str, 8, search_start_addr, basedir);
+                if (!U.isSafetyOffset(struct_address, rom))
+                {//WF :4698-4701
+                    return U.NOT_FOUND;
+                }
+            }
+            else
+            {//WF :4703 — POINTER form: resolve the pointer slot, record it, deref to the struct.
+                uint addr = ResolvePatchAddress(rom, pointer_str, 8, search_start_addr, basedir);
+                if (!U.isSafetyOffset(addr, rom))
+                {//WF :4706-4709
+                    return U.NOT_FOUND;
+                }
+                // WF :4710-4717 — the 4-byte POINTER slot itself (all-true mask). Guard the full
+                // 4-byte extent (getBinaryData clamps, but p32 below needs +3 in-bounds anyway).
+                var ptrmap = new EventAssemblerUninstallCore.BinMapping
+                {
+                    addr = addr,
+                    filename = "",
+                    key = "POINTER",
+                    length = 4,
+                    bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, 4u) : new byte[0],
+                    mask = new bool[] { true, true, true, true },
+                    // WF leaves b.type default (0 == the enum's first member); reproduced by
+                    // not assigning type (BinMapping.type defaults to default(DataTypeEnum)).
+                };
+                binMappings.Add(ptrmap);
+
+                // WF :4719 — struct_address = Program.ROM.p32(addr). p32 returns 0 for addr past
+                // EOF; guard the +3 extent so a near-EOF slot is a clean NOT_FOUND, not a throw.
+                if (!U.isSafetyOffset(addr + 3, rom))
+                {
+                    untraceable.Add(R._("EDIT_PATCH STRUCT pointer slot near EOF; skipped: {0}",
+                        U.To0xHexString(addr)));
+                    return U.NOT_FOUND;
+                }
+                struct_address = rom.p32(addr);
+                if (!U.isSafetyOffset(struct_address, rom))
+                {//WF :4720-4723
+                    return U.NOT_FOUND;
+                }
+            }
+
+            if (struct_address < search_start_addr)
+            {//WF :4726-4729 — never go backwards (stops the multi-install loop).
+                return U.NOT_FOUND;
+            }
+
+            uint datasize = U.atoi0x(U.at(editpatchSt.Param, "DATASIZE"));   // WF :4731
+            // Fault-safety (Copilot #1333 review): a malformed/missing DATASIZE parses to 0. WF's
+            // `(double)datasize` division (WF :4744) does NOT throw on 0 (float div -> +Infinity ->
+            // (uint)Math.Ceiling -> 0 -> the `datacount <= 0` guard returns NOT_FOUND), and the
+            // literal-count branch would later compute length = datacount*0 = 0. Either way the
+            // result is "no struct". Make that explicit and platform-independent (the
+            // double->uint Infinity conversion is technically unspecified) by recording the gap
+            // and returning NOT_FOUND up front. Byte-identical to WF for every valid patch
+            // (datasize > 0); only a corrupt nested patch reaches here.
+            if (datasize == 0)
+            {
+                untraceable.Add(R._("EDIT_PATCH STRUCT has no/zero DATASIZE; skipped: {0}",
+                    editpatchSt.PatchFileName ?? ""));
+                return U.NOT_FOUND;
+            }
+
+            uint datacount;
+            string datacount_str = U.at(editpatchSt.Param, "DATACOUNT");
+            if (datacount_str.Length > 0 && datacount_str[0] == '$')
+            {//WF :4735 — grep等 (a $MACRO end-address; convert to a count).
+                datacount = ResolvePatchAddress(rom, datacount_str, 8, struct_address, basedir);
+                if (datacount == U.NOT_FOUND)
+                {//WF :4738-4741
+                    return U.NOT_FOUND;
+                }
+                if (datacount >= struct_address)
+                {//WF :4742-4745 — ceil((end - start) / datasize). datasize > 0 (guarded above).
+                    datacount = (uint)Math.Ceiling((datacount - struct_address) / (double)datasize);
+                }
+            }
+            else
+            {//WF :4747 — 直値 (literal count).
+                datacount = U.atoi0x(datacount_str);
+            }
+            if (datacount <= 0)
+            {//WF :4751-4754
+                return U.NOT_FOUND;
+            }
+            if (datacount * datasize > 1024 * 1024)
+            {//WF :4755-4759 — corrupt patch guard (> 1MB).
+                Log.Error("パッチのデータが壊れています。データサイズ1MBを超えました",
+                    editpatchSt.PatchFileName, U.To0xHexString(datacount), U.To0xHexString(datasize));
+                return U.NOT_FOUND;
+            }
+
+            {//WF :4761-4770 — the struct data block (no LDR mask: `new bool[binmap.addr]`).
+                uint length = datacount * datasize;
+                var datamap = new EventAssemblerUninstallCore.BinMapping
+                {
+                    addr = struct_address,
+                    filename = "",
+                    key = "DATA",
+                    length = length,
+                    bin = U.isSafetyOffset(struct_address, rom) ? rom.getBinaryData(struct_address, length) : new byte[0],
+                    // WF :4768 writes `new bool[binmap.addr]` (an ADDR-sized all-false mask) — the
+                    // same WF wart as TraceEditPatchImage. The mask is never consumed for struct
+                    // data; we emit the SAME all-false mask sized to the data LENGTH (identical
+                    // semantics, no ~16MB-per-struct unbounded allocation). See TraceEditPatchImage.
+                    mask = new bool[length],
+                };
+                binMappings.Add(datamap);
+            }
+            return struct_address;   // WF :4771
+        }
+
+        // ====================================================================
         // PatchForm producer — option-B epic (#1261, sub-slice s2pf-15 of 17).
         //
         // The TYPE=BIN producer ARM (NOT yet wired into the orchestrator — the
@@ -13638,11 +14083,14 @@ namespace FEBuilderGBA
         //     for the BIN trace. File-relative resolution (plain hex / $GREP / $P32 / $TEXTID)
         //     is already faithfully covered by Resolve. No new resolver state is needed.
         //
-        // DEFERRED to s2pf-16 (the WF trailers at :5213-5218, driven by extra patch params):
-        //   TraceEditPatch (EDIT_PATCH), AppendMenuPatch (MENU),
-        //   AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT). They emit nothing for
-        //   a bare {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...} patch, but a real patch can carry those
-        //   params, so they are left as a marked TODO rather than guessed.
+        // TRAILERS (WF :5213-5218, s2pf-16): the SAME three shared trace trailers as the EA arm
+        // (they are TYPE-independent — patch.Param + ROM reads only):
+        //   * AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT) + TraceEditPatch
+        //     (EDIT_PATCH) are ROM-DETERMINISTIC and are PORTED (shared s2pf-16 helpers above
+        //     EmitPatchEA). They emit nothing for a bare {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...}
+        //     patch but re-locate the nested/target ranges when a real patch carries them.
+        //   * AppendMenuPatch (MENU) is WinForms-only and is a LOUD REJECT onto `untraceable`
+        //     (RejectMenuPatch) — never a silent omission.
         // ====================================================================
 
         /// <summary>
@@ -13675,14 +14123,17 @@ namespace FEBuilderGBA
         /// <c>UNUSEDBIN</c>) are literal <c>addr</c>/<c>length</c> ROM reads (every computed
         /// read is EOF-guarded via <see cref="U.isSafetyOffset(uint, ROM)"/>).</para>
         ///
-        /// <para>The WF trailers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
-        /// <c>AppendNewTargetSelectionStruct</c> (:5213-5218) are DEFERRED to s2pf-16.</para>
+        /// <para>The WF trailers <c>AppendNewTargetSelectionStruct</c> (NEW_TARGET_SELECTION_STRUCT)
+        /// and <c>TraceEditPatch</c> (EDIT_PATCH) at :5213-5218 are PORTED (s2pf-16) and run at the
+        /// tail; <c>AppendMenuPatch</c> (MENU) is WinForms-only and is a LOUD REJECT onto
+        /// <paramref name="untraceable"/> (never silently omitted).</para>
         /// </summary>
         /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="patch">The TYPE=BIN patch (its <c>PatchFileName</c> dir resolves <c>$FREEAREA</c>/fixed BIN files).</param>
+        /// <param name="untraceable">Accumulator for coverage gaps surfaced by the s2pf-16 trailers (a MENU reject, a missing/unparsable EDIT_PATCH, a near-EOF NEW_TARGET/STRUCT slot). Optional.</param>
         /// <returns>The reconstructed bin-mappings, in WF trace order.</returns>
         public static List<EventAssemblerUninstallCore.BinMapping> TraceBINPatchedMappingForProducer(
-            ROM rom, PatchInstallCore.PatchSt patch)
+            ROM rom, PatchInstallCore.PatchSt patch, List<string> untraceable = null)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (patch == null) throw new ArgumentNullException(nameof(patch));
@@ -13691,6 +14142,11 @@ namespace FEBuilderGBA
             // gates the $NONE POINTER_ASM/POINTER split (WF :4989). Guard so a bad direct
             // caller gets a clean ArgumentException, not an NRE.
             if (rom.RomInfo == null) throw new ArgumentNullException(nameof(rom) + ".RomInfo");
+
+            if (untraceable == null)
+            {
+                untraceable = new List<string>();
+            }
 
             var binMappings = new List<EventAssemblerUninstallCore.BinMapping>();
             // WF :4957 — free-area blocks are GREP-matched sequentially from the compress
@@ -13946,7 +14402,7 @@ namespace FEBuilderGBA
                 // `CLEAR:<addr>:<length>` (3 fields), so this never triggers in practice; the
                 // producer tightens the guard to `< 3` (Copilot #1331 review) so bad input is
                 // skipped, NOT crashed — faithful to WF for every valid key, fault-safe for the
-                // rest. (s2pf-16 may surface such a malformed entry as untraceable.)
+                // rest.
                 if (sp.Length < 3)
                 {
                     continue;
@@ -13978,9 +14434,17 @@ namespace FEBuilderGBA
             }
 
             // s2pf-16: WF :5213-5218 trailers (TraceEditPatch / AppendMenuPatch /
-            // AppendNewTargetSelectionStruct) are DEFERRED — they act on extra patch params
-            // (EDIT_PATCH / MENU / NEW_TARGET_SELECTION_STRUCT) and emit nothing for a bare
-            // {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...} patch. Left as a marked TODO, NOT guessed.
+            // AppendNewTargetSelectionStruct), driven by extra patch params. They emit nothing
+            // for a bare {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...} patch, but a real patch can carry
+            // these. Same disposition as the EA arm (a SINGLE shared helper each — these three
+            // WF helpers are TYPE-independent, acting purely on patch.Param + ROM reads):
+            //   * TraceEditPatch (EDIT_PATCH) + AppendNewTargetSelectionStruct
+            //     (NEW_TARGET_SELECTION_STRUCT) are ROM-deterministic -> PORTED, in WF order.
+            //   * AppendMenuPatch (MENU) is WinForms-only (live MenuDefinitionForm/MenuCommandForm
+            //     editor state) -> LOUD REJECT onto `untraceable` (never silently omitted).
+            TraceEditPatch(rom, binMappings, patch, untraceable);            // WF :5214
+            RejectMenuPatch(patch, untraceable);                            // WF :5216 (loud reject)
+            AppendNewTargetSelectionStruct(rom, patch, binMappings, untraceable); // WF :5218
 
             return binMappings;
         }
@@ -14014,9 +14478,18 @@ namespace FEBuilderGBA
         /// (WF :6418-6421). The per-mapping <c>U.isSafetyOffset</c> guard skips only that
         /// mapping — verbatim WF :6330.</para>
         ///
-        /// <para>The trailing WF helpers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
-        /// <c>AppendNewTargetSelectionStruct</c> live inside <c>TraceBINPatchedMapping</c>
-        /// (:5213-5218), DEFERRED to s2pf-16.</para>
+        /// <para>The trailing WF helpers run inside the trace this method calls:
+        /// <c>AppendNewTargetSelectionStruct</c> / <c>TraceEditPatch</c> (:5213-5218) are PORTED
+        /// (s2pf-16) and feed extra mappings into this loop; <c>AppendMenuPatch</c> (MENU) is
+        /// WinForms-only and is a LOUD REJECT (never silently omitted). <b>BIN-arm length note
+        /// (verbatim WF):</b> those trailer mappings are typed NEW_TARGET_SELECTION_STRUCT (from
+        /// AppendNewTargetSelectionStruct) or MIX/IMG (from the EDIT_PATCH STRUCT/IMAGE trace),
+        /// none of which match the POINTER/POINTER_ASM/BIN/UNUSEDBIN/JUMPTOHACK arms — so they
+        /// emit through the <b>length-0 default arm (WF :6398-6406)</b>. This is INTENTIONAL WF
+        /// behaviour: <c>MakePatchStructDataListForBIN</c> does NOT mirror the EA arm's NEW_TARGET
+        /// 32-byte <see cref="Address.AddNewTargetSelectionStruct"/> expansion (WF :6287, EA-only).
+        /// A nested EDIT_PATCH <c>BIN</c>/<c>EA</c> patch's OWN mappings (e.g. UNUSEDBIN) still keep
+        /// their real lengths via the recursive trace + the normal per-type arms.</para>
         /// </summary>
         /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
@@ -14103,7 +14576,18 @@ namespace FEBuilderGBA
                             Address.DataTypeEnum.BIN);
                     }
                     else
-                    {//WF :6398-6406
+                    {//WF :6398-6406 — the default arm: a single length-0 Address typed by m.type.
+                        // This is where the s2pf-16 TRAILER mappings land in the BIN arm:
+                        // NEW_TARGET_SELECTION_STRUCT and the EDIT_PATCH STRUCT DATA/POINTER (default
+                        // MIX) + IMAGE (IMG) mappings all fall through here and emit a LENGTH-0
+                        // Address. This is VERBATIM WF: MakePatchStructDataListForBIN (WF :6398-6406)
+                        // routes every non-{POINTER,POINTER_ASM,BIN,UNUSEDBIN,JUMPTOHACK} type to this
+                        // length-0 default — it does NOT mirror the EA arm's NEW_TARGET 32-byte
+                        // Address.AddNewTargetSelectionStruct expansion (WF :6287, EA-ONLY). The
+                        // BIN/EA asymmetry is intentional in WF and reproduced faithfully here; a
+                        // length divergence in either direction would corrupt the rebuild free list.
+                        // (The traced m.length IS preserved on the BinMapping for any future
+                        // consumer; only the emitted Address length follows WF's length-0 default.)
                         Address.AddAddress(list,
                             m.addr, 0, U.NOT_FOUND,
                             patch.Name + "@" + m.filename + "@BIN",
