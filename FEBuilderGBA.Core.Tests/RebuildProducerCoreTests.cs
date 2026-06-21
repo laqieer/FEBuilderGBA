@@ -528,7 +528,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteOnlyViaEventCondGate()
+        public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteViaRuntimeGatedForms()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
