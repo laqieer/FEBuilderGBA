@@ -392,12 +392,14 @@ namespace FEBuilderGBA
             /// <summary>An install marker matched the ROM — the patch's bytes ARE present.</summary>
             Installed = 1,
             /// <summary>The install status CANNOT be determined: at least one install marker uses a
-            /// signature this Core build cannot resolve to a real ROM offset (e.g. an <c>$XGREP</c> masked
-            /// GREP or another un-ported macro), OR a resolvable marker pointed off the ROM / failed its
-            /// byte read. (As of s2pf-18 #1261 an <c>$FGREP &lt;file&gt;</c> file-inclusion is faithfully
-            /// resolved — it only yields Unknown when its file is MISSING/empty, i.e. the pattern is empty
-            /// and the search returns NOT_FOUND.) Treated as possibly-installed by the safe-reject gate
-            /// (conservative: never claim "safe" when the patch might be present).</summary>
+            /// signature this Core build does NOT resolve byte-faithfully to WinForms (e.g. an
+            /// <c>$XGREP</c> masked GREP, <c>$FREEAREA</c>, or another un-ported macro) and the resolver
+            /// returned an unsafe offset, OR a resolvable marker's comparison window pointed off the ROM /
+            /// failed its byte read. (As of s2pf-18 #1261 the byte-faithful <c>$GREP</c>/<c>$FGREP</c>
+            /// family is NOT a source of Unknown: a NOT_FOUND grep — including a MISSING/empty <c>$FGREP</c>
+            /// file, which yields an empty pattern — is treated as NOT-MATCHING (-&gt; NotInstalled when no
+            /// other marker matches), mirroring WF's CheckIF exactly.) Treated as possibly-installed by the
+            /// safe-reject gate (conservative: never claim "safe" when the patch might be present).</summary>
             Unknown = 2,
         }
 
@@ -412,15 +414,19 @@ namespace FEBuilderGBA
         /// <c>IF</c>/<c>IFNOT</c>/<c>CONFLICT_IF</c> are prerequisites, not install markers, and never make
         /// WF's <c>IsInstalled</c> true. Per marker:
         /// <list type="bullet">
-        ///   <item>address UNRESOLVABLE (<c>convertBinAddressString</c> -&gt; unsafe/NOT_FOUND, e.g. an
-        ///   <c>$XGREP</c> this Core build does not port, or an <c>$FGREP &lt;file&gt;</c> whose file is
-        ///   MISSING so the search pattern is empty) -&gt; <see cref="InstallStatusEnum.Unknown"/> (the gate
-        ///   refuses conservatively). A <c>$FGREP</c> whose file IS present resolves to a real offset and is
-        ///   classified Installed/NotInstalled like any other marker (s2pf-18 #1261).</item>
+        ///   <item>BYTE-FAITHFUL <c>$GREP</c>/<c>$FGREP</c> family whose grep returns NOT_FOUND (the
+        ///   post-install signature is absent — INCLUDING a MISSING/empty <c>$FGREP</c> file, whose empty
+        ///   pattern grep's to NOT_FOUND) -&gt; NOT-MATCHING (does NOT make the patch Unknown), exactly
+        ///   mirroring WF's CheckIF unsafe-address <c>continue</c> (PatchForm.cs:4416-4433). If no marker
+        ///   matches, the patch is NotInstalled (s2pf-18 #1261 — the gate-usefulness narrowing).</item>
+        ///   <item>address UNRESOLVABLE via a NON-faithful form (<c>convertBinAddressString</c> -&gt;
+        ///   unsafe/NOT_FOUND for an <c>$XGREP</c>/<c>$FREEAREA</c> or another un-ported macro this Core
+        ///   build does not resolve byte-faithfully) -&gt; <see cref="InstallStatusEnum.Unknown"/> (the gate
+        ///   refuses conservatively).</item>
         ///   <item><c>PATCHED_IF</c> whose bytes MATCH the ROM, or <c>PATCHED_IFNOT</c> whose bytes MISMATCH
         ///   -&gt; <see cref="InstallStatusEnum.Installed"/> (mirrors the WF detail-string "PATCHED_IF" rule).</item>
         /// </list>
-        /// If every marker is resolvable and none indicates installed -&gt;
+        /// If every marker is resolvable (or a faithful-grep not-matching) and none indicates installed -&gt;
         /// <see cref="InstallStatusEnum.NotInstalled"/>. A patch with NO install markers (an empty but
         /// non-null Param) is <see cref="InstallStatusEnum.NotInstalled"/> — inheriting WF's own blind spot
         /// (WF's <c>IsInstalled</c> is likewise false for a marker-less patch). A <c>null</c> Param (which
@@ -429,9 +435,12 @@ namespace FEBuilderGBA
         /// </para>
         /// <para>
         /// <b>SOUNDNESS.</b> This is a deliberate OVER-approximation: it returns NotInstalled only when it
-        /// can PROVE (resolvably) the patch is absent. Any doubt (an unresolvable marker) yields Unknown, so
-        /// the safe-reject gate never says "safe" while the patch could be present. The only residual gap is
-        /// the WF-inherited marker-less case, which is documented and identical to WF.
+        /// can PROVE the patch absent — either by a resolvable byte mismatch, or by a BYTE-FAITHFUL
+        /// <c>$GREP</c>/<c>$FGREP</c> NOT_FOUND (whose result is identical to WF's, so Core says NotInstalled
+        /// only where WF does — a false-negative is IMPOSSIBLE). Any other doubt (an un-ported macro
+        /// resolving unsafe) yields Unknown, so the safe-reject gate never says "safe" while the patch could
+        /// be present. The only residual gap is the WF-inherited marker-less case, documented and identical
+        /// to WF.
         /// </para>
         /// The ROM is passed EXPLICITLY (no CoreState.ROM read), honoring this file's header guarantee.
         /// </summary>
@@ -573,13 +582,18 @@ namespace FEBuilderGBA
         /// <see cref="MakeFGrepData"/> reads the basedir-relative file's bytes VERBATIM as the search pattern
         /// (a port of WF <c>MakeGrepData(value, basedir)</c>). It resolves to a real ROM offset, or — on a
         /// missing/unreadable/empty file — to the empty pattern, which <see cref="U.Grep"/> turns into
-        /// NOT_FOUND (the caller's safety-offset check then yields Unknown). Neither path is a wrong-but-safe
-        /// offset, so <c>$FGREP</c> is NO LONGER Unknown-outright — this is what makes the gate USEFUL on
-        /// vanilla FE8U. (Soundness preserved: a false-NEGATIVE is still impossible.)
+        /// NOT_FOUND. Neither path is a wrong-but-safe offset, so <c>$FGREP</c> is NO LONGER Unknown-outright;
+        /// its NOT_FOUND is then handled by the caller as a byte-faithful GREP/FGREP NOT_FOUND — treated as
+        /// NOT-MATCHING (-&gt; NotInstalled when nothing else matches), via
+        /// <see cref="IsFaithfulGrepFamilyInstallAddress"/>, NOT Unknown. This is what makes the gate USEFUL
+        /// on vanilla FE8U. (Soundness preserved: Core's grep is byte-identical to WF's, so a false-NEGATIVE
+        /// is impossible.)
         /// </para>
         /// Every other form (plain numeric, <c>$0x</c> pointer, inline <c>$GREP</c>/<c>$GREP_ENABLE_POINTER</c>,
-        /// <c>$P32</c>) either resolves faithfully or maps to NOT_FOUND, which the caller already treats as
-        /// Unknown via the safety-offset check. This is deliberately conservative — when in doubt, Unknown.
+        /// <c>$P32</c>) either resolves faithfully or maps to NOT_FOUND. A NOT_FOUND from the byte-faithful
+        /// <c>$GREP</c> family is not-matching (see <see cref="IsFaithfulGrepFamilyInstallAddress"/>); a
+        /// NOT_FOUND from a non-faithful pointer/macro form stays Unknown via the safety-offset check. This
+        /// is deliberately conservative — when in doubt, Unknown.
         /// </summary>
         static bool IsFaithfullyResolvableInstallAddress(string addrstring)
         {
@@ -721,10 +735,12 @@ namespace FEBuilderGBA
             // everything AFTER the first space is the basedir-relative filename, and
             // the file's raw bytes ARE the search pattern. A missing/unreadable file
             // yields an empty pattern (WF returns new byte[0]) -> U.Grep returns
-            // NOT_FOUND, which the install-detection caller treats as "cannot prove
-            // present" (Unknown) — never a wrong-but-safe offset. Headless-safe: a
-            // bad path/IO error degrades to the empty pattern, never throws/ShowError
-            // (the inline-safe-parse discipline this file guarantees; s2pf-18 #1261).
+            // NOT_FOUND. For the byte-faithful GREP/FGREP family, EaBinInstallStatus
+            // treats that NOT_FOUND as NOT-MATCHING (-> NotInstalled when nothing else
+            // matches), exactly as WF's CheckIF does — NOT Unknown (s2pf-18 #1261).
+            // Never a wrong-but-safe offset. Headless-safe: a bad path/IO error degrades
+            // to the empty pattern, never throws/ShowError (the inline-safe-parse
+            // discipline this file guarantees).
             if (isFile)
             {
                 return MakeFGrepData(value, basedir);
@@ -752,9 +768,16 @@ namespace FEBuilderGBA
         // (FEBuilderGBA/PatchForm.cs:3222) — the $FGREP file-inclusion pattern source.
         // WF: firstSpace<0 -> new byte[0]; filename = everything after the first space;
         // fullpath = Path.Combine(basedir, filename); !File.Exists -> new byte[0];
-        // else File.ReadAllBytes(fullpath). Headless-safe: a missing basedir or any IO
-        // failure degrades to the empty pattern (never throws), preserving WF's
-        // missing-file outcome (empty pattern -> U.Grep NOT_FOUND).
+        // else File.ReadAllBytes(fullpath).
+        //
+        // FAITHFULNESS (Copilot PR #1336 review): an EMPTY basedir is NOT short-circuited
+        // here — WF still does Path.Combine("", filename) == filename and would read the
+        // file from the CURRENT directory. We mirror that exactly (the install-detection
+        // caller always passes the patch dir, so empty basedir only arises for a synthetic
+        // PatchFileName with no directory). Only `null` is normalized to "" so Path.Combine
+        // cannot throw. Headless-safe: any IO failure / bad path degrades to the empty
+        // pattern (try/catch), never throws — preserving WF's missing-file outcome (empty
+        // pattern -> U.Grep NOT_FOUND).
         static byte[] MakeFGrepData(string value, string basedir)
         {
             int firstSp = value.IndexOf(' ');
@@ -763,15 +786,12 @@ namespace FEBuilderGBA
                 return new byte[0];
             }
             string filename = value.Substring(firstSp + 1);
-            if (string.IsNullOrEmpty(filename) || string.IsNullOrEmpty(basedir))
-            {
-                // basedir is the patch dir (always set by the install-detection caller);
-                // guard a synthetic empty basedir so Path.Combine cannot throw.
-                return new byte[0];
-            }
+            // WF passes `filename` straight to Path.Combine — even "" (Path.Combine(dir, "")
+            // returns dir, which File.Exists rejects) — so do NOT special-case an empty
+            // filename; only the null guard keeps Path.Combine from throwing.
             try
             {
-                string fullpath = Path.Combine(basedir, filename);
+                string fullpath = Path.Combine(basedir ?? "", filename ?? "");
                 if (!File.Exists(fullpath))
                 {
                     return new byte[0];
