@@ -520,13 +520,21 @@ namespace FEBuilderGBA.Tests.Unit
         /// (<c>@STRUCT HEADERTSA n</c>, WF <c>AddHeaderTSAPointer</c> -&gt; <c>DataTypeEnum.HEADERTSA</c>) is
         /// wired via <see cref="RebuildProducerCore.EmitHeaderTsaPointer"/>; its <c>@STRUCT HEADERTSA </c>
         /// info token + HEADERTSA data type are compared on BOTH sides.</para>
-        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-8..10).</b> The
-        /// BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
+        /// <para><b>AP / ROMTCS / PROCS are NOW INCLUDED (s2pf-8).</b> Each embedded-pointer field
+        /// (<c>@STRUCT AP/ROMTCS/PROCS n</c>, WF <c>AddAPPointer</c>/<c>AddROMTCSPointer</c>/
+        /// <c>AddProcsPointer</c> -&gt; <c>DataTypeEnum.AP</c>/<c>ROMTCS</c>/<c>PROCS</c>) is wired via
+        /// <see cref="RebuildProducerCore.EmitApPointer"/>/<see cref="RebuildProducerCore.EmitRomTcsPointer"/>/
+        /// <see cref="RebuildProducerCore.EmitProcsPointer"/> (lengths via <c>ImageUtilAPCore.CalcAPLength</c>/
+        /// <c>CalcRomTcsLength</c>/<c>CalcProcsLengthAndCheck</c>); their named info tokens + data types are
+        /// compared on BOTH sides. PROCS skips on NOT_FOUND (no entry on either side for a non-PROCS
+        /// target — WF AddProcsAddress and Core EmitProcsPointer both return without emitting).</para>
+        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-9..10).</b> The
+        /// BATTLEANIMEPOINTER/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
         /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER fields are
         /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
         /// slice — they INTENTIONALLY diverge from WF (WF emits the precise sub-walked TARGET region). So
         /// every MIX-typed <c>... DATA </c>-suffixed entry is filtered OUT of BOTH sides before the
-        /// comparison. Those arms gain their own parity teeth in s2pf-8..10, and the FULL STRUCT parity
+        /// comparison. Those arms gain their own parity teeth in s2pf-9..10, and the FULL STRUCT parity
         /// (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
         /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
         /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
@@ -577,18 +585,20 @@ namespace FEBuilderGBA.Tests.Unit
 
                 // A FULLY-IMPLEMENTED STRUCT-arm entry: the MAIN struct entry (Info ends "@STRUCT") OR a
                 // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/HEADERTSA/
-                // PALETTE) OR an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the
+                // PALETTE) OR an AP/ROMTCS/PROCS arm (s2pf-8: "@STRUCT AP/ROMTCS/PROCS n", typed
+                // AP/ROMTCS/PROCS) OR an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the
                 // EventScriptForm.ScanScript walk emits — EVENTSCRIPT script blocks + their
                 // POINTER_UNIT/AICOORDINATE sub-data IFR/BIN blocks). The STILL-INTERIM form-bound arms
-                // (AP/ROMTCS/PROCS s2pf-8 / Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime
-                // s2pf-10) emit "@STRUCT DATA n" as a length-0 MIX placeholder — those DIVERGE from WF this
-                // slice and are EXCLUDED. Since EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed
-                // "@STRUCT DATA " entry, a simple rule cleanly separates the two: a MIX-typed DATA entry is
-                // interim (EXCLUDE), any other DATA entry came from the now-precise EVENT walk (INCLUDE).
+                // (Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime s2pf-10) emit
+                // "@STRUCT DATA n" as a length-0 MIX placeholder — those DIVERGE from WF this slice and are
+                // EXCLUDED. Since EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed "@STRUCT
+                // DATA " entry, a simple rule cleanly separates the two: a MIX-typed DATA entry is interim
+                // (EXCLUDE), any other DATA entry came from the now-precise EVENT walk (INCLUDE).
                 // PatchImage_HEADERTSA is now precise (s2pf-7), emitting a "@STRUCT HEADERTSA n" / HEADERTSA
-                // entry — INCLUDED via the safeArmTokens. CSTRING is out of merged-list scope (named the
-                // decoded string) — see doc-comment.
-                string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " HEADERTSA ", " PALETTE " };
+                // entry — INCLUDED via the safeArmTokens. AP/ROMTCS/PROCS are now precise (s2pf-8), emitting
+                // "@STRUCT AP/ROMTCS/PROCS n" — INCLUDED via the safeArmTokens (their named, non-DATA info
+                // tokens). CSTRING is out of merged-list scope (named the decoded string) — see doc-comment.
+                string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " HEADERTSA ", " PALETTE ", " AP ", " ROMTCS ", " PROCS " };
                 bool IsImplementedStructEntry(Address a)
                 {
                     if (a.Info == null) return false;

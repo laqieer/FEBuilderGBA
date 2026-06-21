@@ -2271,6 +2271,56 @@ namespace FEBuilderGBA
             list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.AP));
         }
 
+        /// <summary>
+        /// Reproduces WinForms <c>AddressWinForms.AddProcsPointer(list, pointer, info, isPointerOnly)</c>
+        /// (-> <c>AddProcsAddress</c>): the <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a
+        /// PROCS (map-anime) bytecode stream; emit a <see cref="Address.DataTypeEnum.PROCS"/> block whose
+        /// length is <see cref="CalcProcsLengthAndCheck"/> (the verbatim Core port of WF
+        /// <c>ProcsScriptForm.CalcLengthAndCheck</c>) over the dereferenced target. Structurally identical
+        /// to <see cref="EmitApPointer"/>/<see cref="EmitRomTcsPointer"/>, with ONE critical difference
+        /// reproduced verbatim from WF <c>AddProcsAddress</c>: when <see cref="CalcProcsLengthAndCheck"/>
+        /// returns <see cref="U.NOT_FOUND"/> (the stream is not a valid PROCS) the WHOLE entry is SKIPPED —
+        /// no <see cref="Address"/> is emitted (WF: <c>if (length == U.NOT_FOUND) return;</c>). NEVER emit a
+        /// zero/guessed length for a non-PROCS target (a wrong length = relocation collision). The producer
+        /// always scans real lengths (<c>isPointerOnly == false</c>). EOF-HARDENING: guard the full 4-byte
+        /// <c>u32(pointer)</c> read extent before dereferencing (WF reads it after only a single-byte
+        /// <c>isSafetyOffset(pointer)</c> check); <see cref="CalcProcsLengthAndCheck"/> is itself EOF-safe
+        /// (clamped to <c>rom.Data.Length</c>; returns NOT_FOUND, never throws, on a malformed/near-EOF
+        /// stream).
+        /// </summary>
+        public static void EmitProcsPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (pointer + 4 > (uint)rom.Data.Length)
+            {
+                return;
+            }
+            uint addr = rom.u32(pointer);
+            if (!U.isSafetyPointer(addr, rom))
+            {
+                return;
+            }
+            // WF AddProcsPointer(pointer-slot form) -> AddProcsAddress(addr, pointer, ...): addr is
+            // toOffset'd + isSafetyOffset-checked inside, then length = CalcLengthAndCheck(addr).
+            uint target = U.toOffset(addr);
+            if (!U.isSafetyOffset(target, rom))
+            {
+                return;
+            }
+            // WF AddProcsAddress: length = ProcsScriptForm.CalcLengthAndCheck(addr); if (length ==
+            // U.NOT_FOUND) return; — a non-PROCS target is SKIPPED (no emit), NEVER a guessed length.
+            uint length = CalcProcsLengthAndCheck(rom, target);
+            if (length == U.NOT_FOUND)
+            {
+                return;
+            }
+            list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.PROCS));
+        }
+
         // -------------------------------------------------------------------------------------------
         // slice 2q: config-FILE-table forms (the table base/count come from a config TSV loaded via
         // U.ConfigDataFilename / U.LoadTSVResource, NOT a RomInfo pointer slot, so none fits the flat
@@ -13020,7 +13070,14 @@ namespace FEBuilderGBA
         //       header-TSA field -> AddHeaderTSAPointer (= EmitHeaderTsaPointer, sized by
         //       CalcHeaderTsaLength = WF ImageUtil.CalcByteLengthForHeaderTSAData), typed
         //       HEADERTSA. No longer interim (was interim default-MIX through s2pf-5/6).
-        //   (C) the REMAINING FORM-BOUND arms (BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/
+        //   (B''') AP / ROMTCS / PROCS — ported REAL in s2pf-8 (WF 6644-6675): each derefs
+        //       `a = p32(p)`, pre-gates `isSafetyOffset(a)`, then calls the AddressWinForms
+        //       pointer-emitter — reproduced VERBATIM as the Core EmitApPointer /
+        //       EmitRomTcsPointer / EmitProcsPointer (lengths via ImageUtilAPCore.CalcAPLength /
+        //       CalcRomTcsLength / CalcProcsLengthAndCheck, all already in Core). PROCS SKIPS on
+        //       CalcProcsLengthAndCheck == NOT_FOUND (WF AddProcsAddress: never a guessed length).
+        //       No longer interim.
+        //   (C) the REMAINING FORM-BOUND arms (BATTLEANIMEPOINTER/
         //       VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
         //       BATTLEBGLISTPOINTER/AOERANGEPOINTER) — routed
         //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
@@ -13030,10 +13087,10 @@ namespace FEBuilderGBA
         //       it MUST be upgraded before the token is removed, else those embedded
         //       pointers' TARGET regions are never relocated (residue corruption).
         //
-        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT + HEADERTSA DONE):
+        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT + HEADERTSA + AP/ROMTCS/PROCS DONE):
         //     EVENT                     -> s2pf-6  DONE (EmitScanScript, disasm-gated)
         //     PatchImage_HEADERTSA      -> s2pf-7  DONE (EmitHeaderTsaPointer / CalcHeaderTsaLength)
-        //     AP / ROMTCS / PROCS       -> s2pf-8
+        //     AP / ROMTCS / PROCS       -> s2pf-8  DONE (EmitApPointer / EmitRomTcsPointer / EmitProcsPointer)
         //     VENNOUWEAPONLOCK          -> s2pf-9
         //     AOERANGEPOINTER           -> s2pf-9
         //     SMEPROMOLIST              -> s2pf-9
@@ -13083,8 +13140,9 @@ namespace FEBuilderGBA
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
         /// <param name="patch">The TYPE=STRUCT patch whose POINTER/ADDRESS/DATASIZE/DATACOUNT +
         /// P&lt;n&gt;:type fields drive emission.</param>
-        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — forwarded to the AP/ROMTCS/PROCS
-        /// arms (interim this slice).</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c>. NOTE: the producer always scans REAL
+        /// lengths (the AP/ROMTCS/PROCS emitters use the <c>isPointerOnly == false</c> length path); this
+        /// param is retained for the WF call shape.</param>
         public static void EmitPatchStruct(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
         {
             // Public-helper guards (consistent with EmitPatchAddr / EmitPatchImage): throw a clear
@@ -13234,12 +13292,14 @@ namespace FEBuilderGBA
         /// <summary>
         /// One per-entry pointer-field dispatch for <see cref="EmitPatchStruct"/> — the WF
         /// per-field <c>if/else if</c> chain (FEBuilderGBA/PatchForm.cs:6553-6733), factored into
-        /// a switch so the later slices s2pf-8..10 replace each remaining INTERIM arm body in place
-        /// (EVENT was upgraded in s2pf-6; PatchImage_HEADERTSA in s2pf-7).
+        /// a switch so the later slices s2pf-9..10 replace each remaining INTERIM arm body in place
+        /// (EVENT was upgraded in s2pf-6; PatchImage_HEADERTSA in s2pf-7; AP/ROMTCS/PROCS in s2pf-8).
         /// <para>
-        /// <b>Dispatch contract for s2pf-8..10:</b> each fully-implemented arm emits a PRECISE
+        /// <b>Dispatch contract for s2pf-9..10:</b> each fully-implemented arm emits a PRECISE
         /// length (EVENT runs the <see cref="EmitScanScript"/> walk; PatchImage_HEADERTSA runs
-        /// <see cref="EmitHeaderTsaPointer"/>); each remaining INTERIM form-bound arm falls into
+        /// <see cref="EmitHeaderTsaPointer"/>; AP/ROMTCS/PROCS run
+        /// <see cref="EmitApPointer"/>/<see cref="EmitRomTcsPointer"/>/<see cref="EmitProcsPointer"/>);
+        /// each remaining INTERIM form-bound arm falls into
         /// <see cref="EmitPatchStructDefaultMix"/> (a length-0 MIX placeholder) and is marked with the
         /// slice that upgrades it. To upgrade an arm, give its <c>case</c> a real body (sized like the
         /// WF helper it ports) and drop it from the interim group — the call shape
@@ -13251,7 +13311,8 @@ namespace FEBuilderGBA
         /// <param name="list">The accumulating struct/pointer list (appended to).</param>
         /// <param name="patch">The owning STRUCT patch (the PatchImage arms read its WIDTH/HEIGHT/PALETTE).</param>
         /// <param name="basedir">The patch dir (for the WIDTH/HEIGHT/PALETTE <c>$</c>-macros).</param>
-        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — forwarded to the AP/ROMTCS/PROCS interim arms.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — the AP/ROMTCS/PROCS arms always scan REAL
+        /// lengths (s2pf-8), so the param is retained for the WF call shape rather than forwarded.</param>
         /// <param name="type">The pointer field type (<c>typeArray[n]</c>).</param>
         /// <param name="p">The field address <c>struct_address + i*datasize + pointerIndexes[n]</c>.</param>
         /// <param name="patchname">The struct's <c>Name@STRUCT</c> info prefix.</param>
@@ -13398,26 +13459,68 @@ namespace FEBuilderGBA
                     }
                     break;
 
+                // ---- FULLY IMPLEMENTED — embedded-pointer length-walks (s2pf-8) -
+
+                case "AP":
+                    // WF 6644-6653: deref `a = p32(p)`, pre-gate `isSafetyOffset(a)`, then
+                    // AddressWinForms.AddAPPointer(list, p, name, isPointerOnly) -> EmitApPointer (the
+                    // verbatim Core port: deref p, length = ImageUtilAPCore.CalcAPLength over the target).
+                    // EmitApPointer re-derefs p and re-checks both gates internally, so the WF pre-gate is a
+                    // redundant guard (emit iff slot+target are both safe — no double-emit). The slot+3 EOF
+                    // guard makes a near-EOF p a clean skip (Core-wide convention).
+                    {
+                        if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+                        {
+                            uint a = rom.p32(p);
+                            if (U.isSafetyOffset(a, rom))
+                            {
+                                EmitApPointer(rom, list, p, patchname + " AP " + n);
+                            }
+                        }
+                    }
+                    break;
+
+                case "ROMTCS":
+                    // WF 6655-6664: deref `a = p32(p)`, pre-gate `isSafetyOffset(a)`, then
+                    // AddressWinForms.AddROMTCSPointer(list, p, name, isPointerOnly) -> EmitRomTcsPointer
+                    // (the verbatim Core port: deref p, length = CalcRomTcsLength over the target).
+                    // EmitRomTcsPointer re-derefs + re-gates internally (redundant pre-gate, no double-emit).
+                    {
+                        if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+                        {
+                            uint a = rom.p32(p);
+                            if (U.isSafetyOffset(a, rom))
+                            {
+                                EmitRomTcsPointer(rom, list, p, patchname + " ROMTCS " + n);
+                            }
+                        }
+                    }
+                    break;
+
+                case "PROCS":
+                    // WF 6666-6675: deref `a = p32(p)`, pre-gate `isSafetyOffset(a)`, then
+                    // AddressWinForms.AddProcsPointer(list, p, name, isPointerOnly) -> EmitProcsPointer
+                    // (the verbatim Core port: deref p, length = CalcProcsLengthAndCheck over the target).
+                    // PROCS SKIPS on NOT_FOUND — EmitProcsPointer reproduces WF AddProcsAddress's
+                    // `if (length == U.NOT_FOUND) return;` (NEVER a zero/guessed length for a non-PROCS
+                    // target). EmitProcsPointer re-derefs + re-gates internally (redundant pre-gate).
+                    {
+                        if (U.isSafetyOffset(p, rom) && U.isSafetyOffset(p + 3, rom))
+                        {
+                            uint a = rom.p32(p);
+                            if (U.isSafetyOffset(a, rom))
+                            {
+                                EmitProcsPointer(rom, list, p, patchname + " PROCS " + n);
+                            }
+                        }
+                    }
+                    break;
+
                 // ---- INTERIM default-MIX (this slice) — form-bound arms ---------
                 // Each routes through EmitPatchStructDefaultMix (= WF's own `default`,
                 // length-0 MIX). This DIVERGES from WF (WF emits the precise sub-walked
                 // TARGET region); SAFE only while the gate token stays deferred. The
                 // partial WF-parity test EXCLUDES these types.
-
-                case "AP":
-                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddAPPointer).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
-                    break;
-
-                case "ROMTCS":
-                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddROMTCSPointer).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
-                    break;
-
-                case "PROCS":
-                    // INTERIM default-MIX -> upgraded in s2pf-8 (AddProcsPointer).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
-                    break;
 
                 case "VENNOUWEAPONLOCK":
                     // INTERIM default-MIX -> upgraded in s2pf-9 (VennouWeaponLockForm.MakeDataLength).

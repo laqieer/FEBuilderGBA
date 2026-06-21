@@ -138,6 +138,30 @@ namespace FEBuilderGBA.Core.Tests
             return 2u + ((uint)x + 1) * ((uint)y + 1) * 2;
         }
 
+        // Plant the shortest ROMTCS terminator pattern (CalcRomTcsLength needArray[4] = {00 00 FF FF 10 00},
+        // plusOffset 4) at `offset + termAt`; the ROMTCS length is then (termAt + 4). Mirrors the
+        // RebuildProducerCoreTests EmitRomTcsPointer plant.
+        static uint WriteRomTcs(ROM rom, uint offset, uint termAt)
+        {
+            byte[] term = new byte[] { 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x00 };
+            for (int i = 0; i < term.Length; i++) rom.write_u8(offset + termAt + (uint)i, term[i]);
+            return termAt + 4u; // (match + plusOffset) - offset
+        }
+
+        // Plant a minimal VALID PROCS stream at `offset`: one 0x0B instruction (parg-is-null contract)
+        // then a 0x00 EXIT. CalcProcsLengthAndCheck consumes 16 bytes. Mirrors PlantProcsStream in
+        // RebuildProducerCoreTests.
+        static uint WriteProcs(ROM rom, uint offset)
+        {
+            rom.write_u16(offset + 0, 0x000B);
+            rom.write_u16(offset + 2, 0x0000);
+            rom.write_u32(offset + 4, 0x00000000);
+            rom.write_u16(offset + 8, 0x0000);
+            rom.write_u16(offset + 10, 0x0000);
+            rom.write_u32(offset + 12, 0x00000000);
+            return 16u;
+        }
+
         // ====================================================================
         // 1. The MAIN struct Address (WF 6536-6543) — POINTER and ADDRESS forms
         // ====================================================================
@@ -565,16 +589,15 @@ namespace FEBuilderGBA.Core.Tests
 
         // Each interim form-bound type is routed through the same default-MIX placeholder as an
         // unknown type. THIS IS INTENTIONAL FOR s2pf-5: the precise sub-walked TARGET length is
-        // ported in s2pf-8..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
+        // ported in s2pf-9..10. The test asserts the INTERIM placeholder (length-0 MIX), NOT a
         // precise WF length — the partial WF-parity test EXCLUDES these types accordingly.
         // NOTE: EVENT was REMOVED from this interim group in s2pf-6 (it runs the real
-        // EventScriptForm.ScanScript walk — see EmitPatchStruct_EventArm_*), and
+        // EventScriptForm.ScanScript walk — see EmitPatchStruct_EventArm_*),
         // PatchImage_HEADERTSA in s2pf-7 (it runs EmitHeaderTsaPointer — see
-        // EmitPatchStruct_HeaderTsaField_* below).
+        // EmitPatchStruct_HeaderTsaField_* below), and AP/ROMTCS/PROCS in s2pf-8 (they run
+        // EmitApPointer/EmitRomTcsPointer/EmitProcsPointer — see EmitPatchStruct_ApField_* /
+        // _RomTcsField_* / _ProcsField_* below).
         [Theory]
-        [InlineData("AP")]                        // -> s2pf-8
-        [InlineData("ROMTCS")]                    // -> s2pf-8
-        [InlineData("PROCS")]                     // -> s2pf-8
         [InlineData("VENNOUWEAPONLOCK")]          // -> s2pf-9
         [InlineData("AOERANGEPOINTER")]           // -> s2pf-9
         [InlineData("SMEPROMOLIST")]              // -> s2pf-9
@@ -598,6 +621,167 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x9000u, mix.Addr);
             Assert.Equal(0u, mix.Length);
             Assert.EndsWith("DATA 0", mix.Info);
+        }
+
+        // ====================================================================
+        // 4a'. The AP / ROMTCS / PROCS arms (s2pf-8) — the REAL pointer-emitters
+        //      (WF PatchForm.cs:6644-6675 -> AddressWinForms.AddAPPointer /
+        //      AddROMTCSPointer / AddProcsPointer), reproduced via the Core
+        //      EmitApPointer / EmitRomTcsPointer / EmitProcsPointer. Each derefs
+        //      `a = p32(p)`, pre-gates isSafetyOffset(a), then emits the target
+        //      sized by ImageUtilAPCore.CalcAPLength / CalcRomTcsLength /
+        //      CalcProcsLengthAndCheck. PROCS SKIPS on NOT_FOUND (no emission).
+        // ====================================================================
+
+        [Fact]
+        public void EmitPatchStruct_ApField_EmitsApWithCalcApLength()
+        {
+            // WF 6644-6653: deref p, then AddAPPointer -> EmitApPointer; length =
+            // ImageUtilAPCore.CalcAPLength over the dereferenced target, typed AP, named
+            // "... AP <n>". CalcAPLength NEVER throws and returns 0 on an unparseable stream;
+            // EmitApPointer always emits (unlike PROCS, which skips on NOT_FOUND), so the AP
+            // Address is present whatever the planted bytes parse to. Cross-check its length
+            // against CalcAPLength directly.
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            const uint target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            uint expect = ImageUtilAPCore.CalcAPLength(rom.Data, target);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("AP",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:AP", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.AP);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(expect, a.Length);
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.EndsWith("AP 0", a.Info);
+            // NOT the interim default-MIX placeholder.
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_RomTcsField_EmitsRomTcsWithCalcLength()
+        {
+            // WF 6655-6664: deref p, then AddROMTCSPointer -> EmitRomTcsPointer; length =
+            // CalcRomTcsLength (terminator scan) over the dereferenced target, typed ROMTCS,
+            // named "... ROMTCS <n>".
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            const uint target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            uint expect = WriteRomTcs(rom, target, 0x10); // terminator @ +0x10 -> length 0x14
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("RT",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:ROMTCS", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.ROMTCS);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(expect, a.Length);
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.EndsWith("ROMTCS 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_ProcsField_EmitsProcsWithCalcLength()
+        {
+            // WF 6666-6675: deref p, then AddProcsPointer -> EmitProcsPointer; length =
+            // CalcProcsLengthAndCheck over the dereferenced target, typed PROCS, named
+            // "... PROCS <n>".
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            const uint target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            uint expect = WriteProcs(rom, target); // valid PROCS -> length 16
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("PR",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:PROCS", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.PROCS);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(expect, a.Length);
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.EndsWith("PROCS 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_ProcsField_NotFoundLength_SkipsEntirely()
+        {
+            // WF AddProcsAddress: `length = CalcLengthAndCheck(addr); if (length == U.NOT_FOUND) return;`
+            // A target that is NOT a valid PROCS (unknown opcode 0x07FF) -> CalcProcsLengthAndCheck
+            // returns NOT_FOUND -> the PROCS arm emits NOTHING (NEVER a zero/guessed length, and NOT
+            // the interim default-MIX placeholder either).
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            const uint target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u16(target + 0, 0x07FF);   // unknown opcode -> contract violation -> NOT_FOUND
+            rom.write_u16(target + 2, 0x0000);
+            rom.write_u32(target + 4, 0x00000000);
+
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("PR",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:PROCS", "0")), isPointerOnly: false);
+
+            // The PROCS skip: no PROCS Address AND no MIX placeholder for this field.
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.PROCS);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Theory]
+        [InlineData("AP")]
+        [InlineData("ROMTCS")]
+        [InlineData("PROCS")]
+        public void EmitPatchStruct_ApRomTcsProcsField_UnsafeTarget_EmitsNothing(string fieldType)
+        {
+            // WF pre-gate `if (isSafetyOffset(a))` (a = p32(p)) fails when the slot derefs below the
+            // 0x200 floor -> the arm is skipped, nothing emitted (NO AP/ROMTCS/PROCS, NO MIX).
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            U.write_u32(rom.Data, table + 0, U.toPointer(0x100)); // target below safety floor
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("US",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:" + fieldType, "0")), isPointerOnly: false);
+
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.AP);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.ROMTCS);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.PROCS);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Theory]
+        [InlineData("AP")]
+        [InlineData("ROMTCS")]
+        [InlineData("PROCS")]
+        public void EmitPatchStruct_ApRomTcsProcsField_SlotNearEof_NoThrow(string fieldType)
+        {
+            // A pointer FIELD sitting in the last 3 bytes -> the slot+3 EOF guard makes a clean skip
+            // (no throw) rather than reading p32 past EOF. Use a STRUCT whose entry-0 +0 slot lands
+            // at Data.Length-1 via a large ADDRESS.
+            var rom = MakeRom();
+            uint near = (uint)rom.Data.Length - 1;
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("EOF",
+                    ("TYPE", "STRUCT"), ("ADDRESS", "0x" + near.ToString("X")),
+                    ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                    ("P0:" + fieldType, "0")), isPointerOnly: false));
+            Assert.Null(ex);
         }
 
         // ====================================================================
