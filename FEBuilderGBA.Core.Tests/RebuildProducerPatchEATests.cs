@@ -183,6 +183,54 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains(map, m => m.addr == binAddr && m.key == "BIN");
         }
 
+        // The GREP baseline (lastMatchAddr) is seeded ONCE and CARRIED ACROSS .event files
+        // (WF PatchForm.TraceEAPatchedMapping seeds it before its foreach, NOT per file). With
+        // TWO files that both #incbin the SAME pattern, the FIRST match claims a copy and
+        // advances the baseline; the SECOND file MUST match the LATER copy, not re-match the
+        // earlier (decoy) one. If the per-file walker reset the baseline to the borderline,
+        // the second file would re-select the FIRST copy → a duplicate/wrong free-list entry.
+        // (Copilot PR #1329 finding.)
+        [Fact]
+        public void Trace_MultipleEventFiles_CarriesBaselineAcrossFiles()
+        {
+            var rom = MakeRom();
+            string dir = NewTempDir();
+
+            byte[] pattern = { 0x5A, 0xA5, 0x3C, 0xC3, 0x0F, 0xF0, 0x69, 0x96 };
+            // Two distinct copies of the SAME pattern, both after the borderline. The first
+            // file should match the FIRST copy, the second file the SECOND copy.
+            const uint firstAddr = 0x900000;
+            const uint secondAddr = 0x901000;
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                rom.write_u8(firstAddr + (uint)i, pattern[i]);
+                rom.write_u8(secondAddr + (uint)i, pattern[i]);
+            }
+
+            File.WriteAllBytes(Path.Combine(dir, "blk.bin"), pattern);
+            // Two separate event files, both #incbin blk.bin → each gets its own
+            // EmitEaDataList call, so the baseline must persist BETWEEN the calls. The
+            // assertion below is ORDER-INDEPENDENT (U.Directory_GetFiles_Safe does NOT sort —
+            // GetFiles order is unspecified): whichever file is walked first matches the lower
+            // copy and advances the baseline past it, so the other file matches the higher
+            // copy — both copies are claimed regardless of which file comes first. A per-file
+            // baseline reset, by contrast, would re-match the FIRST copy in BOTH files and
+            // drop the second copy, in any order.
+            File.WriteAllText(Path.Combine(dir, "a_first.event"), "#incbin \"blk.bin\" // HINT=BIN\r\n");
+            File.WriteAllText(Path.Combine(dir, "b_second.event"), "#incbin \"blk.bin\" // HINT=BIN\r\n");
+
+            // EA= names one of them with a .EVENT ext (so AddIfNotExist is skipped; the dir
+            // scan supplies both). The patch just needs a valid EA= entry.
+            var patch = MakeEaPatch(dir, "Multi", "a_first.event");
+            var map = RebuildProducerCore.TraceEAPatchedMappingForProducer(rom, patch);
+
+            // Both copies are claimed — the second file matched the LATER address, proving the
+            // baseline carried across files (NOT reset to the borderline, which would have
+            // re-matched firstAddr and dropped secondAddr).
+            Assert.Contains(map, m => m.addr == firstAddr && m.key == "BIN");
+            Assert.Contains(map, m => m.addr == secondAddr && m.key == "BIN");
+        }
+
         // ====================================================================
         // PROCS EMIT — the producer's STRICTER divergence vs the uninstall path.
         // ====================================================================
