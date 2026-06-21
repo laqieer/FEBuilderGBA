@@ -760,6 +760,42 @@ namespace FEBuilderGBA
             return b;
         }
 
+        // Port of PatchForm.ReadMod(string[], string filename, out bool[]) — the
+        // FILE-reading overload (WinForms PatchForm.cs:4309). Reads a BIN file from disk
+        // and builds the GREP mask off the per-key address-move arg (sp[2]) instead of the
+        // instant-EA hardcoded base 0. Exposed for the rebuild-producer BIN arm (#1261
+        // s2pf-15) — byte-identical to WF: missing file -> empty bin + empty mask; else
+        // read all bytes and mask via MakeMaskAddress with chaddr = atoi0x(at(sp,2)).
+        /// <summary>
+        /// Read the installed BIN file from <paramref name="filename"/> and build its GREP
+        /// mask off the per-key address-move arg <c>sp[2]</c> (WinForms
+        /// <c>PatchForm.ReadMod(string[], string, out bool[])</c>, :4309). When the file is
+        /// absent this returns an empty byte[] + empty mask (verbatim WF). ROM-explicit
+        /// (forwards <paramref name="rom"/> to <see cref="MakeMaskAddress"/>). Exposed for
+        /// the rebuild-producer TYPE=BIN arm, s2pf-15.
+        /// </summary>
+        internal static byte[] ReadMod(string[] sp, string filename, out bool[] isSkip, ROM rom)
+        {
+            if (string.IsNullOrEmpty(filename) || !System.IO.File.Exists(filename))
+            {//WF :4311-4315 — missing file: empty bin + empty mask.
+                isSkip = new bool[0];
+                return new byte[0];
+            }
+            // WF :4317 — read the whole installed BIN file. Byte-faithful to WF: WF guards
+            // ONLY File.Exists, then calls File.ReadAllBytes directly (NO try/catch). We do
+            // NOT swallow a read failure into empty output — that would widen WF behaviour
+            // and silently hide a corrupt/locked installed BIN file as a zero-length mapping
+            // (Copilot plan-review #1261 s2pf-15). A genuine read error propagates exactly as
+            // it does in WF.
+            byte[] b = System.IO.File.ReadAllBytes(filename);
+
+            // WF :4320 — chaddr = U.atoi0x(U.at(sp, 2)); the address the block was relocated
+            // to, so MakeMaskAddress can mask the LDR-pointer words that depend on it.
+            uint chaddr = U.atoi0x(U.at(sp, 2));
+            isSkip = MakeMaskAddress(b, chaddr, rom);
+            return b;
+        }
+
         //lynによってインポートされるelfのマスクパターンを作ります。
         // Port of PatchForm.MakeLynMaskPattern.
         /// <summary>

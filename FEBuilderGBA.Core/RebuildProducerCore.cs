@@ -13589,6 +13589,514 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-15 of 17).
+        //
+        // The TYPE=BIN producer ARM (NOT yet wired into the orchestrator — the
+        // MakePatchStructDataListCore EA|BIN case stays a stub until s2pf-17; this is the
+        // tested API that slice will call). Faithful Core port of WinForms:
+        //   - TraceBINPatchedMappingForProducer  <- PatchForm.TraceBINPatchedMapping        (:4951)
+        //   - EmitPatchBIN                        <- PatchForm.MakePatchStructDataListForBIN (:6317)
+        //
+        // The BIN trace is a FROM-SCRATCH port (no Core BIN trace existed — the s2pf-13/14
+        // EA walker is EA-specific). It RE-LOCATES where the already-installed BIN bytes
+        // landed in the SAVED ROM (deterministic — never allocates), so the rebuild free
+        // list can keep those ranges live. Three WF arms, in WF order:
+        //   1. JUMP (:4960-5037): per-case lengths VERBATIM — a wrong JUMP length relocates
+        //      the wrong bytes = corruption. $NONE=4 (POINTER_ASM if "+1" or addr<=borderline,
+        //      else POINTER); $B/$BL=2 (BIN); generated-jump = 10 when addr%4!=0 (4-byte NOP
+        //      align) else 8 (JUMPTOHACK). addr via PatchMacroAddressResolverCore.Resolve.
+        //   2. BIN-family (:5039-5127): $FREEAREA -> ReadMod(file) mask + GrepPatternMatch from
+        //      lastMatchAddr (sequential re-locate; advance lastMatchAddr=addr+length; if the
+        //      same file also matched a JUMP, type becomes ASM). Else fixed-addr via the
+        //      resolver, bin=mod, mask=isSkip. BINP->POINTER, BINAP->POINTER_ASM, BINF->BIN,
+        //      BIN->MIX.
+        //   3. SLIDE (:5129-5170) + CLEAR/UNUSEDBIN (:5171-5210): literal addr/length reads.
+        //
+        // NO Program.ROM / CoreState.ROM read in the trace — `rom` is threaded explicitly.
+        // (EmitPatchBIN's Address.Add* sinks DO read CoreState.ROM for the
+        // isSafetyOffset/isSafetyPointer length bound — the SAME coupling as the s2pf-14 EA
+        // arm; the orchestrator/tests set CoreState.ROM to the same ROM.)
+        //
+        // ADDRESS-RESOLVER faithfulness ($FREEAREA / file-relative branch — prereq port 2):
+        //   * In the BIN-family loop $FREEAREA is intercepted INLINE (GrepPatternMatch) BEFORE
+        //     the resolver call (WF :5072), so the resolver's $FREEAREA branch is never on the
+        //     BIN-family path.
+        //   * The JUMP-loop + fixed-addr resolver calls use WF appendSize=0 (WF :4972,:5100).
+        //     With appendSize=0, WF convertBinAddressString returns 0 for $FREEAREA (WF
+        //     :3027-3030) — and isSafetyOffset(0) is false, so WF SKIPS it. Core
+        //     PatchMacroAddressResolverCore.Resolve returns NOT_FOUND for $FREEAREA, which ALSO
+        //     fails isSafetyOffset/addr!=NOT_FOUND -> SKIP. The two are behaviourally identical
+        //     for the BIN trace. File-relative resolution (plain hex / $GREP / $P32 / $TEXTID)
+        //     is already faithfully covered by Resolve. No new resolver state is needed.
+        //
+        // DEFERRED to s2pf-16 (the WF trailers at :5213-5218, driven by extra patch params):
+        //   TraceEditPatch (EDIT_PATCH), AppendMenuPatch (MENU),
+        //   AppendNewTargetSelectionStruct (NEW_TARGET_SELECTION_STRUCT). They emit nothing for
+        //   a bare {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...} patch, but a real patch can carry those
+        //   params, so they are left as a marked TODO rather than guessed.
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.TraceBINPatchedMapping</c>
+        /// (FEBuilderGBA/PatchForm.cs:4951) for the rebuild PRODUCER. Re-locates where a
+        /// TYPE=BIN patch's already-installed bytes landed in <paramref name="rom"/> and
+        /// returns the reconstructed <see cref="EventAssemblerUninstallCore.BinMapping"/>s,
+        /// in WF order: all <c>JUMP:</c> keys, then all <c>BIN/BINP/BINAP/BINF</c> keys,
+        /// then <c>SLIDE</c>, then <c>CLEAR</c>.
+        ///
+        /// <para><b>JUMP</b> (WF :4960-5037): each <c>JUMP:&lt;addr&gt;[:$NONE|$B|$BL][:+1]</c>
+        /// resolves its address via <see cref="PatchMacroAddressResolverCore.Resolve"/>
+        /// (WF appendSize 0, startOffset 0x100) and gets a VERBATIM length/type: <c>$NONE</c>
+        /// = 4 bytes typed <c>POINTER_ASM</c> when the trailing arg is <c>+1</c> or the addr
+        /// is at/below the compress borderline (code), else <c>POINTER</c>; <c>$B</c>/<c>$BL</c>
+        /// = 2 bytes typed <c>BIN</c>; any other third arg = a generated jump (<c>JUMPTOHACK</c>)
+        /// of 10 bytes when <c>addr%4!=0</c> (a NOP is inserted for 4-byte alignment) else 8.
+        /// The matched <c>JUMP:</c> value (the target file) is recorded so a later
+        /// <c>$FREEAREA</c> BIN of the same file is typed <c>ASM</c> (WF :5090-5093).</para>
+        ///
+        /// <para><b>BIN-family</b> (WF :5039-5127): <c>$FREEAREA</c> blocks are re-located by
+        /// reading the installed BIN file (<see cref="EventAssemblerUninstallCore.ReadMod(string[], string, out bool[], ROM)"/>),
+        /// building the LDR-pointer mask, and <see cref="U.GrepPatternMatch"/>-ing it from
+        /// <c>lastMatchAddr</c> (seeded at the compress borderline, advanced to <c>addr+length</c>
+        /// after each hit so free-area blocks are matched in install order — a wrong baseline
+        /// re-matches an EARLIER ROM address = corruption). A miss <c>continue</c>s (WF :5082).
+        /// Fixed-addr blocks resolve via the resolver and carry the file's own bytes + mask.</para>
+        ///
+        /// <para><b>SLIDE</b> (WF :5129-5170) and <b>CLEAR</b> (WF :5171-5210, typed
+        /// <c>UNUSEDBIN</c>) are literal <c>addr</c>/<c>length</c> ROM reads (every computed
+        /// read is EOF-guarded via <see cref="U.isSafetyOffset(uint, ROM)"/>).</para>
+        ///
+        /// <para>The WF trailers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
+        /// <c>AppendNewTargetSelectionStruct</c> (:5213-5218) are DEFERRED to s2pf-16.</para>
+        /// </summary>
+        /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="patch">The TYPE=BIN patch (its <c>PatchFileName</c> dir resolves <c>$FREEAREA</c>/fixed BIN files).</param>
+        /// <returns>The reconstructed bin-mappings, in WF trace order.</returns>
+        public static List<EventAssemblerUninstallCore.BinMapping> TraceBINPatchedMappingForProducer(
+            ROM rom, PatchInstallCore.PatchSt patch)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+            // RomInfo.compress_image_borderline_address seeds lastMatchAddr (WF :4957) and
+            // gates the $NONE POINTER_ASM/POINTER split (WF :4989). Guard so a bad direct
+            // caller gets a clean ArgumentException, not an NRE.
+            if (rom.RomInfo == null) throw new ArgumentNullException(nameof(rom) + ".RomInfo");
+
+            var binMappings = new List<EventAssemblerUninstallCore.BinMapping>();
+            // WF :4957 — free-area blocks are GREP-matched sequentially from the compress
+            // borderline; advanced to addr+length after each $FREEAREA hit.
+            uint lastMatchAddr = rom.RomInfo.compress_image_borderline_address;
+
+            // WF :4959 — file (JUMP value) -> matched, so a later $FREEAREA BIN of the same
+            // file is typed ASM (WF :5090).
+            var jumpMatch = new Dictionary<string, bool>();
+
+            // WF :4971 / :5075 / :5099 — Path.GetDirectoryName(patch.PatchFileName).
+            // Normalize null -> "" so Path.Combine never receives a null base.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            // ---- ARM 1: JUMP (WF :4960-5037) ----
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string value = pair.Value;
+
+                if (key != "JUMP")
+                {//WF :4966
+                    continue;
+                }
+
+                // WF :4972 — convertBinAddressString(sp[1], appendSize:0, start_offset:0x100, basedir).
+                uint addr = PatchMacroAddressResolverCore.Resolve(rom, U.at(sp, 1), basedir, 0x100);
+                if (!U.isSafetyOffset(addr, rom))
+                {//WF :4973-4976
+                    continue;
+                }
+
+                uint length;
+                Address.DataTypeEnum datatype;
+                string sp2 = U.at(sp, 2);
+                if (sp2 == "$NONE")
+                {//WF :4981 — not a jump instruction, just a 4-byte pointer slot.
+                    length = 4;
+                    string sp3 = U.at(sp, 3);
+                    if (sp3 == "+1")
+                    {//WF :4985 — +1 => definitely code.
+                        datatype = Address.DataTypeEnum.POINTER_ASM;
+                    }
+                    else if (addr <= rom.RomInfo.compress_image_borderline_address)
+                    {//WF :4989 — below the borderline => code.
+                        datatype = Address.DataTypeEnum.POINTER_ASM;
+                    }
+                    else
+                    {//WF :4994
+                        datatype = Address.DataTypeEnum.POINTER;
+                    }
+                }
+                else if (sp2 == "$B")
+                {//WF :4998 — B jump, 2 bytes.
+                    length = 2;
+                    datatype = Address.DataTypeEnum.BIN;
+                }
+                else if (sp2 == "$BL")
+                {//WF :5003 — BL jump, 2 bytes.
+                    length = 2;
+                    datatype = Address.DataTypeEnum.BIN;
+                }
+                else
+                {//WF :5009 — a generated jump code.
+                    if (addr % 4 != 0)
+                    {//WF :5010 — 4-byte alignment not met: a NOP is added.
+                        length = 10;
+                    }
+                    else
+                    {//WF :5016
+                        length = 8;
+                    }
+                    datatype = Address.DataTypeEnum.JUMPTOHACK;
+                }
+
+                if (addr != U.NOT_FOUND)
+                {//WF :5021 — (isSafetyOffset already ensured addr != NOT_FOUND; kept verbatim).
+                    var b = new EventAssemblerUninstallCore.BinMapping
+                    {
+                        key = pair.Key,
+                        filename = "$JUMP:" + pair.Value,
+                        addr = addr,
+                        length = length,
+                        type = datatype,
+                        // EOF-guard the binary read (addr passed isSafetyOffset; clamp the
+                        // tail defensively in case addr+length nears EOF).
+                        bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0],
+                        mask = new bool[length], // WF :5030 — all false.
+                    };
+                    binMappings.Add(b);
+                    jumpMatch[pair.Value] = true; // WF :5034
+                }
+            }
+
+            // ---- ARM 2: BIN-family (WF :5039-5127) ----
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string value = pair.Value;
+                byte[] bin;
+                bool[] mask;
+
+                if (!(key == "BIN" || key == "BINP" || key == "BINAP" || key == "BINF"))
+                {//WF :5047
+                    continue;
+                }
+                if (sp.Length < 2)
+                {//WF :5051
+                    continue;
+                }
+
+                uint addr;
+                uint length;
+                Address.DataTypeEnum datatype = Address.DataTypeEnum.MIX;
+                if (key == "BINP")
+                {//WF :5059
+                    datatype = Address.DataTypeEnum.POINTER;
+                }
+                else if (key == "BINAP")
+                {//WF :5063
+                    datatype = Address.DataTypeEnum.POINTER_ASM;
+                }
+                else if (key == "BINF")
+                {//WF :5067
+                    datatype = Address.DataTypeEnum.BIN;
+                }
+
+                if (sp[1] == "$FREEAREA")
+                {//WF :5072 — free-area install: re-build + GREP-locate the installed bytes.
+                    string filename = System.IO.Path.Combine(basedir, value);
+                    bool[] isSkip;
+                    byte[] mod = EventAssemblerUninstallCore.ReadMod(sp, filename, out isSkip, rom);
+
+                    // WF :5081 — pointers vary, so mask them and pattern-match from lastMatchAddr.
+                    addr = U.GrepPatternMatch(rom.Data, mod, isSkip, lastMatchAddr, 0, 4);
+                    if (addr == U.NOT_FOUND)
+                    {//WF :5082-5085
+                        continue;
+                    }
+                    length = (uint)mod.Length;
+                    // WF :5087 — read the installed bytes from the ROM at the matched addr.
+                    bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0];
+                    mask = isSkip;
+
+                    if (jumpMatch.ContainsKey(value))
+                    {//WF :5090 — the same file also matched a JUMP => it's ASM code.
+                        datatype = Address.DataTypeEnum.ASM;
+                    }
+                    // WF :5095 — free-area blocks are placed sequentially; advance the baseline.
+                    lastMatchAddr = addr + length;
+                }
+                else
+                {//WF :5097 — the position is fixed/known.
+                    addr = PatchMacroAddressResolverCore.Resolve(rom, U.at(sp, 1), basedir, 0x100);
+
+                    string filename = System.IO.Path.Combine(basedir, value);
+                    bool[] isSkip;
+                    byte[] mod = EventAssemblerUninstallCore.ReadMod(sp, filename, out isSkip, rom);
+                    length = (uint)mod.Length;
+
+                    bin = mod;   // WF :5108
+                    mask = isSkip;
+                }
+
+                if (addr != U.NOT_FOUND)
+                {//WF :5113
+                    var b = new EventAssemblerUninstallCore.BinMapping
+                    {
+                        key = pair.Key,
+                        filename = pair.Value,
+                        addr = addr,
+                        length = length,
+                        type = datatype,
+                        bin = bin,
+                        mask = mask,
+                    };
+                    binMappings.Add(b);
+                }
+            }
+
+            // ---- ARM 3a: SLIDE (WF :5129-5170) ----
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string value = pair.Value;
+
+                if (key != "SLIDE")
+                {//WF :5137
+                    continue;
+                }
+                if (sp.Length < 3)
+                {//WF :5141
+                    continue;
+                }
+
+                Address.DataTypeEnum datatype = Address.DataTypeEnum.MIX;
+
+                uint addr = U.atoi0x(sp[1]);          // WF :5148
+                uint dest_addr = U.atoi0x(value);     // WF :5149
+                if (!U.isSafetyOffset(addr, rom)
+                    || !U.isSafetyOffset(dest_addr, rom))
+                {//WF :5150-5154
+                    continue;
+                }
+
+                uint length = dest_addr - addr;       // WF :5156
+                byte[] bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0];
+                bool[] mask = new bool[length];
+
+                var b = new EventAssemblerUninstallCore.BinMapping
+                {
+                    key = pair.Key,
+                    filename = pair.Value,
+                    addr = addr,
+                    length = length,
+                    type = datatype,
+                    bin = bin,
+                    mask = mask,
+                };
+                binMappings.Add(b);
+            }
+
+            // ---- ARM 3b: CLEAR / UNUSEDBIN (WF :5171-5210) ----
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string value = pair.Value;
+
+                if (key != "CLEAR")
+                {//WF :5179
+                    continue;
+                }
+                if (sp.Length < 2)
+                {//WF :5183
+                    continue;
+                }
+
+                Address.DataTypeEnum datatype = Address.DataTypeEnum.UNUSEDBIN;
+
+                uint addr = U.atoi0x(sp[1]);          // WF :5190
+                if (!U.isSafetyOffset(addr, rom))
+                {//WF :5191-5194
+                    continue;
+                }
+
+                uint length = U.atoi0x(sp[2]);        // WF :5196
+                byte[] bin = U.isSafetyOffset(addr, rom) ? rom.getBinaryData(addr, length) : new byte[0];
+                bool[] mask = new bool[length];
+
+                var b = new EventAssemblerUninstallCore.BinMapping
+                {
+                    key = pair.Key,
+                    filename = pair.Value,
+                    addr = addr,
+                    length = length,
+                    type = datatype,
+                    bin = bin,
+                    mask = mask,
+                };
+                binMappings.Add(b);
+            }
+
+            // s2pf-16: WF :5213-5218 trailers (TraceEditPatch / AppendMenuPatch /
+            // AppendNewTargetSelectionStruct) are DEFERRED — they act on extra patch params
+            // (EDIT_PATCH / MENU / NEW_TARGET_SELECTION_STRUCT) and emit nothing for a bare
+            // {TYPE=BIN, BIN/JUMP/SLIDE/CLEAR=...} patch. Left as a marked TODO, NOT guessed.
+
+            return binMappings;
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForBIN</c>
+        /// (FEBuilderGBA/PatchForm.cs:6317), the TYPE=BIN producer arm. <b>NOT yet wired into
+        /// the orchestrator</b> — the <see cref="MakePatchStructDataListCore"/> EA|BIN case
+        /// stays a stub until s2pf-17; this is the tested API that slice will call.
+        ///
+        /// <para>Early-returns when <c>ASMMAP</c> is false (WF :6319-6323 — the patch opts out
+        /// of the ASM map). Ports the <c>SYMBOL=</c> side-channel inline via
+        /// <see cref="ProcessPatchSymbolByList"/> (WF :6324), traces the patch via
+        /// <see cref="TraceBINPatchedMappingForProducer"/> (WF :6327), and emits one
+        /// <see cref="Address"/> per <see cref="EventAssemblerUninstallCore.BinMapping"/> by
+        /// its <c>type</c> (verbatim WF :6328-6422):</para>
+        /// <list type="bullet">
+        ///   <item><c>POINTER</c> -&gt; <see cref="Address.AddPointer"/> (POINTER) + an extra
+        ///   <see cref="Address.AddAddress"/> POINTER at the same slot, WF :6338-6352.</item>
+        ///   <item><c>POINTER_ASM</c> -&gt; <see cref="Address.AddPointerASM"/> (PATCH_ASM) + an
+        ///   extra <see cref="Address.AddAddress"/> POINTER_ASM at the same slot, WF :6353-6367.</item>
+        ///   <item><c>BIN</c> -&gt; <see cref="Address.AddAddress"/> length <c>m.length</c> typed BIN, WF :6368-6377.</item>
+        ///   <item><c>UNUSEDBIN</c> -&gt; <see cref="Address.AddAddress"/> length <c>m.length</c> typed UNUSEDBIN, WF :6378-6387.</item>
+        ///   <item><c>JUMPTOHACK</c> -&gt; <see cref="Address.AddAddress"/> length <c>m.length−4</c> typed BIN, WF :6388-6397.</item>
+        ///   <item>else -&gt; <see cref="Address.AddAddress"/> length 0 typed by the mapping's own type, WF :6398-6406.</item>
+        /// </list>
+        /// <para>When <paramref name="isPointerOnly"/> the whole per-type branch collapses to a
+        /// single length-0 <see cref="Address.AddAddress"/> typed by the mapping's type (WF
+        /// :6408-6416). Each non-empty mapping filename additionally drives
+        /// <see cref="SymbolUtil.ProcessSymbolByList(System.Collections.Generic.List{Address}, string, string, uint)"/>
+        /// (WF :6418-6421). The per-mapping <c>U.isSafetyOffset</c> guard skips only that
+        /// mapping — verbatim WF :6330.</para>
+        ///
+        /// <para>The trailing WF helpers <c>TraceEditPatch</c> / <c>AppendMenuPatch</c> /
+        /// <c>AppendNewTargetSelectionStruct</c> live inside <c>TraceBINPatchedMapping</c>
+        /// (:5213-5218), DEFERRED to s2pf-16.</para>
+        /// </summary>
+        /// <param name="rom">ROM to trace against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=BIN patch whose <c>BIN/JUMP/SLIDE/CLEAR</c>/<c>SYMBOL=</c>/<c>ASMMAP</c> params drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true every mapping emits a single length-0 Address.</param>
+        public static void EmitPatchBIN(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with EmitPatchEA / EmitPatchAddr): throw a clear
+            // ArgumentNullException rather than an unhelpful NRE.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // WF :6319-6323 — ASMMAP=false opts the patch OUT of the ASM map; emit nothing.
+            string use_asmmap = U.at(patch.Param, "ASMMAP", "true");
+            if (U.stringbool(use_asmmap) == false)
+            {
+                return;
+            }
+
+            // WF :6324 — ProcessSymbolByList(list, patch): the SYMBOL= side-channel.
+            ProcessPatchSymbolByList(list, patch);
+
+            // WF :6326 — string basedir = Path.GetDirectoryName(patch.PatchFileName).
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            // WF :6327 — TracePatchedMapping(patch) dispatches to TraceBINPatchedMapping for
+            // TYPE=BIN. We call the producer trace directly (the orchestrator only routes BIN
+            // patches here).
+            List<EventAssemblerUninstallCore.BinMapping> map =
+                TraceBINPatchedMappingForProducer(rom, patch);
+
+            foreach (EventAssemblerUninstallCore.BinMapping m in map)
+            {
+                if (!U.isSafetyOffset(m.addr, rom))
+                {//WF :6330 — skip only this mapping.
+                    continue;
+                }
+
+                if (isPointerOnly == false)
+                {//WF :6335
+                    if (m.type == Address.DataTypeEnum.POINTER)
+                    {//WF :6338-6352
+                        Address.AddPointer(list,
+                            m.addr, 0,
+                            patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.POINTER);
+                        Address.AddAddress(list,
+                            m.addr, 0, U.NOT_FOUND,
+                            "Pointer_" + patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.POINTER);
+                    }
+                    else if (m.type == Address.DataTypeEnum.POINTER_ASM)
+                    {//WF :6353-6367
+                        Address.AddPointerASM(list,
+                            m.addr, 0,
+                            "ASM" + patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.PATCH_ASM);
+                        Address.AddAddress(list,
+                            m.addr, 0, U.NOT_FOUND,
+                            "Pointer_" + patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.POINTER_ASM);
+                    }
+                    else if (m.type == Address.DataTypeEnum.BIN)
+                    {//WF :6368-6377
+                        Address.AddAddress(list,
+                            m.addr, m.length, U.NOT_FOUND,
+                            "Fixed " + patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.BIN);
+                    }
+                    else if (m.type == Address.DataTypeEnum.UNUSEDBIN)
+                    {//WF :6378-6387
+                        Address.AddAddress(list,
+                            m.addr, m.length, U.NOT_FOUND,
+                            "Fixed " + patch.Name + "@" + m.filename + "@UNUSEDBIN",
+                            Address.DataTypeEnum.UNUSEDBIN);
+                    }
+                    else if (m.type == Address.DataTypeEnum.JUMPTOHACK)
+                    {//WF :6388-6397 — the trailing 4 bytes are the jump target slot, not code.
+                        Address.AddAddress(list,
+                            m.addr, m.length - 4, U.NOT_FOUND,
+                            "Jump " + patch.Name + "@" + m.filename + "@BIN",
+                            Address.DataTypeEnum.BIN);
+                    }
+                    else
+                    {//WF :6398-6406
+                        Address.AddAddress(list,
+                            m.addr, 0, U.NOT_FOUND,
+                            patch.Name + "@" + m.filename + "@BIN",
+                            m.type);
+                    }
+                }
+                else
+                {//WF :6408-6416 — pointer-only: a single length-0 Address typed by m.type.
+                    Address.AddAddress(list,
+                        m.addr, 0, U.NOT_FOUND,
+                        patch.Name + "@" + m.filename + "@BIN",
+                        m.type);
+                }
+
+                if (m.filename != "")
+                {//WF :6418-6421 — per-block ELF/sym.txt symbol channel (already in Core).
+                    SymbolUtil.ProcessSymbolByList(list, basedir, m.filename, m.addr);
+                }
+            }
+        }
+
+        // ====================================================================
         // PatchForm producer — option-B epic (#1261, sub-slice s2pf-4 of 11).
         //
         // The TYPE=IMAGE terminal arm. Faithful Core port of WinForms
