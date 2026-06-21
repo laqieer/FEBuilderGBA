@@ -416,9 +416,11 @@ namespace FEBuilderGBA
         ///   -&gt; <see cref="InstallStatusEnum.Installed"/> (mirrors the WF detail-string "PATCHED_IF" rule).</item>
         /// </list>
         /// If every marker is resolvable and none indicates installed -&gt;
-        /// <see cref="InstallStatusEnum.NotInstalled"/>. A patch with NO install markers is
-        /// <see cref="InstallStatusEnum.NotInstalled"/> — inheriting WF's own blind spot (WF's
-        /// <c>IsInstalled</c> is likewise false for a marker-less patch).
+        /// <see cref="InstallStatusEnum.NotInstalled"/>. A patch with NO install markers (an empty but
+        /// non-null Param) is <see cref="InstallStatusEnum.NotInstalled"/> — inheriting WF's own blind spot
+        /// (WF's <c>IsInstalled</c> is likewise false for a marker-less patch). A <c>null</c> Param (which
+        /// cannot be inspected at all) is <see cref="InstallStatusEnum.Unknown"/> — uninspectable proves
+        /// nothing, so the conservative answer is "possibly installed".
         /// </para>
         /// <para>
         /// <b>SOUNDNESS.</b> This is a deliberate OVER-approximation: it returns NotInstalled only when it
@@ -432,7 +434,12 @@ namespace FEBuilderGBA
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (patch == null) throw new ArgumentNullException(nameof(patch));
-            if (patch.Param == null) return InstallStatusEnum.NotInstalled;
+            // A null Param means NO marker can be inspected. The contract is "NotInstalled only when
+            // absence is PROVEN (every resolvable marker evaluated, none matched)". An uninspectable
+            // patch proves nothing, so the only SOUND answer is Unknown — the safe-reject gate must not
+            // treat it as safe (Copilot PR #1326 review). (LoadPatch never produces a null Param, so this
+            // guards only a direct/synthetic caller.)
+            if (patch.Param == null) return InstallStatusEnum.Unknown;
 
             bool sawUnknown = false;
 

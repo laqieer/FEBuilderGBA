@@ -163,6 +163,19 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EaBinInstallStatus_NullParam_Unknown()
+        {
+            // A null Param cannot be inspected at all -> the only SOUND answer is Unknown (NOT
+            // NotInstalled): uninspectable proves nothing, so the safe-reject gate must not treat it as
+            // safe (Copilot PR #1326 review). LoadPatch never produces a null Param; this guards a direct
+            // caller's contract.
+            var rom = MakeVersionedRom("BE8E01");
+            var patch = new PatchInstallCore.PatchSt { Name = "p.txt", PatchFileName = "p.txt", Param = null };
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Unknown,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
         public void EaBinInstallStatus_InstalledMarkerWins_OverUnknownMarker()
         {
             // A patch with BOTH an unresolvable marker AND a resolvable matching marker is Installed
