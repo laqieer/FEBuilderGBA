@@ -12488,7 +12488,8 @@ namespace FEBuilderGBA
 
                 if (type == "ADDR")
                 {
-                    // s2pf-3: TYPE=ADDR handler (WF MakePatchStructDataListForADDR @:6213). STUB.
+                    // s2pf-3: TYPE=ADDR handler (WF MakePatchStructDataListForADDR @:6213).
+                    EmitPatchAddr(rom, list, patch, isPointerOnly);
                 }
                 else if (type == "EA")
                 {
@@ -12500,7 +12501,8 @@ namespace FEBuilderGBA
                 }
                 else if (type == "SWITCH")
                 {
-                    // s2pf-6: TYPE=SWITCH handler (WF MakePatchStructDataListForSWITCH @:6425). STUB.
+                    // s2pf-3: TYPE=SWITCH handler (WF MakePatchStructDataListForSWITCH @:6425).
+                    EmitPatchSwitch(rom, list, patch, isPointerOnly);
                 }
                 else if (type == "STRUCT")
                 {
@@ -12539,6 +12541,185 @@ namespace FEBuilderGBA
                 return rom.RomInfo.VersionToFilename ?? "";
             }
             catch { return ""; }
+        }
+
+        // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-3 of 11).
+        //
+        // The two TRIVIAL terminal TYPE arms: ADDR and SWITCH. Faithful Core
+        // ports of WinForms PatchForm.MakePatchStructDataListForADDR
+        // (FEBuilderGBA/PatchForm.cs:6213) and MakePatchStructDataListForSWITCH
+        // (FEBuilderGBA/PatchForm.cs:6425). Both turn a patch's ADDRESS / ON:OFF:
+        // params into BIN/MIX Address entries, sized by the s2pf-2 helpers
+        // (CalcAddrLength for ADDR, the SWITCH value's space-token count for
+        // SWITCH) and resolved by the s2pf-2 ResolvePatchAddress wrapper.
+        //
+        // INHERITED FAILURE-CONTRACT DIVERGENCE (from s2pf-2, NOT new here):
+        //   WF convertBinAddressString THROWS PatchException for an unsafe $0x
+        //   deref / unknown macro. The WF MakePatchStructDataList outer loop
+        //   (PatchForm.cs:7126), U.AppendAllASMStructPointersList (U.cs:2619),
+        //   ToolROMRebuildMake.Make and the ToolROMRebuildForm.Make button +
+        //   ComandLineRebuild callers have NO try/catch, so that throw would
+        //   propagate to the top-level handler and ABORT the whole rebuild.
+        //   The merged s2pf-2 resolver (PatchMacroAddressResolverCore.Resolve,
+        //   try/catch -> U.NOT_FOUND; ResolvePatchAddress is built on it) maps
+        //   every unsafe/unknown macro to U.NOT_FOUND instead, which fails the
+        //   isSafetyOffset guard below and SKIPS that one entry. The net
+        //   difference (skip-entry vs abort-rebuild) manifests ONLY on a
+        //   malformed/anomalous ADDRESS/SWITCH param — a patch-data defect — and
+        //   in that pathological case skip-entry is strictly safer than aborting
+        //   the defrag. Full byte-for-byte parity over real config/patch2 data is
+        //   covered by s2pf-11. This is an intentional inherited contract, NOT a
+        //   verbatim throw (pinned by RebuildProducerPatchAddr's unsafe-$0x test).
+        //
+        // These arms emit into the orchestrator's list but are NOT wired into the
+        // live producer (s2pf-11), so "PatchForm(MakePatchStructDataList)" STAYS
+        // in AsmNotYetPortedRaw.
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForADDR</c>
+        /// (FEBuilderGBA/PatchForm.cs:6213). Reads the patch <c>ADDRESS</c> param: a
+        /// <c>$</c>-prefixed macro is resolved once (WF <c>convertBinAddressString(addr,
+        /// 0, 0x100, basedir)</c> -> <see cref="ResolvePatchAddress"/> with
+        /// <c>appnedSize=0, startOffset=0x100</c>) and, if safe, treated as a single
+        /// address; otherwise the literal string is space-split into one-or-more hex
+        /// addresses. The BIN byte length is <see cref="CalcAddrLength"/> (0 when
+        /// <paramref name="isPointerOnly"/>). Each safe address emits one
+        /// <see cref="Address"/> named <c>Name@ADDRESS</c>, typed
+        /// <see cref="Address.DataTypeEnum.BIN"/> when <c>length &lt; 4</c> else
+        /// <see cref="Address.DataTypeEnum.MIX"/> (mis-classifying a &gt;=4 entry as BIN
+        /// would drop its pointer sub-scan during rebuild = corruption). The per-address
+        /// <see cref="U.isSafetyOffset(uint, ROM)"/> guard skips only that entry, never
+        /// the whole patch — verbatim WF.
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=ADDR patch whose <c>ADDRESS</c>/<c>COMBO</c> params drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true the BIN length is 0.</param>
+        public static void EmitPatchAddr(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with CalcAddrLength / MakePointerIndexes): throw
+            // a clear ArgumentNullException rather than an unhelpful NRE on bad input. The
+            // orchestrator always passes a valid rom/list and a LoadPatch result whose Param is
+            // non-null, so these never fire on the real producer path.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            string address_string = U.at(patch.Param, "ADDRESS");
+            if (address_string.Length <= 0)
+            {
+                return;
+            }
+
+            // Path.GetDirectoryName can return null (e.g. a PatchFileName with no directory part);
+            // normalize to "" so the resolver never receives a null basedir (avoids $FGREP
+            // exception-driven control flow). WF's basedir can be null, but ResolvePatchAddress ->
+            // Resolve treats null/"" identically, so "" is byte-faithful.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+            string[] address_sp;
+            uint addr;
+            if (address_string[0] == '$')
+            {//マクロ展開. (WF: convertBinAddressString(address_string, 0, 0x100, basedir) //check only.)
+                addr = ResolvePatchAddress(rom, address_string, 0, 0x100, basedir);
+                if (!U.isSafetyOffset(addr, rom))
+                {
+                    return;
+                }
+                address_sp = new string[] { U.To0xHexString(addr) };
+            }
+            else
+            {//直値か、直値が複数.
+                address_sp = address_string.Split(' ');
+            }
+
+            uint length = 0;
+            if (isPointerOnly == false)
+            {
+                length = CalcAddrLength(patch);
+            }
+
+            for (int n = 0; n < address_sp.Length; n++)
+            {
+                uint a = U.toOffset(U.atoi0x(address_sp[n]));
+                if (!U.isSafetyOffset(a, rom)) continue;
+
+                if (length < 4)
+                {
+                    Address.AddAddress(list, a, length, U.NOT_FOUND, patch.Name + "@ADDRESS", Address.DataTypeEnum.BIN);
+                }
+                else
+                {
+                    Address.AddAddress(list, a, length, U.NOT_FOUND, patch.Name + "@ADDRESS", Address.DataTypeEnum.MIX);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForSWITCH</c>
+        /// (FEBuilderGBA/PatchForm.cs:6425). Iterates <c>patch.Param</c>, acting only on keys
+        /// prefixed <c>ONN:</c> or <c>OFF:</c> (VERBATIM WF prefixes — WF uses <c>"ONN:"</c>,
+        /// not <c>"ON:"</c>). The address is the <c>:</c>-split key's second token, resolved
+        /// by <see cref="ResolvePatchAddress"/> with <c>appnedSize=8, startOffset=0</c> (WF
+        /// <c>convertBinAddressString(op[1], 8, 0, basedir)</c>, called UNCONDITIONALLY — the
+        /// <c>$</c>-vs-literal branch lives inside the resolver). The BIN byte length is the
+        /// space-token count of the param VALUE (0 when <paramref name="isPointerOnly"/>).
+        /// Each safe address emits one <see cref="Address"/> named <c>Name@SWITCH</c>, typed
+        /// BIN when <c>length &lt; 4</c> else MIX. The per-pair
+        /// <see cref="U.isSafetyOffset(uint, ROM)"/> guard skips only that pair — verbatim WF.
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=SWITCH patch whose <c>ONN:</c>/<c>OFF:</c> params drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — when true the BIN length is 0.</param>
+        public static void EmitPatchSwitch(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with CalcAddrLength / MakePointerIndexes): throw a
+            // clear ArgumentNullException rather than an unhelpful NRE on bad input. The
+            // orchestrator always passes a valid rom/list and a LoadPatch result whose Param is
+            // non-null, so these never fire on the real producer path.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // Normalize basedir to "" (Path.GetDirectoryName can return null) — byte-faithful for
+            // the resolver, which treats null/"" identically. See EmitPatchAddr note.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+            foreach (var pair in patch.Param)
+            {
+                if (pair.Key.IndexOf("ONN:") != 0)
+                {
+                    if (pair.Key.IndexOf("OFF:") != 0)
+                    {
+                        continue;
+                    }
+                }
+                string[] op = pair.Key.Split(':');
+                if (op.Length < 2)
+                {
+                    continue;
+                }
+                uint length = 0;
+                if (isPointerOnly == false)
+                {
+                    length = (uint)pair.Value.Split(' ').Length;
+                }
+
+                uint a = ResolvePatchAddress(rom, op[1], 8, 0, basedir);
+                if (!U.isSafetyOffset(a, rom)) continue;
+
+                if (length < 4)
+                {
+                    Address.AddAddress(list, a, length, U.NOT_FOUND, patch.Name + "@SWITCH", Address.DataTypeEnum.BIN);
+                }
+                else
+                {
+                    Address.AddAddress(list, a, length, U.NOT_FOUND, patch.Name + "@SWITCH", Address.DataTypeEnum.MIX);
+                }
+            }
         }
 
         // ====================================================================

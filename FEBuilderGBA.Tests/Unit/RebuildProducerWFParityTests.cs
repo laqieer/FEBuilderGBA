@@ -246,6 +246,131 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        /// <summary>
+        /// PARTIAL WF-parity for #1261 slice s2pf-3 — the PatchForm producer ADDR + SWITCH
+        /// dispatch arms (<see cref="RebuildProducerCore.EmitPatchAddr"/> /
+        /// <see cref="RebuildProducerCore.EmitPatchSwitch"/>). Both the WinForms reference
+        /// (<c>PatchForm.MakePatchStructDataList</c>, PatchForm.cs:7126) and the Core orchestrator
+        /// (<see cref="RebuildProducerCore.MakePatchStructDataListCore"/>) are run on the SAME real
+        /// FE8U ROM with the SAME rebuild flags (isPointerOnly=false, isInstallOnly=true,
+        /// isStructOnly=false — the <c>ToolROMRebuildMake.Make</c> -&gt; <c>AppendAllASMStructPointersList</c>
+        /// callsite, ToolROMRebuildMake.cs:820). Each side is FILTERED to entries whose <c>Info</c> ends
+        /// <c>@ADDRESS</c> / <c>@SWITCH</c> (the names the two arms emit), then compared as
+        /// Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType) — Info/name is cosmetic
+        /// (Core's leaner LoadPatch omits Name, so its Info is just "@ADDRESS"; WF prepends the patch
+        /// name). A Core-extra (Core emits an @ADDRESS/@SWITCH entry WF does not) is a faithfulness
+        /// regression and FAILS. WF-extras are expected only if Core's gate diverges — but the gate is a
+        /// faithful port, so for ADDR/SWITCH the two key sets must match EXACTLY when the patch tree
+        /// is present. This test asserts FULL set equality — both Core-extras (Core emits an entry WF
+        /// does not = faithfulness regression) AND WF-extras (WF emits an entry Core does not = Core
+        /// silently dropped a real patch entry) FAIL. The latter direction closes the gap a Core ⊆ WF
+        /// only check would leave (it passes vacuously even if Core drops every entry — Copilot CLI
+        /// PR #1313 review).
+        /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree,
+        /// present in the user's main checkout). When no ROM is found the test returns early (Pass).</para>
+        /// <para><b>NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT.</b> Both producers walk the
+        /// <c>config/patch2/&lt;version&gt;</c> submodule tree; where that submodule is un-initialized (the
+        /// known-env state of this worktree and the local main checkout — <c>git submodule status</c> shows a
+        /// leading <c>-</c>), there are no ADDR/SWITCH patch files, so BOTH filtered lists are empty and the
+        /// Core ⊆ WF assertion holds vacuously (still a valid, passing real-ROM run that proves no Core-extra,
+        /// just with nothing to compare). The branch-level verification — every ADDR/SWITCH code path, the
+        /// BIN/MIX length boundary, the per-address isSafetyOffset skip, the inherited unsafe-$0x divergence —
+        /// is carried by the synthetic Core.Tests (<c>RebuildProducerPatchAddrSwitchTests</c>, 21 cases). This
+        /// harness gains teeth automatically wherever <c>config/patch2</c> is populated, and s2pf-11's
+        /// full-producer parity (once the orchestrator is wired) covers the end-to-end path.</para>
+        /// </summary>
+        [Fact]
+        public void CorePatchAddrSwitchArms_MatchExactly_WinFormsPatchProducer()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
+
+                // Re-scan CheckIF exactly as ToolROMRebuildMake.Make does (PatchForm.ClearCheckIF
+                // before the producer) so the WF and Core gates see the same installed state.
+                PatchForm.ClearCheckIF();
+
+                // ---- WinForms reference: the public patch producer, same flags as the rebuild ----
+                var wfAll = new List<Address>();
+                PatchForm.MakePatchStructDataList(wfAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // ---- Core: the orchestrator, same flags + the SAME ROM ----
+                var coreAll = new List<Address>();
+                RebuildProducerCore.MakePatchStructDataListCore(Program.ROM, coreAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // Filter BOTH to the two arms' entries (Info ends @ADDRESS / @SWITCH).
+                static bool IsArmEntry(Address a) =>
+                    a.Info != null && (a.Info.EndsWith("@ADDRESS", StringComparison.Ordinal)
+                                       || a.Info.EndsWith("@SWITCH", StringComparison.Ordinal));
+
+                var wfArm = wfAll.Where(IsArmEntry).ToList();
+                var coreArm = coreAll.Where(IsArmEntry).ToList();
+
+                var wfKeys = new HashSet<Key>(wfArm.Select(Key.Of));
+                var coreKeys = new HashSet<Key>(coreArm.Select(Key.Of));
+
+                // Core-extras = Core emits an @ADDRESS/@SWITCH key WF does not. ALWAYS a regression
+                // (faithfulness). WF-extras = WF emits a key Core does not = Core SILENTLY DROPPED a
+                // real patch entry — for these two arms (same faithful gate + same resolver) the key
+                // sets MUST match exactly when the patch tree is present, so a WF-extra is ALSO a
+                // regression (the gap Copilot CLI flagged: a Core⊆WF-only check passes vacuously even
+                // when Core drops every entry). Assert FULL set equality. When config/patch2 is absent
+                // (this worktree / un-init submodule) BOTH sets are empty and equality holds trivially.
+                var coreExtras = coreArm.Where(a => !wfKeys.Contains(Key.Of(a)))
+                                        .Select(Key.Of).Distinct().ToList();
+                var wfExtras = wfArm.Where(a => !coreKeys.Contains(Key.Of(a)))
+                                    .Select(Key.Of).Distinct().ToList();
+
+                static string Dump(System.Collections.Generic.IEnumerable<Key> keys)
+                {
+                    const int N = 30;
+                    var l = keys.ToList();
+                    return string.Join("\n", l.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"))
+                        + (l.Count > N ? $"\n  ... (+{l.Count - N} more)" : "");
+                }
+
+                if (coreExtras.Count > 0 || wfExtras.Count > 0)
+                {
+                    Assert.Fail(
+                        "Core PatchForm ADDR/SWITCH arms diverge from the WinForms patch producer "
+                        + "(faithfulness regression).\n"
+                        + $"WF @ADDRESS/@SWITCH total={wfArm.Count}, Core total={coreArm.Count}.\n"
+                        + $"Core-only entries (Core emits, WF does not) [{coreExtras.Count}]:\n{Dump(coreExtras)}\n"
+                        + $"WF-only entries (Core SILENTLY DROPPED) [{wfExtras.Count}]:\n{Dump(wfExtras)}");
+                }
+
+                // PROVEN: the Core and WinForms @ADDRESS/@SWITCH key sets are EQUAL on
+                // (Addr/Length/Pointer/DataType) — no Core-extra (faithfulness) and no dropped
+                // Core entry — for the two ported arms on the real ROM (or both empty when the
+                // submodule is absent).
+                Assert.Empty(coreExtras);
+                Assert.Empty(wfExtras);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
         // ----------------------------------------------------------------
         readonly struct Key : IEquatable<Key>
         {

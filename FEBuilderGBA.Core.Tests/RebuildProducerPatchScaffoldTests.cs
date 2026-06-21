@@ -234,9 +234,22 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void MakePatchStructDataListCore_NoPatchDir_EmitsNothing_NoThrow()
         {
-            // BaseDirectory has no config/patch2/<version> tree -> ScanPatchs returns
+            // An EMPTY config/patch2/<version> tree under BaseDirectory -> ScanPatchs returns
             // empty -> the orchestrator does nothing and the list stays empty.
-            CoreState.BaseDirectory = _tempDir; // empty temp dir, no patch tree
+            //
+            // The version dir is created EMPTY (not just absent) so PatchHardCodeScanner.
+            // ResolvePatchDirectory returns THIS path (the first existing root) instead of
+            // falling through to AppContext.BaseDirectory — the test-output bin/, which in CI
+            // carries the build-copied REAL config/patch2/FE8U tree. Before the s2pf-3 ADDR/
+            // SWITCH arms emitted, that fallback was harmless (every TYPE arm was a no-op stub
+            // regardless of what got scanned); now a fallback to the real FE8U tree would emit
+            // genuine @ADDRESS/@SWITCH entries and the empty-list assertion would (correctly)
+            // fail. Pinning an empty version dir keeps the test's "no patches -> nothing"
+            // intent robust in CI (where the submodule is checked out) and locally (where it
+            // is not).
+            string emptyPatchDir = Path.Combine(_tempDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(emptyPatchDir); // exists but contains no PATCH_*.txt
+            CoreState.BaseDirectory = _tempDir;
             var fe8 = MakeVersionedRom("BE8E01");
             CoreState.ROM = fe8;
 
