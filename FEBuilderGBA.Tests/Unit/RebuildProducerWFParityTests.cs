@@ -20,15 +20,18 @@ namespace FEBuilderGBA.Tests.Unit
     /// <para>
     /// <b>Comparison model.</b> WinForms runs every form (including the deferred ones — PatchForm and the
     /// data-path forms Core has not yet ported); Core runs only the ported subset. So WF's list is a
-    /// SUPERSET. The faithful, regression-proof assertion is therefore:
+    /// SUPERSET. As of s2pf-17 (CAPSTONE) every data-path + ASM-path form (including PatchForm's EA/BIN
+    /// arms) is ported, so on a VANILLA FE8U (0 EA/BIN installed) the COMBINED Core producer is EXACTLY
+    /// equal to WF (gap=0); the test asserts BOTH the strict subset AND the exact equality. Assertions:
     /// <list type="bullet">
     ///   <item>Every Core entry (keyed by <c>Addr</c>/<c>Length</c>/<c>Pointer</c>/<c>DataType</c>) MUST
     ///   appear in the WF list — i.e. Core ⊆ WF. A <b>Core-extra</b> (Core emits an entry WF does not)
     ///   is a real faithfulness regression and FAILS the test with a dump of the first differing entries.</item>
-    ///   <item><b>WF-extras</b> (WF emits entries Core lacks) are EXPECTED — they are the deferred forms
-    ///   (PatchForm + the still-un-ported data-path forms). They are logged but do not fail the test;
-    ///   isolating them here is exactly what keeps PatchForm's known-deferred contribution from masking a
-    ///   real Core regression.</item>
+    ///   <item><b>EXACT Core==WF (gap=0).</b> After the strict subset check (the GraphicsTool re-discovery
+    ///   exemption is now only a transitional classifier), the test ALSO asserts the SYMMETRIC difference is
+    ///   empty: no WF-only entries AND no Core-only entries. With every form ported, Core's list claims the
+    ///   same image addresses WF's (formerly-deferred) forms claimed, so Core's GraphicsTool no longer
+    ///   re-discovers them and the formerly-expected WF-extras collapse to zero (vanilla FE8U).</item>
     ///   <item><b>GraphicsTool LZ77 re-discoveries</b> are the ONE documented, root-caused class of
     ///   expected Core-extra. The slice-2y GraphicsTool whole-ROM LZ77 scan ignores every image address
     ///   already in <c>list</c> (<c>MakeIgnoreDictionnaryFromList</c>). WF runs ALL data forms first, so
@@ -167,6 +170,36 @@ namespace FEBuilderGBA.Tests.Unit
                 // GraphicsTool re-discovery of an image WF already covers via a deferred form. No real
                 // faithfulness regression across the ported forms.
                 Assert.Empty(realRegressions);
+
+                // ---- s2pf-17 (CAPSTONE): EXACT Core==WF on vanilla FE8U (gap=0) ----
+                // The EA/BIN arms are now WIRED, and a freshly-loaded VANILLA FE8U installs ZERO EA/BIN
+                // patches (CheckIF != "I"), so WF's EA/BIN arms emit nothing and the COMBINED (data+asm)
+                // producer must be EXACTLY equal to WF — no Core-extras AND no WF-only entries. With every
+                // data-path + ASM-path form ported, Core's list now claims the same image addresses WF's
+                // (formerly-deferred) forms claimed, so Core's GraphicsTool no longer RE-DISCOVERS them:
+                // both the Core-extra LZ77IMG re-discoveries AND the WF-only deferred-form entries collapse
+                // to zero. We assert the SYMMETRIC difference is empty (Core == WF, gap=0). A non-zero gap
+                // here would mean a ported form diverged or an EA/BIN patch is unexpectedly installed.
+                var wfOnlyKeys = wfKeys.Where(k => !coreKeys.Contains(k)).ToList();
+                var coreOnlyKeys = coreKeys.Where(k => !wfKeys.Contains(k)).ToList();
+                if (wfOnlyKeys.Count != 0 || coreOnlyKeys.Count != 0)
+                {
+                    const int N = 30;
+                    string wfDump = string.Join("\n", wfOnlyKeys.Take(N).Select(k =>
+                        $"  WF-only  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    string coreDump = string.Join("\n", coreOnlyKeys.Take(N).Select(k =>
+                        $"  Core-only Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    Assert.Fail(
+                        "s2pf-17: expected EXACT Core==WF on vanilla FE8U (0 EA/BIN installed), but the "
+                        + $"combined producers diverge.\nWF total={wf.Count}, Core total={core.Count}, "
+                        + $"WF-only={wfOnlyKeys.Count}, Core-only={coreOnlyKeys.Count}.\n"
+                        + wfDump + "\n" + coreDump);
+                }
+                // PROVEN: the COMBINED data+asm producer is byte-exactly WF on vanilla FE8U (gap=0, no
+                // Core-extras), with the EA/BIN arms wired.
+                Assert.Empty(wfOnlyKeys);
+                Assert.Empty(coreOnlyKeys);
+                Assert.Equal(wfKeys.Count, coreKeys.Count);
             }
             finally
             {
@@ -678,38 +711,39 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// FULL-PRODUCER WF-parity for #1261 slice s2pf-11 — the PatchForm producer orchestrator is now
-        /// WIRED into the live ASM producer (<see cref="RebuildProducerCore.AppendAllAsmStructPointers"/>),
-        /// so this asserts <b>Core⊆WF over the ENTIRE PatchForm output</b> (all TYPE arms at once), strictly,
-        /// with NO LZ77IMG / GraphicsTool exception (Copilot CLI #1323 required-strengthening finding: the
-        /// sibling merged-list subset harness exempts any Core-extra LZ77IMG at a WF-known address as a
-        /// GraphicsTool re-discovery, which could mask a bad Core-only PatchForm IMAGE entry — so PatchForm is
-        /// validated HERE, isolated from that exception, by comparing the patch producer DIRECTLY).
+        /// FULL-PRODUCER WF-parity for #1261 slice s2pf-17 (CAPSTONE) — the PatchForm producer orchestrator
+        /// is WIRED into the live ASM producer (<see cref="RebuildProducerCore.AppendAllAsmStructPointers"/>)
+        /// AND the EA/BIN arms are now WIRED LIVE, so this asserts <b>Core⊆WF over the ENTIRE PatchForm
+        /// output</b> (all TYPE arms at once), strictly, with NO LZ77IMG / GraphicsTool exception (Copilot
+        /// CLI #1323 required-strengthening finding: the sibling merged-list subset harness exempts any
+        /// Core-extra LZ77IMG at a WF-known address as a GraphicsTool re-discovery, which could mask a bad
+        /// Core-only PatchForm IMAGE entry — so PatchForm is validated HERE, isolated from that exception,
+        /// by comparing the patch producer DIRECTLY).
         /// <para>
         /// Both sides run the WHOLE patch producer on the SAME real FE8U ROM with the SAME rebuild flags
         /// (<c>isPointerOnly=false, isInstallOnly=true, isStructOnly=false</c> — the
         /// <c>ToolROMRebuildMake.Make</c> → <c>AppendAllASMStructPointersList</c> callsite,
         /// ToolROMRebuildMake.cs:820): WF <c>PatchForm.MakePatchStructDataList</c> (the parity reference,
-        /// which DOES emit the TYPE=EA/TYPE=BIN entries via <c>TracePatchedMapping</c>) vs Core
-        /// <see cref="RebuildProducerCore.MakePatchStructDataListCore"/> (which SKIPS EA/BIN — the deferred
-        /// subsystem). The assertion is:
+        /// which emits the TYPE=EA/TYPE=BIN entries via <c>TracePatchedMapping</c>) vs Core
+        /// <see cref="RebuildProducerCore.MakePatchStructDataListCore"/> (which now ALSO emits EA/BIN via the
+        /// ported <see cref="RebuildProducerCore.EmitPatchEA"/>/<see cref="RebuildProducerCore.EmitPatchBIN"/>).
+        /// The assertion is:
         /// <list type="bullet">
         ///   <item><b>Core⊆WF, STRICT.</b> EVERY Core-emitted entry (keyed Addr/Length/Pointer/DataType)
         ///   MUST be in WF's list. ANY Core-extra — including a stray PatchForm <c>LZ77IMG</c> — FAILS (no
         ///   GraphicsTool exception here). This is the load-bearing no-corruption proof.</item>
-        ///   <item><b>Core⊉WF (strict subset) — the WF-only gap is EVERY entry attributable to the deferred
-        ///   TYPE=EA/TYPE=BIN arms.</b> The test asserts every WF-only entry is EA/BIN-attributed (by the
-        ///   <c>@EA</c>/<c>@BIN</c>/<c>@PROCS</c>/… Info markers those arms stamp, plus their symbol
-        ///   side-entries) — a WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently
-        ///   dropped a real entry, which FAILS. The gap count + installed EA/BIN patch count are reported.</item>
+        ///   <item><b>WF-only gap is EXACTLY 0 on vanilla FE8U.</b> Any WF-only entry would have to be an
+        ///   EA/BIN entry (the only arms that could differ); on a vanilla FE8U NO EA/BIN patch is installed,
+        ///   so the gap is asserted == 0 (Core==WF). For robustness the test ALSO checks that any WF-only
+        ///   entry (there should be none) is EA/BIN-attributed (by the <c>@EA</c>/<c>@BIN</c>/<c>@PROCS</c>/…
+        ///   Info markers those arms stamp, plus their symbol side-entries) — so a regression in a ported
+        ///   non-EA/BIN arm still FAILS rather than passing as an "expected EA/BIN gap".</item>
         /// </list>
         /// <b>KEY FINDING:</b> on a freshly-loaded VANILLA FE8U, NO EA/BIN patches are INSTALLED
-        /// (<c>CheckIF != "I"</c>), so WF's EA/BIN arms emit nothing and the gap is legitimately 0
-        /// (WF total == Core total). The gate token STAYS for a STRUCTURAL reason — the EA/BIN arms are
-        /// un-ported CODE, so a ROM that DID carry installed EA/BIN patches would expose entries Core cannot
-        /// emit. That structural invariant is asserted by the Core.Tests
-        /// (<c>GetAsmNotYetPortedForms</c> contains the token + <c>IsComplete</c> false), so this ROM-level
-        /// test DOCUMENTS the gap rather than requiring it to be <c>&gt; 0</c>.
+        /// (<c>CheckIF != "I"</c>), so WF's EA/BIN arms emit nothing and Core's wired EA/BIN arms likewise
+        /// emit nothing — the gap is EXACTLY 0 (WF total == Core total). s2pf-17 REMOVES the gate token (the
+        /// EA/BIN arms are ported); the IsComplete gate now OPENS, guarded by the per-ROM s2pf-12 backstop
+        /// (asserted by the Core.Tests <c>GetAsmNotYetPortedForms</c> is EMPTY + the safe-reject tests).
         /// </para>
         /// <para>SKIP-IF-NO-ROM + NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT (same posture as
         /// the per-arm harnesses): no ROM / un-init submodule → both lists empty → Core⊆WF holds trivially.</para>
@@ -771,10 +805,11 @@ namespace FEBuilderGBA.Tests.Unit
                 }
                 Assert.Empty(coreExtras); // PROVEN: Core⊆WF strictly over ALL PatchForm entries.
 
-                // The WF-only gap = entries WF emits that Core lacks. Every WF-only entry MUST be
-                // attributable to the deferred TYPE=EA/TYPE=BIN arms (the reason the token stays). We
-                // attribute by the Info markers those arms stamp: WF EA entries end "@EA"/"@PROCS"/
-                // "@Pointer_Array"/"@NEW_TARGET_SELECTION_STRUCT" and BIN entries end "@BIN"/"@UNUSEDBIN"
+                // The WF-only gap = entries WF emits that Core lacks. With the EA/BIN arms now WIRED, the
+                // only arms that could still differ are EA/BIN — and on a vanilla FE8U none is installed, so
+                // the gap is EXACTLY 0. We attribute any (unexpected) WF-only entry by the Info markers the
+                // EA/BIN arms stamp: WF EA entries end "@EA"/"@PROCS"/"@Pointer_Array"/
+                // "@NEW_TARGET_SELECTION_STRUCT" and BIN entries end "@BIN"/"@UNUSEDBIN"
                 // (PatchForm.cs:6259-6422) — plus the per-mapping SymbolUtil entries those same arms add.
                 var wfOnly = wfAll.Where(a => !coreKeys.Contains(Key.Of(a))).ToList();
                 int wfOnlyGap = new HashSet<Key>(wfOnly.Select(Key.Of)).Count;
@@ -782,15 +817,14 @@ namespace FEBuilderGBA.Tests.Unit
                 // Count the installed TYPE=EA / TYPE=BIN patches in the FE8U tree (the gap's source).
                 int eaBinPatchCount = CountInstalledEaBinPatches(Program.ROM);
 
-                // KEY FINDING (documented, not a bug): a freshly-loaded VANILLA FE8U has NO EA/BIN patches
-                // INSTALLED (CheckIF != "I"), so WF's EA/BIN arms emit NOTHING and the gap is legitimately
-                // 0 — WF total == Core total here. The gate token nevertheless STAYS for a STRUCTURAL reason
-                // (the EA/BIN arms are un-ported CODE, so any ROM that DID carry installed EA/BIN patches
-                // would expose entries Core cannot emit); that structural invariant is asserted by the
-                // Core.Tests (GetAsmNotYetPortedForms contains the token + IsComplete is false), not by this
-                // ROM's installed set. So the gap is DOCUMENTED, not required to be > 0.
+                // KEY FINDING (s2pf-17): a freshly-loaded VANILLA FE8U has NO EA/BIN patches INSTALLED
+                // (CheckIF != "I"), so WF's EA/BIN arms emit NOTHING and Core's wired EA/BIN arms likewise
+                // emit nothing — the gap is EXACTLY 0 (WF total == Core total), asserted below. s2pf-17
+                // REMOVES the gate token (the EA/BIN arms are ported), opening the IsComplete gate; the
+                // per-ROM s2pf-12 backstop is the soundness net (asserted by the Core.Tests safe-reject set).
                 //
-                // Whatever the gap is, EVERY WF-only entry must be attributable to the EA/BIN arms — a
+                // For robustness, EVERY WF-only entry (there should be none) must be attributable to the
+                // EA/BIN arms — a
                 // WF-only entry that is NOT EA/BIN-attributed would mean a PORTED arm silently dropped an
                 // entry (a Core deficit in an already-ported arm), which we DO fail on.
                 bool IsEaBinAttributed(Address a)
@@ -834,13 +868,117 @@ namespace FEBuilderGBA.Tests.Unit
                 }
                 Assert.Empty(unattributed); // every WF-only entry is the deferred EA/BIN subset.
 
-                // DOCUMENTED (visible in test output): Core⊆WF strictly; the WF-only gap (if any) is
-                // entirely the deferred EA/BIN entries; on a vanilla FE8U with no EA/BIN installed the gap
-                // is 0 (WF==Core). The token stays for the structural EA/BIN-un-ported reason.
+                // s2pf-17 (CAPSTONE): the EA/BIN arms are now WIRED. On a vanilla FE8U NO EA/BIN patch is
+                // installed, so WF's EA/BIN arms emit nothing — the gap is 0 (WF==Core) even though Core now
+                // RUNS the EA/BIN arms. (If a ROM DID carry an installed EA/BIN patch, Core would emit its
+                // traceable entries too; an untraceable one is a loud reject + the s2pf-12 backstop refuses
+                // the whole rebuild.) So on vanilla FE8U the gap stays 0 and is now a Core==WF EQUALITY,
+                // not merely a documented subset.
+                Assert.Equal(0, wfOnlyGap); // vanilla FE8U: 0 EA/BIN installed -> exact Core==WF.
                 System.Console.WriteLine(
-                    $"[s2pf-11] PatchForm parity: WF total={wfAll.Count}, Core total={coreAll.Count}, "
-                    + $"Core-extras={coreExtras.Count} (MUST be 0), WF-only gap (all EA/BIN-attributed)={wfOnlyGap}, "
+                    $"[s2pf-17] PatchForm parity: WF total={wfAll.Count}, Core total={coreAll.Count}, "
+                    + $"Core-extras={coreExtras.Count} (MUST be 0), WF-only gap (vanilla FE8U -> 0)={wfOnlyGap}, "
                     + $"installed TYPE=EA/BIN patches={eaBinPatchCount}.");
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        /// <summary>
+        /// EMPIRICAL gate-open behavior for #1261 slice s2pf-17 (CAPSTONE). With the IsComplete gate now
+        /// OPEN (both NotYetPorted lists empty), this DOCUMENTS what the public
+        /// <see cref="RebuildProducerCore.MakeWithProducer(ROM, ROM, uint, string, bool, bool, IProgress{string}, System.Threading.CancellationToken)"/>
+        /// does on a real VANILLA FE8U with the full <c>config/patch2</c> tree resolvable: does it PROCEED
+        /// (write the <c>.rebuild</c> manifest) or does the per-ROM s2pf-12 backstop OVER-REFUSE?
+        /// <para>
+        /// The s2pf-12 backstop classifies an EA/BIN patch's install status as Installed / NotInstalled /
+        /// Unknown, and refuses on Installed OR Unknown. The FE8U tree carries many <c>$FGREP</c>
+        /// file-inclusion install markers Core cannot yet resolve -> Unknown -> the backstop is expected to
+        /// OVER-REFUSE a vanilla FE8U. That is SOUND (it never says "safe" while a patch could be present),
+        /// just not yet USEFUL on FE8U; making it useful needs the <c>$FGREP</c> file-inclusion install-
+        /// resolution (the documented s2pf-18 follow-up). This test ASSERTS the gate is OPEN (no
+        /// PatchForm/IsComplete-token refusal) and RECORDS which of proceed/over-refuse actually happens —
+        /// either outcome is correct and sound; it must NOT refuse for the removed PatchForm token.
+        /// </para>
+        /// <para>NON-FATAL when no ROM / un-init submodule (early-exit Pass), same posture as the siblings.</para>
+        /// </summary>
+        [Fact]
+        public void MakeWithProducer_OnVanillaFE8U_GateOpen_ProceedsOrBackstopOverRefuses_NotTokenRefusal()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
+
+                // Sanity: the gate IS open — both static NotYetPorted lists are empty (the token is gone).
+                Assert.Empty(RebuildProducerCore.GetAsmNotYetPortedForms());
+                Assert.Empty(RebuildProducerCore.GetNotYetPortedForms());
+
+                ROM vanilla = Program.ROM; // (manifest base — content irrelevant to the refuse/proceed branch)
+                string tmp = Path.Combine(Path.GetTempPath(), "s2pf17_gateopen_" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    string manifestPath = Path.Combine(tmp, "vanilla.rebuild");
+                    InvalidOperationException? refusal = null;
+                    bool proceeded = false;
+                    try
+                    {
+                        RebuildProducerCore.MakeWithProducer(
+                            Program.ROM, vanilla, 0x00800000u, manifestPath,
+                            isUseOtherGraphics: IS_USE_OTHER_GRAPHICS, isUseOAMSP: IS_USE_OAMSP);
+                        proceeded = true;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        refusal = ex;
+                    }
+
+                    if (proceeded)
+                    {
+                        // PROCEED outcome: the gate is open AND useful on FE8U — manifest written.
+                        Assert.True(File.Exists(manifestPath),
+                            "gate-open PROCEED: MakeWithProducer must have written the .rebuild manifest");
+                        System.Console.WriteLine(
+                            "[s2pf-17] MakeWithProducer on vanilla FE8U PROCEEDED (manifest written) — "
+                            + "the #1261 producer path is fully closed at the manifest level on FE8U.");
+                    }
+                    else
+                    {
+                        // OVER-REFUSE outcome: sound (the s2pf-12 backstop refuses on an Unknown $FGREP
+                        // EA/BIN install). It MUST NOT be the removed PatchForm/IsComplete-token refusal —
+                        // that would mean the gate did not actually open.
+                        Assert.NotNull(refusal);
+                        Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", refusal!.Message);
+                        Assert.DoesNotContain("not yet ported", refusal.Message);
+                        // It is the per-ROM EA/BIN backstop (s2pf-12) over-refusing on an unresolvable install.
+                        Assert.Contains("EA/BIN", refusal.Message);
+                        Assert.False(File.Exists(manifestPath),
+                            "gate-open OVER-REFUSE: the s2pf-12 backstop must refuse before Make -> no manifest");
+                        System.Console.WriteLine(
+                            "[s2pf-17] MakeWithProducer on vanilla FE8U OVER-REFUSED via the s2pf-12 backstop "
+                            + "(an Unknown $FGREP EA/BIN install) — SOUND but not yet useful on FE8U; the "
+                            + "$FGREP file-inclusion install-resolution is the documented s2pf-18 follow-up. "
+                            + "Refusal: " + refusal.Message);
+                    }
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, true); } catch { }
+                }
             }
             finally
             {

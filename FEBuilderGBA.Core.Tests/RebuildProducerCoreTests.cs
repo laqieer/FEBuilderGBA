@@ -442,27 +442,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void GetNotYetPortedForms_IsNonEmpty_AndTracksDeferredCoverage()
+        public void GetNotYetPortedForms_IsEmpty_AllDataPathFormsPorted()
         {
+            // s2pf-17 (CAPSTONE): the STATIC data-path NotYetPorted list is now EMPTY. Every form
+            // U.MakeAllStructPointersList emits is ported to the data-path producer; the last entries
+            // (the ASM-path cross-refs PatchForm(MakePatchStructDataList)/ProcsScriptForm/EventScript/
+            // EventFunction/Command85/MapMiniMap) were never emitted by the data-path producer and are
+            // covered by the ASM-path producer, so they are removed here. The ONLY residual coverage gate
+            // is the RUNTIME EventCondForm disasm re-report (not a static entry).
             string[] notYet = RebuildProducerCore.GetNotYetPortedForms();
-            Assert.NotEmpty(notYet);
-            // The heavy editors that need extraction first must be tracked, not dropped.
-            // (TextForm/TextCharCodeForm are ported in slice 2m; OtherTextForm in slice 2q — see
-            //  GetNotYetPortedForms_DropsSlice2qConfigForms_KeepsDeferredSiblings.)
+            Assert.Empty(notYet);
+            // The heavy editors that needed extraction are all ported now (spot-checks, kept as a ledger).
             Assert.DoesNotContain("OtherTextForm", notYet);
-            // EventCondForm is PORTED in slice 2u (EmitEventCond + the Core ScanScript block-emitter) —
-            // see GetNotYetPortedForms_DropsSlice2uForm_KeepsDeferredSiblings.
             Assert.DoesNotContain("EventCondForm", notYet);
-            // (SongTableForm is ported in slice 2r; AIScriptForm + ImageBattleAnimeForm in slice 2s —
-            //  see GetNotYetPortedForms_DropsSlice2sForms_KeepsDeferredSiblings.)
             Assert.DoesNotContain("AIScriptForm", notYet);
             Assert.DoesNotContain("ImageBattleAnimeForm", notYet);
-            // ItemForm is PORTED in slice 2ad (EmitItem + the new Core PatchDetection detectors that
-            // size its StatBooster / effectiveness sub-blocks) — see
-            // GetNotYetPortedForms_DropsSlice2adForms_KeepsDeferredSiblings. (ClassForm WAS deferred for
-            // its MoveCost sub-blocks but is ported in slice 2c.)
             Assert.DoesNotContain("ItemForm", notYet);
             Assert.DoesNotContain("ClassForm", notYet);
+            // The removed ASM-path cross-refs are gone from the data-path list.
+            Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", notYet);
+            Assert.DoesNotContain("ProcsScriptForm", notYet);
+            Assert.DoesNotContain("MapMiniMapTerrainImageForm", notYet);
+            Assert.DoesNotContain("EventScript(MakeEventASMMAPList)", notYet);
+            Assert.DoesNotContain("EventFunctionPointerForm", notYet);
+            Assert.DoesNotContain("Command85PointerForm", notYet);
         }
 
         [Fact]
@@ -508,44 +511,59 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeAllStructPointers_Cancelled_ReportsIncompleteAndCancelled()
+        public void MakeAllStructPointers_Cancelled_ReportsCancelled_EmptyList()
         {
             var rom = CreateTestRom();
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom, null, cts.Token);
-            // Pre-cancel returns before the descriptor walk (no RomInfo needed) and still
-            // surfaces the coverage state.
+            // Pre-cancel returns before the descriptor walk (no RomInfo needed). As of s2pf-17 the STATIC
+            // data-path NotYetPorted list is EMPTY (every form ported), so a pre-cancel result is
+            // "complete-by-static-coverage but CANCELLED" — the CANCEL flag (not IsComplete) is what makes
+            // MakeWithProducer refuse to feed the partial list to Make (it checks Cancelled FIRST).
             Assert.True(result.Cancelled);
-            Assert.False(result.IsComplete);   // NotYetPorted is non-empty regardless of cancel
-            Assert.NotEmpty(result.NotYetPorted);
-            Assert.Empty(result.List);
+            Assert.True(result.IsComplete);     // static NotYetPorted is now empty
+            Assert.Empty(result.NotYetPorted);
+            Assert.Empty(result.List);          // pre-cancel returns before any emission
         }
 
         [Fact]
-        public void MakeAllStructPointers_FE8U_ReportsIncomplete_WhileFormsRemain()
+        public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteOnlyViaEventCondGate()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
+            var savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
+                CoreState.EventScript = null; // disasm unwired -> EventCondForm re-reported at runtime
 
                 RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
-                // COMPLETENESS-SAFETY: while any form is un-ported the result must report incomplete
-                // so a future wiring slice refuses to feed a partial list to a real defragment.
+                // s2pf-17 (CAPSTONE): the STATIC data-path list is empty, so the ONLY reason this run is
+                // incomplete is the RUNTIME disasm re-report — EventCondForm (always) plus, on FE8, the four
+                // ScanScript-family forms. A disasm-wired run (every real rebuild) would have an empty
+                // NotYetPorted and IsComplete true. Every remaining entry MUST be a disasm-gated form (no
+                // stale static form).
                 Assert.False(result.IsComplete);
                 Assert.NotEmpty(result.NotYetPorted);
+                Assert.Contains("EventCondForm", result.NotYetPorted);
+                string[] disasmGated =
+                {
+                    "EventCondForm", "MonsterWMapProbabilityForm", "EventBattleTalkForm",
+                    "WorldMapEventPointerForm", "EventHaikuForm",
+                };
+                Assert.All(result.NotYetPorted, f => Assert.Contains(f, disasmGated));
                 Assert.False(result.Cancelled);
                 Assert.NotEmpty(result.List);
             }
             finally
             {
                 CoreState.ROM = savedRom;
+                CoreState.EventScript = savedEs;
             }
         }
 
@@ -3061,7 +3079,10 @@ namespace FEBuilderGBA.Core.Tests
                 {
                     RebuildProducerCore.ProducerResult res = RebuildProducerCore.MakeAllStructPointers(fe8);
                     Assert.NotNull(res);
-                    Assert.False(res.IsComplete); // image/anime/etc. forms still deferred
+                    // s2pf-17: the STATIC data-path list is empty; incomplete here ONLY because the
+                    // event-script disassembler is unwired on this synthetic ROM (EventCondForm re-reported).
+                    Assert.False(res.IsComplete);
+                    Assert.Contains("EventCondForm", res.NotYetPorted);
                 });
                 Assert.Null(ex);
             }
@@ -6522,9 +6543,11 @@ namespace FEBuilderGBA.Core.Tests
 
             // (AIScriptForm ported in slice 2s — see GetNotYetPortedForms_DropsSlice2sForms.)
             Assert.DoesNotContain("AIScriptForm", notYet);
-            // ProcsScriptForm itself STAYS — it is an ASM-path form (MakePatchStructDataList), out of
-            // scope for this data-path producer; only its CalcLengthAndCheck length helper is reused.
-            Assert.Contains("ProcsScriptForm", notYet);
+            // ProcsScriptForm is an ASM-path form (MakePatchStructDataList path), out of scope for this
+            // data-path producer; only its CalcLengthAndCheck length helper is reused HERE. s2pf-17
+            // (CAPSTONE) REMOVED it from the data-path array (it is covered by the ASM-path producer
+            // EmitProcsScript, slice 2x), so it is no longer in this data-path NotYetPorted list.
+            Assert.DoesNotContain("ProcsScriptForm", notYet);
             // (ItemForm ported in slice 2ad — StatBooster size via the new Core PatchDetection detectors.)
             Assert.DoesNotContain("ItemForm", notYet);
 
@@ -9591,9 +9614,11 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("ImagePortraitForm", notYet);
             Assert.DoesNotContain("ImagePortraitFE6Form", notYet);
 
-            // The ASM-path MapMiniMapTerrainImageForm (AppendAllASMStructPointersList, NOT this producer)
-            // STAYS deferred.
-            Assert.Contains("MapMiniMapTerrainImageForm", notYet);
+            // MapMiniMapTerrainImageForm is an ASM-path form (AppendAllASMStructPointersList, NOT this
+            // data-path producer). s2pf-17 (CAPSTONE) REMOVED it from the data-path array — it is covered
+            // by the ASM-path producer (EmitMapMiniMapTerrain, slice 2v), so it is no longer in this
+            // data-path NotYetPorted list.
+            Assert.DoesNotContain("MapMiniMapTerrainImageForm", notYet);
 
             // no-duplicates invariant still holds.
             string[] raw = RebuildProducerCore.GetNotYetPortedFormsRaw();
@@ -9682,10 +9707,13 @@ namespace FEBuilderGBA.Core.Tests
                 ROM vanilla = BuildWireVanilla();
                 var structList = BuildWireStructList();
 
-                // Data path complete, ASM path still defers PatchForm — the real current-master shape.
+                // Data path complete, ASM path SYNTHETICALLY incomplete. As of s2pf-17 the live ASM path
+                // is complete (the PatchForm token is removed), so this uses a generic placeholder form to
+                // drive the incomplete-ASM throw branch — the gate must still refuse ANY non-empty
+                // NotYetPorted, regardless of which form name it carries.
                 var data = new RebuildProducerCore.ProducerResult(structList, new string[0], cancelled: false);
                 var asm = new RebuildProducerCore.AsmProducerResult(
-                    new[] { "PatchForm(MakePatchStructDataList)" }, cancelled: false);
+                    new[] { "SomeDeferredAsmPathForm" }, cancelled: false);
 
                 using (var tmp = new WireTempDir())
                 {
@@ -9695,7 +9723,7 @@ namespace FEBuilderGBA.Core.Tests
                             data, asm, modified, vanilla, WIRE_REBUILD_ADDR, manifestPath));
 
                     // The message NAMES the deferred form so the caller can tell the user exactly what's pending.
-                    Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
+                    Assert.Contains("SomeDeferredAsmPathForm", ex.Message);
                     // GUARD: Make was NOT invoked — no manifest written.
                     Assert.False(System.IO.File.Exists(manifestPath),
                         "incomplete producer must NOT drive Make (no manifest)");
@@ -9793,9 +9821,9 @@ namespace FEBuilderGBA.Core.Tests
                 ROM vanilla = BuildWireVanilla();
                 var structList = BuildWireStructList();
 
-                // SYNTHETIC complete results (empty NotYetPorted) — the live producers cannot
-                // yield these while PatchForm stays deferred, so the seam is the only way to prove
-                // the Make-delegation path actually runs.
+                // Complete results (empty NotYetPorted). As of s2pf-17 the live producers CAN yield these
+                // (every form ported; the data path's only residual gate is the runtime EventCond disasm
+                // check), but the seam keeps the Make-delegation proof independent of a live ROM.
                 var data = new RebuildProducerCore.ProducerResult(structList, new string[0], cancelled: false);
                 var asm = new RebuildProducerCore.AsmProducerResult(new string[0], cancelled: false);
 
@@ -9821,22 +9849,31 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeWithProducer_PublicEntry_RealProducer_RefusesAndNamesPending_NoManifest()
+        public void MakeWithProducer_PublicEntry_RealProducer_DisasmUnwired_RefusesViaDisasmGate_NotToken()
         {
-            // Public-entry / current-master SMOKE: the real producer path (env-gated on a ROM)
-            // must REFUSE (the gate is closed while forms stay deferred) and name the pending forms,
-            // and must create no output. Skips cleanly when no ROM is present (CI / most worktrees).
+            // s2pf-17 (CAPSTONE) SMOKE on a real ROM: the PatchForm token is REMOVED, so the gate no longer
+            // refuses for that reason. Here CoreState.BaseDirectory is NOT set (the s2pf-12 backstop's patch
+            // scan finds nothing -> backstop passes) and CoreState.EventScript is NOT wired (the event-
+            // script disassembler is unavailable). The producers therefore re-report their disasm-gated
+            // forms at RUNTIME (data: EventCondForm; asm: EventScript(MakeEventASMMAPList)) and the
+            // IsComplete gate STILL refuses — but it names the DISASM forms, NOT the removed PatchForm
+            // token. (The gate-OPEN/PROCEED case is proven by the synthetic
+            // MakeWithProducer_BothComplete_DelegatesToMake_WritesManifest above; the empirical real-FE8U
+            // proceed-vs-over-refuse result is documented in the FEBuilderGBA.Tests WF-parity harness.)
+            // Skips cleanly when no ROM is present (CI / most worktrees).
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
 
             var savedRom = CoreState.ROM;
             var savedEnc = CoreState.SystemTextEncoder;
+            var savedEs = CoreState.EventScript;
             try
             {
                 var rom = new ROM();
                 if (!rom.Load(romPath, out string _)) return; // skip
                 CoreState.ROM = rom;
                 CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
 
                 ROM vanilla = BuildWireVanilla();
 
@@ -9848,16 +9885,22 @@ namespace FEBuilderGBA.Core.Tests
                             rom, vanilla, WIRE_REBUILD_ADDR, manifestPath,
                             isUseOtherGraphics: true, isUseOAMSP: false));
 
-                    // The ASM half always keeps PatchForm deferred, so the gate always names it.
-                    Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
+                    // The removed PatchForm token must NOT appear; the refusal is the disasm-gate reason.
+                    Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", ex.Message);
+                    Assert.True(
+                        ex.Message.Contains("EventScript(MakeEventASMMAPList)")
+                        || ex.Message.Contains("EventCondForm")
+                        || ex.Message.Contains("EA/BIN"), // (if BaseDirectory happens to resolve a patch tree)
+                        "expected the disasm-gate (or s2pf-12 backstop) reason in the refusal: " + ex.Message);
                     Assert.False(System.IO.File.Exists(manifestPath),
-                        "real (incomplete) producer must refuse — no manifest");
+                        "real (disasm-unwired) producer must refuse — no manifest");
                 }
             }
             finally
             {
                 CoreState.ROM = savedRom;
                 CoreState.SystemTextEncoder = savedEnc;
+                CoreState.EventScript = savedEs;
             }
         }
 
@@ -10293,11 +10336,15 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("UnitActionPointerForm", notYet);
 
             // slice 2ae ports EventUnitForm(RecycleReserveUnits) as a faithful headless NO-OP (NewAllocData
-            // is GUI session state, always empty on a loaded ROM) -> it is now GONE. This COMPLETES the
-            // data-path producer: the list keeps ONLY the ASM-path epic PatchForm(MakePatchStructDataList)
-            // (out of scope for the data-path producer, kept so the coverage gate stays honest).
+            // is GUI session state, always empty on a loaded ROM) -> it is now GONE. s2pf-17 (CAPSTONE)
+            // then REMOVED the last ASM-path cross-refs (PatchForm(MakePatchStructDataList) / ProcsScriptForm
+            // / the EventScript/Function/Command85/MapMiniMap forms) from THIS data-path array — they were
+            // never emitted by the data-path producer and are covered by the ASM-path producer. So the
+            // STATIC data-path NotYetPorted list is now EMPTY (the only residual coverage gate is the
+            // RUNTIME EventCondForm disasm re-report).
             Assert.DoesNotContain("EventUnitForm(RecycleReserveUnits)", notYet);
-            Assert.Contains("PatchForm(MakePatchStructDataList)", notYet);
+            Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", notYet);
+            Assert.Empty(notYet); // every data-path form ported; static list empty.
         }
 
         // Signatures duplicated locally for the slice-2ad EmitItem tests (kept in sync with

@@ -407,42 +407,59 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeWithProducer_NoEaBin_StillRefuses_OnIsCompleteGate_NamingPatchForm()
+        public void MakeWithProducer_NoEaBin_DisasmUnwired_RefusesOnDisasmGate_NotPatchFormToken()
         {
-            // With NO installed/unknown EA/BIN patch, the per-ROM backstop passes (false) — but the rebuild
-            // is STILL refused by the existing IsComplete gate, because the "PatchForm(MakePatchStructDataList)"
-            // token stays in AsmNotYetPortedRaw (gate-open is s2pf-17). Proves the backstop did NOT open the
-            // gate and the token-based refusal is intact.
+            // s2pf-17 (CAPSTONE): the "PatchForm(MakePatchStructDataList)" token is REMOVED (EA/BIN arms
+            // wired LIVE), so the IsComplete gate no longer refuses for that reason. With NO installed/
+            // unknown EA/BIN patch the per-ROM backstop passes (false). On this synthetic ROM the event-
+            // script disassembler is NOT wired (CoreState.EventScript == null), so BOTH producers re-report
+            // their disasm-gated forms at runtime (EventCondForm / EventScript(MakeEventASMMAPList)) and the
+            // IsComplete gate STILL refuses — but it now names the DISASM forms, NOT the PatchForm token.
             StageFe8uPatchDir(); // empty -> no installed/unknown EA/BIN -> backstop passes
             CoreState.BaseDirectory = _tempDir;
-            var fe8 = MakeVersionedRom("BE8E01");
-            CoreState.ROM = fe8;
+            var savedEs = CoreState.EventScript;
+            try
+            {
+                CoreState.EventScript = null; // disasm unwired -> EventCond/EventScript re-reported
+                var fe8 = MakeVersionedRom("BE8E01");
+                CoreState.ROM = fe8;
 
-            // Sanity: the per-ROM backstop is NOT the reason for the refusal here.
-            Assert.False(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
+                // Sanity: the per-ROM backstop is NOT the reason for the refusal here.
+                Assert.False(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
 
-            var vanilla = MakeVersionedRom("BE8E01");
-            string manifest = Path.Combine(_tempDir, "out.rebuild");
+                var vanilla = MakeVersionedRom("BE8E01");
+                string manifest = Path.Combine(_tempDir, "out.rebuild");
 
-            var ex = Assert.Throws<InvalidOperationException>(() =>
-                RebuildProducerCore.MakeWithProducer(
-                    fe8, vanilla, 0x800000u, manifest,
-                    isUseOtherGraphics: false, isUseOAMSP: false));
+                var ex = Assert.Throws<InvalidOperationException>(() =>
+                    RebuildProducerCore.MakeWithProducer(
+                        fe8, vanilla, 0x800000u, manifest,
+                        isUseOtherGraphics: false, isUseOAMSP: false));
 
-            // The IsComplete-gate refusal (not the backstop) — it names the still-deferred PatchForm form.
-            Assert.Contains("PatchForm(MakePatchStructDataList)", ex.Message);
-            Assert.Contains("not yet ported", ex.Message);
-            Assert.False(File.Exists(manifest));
+                // The IsComplete-gate refusal now names the runtime DISASM forms, NOT the removed token.
+                Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", ex.Message);
+                Assert.Contains("not yet ported", ex.Message);
+                Assert.True(
+                    ex.Message.Contains("EventScript(MakeEventASMMAPList)")
+                    || ex.Message.Contains("EventCondForm"),
+                    "expected the disasm-gate forms in the refusal message: " + ex.Message);
+                Assert.False(File.Exists(manifest));
+            }
+            finally
+            {
+                CoreState.EventScript = savedEs;
+            }
         }
 
         [Fact]
-        public void Token_StaysInAsmNotYetPorted()
+        public void Token_RemovedFromAsmNotYetPorted_GateOpened()
         {
-            // Belt-and-suspenders invariant: this slice does NOT open the gate. The
-            // "PatchForm(MakePatchStructDataList)" token MUST still be present so the IsComplete gate stays
-            // closed for the common case (gate-open is s2pf-17).
+            // s2pf-17 (CAPSTONE) OPENS the gate: the "PatchForm(MakePatchStructDataList)" token is REMOVED
+            // (the EA/BIN arms are wired LIVE), so the static ASM-path deferred list is empty and
+            // AsmProducerResult.IsComplete can flip true. The per-ROM s2pf-12 backstop remains the soundness
+            // net for an installed-but-unemittable EA/BIN patch (proven by the other tests in this file).
             string[] liveAsmNotYet = RebuildProducerCore.GetAsmNotYetPortedForms();
-            Assert.Contains("PatchForm(MakePatchStructDataList)", liveAsmNotYet);
+            Assert.DoesNotContain("PatchForm(MakePatchStructDataList)", liveAsmNotYet);
+            Assert.Empty(liveAsmNotYet);
         }
     }
 }

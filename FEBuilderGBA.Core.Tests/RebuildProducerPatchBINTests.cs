@@ -670,5 +670,47 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(payload.Length, mask.Length);
             Assert.All(mask, m => Assert.False(m));   // no LDR pointers in this payload at base 0.
         }
+
+        // ====================================================================
+        // s2pf-17 (CAPSTONE) — END-TO-END through the ORCHESTRATOR
+        // (MakePatchStructDataListCore), proving the EA/BIN wiring routes a real
+        // installed TYPE=BIN patch from the patch tree to EmitPatchBIN.
+        // ====================================================================
+
+        [Fact]
+        public void MakePatchStructDataListCore_InstalledBinPatch_RoutesToEmitPatchBIN_EmitsUnusedBin()
+        {
+            // s2pf-17: the orchestrator now dispatches TYPE=BIN -> EmitPatchBIN (WF PatchForm.cs:7153-7156).
+            // Stage a real installed TYPE=BIN patch (a CLEAR -> deterministic UNUSEDBIN entry, no file
+            // dependency) under config/patch2/FE8U, set BaseDirectory, and run the FULL orchestrator with
+            // the live rebuild flags (isInstallOnly=true). The wired BIN arm must emit the UNUSEDBIN entry.
+            var rom = MakeRom();                 // sets CoreState.ROM to a BE8E01 16 MiB ROM
+            string baseDir = NewTempDir();       // the directory that CONTAINS config/
+            string patchDir = Path.Combine(baseDir, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(patchDir);
+            uint addr = 0x800000;
+            uint len = 0x20;
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_BIN.txt"), new[]
+            {
+                "NAME=PatchBIN",
+                "TYPE=BIN",
+                // PATCHED_IF whose bytes MATCH the all-zero ROM at 0x1000 -> CheckIF=="I" (installed), so the
+                // isInstallOnly=true gate admits this non-STRUCT/IMAGE patch and it reaches the BIN arm.
+                "PATCHED_IF:0x001000=0x00 0x00",
+                // A CLEAR key -> EmitPatchBIN emits a deterministic UNUSEDBIN entry of the literal length.
+                "CLEAR:0x" + addr.ToString("X") + ":0x" + len.ToString("X") + "=x",
+            });
+
+            // BaseDirectory is the parent of config/ so ResolvePatchDirectory("FE8U") finds the tree.
+            CoreState.BaseDirectory = baseDir;
+
+            var list = new List<Address>();
+            RebuildProducerCore.MakePatchStructDataListCore(
+                rom, list, isPointerOnly: false, isInstallOnly: true, isStructOnly: false);
+
+            // The wired BIN arm emitted the CLEAR -> UNUSEDBIN entry (WF :6378-6387).
+            Assert.Contains(list, a => a.DataType == Address.DataTypeEnum.UNUSEDBIN
+                && a.Addr == addr && a.Length == len);
+        }
     }
 }
