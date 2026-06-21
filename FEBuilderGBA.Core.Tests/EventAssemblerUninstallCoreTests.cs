@@ -437,6 +437,89 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- Exposed EA walker byte-identity (#1261 s2pf-13) ----------------------
+        //
+        // s2pf-13 hoisted the inline DataList walk out of TraceEAFile into the now-exposed
+        // EventAssemblerUninstallCore.EmitEaDataList (internal static, ROM-explicit) so the
+        // rebuild-producer EA arm (s2pf-14) can reuse the SAME verified #1242 walker. This
+        // is a pure refactor — the test locks that the exposed walker, driven directly with
+        // an explicit ROM + freshly-parsed EAUtilCore, produces a BinMapping list BYTE-FOR-
+        // BYTE identical to what TraceEAFile produces internally. If a future edit diverges
+        // the two paths, this fails.
+        [Fact]
+        public void EmitEaDataList_MatchesTraceEAFile_BinMappings_ByteForByte()
+        {
+            var rom = CreateFE8Rom();
+            Assert.NotNull(rom);
+
+            // A multi-block EA exercising ORG (length-unknown 64-byte grab) + a BIN that
+            // GREP-matches a unique pattern we plant in the ROM. Both paths must build the
+            // same mappings from the same ROM bytes.
+            byte[] pattern = { 0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF };
+            const uint orgAddr = 0x800000;
+            const uint binAddr = 0x801000;
+            for (int i = 0; i < pattern.Length; i++)
+                rom.write_u8(binAddr + (uint)i, pattern[i]);
+
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-identity-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            File.WriteAllBytes(Path.Combine(eaDir, "blk.bin"), pattern);
+            string eaFile = Path.Combine(eaDir, "id.event");
+            File.WriteAllText(eaFile,
+                "ORG 0x" + orgAddr.ToString("X") + "\r\n" +
+                "#incbin \"blk.bin\" // HINT=BIN\r\n");
+            try
+            {
+                // Path A: the uninstall entry (delegates to EmitEaDataList internally).
+                var trace = EventAssemblerUninstallCore.TraceEAFile(eaFile);
+
+                // Path B: drive the exposed walker DIRECTLY, ROM-explicit.
+                var ea = new EAUtilCore(eaFile);
+                var direct = new List<EventAssemblerUninstallCore.BinMapping>();
+                var directUntraceable = new List<string>();
+                EventAssemblerUninstallCore.EmitEaDataList(rom, ea, direct, directUntraceable);
+
+                // Both produced the same number of mappings ...
+                Assert.Equal(trace.Mappings.Count, direct.Count);
+                Assert.True(direct.Count >= 1);
+
+                // ... and each mapping is byte-for-byte identical (addr/length/type/key/bin).
+                for (int i = 0; i < direct.Count; i++)
+                {
+                    var a = trace.Mappings[i];
+                    var b = direct[i];
+                    Assert.Equal(a.addr, b.addr);
+                    Assert.Equal(a.length, b.length);
+                    Assert.Equal(a.type, b.type);
+                    Assert.Equal(a.key, b.key);
+                    Assert.Equal(a.bin, b.bin); // exact byte content
+                }
+
+                // The BIN mapping matched the planted pattern address.
+                Assert.Contains(direct, m => m.addr == binAddr && m.key == "BIN");
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
+        // The pure mask helpers are exposed (internal static) for the producer EA arm and
+        // must keep producing the SAME masks — they carry no ROM state, so a direct call
+        // is the byte-identity lock. MakeLynMaskPattern masks all-zero 4-byte words;
+        // MakeFullMask is all-true.
+        [Fact]
+        public void ExposedMaskHelpers_ProduceExpectedMasks()
+        {
+            // Two 4-byte words: the first all-zero (lyn relocates → masked), the second not.
+            byte[] lynBin = { 0x00, 0x00, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78 };
+            bool[] lynMask = EventAssemblerUninstallCore.MakeLynMaskPattern(lynBin);
+            Assert.Equal(lynBin.Length, lynMask.Length);
+            Assert.True(lynMask[0] && lynMask[1] && lynMask[2] && lynMask[3]);   // zero word masked
+            Assert.True(!lynMask[4] && !lynMask[5] && !lynMask[6] && !lynMask[7]); // non-zero word kept
+
+            bool[] full = EventAssemblerUninstallCore.MakeFullMask(5);
+            Assert.Equal(5, full.Length);
+            Assert.All(full, m => Assert.True(m));
+        }
+
         // ---- EAUtilCore parser coverage (the extracted parse-only port) ----------
 
         [Fact]
