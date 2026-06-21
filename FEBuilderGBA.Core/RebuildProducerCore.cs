@@ -12542,6 +12542,112 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-2 of 11).
+        //
+        // The producer-side 4-arg address resolver + CalcAddrLength. These are
+        // the HELPERS the later ADDR/SWITCH/STRUCT/IMAGE TYPE-arm slices
+        // (s2pf-3..s2pf-8) call to turn a patch's ADDRESS/POINTER/DATACOUNT/COMBO
+        // params into ROM offsets and BIN lengths. This slice adds the helpers
+        // ONLY — it emits NO Address and is NOT wired into the live producer, so
+        // "PatchForm(MakePatchStructDataList)" STAYS in AsmNotYetPortedRaw.
+        //
+        // WF SOURCE: the per-TYPE handlers call the 4-arg
+        //   convertBinAddressString(addrstring, appnedSize, start_offset, basedir)
+        //   (FEBuilderGBA/PatchForm.cs:3000). Callsite (appnedSize, start_offset):
+        //     - ADDR    @:6226  -> (0, 0x100)
+        //     - SWITCH  @:6448  -> (8, 0)
+        //     - STRUCT  POINTER @:6469 / ADDRESS @:6487 -> (8, 0)
+        //     - STRUCT  DATACOUNT @:6505 -> (8, struct_address)   (end-delta scan)
+        //   The Core read-only resolver PatchMacroAddressResolverCore.Resolve
+        //   (#1027) is the faithful port of convertBinAddressString's macro family
+        //   but takes only (rom, addrstring, basedir, startOffset) — no appnedSize.
+        //   That is BYTE-FAITHFUL for every macro the producer needs because the
+        //   WF appnedSize argument is read in EXACTLY ONE place: the $FREEAREA
+        //   branch (PatchForm.cs:3027). See the carve-out note on ResolvePatchAddress.
+        // ====================================================================
+
+        /// <summary>
+        /// Producer-scoped 4-arg address resolver — the rebuild-time equivalent of
+        /// WinForms <c>PatchForm.convertBinAddressString(addrstring, appnedSize,
+        /// start_offset, basedir)</c> (FEBuilderGBA/PatchForm.cs:3000). Resolves a
+        /// patch ADDRESS/POINTER/DATACOUNT string (plain hex, <c>$0x</c> deref,
+        /// <c>$GREP</c>/<c>$XGREP</c>/<c>$FGREP</c> + align/skip, <c>$GREP_ENABLE_POINTER</c>,
+        /// <c>$P32</c>[+4], <c>$TEXTID</c>, <c>$TEXTID_P</c>) to a ROM offset by delegating
+        /// to the read-only Core port <see cref="PatchMacroAddressResolverCore.Resolve"/>,
+        /// threading <paramref name="rom"/> and <paramref name="startOffset"/>.
+        /// Returns <see cref="U.NOT_FOUND"/> on any failure (the caller's
+        /// <c>U.isSafetyOffset</c> gate then skips that patch entry — identical to WF).
+        ///
+        /// <para><b>FAITHFUL CARVE-OUT (NOT a shortcut):</b> the WF
+        /// <paramref name="appnedSize"/> argument is consumed in EXACTLY ONE branch of
+        /// convertBinAddressString — <c>$FREEAREA</c> (PatchForm.cs:3027): if
+        /// appnedSize==0 it returns 0 (an unsafe offset that fails isSafetyOffset), else
+        /// it calls <c>MoveToFreeSapceForm.SearchFreeSpaceOne</c> — the WF run-time
+        /// free-space ALLOCATOR. That is non-deterministic at rebuild time, and the
+        /// region it would allocate ALREADY EXISTS in the saved ROM (anchored by normal
+        /// pointers, found by the regular scan) so it is never freed. The Core resolver
+        /// therefore carves <c>$FREEAREA</c> out to <see cref="U.NOT_FOUND"/>
+        /// (PatchMacroAddressResolverCore.cs:72), which propagates here and makes the
+        /// caller skip that entry — IDENTICAL net behavior to WF (whose appnedSize==0
+        /// callsites also yield an unsafe offset there). For the same reason
+        /// <c>appnedSize</c> NEVER changes the resolved value of any OTHER macro, so this
+        /// wrapper accepts it for WF-call-signature fidelity (so s2pf-3..8 mirror the WF
+        /// callsites verbatim) but does not need to forward it.
+        /// <c>$EndWeaponDebuffTable3/4/5</c> are likewise carved to NOT_FOUND
+        /// (PatchMacroAddressResolverCore.cs:131): they are PatchUtil/Form-bound
+        /// weapon-debuff macros and never appear in a STRUCT/ADDR/SWITCH/IMAGE
+        /// ADDRESS/POINTER/DATACOUNT param.</para>
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="addrstring">The patch address string (plain hex or <c>$MACRO</c>).</param>
+        /// <param name="basedir">Patch-file directory, for <c>$FGREP</c> file lookups.</param>
+        /// <param name="appnedSize">WF <c>appnedSize</c> — accepted for callsite fidelity; only
+        /// the carved-out <c>$FREEAREA</c> branch ever read it, so it does not affect the result.</param>
+        /// <param name="startOffset">WF <c>start_offset</c> — the GREP scan start
+        /// (ADDR=0x100, SWITCH/STRUCT addr/ptr=0, STRUCT DATACOUNT=struct_address).</param>
+        /// <returns>ROM offset, or <see cref="U.NOT_FOUND"/> on any failure / carve-out.</returns>
+        public static uint ResolvePatchAddress(ROM rom, string addrstring, string basedir, uint appnedSize, uint startOffset)
+        {
+            // appnedSize is intentionally unreferenced beyond the contract above: the only
+            // WF branch that read it ($FREEAREA) is carved to NOT_FOUND in the Core resolver,
+            // so forwarding it would change nothing. Keep the param for WF-callsite fidelity.
+            _ = appnedSize;
+            return PatchMacroAddressResolverCore.Resolve(rom, addrstring, basedir, startOffset);
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.CalcAddrLength</c>
+        /// (FEBuilderGBA/PatchForm.cs:6197). PURE parse of a patch's <c>COMBO</c> param —
+        /// no ROM read. The BIN byte length of an ADDR/SWITCH entry is the number of
+        /// space-separated tokens in the SECOND <c>|</c>-section of COMBO; absent/short
+        /// COMBO yields length 1. Used by the ADDR/SWITCH TYPE arms (s2pf-3/s2pf-6) to
+        /// size each emitted BIN/MIX Address.
+        /// </summary>
+        /// <param name="patch">The patch whose <c>Param["COMBO"]</c> is parsed.</param>
+        /// <returns>The token count of <c>COMBO</c>'s second <c>|</c>-section, else 1.</returns>
+        public static uint CalcAddrLength(PatchInstallCore.PatchSt patch)
+        {
+            // Public helper: guard like the other public Core helpers, rather than NRE on a
+            // null patch / uninitialized Param. WF reads st.Param via U.at, which on a real
+            // LoadPatch result is always non-null.
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            string combo = U.at(patch.Param, "COMBO");
+            if (combo == "")
+            {
+                return 1;
+            }
+            string[] sp = combo.Split('|');
+            if (sp.Length < 2)
+            {
+                return 1;
+            }
+            string[] bytesSP = sp[1].Split(' ');
+            return (uint)bytesSP.Length;
+        }
+
+        // ====================================================================
         // slice 2z-wire (#1261) — drive RebuildMakeCore.Make from the producers,
         // GATED on IsComplete.
         //
