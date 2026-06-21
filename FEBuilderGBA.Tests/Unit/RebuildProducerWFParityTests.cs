@@ -371,6 +371,137 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        /// <summary>
+        /// PARTIAL WF-parity for #1261 slice s2pf-4 — the PatchForm producer TYPE=IMAGE dispatch arm
+        /// (<see cref="RebuildProducerCore.EmitPatchImage"/>, 6 of 8 variants). Both the WinForms
+        /// reference (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForIMAGE</c>,
+        /// PatchForm.cs:6738) and the Core orchestrator (<see cref="RebuildProducerCore.MakePatchStructDataListCore"/>)
+        /// run on the SAME real FE8U ROM with the SAME rebuild flags (the <c>ToolROMRebuildMake.Make</c>
+        /// callsite). Each side is FILTERED to the IMAGE arm's six ported variants — which surface as
+        /// EIGHT Info suffixes because the PALETTE variant emits under two param keys (<c>@PALETTE_POINTER</c>
+        /// for the deref form and <c>@PALETTE_ADDRESS</c> for the direct-address else-fallback), and ZIMAGE
+        /// covers both <c>@ZIMAGE_POINTER</c> and the <c>@Z256IMAGE_POINTER</c> alias (Info ends
+        /// <c>@IMAGE_POINTER</c> / <c>@ZIMAGE_POINTER</c> / <c>@Z256IMAGE_POINTER</c> / <c>@TSA_POINTER</c> /
+        /// <c>@ZTSA_POINTER</c> / <c>@ZHEADERTSA_POINTER</c> / <c>@PALETTE_POINTER</c> / <c>@PALETTE_ADDRESS</c>) —
+        /// then compared as Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType) — Info/name
+        /// is cosmetic (Core's leaner LoadPatch omits the patch Name, so its Info is just "@VARIANT"; WF
+        /// prepends the patch name). A Core-extra (Core emits an IMAGE entry WF does not) is a faithfulness
+        /// regression and FAILS.
+        /// <para><b>HEADERTSA_POINTER EXCLUDED (deferred to s2pf-7).</b> The NON-Z header-TSA variant
+        /// (<c>@HEADERTSA_POINTER</c>, WF <c>AddHeaderTSAPointer</c> -&gt; <c>DataTypeEnum.HEADERTSA</c>) needs
+        /// <c>CalcByteLengthForHeaderTSAData</c> (slice s2pf-7) and is NOT ported here. WF emits it; Core does
+        /// not — so it is filtered OUT of BOTH sides (by both its name AND the HEADERTSA data type) before the
+        /// comparison. The remaining six variants are asserted Core ⊆ WF. WF-extras among the SIX (an IMAGE
+        /// entry WF emits that Core lacks) are tolerated only if Core's gate legitimately diverges — but the
+        /// gate + resolver are faithful ports, so they are LOGGED (not asserted) exactly as the
+        /// subset-direction harness does, keeping the teeth on the regression direction (Core-extra).</para>
+        /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / the worktree,
+        /// present in the user's main checkout). When no ROM is found the test returns early (Pass).</para>
+        /// <para><b>NON-VACUOUS only where <c>config/patch2</c> is CHECKED OUT</b> (same posture as the
+        /// ADDR/SWITCH harness): an un-init submodule yields no IMAGE patch files, so both filtered lists are
+        /// empty and Core ⊆ WF holds trivially. The branch-level verification (all six variants, the /2-vs-/32
+        /// raw sizes, the palette count, the LZ77 lengths, the per-variant safety gates, the HEADERTSA
+        /// deferral) is carried by the synthetic Core.Tests (<c>RebuildProducerPatchImageTests</c>).</para>
+        /// </summary>
+        [Fact]
+        public void CorePatchImageArm_IsSubsetOf_WinFormsPatchProducer_ExcludingHeaderTsa()
+        {
+            string? repoRoot = FindRepoRootWithRom();
+            if (repoRoot == null) return; // no checkout with roms/FE8U.gba reachable — early-exit (Pass)
+            string romPath = Path.Combine(repoRoot, "roms", "FE8U.gba");
+            if (!File.Exists(romPath)) return; // no ROM (gitignored, absent in CI) — early-exit (Pass)
+
+            string savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = repoRoot;
+                ForceCommandLineMode();
+                BootstrapWinFormsProgram(repoRoot);
+
+                bool loaded = Program.LoadROM(romPath, "");
+                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
+                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
+
+                PatchForm.ClearCheckIF();
+
+                // ---- WinForms reference: the public patch producer, same flags as the rebuild ----
+                var wfAll = new List<Address>();
+                PatchForm.MakePatchStructDataList(wfAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // ---- Core: the orchestrator, same flags + the SAME ROM ----
+                var coreAll = new List<Address>();
+                RebuildProducerCore.MakePatchStructDataListCore(Program.ROM, coreAll,
+                    isPointerOnly: IS_PATCH_POINTER_ONLY,
+                    isInstallOnly: IS_PATCH_INSTALL_ONLY,
+                    isStructOnly: IS_PATCH_STRUCT_ONLY);
+
+                // The six PORTED IMAGE variant param-key suffixes (HEADERTSA_POINTER deliberately ABSENT).
+                string[] portedSuffixes =
+                {
+                    "@IMAGE_POINTER", "@ZIMAGE_POINTER", "@Z256IMAGE_POINTER",
+                    "@TSA_POINTER", "@ZTSA_POINTER", "@ZHEADERTSA_POINTER",
+                    "@PALETTE_POINTER", "@PALETTE_ADDRESS",
+                };
+
+                // An IMAGE arm entry for one of the SIX ported variants. EXCLUDES the deferred
+                // HEADERTSA_POINTER both by name (@HEADERTSA_POINTER) AND by its HEADERTSA data type
+                // (defence in depth: WF's AddHeaderTSAPointer always tags DataTypeEnum.HEADERTSA).
+                bool IsPortedImageEntry(Address a)
+                {
+                    if (a.Info == null) return false;
+                    if (a.DataType == Address.DataTypeEnum.HEADERTSA) return false; // deferred variant
+                    if (a.Info.EndsWith("@HEADERTSA_POINTER", StringComparison.Ordinal)) return false;
+                    foreach (string s in portedSuffixes)
+                    {
+                        if (a.Info.EndsWith(s, StringComparison.Ordinal)) return true;
+                    }
+                    return false;
+                }
+
+                var wfImg = wfAll.Where(IsPortedImageEntry).ToList();
+                var coreImg = coreAll.Where(IsPortedImageEntry).ToList();
+
+                var wfKeys = new HashSet<Key>(wfImg.Select(Key.Of));
+                var coreKeys = new HashSet<Key>(coreImg.Select(Key.Of));
+
+                // Core-extras = Core emits a (ported) IMAGE key WF does not. ALWAYS a faithfulness
+                // regression -> FAIL. WF-extras (WF emits a ported-IMAGE key Core lacks) are logged but
+                // not asserted (subset direction), mirroring the data-path harness — the deferred
+                // HEADERTSA is already excluded, so a WF-extra among the six would signal a gate divergence
+                // worth surfacing, not a silent-drop the way ADDR/SWITCH's exact-equality catches it. Core
+                // ⊆ WF is the load-bearing guarantee for this 6-of-8 slice.
+                var coreExtras = coreImg.Where(a => !wfKeys.Contains(Key.Of(a)))
+                                        .Select(Key.Of).Distinct().ToList();
+                int wfExtraCount = wfKeys.Count(k => !coreKeys.Contains(k));
+
+                if (coreExtras.Count > 0)
+                {
+                    const int N = 30;
+                    string dump = string.Join("\n", coreExtras.Take(N).Select(k =>
+                        $"  Addr=0x{k.Addr:X} Len=0x{k.Length:X} Ptr=0x{k.Pointer:X} Type={k.Type}"));
+                    Assert.Fail(
+                        $"Core PatchForm IMAGE arm emitted {coreExtras.Count} (ported-variant) entr"
+                        + (coreExtras.Count == 1 ? "y" : "ies")
+                        + " NOT present in the WinForms patch producer (faithfulness regression).\n"
+                        + $"WF ported-IMAGE total={wfImg.Count}, Core total={coreImg.Count}, "
+                        + $"WF-only (gate divergence?)={wfExtraCount}.\n"
+                        + $"First {Math.Min(N, coreExtras.Count)} Core-only entries:\n{dump}");
+                }
+
+                // PROVEN: every Core IMAGE entry (of the six ported variants) is byte-identical to a WF
+                // entry on (Addr/Length/Pointer/DataType) — no faithfulness regression — with the deferred
+                // HEADERTSA_POINTER excluded from both sides (or both empty when config/patch2 is absent).
+                Assert.Empty(coreExtras);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
         // ----------------------------------------------------------------
         readonly struct Key : IEquatable<Key>
         {

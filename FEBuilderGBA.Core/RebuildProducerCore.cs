@@ -12510,7 +12510,8 @@ namespace FEBuilderGBA
                 }
                 else if (type == "IMAGE")
                 {
-                    // s2pf-8: TYPE=IMAGE handler (WF MakePatchStructDataListForIMAGE @:6738). STUB.
+                    // s2pf-4: TYPE=IMAGE handler (WF MakePatchStructDataListForIMAGE @:6738).
+                    EmitPatchImage(rom, list, patch, isPointerOnly);
                 }
 
                 // WF: if (InputFormRef.DoEvents(null,"Check Patch "+patch.Name)) return;
@@ -12719,6 +12720,235 @@ namespace FEBuilderGBA
                 {
                     Address.AddAddress(list, a, length, U.NOT_FOUND, patch.Name + "@SWITCH", Address.DataTypeEnum.MIX);
                 }
+            }
+        }
+
+        // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-4 of 11).
+        //
+        // The TYPE=IMAGE terminal arm. Faithful Core port of WinForms
+        // PatchForm.MakePatchStructDataListForIMAGE (FEBuilderGBA/PatchForm.cs:6738).
+        // A TYPE=IMAGE patch lists one or more image-component pointers
+        // (IMAGE_POINTER / ZIMAGE_POINTER / Z256IMAGE_POINTER / TSA_POINTER /
+        // ZTSA_POINTER / [Z]HEADERTSA_POINTER / PALETTE_POINTER|PALETTE_ADDRESS);
+        // each safe one emits a single Address sized by PatchImageVariantLength
+        // and typed per WF (IMG / LZ77IMG / TSA / LZ77TSA / PAL). The WIDTH/HEIGHT
+        // (default "8") feed the raw 4bpp/TSA sizes; PALETTE (default "1") the count.
+        //
+        // DEFERRED (this slice ports 6 of the 8 variants — 6/8):
+        //   - HEADERTSA_POINTER (the NON-Z header-TSA variant, WF :6798): its length
+        //     needs CalcByteLengthForHeaderTSAData (slice s2pf-7), so it is LEFT
+        //     UNHANDLED here (NOT emitted with a wrong/zero length). See the
+        //     `// s2pf-7: HEADERTSA_POINTER` marker below.
+        //
+        // The length math is factored into PatchImageVariantLength so the s2pf-5
+        // STRUCT `PatchImage_*` per-entry arms (WF :6563-6642) reuse the EXACT same
+        // calc. NO Program.ROM / CoreState.ROM read — `rom` is threaded explicitly.
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePatchStructDataListForIMAGE</c>
+        /// (FEBuilderGBA/PatchForm.cs:6738). Resolves each image-component pointer param via
+        /// <see cref="ResolvePatchAddress"/> (WF <c>atOffset(.., basedir)</c> =
+        /// <c>convertBinAddressString(v, 0, 0x100, basedir)</c>), dereferences the pointer
+        /// (<c>rom.u32</c>), and — when both the pointer slot and the target are safe — emits one
+        /// <see cref="Address"/> whose length is <see cref="PatchImageVariantLength"/> and whose
+        /// <see cref="Address.DataTypeEnum"/> matches the variant (IMG / LZ77IMG / TSA / LZ77TSA / PAL).
+        /// WIDTH/HEIGHT default "8" (4bpp = w*h/2, TSA = w*h/32); PALETTE count defaults "1" (count*0x20).
+        /// LZ77 lengths come from EOF-safe <see cref="LZ77.getCompressedSize(byte[],uint)"/>.
+        /// <para><b>6 of 8 variants ported.</b> <c>HEADERTSA_POINTER</c> (the non-Z header-TSA, WF :6798)
+        /// is DEFERRED to s2pf-7 (needs <c>CalcByteLengthForHeaderTSAData</c>) and is intentionally NOT
+        /// emitted here. The two header-TSA pointer FIELDS otherwise tracked by WF's
+        /// <c>AddHeaderTSAPointer</c> are out of this slice's scope.</para>
+        /// </summary>
+        /// <param name="rom">ROM to resolve against — passed explicitly (NEVER CoreState.ROM / Program.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to).</param>
+        /// <param name="patch">The TYPE=IMAGE patch whose pointer params drive emission.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — accepted for callsite fidelity. Unlike
+        /// ADDR/SWITCH, the WF IMAGE arm does NOT branch on it (every variant always computes a real
+        /// length), so it is unreferenced here; kept for a uniform TYPE-arm signature.</param>
+        public static void EmitPatchImage(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch, bool isPointerOnly)
+        {
+            // Public-helper guards (consistent with EmitPatchAddr / EmitPatchSwitch): throw a clear
+            // ArgumentNullException rather than an unhelpful NRE. The orchestrator always passes a
+            // valid rom/list and a LoadPatch result whose Param is non-null.
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            // WF: string basedir = Path.GetDirectoryName(patch.PatchFileName);
+            // Normalize null -> "" (a PatchFileName with no directory part) so the resolver never
+            // receives a null basedir. WF's ResolvePatchAddress/Resolve treats null/"" identically.
+            string basedir = System.IO.Path.GetDirectoryName(patch.PatchFileName) ?? "";
+
+            // WF: uint width = atOffset(patch.Param, "WIDTH", "8");  height likewise.
+            // atOffset(dic, key, def, basedir) = convertBinAddressString(U.at(dic,key,def), 0, 0x100, basedir)
+            //   -> ResolvePatchAddress(rom, U.at(..), 0, 0x100, basedir). A plain "8" parses to 8.
+            uint width = ResolvePatchAddress(rom, U.at(patch.Param, "WIDTH", "8"), 0, 0x100, basedir);
+            uint height = ResolvePatchAddress(rom, U.at(patch.Param, "HEIGHT", "8"), 0, 0x100, basedir);
+            uint paletteCount = ResolvePatchAddress(rom, U.at(patch.Param, "PALETTE", "1"), 0, 0x100, basedir);
+
+            // ---- IMAGE_POINTER (WF :6744) -> w*h/2, IMG -----------------------
+            // WF guards `p > 0 && U.isSafetyOffset(p)` for the IMAGE/ZIMAGE/Z256IMAGE pointer slots
+            // (the TSA/HEADERTSA/PALETTE slots use only `U.isSafetyOffset(p)`); reproduced verbatim.
+            EmitPatchImageVariant(rom, list, patch, basedir, "IMAGE_POINTER", "IMAGE", true,
+                width, height, paletteCount, Address.DataTypeEnum.IMG);
+
+            // ---- ZIMAGE_POINTER (WF :6754) -> LZ77 length, LZ77IMG ------------
+            EmitPatchImageVariant(rom, list, patch, basedir, "ZIMAGE_POINTER", "ZIMAGE", true,
+                width, height, paletteCount, Address.DataTypeEnum.LZ77IMG);
+
+            // ---- Z256IMAGE_POINTER (WF :6765) -> LZ77 length, LZ77IMG ---------
+            EmitPatchImageVariant(rom, list, patch, basedir, "Z256IMAGE_POINTER", "Z256IMAGE", true,
+                width, height, paletteCount, Address.DataTypeEnum.LZ77IMG);
+
+            // ---- TSA_POINTER (WF :6777) -> w*h/32, TSA ------------------------
+            EmitPatchImageVariant(rom, list, patch, basedir, "TSA_POINTER", "TSA", false,
+                width, height, paletteCount, Address.DataTypeEnum.TSA);
+
+            // ---- ZTSA_POINTER (WF :6787) -> LZ77 length, LZ77TSA -------------
+            EmitPatchImageVariant(rom, list, patch, basedir, "ZTSA_POINTER", "ZTSA", false,
+                width, height, paletteCount, Address.DataTypeEnum.LZ77TSA);
+
+            // ---- HEADERTSA_POINTER (WF :6798) -> DEFERRED to s2pf-7 ----------
+            // s2pf-7: HEADERTSA_POINTER. The non-Z header-TSA variant's length needs
+            // CalcByteLengthForHeaderTSAData (WF AddHeaderTSAPointer -> ImageUtil), which is slice
+            // s2pf-7. NOT emitted here (emitting a wrong/zero length would mis-size or orphan the
+            // header-TSA region during a rebuild). Left intentionally unhandled.
+
+            // ---- ZHEADERTSA_POINTER (WF :6807) -> LZ77 length, LZ77TSA ------
+            // NOTE: this is the COMPRESSED header-TSA variant; its length IS a plain LZ77
+            // getCompressedSize (no header-TSA byte-length calc needed), so it IS ported here.
+            EmitPatchImageVariant(rom, list, patch, basedir, "ZHEADERTSA_POINTER", "ZHEADERTSA", false,
+                width, height, paletteCount, Address.DataTypeEnum.LZ77TSA);
+
+            // ---- PALETTE_POINTER (WF :6819) / PALETTE_ADDRESS (WF :6832) -----
+            // WF: if PALETTE_POINTER resolves to a SAFE offset, deref it (pointer form, count*0x20 PAL);
+            // ELSE fall back to PALETTE_ADDRESS as a DIRECT address (no deref, pointer slot NOT_FOUND).
+            // The else-branch fires only when PALETTE_POINTER is absent/unsafe — reproduced verbatim.
+            uint pPalette = ResolvePatchAddress(rom, U.at(patch.Param, "PALETTE_POINTER", "0"), 0, 0x100, basedir);
+            if (U.isSafetyOffset(pPalette, rom))
+            {
+                // Guard the FULL 4-byte slot before rom.u32 (isSafetyOffset(pPalette) leaves pPalette+1..+3
+                // unchecked; rom.u32 throws when pPalette is within the last 3 bytes — WF's verbatim
+                // `Program.ROM.u32(pPalette)` after `isSafetyOffset(pPalette)` would throw there too). NOTE:
+                // the guard is INSIDE the WF `if (isSafetyOffset(pPalette))` BRANCH (skips only the deref) —
+                // NOT folded into the `if` condition, which would mis-route a near-EOF pPalette to the
+                // PALETTE_ADDRESS else-branch and diverge from WF's branch selection. On valid ROMs the
+                // pointer slot is never near EOF; this only hardens synthetic/corrupted ROMs (#1314 review).
+                if (!U.isSafetyOffset(pPalette + 3, rom))
+                {
+                    return;
+                }
+                uint a = rom.u32(pPalette);
+                if (U.isSafetyPointer(a, rom))
+                {
+                    a = U.toOffset(a);
+                    uint len = PatchImageVariantLength(rom, "PALETTE", a, width, height, paletteCount);
+                    Address.AddAddress(list, a, len, pPalette, patch.Name + "@PALETTE_POINTER",
+                        Address.DataTypeEnum.PAL);
+                }
+            }
+            else
+            {
+                uint a = ResolvePatchAddress(rom, U.at(patch.Param, "PALETTE_ADDRESS", "0"), 0, 0x100, basedir);
+                if (U.isSafetyOffset(a, rom))
+                {
+                    uint len = PatchImageVariantLength(rom, "PALETTE", a, width, height, paletteCount);
+                    Address.AddAddress(list, a, len, U.NOT_FOUND, patch.Name + "@PALETTE_ADDRESS",
+                        Address.DataTypeEnum.PAL);
+                }
+            }
+        }
+
+        /// <summary>
+        /// One pointer-deref IMAGE variant (WF :6744-6817 share this shape). Resolves the
+        /// <paramref name="paramKey"/> pointer slot via <see cref="ResolvePatchAddress"/>, applies the
+        /// WF safety gate (<c>requirePositive</c> adds the <c>p &gt; 0</c> check the IMAGE/ZIMAGE/Z256IMAGE
+        /// slots carry but the TSA/ZTSA/ZHEADERTSA slots do not), dereferences (<c>rom.u32</c>), and on a
+        /// safe pointer emits one <see cref="Address"/> sized by <see cref="PatchImageVariantLength"/>
+        /// (variant <paramref name="variantKey"/>) and typed <paramref name="type"/>, named
+        /// <c>Name@paramKey</c> — byte-faithful to the WF <c>Address.AddAddress</c> call.
+        /// </summary>
+        static void EmitPatchImageVariant(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch,
+            string basedir, string paramKey, string variantKey, bool requirePositive,
+            uint width, uint height, uint paletteCount, Address.DataTypeEnum type)
+        {
+            uint p = ResolvePatchAddress(rom, U.at(patch.Param, paramKey, "0"), 0, 0x100, basedir);
+            // WF IMAGE/ZIMAGE/Z256IMAGE: `if (p > 0 && U.isSafetyOffset(p))`.
+            // WF TSA/ZTSA/ZHEADERTSA:    `if (U.isSafetyOffset(p))`.
+            if (requirePositive && p == 0)
+            {
+                return;
+            }
+            // Guard the FULL 4-byte pointer slot before rom.u32: U.isSafetyOffset(p, rom) alone leaves
+            // p+1..p+3 unchecked, and rom.u32's check_safety THROWS when p is within the last 3 bytes of
+            // the ROM (WF's verbatim `Program.ROM.u32(p)` after `isSafetyOffset(p)` would throw there too).
+            // On valid ROMs the pointer slots are never near EOF, so this only hardens synthetic/corrupted
+            // ROMs to skip gracefully — matching the Core-wide slot+3 convention (Copilot PR #1314 review).
+            if (!U.isSafetyOffset(p, rom) || !U.isSafetyOffset(p + 3, rom))
+            {
+                return;
+            }
+            uint a = rom.u32(p);
+            if (!U.isSafetyPointer(a, rom))
+            {
+                return;
+            }
+            a = U.toOffset(a);
+            uint len = PatchImageVariantLength(rom, variantKey, a, width, height, paletteCount);
+            Address.AddAddress(list, a, len, p, patch.Name + "@" + paramKey, type);
+        }
+
+        /// <summary>
+        /// The reusable IMAGE per-variant length math, factored out of <see cref="EmitPatchImage"/>
+        /// (WF :6738) so the slice s2pf-5 STRUCT <c>PatchImage_*</c> per-entry arms (WF :6563-6642)
+        /// reuse the EXACT same calc. <paramref name="variantKey"/> selects the formula:
+        /// <list type="bullet">
+        ///   <item><c>IMAGE</c> -&gt; <c>width*height/2</c> (4bpp raw image).</item>
+        ///   <item><c>TSA</c> -&gt; <c>width*height/32</c> (raw TSA).</item>
+        ///   <item><c>ZIMAGE</c> / <c>Z256IMAGE</c> / <c>ZTSA</c> / <c>ZHEADERTSA</c> -&gt;
+        ///         <c>LZ77.getCompressedSize(rom.Data, addr)</c> (EOF-safe; 0 on a malformed/near-EOF
+        ///         stream — never throws, never reads past EOF).</item>
+        ///   <item><c>PALETTE</c> -&gt; <c>paletteCount*0x20</c> (count 16-color palettes).</item>
+        /// </list>
+        /// <paramref name="addr"/> is the already-dereferenced, <c>toOffset</c>'d target (only the LZ77
+        /// variants read it). The raw IMG/TSA sizes use only <paramref name="width"/>/<paramref name="height"/>;
+        /// PALETTE uses only <paramref name="paletteCount"/>.
+        /// <para>Must stay byte-faithful to WF: <c>w*h/2</c> (IMG) vs <c>w*h/32</c> (TSA) must not be
+        /// swapped, and the PALETTE default count is 1 (an off-by-one here would corrupt the palette plus
+        /// the following data on a rebuild).</para>
+        /// </summary>
+        /// <param name="rom">ROM whose <c>Data</c> the LZ77 variants scan — passed explicitly.</param>
+        /// <param name="variantKey">One of IMAGE / TSA / ZIMAGE / Z256IMAGE / ZTSA / ZHEADERTSA / PALETTE.</param>
+        /// <param name="addr">The dereferenced target offset (read only by the LZ77 variants).</param>
+        /// <param name="width">Image width in pixels (IMG/TSA only).</param>
+        /// <param name="height">Image height in pixels (IMG/TSA only).</param>
+        /// <param name="paletteCount">16-color palette count (PALETTE only).</param>
+        /// <returns>The variant's byte length (EOF-safe 0 for a malformed LZ77 stream).</returns>
+        public static uint PatchImageVariantLength(ROM rom, string variantKey, uint addr,
+            uint width, uint height, uint paletteCount)
+        {
+            switch (variantKey)
+            {
+                case "IMAGE":
+                    return width * height / 2;          // WF :6751 — 4bpp raw image.
+                case "TSA":
+                    return width * height / 32;         // WF :6784 — raw TSA.
+                case "ZIMAGE":
+                case "Z256IMAGE":
+                case "ZTSA":
+                case "ZHEADERTSA":
+                    // WF :6761/6772/6794/6814 — EOF-safe LZ77 compressed length.
+                    return LZ77.getCompressedSize(rom.Data, addr);
+                case "PALETTE":
+                    return paletteCount * 0x20;          // WF :6826/6835 — count*0x20 PAL bytes.
+                default:
+                    // A new/bad variant key is a programming error — fail loudly rather than emit a
+                    // silent 0-length block (which would orphan the image region on a rebuild).
+                    throw new ArgumentOutOfRangeException(nameof(variantKey), variantKey,
+                        "Unknown PatchImage variant key.");
             }
         }
 
