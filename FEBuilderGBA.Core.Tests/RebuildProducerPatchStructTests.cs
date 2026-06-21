@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for RebuildProducerCore slice s2pf-5 (#1261) — the TYPE=STRUCT terminal
 // PatchForm producer arm (option-B epic, sub-slice 5 of 11):
 //   RebuildProducerCore.EmitPatchStruct = WF PatchForm.MakePatchStructDataListForSTRUCT @:6461
@@ -594,17 +594,15 @@ namespace FEBuilderGBA.Core.Tests
         // NOTE: EVENT was REMOVED from this interim group in s2pf-6 (it runs the real
         // EventScriptForm.ScanScript walk — see EmitPatchStruct_EventArm_*),
         // PatchImage_HEADERTSA in s2pf-7 (it runs EmitHeaderTsaPointer — see
-        // EmitPatchStruct_HeaderTsaField_* below), and AP/ROMTCS/PROCS in s2pf-8 (they run
+        // EmitPatchStruct_HeaderTsaField_* below), AP/ROMTCS/PROCS in s2pf-8 (they run
         // EmitApPointer/EmitRomTcsPointer/EmitProcsPointer — see EmitPatchStruct_ApField_* /
-        // _RomTcsField_* / _ProcsField_* below).
+        // _RomTcsField_* / _ProcsField_* below), and the SIX deterministic STRUCT forms
+        // (VENNOUWEAPONLOCK/AOERANGEPOINTER/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
+        // BATTLEBGLISTPOINTER) in s2pf-9 (they run the precise length-walks — see
+        // EmitPatchStruct_VennouWeaponLockField_* etc. below). Only BATTLEANIMEPOINTER (s2pf-10)
+        // remains interim default-MIX.
         [Theory]
-        [InlineData("VENNOUWEAPONLOCK")]          // -> s2pf-9
-        [InlineData("AOERANGEPOINTER")]           // -> s2pf-9
-        [InlineData("SMEPROMOLIST")]              // -> s2pf-9
-        [InlineData("CLASSLIST")]                 // -> s2pf-9
-        [InlineData("TERRAINBATTLELISTPOINTER")]  // -> s2pf-9
-        [InlineData("BATTLEBGLISTPOINTER")]       // -> s2pf-9
-        [InlineData("BATTLEANIMEPOINTER")]        // -> s2pf-10
+        [InlineData("BATTLEANIMEPOINTER")]        // -> s2pf-10 (the LAST interim form-bound arm)
         public void EmitPatchStruct_FormBoundArm_IsInterimDefaultMix(string fieldType)
         {
             var rom = MakeRom();
@@ -778,6 +776,252 @@ namespace FEBuilderGBA.Core.Tests
             var list = new List<Address>();
             Exception ex = Record.Exception(() =>
                 RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("EOF",
+                    ("TYPE", "STRUCT"), ("ADDRESS", "0x" + near.ToString("X")),
+                    ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                    ("P0:" + fieldType, "0")), isPointerOnly: false));
+            Assert.Null(ex);
+        }
+
+        // ====================================================================
+        // 4a2. The SIX deterministic STRUCT form-arms (s2pf-9) — the REAL
+        //      length-walks. WF PatchForm.cs arms 6693/6722/6698/6703/6708/6713 ->
+        //      VennouWeaponLockForm / AOERANGEForm / SMEPromoListForm /
+        //      SomeClassListForm / MapTerrainFloorLookupTableForm /
+        //      MapTerrainBGLookupTableForm .MakeDataLength, reproduced via the Core
+        //      EmitVennouWeaponLockPointer / EmitAoeRangePointer / EmitSmePromoListPointer /
+        //      EmitSomeClassListPointer / EmitMapTerrainLookupPointer. Each derefs the
+        //      slot and emits the precise target length (0x00-terminator BIN / 4+w*h BIN /
+        //      block-2 u16!=0 IFR / block-1 u8!=0 IFR / fixed map_terrain_type_count IFR).
+        // ====================================================================
+
+        [Fact]
+        public void EmitPatchStruct_VennouWeaponLockField_EmitsBinTerminatorLength()
+        {
+            // WF VennouWeaponLockForm.MakeDataLength -> CalcLength: deref u32(p), scan from start+1
+            // to the first 0x00, length = end - start, type BIN. Plant a 5-byte list [01 02 03 04 05]
+            // followed by 0x00 at +5 -> the scan (start at +1) finds 0x00 at +5 -> length = 5.
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u8(target + 0, 0x01);
+            rom.write_u8(target + 1, 0x02);
+            rom.write_u8(target + 2, 0x03);
+            rom.write_u8(target + 3, 0x04);
+            rom.write_u8(target + 4, 0x05);
+            rom.write_u8(target + 5, 0x00); // terminator
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("VWL",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:VENNOUWEAPONLOCK", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(5u, a.Length); // end(0x8005) - start(0x8000)
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.EndsWith("DATA 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_VennouWeaponLockField_TerminatorAtStart_IsConsumedAsData_LengthAtLeastOne()
+        {
+            // The WF off-by-one: CalcLength does start=addr; addr++; THEN scans. A 0x00 AT start is
+            // NOT the terminator (the byte at start is consumed as data) -> length >= 1. Plant 0x00 at
+            // +0 and the next 0x00 at +1 -> scan starts at +1, finds 0x00 there -> length = 1.
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u8(target + 0, 0x00); // terminator AT start — consumed as data
+            rom.write_u8(target + 1, 0x00); // real terminator found by the scan
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("VWL0",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:VENNOUWEAPONLOCK", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(1u, a.Length); // NOT 0 — the start byte is data, the +1 byte is the terminator
+        }
+
+        [Fact]
+        public void EmitPatchStruct_AoeRangeField_EmitsBinLengthFourPlusWtimesH()
+        {
+            // WF AOERANGEForm.MakeDataLength: deref p32(p), w=u8(+0), h=u8(+1), length = 4 + w*h, BIN.
+            // w=3, h=5 -> length = 4 + 15 = 19. EXACTLY 4+w*h (not w*h, not (w+1)*(h+1)=24).
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u8(target + 0, 3); // w
+            rom.write_u8(target + 1, 5); // h
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("AOE",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:AOERANGEPOINTER", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(4u + 3u * 5u, a.Length); // 19, EXACTLY 4 + w*h
+            Assert.NotEqual((3u + 1u) * (5u + 1u), a.Length); // NOT (w+1)*(h+1)
+            Assert.NotEqual(3u * 5u, a.Length);               // NOT w*h
+            Assert.Equal(table + 0, a.Pointer);
+            Assert.EndsWith("DATA 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_AoeRangeField_ZeroBox_LengthIsFour()
+        {
+            // w=0,h=0 -> length = 4 + 0 = 4 (the 4-byte header only).
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u8(target + 0, 0);
+            rom.write_u8(target + 1, 0);
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("AOE0",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:AOERANGEPOINTER", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.BIN);
+            Assert.Equal(4u, a.Length);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_SmePromoListField_EmitsBlock2U16Ifr()
+        {
+            // WF SMEPromoListForm.MakeDataLength: IFR block 2, count = getBlockDataCount(base, 2, u16!=0),
+            // length = 2*(count+1). Plant 3 non-zero u16 entries then a 0x0000 terminator -> count = 3,
+            // length = 2*(3+1) = 8.
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u16(target + 0, 0x0102);
+            rom.write_u16(target + 2, 0x0304);
+            rom.write_u16(target + 4, 0x0506);
+            rom.write_u16(target + 6, 0x0000); // terminator (u16 == 0)
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("SME",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:SMEPROMOLIST", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(2u * (3u + 1u), a.Length); // 8
+            Assert.Equal(2u, a.BlockSize);
+            Assert.EndsWith("DATA 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Fact]
+        public void EmitPatchStruct_ClassListField_EmitsBlock1U8Ifr()
+        {
+            // WF SomeClassListForm.MakeDataLength (CLASSLIST): IFR block 1, count =
+            // getBlockDataCount(base, 1, u8!=0), length = 1*(count+1). Plant 4 non-zero u8 then 0x00 ->
+            // count = 4, length = 1*(4+1) = 5.
+            var rom = MakeRom();
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            rom.write_u8(target + 0, 0x11);
+            rom.write_u8(target + 1, 0x22);
+            rom.write_u8(target + 2, 0x33);
+            rom.write_u8(target + 3, 0x44);
+            rom.write_u8(target + 4, 0x00); // terminator (u8 == 0)
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("CLS",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:CLASSLIST", "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(1u * (4u + 1u), a.Length); // 5
+            Assert.Equal(1u, a.BlockSize);
+            Assert.EndsWith("DATA 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Theory]
+        [InlineData("TERRAINBATTLELISTPOINTER")]
+        [InlineData("BATTLEBGLISTPOINTER")]
+        public void EmitPatchStruct_TerrainLookupField_FixedCountIfr_NotTerminatorScan(string fieldType)
+        {
+            // WF MapTerrain{Floor,BG}LookupTableForm.MakeDataLength: IFR block 1, FIXED count =
+            // rom.RomInfo.map_terrain_type_count (NOT a 0x00-terminator scan). Plant the target with
+            // EARLY 0x00 bytes — a terminator scan would stop at count 0, but the FIXED-count walk
+            // ignores the bytes and uses map_terrain_type_count. length = 1*(count+1).
+            var rom = MakeRom();
+            uint count = rom.RomInfo.map_terrain_type_count;
+            Assert.True(count > 0);
+            const uint table = 0x2000, target = 0x8000;
+            PlantPointer(rom, table + 0, target);
+            // Deliberately plant 0x00 at the very start: a terminator scan WOULD yield count 0.
+            rom.write_u8(target + 0, 0x00);
+            rom.write_u8(target + 1, 0x00);
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("TL",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:" + fieldType, "0")), isPointerOnly: false);
+
+            var a = Assert.Single(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.Equal(target, a.Addr);
+            Assert.Equal(1u * (count + 1u), a.Length); // FIXED-count length, NOT 1 (terminator-scan count 0)
+            Assert.NotEqual(1u, a.Length);
+            Assert.Equal(1u, a.BlockSize);
+            Assert.EndsWith("DATA 0", a.Info);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Theory]
+        [InlineData("VENNOUWEAPONLOCK")]
+        [InlineData("AOERANGEPOINTER")]
+        [InlineData("SMEPROMOLIST")]
+        [InlineData("CLASSLIST")]
+        [InlineData("TERRAINBATTLELISTPOINTER")]
+        [InlineData("BATTLEBGLISTPOINTER")]
+        public void EmitPatchStruct_S2pf9Field_UnsafeTarget_EmitsNothing(string fieldType)
+        {
+            // The slot derefs below the 0x200 safety floor -> every s2pf-9 arm skips (no emission,
+            // and NOT the interim default-MIX placeholder either).
+            var rom = MakeRom();
+            const uint table = 0x2000;
+            U.write_u32(rom.Data, table + 0, U.toPointer(0x100)); // target below safety floor
+            var list = new List<Address>();
+            RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("US9",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x2000"),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:" + fieldType, "0")), isPointerOnly: false);
+
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.BIN);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.InputFormRef
+                && x.Pointer == table + 0);
+            Assert.DoesNotContain(list, x => x.DataType == Address.DataTypeEnum.MIX);
+        }
+
+        [Theory]
+        [InlineData("VENNOUWEAPONLOCK")]
+        [InlineData("AOERANGEPOINTER")]
+        [InlineData("SMEPROMOLIST")]
+        [InlineData("CLASSLIST")]
+        [InlineData("TERRAINBATTLELISTPOINTER")]
+        [InlineData("BATTLEBGLISTPOINTER")]
+        public void EmitPatchStruct_S2pf9Field_SlotNearEof_NoThrow(string fieldType)
+        {
+            // A pointer FIELD sitting in the last 3 bytes -> the slot+3 EOF guard makes a clean skip
+            // (no throw) rather than reading p32/u32 past EOF.
+            var rom = MakeRom();
+            uint near = (uint)rom.Data.Length - 1;
+            var list = new List<Address>();
+            Exception ex = Record.Exception(() =>
+                RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("EOF9",
                     ("TYPE", "STRUCT"), ("ADDRESS", "0x" + near.ToString("X")),
                     ("DATASIZE", "4"), ("DATACOUNT", "1"),
                     ("P0:" + fieldType, "0")), isPointerOnly: false));

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -500,7 +500,7 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// PARTIAL WF-parity for #1261 slice s2pf-5/6 — the PatchForm producer TYPE=STRUCT dispatch arm
+        /// PARTIAL WF-parity for #1261 slice s2pf-5..9 — the PatchForm producer TYPE=STRUCT dispatch arm
         /// (<see cref="RebuildProducerCore.EmitPatchStruct"/>). Both the WinForms reference
         /// (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForSTRUCT</c>,
         /// PatchForm.cs:6461) and the Core orchestrator
@@ -528,14 +528,22 @@ namespace FEBuilderGBA.Tests.Unit
         /// <c>CalcRomTcsLength</c>/<c>CalcProcsLengthAndCheck</c>); their named info tokens + data types are
         /// compared on BOTH sides. PROCS skips on NOT_FOUND (no entry on either side for a non-PROCS
         /// target — WF AddProcsAddress and Core EmitProcsPointer both return without emitting).</para>
-        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-9..10).</b> The
-        /// BATTLEANIMEPOINTER/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
-        /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER fields are
+        /// <para><b>THE SIX DETERMINISTIC FORM-BOUND ARMS ARE NOW INCLUDED (s2pf-9).</b> The
+        /// VENNOUWEAPONLOCK/AOERANGEPOINTER/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
+        /// BATTLEBGLISTPOINTER fields emit a precise <c>@STRUCT DATA n</c> entry (VENNOU/AOE -&gt; BIN;
+        /// SME/CLASS/Terrain/BG -&gt; InputFormRef) via
+        /// <see cref="RebuildProducerCore.EmitVennouWeaponLockPointer"/>/
+        /// <see cref="RebuildProducerCore.EmitAoeRangePointer"/>/
+        /// <see cref="RebuildProducerCore.EmitSmePromoListPointer"/>/
+        /// <see cref="RebuildProducerCore.EmitSomeClassListPointer"/>/
+        /// <see cref="RebuildProducerCore.EmitMapTerrainLookupPointer"/>; being non-MIX they pass the
+        /// <c>@STRUCT DATA n</c> non-MIX include filter and are compared Core — WF on BOTH sides.</para>
+        /// <para><b>ONLY BATTLEANIMEPOINTER IS STILL EXCLUDED (deferred to s2pf-10).</b> It alone is
         /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
-        /// slice — they INTENTIONALLY diverge from WF (WF emits the precise sub-walked TARGET region). So
-        /// every MIX-typed <c>... DATA </c>-suffixed entry is filtered OUT of BOTH sides before the
-        /// comparison. Those arms gain their own parity teeth in s2pf-9..10, and the FULL STRUCT parity
-        /// (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
+        /// slice — it INTENTIONALLY diverges from WF (WF emits the precise sub-walked TARGET region). So the
+        /// MIX-typed <c>@STRUCT DATA n</c> entry is filtered OUT of BOTH sides before the comparison. That
+        /// arm gains its own parity teeth in s2pf-10, and the FULL STRUCT parity (no exclusions) lands at
+        /// s2pf-11 when the gate token is removed.</para>
         /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
         /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
         /// patch within the merged producer list. The CSTRING arm's byte-faithfulness is carried by the
@@ -588,16 +596,21 @@ namespace FEBuilderGBA.Tests.Unit
                 // PALETTE) OR an AP/ROMTCS/PROCS arm (s2pf-8: "@STRUCT AP/ROMTCS/PROCS n", typed
                 // AP/ROMTCS/PROCS) OR an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the
                 // EventScriptForm.ScanScript walk emits — EVENTSCRIPT script blocks + their
-                // POINTER_UNIT/AICOORDINATE sub-data IFR/BIN blocks). The STILL-INTERIM form-bound arms
-                // (Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime s2pf-10) emit
-                // "@STRUCT DATA n" as a length-0 MIX placeholder — those DIVERGE from WF this slice and are
+                // POINTER_UNIT/AICOORDINATE sub-data IFR/BIN blocks). The s2pf-9 form-bound arms
+                // (Vennou/AOE -> BIN, SMEPromo/SomeClass/Terrain* -> IFR) now emit a PRECISE non-MIX
+                // "@STRUCT DATA n" entry (INCLUDE). The LAST still-interim arm, BattleAnime (s2pf-10), emits
+                // "@STRUCT DATA n" as a length-0 MIX placeholder — it DIVERGES from WF this slice and is
                 // EXCLUDED. Since EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed "@STRUCT
                 // DATA " entry, a simple rule cleanly separates the two: a MIX-typed DATA entry is interim
-                // (EXCLUDE), any other DATA entry came from the now-precise EVENT walk (INCLUDE).
+                // (EXCLUDE), any other DATA entry came from a now-precise arm — the EVENT walk (s2pf-6) or
+                // one of the six s2pf-9 forms (INCLUDE).
                 // PatchImage_HEADERTSA is now precise (s2pf-7), emitting a "@STRUCT HEADERTSA n" / HEADERTSA
                 // entry — INCLUDED via the safeArmTokens. AP/ROMTCS/PROCS are now precise (s2pf-8), emitting
                 // "@STRUCT AP/ROMTCS/PROCS n" — INCLUDED via the safeArmTokens (their named, non-DATA info
-                // tokens). CSTRING is out of merged-list scope (named the decoded string) — see doc-comment.
+                // tokens). The six s2pf-9 forms (Vennou/AOE/SME/Class/Terrain/BG) emit "@STRUCT DATA n" with
+                // a non-MIX type, so they are INCLUDED by the non-MIX DATA rule above (NOT the safeArmTokens
+                // list, which keys on named non-DATA tokens). CSTRING is out of merged-list scope (named the
+                // decoded string) — see doc-comment.
                 string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " HEADERTSA ", " PALETTE ", " AP ", " ROMTCS ", " PROCS " };
                 bool IsImplementedStructEntry(Address a)
                 {

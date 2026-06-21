@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -2319,6 +2319,227 @@ namespace FEBuilderGBA
                 return;
             }
             list.Add(new Address(target, length, pointer, info, Address.DataTypeEnum.PROCS));
+        }
+
+        // ===================================================================================
+        // PatchForm STRUCT producer - option-B epic (#1261, sub-slice s2pf-9 of 11).
+        //
+        // The SIX deterministic embedded-pointer STRUCT field emitters, upgrading the
+        // VENNOUWEAPONLOCK / AOERANGEPOINTER / SMEPROMOLIST / CLASSLIST /
+        // TERRAINBATTLELISTPOINTER / BATTLEBGLISTPOINTER arms of EmitPatchStructEntry from
+        // the interim default-MIX placeholder to precise length-walked targets. Each is a
+        // faithful Core port of the WinForms XxxForm.MakeDataLength(list, pointer, name)
+        // dispatched from PatchForm.cs (arms 6693/6722/6698/6703/6708/6713). Every length is a
+        // DETERMINISTIC pure-ROM read (a 0x00-terminator scan, a 4+w*h box, or a fixed/u8/u16
+        // getBlockDataCount IFR), so a wrong size = a relocation collision = corruption - the
+        // sizes below are reproduced VERBATIM. EOF-HARDENING: every computed read full extent
+        // is guarded (slot+3 before a u32/p32; addr+1 before a u8 pair; the count walks are
+        // bounded by getBlockDataCount own addr+blocksize<=Length stop).
+        // ===================================================================================
+
+        /// <summary>
+        /// Reproduces WinForms <c>VennouWeaponLockForm.MakeDataLength(list, pointer, strname)</c>
+        /// (FEBuilderGBA/VennouWeaponLockForm.cs:290; the STRUCT arm at PatchForm.cs:6693): the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a 0x00-terminated weapon-lock
+        /// BIN list; emit a <see cref="Address.DataTypeEnum.BIN"/> block whose length is the verbatim
+        /// <c>CalcLength</c> terminator scan (VennouWeaponLockForm.cs:88).
+        /// <para><b>Terminator off-by-one reproduced VERBATIM (NOT a bug):</b> WF <c>CalcLength</c> sets
+        /// <c>start = addr</c>, then does <c>addr++</c> BEFORE the scan loop, so the scan begins at
+        /// <c>start+1</c> and the length is <c>end - start</c>. A terminator AT <c>start</c> is therefore
+        /// never matched (the byte at <c>start</c> is consumed as data), yielding length &gt;= 1 - exactly
+        /// WF. EOF-HARDENING: WF reads <c>u32(pointer)</c> after only a single-byte gate; guard the full
+        /// 4-byte slot (slot+3) so a near-EOF pointer is a clean skip, and the scan is bounded by
+        /// <c>rom.Data.Length</c> (WF <c>length</c> local).</para>
+        /// </summary>
+        public static void EmitVennouWeaponLockPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            // WF MakeDataLength: addr = Program.ROM.u32(pointer); if (!isSafetyPointer(addr)) return;
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (pointer + 4 > (uint)rom.Data.Length)
+            {
+                return;
+            }
+            uint addr = rom.u32(pointer);
+            if (!U.isSafetyPointer(addr, rom))
+            {
+                return;
+            }
+            uint length = CalcVennouWeaponLockLength(rom, addr);
+            // WF: AddAddress(list, addr, length, pointer, strname, BIN). addr is toOffset in the
+            // Address ctor; pass it directly (matching the WF arg order addr/length/pointer).
+            Address.AddAddress(list, addr, length, pointer, info, Address.DataTypeEnum.BIN);
+        }
+
+        /// <summary>
+        /// Verbatim Core port of WinForms <c>VennouWeaponLockForm.CalcLength(addr)</c>
+        /// (FEBuilderGBA/VennouWeaponLockForm.cs:88): <c>start = toOffset(addr)</c>, then scan from
+        /// <c>start+1</c> to the first <c>u8 == 0x00</c> (or EOF), returning <c>end - start</c>. The
+        /// <c>addr++</c> BEFORE the loop is reproduced (the byte at <c>start</c> is never the terminator).
+        /// EOF-safe: the scan stops at <c>rom.Data.Length</c> (WF <c>length</c> local), so a missing
+        /// terminator yields the span to EOF rather than throwing.
+        /// </summary>
+        static uint CalcVennouWeaponLockLength(ROM rom, uint addr)
+        {
+            addr = U.toOffset(addr);
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return 0;
+            }
+            uint start = addr;
+            uint length = (uint)rom.Data.Length;
+            addr++; // WF: skip the leading byte - the byte at start is consumed as data, never the terminator.
+            for (; addr < length; addr += 1)
+            {
+                if (rom.u8(addr) == 0x00)
+                {
+                    break;
+                }
+            }
+            return addr - start;
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>AOERANGEForm.MakeDataLength(list, pointer, strname)</c>
+        /// (FEBuilderGBA/AOERANGEForm.cs:25; the STRUCT arm at PatchForm.cs:6722): the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to an AOE box-range BIN whose
+        /// first two bytes are <c>w = u8(+0)</c>, <c>h = u8(+1)</c>; emit a
+        /// <see cref="Address.DataTypeEnum.BIN"/> block of length <c>4 + (w*h)</c> (the 4-byte header
+        /// plus the w*h cell grid - EXACTLY <c>4+w*h</c>, NOT <c>w*h</c> or <c>(w+1)*(h+1)</c>). WF
+        /// emits via <c>Address.AddPointer(list, pointer, length, strname, BIN)</c> (the slot is
+        /// re-derefed); reproduced by emitting the dereferenced target directly. EOF-HARDENING: WF
+        /// pre-gates <c>isSafetyOffset(pointer)</c> then <c>isSafetyOffset(addr)</c>; additionally guard
+        /// the full 4-byte slot (slot+3) and the <c>u8(addr+1)</c> read extent so a near-EOF box is a
+        /// clean skip.
+        /// </summary>
+        public static void EmitAoeRangePointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            // WF: if (!isSafetyOffset(pointer)) return; addr = Program.ROM.p32(pointer);
+            //     if (!isSafetyOffset(addr)) return;
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint addr = rom.p32(pointer);
+            if (!U.isSafetyOffset(addr, rom))
+            {
+                return;
+            }
+            // Guard the w/h read extent (u8 at addr+0 and addr+1) before reading.
+            if (!U.isSafetyOffset(addr + 1, rom))
+            {
+                return;
+            }
+            uint w = rom.u8(addr + 0);
+            uint h = rom.u8(addr + 1);
+            uint length = 4 + (w * h); // WF AOERANGEForm.cs:39 - EXACTLY 4 + w*h.
+            // WF: Address.AddPointer(list, pointer, length, strname, BIN) - re-derefs the slot via
+            // Program.ROM. Emit the already-dereferenced target (== p32(pointer)) DIRECTLY so the
+            // emit is rom-explicit (no CoreState.ROM dependency) - identical Address (the ctor
+            // toOffsets addr either way), matching the EmitApPointer/EmitProcsPointer convention.
+            list.Add(new Address(addr, length, pointer, info, Address.DataTypeEnum.BIN));
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>SMEPromoListForm.MakeDataLength(list, pointer, strname)</c>
+        /// (FEBuilderGBA/SMEPromoListForm.cs:66; the STRUCT arm at PatchForm.cs:6698): the
+        /// <paramref name="pointer"/> slot holds a 32-bit ROM pointer to an SME branch-promotion list
+        /// (block size 2, terminated by the first <c>u16 == 0x00</c>); emit ONE
+        /// <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length <c>2*(count+1)</c> where
+        /// <c>count = getBlockDataCount(addr, 2, u16!=0)</c> - the verbatim WF Init walk
+        /// (SMEPromoListForm.cs:24-40, blockSize 2, IsDataExists <c>u16(addr) != 0x00</c>).
+        /// </summary>
+        public static void EmitSmePromoListPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            EmitPatchStructBlockListIFR(rom, list, pointer, info, 2,
+                (i, a) => rom.u16(a) != 0x00);
+        }
+
+        /// <summary>
+        /// Reproduces WinForms <c>SomeClassListForm.MakeDataLength(list, pointer, strname)</c>
+        /// (FEBuilderGBA/SomeClassListForm.cs:65; the STRUCT arm at PatchForm.cs:6703, type CLASSLIST):
+        /// the <paramref name="pointer"/> slot holds a 32-bit ROM pointer to a class-id list (block size
+        /// 1, terminated by the first <c>u8 == 0x00</c>); emit ONE
+        /// <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length <c>1*(count+1)</c> where
+        /// <c>count = getBlockDataCount(addr, 1, u8!=0)</c> - the verbatim WF Init walk
+        /// (SomeClassListForm.cs:24-40, blockSize 1, IsDataExists <c>u8(addr) != 0x00</c>).
+        /// </summary>
+        public static void EmitSomeClassListPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            EmitPatchStructBlockListIFR(rom, list, pointer, info, 1,
+                (i, a) => rom.u8(a) != 0x00);
+        }
+
+        /// <summary>
+        /// Reproduces the STRUCT TERRAINBATTLELISTPOINTER / BATTLEBGLISTPOINTER arms
+        /// (PatchForm.cs:6708 / 6713 -> <c>MapTerrain{Floor,BG}LookupTableForm.MakeDataLength(list,
+        /// pointer, strname)</c>, FEBuilderGBA/MapTerrainFloorLookupTableForm.cs:200 /
+        /// MapTerrainBGLookupTableForm.cs:306): the <paramref name="pointer"/> slot holds a 32-bit ROM
+        /// pointer to a per-terrainset lookup table; emit ONE
+        /// <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length <c>1*(count+1)</c>.
+        /// <para><b>FIXED count (NOT a terminator scan):</b> BOTH terrain forms Init walk uses
+        /// IsDataExists <c>i &lt; rom.RomInfo.map_terrain_type_count</c> (block size 1) - there is no
+        /// per-byte non-zero predicate. So <c>count == map_terrain_type_count</c> and the length is
+        /// <c>1*(map_terrain_type_count+1)</c>. A terminator scan would over/under-count = corruption,
+        /// so the FIXED RomInfo count is used VERBATIM (both Floor and BG share the same count field;
+        /// the per-terrainset pointer ENUMERATION used by <c>MakeAllDataLength</c> via
+        /// <see cref="MapTerrainLookupCore"/> is irrelevant to this per-STRUCT-field
+        /// <c>MakeDataLength</c>, which receives a SINGLE pointer).</para>
+        /// </summary>
+        public static void EmitMapTerrainLookupPointer(ROM rom, List<Address> list, uint pointer, string info)
+        {
+            // FixedCount walk: IsDataExists = i < map_terrain_type_count (getBlockDataCount stops at
+            // addr+1 > Length on EOF too, so the count is min(map_terrain_type_count, span-to-EOF)).
+            uint count = rom.RomInfo.map_terrain_type_count;
+            EmitPatchStructBlockListIFR(rom, list, pointer, info, 1,
+                (i, a) => i < count);
+        }
+
+        /// <summary>
+        /// Shared per-STRUCT-field InputFormRef emitter for the SME/CLASS/TERRAIN/BG arms - the verbatim
+        /// effect of WF <c>InputFormRef.ReInitPointer(pointer)</c> +
+        /// <c>AddressWinForms.AddAddress(list, IFR, info, {})</c>: deref <paramref name="pointer"/> to the
+        /// table base, count entries via <c>getBlockDataCount(base, blockSize, isDataExists)</c>, and emit
+        /// ONE <see cref="Address.DataTypeEnum.InputFormRef"/> Address of length
+        /// <c>blockSize*(count+1)</c> (the slot is the Address pointer; empty pointerIndexes; the same
+        /// shape as <see cref="Address.AddAddressInstantIFR"/>). EOF-HARDENING: guard the full 4-byte slot
+        /// (slot+3) BEFORE <see cref="Address.AddAddressInstantIFR"/> (which only gates
+        /// <c>isSafetyOffset(pointer)</c> before its own p32) so a near-EOF pointer is a clean skip; the
+        /// count walk is bounded by getBlockDataCount <c>addr+blockSize&lt;=Length</c> stop.
+        /// </summary>
+        static void EmitPatchStructBlockListIFR(ROM rom, List<Address> list, uint pointer, string info,
+            uint blockSize, Func<int, uint, bool> isDataExists)
+        {
+            // WF ReInitPointer: BasePointer = toOffset(pointer); BaseAddress = p32(pointer). Guard the
+            // full slot before the p32 deref (AddAddressInstantIFR only checks isSafetyOffset(pointer)).
+            pointer = U.toOffset(pointer);
+            if (!U.isSafetyOffset(pointer, rom))
+            {
+                return;
+            }
+            if (!U.isSafetyOffset(pointer + 3, rom))
+            {
+                return;
+            }
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                return; // WF AddAddress early-returns when !isSafetyOffset(BaseAddress).
+            }
+            // WF Init: getBlockDataCount(BaseAddress, IsDataExistsCallback, NextAddrCallback, BlockSize).
+            // None of these four forms overrides NextAddrCallback, so the 3-arg blockSize-strided walk is
+            // identical. AddAddressInstantIFR then re-derefs pointer (== baseAddr) and emits length
+            // blockSize*(count+1) - matching AddressWinForms.AddAddress(IFR, ..., {}).
+            uint count = rom.getBlockDataCount(baseAddr, blockSize, isDataExists);
+            Address.AddAddressInstantIFR(list, pointer, blockSize, count, info, new uint[] { });
         }
 
         // -------------------------------------------------------------------------------------------
@@ -13077,11 +13298,14 @@ namespace FEBuilderGBA
         //       CalcRomTcsLength / CalcProcsLengthAndCheck, all already in Core). PROCS SKIPS on
         //       CalcProcsLengthAndCheck == NOT_FOUND (WF AddProcsAddress: never a guessed length).
         //       No longer interim.
-        //   (C) the REMAINING FORM-BOUND arms (BATTLEANIMEPOINTER/
-        //       VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
-        //       BATTLEBGLISTPOINTER/AOERANGEPOINTER) — routed
+        //   (C') the SIX deterministic FORM-BOUND arms (VENNOUWEAPONLOCK/AOERANGEPOINTER/
+        //       SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER) - ported
+        //       REAL in s2pf-9 (WF 6691-6724): each is a DETERMINISTIC pure-ROM length walk
+        //       (0x00-terminator BIN / 4+w*h BIN / block-2 u16!=0 IFR / block-1 u8!=0 IFR /
+        //       fixed map_terrain_type_count IFR) reproduced VERBATIM. No longer interim.
+        //   (D) the LAST remaining FORM-BOUND arm (BATTLEANIMEPOINTER) - routed
         //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
-        //       INTERIM (each marked `INTERIM default-MIX -> upgraded in s2pf-N`).
+        //       INTERIM (marked `INTERIM default-MIX -> upgraded in s2pf-10`).
         //       This is SAFE because the gate token "PatchForm(MakePatchStructDataList)"
         //       STAYS in AsmNotYetPortedRaw — no live rebuild runs until s2pf-11 — but
         //       it MUST be upgraded before the token is removed, else those embedded
@@ -13091,12 +13315,12 @@ namespace FEBuilderGBA
         //     EVENT                     -> s2pf-6  DONE (EmitScanScript, disasm-gated)
         //     PatchImage_HEADERTSA      -> s2pf-7  DONE (EmitHeaderTsaPointer / CalcHeaderTsaLength)
         //     AP / ROMTCS / PROCS       -> s2pf-8  DONE (EmitApPointer / EmitRomTcsPointer / EmitProcsPointer)
-        //     VENNOUWEAPONLOCK          -> s2pf-9
-        //     AOERANGEPOINTER           -> s2pf-9
-        //     SMEPROMOLIST              -> s2pf-9
-        //     CLASSLIST                 -> s2pf-9
-        //     TERRAINBATTLELISTPOINTER  -> s2pf-9
-        //     BATTLEBGLISTPOINTER       -> s2pf-9
+        //     VENNOUWEAPONLOCK          -> s2pf-9  DONE (EmitVennouWeaponLockPointer / 0x00-terminator BIN)
+        //     AOERANGEPOINTER           -> s2pf-9  DONE (EmitAoeRangePointer / 4+w*h BIN)
+        //     SMEPROMOLIST              -> s2pf-9  DONE (EmitSmePromoListPointer / block-2 u16!=0 IFR)
+        //     CLASSLIST                 -> s2pf-9  DONE (EmitSomeClassListPointer / block-1 u8!=0 IFR)
+        //     TERRAINBATTLELISTPOINTER  -> s2pf-9  DONE (EmitMapTerrainLookupPointer / fixed map_terrain_type_count IFR)
+        //     BATTLEBGLISTPOINTER       -> s2pf-9  DONE (EmitMapTerrainLookupPointer / fixed map_terrain_type_count IFR)
         //     BATTLEANIMEPOINTER        -> s2pf-10
         //
         // FAITHFULNESS NOTE — the WF 6624-6632 COPY-PASTE DEFECT is REPRODUCED
@@ -13523,33 +13747,49 @@ namespace FEBuilderGBA
                 // partial WF-parity test EXCLUDES these types.
 
                 case "VENNOUWEAPONLOCK":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (VennouWeaponLockForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6691-6695: VennouWeaponLockForm.MakeDataLength(list, p, patchname + " DATA " + n)
+                    // -> EmitVennouWeaponLockPointer (deref u32(p), then a 0x00-terminator BIN scan;
+                    // length = end - start with the WF start+1 off-by-one). EmitVennouWeaponLockPointer
+                    // self-guards the slot + the deref; the slot+3 pre-gate makes a near-EOF p a clean skip.
+                    EmitVennouWeaponLockPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "AOERANGEPOINTER":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (AOERANGEForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6720-6724: AOERANGEForm.MakeDataLength(list, p, patchname + " DATA " + n)
+                    // -> EmitAoeRangePointer (deref p32(p), w=u8(+0)/h=u8(+1), length = EXACTLY 4 + w*h, BIN).
+                    // EmitAoeRangePointer self-guards the slot + addr + the w/h read extent.
+                    EmitAoeRangePointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "SMEPROMOLIST":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (SMEPromoListForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6696-6700: SMEPromoListForm.MakeDataLength(list, p, patchname + " DATA " + n)
+                    // -> EmitSmePromoListPointer (IFR, block 2, count = getBlockDataCount(base, 2, u16!=0),
+                    // length = 2*(count+1)). Self-guards the slot + the deref.
+                    EmitSmePromoListPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "CLASSLIST":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (SomeClassListForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6701-6705: SomeClassListForm.MakeDataLength(list, p, patchname + " DATA " + n)
+                    // -> EmitSomeClassListPointer (IFR, block 1, count = getBlockDataCount(base, 1, u8!=0),
+                    // length = 1*(count+1)). Self-guards the slot + the deref.
+                    EmitSomeClassListPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "TERRAINBATTLELISTPOINTER":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (MapTerrainFloorLookupTableForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6706-6710: MapTerrainFloorLookupTableForm.MakeDataLength(list, p, patchname +
+                    // " DATA " + n) -> EmitMapTerrainLookupPointer (IFR, block 1, FIXED count =
+                    // rom.RomInfo.map_terrain_type_count [NOT a terminator scan], length = 1*(count+1)).
+                    // BOTH terrain forms use the same map_terrain_type_count count field. Self-guards
+                    // the slot + the deref.
+                    EmitMapTerrainLookupPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "BATTLEBGLISTPOINTER":
-                    // INTERIM default-MIX -> upgraded in s2pf-9 (MapTerrainBGLookupTableForm.MakeDataLength).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
+                    // WF 6711-6715: MapTerrainBGLookupTableForm.MakeDataLength(list, p, patchname +
+                    // " DATA " + n) -> EmitMapTerrainLookupPointer (same FIXED-count IFR as
+                    // TERRAINBATTLELISTPOINTER: block 1, count = rom.RomInfo.map_terrain_type_count,
+                    // length = 1*(count+1) - the WF BG form shares the Floor form Init walk verbatim).
+                    EmitMapTerrainLookupPointer(rom, list, p, patchname + " DATA " + n);
                     break;
 
                 case "BATTLEANIMEPOINTER":
