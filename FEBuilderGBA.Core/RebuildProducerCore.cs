@@ -1040,6 +1040,26 @@ namespace FEBuilderGBA
                     }
                     progress?.Report("FE8SpellMenuExtends");
                     EmitFE8SpellMenuExtends(rom, list);
+
+                    // ---- #1261 SOUNDNESS: OPClassFontFE8U + OPClassDemoFE8U are NOT yet ported ----
+                    // WF's `version==8 && !is_multibyte` branch (U.cs:2535-2536) ALSO calls
+                    // OPClassFontFE8UForm.MakeAllDataLength + OPClassDemoFE8UForm.MakeAllDataLength —
+                    // distinct non-multibyte forms from the multibyte OPClassFont/OPClassDemo (slice 2h/2i)
+                    // Core ports above. On a vanilla FE8U these two FE8U forms emit 68 relocation entries
+                    // (1 OPClassFont IFR + 1 OPClassFont LZ77IMG + 1 OPClassDemo IFR + 65 per-record
+                    // OPClassDemo_Anime IFR/CString sub-walk entries). They were never ported to the Core
+                    // producer (the slice-2i note: "FE8U/FE7U non-mb STAY deferred"), but s2pf-17 removed
+                    // them from the STATIC NotYetPorted list anyway, FALSELY opening IsComplete on FE8U.
+                    // A rebuild driven by that would DROP all 68 regions = silent ROM corruption.
+                    // RE-REPORT them at RUNTIME (the same posture as EventCondForm when the disasm is
+                    // unwired) so IsComplete is correctly FALSE on a vanilla FE8U and MakeWithProducer
+                    // refuses rather than dropping the regions. The STATIC GetNotYetPortedForms() stays
+                    // empty (these are version-gated, not version-agnostic), and the multibyte FE8J path
+                    // — where Core DOES port OPClassFont/OPClassDemo — remains complete. Porting the two
+                    // FE8U forms (the EmitNestedIfrSub + SubKind.CString primitives exist) is the path to
+                    // re-open the gate; until then this re-close keeps the rebuild SOUND.
+                    notYet = AppendNotYetPorted(notYet, "OPClassFontFE8UForm");
+                    notYet = AppendNotYetPorted(notYet, "OPClassDemoFE8UForm");
                 }
 
                 // ---- slice 2t: ImagePortraitForm (FE8 + FE7 call sites) ----

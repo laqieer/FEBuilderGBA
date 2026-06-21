@@ -528,7 +528,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteOnlyViaEventCondGate()
+        public void MakeAllStructPointers_FE8U_DisasmUnwired_IncompleteViaRuntimeGatedForms()
         {
             string romPath = FindTestRom();
             if (romPath == null) return; // skip when no ROM available (env-only)
@@ -543,20 +543,34 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.EventScript = null; // disasm unwired -> EventCondForm re-reported at runtime
 
                 RebuildProducerCore.ProducerResult result = RebuildProducerCore.MakeAllStructPointers(rom);
-                // s2pf-17 (CAPSTONE): the STATIC data-path list is empty, so the ONLY reason this run is
-                // incomplete is the RUNTIME disasm re-report — EventCondForm (always) plus, on FE8, the four
-                // ScanScript-family forms. A disasm-wired run (every real rebuild) would have an empty
-                // NotYetPorted and IsComplete true. Every remaining entry MUST be a disasm-gated form (no
-                // stale static form).
+                // s2pf-17 (CAPSTONE): the STATIC data-path list is empty, so the ONLY reasons this run is
+                // incomplete are the RUNTIME re-reports — the disasm re-report (EventCondForm always, plus
+                // on FE8 the four ScanScript-family forms) AND, on a non-multibyte FE8 (FE8U), the two
+                // version-gated forms OPClassFontFE8UForm/OPClassDemoFE8UForm that Core does not yet port
+                // (#1261 soundness fix: WF's `version==8 && !is_multibyte` branch emits them — 68 entries
+                // on a vanilla FE8U — so leaving them out of NotYetPorted would FALSELY claim completeness
+                // and a rebuild would silently drop those regions). A disasm-wired FE8J (multibyte) run
+                // would have an empty NotYetPorted; the FE8U run is incomplete via these gates. Every
+                // remaining entry MUST be one of the documented runtime-gated forms (no stale static form).
                 Assert.False(result.IsComplete);
                 Assert.NotEmpty(result.NotYetPorted);
                 Assert.Contains("EventCondForm", result.NotYetPorted);
-                string[] disasmGated =
+                // On FE8U (non-multibyte) the two version-gated FE8U forms MUST be re-reported — the
+                // load-bearing soundness assertion (without this, the 68-entry gap is silent corruption).
+                if (rom.RomInfo.version == 8 && !rom.RomInfo.is_multibyte)
                 {
+                    Assert.Contains("OPClassFontFE8UForm", result.NotYetPorted);
+                    Assert.Contains("OPClassDemoFE8UForm", result.NotYetPorted);
+                }
+                string[] runtimeGated =
+                {
+                    // disasm-gated (event-script scan)
                     "EventCondForm", "MonsterWMapProbabilityForm", "EventBattleTalkForm",
                     "WorldMapEventPointerForm", "EventHaikuForm",
+                    // version-gated FE8U non-multibyte forms not yet ported (#1261 soundness)
+                    "OPClassFontFE8UForm", "OPClassDemoFE8UForm",
                 };
-                Assert.All(result.NotYetPorted, f => Assert.Contains(f, disasmGated));
+                Assert.All(result.NotYetPorted, f => Assert.Contains(f, runtimeGated));
                 Assert.False(result.Cancelled);
                 Assert.NotEmpty(result.List);
             }
