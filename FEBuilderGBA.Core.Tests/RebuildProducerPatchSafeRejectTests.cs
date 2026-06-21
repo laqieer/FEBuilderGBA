@@ -18,11 +18,21 @@
 //
 // SOUNDNESS: the dangerous direction is a false-negative ("safe" when actually
 // unsafe). The naive CheckIF=="I" predicate is UNSOUND (Copilot plan review, issue
-// #1325): it misses PATCHED_IFNOT-installed (e.g. FE8U/MNC2Fix) and $FGREP-signature
-// patches. EaBinInstallStatus fixes both (PATCHED_IFNOT match => Installed;
-// unresolvable signature => Unknown => refuse). These tests pin every branch:
-// PATCHED_IF-installed, PATCHED_IFNOT-installed, resolvable-not-installed,
-// $FGREP-unknown, TYPE/CANONICAL_SKIP/no-dir/version-0 boundaries.
+// #1325): it misses PATCHED_IFNOT-installed (e.g. FE8U/MNC2Fix). EaBinInstallStatus
+// fixes that (PATCHED_IFNOT match => Installed).
+//
+// s2pf-18 (#1261) GATE-USEFULNESS: the install-detection path now reads the $FGREP
+// <file> file-inclusion VERBATIM (port of WF MakeGrepData(value, basedir)), and — for
+// the BYTE-FAITHFUL GREP/FGREP family — treats a NOT_FOUND grep as NOT-MATCHING
+// (NotInstalled), exactly as WF's CheckIF does (the PATCHED_IF unsafe-address
+// `continue`). This narrows the Unknown set so vanilla FE8U's 159 absent-signature
+// $GREP/$FGREP EA/BIN rows resolve to NotInstalled and MakeWithProducer PROCEEDS.
+// FALSE-NEGATIVE still IMPOSSIBLE: Core's grep is byte-identical to WF's, so Core says
+// NotInstalled only where WF does. The un-ported macros ($XGREP/$FREEAREA) STAY
+// Unknown => refuse. These tests pin every branch: PATCHED_IF-installed,
+// PATCHED_IFNOT-installed, resolvable-not-installed, $FGREP file present (match +
+// mismatch) / absent-signature / missing-file, inline-$GREP absent-signature,
+// $XGREP-unknown, TYPE/CANONICAL_SKIP/no-dir/version-0 boundaries.
 
 using System;
 using System.Collections.Generic;
@@ -94,7 +104,8 @@ namespace FEBuilderGBA.Core.Tests
         //      PATCHED_IF:...=0xFF 0xFF   mismatch  -> NotInstalled
         //      PATCHED_IFNOT:...=0xFF 0xFF mismatch -> Installed (the un-patched sig is absent)
         //      PATCHED_IFNOT:...=0x00 0x00 match    -> NotInstalled (un-patched sig present)
-        //      PATCHED_IF:$FGREP <file>=...         -> Unknown (file-inclusion unresolvable)
+        //      PATCHED_IF:$GREP/$FGREP absent-sig   -> NotInstalled (NOT_FOUND = not-matching, mirrors WF; s2pf-18)
+        //      PATCHED_IF:$XGREP/$FREEAREA          -> Unknown (un-ported macro; stays conservative)
         // ====================================================================
 
         [Fact]
@@ -139,13 +150,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void EaBinInstallStatus_UnresolvableFgrepSignature_Unknown()
+        public void EaBinInstallStatus_MissingFgrepFileSignature_NotInstalled_MatchesWf()
         {
-            // The OTHER false-negative (Copilot #1325): an install marker using $FGREP <file> file-inclusion
-            // (162 such PATCHED_IF rows in the FE8U tree). Core's resolver does not port FGREP file-inclusion
-            // -> NOT_FOUND -> never "I". EaBinInstallStatus returns Unknown so the gate refuses conservatively.
+            // s2pf-18 (#1261): a $FGREP <file> install marker whose file is MISSING. The address resolves
+            // there with basedir = Path.GetDirectoryName("p.txt") = "" -> MakeFGrepData returns an empty
+            // pattern -> U.Grep -> NOT_FOUND. WF behaves IDENTICALLY (MakeGrepData(value, basedir) returns
+            // new byte[0] -> U.Grep NOT_FOUND -> CheckIF's unsafe-address `continue` -> the PATCHED_IF does
+            // NOT contribute -> WF IsInstalled is FALSE). Because Core's grep result is byte-identical to
+            // WF's for the GREP/FGREP family, Core faithfully classifies this absent signature as
+            // NotInstalled (NOT Unknown). FALSE-NEGATIVE IMPOSSIBLE: Core agrees with WF exactly here.
             var rom = MakeVersionedRom("BE8E01");
             var patch = MakePatch("p.txt", ("TYPE", "BIN"), ("PATCHED_IF:$FGREP4 nope_missing.bin", "0x00 0xB5"));
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.NotInstalled,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_XgrepSignature_Unknown_StaysSound()
+        {
+            // SOUNDNESS preserved: $XGREP (masked GREP) is NOT byte-faithfully ported, so its NOT_FOUND does
+            // NOT prove the signature absent -> the marker STAYS Unknown -> the gate refuses conservatively.
+            // (This is the residual deferral that keeps the false-negative impossible for un-ported macros.)
+            var rom = MakeVersionedRom("BE8E01");
+            var patch = MakePatch("p.txt", ("TYPE", "BIN"), ("PATCHED_IF:$XGREP4 0x00 X 0xB5", "0x00 0xB5"));
             Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Unknown,
                 PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
         }
@@ -178,14 +205,133 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EaBinInstallStatus_InstalledMarkerWins_OverUnknownMarker()
         {
-            // A patch with BOTH an unresolvable marker AND a resolvable matching marker is Installed
-            // (the precise answer), not Unknown — the resolvable match proves presence.
+            // A patch with BOTH an unresolvable $XGREP marker (Unknown alone) AND a resolvable matching
+            // marker is Installed (the precise answer), not Unknown — the resolvable match proves presence.
             var rom = MakeVersionedRom("BE8E01");
             var patch = MakePatch("p.txt", ("TYPE", "EA"),
-                ("PATCHED_IF:$FGREP4 missing.bin", "0x00 0xB5"),   // unresolvable -> would be Unknown alone
+                ("PATCHED_IF:$XGREP4 0x00 X 0xB5", "0x00 0xB5"),   // un-ported macro -> Unknown alone
                 ("PATCHED_IF:0x001000", "0x00 0x00"));             // resolvable + matches -> Installed
             Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Installed,
                 PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        // ====================================================================
+        // 1b. $FGREP <file> install-resolution (s2pf-18 #1261). The install-detection
+        //     path now reads the basedir-relative file's bytes VERBATIM as the GREP
+        //     pattern (port of WF MakeGrepData(value, basedir)), so a $FGREP-based
+        //     PATCHED_IF/PATCHED_IFNOT resolves to a REAL ROM offset and classifies
+        //     Installed/NotInstalled — not Unknown — when the file is present.
+        //     The marker's PatchFileName must point at a real path so basedir =
+        //     Path.GetDirectoryName(PatchFileName) finds the planted .bin.
+        // ====================================================================
+
+        // Build a PatchSt whose PatchFileName lives in _tempDir (so basedir resolves there)
+        // and stage a binary signature file alongside it.
+        PatchInstallCore.PatchSt MakePatchInTempDir(string patchFileName, params (string key, string value)[] kv)
+        {
+            var p = new PatchInstallCore.PatchSt
+            {
+                Name = patchFileName,
+                PatchFileName = Path.Combine(_tempDir, patchFileName),
+                Param = new Dictionary<string, string>(),
+            };
+            foreach (var (key, value) in kv) p.Param[key] = value;
+            return p;
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_FgrepFilePresent_PatchedIfMatch_Installed()
+        {
+            // Plant a unique 4-byte signature at a 4-aligned ROM offset and an identical .bin file
+            // next to the patch. $FGREP4 finds the signature at 0x2000; the PATCHED_IF byte window
+            // (the first two signature bytes) MATCHES the ROM there -> Installed (NOT Unknown).
+            var rom = MakeVersionedRom("BE8E01");
+            rom.Data[0x2000] = 0xAA; rom.Data[0x2001] = 0xBB; rom.Data[0x2002] = 0xCC; rom.Data[0x2003] = 0xDD;
+            File.WriteAllBytes(Path.Combine(_tempDir, "sig.bin"), new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+            var patch = MakePatchInTempDir("p.txt", ("TYPE", "BIN"),
+                ("PATCHED_IF:$FGREP4 sig.bin", "0xAA 0xBB"));
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Installed,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_FgrepFilePresent_PatchedIfMismatch_NotInstalled()
+        {
+            // Same planted signature/file, but the PATCHED_IF byte window does NOT match the ROM at the
+            // resolved offset -> NotInstalled (provably absent). This proves the resolution is REAL (a
+            // garbage offset could not deterministically mismatch) and that the gate can now say "safe".
+            var rom = MakeVersionedRom("BE8E01");
+            rom.Data[0x2000] = 0xAA; rom.Data[0x2001] = 0xBB; rom.Data[0x2002] = 0xCC; rom.Data[0x2003] = 0xDD;
+            File.WriteAllBytes(Path.Combine(_tempDir, "sig.bin"), new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+            var patch = MakePatchInTempDir("p.txt", ("TYPE", "BIN"),
+                ("PATCHED_IF:$FGREP4 sig.bin", "0xFF 0xFF"));   // window mismatches the ROM at 0x2000
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.NotInstalled,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_FgrepFilePresent_PatchedIfNotMismatch_Installed()
+        {
+            // PATCHED_IFNOT is "installed when the un-patched signature is ABSENT". The $FGREP file
+            // resolves to 0x2000; the byte window 0xFF 0xFF mismatches the ROM there -> the un-patched
+            // sig is absent -> Installed. (Mirrors WF's detail-string "PATCHED_IF" rule for IFNOT.)
+            var rom = MakeVersionedRom("BE8E01");
+            rom.Data[0x2000] = 0xAA; rom.Data[0x2001] = 0xBB; rom.Data[0x2002] = 0xCC; rom.Data[0x2003] = 0xDD;
+            File.WriteAllBytes(Path.Combine(_tempDir, "sig.bin"), new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+            var patch = MakePatchInTempDir("p.txt", ("TYPE", "BIN"),
+                ("PATCHED_IFNOT:$FGREP4 sig.bin", "0xFF 0xFF"));
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.Installed,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_FgrepFilePresentButPatternNotInRom_NotInstalled()
+        {
+            // The $FGREP file IS present, but its signature (the post-install byte pattern) is NOT anywhere
+            // in the (zero-filled) ROM. U.Grep returns NOT_FOUND. WF's CheckIF treats this exactly as
+            // NOT-MATCHING (the PATCHED_IF unsafe-address `continue`), so WF IsInstalled is FALSE. Because
+            // Core's GREP/FGREP resolution is byte-identical to WF, Core classifies it NotInstalled too
+            // (s2pf-18 #1261). This is the case that makes the gate USEFUL on vanilla FE8U (its 125
+            // absent-signature $FGREP rows). FALSE-NEGATIVE IMPOSSIBLE: Core agrees with WF exactly.
+            var rom = MakeVersionedRom("BE8E01"); // all zero — the signature below appears nowhere
+            File.WriteAllBytes(Path.Combine(_tempDir, "sig.bin"), new byte[] { 0xDE, 0xAD, 0xBE, 0xEF });
+
+            var patch = MakePatchInTempDir("p.txt", ("TYPE", "BIN"),
+                ("PATCHED_IF:$FGREP4 sig.bin", "0x00 0x00"));
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.NotInstalled,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_InlineGrepAbsentSignature_NotInstalled_MatchesWf()
+        {
+            // The inline $GREP family (no file) gets the SAME WF-faithful treatment: an absent post-install
+            // signature -> NOT_FOUND -> NotInstalled, NOT Unknown. (34 of FE8U's blocking rows are inline
+            // $GREP, e.g. PATCH_256 colors titlebackground 20180611.) Byte-faithful to WF; sound.
+            var rom = MakeVersionedRom("BE8E01"); // all zero — the 0xDEADBEEF signature appears nowhere
+            var patch = MakePatch("p.txt", ("TYPE", "EA"),
+                ("PATCHED_IF:$GREP4 0xDE 0xAD 0xBE 0xEF", "0x00 0x00"));
+            Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.NotInstalled,
+                PatchHardCodeScanner.EaBinInstallStatus(rom, patch));
+        }
+
+        [Fact]
+        public void EaBinInstallStatus_FgrepFileMissing_NotInstalled_NoThrow()
+        {
+            // The $FGREP file is MISSING. WF MakeGrepData(value, basedir) returns new byte[0] -> U.Grep
+            // returns NOT_FOUND -> CheckIF's PATCHED_IF unsafe-address `continue` -> NOT-MATCHING ->
+            // WF IsInstalled FALSE. Core mirrors this byte-faithfully -> NotInstalled. Headless-safe:
+            // the missing file degrades to the empty pattern, never throws / ShowErrors.
+            var rom = MakeVersionedRom("BE8E01");
+            var patch = MakePatchInTempDir("p.txt", ("TYPE", "BIN"),
+                ("PATCHED_IF:$FGREP4 absent_sig.bin", "0x00 0xB5"));
+            var ex = Record.Exception(() =>
+                Assert.Equal(PatchHardCodeScanner.InstallStatusEnum.NotInstalled,
+                    PatchHardCodeScanner.EaBinInstallStatus(rom, patch)));
+            Assert.Null(ex);  // no throw + NotInstalled
         }
 
         // ====================================================================
@@ -231,14 +377,17 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Predicate_UnknownFgrepEa_ReturnsTrue()
+        public void Predicate_UnknownXgrepEa_ReturnsTrue()
         {
-            // Regression for Copilot #1325 false-negative #2: an EA patch whose install marker uses an
-            // unresolvable $FGREP file-inclusion signature is Unknown -> the gate refuses conservatively.
+            // Regression: an EA patch whose ONLY install marker uses an un-ported $XGREP (masked GREP)
+            // signature is Unknown -> the gate refuses conservatively (soundness preserved for the macro
+            // forms Core does NOT byte-faithfully resolve). NOTE: as of s2pf-18 (#1261) a $FGREP signature
+            // is NO LONGER auto-Unknown — it resolves byte-faithfully like WF — so this regression uses
+            // $XGREP, the form that genuinely stays Unknown.
             string patchDir = StageFe8uPatchDir();
-            File.WriteAllLines(Path.Combine(patchDir, "PATCH_FGREP.txt"), new[]
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_XGREP.txt"), new[]
             {
-                "NAME=PatchFgrep", "TYPE=EA", "PATCHED_IF:$FGREP4 nope_missing.bin=0x00 0xB5", "ADDRESS=0x800100",
+                "NAME=PatchXgrep", "TYPE=EA", "PATCHED_IF:$XGREP4 0x00 X 0xB5=0x00 0xB5", "ADDRESS=0x800100",
             });
 
             CoreState.BaseDirectory = _tempDir;
@@ -246,6 +395,29 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = fe8;
 
             Assert.True(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
+        }
+
+        [Fact]
+        public void Predicate_FgrepAbsentSignatureEa_ReturnsFalse_GateUseful()
+        {
+            // s2pf-18 GATE-USEFULNESS (#1261): an EA patch whose ONLY install marker is a $FGREP whose
+            // file IS present but whose post-install signature is NOT in the (vanilla-like) ROM -> NOT_FOUND
+            // -> NotInstalled (byte-faithful to WF's CheckIF `continue`). The predicate returns FALSE (the
+            // rebuild PROCEEDS). This is the synthetic analog of the 125 absent-signature $FGREP rows that
+            // formerly OVER-REFUSED vanilla FE8U.
+            string patchDir = StageFe8uPatchDir();
+            File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"),
+                new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }); // present file, signature absent from the zero ROM
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_FGREP.txt"), new[]
+            {
+                "NAME=PatchFgrep", "TYPE=EA", "PATCHED_IF:$FGREP4 sig.bin=0x00 0xB5", "ADDRESS=0x800100",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            var fe8 = MakeVersionedRom("BE8E01"); // all zero -> 0xDEADBEEF appears nowhere
+            CoreState.ROM = fe8;
+
+            Assert.False(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
         }
 
         [Fact]
@@ -268,6 +440,52 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = fe8;
 
             Assert.False(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
+        }
+
+        [Fact]
+        public void Predicate_FgrepFilePresent_ResolvablyNotInstalled_ReturnsFalse_GateUseful()
+        {
+            // s2pf-18 GATE-USEFULNESS (#1261): an EA/BIN patch whose ONLY install marker is a $FGREP
+            // file-inclusion now RESOLVES (the planted .bin signature lives next to the patch, in the same
+            // dir LoadPatch derives basedir from). The signature IS in the ROM (at 0x2000), but the
+            // PATCHED_IF byte window does NOT match there -> NotInstalled -> the predicate returns FALSE
+            // (the rebuild PROCEEDS). BEFORE this slice the $FGREP marker forced Unknown -> the predicate
+            // returned true and OVER-REFUSED. This is the synthetic analog of the real-FE8U gate-open.
+            string patchDir = StageFe8uPatchDir();
+            File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"), new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_FGREP.txt"), new[]
+            {
+                "NAME=PatchFgrep", "TYPE=EA", "PATCHED_IF:$FGREP4 sig.bin=0xFF 0xFF", "ADDRESS=0x800100",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            var fe8 = MakeVersionedRom("BE8E01");
+            fe8.Data[0x2000] = 0xAA; fe8.Data[0x2001] = 0xBB; fe8.Data[0x2002] = 0xCC; fe8.Data[0x2003] = 0xDD;
+            CoreState.ROM = fe8;
+
+            Assert.False(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
+        }
+
+        [Fact]
+        public void Predicate_FgrepFilePresent_PatchedIfMatch_StillRefuses_Installed()
+        {
+            // SOUNDNESS not weakened: when the $FGREP file resolves AND the PATCHED_IF window MATCHES the
+            // ROM, the patch IS installed -> the predicate STILL returns true (the producer cannot emit an
+            // installed EA/BIN patch's bytes, so the rebuild must refuse). $FGREP resolution narrows the
+            // Unknown set; it never turns an actually-installed patch into a "safe" proceed.
+            string patchDir = StageFe8uPatchDir();
+            File.WriteAllBytes(Path.Combine(patchDir, "sig.bin"), new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+            File.WriteAllLines(Path.Combine(patchDir, "PATCH_FGREP.txt"), new[]
+            {
+                "NAME=PatchFgrep", "TYPE=EA", "PATCHED_IF:$FGREP4 sig.bin=0xAA 0xBB", "ADDRESS=0x800100",
+            });
+
+            CoreState.BaseDirectory = _tempDir;
+            var fe8 = MakeVersionedRom("BE8E01");
+            fe8.Data[0x2000] = 0xAA; fe8.Data[0x2001] = 0xBB; fe8.Data[0x2002] = 0xCC; fe8.Data[0x2003] = 0xDD;
+            CoreState.ROM = fe8;
+
+            Assert.True(RebuildProducerCore.PatchFormHasUnportableInstalledPatch(fe8));
         }
 
         [Fact]
