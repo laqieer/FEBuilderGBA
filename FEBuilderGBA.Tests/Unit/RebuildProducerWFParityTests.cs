@@ -377,9 +377,12 @@ namespace FEBuilderGBA.Tests.Unit
         /// reference (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForIMAGE</c>,
         /// PatchForm.cs:6738) and the Core orchestrator (<see cref="RebuildProducerCore.MakePatchStructDataListCore"/>)
         /// run on the SAME real FE8U ROM with the SAME rebuild flags (the <c>ToolROMRebuildMake.Make</c>
-        /// callsite). Each side is FILTERED to the IMAGE arm's six ported variants (Info ends
+        /// callsite). Each side is FILTERED to the IMAGE arm's six ported variants — which surface as
+        /// EIGHT Info suffixes because the PALETTE variant emits under two param keys (<c>@PALETTE_POINTER</c>
+        /// for the deref form and <c>@PALETTE_ADDRESS</c> for the direct-address else-fallback), and ZIMAGE
+        /// covers both <c>@ZIMAGE_POINTER</c> and the <c>@Z256IMAGE_POINTER</c> alias (Info ends
         /// <c>@IMAGE_POINTER</c> / <c>@ZIMAGE_POINTER</c> / <c>@Z256IMAGE_POINTER</c> / <c>@TSA_POINTER</c> /
-        /// <c>@ZTSA_POINTER</c> / <c>@ZHEADERTSA_POINTER</c> / <c>@PALETTE_POINTER</c> / <c>@PALETTE_ADDRESS</c>),
+        /// <c>@ZTSA_POINTER</c> / <c>@ZHEADERTSA_POINTER</c> / <c>@PALETTE_POINTER</c> / <c>@PALETTE_ADDRESS</c>) —
         /// then compared as Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType) — Info/name
         /// is cosmetic (Core's leaner LoadPatch omits the patch Name, so its Info is just "@VARIANT"; WF
         /// prepends the patch name). A Core-extra (Core emits an IMAGE entry WF does not) is a faithfulness

@@ -409,6 +409,43 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(list);
         }
 
+        // ---- near-EOF pointer-slot guard (#1314 Copilot review) -------------
+        // A pointer slot resolving to within the last 3 bytes of the ROM passes the single-arg
+        // isSafetyOffset(p) but rom.u32(p) reads p..p+3 and would throw. The slot+3 guard skips it
+        // gracefully (WF's verbatim Program.ROM.u32(p) after isSafetyOffset(p) would throw there).
+
+        [Fact]
+        public void EmitPatchImage_PointerSlotNearEof_Skips_NoThrow()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            // Slot at Data.Length - 1: isSafetyOffset(p) true, but p+3 is past EOF -> guarded skip.
+            uint nearEof = (uint)rom.Data.Length - 1;
+            var ex = Record.Exception(() => RebuildProducerCore.EmitPatchImage(rom, list,
+                MakePatch("E", ("TYPE", "IMAGE"), ("IMAGE_POINTER", "0x" + nearEof.ToString("X"))),
+                isPointerOnly: false));
+            Assert.Null(ex);
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void EmitPatchImage_PalettePointerSlotNearEof_Skips_NoThrow()
+        {
+            var rom = MakeRom();
+            var list = new List<Address>();
+            // PALETTE_POINTER slot near EOF: isSafetyOffset(pPalette) true, pPalette+3 past EOF.
+            // The guard is INSIDE the WF if-branch (skips the deref) so it does NOT fall to PALETTE_ADDRESS.
+            uint nearEof = (uint)rom.Data.Length - 2;
+            var ex = Record.Exception(() => RebuildProducerCore.EmitPatchImage(rom, list,
+                MakePatch("PE", ("TYPE", "IMAGE"),
+                          ("PALETTE_POINTER", "0x" + nearEof.ToString("X")),
+                          ("PALETTE_ADDRESS", "0x5000")), isPointerOnly: false));
+            Assert.Null(ex);
+            // Near-EOF PALETTE_POINTER is in the WF `if` branch -> the deref is skipped, and (per WF's
+            // branch selection) the else PALETTE_ADDRESS is NOT taken. Nothing emitted.
+            Assert.Empty(list);
+        }
+
         [Fact]
         public void EmitPatchImage_NoImageParams_EmitsNothing_NoThrow()
         {

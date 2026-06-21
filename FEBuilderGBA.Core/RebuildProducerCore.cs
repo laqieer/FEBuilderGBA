@@ -12830,6 +12830,17 @@ namespace FEBuilderGBA
             uint pPalette = ResolvePatchAddress(rom, U.at(patch.Param, "PALETTE_POINTER", "0"), 0, 0x100, basedir);
             if (U.isSafetyOffset(pPalette, rom))
             {
+                // Guard the FULL 4-byte slot before rom.u32 (isSafetyOffset(pPalette) leaves pPalette+1..+3
+                // unchecked; rom.u32 throws when pPalette is within the last 3 bytes — WF's verbatim
+                // `Program.ROM.u32(pPalette)` after `isSafetyOffset(pPalette)` would throw there too). NOTE:
+                // the guard is INSIDE the WF `if (isSafetyOffset(pPalette))` BRANCH (skips only the deref) —
+                // NOT folded into the `if` condition, which would mis-route a near-EOF pPalette to the
+                // PALETTE_ADDRESS else-branch and diverge from WF's branch selection. On valid ROMs the
+                // pointer slot is never near EOF; this only hardens synthetic/corrupted ROMs (#1314 review).
+                if (!U.isSafetyOffset(pPalette + 3, rom))
+                {
+                    return;
+                }
                 uint a = rom.u32(pPalette);
                 if (U.isSafetyPointer(a, rom))
                 {
@@ -12871,7 +12882,12 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            if (!U.isSafetyOffset(p, rom))
+            // Guard the FULL 4-byte pointer slot before rom.u32: U.isSafetyOffset(p, rom) alone leaves
+            // p+1..p+3 unchecked, and rom.u32's check_safety THROWS when p is within the last 3 bytes of
+            // the ROM (WF's verbatim `Program.ROM.u32(p)` after `isSafetyOffset(p)` would throw there too).
+            // On valid ROMs the pointer slots are never near EOF, so this only hardens synthetic/corrupted
+            // ROMs to skip gracefully — matching the Core-wide slot+3 convention (Copilot PR #1314 review).
+            if (!U.isSafetyOffset(p, rom) || !U.isSafetyOffset(p + 3, rom))
             {
                 return;
             }
