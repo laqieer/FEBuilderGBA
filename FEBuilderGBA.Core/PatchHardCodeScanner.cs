@@ -22,20 +22,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+// Unify the scanner's patch record onto the public WinForms-mirror type so the
+// #1261 producer can consume ScanPatchs/LoadPatch results and iterate patch.Param
+// without a private nested type. The scanner only sets PatchFileName + Param and
+// reads only those two fields, so the existing ScanHardCodes behaviour is unchanged.
+using PatchSt = FEBuilderGBA.PatchInstallCore.PatchSt;
 
 namespace FEBuilderGBA
 {
     public static class PatchHardCodeScanner
     {
-        /// <summary>
-        /// A minimal patch record — mirrors the WinForms PatchForm.PatchSt
-        /// fields the hardcode scan actually consumes (PatchFileName + Param).
-        /// </summary>
-        sealed class PatchSt
-        {
-            public string PatchFileName = "";
-            public Dictionary<string, string> Param = new Dictionary<string, string>();
-        }
 
         /// <summary>
         /// Scan all PATCH_*.txt files for the loaded ROM version and populate the
@@ -152,7 +148,10 @@ namespace FEBuilderGBA
         }
 
         // ---- ScanPatchs (~:107) -------------------------------------------------
-        static List<PatchSt> ScanPatchs(ROM rom, string path, string lang)
+        // PUBLIC for the #1261 ROM-rebuild producer (s2pf-1): the producer's
+        // MakePatchStructDataListCore orchestrator calls this with the rom + the
+        // ResolvePatchDirectory(version) path + language. Body unchanged.
+        public static List<PatchSt> ScanPatchs(ROM rom, string path, string lang)
         {
             var patchs = new List<PatchSt>();
             if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return patchs;
@@ -177,7 +176,8 @@ namespace FEBuilderGBA
         }
 
         // ---- LoadPatch (~:247) --------------------------------------------------
-        static PatchSt LoadPatch(ROM rom, string fullfilename, string lang)
+        // PUBLIC for the #1261 producer (s2pf-1). Body unchanged.
+        public static PatchSt LoadPatch(ROM rom, string fullfilename, string lang)
         {
             string[] lines;
             try
@@ -191,7 +191,9 @@ namespace FEBuilderGBA
 
             bool canSecondLanguageEnglish = U.CanSecondLanguageEnglish(lang);
 
-            var p = new PatchSt { PatchFileName = fullfilename };
+            // PatchInstallCore.PatchSt does not default-init Param (the former private
+            // nested record did), so initialize it explicitly to preserve behaviour.
+            var p = new PatchSt { PatchFileName = fullfilename, Param = new Dictionary<string, string>() };
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -267,7 +269,8 @@ namespace FEBuilderGBA
         }
 
         // ---- isCanonicalSkip (~:6889) ------------------------------------------
-        static bool isCanonicalSkip(PatchSt patch)
+        // PUBLIC for the #1261 producer (s2pf-1). Body unchanged.
+        public static bool isCanonicalSkip(PatchSt patch)
         {
             string v = U.at(patch.Param, "CANONICAL_SKIP", "0");
             return U.stringbool(v);
@@ -278,7 +281,11 @@ namespace FEBuilderGBA
         // missing), "I" (installed), or "" (passes). MakeHardCodeWarning only
         // skips on "E". The WinForms CacheCheckIF side-table is irrelevant to the
         // gate result, so it is intentionally omitted here.
-        static string CheckIF(ROM rom, PatchSt patch)
+        // PUBLIC for the #1261 producer (s2pf-1): the orchestrator gates patches with
+        // this (the WF MakePatchStructDataList path uses CheckIFFast, whose only
+        // difference is the CacheCheckIF side-table — irrelevant to the gate result,
+        // already documented as intentionally omitted above). Body unchanged.
+        public static string CheckIF(ROM rom, PatchSt patch)
         {
             foreach (var pair in patch.Param)
             {

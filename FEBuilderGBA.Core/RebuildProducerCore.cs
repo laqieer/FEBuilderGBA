@@ -12213,6 +12213,335 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-1 of 11).
+        //
+        // SCAFFOLD ONLY. This is the foundation for porting the WinForms
+        // PatchForm.MakePatchStructDataList (FEBuilderGBA/PatchForm.cs:7126) — the
+        // LAST entry in AsmNotYetPortedRaw ("PatchForm(MakePatchStructDataList)").
+        // WF walks the installed-patch tree (config/patch2/{version}/PATCH_*.txt),
+        // gates each patch (CANONICAL_SKIP / CheckIF / IsMakePatchStructDataListTarget),
+        // then dispatches on the patch TYPE to one of six per-TYPE emitters
+        // (ADDR / EA / BIN / SWITCH / STRUCT / IMAGE) that add the patch's known
+        // pointer/struct Addresses to the rebuild manifest.
+        //
+        // THIS SLICE builds the scaffold ONLY — the gate, the pure routing
+        // helpers (IsMakePatchStructDataListTarget, MakePointerIndexes), and the
+        // orchestrator skeleton whose six TYPE arms are documented NO-OP STUBS.
+        // NOTHING is emitted into the manifest yet, and the orchestrator is NOT
+        // wired into AppendAllAsmStructPointers (that wiring is s2pf-11). The gate
+        // token "PatchForm(MakePatchStructDataList)" therefore STAYS in
+        // AsmNotYetPortedRaw and AsmProducerResult.IsComplete stays false — a
+        // rebuild can never consume this half until every TYPE arm lands.
+        //
+        // Public scanner surface this slice exposes (for the later TYPE-arm slices
+        // + the wiring slice): PatchHardCodeScanner.{ScanPatchs, LoadPatch,
+        // isCanonicalSkip, CheckIF, ResolvePatchDirectory} + PatchInstallCore.PatchSt.
+        // (convertBinAddressString stays CheckIF-scoped/private — the producer's own
+        // address resolver is a separate slice s2pf-2.)
+        // ====================================================================
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.IsMakePatchStructDataListTarget</c>
+        /// (FEBuilderGBA/PatchForm.cs:6841). PURE boolean routing on
+        /// (<paramref name="type"/>, <paramref name="checkIF"/>, <paramref name="isInstallOnly"/>,
+        /// <paramref name="isStructOnly"/>) — no ROM/Form reads. Decides whether a scanned
+        /// patch is a target of the struct-data-list walk:
+        /// <list type="bullet">
+        ///   <item>STRUCT: included unless CheckIF == "E".</item>
+        ///   <item>non-STRUCT while <paramref name="isStructOnly"/>: excluded.</item>
+        ///   <item>IMAGE: included unless CheckIF == "E".</item>
+        ///   <item>otherwise (non STRUCT/IMAGE) while <paramref name="isInstallOnly"/>:
+        ///   excluded if CheckIF == "E"; if NOT installed (CheckIF != "I") then excluded
+        ///   unless it is a STRUCT/IMAGE (which by construction it is not at this point, so
+        ///   excluded). CheckIF "I" = installed (see <see cref="PatchHardCodeScanner.CheckIF"/>).</item>
+        ///   <item>else included.</item>
+        /// </list>
+        /// </summary>
+        public static bool IsMakePatchStructDataListTarget(string type, string checkIF, bool isInstallOnly, bool isStructOnly)
+        {
+            if (type == "STRUCT")
+            {//構造体
+                if (checkIF == "E")
+                {//エラーがおきているので無視
+                    return false;
+                }
+                return true;
+            }
+            else
+            {//構造体ではない
+                if (isStructOnly)
+                {//構造体以外はダメです
+                    return false;
+                }
+            }
+
+            if (type == "IMAGE")
+            {//画像
+                if (checkIF == "E")
+                {//エラーがおきているので無視
+                    return false;
+                }
+                return true;
+            }
+            //構造体と画像以外
+
+            if (isInstallOnly)
+            {
+                if (checkIF == "E")
+                {//エラーがおきているので無視
+                    return false;
+                }
+                else if (checkIF != "I")
+                {//インストールされていないので無視したいのだが...
+                    //構造体と画像は性質上インストールできない
+                    // NOTE: this STRUCT/IMAGE branch is unreachable (STRUCT and IMAGE already
+                    // return earlier), but it is reproduced VERBATIM from WF PatchForm.cs:6878-6881
+                    // for byte-faithful parity — intentionally NOT pruned so the Core port mirrors
+                    // its WinForms source exactly.
+                    if (type == "STRUCT" || type == "IMAGE")
+                    {//構造体または画像
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Faithful Core port of WinForms <c>PatchForm.MakePointerIndexes</c>
+        /// (FEBuilderGBA/PatchForm.cs:7174). PURE parse of a patch's <c>Param</c>
+        /// dictionary: collects every <c>P&lt;n&gt;[:type]</c> key into the pointer-index
+        /// array (the parallel <paramref name="out_typeArray"/> records each entry's type),
+        /// and derives the IFR data-type from whether ASM pointers are present
+        /// (ASM-only -> InputFormRef_ASM, ASM+data mix -> InputFormRef_MIX, no-ASM ->
+        /// InputFormRef). No ROM reads.
+        /// <para>
+        /// The <c>patch.Param</c> iteration ORDER is significant and is preserved exactly:
+        /// it is the <see cref="System.Collections.Generic.Dictionary{TKey,TValue}"/>
+        /// insertion order produced by <see cref="PatchHardCodeScanner.LoadPatch"/> (same
+        /// parse loop as WF), so the emitted <c>pointerIndexes</c> visit the patch's pointer
+        /// fields in the same order WF does. A later per-entry sub-walk slice relies on this
+        /// order to map pointer slots to struct fields — a different order corrupts
+        /// multi-pointer structs.
+        /// </para>
+        /// <para>
+        /// This DELIBERATELY enumerates the shared <c>PatchSt.Param</c>
+        /// <see cref="System.Collections.Generic.Dictionary{TKey,TValue}"/> directly, exactly
+        /// as the WinForms original does — the whole patch pipeline (LoadPatch, CheckIF, the
+        /// per-TYPE emitters) reads the same dict in the same insertion order, so matching WF
+        /// here means matching that enumeration. Substituting an ordered collection would
+        /// DIVERGE from WF and the other Param consumers; the faithful contract is "iterate
+        /// Param as WF iterates it". (.NET preserves Dictionary insertion order absent
+        /// removals, which patch parse never does — both WF and this port depend on that.)
+        /// </para>
+        /// </summary>
+        public static uint[] MakePointerIndexes(PatchInstallCore.PatchSt patch
+            , out string[] out_typeArray
+            , out Address.DataTypeEnum out_iftType
+            )
+        {
+            // Public helper: guard like the other public Core helpers (ArgumentNullException),
+            // rather than NRE inside the foreach, on a null patch / uninitialized Param.
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) throw new ArgumentNullException(nameof(patch) + ".Param");
+
+            bool hasASM = false;
+            bool hasNoASM = false;
+            List<string> typeArray = new List<string>();
+            List<uint> pointerIndexes = new List<uint>();
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string type = U.at(sp, 1);
+                // (WF also reads pair.Value into an unused local here; the value is not
+                // needed for the index/type parse, so it is not bound in the Core port.)
+
+                // WF reads key[1] directly (PatchForm.cs:7190). A 1-char key (e.g. a
+                // malformed "P=..." line) would IndexOutOfRange there. Guard the length
+                // and skip — behavior-identical for every valid pointer key (P0..P9, all
+                // length >= 2) and only converts the malformed-key crash into a skip,
+                // honoring the Core "never throws" posture.
+                if (key.Length < 2)
+                {
+                    continue;
+                }
+                if (!U.isnum(key[1]))
+                {
+                    continue;
+                }
+                int datanum = (int)U.atoi(key.Substring(1));
+
+                if (key[0] == 'P')
+                {
+                    if (type == "ASM")
+                    {
+                        hasASM = true;
+                    }
+                    else
+                    {
+                        hasNoASM = true;
+                    }
+
+                    pointerIndexes.Add((uint)datanum);
+                    typeArray.Add(type);
+                }
+            }
+
+            out_typeArray = typeArray.ToArray();
+
+            if (hasASM)
+            {
+                if (hasNoASM == false)
+                {//ASMだけ
+                    out_iftType = Address.DataTypeEnum.InputFormRef_ASM;
+                }
+                else
+                {//ASMとデータの混在
+                    out_iftType = Address.DataTypeEnum.InputFormRef_MIX;
+                }
+            }
+            else
+            {//ASMを含まない
+                out_iftType = Address.DataTypeEnum.InputFormRef;
+            }
+
+            return pointerIndexes.ToArray();
+        }
+
+        /// <summary>
+        /// SCAFFOLD orchestrator (s2pf-1) for the WinForms
+        /// <c>PatchForm.MakePatchStructDataList</c> (FEBuilderGBA/PatchForm.cs:7126).
+        /// Scans the installed-patch tree for <paramref name="rom"/> and walks each patch
+        /// through the same gate WF uses (<see cref="PatchHardCodeScanner.isCanonicalSkip"/>
+        /// -> <see cref="PatchHardCodeScanner.CheckIF"/> -> <see cref="IsMakePatchStructDataListTarget"/>),
+        /// then dispatches on the patch TYPE.
+        /// <para>
+        /// In THIS slice EVERY per-TYPE arm is a documented NO-OP STUB — nothing is added to
+        /// <paramref name="list"/>. The orchestrator is defined + unit-tested but is NOT wired
+        /// into <see cref="AppendAllAsmStructPointers"/> (wiring = s2pf-11), and
+        /// "PatchForm(MakePatchStructDataList)" stays in <see cref="AsmNotYetPortedRaw"/>.
+        /// </para>
+        /// <para>
+        /// The ROM is passed EXPLICITLY (never CoreState.ROM / Program.ROM): WF reads
+        /// Program.ROM via GetPatchDirectory()/Program.ROM.RomInfo, but the Core port threads
+        /// the rom so headless tests and a future off-thread rebuild use the right instance.
+        /// </para>
+        /// <para>
+        /// Cancellation matches the WF contract: WF's per-patch
+        /// <c>if (InputFormRef.DoEvents(null,msg)) return;</c> early-returns the PARTIALLY
+        /// built list (it does NOT throw). The Core port reports progress and, on a requested
+        /// cancel, returns leaving the partial <paramref name="list"/> intact — it never throws.
+        /// </para>
+        /// </summary>
+        /// <param name="rom">The ROM to scan — passed explicitly (NOT CoreState.ROM).</param>
+        /// <param name="list">The accumulating struct/pointer list (appended to). No-op this slice.</param>
+        /// <param name="isPointerOnly">WF <c>isPointerOnly</c> — forwarded to the (stubbed) TYPE arms.</param>
+        /// <param name="isInstallOnly">WF <c>isInstallOnly</c> — gate input to IsMakePatchStructDataListTarget.</param>
+        /// <param name="isStructOnly">WF <c>isStructOnly</c> — gate input to IsMakePatchStructDataListTarget.</param>
+        /// <param name="progress">Replaces WF's DoEvents message ("Check Patch &lt;name&gt;").</param>
+        /// <param name="ct">Replaces WF's DoEvents stop-flag: on cancel, return the partial list.</param>
+        public static void MakePatchStructDataListCore(ROM rom, List<Address> list,
+            bool isPointerOnly, bool isInstallOnly, bool isStructOnly,
+            IProgress<string> progress = null, CancellationToken ct = default)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (list == null) throw new ArgumentNullException(nameof(list));
+
+            // WF: ScanPatchs(GetPatchDirectory(), false). GetPatchDirectory() =
+            // Program.BaseDirectory/config/patch2/{Program.ROM.RomInfo.VersionToFilename}.
+            // WF ScanPatchs short-circuits at the TOP: `if (version == 0) return patchs;`.
+            // Reproduce that guard EXPLICITLY here: SafePatchVersionFolder returns "" for
+            // version 0 / no RomInfo, and ResolvePatchDirectory("") would otherwise resolve
+            // to the config/patch2 ROOT and make ScanPatchs recurse EVERY version's
+            // PATCH_*.txt (SearchOption.AllDirectories) — gating in unrelated patches. So a
+            // missing/empty version yields an empty list before any directory walk.
+            string version = SafePatchVersionFolder(rom);
+            if (string.IsNullOrEmpty(version))
+            {
+                return;
+            }
+            string patchDir = PatchHardCodeScanner.ResolvePatchDirectory(version);
+            string lang = CoreState.Language ?? "en";
+
+            List<PatchInstallCore.PatchSt> patchs = PatchHardCodeScanner.ScanPatchs(rom, patchDir, lang);
+            for (int i = 0; i < patchs.Count; i++)
+            {
+                PatchInstallCore.PatchSt patch = patchs[i];
+
+                if (PatchHardCodeScanner.isCanonicalSkip(patch))
+                {
+                    continue;
+                }
+
+                string type = U.at(patch.Param, "TYPE");
+                // WF uses CheckIFFast; the only difference vs CheckIF is the CacheCheckIF
+                // side-table, which does not change the gate result (documented in
+                // PatchHardCodeScanner). So the Core gate uses CheckIF directly.
+                string checkIF = PatchHardCodeScanner.CheckIF(rom, patch);
+                if (!IsMakePatchStructDataListTarget(type, checkIF, isInstallOnly, isStructOnly))
+                {
+                    continue;
+                }
+
+                if (type == "ADDR")
+                {
+                    // s2pf-3: TYPE=ADDR handler (WF MakePatchStructDataListForADDR @:6213). STUB.
+                }
+                else if (type == "EA")
+                {
+                    // s2pf-4: TYPE=EA handler (WF MakePatchStructDataListForEA @:6259). STUB.
+                }
+                else if (type == "BIN")
+                {
+                    // s2pf-5: TYPE=BIN handler (WF MakePatchStructDataListForBIN @:6317). STUB.
+                }
+                else if (type == "SWITCH")
+                {
+                    // s2pf-6: TYPE=SWITCH handler (WF MakePatchStructDataListForSWITCH @:6425). STUB.
+                }
+                else if (type == "STRUCT")
+                {
+                    // s2pf-7: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461). STUB.
+                }
+                else if (type == "IMAGE")
+                {
+                    // s2pf-8: TYPE=IMAGE handler (WF MakePatchStructDataListForIMAGE @:6738). STUB.
+                }
+
+                // WF: if (InputFormRef.DoEvents(null,"Check Patch "+patch.Name)) return;
+                // -> report progress, and on a requested cancel RETURN the partial list
+                // (matches WF early-return; does NOT throw). NOTE: the leaner Core scanner
+                // (PatchHardCodeScanner.LoadPatch) sets only PatchFileName + Param, NOT Name,
+                // so patch.Name is null here — this is a COSMETIC progress string only (the
+                // emission arms read patch.Param, never patch.Name), so the null-guard is fine.
+                progress?.Report("Check Patch " + (patch.Name ?? ""));
+                if (ct.IsCancellationRequested) return;
+            }
+        }
+
+        /// <summary>
+        /// Resolve the patch-dir version folder for <paramref name="rom"/> — the Core
+        /// equivalent of the WF <c>GetPatchDirectory()</c> version segment
+        /// (<c>Program.ROM.RomInfo.VersionToFilename</c>), threading the rom explicitly.
+        /// Returns "" for version 0 / no RomInfo, so the resolved patch dir is missing and
+        /// <see cref="PatchHardCodeScanner.ScanPatchs"/> yields an empty list — matching the
+        /// WF <c>ScanPatchs</c> <c>version == 0</c> guard.
+        /// </summary>
+        static string SafePatchVersionFolder(ROM rom)
+        {
+            try
+            {
+                if (rom.RomInfo == null) return "";
+                if (rom.RomInfo.version == 0) return "";
+                return rom.RomInfo.VersionToFilename ?? "";
+            }
+            catch { return ""; }
+        }
+
+        // ====================================================================
         // slice 2z-wire (#1261) — drive RebuildMakeCore.Make from the producers,
         // GATED on IsComplete.
         //
