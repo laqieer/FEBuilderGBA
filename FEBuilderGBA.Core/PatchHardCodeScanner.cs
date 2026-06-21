@@ -381,6 +381,178 @@ namespace FEBuilderGBA
             return "";
         }
 
+        /// <summary>
+        /// Tri-state install status used by the #1261 PatchForm EA/BIN safe-reject gate (s2pf-12).
+        /// </summary>
+        public enum InstallStatusEnum
+        {
+            /// <summary>No install marker matched (and every marker was resolvable) — the patch's bytes
+            /// are NOT in the ROM, so a rebuild can safely omit it.</summary>
+            NotInstalled = 0,
+            /// <summary>An install marker matched the ROM — the patch's bytes ARE present.</summary>
+            Installed = 1,
+            /// <summary>The install status CANNOT be determined: at least one install marker uses a
+            /// signature this Core build cannot resolve (e.g. an <c>$FGREP &lt;file&gt;</c> file-inclusion,
+            /// <c>$XGREP</c>, or another un-ported macro). Treated as possibly-installed by the safe-reject
+            /// gate (conservative: never claim "safe" when the patch might be present).</summary>
+            Unknown = 2,
+        }
+
+        /// <summary>
+        /// Resolve the INSTALL STATUS of <paramref name="patch"/> against <paramref name="rom"/> for the
+        /// #1261 PatchForm EA/BIN safe-reject gate (s2pf-12) — a SOUND over-approximation of the WinForms
+        /// <c>PatchForm.IsInstalled</c> (FEBuilderGBA/PatchForm.cs:199), which deems a patch installed iff
+        /// its detail-mode <c>CheckIF</c> result contains the substring <c>"PATCHED_IF"</c> (i.e. some
+        /// <c>PATCHED_IF</c> match OR some <c>PATCHED_IFNOT</c> match).
+        /// <para>
+        /// Only the install-marker keys (<c>PATCHED_IF</c> / <c>PATCHED_IFNOT</c>) are inspected — plain
+        /// <c>IF</c>/<c>IFNOT</c>/<c>CONFLICT_IF</c> are prerequisites, not install markers, and never make
+        /// WF's <c>IsInstalled</c> true. Per marker:
+        /// <list type="bullet">
+        ///   <item>address UNRESOLVABLE (<c>convertBinAddressString</c> -&gt; unsafe/NOT_FOUND, e.g. an
+        ///   <c>$FGREP &lt;file&gt;</c> file-inclusion or <c>$XGREP</c> this Core build does not port) -&gt;
+        ///   <see cref="InstallStatusEnum.Unknown"/> (the gate refuses conservatively).</item>
+        ///   <item><c>PATCHED_IF</c> whose bytes MATCH the ROM, or <c>PATCHED_IFNOT</c> whose bytes MISMATCH
+        ///   -&gt; <see cref="InstallStatusEnum.Installed"/> (mirrors the WF detail-string "PATCHED_IF" rule).</item>
+        /// </list>
+        /// If every marker is resolvable and none indicates installed -&gt;
+        /// <see cref="InstallStatusEnum.NotInstalled"/>. A patch with NO install markers is
+        /// <see cref="InstallStatusEnum.NotInstalled"/> — inheriting WF's own blind spot (WF's
+        /// <c>IsInstalled</c> is likewise false for a marker-less patch).
+        /// </para>
+        /// <para>
+        /// <b>SOUNDNESS.</b> This is a deliberate OVER-approximation: it returns NotInstalled only when it
+        /// can PROVE (resolvably) the patch is absent. Any doubt (an unresolvable marker) yields Unknown, so
+        /// the safe-reject gate never says "safe" while the patch could be present. The only residual gap is
+        /// the WF-inherited marker-less case, which is documented and identical to WF.
+        /// </para>
+        /// The ROM is passed EXPLICITLY (no CoreState.ROM read), honoring this file's header guarantee.
+        /// </summary>
+        public static InstallStatusEnum EaBinInstallStatus(ROM rom, PatchSt patch)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+            if (patch == null) throw new ArgumentNullException(nameof(patch));
+            if (patch.Param == null) return InstallStatusEnum.NotInstalled;
+
+            bool sawUnknown = false;
+
+            foreach (var pair in patch.Param)
+            {
+                string[] sp = pair.Key.Split(':');
+                string key = sp[0];
+                string addrstring = U.at(sp, 1);
+                string value = pair.Value;
+
+                // Only the two INSTALL markers count toward installed-status (WF IsInstalled looks for
+                // "PATCHED_IF" in the detail string, which only PATCHED_IF / PATCHED_IFNOT produce).
+                bool isPatchedIfNot;
+                if (key == "PATCHED_IF") isPatchedIfNot = false;
+                else if (key == "PATCHED_IFNOT") isPatchedIfNot = true;
+                else continue;
+
+                // SOUNDNESS — detect UNFAITHFULLY-resolvable signatures BEFORE trusting the resolved
+                // address. convertBinAddressString does NOT fail cleanly for the $FGREP <file>
+                // file-inclusion form: MakeGrepData ignores the file and mis-parses the filename token as
+                // a hex byte, so Grep returns a WRONG-but-safe offset (NOT NOT_FOUND). Reading bytes at
+                // that garbage offset could spuriously report Installed or NotInstalled — neither sound.
+                // So any marker whose addrstring is a form this Core build cannot faithfully resolve
+                // ($FGREP / $XGREP / $FREEAREA) is Unknown OUTRIGHT, regardless of what the resolver returns.
+                if (!IsFaithfullyResolvableInstallAddress(addrstring))
+                {
+                    sawUnknown = true;
+                    continue;
+                }
+
+                string basedir = Path.GetDirectoryName(patch.PatchFileName) ?? "";
+                uint address = convertBinAddressString(rom, addrstring, basedir);
+                if (!U.isSafetyOffset(address, rom))
+                {
+                    // Resolver returned NOT_FOUND / an unsafe offset (e.g. an unsupported macro, a $GREP
+                    // whose inline pattern was not found, or a $0x pointer into freespace) — cannot prove
+                    // this marker absent. Remember it and keep scanning: a LATER resolvable marker proving
+                    // Installed still wins (more precise), but if no marker proves Installed we fall back to
+                    // Unknown for the whole patch.
+                    sawUnknown = true;
+                    continue;
+                }
+
+                string[] args = value.Split(' ');
+                if (args.Length <= 1)
+                {
+                    // A malformed marker (no comparison window) cannot be evaluated -> Unknown.
+                    sawUnknown = true;
+                    continue;
+                }
+
+                bool readOk = true;
+                uint[] data = new uint[args.Length];
+                for (int i = 0; i < args.Length; i++)
+                {
+                    uint a = address + (uint)i;
+                    if (!U.isSafetyOffset(a, rom)) { readOk = false; break; }
+                    data[i] = rom.u8(a);
+                }
+                if (!readOk)
+                {
+                    sawUnknown = true;
+                    continue;
+                }
+
+                bool notFound = false;
+                for (int i = 0; i < args.Length; i++)
+                {
+                    if (data[i] != U.atoi0x(args[i]))
+                    {
+                        notFound = true;
+                        break;
+                    }
+                }
+
+                // WF detail-string "PATCHED_IF" => installed:
+                //   PATCHED_IF    installed when bytes MATCH    (notFound == false)
+                //   PATCHED_IFNOT installed when bytes MISMATCH (notFound == true)
+                bool markerSaysInstalled = isPatchedIfNot ? notFound : !notFound;
+                if (markerSaysInstalled)
+                {
+                    return InstallStatusEnum.Installed;
+                }
+            }
+
+            return sawUnknown ? InstallStatusEnum.Unknown : InstallStatusEnum.NotInstalled;
+        }
+
+        /// <summary>
+        /// Can <paramref name="addrstring"/> (an install-marker address) be resolved FAITHFULLY by this
+        /// Core build's <see cref="convertBinAddressString"/>? Returns <c>false</c> for the macro forms the
+        /// resolver does NOT port faithfully and which it cannot reject cleanly:
+        /// <list type="bullet">
+        ///   <item><c>$FGREP...</c> — file-inclusion GREP. <see cref="MakeGrepData"/> ignores the referenced
+        ///   file and mis-parses the filename as a hex byte, so the resolver returns a WRONG-but-safe offset
+        ///   (not NOT_FOUND). Reading bytes there is meaningless, so the marker must be treated as Unknown.</item>
+        ///   <item><c>$XGREP...</c> — masked GREP, not ported (resolver returns NOT_FOUND).</item>
+        ///   <item><c>$FREEAREA</c> — resolver returns 0 under the install path; not a real byte marker.</item>
+        /// </list>
+        /// Every other form (plain numeric, <c>$0x</c> pointer, inline <c>$GREP</c>/<c>$GREP_ENABLE_POINTER</c>,
+        /// <c>$P32</c>) either resolves faithfully or maps to NOT_FOUND, which the caller already treats as
+        /// Unknown via the safety-offset check. This is deliberately conservative — when in doubt, Unknown.
+        /// </summary>
+        static bool IsFaithfullyResolvableInstallAddress(string addrstring)
+        {
+            if (string.IsNullOrEmpty(addrstring)) return false; // empty/null -> resolver NOT_FOUND anyway
+            if (addrstring[0] != '$') return true;              // plain numeric address — always faithful
+
+            string value = addrstring.Substring(1);
+            if (value.Length == 0) return false;
+
+            // $FGREP / $XGREP — the un-ported GREP variants (file-inclusion / masked). Match the same
+            // family prefix convertBinAddressString uses; the F/X flag is the un-ported one.
+            if (value.StartsWith("FGREP", StringComparison.Ordinal)) return false;
+            if (value.StartsWith("XGREP", StringComparison.Ordinal)) return false;
+            if (value.StartsWith("FREEAREA", StringComparison.Ordinal)) return false;
+
+            return true;
+        }
+
         // ---- convertBinAddressString (~:3000) ----------------------------------
         // Ports the address-resolution forms used by CheckIF (appnedSize == 0,
         // start_offset == 0x100). Plain addresses + $pointer + the GREP family +

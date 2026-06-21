@@ -12898,6 +12898,175 @@ namespace FEBuilderGBA
         }
 
         // ====================================================================
+        // PatchForm producer — option-B epic (#1261, sub-slice s2pf-12 of 17).
+        //
+        // The PER-ROM SAFE-REJECT BACKSTOP — landed FIRST in the EA/BIN phase so
+        // the producer is SOUND on ANY modded ROM before the EA/BIN arms exist.
+        //
+        // WHY (subtle): the MakeWithProducer gate currently refuses ALL rebuilds
+        // because "PatchForm(MakePatchStructDataList)" stays in AsmNotYetPortedRaw
+        // -> AsmProducerResult.IsComplete is false. The eventual gate-open (s2pf-17)
+        // REMOVES that token so the COMMON-case rebuild can run. But the EA/BIN arms
+        // cannot faithfully emit an INSTALLED EA/BIN patch (every EA/BIN arm is an
+        // honest no-op skip today). So we add a per-ROM runtime backstop that
+        // REFUSES a rebuild when the loaded ROM carries an EA/BIN patch the producer
+        // can't emit AND whose bytes are (or might be) present — so that even after
+        // the token is removed, a modded ROM with such a patch STILL refuses (it
+        // never silently relocates the wrong bytes = ROM corruption). Landing this
+        // NOW makes the producer sound on any modded ROM independent of the token.
+        //
+        // SOUNDNESS (and the original "false-negative impossible" claim — RETRACTED).
+        // The first draft of this gate used `CheckIF == "I"` and claimed installed
+        // <=> CheckIF == "I". Copilot's plan review (issue #1325) correctly showed
+        // that is NOT an iff — CheckIF returns "I" ONLY for a PATCHED_IF match, but a
+        // patch can be installed via OTHER markers Core's fast CheckIF does NOT map to
+        // "I", giving real FALSE-NEGATIVES on a MODDED ROM:
+        //   1. PATCHED_IFNOT-installed (e.g. FE8U/MNC2Fix, TYPE=EA, only PATCHED_IFNOT):
+        //      WF IsInstalled treats a matched PATCHED_IFNOT as installed (its detail
+        //      string contains "PATCHED_IF"); the fast CheckIF returns "E"/"" there.
+        //   2. EA/BIN install markers using $FGREP <file> file-inclusion / $XGREP
+        //      signatures (162 such PATCHED_IF rows in the FE8U tree): Core's resolver
+        //      does not port FGREP file-inclusion, so it yields NOT_FOUND and never "I"
+        //      even when the patch IS installed.
+        // The dangerous direction is exactly a false-NEGATIVE (say "safe" when an
+        // installed EA/BIN patch is present), so the gate must NOT use CheckIF=="I".
+        //
+        // The SOUND replacement (PatchHardCodeScanner.EaBinInstallStatus): a tri-state
+        // install check that is a conservative OVER-approximation of WF's IsInstalled
+        // (PatchForm.cs:199, "detail CheckIF contains PATCHED_IF"). It inspects BOTH
+        // install markers (PATCHED_IF match OR PATCHED_IFNOT match => Installed, fixing
+        // #1) and, crucially, returns Unknown for any marker whose signature Core
+        // cannot resolve ($FGREP file-inclusion / $XGREP / unsupported macro, fixing
+        // #2). The gate REFUSES on Installed OR Unknown — so it never says "safe" while
+        // a patch could be present. NotInstalled (every marker resolvable, none
+        // matched) is the only "allow". The sole residual gap is an EA/BIN patch with
+        // NO install marker at all, which WF's OWN IsInstalled likewise reports as
+        // not-installed — an INHERITED WF blind spot, documented, not a new divergence.
+        //
+        // (Contrast the REJECTED PatchFormWouldEmitNothing, which was unsafe because a
+        // FALSE-POSITIVE "would emit nothing" could let an unsafe rebuild PROCEED; this
+        // predicate is the inverse — its conservative error mode is OVER-refusal of a
+        // not-installed-but-unresolvable patch, which is safe.)
+        //
+        // CONSERVATIVE-CURRENT-SCOPE / over-refusal tradeoff. Because the EA/BIN arms
+        // are ENTIRELY un-ported, an Unknown ($FGREP file-inclusion) marker on a ROM
+        // where the patch is actually NOT installed still refuses. That is SOUND but
+        // over-conservative; it means a VANILLA FE8U whose tree carries such markers
+        // can refuse. Narrowing it (so vanilla FE8U passes the gate, which the s2pf-17
+        // gate-open needs to be useful on FE8U) requires porting FGREP file-inclusion
+        // install-resolution — DEFERRED, a precise prerequisite for s2pf-17, NOT this
+        // slice. Soundness (no false-negative) is the priority here and is achieved.
+        // ====================================================================
+
+        /// <summary>
+        /// Per-ROM safe-reject predicate (#1261 s2pf-12): does <paramref name="rom"/> carry an EA/BIN
+        /// patch the PatchForm producer cannot faithfully emit AND whose bytes are (or might be) present?
+        /// Restricted to the un-ported TYPEs (EA/BIN) of the WinForms
+        /// <c>PatchForm.MakePatchStructDataList</c> dispatch (FEBuilderGBA/PatchForm.cs:7126):
+        /// <list type="number">
+        ///   <item>If <see cref="SafePatchVersionFolder"/> is "" (version 0 / no RomInfo / no patch
+        ///   dir) -> false (nothing to scan, matching the WF <c>ScanPatchs version==0</c> guard).</item>
+        ///   <item><see cref="PatchHardCodeScanner.ScanPatchs"/> the version dir; per patch skip
+        ///   <see cref="PatchHardCodeScanner.isCanonicalSkip"/>; read TYPE; skip unless EA or BIN;
+        ///   then <see cref="PatchHardCodeScanner.EaBinInstallStatus"/> -> refuse on
+        ///   <see cref="PatchHardCodeScanner.InstallStatusEnum.Installed"/> OR
+        ///   <see cref="PatchHardCodeScanner.InstallStatusEnum.Unknown"/> (the producer cannot emit the
+        ///   patch's bytes, so a rebuild would drop them = corruption).</item>
+        ///   <item>Every EA/BIN patch resolvably NotInstalled (or none present) -> false.</item>
+        /// </list>
+        /// <para>
+        /// <b>SOUNDNESS.</b> Refusing on Installed OR Unknown means the gate never reports "safe" while an
+        /// EA/BIN patch could be present (the dangerous false-negative). The original CheckIF=="I" draft
+        /// was UNSOUND (Copilot plan review, issue #1325): CheckIF=="I" misses PATCHED_IFNOT-installed and
+        /// $FGREP-file-inclusion-signature patches. See <see cref="PatchHardCodeScanner.EaBinInstallStatus"/>
+        /// and the block comment above for the full argument and the inherited WF blind spot
+        /// (marker-less EA/BIN patches).
+        /// </para>
+        /// <para>
+        /// <b>CONSERVATIVE CURRENT SCOPE.</b> Today the EA/BIN arms are ENTIRELY un-ported, so this flags
+        /// ANY Installed-or-Unknown EA/BIN patch. The Unknown bucket ($FGREP file-inclusion / $XGREP) makes
+        /// it OVER-refuse a not-installed-but-unresolvable patch — sound, but it can refuse a VANILLA FE8U.
+        /// Narrowing that (port FGREP file-inclusion install-resolution) is the precise prerequisite for the
+        /// s2pf-17 gate-open to be useful on FE8U, and is deliberately NOT implemented here.
+        /// </para>
+        /// <para>The ROM is passed EXPLICITLY (never <c>CoreState.ROM</c>), exactly like the
+        /// orchestrator, so headless tests and off-thread rebuilds use the right instance.</para>
+        /// </summary>
+        /// <param name="rom">The ROM to inspect — passed explicitly (NOT CoreState.ROM).</param>
+        /// <returns><c>true</c> iff the ROM has at least one EA/BIN patch the producer can't emit that is
+        /// Installed or whose install status is Unknown.</returns>
+        public static bool PatchFormHasUnportableInstalledPatch(ROM rom)
+        {
+            return FirstUnportableInstalledPatchName(rom) != null;
+        }
+
+        /// <summary>
+        /// The filename of the FIRST EA/BIN patch the PatchForm producer cannot faithfully emit for
+        /// <paramref name="rom"/> that is Installed or has Unknown install status, or <c>null</c> when
+        /// there is none. Drives both <see cref="PatchFormHasUnportableInstalledPatch"/> (the bool
+        /// predicate) and the
+        /// <see cref="MakeWithProducer(ROM, ROM, uint, string, bool, bool, IProgress{string}, CancellationToken)"/>
+        /// refusal message (so the user sees WHICH patch blocked the rebuild). Single scan, single gate —
+        /// the bool predicate is just <c>!= null</c> over this, so they can never disagree.
+        /// </summary>
+        static string FirstUnportableInstalledPatchName(ROM rom)
+        {
+            if (rom == null) throw new ArgumentNullException(nameof(rom));
+
+            // Same version-folder guard the orchestrator uses: version 0 / no RomInfo -> no patch
+            // dir -> nothing installed (matches the WF ScanPatchs version==0 short-circuit).
+            string version = SafePatchVersionFolder(rom);
+            if (string.IsNullOrEmpty(version))
+            {
+                return null;
+            }
+            string patchDir = PatchHardCodeScanner.ResolvePatchDirectory(version);
+            string lang = CoreState.Language ?? "en";
+
+            List<PatchInstallCore.PatchSt> patchs = PatchHardCodeScanner.ScanPatchs(rom, patchDir, lang);
+            for (int i = 0; i < patchs.Count; i++)
+            {
+                PatchInstallCore.PatchSt patch = patchs[i];
+
+                if (PatchHardCodeScanner.isCanonicalSkip(patch))
+                {
+                    continue;
+                }
+
+                string type = U.at(patch.Param, "TYPE");
+                // Only the un-ported EA/BIN TYPEs can carry an unemittable installed patch. STRUCT/
+                // IMAGE/ADDR/SWITCH are all faithfully emitted (s2pf-3..10), so they are never a reason
+                // to refuse. This is the SAME TYPE classification the orchestrator's dispatch uses.
+                if (type != "EA" && type != "BIN")
+                {
+                    continue;
+                }
+
+                // SOUND install check: refuse on Installed (the bytes ARE present) OR Unknown (the install
+                // signature is unresolvable — e.g. $FGREP file-inclusion — so we cannot PROVE absence).
+                // NOT CheckIF=="I", which misses PATCHED_IFNOT-installed and $FGREP-signature patches
+                // (false-negatives — Copilot plan review, issue #1325). Only NotInstalled is allowed.
+                PatchHardCodeScanner.InstallStatusEnum status =
+                    PatchHardCodeScanner.EaBinInstallStatus(rom, patch);
+                if (status == PatchHardCodeScanner.InstallStatusEnum.Installed
+                    || status == PatchHardCodeScanner.InstallStatusEnum.Unknown)
+                {
+                    // LoadPatch sets only PatchFileName (not Name), so use the file's base name for a
+                    // human-readable identity; fall back to the full path / a placeholder if absent.
+                    string file = patch.PatchFileName;
+                    if (string.IsNullOrEmpty(file))
+                    {
+                        return "<unnamed EA/BIN patch>";
+                    }
+                    try { return System.IO.Path.GetFileName(file); }
+                    catch { return file; }
+                }
+            }
+
+            return null;
+        }
+
+        // ====================================================================
         // PatchForm producer — option-B epic (#1261, sub-slice s2pf-3 of 11).
         //
         // The two TRIVIAL terminal TYPE arms: ADDR and SWITCH. Faithful Core
@@ -14248,6 +14417,30 @@ namespace FEBuilderGBA
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (vanilla == null) throw new ArgumentNullException(nameof(vanilla));
             if (string.IsNullOrEmpty(manifestPath)) throw new ArgumentNullException(nameof(manifestPath));
+
+            // 0) PER-ROM SAFE-REJECT BACKSTOP (#1261 s2pf-12). REFUSE the rebuild when THIS rom carries
+            //    an EA/BIN patch the PatchForm producer can't faithfully emit AND whose bytes are (or
+            //    might be) present — i.e. install status Installed OR Unknown (see
+            //    FirstUnportableInstalledPatchName / PatchHardCodeScanner.EaBinInstallStatus). This is IN
+            //    ADDITION to the IsComplete gate below (and runs FIRST, fail-fast, before the producers).
+            //    Today it is belt-and-suspenders — the "PatchForm(MakePatchStructDataList)" token keeps
+            //    the IsComplete gate CLOSED for every rom — but it becomes the LOAD-BEARING soundness
+            //    invariant the instant the token is removed (s2pf-17): even then, a modded rom with an
+            //    installed-but-unemittable EA/BIN patch must still refuse rather than silently relocate
+            //    the wrong bytes (= ROM corruption). The check is SOUND (no false-negative): it refuses
+            //    whenever install status cannot be PROVEN NotInstalled, so it never reports "safe" while a
+            //    patch could be present. (The naive CheckIF=="I" predicate would be unsound — it misses
+            //    PATCHED_IFNOT-installed and $FGREP-signature patches; Copilot plan review, issue #1325.)
+            string unportablePatch = FirstUnportableInstalledPatchName(rom);
+            if (unportablePatch != null)
+            {
+                throw new InvalidOperationException(
+                    "ROM rebuild unavailable: this ROM has an installed (or possibly-installed) EA/BIN "
+                    + "patch the PatchForm producer cannot faithfully emit yet (" + unportablePatch
+                    + "). Driving RebuildMakeCore.Make would drop that patch's un-enumerated bytes (the "
+                    + "rebuild treats every region NOT in the struct list as free) = silent ROM corruption. "
+                    + "The rebuild stays disabled for this ROM until the EA/BIN producer arms land in Core.");
+            }
 
             // 1) data-path producer.
             ProducerResult data = MakeAllStructPointers(rom, progress, ct);
