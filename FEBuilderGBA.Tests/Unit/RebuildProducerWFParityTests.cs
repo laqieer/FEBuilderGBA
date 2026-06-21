@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// PARTIAL WF-parity for #1261 slice s2pf-5 — the PatchForm producer TYPE=STRUCT dispatch arm
+        /// PARTIAL WF-parity for #1261 slice s2pf-5/6 — the PatchForm producer TYPE=STRUCT dispatch arm
         /// (<see cref="RebuildProducerCore.EmitPatchStruct"/>). Both the WinForms reference
         /// (<c>PatchForm.MakePatchStructDataList</c> -&gt; <c>MakePatchStructDataListForSTRUCT</c>,
         /// PatchForm.cs:6461) and the Core orchestrator
@@ -511,17 +511,22 @@ namespace FEBuilderGBA.Tests.Unit
         /// with the SAME rebuild flags. Each side is FILTERED to the FULLY-IMPLEMENTED STRUCT arms only —
         /// the MAIN struct InputFormRef entry (Info ends <c>@STRUCT</c>) + the per-entry ASM and
         /// PatchImage_* arms (Info contains <c>@STRUCT </c> then <c>ASM</c>/<c>IMAGE</c>/<c>TSA</c>/
-        /// <c>ZTSA</c>/<c>ZHEADERTSA</c>/<c>PALETTE</c>) — then compared Core ⊆ WF on the load-bearing
-        /// fields (Addr/Length/Pointer/DataType). A Core-extra (Core emits a STRUCT entry WF does not) is a
-        /// faithfulness regression and FAILS.
-        /// <para><b>THE INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-6..10).</b> The
-        /// EVENT/BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
+        /// <c>ZTSA</c>/<c>ZHEADERTSA</c>/<c>PALETTE</c>) + the EVENT arm (s2pf-6: the
+        /// <c>EventScriptForm.ScanScript</c> walk's <c>@STRUCT DATA n</c> EVENTSCRIPT/IFR/BIN entries) —
+        /// then compared Core ⊆ WF on the load-bearing fields (Addr/Length/Pointer/DataType). A Core-extra
+        /// (Core emits a STRUCT entry WF does not) is a faithfulness regression and FAILS.
+        /// <para><b>EVENT is NOW INCLUDED (s2pf-6).</b> Its <c>@STRUCT DATA n</c> entries are emitted by the
+        /// real ScanScript walk (<see cref="RebuildProducerCore.EmitScanScript"/>), disasm-gated; they are
+        /// non-MIX (EVENTSCRIPT for the script blocks, IFR/BIN for POINTER_UNIT/AICOORDINATE sub-data), so
+        /// the filter includes any non-MIX <c>@STRUCT DATA n</c> entry.</para>
+        /// <para><b>THE REMAINING INTERIM FORM-BOUND ARMS ARE EXCLUDED (deferred to s2pf-7..10).</b> The
+        /// BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/
         /// TERRAINBATTLELISTPOINTER/BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA fields are
         /// routed through Core's INTERIM default-MIX (a length-0 MIX entry named <c>... DATA n</c>) this
         /// slice — they INTENTIONALLY diverge from WF (WF emits the precise sub-walked TARGET region). So
-        /// every <c>... DATA </c>-suffixed entry (and the HEADERTSA data type) is filtered OUT of BOTH
-        /// sides before the comparison. Those arms gain their own parity teeth in s2pf-6..10, and the FULL
-        /// STRUCT parity (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
+        /// every MIX-typed <c>... DATA </c>-suffixed entry (and the HEADERTSA data type) is filtered OUT of
+        /// BOTH sides before the comparison. Those arms gain their own parity teeth in s2pf-7..10, and the
+        /// FULL STRUCT parity (no exclusions) lands at s2pf-11 when the gate token is removed.</para>
         /// <para><b>CSTRING is NOT in the merged-list parity scope:</b> WF/Core both name a CSTRING entry
         /// the DECODED STRING (no <c>@STRUCT</c> marker), so it cannot be reliably attributed to a STRUCT
         /// patch within the merged producer list. The CSTRING arm's byte-faithfulness is carried by the
@@ -570,17 +575,27 @@ namespace FEBuilderGBA.Tests.Unit
                     isStructOnly: IS_PATCH_STRUCT_ONLY);
 
                 // A FULLY-IMPLEMENTED STRUCT-arm entry: the MAIN struct entry (Info ends "@STRUCT") OR a
-                // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/PALETTE).
-                // EXCLUDES the interim form-bound arms (the "... DATA n" MIX placeholders, which DIVERGE
-                // from WF this slice) and the deferred HEADERTSA data type. CSTRING is out of merged-list
-                // scope (named the decoded string, not "@STRUCT") — see the doc-comment.
+                // per-entry ASM / PatchImage_* arm ("@STRUCT " + ASM/IMAGE/TSA/ZTSA/ZHEADERTSA/PALETTE) OR
+                // an EVENT-walk entry (s2pf-6: the "@STRUCT DATA n" entries the EventScriptForm.ScanScript
+                // walk emits — EVENTSCRIPT script blocks + their POINTER_UNIT/AICOORDINATE sub-data IFR/BIN
+                // blocks). The STILL-INTERIM form-bound arms (HEADERTSA s2pf-7 / AP/ROMTCS/PROCS s2pf-8 /
+                // Vennou/AOE/SMEPromo/SomeClass/Terrain* s2pf-9 / BattleAnime s2pf-10) emit "@STRUCT DATA n"
+                // as a length-0 MIX placeholder — those DIVERGE from WF this slice and are EXCLUDED. Since
+                // EmitPatchStructDefaultMix is the ONLY producer of a MIX-typed "@STRUCT DATA " entry, a
+                // simple rule cleanly separates the two: a MIX-typed DATA entry is interim (EXCLUDE), any
+                // other DATA entry came from the now-precise EVENT walk (INCLUDE). HEADERTSA data type stays
+                // deferred. CSTRING is out of merged-list scope (named the decoded string) — see doc-comment.
                 string[] safeArmTokens = { " ASM ", " IMAGE ", " TSA ", " ZTSA ", " ZHEADERTSA ", " PALETTE " };
                 bool IsImplementedStructEntry(Address a)
                 {
                     if (a.Info == null) return false;
                     if (a.DataType == Address.DataTypeEnum.HEADERTSA) return false;   // deferred (s2pf-7)
-                    // The interim form-bound arms emit "<name>@STRUCT DATA n" (Core MIX) — EXCLUDE.
-                    if (a.Info.Contains("@STRUCT DATA ", StringComparison.Ordinal)) return false;
+                    // A per-entry "... DATA n" entry: the STILL-INTERIM arms emit it as a length-0 MIX
+                    // placeholder (EXCLUDE); the EVENT walk (s2pf-6) emits EVENTSCRIPT/IFR/BIN (INCLUDE).
+                    if (a.Info.Contains("@STRUCT DATA ", StringComparison.Ordinal))
+                    {
+                        return a.DataType != Address.DataTypeEnum.MIX;
+                    }
                     // The MAIN struct InputFormRef entry: Info ends "@STRUCT".
                     if (a.Info.EndsWith("@STRUCT", StringComparison.Ordinal)) return true;
                     // A per-entry safe arm: "...@STRUCT <ARM> ..." for one of the implemented arms.

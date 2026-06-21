@@ -12044,12 +12044,14 @@ namespace FEBuilderGBA
                 // in the #1261 option-B s2pf-* slices: the orchestrator + ADDR/SWITCH (s2pf-3) + IMAGE
                 // (s2pf-4) + STRUCT skeleton & SAFE arms (s2pf-5) are LIVE in Core, but this token STAYS
                 // until s2pf-11 because (a) EA/BIN are still no-op stubs, AND (b) the STRUCT arm's
-                // FORM-BOUND fields are routed through a DOCUMENTED INTERIM default-MIX (length-0 MIX
-                // placeholder) — they are upgraded to precise sub-walked lengths in s2pf-6..10 (EVENT=6,
-                // HEADERTSA=7, AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
-                // BattleAnime=10). See EmitPatchStruct's block comment for the full audit table. Until
-                // those land, a wrong/zero patch-pointer length relocates the wrong bytes = silent
-                // corruption — so the gate stays CLOSED (no live rebuild) until the WHOLE arm is precise.
+                // FORM-BOUND fields are STILL routed through a DOCUMENTED INTERIM default-MIX (length-0
+                // MIX placeholder) — they are upgraded to precise sub-walked lengths in s2pf-7..10
+                // (HEADERTSA=7, AP/ROMTCS/PROCS=8, Vennou/AOE/SMEPromo/SomeClass/TerrainFloor/TerrainBG=9,
+                // BattleAnime=10). EVENT is now PRECISE (s2pf-6: the EventScriptForm.ScanScript walk via
+                // EmitScanScript, disasm-gated). See EmitPatchStruct's block comment for the full audit
+                // table. Until the remaining interim arms land, a wrong/zero patch-pointer length relocates
+                // the wrong bytes = silent corruption — so the gate stays CLOSED (no live rebuild) until
+                // the WHOLE arm is precise.
                 "PatchForm(MakePatchStructDataList)",
                 // ProcsScriptForm.MakeAllDataLength(ldrmap) — PORTED in slice 2x (EmitProcsScript /
                 // EmitProcsScriptCore + ROMInfoLoadResourceKnownArea + Load6cNameDicSafe). Its FindProc walk
@@ -12512,12 +12514,12 @@ namespace FEBuilderGBA
                 }
                 else if (type == "STRUCT")
                 {
-                    // s2pf-5: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461).
-                    // Skeleton + SAFE arms (ASM/CSTRING/PatchImage_*/default) ported REAL; the
-                    // FORM-BOUND arms route through a DOCUMENTED INTERIM default-MIX (upgraded
-                    // s2pf-6..10). SAFE: the gate token stays in AsmNotYetPortedRaw (no live
-                    // rebuild) until s2pf-11. See EmitPatchStruct's block comment for the audit
-                    // table of interim types -> upgrade slices.
+                    // s2pf-5/6: TYPE=STRUCT handler (WF MakePatchStructDataListForSTRUCT @:6461).
+                    // Skeleton + SAFE arms (ASM/CSTRING/PatchImage_*/default) + EVENT (s2pf-6,
+                    // EmitScanScript, disasm-gated) ported REAL; the REMAINING FORM-BOUND arms route
+                    // through a DOCUMENTED INTERIM default-MIX (upgraded s2pf-7..10). SAFE: the gate
+                    // token stays in AsmNotYetPortedRaw (no live rebuild) until s2pf-11. See
+                    // EmitPatchStruct's block comment for the audit table of interim types -> slices.
                     EmitPatchStruct(rom, list, patch, isPointerOnly);
                 }
                 else if (type == "IMAGE")
@@ -12984,7 +12986,13 @@ namespace FEBuilderGBA
         //   (B) the SAFE terminal arms — ported REAL: ASM/ASM_SWITCH/ASM_NOWARNING
         //       (AddFunction), CSTRING (AddCString), PatchImage_* (AddAddress sized
         //       by PatchImageVariantLength), and WF's OWN `default` (AddPointer MIX).
-        //   (C) the FORM-BOUND arms (EVENT/BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/
+        //   (B') EVENT — ported REAL in s2pf-6 (WF 6553-6557): the event-script walk
+        //       EventScriptForm.ScanScript(list, p, true, false, .., tracelist) reproduced
+        //       as EmitScanScript (the slice-2u block-emitter), disasm-gated on
+        //       IsEventScriptDisasmReady (the EventCondForm convention). The per-STRUCT
+        //       `tracelist` (WF 6545) is allocated ONCE before the entry loop and shared
+        //       across every EVENT arm. No longer interim.
+        //   (C) the REMAINING FORM-BOUND arms (BATTLEANIMEPOINTER/AP/ROMTCS/PROCS/
         //       VENNOUWEAPONLOCK/SMEPROMOLIST/CLASSLIST/TERRAINBATTLELISTPOINTER/
         //       BATTLEBGLISTPOINTER/AOERANGEPOINTER + PatchImage_HEADERTSA) — routed
         //       through the SAME `default` -> AddPointer(...,MIX) path as a DOCUMENTED
@@ -12994,8 +13002,8 @@ namespace FEBuilderGBA
         //       it MUST be upgraded before the token is removed, else those embedded
         //       pointers' TARGET regions are never relocated (residue corruption).
         //
-        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table):
-        //     EVENT                     -> s2pf-6
+        //   INTERIM default-MIX -> precise-arm UPGRADE MAP (audit table; EVENT is DONE):
+        //     EVENT                     -> s2pf-6  DONE (EmitScanScript, disasm-gated)
         //     PatchImage_HEADERTSA      -> s2pf-7  (CalcByteLengthForHeaderTSAData)
         //     AP / ROMTCS / PROCS       -> s2pf-8
         //     VENNOUWEAPONLOCK          -> s2pf-9
@@ -13033,10 +13041,11 @@ namespace FEBuilderGBA
         /// pointerIndexes[n]</c> IN ORDER, dispatching on the field type via
         /// <see cref="EmitPatchStructEntry"/>.
         /// <para>
-        /// <b>This slice (s2pf-5)</b> ports the skeleton + the SAFE terminal arms
-        /// (ASM / CSTRING / PatchImage_* / WF's <c>default</c> MIX). The FORM-BOUND arms route
-        /// through the same MIX <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-6..10) —
-        /// SAFE only while the gate token stays deferred. See the block comment above.
+        /// <b>This slice (s2pf-5/6)</b> ports the skeleton + the SAFE terminal arms
+        /// (ASM / CSTRING / PatchImage_* / WF's <c>default</c> MIX) + the EVENT arm (s2pf-6: the
+        /// <see cref="EmitScanScript"/> event-script walk, disasm-gated). The REMAINING FORM-BOUND
+        /// arms route through the same MIX <c>default</c> as a DOCUMENTED INTERIM (upgraded s2pf-7..10)
+        /// — SAFE only while the gate token stays deferred. See the block comment above.
         /// </para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — passed explicitly. MUST also be
@@ -13173,6 +13182,13 @@ namespace FEBuilderGBA
             // ---- per-entry pointer-field walk (WF 6545-6735) --------------------
             // addr = struct_address + i*datasize; for each pointer index n, p = addr +
             // pointerIndexes[n], visited IN ORDER. EOF-guard is inside EmitPatchStructEntry.
+            //
+            // WF 6545 allocates `List<uint> tracelist` ONCE per STRUCT, before the entry loop, and
+            // passes the SAME list into every EVENT arm's EventScriptForm.ScanScript call — so a
+            // script reached from two different entries (or twice from one) is emitted once and the
+            // repeat becomes a zero-length alias EVENTSCRIPT pointer. Reproduce that single-allocation
+            // scope here (only the EVENT arm consumes it; the others ignore it).
+            var tracelist = new List<uint>();
             uint addr = struct_address;
             for (int i = 0; i < datacount; i++, addr += datasize)
             {
@@ -13181,7 +13197,7 @@ namespace FEBuilderGBA
                     uint p = addr + pointerIndexes[n];
                     string type = typeArray[n];
                     EmitPatchStructEntry(rom, list, patch, basedir, isPointerOnly,
-                        type, p, patchname, n);
+                        type, p, patchname, n, tracelist);
                 }
             }
         }
@@ -13189,14 +13205,16 @@ namespace FEBuilderGBA
         /// <summary>
         /// One per-entry pointer-field dispatch for <see cref="EmitPatchStruct"/> — the WF
         /// per-field <c>if/else if</c> chain (FEBuilderGBA/PatchForm.cs:6553-6733), factored into
-        /// a switch so the later slices s2pf-6..10 replace each INTERIM arm body in place.
+        /// a switch so the later slices s2pf-7..10 replace each remaining INTERIM arm body in place
+        /// (EVENT was upgraded in s2pf-6).
         /// <para>
-        /// <b>Dispatch contract for s2pf-6..10:</b> each fully-implemented arm emits a PRECISE
-        /// length; each INTERIM form-bound arm falls into <see cref="EmitPatchStructDefaultMix"/>
-        /// (a length-0 MIX placeholder) and is marked with the slice that upgrades it. To upgrade an
-        /// arm, give its <c>case</c> a real body (sized like the WF helper it ports) and drop it from
-        /// the interim group — the call shape (<paramref name="p"/>, <paramref name="patchname"/>,
-        /// <paramref name="n"/>) is exactly what the WF helpers receive.
+        /// <b>Dispatch contract for s2pf-7..10:</b> each fully-implemented arm emits a PRECISE
+        /// length (EVENT runs the <see cref="EmitScanScript"/> walk); each remaining INTERIM form-bound
+        /// arm falls into <see cref="EmitPatchStructDefaultMix"/> (a length-0 MIX placeholder) and is
+        /// marked with the slice that upgrades it. To upgrade an arm, give its <c>case</c> a real body
+        /// (sized like the WF helper it ports) and drop it from the interim group — the call shape
+        /// (<paramref name="p"/>, <paramref name="patchname"/>, <paramref name="n"/>) is exactly what
+        /// the WF helpers receive.
         /// </para>
         /// </summary>
         /// <param name="rom">ROM to resolve against — threaded for the p32 derefs / length math.</param>
@@ -13208,8 +13226,11 @@ namespace FEBuilderGBA
         /// <param name="p">The field address <c>struct_address + i*datasize + pointerIndexes[n]</c>.</param>
         /// <param name="patchname">The struct's <c>Name@STRUCT</c> info prefix.</param>
         /// <param name="n">The pointer-index ordinal (for the per-field info suffix).</param>
+        /// <param name="tracelist">The per-STRUCT visited-target list (WF 6545), shared across all
+        /// EVENT arms so a script reached twice emits once + a zero-length alias (the EVENT arm only).</param>
         static void EmitPatchStructEntry(ROM rom, List<Address> list, PatchInstallCore.PatchSt patch,
-            string basedir, bool isPointerOnly, string type, uint p, string patchname, int n)
+            string basedir, bool isPointerOnly, string type, uint p, string patchname, int n,
+            List<uint> tracelist)
         {
             switch (type)
             {
@@ -13297,16 +13318,38 @@ namespace FEBuilderGBA
                     }
                     break;
 
+                // ---- FULLY IMPLEMENTED — event-script walk (s2pf-6) -------------
+
+                case "EVENT":
+                    // WF 6553-6557 (event call):
+                    //     EventScriptForm.ScanScript(list, p, true, false, patchname + " DATA " + n, tracelist);
+                    // The address passed is `p` ITSELF (the pointer-FIELD address), NOT rom.p32(p) — ScanScript
+                    // dereferences the slot internally (Program.ROM.u32(event_pointer)) and self-guards
+                    // isPointer/isSafetyOffset before tracing. isWithEventUnit=true, isWorldMapEvent=false. The
+                    // per-STRUCT `tracelist` (WF 6545) is shared so a re-reached script becomes a 0-length alias.
+                    //
+                    // DISASM GATING (slice-2u convention): EmitScanScript disassembles via the event-script
+                    // disassembler (CoreState.EventScript / CommentCache) and THROWS if it is unwired — a
+                    // relocation primitive must never silently no-op (Copilot #1296). The producer dispatch
+                    // gates the whole ScanScript family on IsEventScriptDisasmReady and re-reports the form in
+                    // NotYetPorted when it is unwired (RebuildProducerCore.cs:1135, EventCondForm posture).
+                    // PatchForm is reported in NotYetPorted UNCONDITIONALLY (the standing gate token
+                    // "PatchForm(MakePatchStructDataList)" stays until s2pf-11), so skipping the EVENT walk when
+                    // disasm is unavailable is NOT silent — the form is already surfaced as not-yet-ported.
+                    // Mirror that gate here: walk when ready, skip (NOT default-MIX) when not — never throw out
+                    // of the orchestrator just because disasm is unwired, and never emit a length-0 MIX in its
+                    // place (a MIX placeholder would mis-size the embedded pointer's TARGET on a live rebuild).
+                    if (IsEventScriptDisasmReady(rom))
+                    {
+                        EmitScanScript(rom, list, p, true, false, patchname + " DATA " + n, tracelist);
+                    }
+                    break;
+
                 // ---- INTERIM default-MIX (this slice) — form-bound arms ---------
                 // Each routes through EmitPatchStructDefaultMix (= WF's own `default`,
                 // length-0 MIX). This DIVERGES from WF (WF emits the precise sub-walked
                 // TARGET region); SAFE only while the gate token stays deferred. The
                 // partial WF-parity test EXCLUDES these types.
-
-                case "EVENT":
-                    // INTERIM default-MIX -> upgraded in s2pf-6 (EventScriptForm.ScanScript walk).
-                    EmitPatchStructDefaultMix(rom, list, p, patchname, n);
-                    break;
 
                 case "PatchImage_HEADERTSA":
                     // INTERIM default-MIX -> upgraded in s2pf-7 (CalcByteLengthForHeaderTSAData; the
@@ -13411,8 +13454,9 @@ namespace FEBuilderGBA
         /// <c>InputFormRef_MIX</c> pointer at <paramref name="p"/> named <c>patchname DATA n</c>.
         /// <see cref="Address.AddPointer"/> derefs <paramref name="p"/> (via <see cref="CoreState.ROM"/>)
         /// and adds the TARGET as a MIX region whose span the relocator resolves from the length-0
-        /// placeholder — so the embedded pointer's target stays TRACKED. Also the s2pf-5 INTERIM landing
-        /// for every FORM-BOUND arm (each upgraded to a precise length in s2pf-6..10).
+        /// placeholder — so the embedded pointer's target stays TRACKED. Also the INTERIM landing for
+        /// the REMAINING FORM-BOUND arms (each upgraded to a precise length in s2pf-7..10; EVENT is
+        /// already precise via <see cref="EmitScanScript"/>).
         /// </summary>
         static void EmitPatchStructDefaultMix(ROM rom, List<Address> list, uint p, string patchname, int n)
         {
