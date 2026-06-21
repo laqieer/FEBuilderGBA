@@ -13270,16 +13270,20 @@ namespace FEBuilderGBA
                 case "ASM_NOWARNING":
                     // WF 6677: deref-safe ASM function pointer -> AddFunction (length 0, disassembled).
                     {
+                        // Guard the FULL 4-byte slot BEFORE rom.p32(p): rom.p32 only checks `p >= Data.Length`,
+                        // then delegates to u32(p) -> check_safety(p+4) which THROWS when p is within the LAST 3
+                        // bytes (in-range but p+4 > Data.Length). WF's verbatim `Program.ROM.p32(p)` would throw
+                        // there too; this slot+3 guard makes a near-EOF slot a clean skip (Core-wide convention;
+                        // Copilot PR #1315 review). AddFunction also re-reads p via CoreState.ROM.u32, so the same
+                        // full-slot guard covers it.
+                        if (!U.isSafetyOffset(p, rom) || !U.isSafetyOffset(p + 3, rom))
+                        {
+                            break;
+                        }
                         uint a = rom.p32(p);
                         if (U.isSafetyOffset(a, rom))
                         {
-                            // WF guards `Program.ROM.p32(p)` safe, then AddFunction(list, p, ..) re-reads
-                            // p via CoreState.ROM.u32 — so the slot must be fully in range. p32 already
-                            // returned a safe `a`, which means p..p+3 were read; guard p+3 to be explicit.
-                            if (U.isSafetyOffset(p + 3, rom))
-                            {
-                                Address.AddFunction(list, p, patchname + " ASM " + n);
-                            }
+                            Address.AddFunction(list, p, patchname + " ASM " + n);
                         }
                     }
                     break;

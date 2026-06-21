@@ -367,6 +367,27 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void EmitPatchStruct_AsmFieldSlotNearEof_Skips_NoThrow()
+        {
+            // Copilot PR #1315 review: rom.p32(p) is called for the ASM arm; p32's only guard is
+            // `p >= Data.Length`, so a p in the LAST 3 bytes (in-range but p+4 > Data.Length) would
+            // throw inside u32 -> check_safety(p+4). The full-slot guard must skip it cleanly.
+            var rom = MakeRom();
+            // ADDRESS at the very last 4-aligned-ish offset so that struct_address + pointerIndexes[0]
+            // (P0 -> +0) lands within the last 3 bytes. Use Data.Length - 1 as the table base.
+            uint nearEof = (uint)rom.Data.Length - 1;
+            var list = new List<Address>();
+            var ex = Record.Exception(() => RebuildProducerCore.EmitPatchStruct(rom, list, MakePatch("E",
+                ("TYPE", "STRUCT"), ("ADDRESS", "0x" + nearEof.ToString("X")),
+                ("DATASIZE", "4"), ("DATACOUNT", "1"),
+                ("P0:ASM", "0")), isPointerOnly: false));
+            Assert.Null(ex);
+            // The near-EOF ASM field is a clean skip; no ASM entry emitted (the MAIN entry's own length
+            // is clamped to 0 by the Address ctor's isSafetyLength guard, but it does not throw).
+            Assert.DoesNotContain(list, a => a.Info != null && a.Info.EndsWith("ASM 0"));
+        }
+
+        [Fact]
         public void EmitPatchStruct_PatchImageFields_EmitSizedAddresses()
         {
             var rom = MakeRom();
