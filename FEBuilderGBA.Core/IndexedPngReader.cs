@@ -29,6 +29,13 @@ namespace FEBuilderGBA
         /// <summary>Number of palette entries (PLTE length / 3); 0 when no PLTE.</summary>
         public int PaletteColorCount;
 
+        /// <summary>
+        /// Raw PLTE chunk bytes (R,G,B per entry, 3 bytes each, PNG byte order); empty
+        /// when no PLTE chunk was present. Lets a caller compare the embedded palette
+        /// directly against a sidecar JASC palette (#1350 portrait-package consistency).
+        /// </summary>
+        public byte[] PaletteRgb = Array.Empty<byte>();
+
         /// <summary>True when a tRNS chunk is present.</summary>
         public bool HasTrns;
 
@@ -116,6 +123,11 @@ namespace FEBuilderGBA
 
                         case "PLTE":
                             info.PaletteColorCount = len / 3;
+                            // Also capture the raw PLTE bytes (R,G,B per entry) so callers
+                            // can do a palette-consistency comparison (#1350).
+                            var plte = new byte[len];
+                            Array.Copy(pngBytes, dataPos, plte, 0, len);
+                            info.PaletteRgb = plte;
                             sawPlte = true;
                             break;
 

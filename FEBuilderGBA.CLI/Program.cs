@@ -581,8 +581,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --table=<name>         Table name to export to .nmm; pointer/var fields are flagged unsafe via warnings (stderr)");
             Console.WriteLine("    --out=<path>           Optional: write the .nmm to a file (otherwise printed to stdout)");
             Console.WriteLine("  --validate-asset         Structurally validate a decomp IMPORT asset on disk (no ROM; never mutates)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map|portrait-package");
             Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map)");
+            Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
+            Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
+            Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
             Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT to a raw uncompressed tilemap blob in the source tree (no ROM; never mutates)");
             Console.WriteLine("    --kind=map             Only map layout is supported (.mar + sidecar .mar.json required)");
             Console.WriteLine("    --in=<x.mar>           Input .mar map layout file");
@@ -627,6 +630,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal");
+            Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=portrait-package --path portraits/eirika/");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
@@ -4697,14 +4701,62 @@ namespace FEBuilderGBA.CLI
         /// --validate-asset: structurally validate a decomp IMPORT asset on disk (#1150).
         /// READ-ONLY; NEVER loads a ROM. Exit 0 when there are no errors (warnings ok),
         /// 2 when there are errors, 1 on a usage / bad-kind fault.
+        ///
+        /// For <c>--kind=portrait-package</c> (#1350) the asset is a DIRECTORY (a multi-file
+        /// portrait package: one composite sheet PNG + an optional JASC sidecar), so it takes
+        /// <c>--path=&lt;dir&gt;</c> instead of <c>--in</c>, an optional presence flag
+        /// <c>--allow-main-only</c>, and an optional <c>--project=&lt;dir&gt;</c> that confines
+        /// <c>--path</c> to the project root (the project must open — else exit 2 — but the
+        /// preview ROM is NEVER loaded). With <c>--project</c> an ABSOLUTE/escaping <c>--path</c>
+        /// is rejected (return 2) — correct containment behaviour.
         /// </summary>
         static int RunValidateAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map>"); return 1; }
+            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|portrait-package>"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
             if (kind == null)
-            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map"); return 1; }
+            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, portrait-package"); return 1; }
+
+            // --kind=portrait-package is a DIRECTORY validator: --path (not --in), optional
+            // --allow-main-only, optional --project containment. NEVER loads the preview ROM.
+            if (kind.Value == AssetKind.PortraitPackage)
+            {
+                if (!argsDic.ContainsKey("--path") || string.IsNullOrEmpty(argsDic["--path"]))
+                { Console.Error.WriteLine("Error: --validate-asset --kind=portrait-package requires --path=<dir>"); return 1; }
+                string pathArg = argsDic["--path"];
+                bool allowMainOnly = argsDic.ContainsKey("--allow-main-only");
+
+                string dirPath = pathArg;
+                if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
+                {
+                    // Project-root containment for --path. We resolve the project ROOT only
+                    // (DecompProjectDetector.Detect — no ROM load, no RomLoader.LoadProject) so
+                    // the preview ROM is NEVER loaded; the project must still be a valid decomp
+                    // root (else exit 2 — we never silently drop containment).
+                    RomLoader.InitEnvironment();
+                    string projectDir = argsDic["--project"];
+                    DecompProject project = DecompProjectDetector.Detect(projectDir);
+                    if (project == null)
+                    { Console.Error.WriteLine($"Error: '{projectDir}' is not a decomp project (containment for --path cannot be enforced)"); return 2; }
+
+                    // ResolveSourcePath rejects absolute / ..-escaping paths under the project root.
+                    string absPath = DecompAssetExportCore.ResolveSourcePath(project, pathArg);
+                    if (absPath == null)
+                    { Console.Error.WriteLine("Error: --path rejected (outside project root or invalid)"); return 2; }
+                    dirPath = absPath;
+                }
+
+                AssetValidationResult pkgResult = DecompAssetValidatorCore.ValidateAssetPackage(kind.Value, dirPath, allowMainOnly);
+
+                foreach (AssetIssue e in pkgResult.Errors)
+                    Console.Error.WriteLine($"ERROR [{e.Code}] {e.Message}");
+                foreach (AssetIssue w in pkgResult.Warnings)
+                    Console.WriteLine($"WARN [{w.Code}] {w.Message}");
+
+                Console.WriteLine($"Validation: {pkgResult.Errors.Count} error(s), {pkgResult.Warnings.Count} warning(s) — {(pkgResult.Ok ? "OK" : "FAILED")}");
+                return pkgResult.Ok ? 0 : 2;
+            }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --validate-asset requires --in=<srcAsset>"); return 1; }
