@@ -527,6 +527,369 @@ namespace FEBuilderGBA
             }
         }
 
+        // ===================================================== u16 ITEM_NONE list (#1347)
+
+        /// <summary>
+        /// PURE preview: re-serialize a variable-length <c>u16</c> <c>ITEM_NONE</c>(0x0000)-
+        /// terminated C array in-place to the requested item vector, returning the new text
+        /// via <paramref name="newSourceText"/> WITHOUT touching disk. NEVER throws; NEVER
+        /// reads a ROM. <paramref name="newSourceText"/> is set to <paramref name="sourceText"/>
+        /// on every early return.
+        ///
+        /// <para>This targets the shape FEBuilder's shop-list EXPORT emits — a RAW-HEX list
+        /// (e.g. <c>const u16 ItemList_X[] = { 0x0501, 0x0203, 0x0000 };</c>). The whole
+        /// <c>{...}</c> body is replaced wholesale with the desired vector + a fresh
+        /// <c>0x0000</c> terminator, so the old terminator (if a literal) is naturally dropped.</para>
+        ///
+        /// <para>LIMITATION (the #1159 no-clobber discipline): if ANY existing element is a
+        /// non-literal macro/identifier/expression (e.g. a hand-authored <c>{ ITEM_IRONSWORD,
+        /// ITEM_NONE }</c>), the writer REFUSES (<see cref="DecompSourceWriteStatus.UnsupportedField"/>)
+        /// rather than clobber it — a full-vector replacement would discard the macro names. Edit
+        /// such a list by hand, or migrate it to a raw-hex list via
+        /// <c>--export-asset --kind=shop</c>. A typical FEBuilder-exported list is all-hex and
+        /// rewrites cleanly.</para>
+        ///
+        /// <para>Validation order: the DESIRED vector is validated FIRST — any item whose low
+        /// byte is 0 (<c>(item &amp; 0xFF) == 0</c>) is rejected as
+        /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> (a real entry indistinguishable
+        /// from the <c>ITEM_NONE</c> sentinel, mirroring <c>ItemShopCore</c>). An EMPTY desired
+        /// vector is allowed (serializes to just the terminator — an emptied shop). Then the
+        /// array body is located + parsed; a non-literal element or a missing array is a
+        /// refusal. Re-running with the same items is a byte-identical no-op (idempotent).</para>
+        /// </summary>
+        public static DecompSourceWriteResult RewriteListBody(
+            string sourceText,
+            string symbol,
+            IReadOnlyList<ushort> desiredItems,
+            out string newSourceText)
+        {
+            newSourceText = sourceText;
+            var result = new DecompSourceWriteResult();
+            try
+            {
+                if (sourceText == null)
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = "Source text is null.";
+                    return result;
+                }
+                if (string.IsNullOrEmpty(symbol))
+                {
+                    result.Status = DecompSourceWriteStatus.MalformedManifest;
+                    result.Message = "Owner declares no arrayName/symbol.";
+                    return result;
+                }
+
+                IReadOnlyList<ushort> items = desiredItems ?? Array.Empty<ushort>();
+
+                // VALIDATE the desired vector FIRST — before locating anything. A real
+                // entry whose low byte is 0 is indistinguishable from the ITEM_NONE
+                // terminator and must be rejected (mirrors ItemShopCore's itemId != 0 rule).
+                for (int i = 0; i < items.Count; i++)
+                {
+                    if ((items[i] & 0xFF) == 0)
+                    {
+                        result.Status = DecompSourceWriteStatus.UnsupportedField;
+                        result.Message = $"desired item 0x{items[i]:X4} low byte is 0 (== ITEM_NONE terminator).";
+                        return result;
+                    }
+                }
+
+                // Locate the array body { ... }.
+                if (!TryFindArrayBody(sourceText, symbol, out int bodyOpen, out int bodyClose))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Could not locate the array initializer for '{symbol}'.";
+                    return result;
+                }
+
+                // Parse existing top-level elements. If ANY is NOT a plain integer literal
+                // (a macro / identifier / expression — e.g. ITEM_NONE, ITEM_SWORD), full-
+                // vector replacement would clobber it: refuse (#1159 no-clobber). Line/block
+                // comments are stripped from each token first (so an inline `// ITEM_NONE`
+                // annotation — including the one this writer itself emits on the terminator —
+                // is NOT mistaken for a macro element, keeping the rewrite idempotent).
+                List<(int start, int end)> tokens = SplitTopLevelTokens(sourceText, bodyOpen + 1, bodyClose);
+                int firstElemStart = -1;
+                foreach (var (ts, te) in tokens)
+                {
+                    string raw = sourceText.Substring(ts, te - ts);
+                    string tok = StripComments(raw).Trim();
+                    if (tok.Length == 0)
+                        continue;   // comment-only / whitespace-only span → not an element
+                    if (!TryParseIntLiteral(tok, out _, out _, out _))
+                    {
+                        result.Status = DecompSourceWriteStatus.UnsupportedField;
+                        result.Message =
+                            $"list contains non-literal element '{tok}' — full-vector replacement would clobber it; edit manually or export to a raw-hex list";
+                        return result;
+                    }
+                    if (firstElemStart < 0)
+                    {
+                        // The trimmed token start (skip leading whitespace inside the span).
+                        int s = ts;
+                        while (s < te && char.IsWhiteSpace(sourceText[s])) s++;
+                        firstElemStart = s;
+                    }
+                }
+
+                // Determine indentation from the line containing the FIRST element (from the
+                // last '\n' before it to the element start), else fall back to 4 spaces.
+                string indent = "    ";
+                if (firstElemStart >= 0)
+                {
+                    int lineStart = sourceText.LastIndexOf('\n', firstElemStart > 0 ? firstElemStart - 1 : 0);
+                    int ws = lineStart + 1;   // char after the newline (or 0)
+                    int wsEnd = ws;
+                    while (wsEnd < firstElemStart && (sourceText[wsEnd] == ' ' || sourceText[wsEnd] == '\t'))
+                        wsEnd++;
+                    if (wsEnd > ws)
+                        indent = sourceText.Substring(ws, wsEnd - ws);
+                }
+
+                // Newline style: CRLF if the body span contains one, else LF.
+                string bodySpan = sourceText.Substring(bodyOpen, bodyClose - bodyOpen + 1);
+                string nl = bodySpan.IndexOf("\r\n", StringComparison.Ordinal) >= 0 ? "\r\n" : "\n";
+
+                // Closing-brace indentation: the leading whitespace of the line the '}' sits on.
+                string closeIndent = "";
+                {
+                    int closeLineStart = sourceText.LastIndexOf('\n', bodyClose > 0 ? bodyClose - 1 : 0);
+                    int cs = closeLineStart + 1;
+                    int ce = cs;
+                    while (ce < bodyClose && (sourceText[ce] == ' ' || sourceText[ce] == '\t'))
+                        ce++;
+                    closeIndent = sourceText.Substring(cs, ce - cs);
+                }
+
+                // Re-serialize the body. The writer always RE-EMITS a fresh terminator.
+                var sb = new StringBuilder();
+                sb.Append('{').Append(nl);
+                foreach (ushort it in items)
+                    sb.Append(indent).Append("0x").Append(it.ToString("X4", CultureInfo.InvariantCulture)).Append(',').Append(nl);
+                sb.Append(indent).Append("0x0000,  // ITEM_NONE (terminator)").Append(nl);
+                sb.Append(closeIndent).Append('}');
+                string newBody = sb.ToString();
+
+                // NO-OP detection: byte-identical body → no churn, idempotent.
+                if (string.Equals(newBody, bodySpan, StringComparison.Ordinal))
+                {
+                    result.Status = DecompSourceWriteStatus.Ok;
+                    result.Message = "No change needed.";
+                    result.ChangedFields = new List<string>();
+                    result.BeforeText = bodySpan;
+                    result.AfterText = bodySpan;
+                    result.ChangedLineStart = LineOf(sourceText, bodyOpen);
+                    result.ChangedLineEnd = LineOf(sourceText, bodyClose);
+                    newSourceText = sourceText;
+                    return result;
+                }
+
+                string prefix = sourceText.Substring(0, bodyOpen);
+                string suffix = sourceText.Substring(bodyClose + 1);
+                newSourceText = prefix + newBody + suffix;
+
+                result.Status = DecompSourceWriteStatus.Ok;
+                result.Message = $"Rewrote shop list '{symbol}' ({items.Count} item(s)).";
+                result.ChangedFields = new List<string> { symbol };
+                result.BeforeText = bodySpan;
+                result.AfterText = newBody;
+                result.ChangedLineStart = LineOf(sourceText, bodyOpen);
+                result.ChangedLineEnd = LineOf(sourceText, bodyClose);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                newSourceText = sourceText;
+                result.Status = DecompSourceWriteStatus.Error;
+                result.Message = $"Unexpected fault: {ex.Message}";
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Full disk writer for a variable-length <c>u16</c> <c>ITEM_NONE</c>-terminated shop
+        /// list (#1347). Gates mirror <see cref="WriteTableEntry"/> (decomp mode → owner non-null
+        /// → writePolicy source → format <c>u16-list</c> → symbol + sourceFile declared →
+        /// root-confined + exists → strict-UTF-8/BOM-preserved decode), then delegates the pure
+        /// rewrite to <see cref="RewriteListBody"/>, re-encodes with the SAME BOM state and writes
+        /// atomically. On success sets <c>project.NeedsRebuild = true</c>. A no-op leaves the file
+        /// untouched and does NOT flag a rebuild. NEVER throws (any fault → Error, file untouched).
+        /// </summary>
+        public static DecompSourceWriteResult WriteListEntries(
+            DecompProject project,
+            DecompTableEntry owner,
+            IReadOnlyList<ushort> desiredItems)
+        {
+            var result = new DecompSourceWriteResult();
+            try
+            {
+                // Gate 1: decomp mode. The active project MUST be this project.
+                if (project == null || !CoreState.IsDecompMode
+                    || !ReferenceEquals(CoreState.DecompProject, project))
+                {
+                    result.Status = DecompSourceWriteStatus.NotDecompMode;
+                    result.Message = "Not in decomp mode (no active project) — source write skipped.";
+                    return result;
+                }
+
+                // Gate 2: owner.
+                if (owner == null)
+                {
+                    result.Status = DecompSourceWriteStatus.NotOwned;
+                    result.Message = "No list owner — ROM-only.";
+                    return result;
+                }
+
+                // Gate 3: write policy. Only "source" (or unset) proceeds.
+                string policy = (owner.WritePolicy ?? "").Trim();
+                if (string.Equals(policy, "romOnly", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.RomOnly;
+                    result.Message = "List owner is romOnly — edit the ROM directly or change writePolicy.";
+                    return result;
+                }
+                if (string.Equals(policy, "manual", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = "List owner is manual — edit the source by hand and rebuild.";
+                    return result;
+                }
+                if (!string.IsNullOrEmpty(policy)
+                    && !string.Equals(policy, "source", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"Unknown writePolicy '{owner.WritePolicy}' — treated as manual.";
+                    return result;
+                }
+
+                // Gate 4: format must be "u16-list".
+                string format = (owner.Format ?? "").Trim();
+                if (!string.Equals(format, "u16-list", StringComparison.OrdinalIgnoreCase))
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"List owner format is '{owner.Format}' — only 'u16-list' is supported by the shop-list writer.";
+                    return result;
+                }
+
+                // The v1 writer only supports elementWidth 2 (u16). A declared non-2 width
+                // is an honest manual refusal (no other width is serialized).
+                if (owner.ElementWidth.HasValue && owner.ElementWidth.Value != 2)
+                {
+                    result.Status = DecompSourceWriteStatus.Manual;
+                    result.Message = $"List owner declares elementWidth {owner.ElementWidth.Value} — only elementWidth 2 (u16) is supported.";
+                    return result;
+                }
+
+                // Gate 5: symbol.
+                string symbol = owner.EffectiveSymbol;
+                if (string.IsNullOrEmpty(symbol))
+                {
+                    result.Status = DecompSourceWriteStatus.MalformedManifest;
+                    result.Message = "List owner declares no arrayName/symbol.";
+                    return result;
+                }
+
+                // Gate 6: sourceFile.
+                if (string.IsNullOrEmpty(owner.SourceFile))
+                {
+                    result.Status = DecompSourceWriteStatus.MalformedManifest;
+                    result.Message = "List owner declares no sourceFile.";
+                    return result;
+                }
+
+                // Gate 7: resolve under the project root.
+                string absPath = DecompProjectDetector.ResolveArtifact(project.ProjectRoot, owner.SourceFile);
+                if (absPath == null)
+                {
+                    result.Status = DecompSourceWriteStatus.Rejected;
+                    result.Message = $"sourceFile '{owner.SourceFile}' is rejected (absolute / escapes project root).";
+                    return result;
+                }
+                result.SourceFile = absPath;
+
+                // Gate 8: file exists.
+                if (!File.Exists(absPath))
+                {
+                    result.Status = DecompSourceWriteStatus.SourceNotFound;
+                    result.Message = $"sourceFile not found: {absPath}";
+                    return result;
+                }
+
+                // Read + decode (strict UTF-8, BOM-preserving).
+                byte[] rawBytes;
+                try { rawBytes = File.ReadAllBytes(absPath); }
+                catch (Exception ex)
+                {
+                    result.Status = DecompSourceWriteStatus.Error;
+                    result.Message = $"Could not read sourceFile: {ex.Message}";
+                    return result;
+                }
+
+                bool hasBom = rawBytes.Length >= 3
+                    && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
+
+                string sourceText;
+                try
+                {
+                    var strictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
+                    sourceText = strictUtf8.GetString(
+                        rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+                }
+                catch (Exception ex)
+                {
+                    result.Status = DecompSourceWriteStatus.Error;
+                    result.Message = $"Source file is not valid UTF-8 — refusing to rewrite (left untouched): {ex.Message}";
+                    return result;
+                }
+
+                // Pure rewrite.
+                DecompSourceWriteResult rewrite = RewriteListBody(sourceText, symbol, desiredItems, out string newText);
+                rewrite.SourceFile = absPath;
+                if (!rewrite.Ok)
+                    return rewrite;
+
+                // No-op (byte-identical / empty change-set): do NOT touch disk, no rebuild flag.
+                if (rewrite.ChangedFields == null || rewrite.ChangedFields.Count == 0
+                    || string.Equals(newText, sourceText, StringComparison.Ordinal))
+                {
+                    rewrite.Status = DecompSourceWriteStatus.Ok;
+                    if (string.IsNullOrEmpty(rewrite.Message) || rewrite.Message.StartsWith("Rewrote"))
+                        rewrite.Message = "No change needed.";
+                    return rewrite;
+                }
+
+                // Re-encode with the SAME BOM-state, write atomically.
+                try
+                {
+                    byte[] outBytes = new UTF8Encoding(false).GetBytes(newText);
+                    if (hasBom)
+                    {
+                        var withBom = new byte[outBytes.Length + 3];
+                        withBom[0] = 0xEF; withBom[1] = 0xBB; withBom[2] = 0xBF;
+                        Array.Copy(outBytes, 0, withBom, 3, outBytes.Length);
+                        outBytes = withBom;
+                    }
+                    AtomicWrite(absPath, outBytes);
+                }
+                catch (Exception ex)
+                {
+                    rewrite.Status = DecompSourceWriteStatus.Error;
+                    rewrite.Message = $"Write failed (source left untouched): {ex.Message}";
+                    return rewrite;
+                }
+
+                project.NeedsRebuild = true;
+                return rewrite;
+            }
+            catch (Exception ex)
+            {
+                result.Status = DecompSourceWriteStatus.Error;
+                result.Message = $"Unexpected fault: {ex.Message}";
+                return result;
+            }
+        }
+
         // =============================================================== JSON (#1141)
 
         /// <summary>
@@ -1729,6 +2092,36 @@ namespace FEBuilderGBA
                 return j;
             }
             return i;
+        }
+
+        /// <summary>
+        /// Strip C line (<c>//…</c>) and block (<c>/*…*/</c>) comments from a token span,
+        /// keeping only the code text. Used by the u16-list element check (#1347) so an inline
+        /// comment annotation (e.g. the writer's own <c>0x0000,  // ITEM_NONE</c> terminator)
+        /// is not misclassified as a non-literal macro element. String/char literals are not
+        /// expected inside a u16 list, so they are not specially preserved. NEVER throws.
+        /// </summary>
+        static string StripComments(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.IndexOf('/') < 0)
+                return s ?? "";
+            var sb = new StringBuilder(s.Length);
+            int i = 0, n = s.Length;
+            while (i < n)
+            {
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '/')
+                    break;   // line comment runs to end of the span
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '*')
+                {
+                    int j = i + 2;
+                    while (j + 1 < n && !(s[j] == '*' && s[j + 1] == '/')) j++;
+                    i = Math.Min(n, j + 2);
+                    continue;
+                }
+                sb.Append(s[i]);
+                i++;
+            }
+            return sb.ToString();
         }
 
         /// <summary>Match a brace at <paramref name="open"/> ('{'), comment/string aware. Returns the '}' index or -1.</summary>

@@ -1,0 +1,50 @@
+# --write-shop (#1347) functional proof — real FE8U ROM as build preview
+
+## 1. Source shop list BEFORE (raw-hex u16 ITEM_NONE-terminated list)
+```c
+const u16 ItemList_Foo[] = {
+    0x0501,
+    0x0000,
+};
+```
+
+## 2. Run: --write-shop --symbol=ItemList_Foo --items=0x01:5,0x02:3
+```
+Source file: <TEMP_PROJECT>\src\shop.c
+Shop list: ItemList_Foo, 2 item(s)
+Lines 1-4
+--- BEFORE ---
+{
+    0x0501,
+    0x0000,
+}
+--- AFTER ---
+{
+    0x0501,
+    0x0302,
+    0x0000,  // ITEM_NONE (terminator)
+}
+NeedsRebuild=true
+```
+
+## 3. Source shop list AFTER (id:qty packed LE: 0x01:5->0x0501, 0x02:3->0x0302)
+```c
+const u16 ItemList_Foo[] = {
+    0x0501,
+    0x0302,
+    0x0000,  // ITEM_NONE (terminator)
+};
+```
+
+## 4. Idempotent re-run (same items) -> byte-identical no-op
+```
+Source file: <TEMP_PROJECT>\src\shop.c
+No change needed (source already matches the requested list).
+NeedsRebuild=false
+```
+
+## 5. Degrade path: unknown symbol -> Not owned, exit 2
+```
+Not owned: no list-owner declared/resolved for this shop. Use --export-asset --kind=shop to migrate.
+exit code: 2
+```

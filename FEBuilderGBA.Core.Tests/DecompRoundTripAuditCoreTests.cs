@@ -175,12 +175,31 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void Shops_AreNotInSourceBackedTables()
         {
-            // #1149: shops must NEVER be classified as a SourceBackedWriter row, and the
-            // canonical source-backed set must not contain "shops".
+            // #1149: shops must never be a SourceBackedWriter "Row save" row (they have no
+            // rectangular fixed-row C-array owner), and the canonical fixed-row source-backed
+            // set must not contain "shops". #1347 adds a DISTINCT "Shop list source save"
+            // SourceBackedWriter row (variable-length list writer), which is NOT a "Row save"
+            // and so is excluded here; the fixed-row mirror invariant over SourceBackedTables
+            // is unaffected.
             var rows = DecompRoundTripAuditCore.BuildMatrix();
             Assert.DoesNotContain(rows, r =>
-                r.Table == "shops" && r.Coverage == DecompCoverage.SourceBackedWriter);
+                r.Table == "shops" && r.Coverage == DecompCoverage.SourceBackedWriter
+                && r.Action == "Row save");
             Assert.DoesNotContain("shops", DecompSourceWriterCore.SourceBackedTables);
+        }
+
+        [Fact]
+        public void Shops_HaveSourceBackedListSaveRow()
+        {
+            // #1347: shops gain an in-place source-backed VARIABLE-LENGTH list rewrite
+            // ("Shop list source save" = SourceBackedWriter) via --write-shop — distinct
+            // from the fixed-row "Row save" path, so the SourceBackedTables mirror invariant
+            // is unaffected (see Shops_AreNotInSourceBackedTables).
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            Assert.Contains(rows, r =>
+                r.Editor == "Item Shop Editor" && r.Table == "shops"
+                && r.Action == "Shop list source save"
+                && r.Coverage == DecompCoverage.SourceBackedWriter);
         }
 
         // ---- #1150 (reopened) COMPLETENESS: the matrix is "complete relative to the

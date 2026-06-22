@@ -228,6 +228,12 @@ namespace FEBuilderGBA
             // DecompSourceWriterCore.SourceBackedTables is unaffected).
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list export",
                 DecompCoverage.SourceTreeExporter, "EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip)"));
+            // #1347: an in-place source-backed list rewrite IS possible once a manifest
+            // declares a u16-list owner for the shop's resolved DATA symbol — a distinct
+            // Action ("Shop list source save") so the SourceBackedWriter "Row save" mirror
+            // invariant over DecompSourceWriterCore.SourceBackedTables is unaffected.
+            rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list source save",
+                DecompCoverage.SourceBackedWriter, "In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347)"));
             rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (GUI: OBJ/TSA/anim/map-change)",
                 DecompCoverage.ManualMigration, "GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset"));
             rows.Add(new DecompAuditRow("Event Editor", "chapter_event_pointers", "Event/difficulty pointer fields",

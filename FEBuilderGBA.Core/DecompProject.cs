@@ -134,6 +134,48 @@ namespace FEBuilderGBA
             }
             return null;
         }
+
+        /// <summary>
+        /// Case-insensitive variable-length LIST-owner lookup over the manifest's
+        /// <c>tables</c> section (#1347). Returns the matching <see cref="DecompTableEntry"/>
+        /// whose <see cref="DecompTableEntry.Format"/> is <c>"u16-list"</c> AND whose
+        /// <see cref="DecompTableEntry.Table"/>, <see cref="DecompTableEntry.Symbol"/> OR
+        /// <see cref="DecompTableEntry.ArrayName"/> equals <paramref name="symbolOrLabel"/>,
+        /// or null when there is no manifest, no match, or any fault. NEVER throws.
+        ///
+        /// This is the list-owner analogue of <see cref="TryGetTableOwner"/>: it lets the
+        /// shop-list writer find the owning declaration from either the FEBuilder table key
+        /// or the resolved C array symbol.
+        /// </summary>
+        public DecompTableEntry TryGetListOwner(string symbolOrLabel)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(symbolOrLabel) || Manifest == null)
+                    return null;
+
+                foreach (DecompTableEntry e in Manifest.TablesList)
+                {
+                    if (e == null)
+                        continue;
+                    if (!string.Equals(e.Format, "u16-list", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (NameEquals(e.Table, symbolOrLabel)
+                        || NameEquals(e.Symbol, symbolOrLabel)
+                        || NameEquals(e.ArrayName, symbolOrLabel))
+                        return e;
+                }
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        static bool NameEquals(string candidate, string target)
+            => !string.IsNullOrEmpty(candidate)
+               && string.Equals(candidate, target, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -192,6 +234,22 @@ namespace FEBuilderGBA
         /// <summary>Index base for entry ids (0 or 1; null defaults to 0 at the writer).</summary>
         [JsonPropertyName("indexBase")]
         public int? IndexBase { get; set; }
+
+        /// <summary>
+        /// Sentinel value that terminates a variable-length list owner (#1347;
+        /// <c>format == "u16-list"</c>). Null defaults to <c>0x0000</c> (ITEM_NONE) at the
+        /// writer. Informational for the v1 shop-list writer (which always emits 0x0000).
+        /// </summary>
+        [JsonPropertyName("terminator")]
+        public int? Terminator { get; set; }
+
+        /// <summary>
+        /// Byte width of each list element (#1347; <c>format == "u16-list"</c>). Null defaults
+        /// to 2 (u16) at the writer; the v1 writer supports ONLY width 2 (any other value is
+        /// refused as manual).
+        /// </summary>
+        [JsonPropertyName("elementWidth")]
+        public int? ElementWidth { get; set; }
 
         /// <summary>Declared C fields, in struct order (drives positional initializers).</summary>
         [JsonPropertyName("fields")]
