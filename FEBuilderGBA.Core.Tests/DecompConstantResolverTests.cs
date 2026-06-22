@@ -163,13 +163,15 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("ITEM_SWORD_IRON", m2);
         }
 
-        [Fact]
-        public void NonItemMacro_AtIdZero_DoesNotBecomeTerminator()
+        [Theory]
+        [InlineData("enum { FALSE = 0x00, ITEM_SWORD_IRON = 0x01 };")]
+        [InlineData("#define FALSE 0\n#define ITEM_SWORD_IRON 0x01\n")]
+        public void NonItemMacro_AtIdZero_DoesNotBecomeTerminator(string headerText)
         {
-            // A sibling that claims id 0 (FALSE = 0) must not be picked as the ITEM_NONE
-            // terminator; ITEM_NONE is injected because no ITEM_* maps to 0.
-            var project = ProjectWithDefaultHeader(
-                "enum { FALSE = 0x00, ITEM_SWORD_IRON = 0x01 };");
+            // A sibling that claims id 0 (FALSE = 0, in either enum OR #define form) must
+            // not be picked as the ITEM_NONE terminator; ITEM_NONE is injected because no
+            // ITEM_* maps to 0. Serializing id 0 always yields ITEM_NONE, never FALSE.
+            var project = ProjectWithDefaultHeader(headerText);
             var r = DecompConstantResolver.BuildForProject(project, null);
 
             Assert.True(r.ItemNoneIsZero);
