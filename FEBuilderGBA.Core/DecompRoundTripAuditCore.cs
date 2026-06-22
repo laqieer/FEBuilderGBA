@@ -138,15 +138,17 @@ namespace FEBuilderGBA
             rows.Add(new DecompAuditRow("Icon Editor", "icon", "Icon export",
                 DecompCoverage.SourceTreeExporter, "Indexed PNG via graphics exporter (16x16 tiles)"));
             rows.Add(new DecompAuditRow("Map Editor", "map", "Map layout export",
-                DecompCoverage.SourceTreeExporter, ".mar tilemap + sidecar .mar.json (faithful)"));
+                DecompCoverage.SourceTreeExporter, ".mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned"));
+            rows.Add(new DecompAuditRow("Map Editor", "map", "Map layout import/verify",
+                DecompCoverage.SourceTreeExporter, "Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM"));
             rows.Add(new DecompAuditRow("Text Editor", "text", "Text export",
                 DecompCoverage.SourceTreeExporter, "texts.txt + textdefs.txt (migration format, not lossless macro round-trip)"));
 
             // ---- ManualMigration rows: variable-length / raw-binary / pointer data. ----
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list save",
                 DecompCoverage.ManualMigration, "Sentinel-terminated variable-length lists; no clean source-of-truth C array"));
-            rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (.mar/OBJ/TSA/anim)",
-                DecompCoverage.ManualMigration, "Raw map binaries (tile layout, OBJ tileset, chipset TSA, tile animations) - migrate via --export-asset"));
+            rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (GUI: OBJ/TSA/anim/map-change)",
+                DecompCoverage.ManualMigration, "GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset"));
             rows.Add(new DecompAuditRow("Event Editor", "chapter_event_pointers", "Event/difficulty pointer fields",
                 DecompCoverage.ManualMigration, "Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed"));
 

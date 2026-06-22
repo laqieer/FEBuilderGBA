@@ -1,0 +1,28 @@
+=== #1148 .mar map-layout source-backed round-trip (import/verify) - CLI proof ===
+
+Synthetic .mar (4x3, raw u16 entries 0..10 + 0x1FFF, all < 0x2000) + sidecar created.
+
+$ --import-asset --kind=map --in=chapter1.mar --out=chapter1.tmap_raw.bin
+Imported 4x3 map layout to raw uncompressed tilemap blob (26 bytes)
+Wrote: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-aeda5e9b0dbb56861\proof_tmp_1148\chapter1.tmap_raw.bin
+(exit 0)
+
+reconstructed RAW UNCOMPRESSED blob ([w][h] + raw u16 LE), hexdump:
+04 03 00 00 01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0A 00 FF 1F
+  -> 04 03 = w,h ; then 0000 0001 ... 000A 1FFF (12 raw u16 LE)
+
+$ --roundtrip-asset --kind=map --in=chapter1.mar
+Round-trip OK (lossless map layout body)
+(exit 0)
+
+corrupt the .mar (break the <<3 invariant: set a low bit) then re-verify:
+$ --roundtrip-asset --kind=map --in=<corrupt>.mar   (expect exit 2)
+ERROR [BAD_MAR_SHIFT] Entry at byte offset 0 (value 0x0001) has non-zero low 3 bits - the <<3 .mar invariant is broken.
+(exit 2)
+
+decomp coverage matrix (map rows) - .mar layout is now export AND import/verify:
+Map Settings Editor	map_settings	Row save	SourceBackedWriter	Main structured-row save only
+Map Settings Editor	map_settings	Chapter pointer fields (EventDataPtr, difficulty)	ManualMigration	Pointer fields (D0/EventDataPtr, D96-D108 difficulty) are not source-backed
+Map Editor	map	Map layout export	SourceTreeExporter	.mar tilemap + sidecar .mar.json - export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned
+Map Editor	map	Map layout import/verify	SourceTreeExporter	Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM
+Map Editor	map_asset_binaries	Raw map asset save (GUI: OBJ/TSA/anim/map-change)	ManualMigration	GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) - NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset

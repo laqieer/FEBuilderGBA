@@ -122,6 +122,20 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --projec
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 
+# Decomp .mar map LAYOUT re-import + round-trip verify (never mutates the ROM):
+# --import-asset    → reconstruct the RAW UNCOMPRESSED tilemap blob ([w][h] + w*h raw u16 LE)
+#                     from an edited .mar (+ its sidecar .mar.json); the build re-compresses from source.
+# --roundtrip-asset → validate + prove the .mar u16 LAYOUT body round-trips byte-identically.
+# The .mar map LAYOUT is now export AND import/verify and is lossless for raw tilemap u16 entries
+# < 0x2000 (palette/flag bits 13-15 clear).
+# --export-asset --kind=map REJECTS a tilemap with any raw u16 entry >= 0x2000 (the <<3 .mar encoding
+# would truncate its top 3 bits — the palette/flag bits) rather than emit a silently-lossy .mar, so every exported .mar is
+# guaranteed to round-trip. The compressed ROM bytes are NOT byte-pinned (FEBuilder's LZ77 packer is
+# non-canonical, so the decomp build re-compresses from source). OBJ/TSA/tile-animations/map-change
+# sub-assets remain export-only / manual.
+dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin
+dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=map --in=map/chapter1.mar
+
 # Decomp source-backed table writer: rewrite the owning C array element (or JSON
 # element) of a structured table entry instead of mutating the preview ROM (the
 # source is the source of truth). The table must declare a source owner in the
@@ -417,10 +431,11 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Graphics Editor | graphics | Graphics export | SourceTreeExporter | Indexed PNG (color type 3) + sidecar .pal |
 | Portrait Editor | portrait | Portrait export | SourceTreeExporter | Export via --export-portrait-all (PNG package) |
 | Icon Editor | icon | Icon export | SourceTreeExporter | Indexed PNG via graphics exporter (16x16 tiles) |
-| Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json (faithful) |
+| Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
+| Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Sentinel-terminated variable-length lists; no clean source-of-truth C array |
-| Map Editor | map_asset_binaries | Raw map asset save (.mar/OBJ/TSA/anim) | ManualMigration | Raw map binaries (tile layout, OBJ tileset, chipset TSA, tile animations) - migrate via --export-asset |
+| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset |
 | Event Editor | chapter_event_pointers | Event/difficulty pointer fields | ManualMigration | Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed |
 | Battle Animation Editor | battle_anime | Animation view | ImportPreviewOnly | Preview-only in decomp mode; no source write-back (export via --export-battle-anime) |
 | Song Table Editor | song_table | Song view | ImportPreviewOnly | Preview-only; song data edits must be made in source by hand |

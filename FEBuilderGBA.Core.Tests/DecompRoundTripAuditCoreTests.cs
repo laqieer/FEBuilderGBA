@@ -141,5 +141,17 @@ namespace FEBuilderGBA.Core.Tests
             string tsv = DecompRoundTripAuditCore.FormatMatrix(null, "tsv");
             Assert.StartsWith("Editor\tTable\tAction\tCoverage\tNotes", tsv);
         }
+
+        [Fact]
+        public void MapLayoutImportVerify_Row_Exists_AsSourceTreeExporter()
+        {
+            // #1148: the .mar map-layout import/verify direction is recorded as a
+            // distinct SourceTreeExporter row (not a SourceBackedWriter row, so the
+            // canonical SourceBackedTables mirror invariant stays unaffected).
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            Assert.Contains(rows, r =>
+                r.Action == "Map layout import/verify"
+                && r.Coverage == DecompCoverage.SourceTreeExporter);
+        }
     }
 }

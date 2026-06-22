@@ -289,6 +289,11 @@ namespace FEBuilderGBA
         /// The .mar format stores a flat array of u16 values where each entry is the
         /// raw tilemap u16 shifted left by 3 (WF SaveAsMAR parity). The sidecar JSON
         /// records the original width/height and source address for reconstruction.
+        ///
+        /// The <c>&lt;&lt;3</c> encoding only fits a u16 when the WHOLE raw tilemap entry is
+        /// &lt; 0x2000 (its palette/flag bits 13-15 are clear); a larger raw entry is REJECTED
+        /// (<see cref="DecompAssetStatus.NotData"/>) rather than silently truncated, so the
+        /// exported .mar is guaranteed to round-trip through <see cref="ImportMap"/>.
         /// </summary>
         /// <param name="rom">Loaded ROM. Must not be null.</param>
         /// <param name="addrOffset">ROM byte offset of the LZ77-compressed tilemap data.</param>
@@ -320,12 +325,20 @@ namespace FEBuilderGBA
                     return Fail(DecompAssetStatus.NotData,
                         $"Decompressed data ({blob.Length} bytes) too small for {w}x{h} map (need {expectedSize})");
 
-                // Build .mar body: for each u16 tile entry, write (rawU16 << 3) as LE u16
+                // Build .mar body: for each raw tilemap u16 entry, write (rawU16 << 3) as LE u16.
+                // The <<3 only fits in a u16 when the WHOLE raw entry is < 0x2000 (i.e. bits 13-15 —
+                // the palette/flag bits — are clear); a larger value would have those top 3 bits
+                // SILENTLY truncated by the (ushort) cast, so the .mar would not round-trip back to
+                // the original tilemap. Reject up front rather than emit a lossy .mar (Copilot #1148
+                // review finding — keeps the round-trip claim honest).
                 byte[] marBody = new byte[w * h * 2];
                 for (int i = 0; i < w * h; i++)
                 {
                     int srcOffset = 2 + i * 2;
                     ushort rawTile = (ushort)(blob[srcOffset] | (blob[srcOffset + 1] << 8));
+                    if (rawTile >= 0x2000)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"Raw tilemap entry #{i} (0x{rawTile:X4}) >= 0x2000 — its top 3 bits (palette/flag bits 13-15) would be truncated by the <<3 .mar encoding and is not round-trippable; this tilemap is not a supported .mar layout.");
                     ushort marTile = (ushort)(rawTile << 3);
                     marBody[i * 2 + 0] = (byte)(marTile & 0xFF);
                     marBody[i * 2 + 1] = (byte)(marTile >> 8);
@@ -347,6 +360,168 @@ namespace FEBuilderGBA
             catch (Exception ex)
             {
                 return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        // ---- ImportMap ----
+
+        /// <summary>
+        /// Re-import a <c>.mar</c> tilemap LAYOUT (the inverse of <see cref="ExportMap"/>) into a
+        /// RAW UNCOMPRESSED tilemap blob — the IMPORT/verify direction that makes the <c>.mar</c> a
+        /// genuine source-backed round-trip artifact (#1148). The blob is written to
+        /// <paramref name="absOutBlobPath"/> verbatim; this method does NOT itself enforce
+        /// project-root containment — callers that need it (e.g. the CLI) must pre-resolve the path
+        /// through <see cref="ResolveSourcePath"/> so the write lands inside the project tree.
+        ///
+        /// <para>This method NEVER mutates <see cref="CoreState.ROM"/> and NEVER throws (every fault
+        /// becomes a typed <see cref="DecompAssetResult"/>). It does NOT LZ77-compress and does NOT
+        /// write any compressed binary: FEBuilder's LZ77 packer is non-canonical (its match/padding
+        /// choices differ from the original ROM packer), so a compressed round-trip would NOT be
+        /// byte-identical. The decomp build re-compresses the tilemap from source itself; what this
+        /// writes is the raw uncompressed blob the build consumes.</para>
+        ///
+        /// <para>Output blob layout (the inverse of the <see cref="ExportMap"/> decompressed input):
+        /// <c>[w:u8][h:u8]</c> then <c>w*h</c> raw u16 LE tilemap entries. For each <c>.mar</c> body
+        /// entry <c>marU16</c>, the raw tile is reconstructed as <c>rawTile = marU16 &gt;&gt; 3</c>
+        /// (the exact inverse of the export-side <c>rawTile &lt;&lt; 3</c>). Because the export-side
+        /// shift truncates bits 13-15 (the palette/flag bits), the layout is LOSSLESS for raw u16
+        /// entries &lt; 0x2000 — every valid <c>.mar</c> entry already has its low 3 bits clear (the
+        /// validator enforces this), so the reconstruction is exact for the understood u16 layout body.</para>
+        /// </summary>
+        /// <param name="absInMarPath">Absolute path to the input <c>.mar</c> file. A sidecar
+        /// <c>&lt;path&gt;.mar.json</c> (the export-side JSON) is REQUIRED — its width/height are
+        /// needed to size the reconstructed blob.</param>
+        /// <param name="absOutBlobPath">Absolute path for the output RAW uncompressed tilemap blob.</param>
+        public static DecompAssetResult ImportMap(string absInMarPath, string absOutBlobPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absInMarPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mar path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlobPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural + index-level validation (even length, length==w*h*2 vs sidecar,
+                // and the <<3 low-3-bits-clear invariant). Reuse the shared validator so the
+                // import refuses exactly the same malformed inputs the validator flags.
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapLayout, absInMarPath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absInMarPath);
+
+                // The sidecar dims are REQUIRED to reconstruct the [w][h] header — the validator
+                // only WARNS (not errors) on a missing/unreadable sidecar, so re-check here.
+                string sidecar = absInMarPath + ".json";
+                if (!File.Exists(sidecar))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .mar.json required to reconstruct dimensions");
+                if (!TryReadSidecarDims(sidecar, out int width, out int height))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .mar.json required to reconstruct dimensions");
+
+                // The header stores width/height as u8 — they must fit 1..255.
+                if (width < 1 || width > 255 || height < 1 || height > 255)
+                    return Fail(DecompAssetStatus.NotData, "dimensions out of u8 range 1..255");
+
+                // Double-check the body length matches w*h*2 (the validator already errors on
+                // this, but guard explicitly so the reconstruction loop cannot read OOB).
+                int entries = width * height;
+                if (body.Length != entries * 2)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != width*height*2 ({width}*{height}*2 = {entries * 2})");
+
+                // Reconstruct the raw uncompressed blob: [w:u8][h:u8] + w*h raw u16 LE.
+                byte[] raw = new byte[2 + entries * 2];
+                raw[0] = (byte)width;
+                raw[1] = (byte)height;
+                for (int i = 0; i < entries; i++)
+                {
+                    ushort marU16 = (ushort)(body[i * 2] | (body[i * 2 + 1] << 8));
+                    ushort rawTile = (ushort)(marU16 >> 3);
+                    raw[2 + i * 2 + 0] = (byte)(rawTile & 0xFF);
+                    raw[2 + i * 2 + 1] = (byte)(rawTile >> 8);
+                }
+
+                EnsureParentDir(absOutBlobPath);
+                File.WriteAllBytes(absOutBlobPath, raw);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported {width}x{height} map layout to raw uncompressed tilemap blob ({raw.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlobPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE round-trip proof for a <c>.mar</c> BODY (no ROM, no compression, never throws).
+        ///
+        /// <para>For each u16 entry it computes <c>rawTile = marU16 &gt;&gt; 3</c> then re-exports
+        /// <c>reExported = (ushort)(rawTile &lt;&lt; 3)</c> and asserts <c>reExported == marU16</c>.
+        /// Returns true iff <paramref name="marBody"/> is non-null, has even length, and EVERY entry
+        /// survives the export→import→export shift unchanged — i.e. every entry's low 3 bits are
+        /// clear, which is exactly the lossless boundary (raw tilemap u16 entries &lt; 0x2000, i.e.
+        /// palette/flag bits 13-15 clear). Returns false on a null/odd-length body or any entry that
+        /// does not round-trip.</para>
+        /// </summary>
+        public static bool RoundTripMarBody(byte[] marBody)
+        {
+            try
+            {
+                if (marBody == null) return false;
+                if (marBody.Length % 2 != 0) return false;
+
+                int entries = marBody.Length / 2;
+                for (int i = 0; i < entries; i++)
+                {
+                    ushort marU16 = (ushort)(marBody[i * 2] | (marBody[i * 2 + 1] << 8));
+                    ushort rawTile = (ushort)(marU16 >> 3);
+                    ushort reExported = (ushort)(rawTile << 3);
+                    if (reExported != marU16)
+                        return false;
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Read width/height from a <c>.mar.json</c> sidecar (the export-side JSON). NEVER throws;
+        /// returns false on any fault or non-positive dim. Mirrors the validator's private reader
+        /// (which is not accessible from here).
+        /// </summary>
+        static bool TryReadSidecarDims(string sidecar, out int width, out int height)
+        {
+            width = 0; height = 0;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("width", out System.Text.Json.JsonElement w)
+                    && w.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    width = w.GetInt32();
+                if (root.TryGetProperty("height", out System.Text.Json.JsonElement h)
+                    && h.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    height = h.GetInt32();
+                return width > 0 && height > 0;
+            }
+            catch
+            {
+                return false;
             }
         }
 

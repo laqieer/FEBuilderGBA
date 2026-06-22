@@ -236,5 +236,261 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, _) = RunWithRetry("--export-asset --kind=palette --rom=fake.gba");
             Assert.NotEqual(0, code);
         }
+
+        // ---- --import-asset / --roundtrip-asset (.mar map layout, #1148) ----
+
+        // Build a synthetic .mar body of (rawTile<<3) LE entries + matching sidecar.
+        static void WriteSyntheticMar(string marPath, int w, int h)
+        {
+            byte[] body = new byte[w * h * 2];
+            for (int i = 0; i < w * h; i++)
+            {
+                ushort rawTile = (ushort)(i == w * h - 1 ? 0x1FFF : i); // all < 0x2000
+                ushort marTile = (ushort)(rawTile << 3);
+                body[i * 2 + 0] = (byte)(marTile & 0xFF);
+                body[i * 2 + 1] = (byte)(marTile >> 8);
+            }
+            File.WriteAllBytes(marPath, body);
+            File.WriteAllText(marPath + ".json",
+                $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x100\",\n  \"format\": \"febuilder-mar-u16-shl3\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportAsset_Map_ExitsZero_WritesRawBlob()
+        {
+            string dir = NewTempDir("import_mar");
+            try
+            {
+                int w = 4, h = 3;
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteSyntheticMar(marPath, w, h);
+
+                string outBin = Path.Combine(dir, "chapter.tmap_raw.bin");
+                string args = $"--import-asset --kind=map --in=\"{marPath}\" --out=\"{outBin}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outBin), $"Expected raw blob at {outBin}");
+
+                // Raw blob = [w][h] + w*h raw u16 LE.
+                byte[] raw = File.ReadAllBytes(outBin);
+                Assert.Equal(2 + w * h * 2, raw.Length);
+                Assert.Equal((byte)w, raw[0]);
+                Assert.Equal((byte)h, raw[1]);
+                for (int i = 0; i < w * h; i++)
+                {
+                    ushort expected = (ushort)(i == w * h - 1 ? 0x1FFF : i);
+                    ushort actual = (ushort)(raw[2 + i * 2] | (raw[2 + i * 2 + 1] << 8));
+                    Assert.Equal(expected, actual);
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_Map_CleanMar_ExitsZero()
+        {
+            string dir = NewTempDir("rt_ok");
+            try
+            {
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteSyntheticMar(marPath, 4, 3);
+
+                string args = $"--roundtrip-asset --kind=map --in=\"{marPath}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--roundtrip-asset exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Round-trip OK", stdout);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_Map_CorruptMar_ExitsTwo()
+        {
+            string dir = NewTempDir("rt_bad");
+            try
+            {
+                int w = 2, h = 2;
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteSyntheticMar(marPath, w, h);
+
+                // Corrupt: set a low bit so the <<3 invariant is broken.
+                byte[] body = File.ReadAllBytes(marPath);
+                body[0] |= 1;
+                File.WriteAllBytes(marPath, body);
+
+                string args = $"--roundtrip-asset --kind=map --in=\"{marPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ImportAsset_NonMapKind_ExitsNonZero()
+        {
+            var (code, _, _) = RunWithRetry("--import-asset --kind=palette --in=x.pal --out=x.bin");
+            Assert.NotEqual(0, code);
+        }
+
+        // ---- Path rejection: --import-asset --out must stay inside the project root (#1148).
+        //      ROM-FREE: --project containment uses DecompProjectDetector.Detect (no ROM load). ----
+
+        [Fact]
+        public void ImportAsset_Map_OutEscapesProject_ExitsTwo()
+        {
+            string projectDir = NewTempDir("import_escape");
+            try
+            {
+                // Valid decomp manifest → Detect accepts it (no built ROM needed); containment applies.
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                // ..-escaping --out must be rejected (exit 2), NO blob written outside the tree.
+                string escapingOut = "../outside.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={escapingOut}";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.False(File.Exists(Path.Combine(projectDir, "..", "outside.tmap_raw.bin")),
+                    "no blob must be written outside the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- Containment safety: an unbuilt-but-VALID decomp project still enforces --out
+        //      containment (#1148 Copilot finding: it must NOT fall back to cwd resolution and
+        //      let --out escape the tree). Detect accepts a valid manifest even with no built ROM. ----
+
+        [Fact]
+        public void ImportAsset_Map_UnbuiltProject_OutEscapes_ExitsTwo_NoEscapeWrite()
+        {
+            // The manifest points at a builtRom that does NOT exist — the project is unbuilt but
+            // still a VALID decomp root. Containment must still apply: an escaping --out → exit 2.
+            string projectDir = NewTempDir("import_unbuilt");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"does_not_exist.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                string escapingOut = "../escaped_unbuilt.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={escapingOut}";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.False(File.Exists(Path.Combine(projectDir, "..", "escaped_unbuilt.tmap_raw.bin")),
+                    "an unbuilt-but-valid project must NOT let --out escape the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- An unbuilt-but-VALID project still writes a project-relative --out successfully
+        //      (ROM-free import does not require a built ROM). ----
+
+        [Fact]
+        public void ImportAsset_Map_UnbuiltProject_RelativeOut_ExitsZero_WritesUnderProjectRoot()
+        {
+            string projectDir = NewTempDir("import_unbuilt_ok");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"does_not_exist.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 4, 3);
+
+                string outRel = "map/chapter.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={outRel}";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"ROM-free import of an unbuilt project should succeed (exit {code})\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(Path.Combine(projectDir, "map", "chapter.tmap_raw.bin")),
+                    "raw blob must be written under the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- Not a decomp project at all → exit 2, no containment to enforce, no write. ----
+
+        [Fact]
+        public void ImportAsset_Map_NonProjectDir_ExitsTwo()
+        {
+            string dir = NewTempDir("import_nonproject");
+            try
+            {
+                // No manifest and nothing decomp-like → Detect returns null → exit 2.
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                string args = $"--import-asset --kind=map --project=\"{dir}\" --in=\"{marPath}\" --out=out.bin";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        // ---- Dispatch order: --import-asset --project must NOT be swallowed by the bare
+        //      --project rom-info fallthrough (#1148, same hazard as --export-asset #1133). ----
+
+        [Fact]
+        public void ImportAsset_Map_Project_NotSwallowedByRomInfo_WritesUnderProjectRoot()
+        {
+            string projectDir = NewTempDir("import_dispatch");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 4, 3);
+
+                // Project-relative out path under the project root.
+                string outRel = "map/chapter.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={outRel}";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --project was swallowed or failed (exit {code})\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(Path.Combine(projectDir, "map", "chapter.tmap_raw.bin")),
+                    "raw blob must be written under the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
     }
 }
