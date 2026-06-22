@@ -547,6 +547,154 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // =================================================================================
+        // #1344 — base-region pointer resolution (the WF @DEF/ResolvUnkLength behavior ported
+        // to the Apply consumer). These are DETERMINISTIC, ROM-INDEPENDENT tests (hand-built
+        // manifest + sidecars) so the new RebuildApplyCore behavior is non-vacuously covered in
+        // CI / isolated worktrees WITHOUT roms/FE8U.gba — the sibling e2e
+        // RebuildEndToEndRoundTripTests.Mode.LowRelocate proves it on the real ROM but
+        // early-exits when the ROM is absent (Copilot PR #1345 review finding 2).
+        // =================================================================================
+
+        [Fact]
+        public void Apply_BaseRegionPointer_ResolvesToIdentity_NotMissing()
+        {
+            // A RELOCATED MIX block (addr >= rebuildAddress) carries an @-token to an address in
+            // the NON-rebuild base region [0, rebuildAddress) that has NO manifest line of its
+            // own (an un-enumerated base pointer — exactly the FE8U 0x08072628 gap case). The
+            // base region is never moved, so that target must resolve to ITSELF (identity):
+            // Apply.Success, no Missing!, and the emitted pointer == the ORIGINAL base address.
+            const uint REBUILD = 0x1000;            // base region = [0, 0x1000)
+            const uint VAN_LEN = 0x2000;            // vanilla covers base + a slab that relocates
+            const uint MIX_OFF = 0x1400;            // a struct ABOVE rebuildAddress -> relocates
+            const uint BASE_TARGET_OFF = 0x0300;    // target in [0, 0x1000), NO manifest line
+            uint baseTargetPtr = 0x08000000 + BASE_TARGET_OFF;
+
+            byte[] vanData = new byte[VAN_LEN];
+            for (uint i = 0; i < VAN_LEN; i++) vanData[i] = (byte)(i & 0xFF);
+            var vanilla = new ROM();
+            vanilla.SwapNewROMDataDirect(vanData);
+
+            using (var tmp = new TempDir())
+            {
+                Directory.CreateDirectory(Path.Combine(tmp.Path, "rebuild_mix"));
+                // MIX content: two filler bytes + an @-token to the base-region address.
+                string pMix = "AA BB @" + U.ToHexString(baseTargetPtr) + " CC";
+                File.WriteAllText(Path.Combine(tmp.Path, "rebuild_mix", "P.txt"), pMix);
+
+                string manifest =
+                    "@_CRC32 00000000 //x\r\n" +
+                    "@_REBUILDADDRESS " + U.ToHexString(REBUILD) + " //x\r\n" +
+                    "@MIX " + U.ToHexString8(MIX_OFF) + " rebuild_mix/P.txt\r\n";
+                string manifestPath = Path.Combine(tmp.Path, "base.rebuild");
+                File.WriteAllText(manifestPath, manifest);
+
+                var result = RebuildApplyCore.Apply(vanilla, manifestPath, 0x09000000);
+
+                Assert.True(result.Success,
+                    "base-region @-token must resolve to identity (0 Missing!) but Apply reported "
+                    + "unresolved pointers:\n" + result.Log);
+                Assert.DoesNotContain("Missing!", result.Log ?? "");
+
+                // The relocated MIX block holds the @-token at byte offset 2 (after "AA BB").
+                // Scan the rebuilt tail for the UNCHANGED base-region pointer value.
+                byte[] rebuilt = result.Rebuilt;
+                bool found = false;
+                for (uint off = REBUILD; off + 4 <= rebuilt.Length; off++)
+                {
+                    if (ReadU32(rebuilt, off) == baseTargetPtr) { found = true; break; }
+                }
+                Assert.True(found,
+                    $"the base-region target 0x{baseTargetPtr:X8} must appear UNCHANGED (identity) in the "
+                    + "relocated MIX block; an absent/zeroed value means the base pointer was not "
+                    + "identity-mapped:\n" + result.Log);
+            }
+        }
+
+        [Fact]
+        public void Apply_BaseRegionLabelThatActuallyRelocates_BackPatchesToNewAddress_NotIdentity()
+        {
+            // REGRESSION for the deferred-vs-inline race (Copilot PR #1345 review finding 3): a
+            // struct whose addr < rebuildAddress but whose DATA CROSSES the boundary
+            // (addr + length > rebuildAddress) is RELOCATED by Bin/Mix/IFR. A token that
+            // references that struct's addr (which is < rebuildAddress) MUST resolve to the NEW
+            // relocated address, NOT identity. The #1344 identity pass runs as a POST-PASS over
+            // only the SURVIVING missing pointers, so the real relocation always wins first.
+            //
+            // Layout: rebuildAddress = 0x1000. CROSS struct at 0x0F00 with length 0x200 spans
+            // [0x0F00, 0x1100) — it crosses 0x1000, so Bin RELOCATES it to the tail. A separate
+            // relocated MIX block (at 0x1400) holds an @-token to 0x08000F00 (the CROSS struct's
+            // original addr, which is < rebuildAddress). That token must point at the RELOCATED
+            // CROSS, not at 0x08000F00.
+            const uint REBUILD = 0x1000;
+            const uint VAN_LEN = 0x2000;
+            const uint CROSS_OFF = 0x0F00;          // < rebuildAddress ...
+            const uint CROSS_LEN = 0x0200;          // ... but [0x0F00, 0x1100) crosses 0x1000 -> relocates
+            const uint MIX_OFF = 0x1400;            // a separate relocated block
+            uint crossPtr = 0x08000000 + CROSS_OFF;
+
+            byte[] vanData = new byte[VAN_LEN];
+            for (uint i = 0; i < VAN_LEN; i++) vanData[i] = (byte)((i * 7) & 0xFF);
+            var vanilla = new ROM();
+            vanilla.SwapNewROMDataDirect(vanData);
+
+            using (var tmp = new TempDir())
+            {
+                Directory.CreateDirectory(Path.Combine(tmp.Path, "rebuild_bin"));
+                Directory.CreateDirectory(Path.Combine(tmp.Path, "rebuild_mix"));
+
+                // The CROSS struct's relocated content — a distinctive byte pattern.
+                byte[] crossBytes = new byte[CROSS_LEN];
+                for (int i = 0; i < crossBytes.Length; i++) crossBytes[i] = (byte)(0xE0 + (i & 0x0F));
+                File.WriteAllBytes(Path.Combine(tmp.Path, "rebuild_bin", "CROSS.bin"), crossBytes);
+
+                // MIX block referencing the CROSS struct's ORIGINAL addr (< rebuildAddress).
+                string pMix = "@" + U.ToHexString(crossPtr);
+                File.WriteAllText(Path.Combine(tmp.Path, "rebuild_mix", "P.txt"), pMix);
+
+                // Order MIX (the reference) BEFORE the CROSS @BIN so the reference is a forward
+                // (missing-then-resolved) pointer — the exact race the post-pass must not break.
+                string manifest =
+                    "@_CRC32 00000000 //x\r\n" +
+                    "@_REBUILDADDRESS " + U.ToHexString(REBUILD) + " //x\r\n" +
+                    "@MIX " + U.ToHexString8(MIX_OFF) + " rebuild_mix/P.txt\r\n" +
+                    "@BIN " + U.ToHexString8(CROSS_OFF) + " rebuild_bin/CROSS.bin\r\n";
+                string manifestPath = Path.Combine(tmp.Path, "cross.rebuild");
+                File.WriteAllText(manifestPath, manifest);
+
+                var result = RebuildApplyCore.Apply(vanilla, manifestPath, 0x09000000);
+                Assert.True(result.Success, "crossing-struct Apply left unresolved pointers:\n" + result.Log);
+                Assert.DoesNotContain("Missing!", result.Log ?? "");
+
+                byte[] rebuilt = result.Rebuilt;
+                // The @-token in the relocated MIX must point at the RELOCATED CROSS (which holds
+                // crossBytes), NOT at the identity 0x08000F00.
+                bool foundRelocated = false;
+                for (uint off = REBUILD; off + 4 <= rebuilt.Length; off += 4)
+                {
+                    uint val = ReadU32(rebuilt, off);
+                    if (val >= 0x08000000 && val < 0x0A000000)
+                    {
+                        uint tgt = U.toOffset(val);
+                        if (tgt + CROSS_LEN <= rebuilt.Length && BytesEqual(rebuilt, tgt, crossBytes))
+                        {
+                            // The resolved pointer must NOT be the identity 0x08000F00.
+                            Assert.True(val != crossPtr,
+                                "the crossing struct relocated, so the reference must point at the NEW "
+                                + $"address, but it is the identity 0x{crossPtr:X8} — the #1344 identity pass "
+                                + "wrongly pre-empted the real relocation back-patch (finding 3 regressed).");
+                            foundRelocated = true;
+                            break;
+                        }
+                    }
+                }
+                Assert.True(foundRelocated,
+                    "the relocated CROSS struct's content was not found at the address the reference "
+                    + "resolves to — the boundary-crossing relocation was not back-patched correctly:\n"
+                    + result.Log);
+            }
+        }
+
         [Theory]
         [InlineData((byte)0xB2)]   // repointer: needs +4 payload
         [InlineData((byte)0xBB)]   // single-byte-arg family

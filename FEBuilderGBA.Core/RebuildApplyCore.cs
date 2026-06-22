@@ -152,6 +152,77 @@ namespace FEBuilderGBA
                 return addr > this.RebuildAddress;
             }
 
+            // ---- base-region pointer resolution (#1344 — the WF @DEF/ResolvUnkLength Make
+            // phase, ported to the Apply consumer) -----------------------------------------
+            //
+            // A pointer TOKEN inside a relocated MIX/IFR/LZ77 block can target an address that
+            // lies in the NON-rebuild base region [0, RebuildAddress). That base region is
+            // NEVER relocated — Apply seeds the output from the vanilla base and only moves
+            // data at/after RebuildAddress (Alloc appends to the tail). So such a target stays
+            // at its ORIGINAL address: it resolves to itself (identity), it is NOT Missing!.
+            //
+            // The WinForms ToolROMRebuildMake emits a `@DEF <addr>` manifest entry for every
+            // such base-region struct (ToolROMRebuildMake.cs:291/1014 + the AppendPointer/
+            // AppendLDR/ProcssPointer discovery phases), which ToolROMRebuildApply.DEF then
+            // identity-maps (ResolvedPointer(labelPointer, labelPointer)). Those producer-side
+            // discovery phases are deeply WinForms-coupled (MoveToFreeSapceForm.SearchPointer,
+            // AsmMapFileAsmCache, the BL/LDR re-scan) and are NOT ported here. Instead the Core
+            // pipeline reproduces the SAME end result on the Apply side: a base-region target
+            // is identity by construction, so any token left unresolved is registered as
+            // identity — byte-for-byte what a `@DEF` for that target would have produced. This
+            // is exactly the rule WF's own BrokenData(addr) uses for non-extends addresses:
+            // ResolvedPointer(labelPointer, labelPointer) (ToolROMRebuildApply.cs:524).
+            //
+            // DEFERRED — not inline. The identity-map runs as a POST-PASS
+            // (ResolveBaseRegionMissingPointers) AFTER all @MIX/@IFR/@BIN entries AND the
+            // deferred WriteBackMixLZ77, so any base-region label that ACTUALLY relocated wins
+            // first. A struct whose addr < RebuildAddress but whose data CROSSES the boundary
+            // (addr + length > RebuildAddress) is relocated by Bin/Mix/IFR, which calls
+            // ResolvedPointer(addr -> newAddr) and back-patches every earlier reference to the
+            // NEW address. Identity-mapping such a label inline would race that back-patch and
+            // corrupt the reference (Copilot PR #1345 review finding 3). Running the identity
+            // pass only over the MissingPointer entries that SURVIVE the full apply guarantees a
+            // real (possibly relocated) mapping always takes precedence; the only entries left
+            // are base-region targets with NO manifest line at all (e.g. FE8U 0x08072628, an
+            // un-enumerated base pointer) — which are never structs, so never relocate, so
+            // identity is always correct. The high-address Extends/Relocate cases are unaffected
+            // (their forward-refs land in the rebuild region, resolved the normal way).
+            //
+            // isBaseRegionPointer takes a GBA pointer (the token value) and reports whether its
+            // ROM offset is strictly below RebuildAddress — i.e. it is never relocated.
+            bool isBaseRegionPointer(uint gbaPointer)
+            {
+                uint offset = U.toOffset(gbaPointer);
+                return offset < this.RebuildAddress;
+            }
+
+            //#1344 post-pass: every MissingPointer that survived the full apply (all relocations
+            //+ LZ77 back-patches done) and whose target is in the base region [0, RebuildAddress)
+            //resolves to ITSELF (identity) — the base region is never moved. ResolvedPointer
+            //registers AddressMap[p]=p and back-patches the placeholder already written
+            //(the placeholder value IS p / p+0x80000000 / p for NONE/ANTI_HUFFMAN/ASM, so the
+            //written bytes are unchanged — this only clears the Missing! flag). Iterates over a
+            //snapshot of the surviving FindPointers because ResolvedPointer mutates the list.
+            void ResolveBaseRegionMissingPointers()
+            {
+                var baseTargets = new List<uint>();
+                var seen = new HashSet<uint>();
+                for (int i = 0; i < this.MissingPointerList.Count; i++)
+                {
+                    uint p = this.MissingPointerList[i].FindPointer;
+                    if (isBaseRegionPointer(p) && seen.Add(p))
+                    {
+                        baseTargets.Add(p);
+                    }
+                }
+                foreach (uint p in baseTargets)
+                {
+                    //identity-map (= a WF @DEF for that base-region target). ResolvedPointer
+                    //removes every matching MissingPointer (incl. the ASM odd/even siblings).
+                    ResolvedPointer(p, p, "//BASE_DEF (#1344 base-region identity)");
+                }
+            }
+
             //append-only allocation (slice 1 — no free-area recycler).
             uint Alloc(uint size, uint current_addr)
             {
@@ -275,6 +346,12 @@ namespace FEBuilderGBA
                 this.Progress?.Report("WriteBackMixLZ77");
                 //後回しにしていたLZ77の解決.
                 WriteBackMixLZ77();
+
+                //#1344: identity-map any pointer left unresolved whose target is in the base
+                //region [0, RebuildAddress). Runs AFTER every relocation + LZ77 back-patch so a
+                //real (possibly relocated) mapping always wins first (see the helper's comment).
+                this.Progress?.Report("ResolveBaseRegionMissingPointers");
+                ResolveBaseRegionMissingPointers();
 
                 this.Progress?.Report("CheckSelf");
                 string log;
