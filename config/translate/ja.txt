@@ -12137,3 +12137,9 @@ ROMのRebuildに失敗しました。{0}
 :Failed to rebuild the ROM.
 ROMのRebuildに失敗しました。
 
+:Cancelled.
+キャンセルしました。
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+出力先のROMは、元のROMおよび読み込み中のROMとは別のファイルにしてください。
+

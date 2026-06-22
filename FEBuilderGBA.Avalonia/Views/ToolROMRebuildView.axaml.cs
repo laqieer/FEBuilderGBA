@@ -104,7 +104,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     R._("Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?", "0x" + string.Format("{0:X8}", rebuildAddress)),
                     ViewTitle, MessageBoxMode.YesNo);
                 if (dr != MessageBoxResult.Yes)
+                {
+                    // Honour the doc-comment contract: set a status message in every abort case so
+                    // the user sees why nothing happened (rather than a stale/blank status).
+                    StatusText.Text = R._("Cancelled.");
                     return null;
+                }
             }
             return rebuildAddress;
         }
@@ -152,6 +157,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     ToolROMRebuildViewModel.RebuildResult.OriginalUnreadable => R._("The original ROM could not be read."),
                     ToolROMRebuildViewModel.RebuildResult.OriginalNotMatching => R._("The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM."),
                     ToolROMRebuildViewModel.RebuildResult.BadAddress => R._("The rebuild address is invalid."),
+                    ToolROMRebuildViewModel.RebuildResult.OutputCollision => R._("The output ROM must be a different file from the original ROM and the loaded ROM."),
                     // Gate refusal — surface the Core reason verbatim (it begins "ROM rebuild unavailable: …").
                     ToolROMRebuildViewModel.RebuildResult.GateRefused => _vm.LastMessage,
                     ToolROMRebuildViewModel.RebuildResult.Cancelled => R._("The rebuild was cancelled."),

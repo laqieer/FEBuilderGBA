@@ -112,6 +112,65 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        // #1343 Copilot review: RebuildRom must refuse to write the rebuilt ROM over the clean
+        // original (the diff base) or over the loaded ROM file — either would silently destroy a
+        // canonical input. Guarded BEFORE any ROM read/write, so an in-memory ROM is sufficient.
+        [Fact]
+        public void RebuildRom_OutputSameAsOriginal_ReturnsOutputCollision_NoOverwrite()
+        {
+            var prevRom = CoreState.ROM;
+            string origPath = Path.Combine(Path.GetTempPath(), "feb_rb_collide_" + Guid.NewGuid().ToString("N") + ".gba");
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x4000]);
+                CoreState.ROM = rom;
+                byte[] origBytes = new byte[0x4000];
+                for (int i = 0; i < origBytes.Length; i++) origBytes[i] = (byte)(i & 0x7F);
+                File.WriteAllBytes(origPath, origBytes);
+
+                var vm = new ToolROMRebuildViewModel();
+                // output == original: must refuse (and not touch the original).
+                var r = vm.RebuildRom(origPath, 0x00001000, origPath);
+                Assert.Equal(ToolROMRebuildViewModel.RebuildResult.OutputCollision, r);
+                // The original ROM file must be byte-for-byte untouched.
+                Assert.Equal(origBytes, File.ReadAllBytes(origPath));
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                try { File.Delete(origPath); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RebuildRom_OutputSameAsLoadedRom_ReturnsOutputCollision()
+        {
+            var prevRom = CoreState.ROM;
+            string origPath = Path.Combine(Path.GetTempPath(), "feb_rb_orig3_" + Guid.NewGuid().ToString("N") + ".gba");
+            string loadedPath = Path.Combine(Path.GetTempPath(), "feb_rb_loaded_" + Guid.NewGuid().ToString("N") + ".gba");
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x4000]);
+                rom.Filename = loadedPath;   // the loaded working ROM's path
+                CoreState.ROM = rom;
+                File.WriteAllBytes(origPath, new byte[0x4000]);
+                File.WriteAllBytes(loadedPath, new byte[0x4000]);
+
+                var vm = new ToolROMRebuildViewModel();
+                // output == loaded ROM file: must refuse.
+                var r = vm.RebuildRom(origPath, 0x00001000, loadedPath);
+                Assert.Equal(ToolROMRebuildViewModel.RebuildResult.OutputCollision, r);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                try { File.Delete(origPath); } catch { }
+                try { File.Delete(loadedPath); } catch { }
+            }
+        }
+
         [Fact]
         public void MakeRebuild_WritesReport_WhenOriginalCrcSkipped()
         {

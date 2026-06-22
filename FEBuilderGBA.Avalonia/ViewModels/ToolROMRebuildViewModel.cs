@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public enum RebuildResult
         {
             Ok, NoRom, OriginalMissing, OriginalUnreadable, OriginalNotMatching,
-            BadAddress, GateRefused, Cancelled, ApplyFailed, Error
+            BadAddress, OutputCollision, GateRefused, Cancelled, ApplyFailed, Error
         }
 
         /// <summary>
@@ -209,11 +209,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             LastRebuiltSize = 0;
 
             ROM rom = CoreState.ROM;
+            if (string.IsNullOrEmpty(outputPath)) return RebuildResult.Error;
+
+            // Refuse to write the rebuilt ROM over the clean ORIGINAL (the diff base must stay
+            // unmodified) or over the currently-loaded working ROM — either would silently destroy
+            // a canonical input (Copilot PR #1343 review). The atomic write would otherwise replace
+            // them in place. Checked BEFORE the NoRom/OriginalMissing gates so the overwrite is
+            // refused even on a degenerate ROM/path, never silently after.
+            if ((!string.IsNullOrEmpty(originalPath) && SamePath(outputPath, originalPath))
+                || (rom != null && !string.IsNullOrEmpty(rom.Filename) && SamePath(outputPath, rom.Filename)))
+            {
+                LastMessage = R._("The output ROM must be a different file from the original ROM and the loaded ROM.");
+                return RebuildResult.OutputCollision;
+            }
+
             // MakeWithProducer requires rom == CoreState.ROM (its Address validation is
             // CoreState-bound), so we must pass CoreState.ROM and refuse if it is unset.
             if (rom?.Data == null || rom.RomInfo == null) return RebuildResult.NoRom;
             if (string.IsNullOrEmpty(originalPath) || !File.Exists(originalPath)) return RebuildResult.OriginalMissing;
-            if (string.IsNullOrEmpty(outputPath)) return RebuildResult.Error;
 
             AddressCheck check = ValidateRebuildAddress(rebuildAddress);
             // BelowExtends is only a warning (caller decides); NotAligned/Unsafe are hard failures.

@@ -20799,3 +20799,9 @@ Failed to rebuild the ROM. {0}
 :Failed to rebuild the ROM.
 Failed to rebuild the ROM.
 
+:Cancelled.
+Cancelled.
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+The output ROM must be a different file from the original ROM and the loaded ROM.
+

@@ -25978,3 +25978,9 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Failed to rebuild the ROM.
 重建 ROM 失败。
 
+:Cancelled.
+已取消。
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+输出 ROM 必须与原始 ROM 和已加载的 ROM 是不同的文件。
+
