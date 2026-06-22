@@ -1,0 +1,13 @@
+=== PR #1350: decomp portrait-package validator — proof ===
+
+## Core unit tests (new file DecompPortraitPackageValidatorTests.cs)
+Passed!  - Failed:     0, Passed:    20, Skipped:     0, Total:    20, Duration: 115 ms - FEBuilderGBA.Core.Tests.dll (net9.0)
+
+## E2E tests (CLI black-box, exe override) — ValidateAsset_PortraitPackage_*
+Passed!  - Failed:     0, Passed:     3, Skipped:     0, Total:     3, Duration: 669 ms - FEBuilderGBA.E2ETests.dll (net9.0)
+
+## CLI live behavior
+$ FEBuilderGBA.CLI --validate-asset --kind=portrait-package --path <empty-dir>
+ERROR [MISSING_SHEET] No *.png sheet found in 'C:/Users/ZHIWEN~1/AppData/Local/Temp/eirika_pkg'. A portrait package needs one composite sheet PNG.
+Validation: 1 error(s), 0 warning(s) - FAILED
+(exit 2)

@@ -428,9 +428,18 @@ sibling.
   palette size, and in-range pixel indices; a JASC `.pal` for its header/count/color
   triples; a `.mar` against its `.mar.json` sidecar (length == w*h*2 and the `<<3`
   low-3-bits-zero invariant). It exits `0` on no errors (warnings allowed), `2` on errors.
-  Honest residuals: the NMM bridge informs the schema but does not make pointer fields
-  source-writable; the PNG validator is structural + index-level (the full portrait
-  package is a residual); the `.mar` check needs the sidecar for the exact length assertion.
+  `--validate-asset --kind=portrait-package --path=<dir> [--allow-main-only]
+  [--project=<dir>]` is the **multi-file portrait PACKAGE validator** (also ROM-free): it
+  requires exactly one composite sheet PNG in the directory, reuses the single-PNG
+  structural checks, then verifies the 128×112 slot geometry (mini/eye/mouth slots fit;
+  a 96×80 main-mug-only sheet is `INCOMPLETE_PACKAGE` unless `--allow-main-only`), the
+  4bpp (≤16-color) portrait palette cap, and **palette consistency** between the sheet's
+  embedded PLTE and an optional JASC `.pal` sidecar (count + per-entry RGB). `--project`
+  confines `--path` to the decomp project root without loading the preview ROM. Honest
+  residuals: the NMM bridge informs the schema but does not make pointer fields
+  source-writable; the single-PNG validator is structural + index-level; the portrait
+  PACKAGE validator now covers sheet-slot geometry + palette consistency (NOT write-back /
+  semantic frame order); the `.mar` check needs the sidecar for the exact length assertion.
 
 #### Round-trip coverage matrix
 

@@ -605,19 +605,25 @@ FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.n
 
 Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar).
 
+The `portrait-package` kind (#1350) is a **multi-file PACKAGE validator** over a DIRECTORY: it requires exactly one composite sheet PNG, reuses the single-PNG structural checks, then verifies the canonical 128×112 slot geometry (mini/eye/mouth slots fit; a 96×80 main-mug-only sheet is `INCOMPLETE_PACKAGE` unless `--allow-main-only`), the 4bpp (≤16-color) portrait palette cap, and **palette consistency** between the sheet's embedded PLTE and an optional JASC `.pal` sidecar (count + per-entry RGB). It still never loads the ROM.
+
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`. |
-| `--in=<srcAsset>` | Required | Input asset file (PNG / `.pal` / `.mar`). |
+| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`, `portrait-package`. |
+| `--in=<srcAsset>` | Required (single-file kinds) | Input asset file (PNG / `.pal` / `.mar`). |
+| `--path=<dir>` | Required for `--kind=portrait-package` | Package directory (one 128×112 sheet PNG + optional JASC `.pal`). |
+| `--allow-main-only` | Optional (`portrait-package`) | Accept a 96×80 main-mug-only sheet (warn instead of error). |
+| `--project=<dir>` | Optional (`portrait-package`) | Confine `--path` to the decomp project root (rejects absolute / escaping paths; **never loads the preview ROM**). |
 
 ```
 FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png
 FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal
+FEBuilderGBA.CLI --validate-asset --kind=portrait-package --path portraits/eirika/
 ```
 
 Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout) plus a summary line.
 
-**Exit code:** 0 on no errors (warnings allowed), 2 on errors, 1 on usage / bad-kind.
+**Exit code:** 0 on no errors (warnings allowed), 2 on errors (or a `--project` containment / detection failure for `portrait-package`), 1 on usage / bad-kind.
 
 ---
 
@@ -648,7 +654,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--write-source` | — | — | — | — | `--project`, `--table`, `--id`, `--field`, `--value` | Project |
 | `--write-shop` | — | — | — | — | `--project`, `--items`, one of `--symbol`/`--shop-addr` | Project |
 | `--export-asset` | Optional | — | — | Required | `--kind` (+ `--rom` or `--project`) | Project |
-| `--validate-asset` | — | — | Required | — | `--kind` | No |
+| `--validate-asset` | — | — | Required (single-file kinds) | — | `--kind` (+ `--path` for `portrait-package`; optional `--project`) | No (project root only for `portrait-package` containment) |
 | `--build-project` | — | — | — | — | `--project` (`--yes` to execute) | Project |
 | `--decomp-audit` | — | — | — | Optional | — | No |
 | `--nmm-to-manifest` | — | — | Required | Optional | — | No |
