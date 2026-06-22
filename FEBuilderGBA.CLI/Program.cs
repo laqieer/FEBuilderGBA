@@ -4704,21 +4704,23 @@ namespace FEBuilderGBA.CLI
 
             RomLoader.InitEnvironment();
 
-            // Optional --project gives project-root containment for the output path. If the
-            // user asked for a project, it MUST load successfully — we never silently fall back
-            // to no-containment (cwd-relative), which would let --out escape the project tree
-            // when the project is unbuilt (#1148 review finding). Without --project, --out is
-            // resolved against the cwd with no containment (classic export parity).
+            // Optional --project gives project-root containment for the output path. This import/
+            // verify path is ROM-FREE: we resolve the project ROOT with DecompProjectDetector.Detect
+            // (no ROM load, no InitFull) rather than RomLoader.LoadProject — so it works for an
+            // unbuilt-but-valid project and never sets CoreState.ROM (#1148 review finding). If the
+            // user asked for a project it MUST be a valid decomp root, else exit 2 — we never silently
+            // fall back to no-containment (cwd-relative), which would let --out escape the project
+            // tree. Without --project, --out is resolved against the cwd (classic export parity).
             DecompProject project = null;
             if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
             {
                 string projectDir = argsDic["--project"];
-                if (!RomLoader.LoadProject(projectDir))
+                project = DecompProjectDetector.Detect(projectDir);
+                if (project == null)
                 {
-                    Console.Error.WriteLine($"Error: could not open decomp project at '{projectDir}' (containment for --out cannot be enforced)");
+                    Console.Error.WriteLine($"Error: '{projectDir}' is not a decomp project (containment for --out cannot be enforced)");
                     return 2;
                 }
-                project = CoreState.DecompProject;
             }
 
             string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);

@@ -346,20 +346,18 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(0, code);
         }
 
-        // ---- Path rejection: --import-asset --out must stay inside the project root (#1148) ----
+        // ---- Path rejection: --import-asset --out must stay inside the project root (#1148).
+        //      ROM-FREE: --project containment uses DecompProjectDetector.Detect (no ROM load). ----
 
-        [SkippableFact]
+        [Fact]
         public void ImportAsset_Map_OutEscapesProject_ExitsTwo()
         {
-            Skip.If(FirstRom == null, "No ROM available (project load needs a built ROM)");
-
             string projectDir = NewTempDir("import_escape");
             try
             {
-                // Minimal project so LoadProject succeeds and containment applies to --out.
+                // Valid decomp manifest → Detect accepts it (no built ROM needed); containment applies.
                 File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
                     "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
-                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
 
                 string marPath = Path.Combine(projectDir, "chapter.mar");
                 WriteSyntheticMar(marPath, 2, 2);
@@ -379,16 +377,15 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        // ---- Containment safety: --import-asset --project must NOT silently drop containment
-        //      when the project cannot open (e.g. its builtRom is missing). #1148 Copilot finding:
-        //      an unbuilt project previously left project=null and let --out escape the tree. ----
+        // ---- Containment safety: an unbuilt-but-VALID decomp project still enforces --out
+        //      containment (#1148 Copilot finding: it must NOT fall back to cwd resolution and
+        //      let --out escape the tree). Detect accepts a valid manifest even with no built ROM. ----
 
         [Fact]
         public void ImportAsset_Map_UnbuiltProject_OutEscapes_ExitsTwo_NoEscapeWrite()
         {
-            // No ROM needed: the project manifest points at a builtRom that does NOT exist, so
-            // LoadProject fails. The import MUST reject (exit 2) rather than fall back to cwd
-            // resolution and write outside the project root.
+            // The manifest points at a builtRom that does NOT exist — the project is unbuilt but
+            // still a VALID decomp root. Containment must still apply: an escaping --out → exit 2.
             string projectDir = NewTempDir("import_unbuilt");
             try
             {
@@ -404,7 +401,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
                 Assert.Equal(2, code);
                 Assert.False(File.Exists(Path.Combine(projectDir, "..", "escaped_unbuilt.tmap_raw.bin")),
-                    "an unbuilt project must NOT let --out escape the project root");
+                    "an unbuilt-but-valid project must NOT let --out escape the project root");
             }
             finally
             {
@@ -412,20 +409,70 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
-        // ---- Dispatch order: --import-asset --project must NOT be swallowed by the bare
-        //      --project rom-info fallthrough (#1148, same hazard as --export-asset #1133) ----
+        // ---- An unbuilt-but-VALID project still writes a project-relative --out successfully
+        //      (ROM-free import does not require a built ROM). ----
 
-        [SkippableFact]
+        [Fact]
+        public void ImportAsset_Map_UnbuiltProject_RelativeOut_ExitsZero_WritesUnderProjectRoot()
+        {
+            string projectDir = NewTempDir("import_unbuilt_ok");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"does_not_exist.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 4, 3);
+
+                string outRel = "map/chapter.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={outRel}";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"ROM-free import of an unbuilt project should succeed (exit {code})\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(Path.Combine(projectDir, "map", "chapter.tmap_raw.bin")),
+                    "raw blob must be written under the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- Not a decomp project at all → exit 2, no containment to enforce, no write. ----
+
+        [Fact]
+        public void ImportAsset_Map_NonProjectDir_ExitsTwo()
+        {
+            string dir = NewTempDir("import_nonproject");
+            try
+            {
+                // No manifest and nothing decomp-like → Detect returns null → exit 2.
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                string args = $"--import-asset --kind=map --project=\"{dir}\" --in=\"{marPath}\" --out=out.bin";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        // ---- Dispatch order: --import-asset --project must NOT be swallowed by the bare
+        //      --project rom-info fallthrough (#1148, same hazard as --export-asset #1133). ----
+
+        [Fact]
         public void ImportAsset_Map_Project_NotSwallowedByRomInfo_WritesUnderProjectRoot()
         {
-            Skip.If(FirstRom == null, "No ROM available (project load needs a built ROM)");
-
             string projectDir = NewTempDir("import_dispatch");
             try
             {
                 File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
                     "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
-                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
 
                 string marPath = Path.Combine(projectDir, "chapter.mar");
                 WriteSyntheticMar(marPath, 4, 3);
