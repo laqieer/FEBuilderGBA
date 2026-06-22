@@ -297,6 +297,76 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(dir, true); }
         }
 
+        [Fact]
+        public void ExportMap_TileAtOrAbove0x2000_Refuses_NoFileWritten()
+        {
+            // A raw tile index >= 0x2000 cannot survive the <<3 .mar encoding (its top 3 bits
+            // would be truncated by the (ushort) cast), so the .mar would NOT round-trip.
+            // ExportMap must REJECT it rather than emit a silently-lossy .mar (Copilot #1148).
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 1;
+                byte[] rawMapBlob = new byte[2 + w * h * 2];
+                rawMapBlob[0] = (byte)w; rawMapBlob[1] = (byte)h;
+                // entry 0 = ok; entry 1 = 0x2000 (out of range)
+                rawMapBlob[2] = 0x01; rawMapBlob[3] = 0x00;        // 0x0001
+                rawMapBlob[4] = 0x00; rawMapBlob[5] = 0x20;        // 0x2000
+                byte[] compressed = LZ77.compress(rawMapBlob);
+                byte[] romData = new byte[0x100 + compressed.Length + 16];
+                Array.Copy(compressed, 0, romData, 0x100, compressed.Length);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string marPath = Path.Combine(dir, "lossy.mar");
+                var result = DecompAssetExportCore.ExportMap(rom, 0x100, marPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(marPath), "no .mar must be written when a tile is out of range");
+                Assert.False(File.Exists(marPath + ".json"), "no sidecar must be written either");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMap_Then_ImportMap_FullRoundTrip_IsByteIdentical()
+        {
+            // End-to-end: ROM tilemap -> ExportMap (.mar+sidecar) -> ImportMap (raw blob)
+            // reconstructs the ORIGINAL decompressed blob byte-for-byte (entries < 0x2000).
+            string dir = NewTempDir();
+            try
+            {
+                int w = 4, h = 3;
+                byte[] rawMapBlob = new byte[2 + w * h * 2];
+                rawMapBlob[0] = (byte)w; rawMapBlob[1] = (byte)h;
+                for (int i = 0; i < w * h; i++)
+                {
+                    ushort tile = (ushort)(i * 7 % 0x1FFF); // varied, all < 0x2000
+                    rawMapBlob[2 + i * 2] = (byte)(tile & 0xFF);
+                    rawMapBlob[2 + i * 2 + 1] = (byte)(tile >> 8);
+                }
+
+                byte[] compressed = LZ77.compress(rawMapBlob);
+                byte[] romData = new byte[0x100 + compressed.Length + 16];
+                Array.Copy(compressed, 0, romData, 0x100, compressed.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string marPath = Path.Combine(dir, "rt.mar");
+                Assert.True(DecompAssetExportCore.ExportMap(rom, 0x100, marPath).Ok);
+
+                string outPath = Path.Combine(dir, "rt.tmap_raw.bin");
+                var imp = DecompAssetExportCore.ImportMap(marPath, outPath);
+                Assert.True(imp.Ok, $"ImportMap failed: {imp.Message}");
+
+                byte[] reconstructed = File.ReadAllBytes(outPath);
+                Assert.Equal(rawMapBlob, reconstructed);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         // ---- ImportMap (#1148) ----
 
         // Helpers: write a .mar body of (rawTile<<3) LE entries + matching sidecar JSON.

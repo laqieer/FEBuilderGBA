@@ -4677,7 +4677,10 @@ namespace FEBuilderGBA.CLI
         /// blob written into the source tree (#1148) — the IMPORT/verify direction that makes the
         /// <c>.mar</c> a genuine source-backed round-trip artifact (export → edit → re-import).
         /// NEVER mutates the ROM. Only <c>--kind=map</c> is supported. With <c>--project=&lt;dir&gt;</c>
-        /// the output path is project-root-contained; otherwise it is resolved against the cwd.
+        /// the OUTPUT path (<c>--out</c>) is project-root-contained; otherwise it is resolved against
+        /// the cwd. The INPUT path (<c>--in</c>) is intentionally NOT containment-checked: an external
+        /// <c>.mar</c> (e.g. one exported elsewhere) may be re-imported INTO the project tree — only
+        /// writes are constrained to the project, reads are free.
         /// Exit 0 on success, 2 on import/path fault, 1 on a usage / bad-kind fault.
         /// </summary>
         static int RunImportAsset(Dictionary<string, string> argsDic)

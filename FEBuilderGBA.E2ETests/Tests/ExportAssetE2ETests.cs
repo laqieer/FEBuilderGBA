@@ -345,5 +345,72 @@ namespace FEBuilderGBA.E2ETests.Tests
             var (code, _, _) = RunWithRetry("--import-asset --kind=palette --in=x.pal --out=x.bin");
             Assert.NotEqual(0, code);
         }
+
+        // ---- Path rejection: --import-asset --out must stay inside the project root (#1148) ----
+
+        [SkippableFact]
+        public void ImportAsset_Map_OutEscapesProject_ExitsTwo()
+        {
+            Skip.If(FirstRom == null, "No ROM available (project load needs a built ROM)");
+
+            string projectDir = NewTempDir("import_escape");
+            try
+            {
+                // Minimal project so LoadProject succeeds and containment applies to --out.
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                // ..-escaping --out must be rejected (exit 2), NO blob written outside the tree.
+                string escapingOut = "../outside.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={escapingOut}";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.False(File.Exists(Path.Combine(projectDir, "..", "outside.tmap_raw.bin")),
+                    "no blob must be written outside the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- Dispatch order: --import-asset --project must NOT be swallowed by the bare
+        //      --project rom-info fallthrough (#1148, same hazard as --export-asset #1133) ----
+
+        [SkippableFact]
+        public void ImportAsset_Map_Project_NotSwallowedByRomInfo_WritesUnderProjectRoot()
+        {
+            Skip.If(FirstRom == null, "No ROM available (project load needs a built ROM)");
+
+            string projectDir = NewTempDir("import_dispatch");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 4, 3);
+
+                // Project-relative out path under the project root.
+                string outRel = "map/chapter.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={outRel}";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --project was swallowed or failed (exit {code})\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(Path.Combine(projectDir, "map", "chapter.tmap_raw.bin")),
+                    "raw blob must be written under the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
     }
 }

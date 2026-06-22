@@ -147,8 +147,8 @@ namespace FEBuilderGBA
             // ---- ManualMigration rows: variable-length / raw-binary / pointer data. ----
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list save",
                 DecompCoverage.ManualMigration, "Sentinel-terminated variable-length lists; no clean source-of-truth C array"));
-            rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (.mar/OBJ/TSA/anim)",
-                DecompCoverage.ManualMigration, "Raw map binaries (tile layout, OBJ tileset, chipset TSA, tile animations) - migrate via --export-asset"));
+            rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (GUI: OBJ/TSA/anim/map-change)",
+                DecompCoverage.ManualMigration, "GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset"));
             rows.Add(new DecompAuditRow("Event Editor", "chapter_event_pointers", "Event/difficulty pointer fields",
                 DecompCoverage.ManualMigration, "Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed"));
 
