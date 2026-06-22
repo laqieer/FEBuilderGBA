@@ -469,8 +469,9 @@ namespace FEBuilderGBA
         /// <c>reExported = (ushort)(rawTile &lt;&lt; 3)</c> and asserts <c>reExported == marU16</c>.
         /// Returns true iff <paramref name="marBody"/> is non-null, has even length, and EVERY entry
         /// survives the export→import→export shift unchanged — i.e. every entry's low 3 bits are
-        /// clear, which is exactly the lossless boundary (tile indices &lt; 0x2000). Returns false on
-        /// a null/odd-length body or any entry that does not round-trip.</para>
+        /// clear, which is exactly the lossless boundary (raw tilemap u16 entries &lt; 0x2000, i.e.
+        /// palette/flag bits 13-15 clear). Returns false on a null/odd-length body or any entry that
+        /// does not round-trip.</para>
         /// </summary>
         public static bool RoundTripMarBody(byte[] marBody)
         {
