@@ -563,6 +563,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --shop-addr=<hex>      Shop item-list ROM OFFSET; resolved to a list symbol via the project .map/.elf/.sym + manifest list-owner");
             Console.WriteLine("    --symbol=<name>        OR look up the list-owner directly by name (skips the address resolver)");
             Console.WriteLine("    --items=<csv>          New list as id:qty pairs (e.g. 0x01:5,0x02:3); id/qty hex-or-dec 0..255, id!=0; empty = emptied shop (just terminator)");
+            Console.WriteLine("                           A symbolic ITEM_* source list (item-id-only; qty must be 0) is rewritten with ITEM_* macro names resolved from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h) (#1354)");
             Console.WriteLine("  --build-project          Run the decomp project's declared build command (requires --project; gated behind --yes)");
             Console.WriteLine("    --project=<dir>        Decomp project directory containing febuilder.project.json with a build section");
             Console.WriteLine("    --yes                  Required to actually execute the build command (explicit opt-in gate)");
@@ -640,6 +641,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_talks --id=0 --field=w4 --value=0x0A12   (assumes owner declares the ordered prefix up to w4 or uses .bN= initializers)");
             Console.WriteLine("  FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_FluornArmory --items=0x01:5,0x02:3");
             Console.WriteLine("  FEBuilderGBA.CLI --write-shop --project=decomp/ --shop-addr=0xB2A18 --items=0x16:1   (resolves the shop symbol from the project .map/.elf/.sym)");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_Ide_Armory --items=0x01:0,0x14:0   (symbolic ITEM_* item-id-only list; qty must be 0)");
             Console.WriteLine("  FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");

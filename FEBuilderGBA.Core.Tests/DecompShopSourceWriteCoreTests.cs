@@ -135,6 +135,98 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(fx.Project.NeedsRebuild);
         }
 
+        // ------------------------------------------------- symbolic ITEM_* routing (#1354)
+
+        const string Fe8uHeader =
+            "enum {\n" +
+            "    ITEM_NONE = 0x00,\n" +
+            "    ITEM_SWORD_IRON = 0x01,\n" +
+            "    ITEM_LANCE_IRON = 0x14,\n" +
+            "    ITEM_AXE_IRON = 0x1F,\n" +
+            "};\n";
+
+        const string SymbolicSourceList =
+            "CONST_DATA u16 ItemList_Foo[] = {\n" +
+            "    ITEM_SWORD_IRON,\n" +
+            "    ITEM_NONE,\n" +
+            "};\n";
+
+        // Write the FE8U constants header at the conventional default path inside fx.Dir.
+        static void WriteDefaultHeader(Fixture fx, string headerText)
+        {
+            string headerAbs = Path.Combine(fx.Dir, "include", "constants", "items.h");
+            Directory.CreateDirectory(Path.GetDirectoryName(headerAbs));
+            File.WriteAllText(headerAbs, headerText);
+        }
+
+        [Fact]
+        public void TryRoute_SymbolicList_Routed_PreservesMacroNames_RomUntouched()
+        {
+            using var fx = MakeOwnedFixture("ItemList_Foo", SymbolicSourceList, LiteralTables);
+            WriteDefaultHeader(fx, Fe8uHeader);
+            var rom = MakeRom();
+            byte[] romBefore = (byte[])rom.Data.Clone();
+            CoreState.ROM = rom;
+            CoreState.DecompProject = fx.Project;
+
+            // item-id-only ⇒ quantity must be 0. Add ITEM_LANCE_IRON + ITEM_AXE_IRON.
+            var desired = new ushort[] { 0x0001, 0x0014, 0x001F };
+            var r = DecompShopSourceWriteCore.TryRouteShopSaveToSource(rom, fx.Project, fx.Map, 0x1000u, desired);
+
+            Assert.True(r.Routed, r.Message);
+            string after = File.ReadAllText(fx.SourceAbs);
+            Assert.Contains("ITEM_SWORD_IRON,", after);
+            Assert.Contains("ITEM_LANCE_IRON,", after);
+            Assert.Contains("ITEM_AXE_IRON,", after);
+            Assert.Contains("ITEM_NONE,", after);
+            Assert.DoesNotContain("0x00", after);
+            // ROM untouched (source-only writer).
+            Assert.Equal(romBefore, rom.Data);
+            Assert.True(fx.Project.NeedsRebuild);
+        }
+
+        [Fact]
+        public void TryRoute_SymbolicNonzeroQuantity_NotRouted_SourceAndRomUntouched()
+        {
+            using var fx = MakeOwnedFixture("ItemList_Foo", SymbolicSourceList, LiteralTables);
+            WriteDefaultHeader(fx, Fe8uHeader);
+            var rom = MakeRom();
+            byte[] romBefore = (byte[])rom.Data.Clone();
+            CoreState.ROM = rom;
+            CoreState.DecompProject = fx.Project;
+
+            // 0x0501 = qty 5, id 1 — symbolic item-id-only can't encode the quantity → refuse.
+            var r = DecompShopSourceWriteCore.TryRouteShopSaveToSource(
+                rom, fx.Project, fx.Map, 0x1000u, new ushort[] { 0x0501 });
+
+            Assert.False(r.Routed);
+            Assert.Equal(DecompShopRouteOutcome.NotRouted, r.Outcome);
+            Assert.Contains("item-id-only", r.Message);
+            // Source + ROM byte-identical.
+            Assert.Equal(SymbolicSourceList, File.ReadAllText(fx.SourceAbs));
+            Assert.Equal(romBefore, rom.Data);
+        }
+
+        [Fact]
+        public void TryRoute_LiteralList_WithHeaderPresent_StaysLiteral()
+        {
+            using var fx = MakeOwnedFixture("ItemList_Foo", LiteralList, LiteralTables);
+            WriteDefaultHeader(fx, Fe8uHeader);   // header present but list is all-hex
+            var rom = MakeRom();
+            CoreState.ROM = rom;
+            CoreState.DecompProject = fx.Project;
+
+            var r = DecompShopSourceWriteCore.TryRouteShopSaveToSource(
+                rom, fx.Project, fx.Map, 0x1000u, new ushort[] { 0x0102 });
+
+            Assert.True(r.Routed, r.Message);
+            string after = File.ReadAllText(fx.SourceAbs);
+            Assert.Contains("0x0102,", after);
+            Assert.Contains("0x0000,  // ITEM_NONE (terminator)", after);
+            // A literal list stays literal even with a header present.
+            Assert.DoesNotContain("ITEM_SWORD_IRON", after);
+        }
+
         // ----------------------------------------------------------------- NotRouted
 
         [Fact]

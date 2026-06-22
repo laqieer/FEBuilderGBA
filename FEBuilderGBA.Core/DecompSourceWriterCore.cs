@@ -563,6 +563,41 @@ namespace FEBuilderGBA
             IReadOnlyList<ushort> desiredItems,
             out string newSourceText)
         {
+            // Literal-only shim (#1354): delegate with no constants resolver so today's
+            // raw-hex behavior stays byte-identical (regression-safe).
+            return RewriteListBody(sourceText, symbol, desiredItems, constants: null, out newSourceText);
+        }
+
+        /// <summary>
+        /// PURE rewrite of a variable-length <c>u16</c> <c>ITEM_NONE</c>-terminated shop list
+        /// body (#1354), with optional SYMBOLIC <c>ITEM_*</c> serialization. Identical to the
+        /// 4-arg overload when <paramref name="constants"/> is null (literal raw-hex output).
+        ///
+        /// <para><b>Mixed-list policy</b> — "symbolic-present wins": every existing element is
+        /// parsed. A plain integer literal is a literal element; otherwise, when
+        /// <paramref name="constants"/> is non-null and the token resolves UNAMBIGUOUSLY via
+        /// <see cref="DecompConstantResolver.TryResolveMacroToId"/>, it is a known symbolic
+        /// element. Any other token (ambiguous / unknown macro / arbitrary C expression, or
+        /// any non-literal when <paramref name="constants"/> is null) is REFUSED
+        /// (<see cref="DecompSourceWriteStatus.UnsupportedField"/>, #1159 no-clobber). If ANY
+        /// element resolved as a symbolic macro, the body is re-serialized SYMBOLICALLY
+        /// (item-id-only <c>ITEM_*</c> names); otherwise the literal raw-hex path is taken.</para>
+        ///
+        /// <para><b>Symbolic serialize</b> is item-id-only: it requires
+        /// <see cref="DecompConstantResolver.ItemNoneIsZero"/>, each desired entry's high byte
+        /// (quantity) MUST be 0 (the source form can't encode a quantity), and each id must map
+        /// to an <c>ITEM_*</c> macro — any violation is an actionable
+        /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> refusal that leaves the source
+        /// untouched. The terminator is emitted as the resolved <c>ITEM_NONE</c> macro name.</para>
+        /// NEVER throws.
+        /// </summary>
+        public static DecompSourceWriteResult RewriteListBody(
+            string sourceText,
+            string symbol,
+            IReadOnlyList<ushort> desiredItems,
+            DecompConstantResolver constants,
+            out string newSourceText)
+        {
             newSourceText = sourceText;
             var result = new DecompSourceWriteResult();
             try
@@ -603,14 +638,16 @@ namespace FEBuilderGBA
                     return result;
                 }
 
-                // Parse existing top-level elements. If ANY is NOT a plain integer literal
-                // (a macro / identifier / expression — e.g. ITEM_NONE, ITEM_SWORD), full-
-                // vector replacement would clobber it: refuse (#1159 no-clobber). Line/block
-                // comments are stripped from each token first (so an inline `// ITEM_NONE`
-                // annotation — including the one this writer itself emits on the terminator —
-                // is NOT mistaken for a macro element, keeping the rewrite idempotent).
+                // Parse existing top-level elements. A plain integer literal is a literal
+                // element; with a constants resolver, an UNAMBIGUOUS ITEM_* macro is a known
+                // symbolic element. ANY other token (ambiguous/unknown macro/expression, or
+                // any non-literal when constants==null) is refused (#1159 no-clobber). Line/
+                // block comments are stripped from each token first (so an inline `// ITEM_NONE`
+                // annotation — including the one this writer itself emits — is NOT mistaken for
+                // a macro element, keeping the rewrite idempotent).
                 List<(int start, int end)> tokens = SplitTopLevelTokens(sourceText, bodyOpen + 1, bodyClose);
                 int firstElemStart = -1;
+                bool hasSymbolicElement = false;
                 foreach (var (ts, te) in tokens)
                 {
                     string raw = sourceText.Substring(ts, te - ts);
@@ -619,10 +656,19 @@ namespace FEBuilderGBA
                         continue;   // comment-only / whitespace-only span → not an element
                     if (!TryParseIntLiteral(tok, out _, out _, out _))
                     {
-                        result.Status = DecompSourceWriteStatus.UnsupportedField;
-                        result.Message =
-                            $"list contains non-literal element '{tok}' — full-vector replacement would clobber it; edit manually or export to a raw-hex list";
-                        return result;
+                        // Not a literal. If a constants resolver maps it UNAMBIGUOUSLY, it is
+                        // a known symbolic element; otherwise refuse (no clobber).
+                        if (constants != null && constants.TryResolveMacroToId(tok, out _))
+                        {
+                            hasSymbolicElement = true;
+                        }
+                        else
+                        {
+                            result.Status = DecompSourceWriteStatus.UnsupportedField;
+                            result.Message =
+                                $"list contains non-literal element '{tok}' — full-vector replacement would clobber it; edit manually or export to a raw-hex list";
+                            return result;
+                        }
                     }
                     if (firstElemStart < 0)
                     {
@@ -663,13 +709,24 @@ namespace FEBuilderGBA
                 }
 
                 // Re-serialize the body. The writer always RE-EMITS a fresh terminator.
-                var sb = new StringBuilder();
-                sb.Append('{').Append(nl);
-                foreach (ushort it in items)
-                    sb.Append(indent).Append("0x").Append(it.ToString("X4", CultureInfo.InvariantCulture)).Append(',').Append(nl);
-                sb.Append(indent).Append("0x0000,  // ITEM_NONE (terminator)").Append(nl);
-                sb.Append(closeIndent).Append('}');
-                string newBody = sb.ToString();
+                // SYMBOLIC path: "symbolic-present wins" — when ANY existing element resolved
+                // as an ITEM_* macro, emit item-id-only ITEM_* names (#1354).
+                string newBody;
+                if (hasSymbolicElement)
+                {
+                    if (!SerializeSymbolicBody(items, constants, indent, nl, closeIndent, result, out newBody))
+                        return result;   // result already carries the refusal
+                }
+                else
+                {
+                    var sb = new StringBuilder();
+                    sb.Append('{').Append(nl);
+                    foreach (ushort it in items)
+                        sb.Append(indent).Append("0x").Append(it.ToString("X4", CultureInfo.InvariantCulture)).Append(',').Append(nl);
+                    sb.Append(indent).Append("0x0000,  // ITEM_NONE (terminator)").Append(nl);
+                    sb.Append(closeIndent).Append('}');
+                    newBody = sb.ToString();
+                }
 
                 // NO-OP detection: byte-identical body → no churn, idempotent.
                 if (string.Equals(newBody, bodySpan, StringComparison.Ordinal))
@@ -705,6 +762,65 @@ namespace FEBuilderGBA
                 result.Message = $"Unexpected fault: {ex.Message}";
                 return result;
             }
+        }
+
+        /// <summary>
+        /// Serialize the SYMBOLIC item-id-only body for a u16 shop list (#1354). Returns
+        /// false and fills <paramref name="result"/> with the actionable
+        /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> refusal on the first
+        /// unrepresentable entry (the source is then left untouched). NEVER throws.
+        /// </summary>
+        static bool SerializeSymbolicBody(
+            IReadOnlyList<ushort> items,
+            DecompConstantResolver constants,
+            string indent,
+            string nl,
+            string closeIndent,
+            DecompSourceWriteResult result,
+            out string newBody)
+        {
+            newBody = null;
+
+            // The terminator must resolve to 0 — else a symbolic list can't be expressed.
+            if (constants == null || !constants.ItemNoneIsZero)
+            {
+                result.Status = DecompSourceWriteStatus.UnsupportedField;
+                result.Message =
+                    "ITEM_NONE does not resolve to 0 — refusing symbolic rewrite";
+                return false;
+            }
+
+            var sb = new StringBuilder();
+            sb.Append('{').Append(nl);
+            foreach (ushort entry in items)
+            {
+                int high = (entry >> 8) & 0xFF;   // quantity byte
+                if (high != 0)
+                {
+                    result.Status = DecompSourceWriteStatus.UnsupportedField;
+                    result.Message =
+                        $"symbolic ITEM_* shop lists are item-id-only; entry 0x{entry:X4} carries quantity 0x{high:X2} which the source form can't represent — keep quantity 0 or migrate this shop to a raw-hex list";
+                    return false;
+                }
+                // entry == low-byte id (high byte already proven 0).
+                if (!constants.TryResolveIdToMacro(entry, out string macro) || string.IsNullOrEmpty(macro))
+                {
+                    int id = entry & 0xFF;
+                    result.Status = DecompSourceWriteStatus.UnsupportedField;
+                    result.Message =
+                        $"item id 0x{id:X2} has no ITEM_* constant — add it to the constants header or migrate to a raw-hex list";
+                    return false;
+                }
+                sb.Append(indent).Append(macro).Append(',').Append(nl);
+            }
+            // Terminator: the resolved ITEM_NONE macro NAME (id 0).
+            string itemNone = constants.ItemNoneMacro;
+            if (string.IsNullOrEmpty(itemNone))
+                itemNone = "ITEM_NONE";
+            sb.Append(indent).Append(itemNone).Append(',').Append(nl);
+            sb.Append(closeIndent).Append('}');
+            newBody = sb.ToString();
+            return true;
         }
 
         /// <summary>
@@ -843,8 +959,13 @@ namespace FEBuilderGBA
                     return result;
                 }
 
+                // Build the constants resolver (#1354) so a symbolic ITEM_* source list is
+                // rewritten symbolically. Never-throws; an unavailable resolver simply keeps
+                // the literal path (and refuses a macro-bearing list as before).
+                DecompConstantResolver constants = DecompConstantResolver.BuildForProject(project, owner);
+
                 // Pure rewrite.
-                DecompSourceWriteResult rewrite = RewriteListBody(sourceText, symbol, desiredItems, out string newText);
+                DecompSourceWriteResult rewrite = RewriteListBody(sourceText, symbol, desiredItems, constants, out string newText);
                 rewrite.SourceFile = absPath;
                 if (!rewrite.Ok)
                     return rewrite;

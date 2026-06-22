@@ -127,6 +127,105 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
+        // ---- symbolic ITEM_* source list (#1354) ----
+
+        [SkippableFact]
+        public void WriteShop_SymbolicList_PreservesMacroNames_ExitsZero()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-shop symbolic test");
+
+            string projectDir = NewTempDir("symbolic");
+            try
+            {
+                // FE8U-style constants header at the conventional default path.
+                string hdrDir = Path.Combine(projectDir, "include", "constants");
+                Directory.CreateDirectory(hdrDir);
+                File.WriteAllText(Path.Combine(hdrDir, "items.h"),
+                    "enum {\n" +
+                    "    ITEM_NONE = 0x00,\n" +
+                    "    ITEM_SWORD_IRON = 0x01,\n" +
+                    "    ITEM_LANCE_IRON = 0x14,\n" +
+                    "    ITEM_AXE_IRON = 0x1F,\n" +
+                    "};\n");
+
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "shop.c");
+                // Canonical FE8U item-id-only SYMBOLIC list.
+                File.WriteAllText(srcAbs,
+                    "CONST_DATA u16 ItemList_Foo[] = {\n" +
+                    "    ITEM_SWORD_IRON,\n" +
+                    "    ITEM_NONE,\n" +
+                    "};\n");
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"shop_foo\", \"format\": \"u16-list\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"ItemList_Foo\", \"sourceFile\": \"src/shop.c\" } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // item-id-only ⇒ quantity must be 0. Add LANCE_IRON + AXE_IRON.
+                string args = $"--write-shop --project=\"{projectDir}\" --symbol=ItemList_Foo --items=0x01:0,0x14:0,0x1F:0";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+
+                string after = File.ReadAllText(srcAbs);
+                Assert.Contains("ITEM_SWORD_IRON,", after);
+                Assert.Contains("ITEM_LANCE_IRON,", after);
+                Assert.Contains("ITEM_AXE_IRON,", after);
+                Assert.Contains("ITEM_NONE,", after);
+                // No raw hex leaked into a symbolic list.
+                Assert.DoesNotContain("0x00", after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void WriteShop_SymbolicNonzeroQuantity_Refused_ExitsTwo()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-shop symbolic refusal test");
+
+            string projectDir = NewTempDir("symrefuse");
+            try
+            {
+                string hdrDir = Path.Combine(projectDir, "include", "constants");
+                Directory.CreateDirectory(hdrDir);
+                File.WriteAllText(Path.Combine(hdrDir, "items.h"),
+                    "enum { ITEM_NONE = 0x00, ITEM_SWORD_IRON = 0x01 };\n");
+
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "shop.c");
+                string original =
+                    "CONST_DATA u16 ItemList_Foo[] = {\n    ITEM_SWORD_IRON,\n    ITEM_NONE,\n};\n";
+                File.WriteAllText(srcAbs, original);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"shop_foo\", \"format\": \"u16-list\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"ItemList_Foo\", \"sourceFile\": \"src/shop.c\" } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // 0x01:5 carries a non-zero quantity ⇒ item-id-only symbolic can't encode it → exit 2.
+                string args = $"--write-shop --project=\"{projectDir}\" --symbol=ItemList_Foo --items=0x01:5";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.Contains("item-id-only", (stdout + stderr).ToLowerInvariant());
+                // Source untouched (no clobber).
+                Assert.Equal(original, File.ReadAllText(srcAbs));
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
         // ---- emptied shop (empty --items=) ----
 
         [SkippableFact]

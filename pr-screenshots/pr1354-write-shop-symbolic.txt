@@ -1,0 +1,76 @@
+===================================================================
+ #1354 CLI proof: symbolic ITEM_* decomp shop-list source writer
+===================================================================
+
+### Constants header (include/constants/items.h) ###
+enum {
+    ITEM_NONE = 0x00,
+    ITEM_SWORD_IRON = 0x01,
+    ITEM_SWORD_SLIM = 0x02,
+    ITEM_LANCE_IRON = 0x14,
+    ITEM_AXE_IRON = 0x1F,
+};
+
+### BEFORE: src/worldmap_shop_data.c ###
+CONST_DATA u16 ItemList_WM_Ide_Armory[] = {
+    ITEM_SWORD_IRON,
+    ITEM_LANCE_IRON,
+    ITEM_NONE,
+};
+
+### CASE 1 (success): symbolic add/reorder, item-id-only (qty 0) ###
+$ FEBuilderGBA.CLI --write-shop --project=PROJ --symbol=ItemList_WM_Ide_Armory --items=0x14:0,0x01:0,0x1F:0
+Source file: C:\Users\zhiwenzhu\AppData\Local\Temp\tmp.NxiOvl6Mto\src\worldmap_shop_data.c
+Shop list: ItemList_WM_Ide_Armory, 3 item(s)
+Lines 1-5
+--- BEFORE ---
+{
+    ITEM_SWORD_IRON,
+    ITEM_LANCE_IRON,
+    ITEM_NONE,
+}
+--- AFTER ---
+{
+    ITEM_LANCE_IRON,
+    ITEM_SWORD_IRON,
+    ITEM_AXE_IRON,
+    ITEM_NONE,
+}
+NeedsRebuild=true
+(exit=0)
+
+### AFTER (case 1): src/worldmap_shop_data.c  — ITEM_* names preserved ###
+CONST_DATA u16 ItemList_WM_Ide_Armory[] = {
+    ITEM_LANCE_IRON,
+    ITEM_SWORD_IRON,
+    ITEM_AXE_IRON,
+    ITEM_NONE,
+};
+
+### CASE 2 (refusal): non-zero quantity into a symbolic list → exit 2, no clobber ###
+### Source before (clean symbolic list): ###
+CONST_DATA u16 ItemList_WM_Ide_Armory[] = {
+    ITEM_SWORD_IRON,
+    ITEM_NONE,
+};
+
+$ FEBuilderGBA.CLI --write-shop --project=PROJ --symbol=ItemList_WM_Ide_Armory --items=0x01:5
+Not owned / ROM-only / manual: symbolic ITEM_* shop lists are item-id-only; entry 0x0501 carries quantity 0x05 which the source form can't represent — keep quantity 0 or migrate this shop to a raw-hex list
+(exit=2)
+
+### Source AFTER refusal (UNCHANGED — no clobber): ###
+CONST_DATA u16 ItemList_WM_Ide_Armory[] = {
+    ITEM_SWORD_IRON,
+    ITEM_NONE,
+};
+
+### CASE 3 (refusal): id with no ITEM_* constant (0x55) → exit 2 ###
+$ FEBuilderGBA.CLI --write-shop --project=PROJ --symbol=ItemList_WM_Ide_Armory --items=0x55:0
+Not owned / ROM-only / manual: item id 0x55 has no ITEM_* constant — add it to the constants header or migrate to a raw-hex list
+(exit=2)
+
+### Source AFTER (still UNCHANGED): ###
+CONST_DATA u16 ItemList_WM_Ide_Armory[] = {
+    ITEM_SWORD_IRON,
+    ITEM_NONE,
+};

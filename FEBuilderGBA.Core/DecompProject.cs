@@ -255,6 +255,21 @@ namespace FEBuilderGBA
         [JsonPropertyName("fields")]
         public List<DecompTableField> Fields { get; set; }
 
+        /// <summary>
+        /// Optional project-relative path to the constants header that defines the
+        /// <c>ITEM_*</c> macros for a symbolic <c>u16-list</c> shop owner (#1354;
+        /// typically <c>include/constants/items.h</c>). When set, the shop-list source
+        /// writer parses it to serialize SYMBOLIC item-id-only lists (e.g.
+        /// <c>{ ITEM_SWORD_IRON, ITEM_NONE, }</c>). An EXPLICIT path that is absolute /
+        /// escapes the project root / missing / unparseable makes the constants resolver
+        /// <see cref="DecompConstantResolver.IsUnavailable"/> (the conventional default is
+        /// NOT used as a fallback). Optional/tolerant; absent ⇒ the manifest top-level
+        /// <c>artifacts.itemConstants</c> then the default
+        /// <c>include/constants/items.h</c> are tried.
+        /// </summary>
+        [JsonPropertyName("constantsHeader")]
+        public string ConstantsHeader { get; set; }
+
         /// <summary>Effective array symbol: <see cref="ArrayName"/> when set, else <see cref="Symbol"/>.</summary>
         [JsonIgnore]
         public string EffectiveSymbol =>
