@@ -64,6 +64,8 @@
     <!-- Difficulty editor VMs — linked for cross-platform VM behavior tests (#659) -->
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\MapSettingDifficultyViewModel.cs" Link="MapSettingDifficultyViewModel.cs" />
     <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\MapSettingDifficultyDialogViewModel.cs" Link="MapSettingDifficultyDialogViewModel.cs" />
+    <!-- Item Shop VM — linked for the #1347 BuildVectorFor* / decomp source-routing tests -->
+    <Compile Include="..\FEBuilderGBA.Avalonia\ViewModels\ItemShopViewerViewModel.cs" Link="ItemShopViewerViewModel.cs" />
   </ItemGroup>
   <!-- Copy config/ to output for tests that need config files (conditional) -->
   <Target Name="CopyConfig" AfterTargets="Build" Condition="Exists('..\config\config.xml')">

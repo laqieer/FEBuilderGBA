@@ -12143,3 +12143,15 @@ ROMのRebuildに失敗しました。
 :The output ROM must be a different file from the original ROM and the loaded ROM.
 出力先のROMは、元のROMおよび読み込み中のROMとは別のファイルにしてください。
 
+:Wrote shop list to source. Rebuild to refresh the preview.
+ショップリストをソースに書き込みました。プレビューを更新するには再ビルドしてください。
+
+:Select a slot first (or use Append Slot to add one).
+最初にスロットを選択してください（または「スロット追加」で追加）。
+
+:Select a shop first.
+最初にショップを選択してください。
+
+:Nothing to remove (shop is empty).
+削除するものがありません（ショップが空です）。
+

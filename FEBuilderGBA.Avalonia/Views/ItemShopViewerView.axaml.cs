@@ -183,15 +183,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            // #1149: shops use sentinel-terminated variable-length lists — no safe
-            // source owner, always ROM-only in decomp mode (spec: MANUAL guard). Shops
-            // have no struct "source"; they're event-driven, so the user must edit the
-            // source/event scripts and rebuild. Surface via the dialog too (not just the
-            // status label) so the user definitely sees it — matches the support editors.
+            // #1347 Slice 5a: in decomp mode, route to the owning decomp source list when
+            // the shop's ROM address resolves to a manifest u16-list owner; otherwise keep
+            // the #1149 ROM-only guard (no clobber). Apply the SAME explicit precondition
+            // guard first so an invalid action does not become a misleading source-route.
             if (CoreState.IsDecompMode)
             {
-                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
-                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                if (!_vm.CanWrite || _vm.CurrentAddr == 0)
+                {
+                    StatusLabel.Text = R._("Select a slot first (or use Append Slot to add one).");
+                    return;
+                }
+                _vm.ItemId = ItemIdBox.Value;
+                _vm.Quantity = (uint)(QuantityBox.Value ?? 0);
+                TryRouteShopSaveToSource(_vm.BuildVectorForWrite(), R._("Select a slot first (or use Append Slot to add one)."));
                 return;
             }
 
@@ -226,11 +231,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void AppendSlot_Click(object? sender, RoutedEventArgs e)
         {
-            // #1149: shops are ROM-only in decomp mode (variable-length, no source owner).
+            // #1347 Slice 5a: in decomp mode, route to source when owned; else #1149 guard.
             if (CoreState.IsDecompMode)
             {
-                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
-                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                if (_vm.CurrentShopAddr == 0)
+                {
+                    StatusLabel.Text = R._("Select a shop first.");
+                    return;
+                }
+                TryRouteShopSaveToSource(_vm.BuildVectorForAppend(), R._("Select a shop first."));
                 return;
             }
 
@@ -294,11 +303,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void RemoveLastSlot_Click(object? sender, RoutedEventArgs e)
         {
-            // #1149: shops are ROM-only in decomp mode (variable-length, no source owner).
+            // #1347 Slice 5a: in decomp mode, route to source when owned; else #1149 guard.
             if (CoreState.IsDecompMode)
             {
-                StatusLabel.Text = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
-                CoreState.Services?.ShowInfo(R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild."));
+                if (_vm.CurrentShopAddr == 0)
+                {
+                    StatusLabel.Text = R._("Select a shop first.");
+                    return;
+                }
+                // BuildVectorForRemoveLast returns null when the list is already empty.
+                ushort[] desired = _vm.BuildVectorForRemoveLast();
+                if (desired == null)
+                {
+                    StatusLabel.Text = R._("Nothing to remove (shop is empty).");
+                    return;
+                }
+                TryRouteShopSaveToSource(desired, R._("Select a shop first."));
                 return;
             }
 
@@ -329,6 +349,54 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("RemoveLastSlot failed: {0}", ex.Message);
                 StatusLabel.Text = $"Remove failed: {ex.Message}";
             }
+        }
+
+        // ===================================================================
+        // Decomp source-routing (#1347 Slice 5a)
+        // ===================================================================
+
+        /// <summary>
+        /// Decomp-mode shop-save source-routing (#1347 Slice 5a). Attempts to write the
+        /// edit to the owning decomp source list; on a non-Routed result keeps the #1149
+        /// ROM-only guard (NO ROM write, NO clobber). Never touches the undo service / ROM
+        /// — the source rewrite is a disk operation outside the preview ROM.
+        /// </summary>
+        /// <param name="desired">The desired item vector; null means a precondition failed.</param>
+        /// <param name="nullPreconditionMessage">Status to show when <paramref name="desired"/> is null.</param>
+        void TryRouteShopSaveToSource(ushort[] desired, string nullPreconditionMessage)
+        {
+            if (desired == null)
+            {
+                StatusLabel.Text = nullPreconditionMessage;
+                return;
+            }
+
+            DecompShopRouteResult r;
+            try
+            {
+                r = _vm.TryRouteCurrentShopToSource(desired);
+            }
+            catch (Exception ex)
+            {
+                // Defensive: the helper is itself never-throwing, but keep the guard.
+                Log.Error("Shop source routing failed: " + ex.Message);
+                r = null;
+            }
+
+            if (r != null && r.Routed)
+            {
+                string ok = R._("Wrote shop list to source. Rebuild to refresh the preview.");
+                StatusLabel.Text = ok + " " + r.SourceFile;
+                CoreState.Services?.ShowInfo(ok + " " + r.SourceFile);
+                return;
+            }
+
+            // Not routed / error: keep the #1149 ROM-only guard message and append the
+            // carried reason so the user understands WHY it stayed ROM-only.
+            string reason = (r == null || string.IsNullOrEmpty(r.Message)) ? "" : " (" + r.Message + ")";
+            string guard = R._("Item shop data is ROM-only in decomp mode. Edit the source/event scripts and rebuild.");
+            StatusLabel.Text = guard;
+            CoreState.Services?.ShowInfo(guard + reason);
         }
 
         void Reload_Click(object? sender, RoutedEventArgs e)

@@ -169,6 +169,111 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         // ===================================================================
+        // Decomp source-routing (#1347 Slice 5a) — build the desired item vector
+        // for a save without mutating the ROM, then route it to the owning source.
+        // ===================================================================
+
+        /// <summary>
+        /// Read the current shop's item entries into a packed <c>(qty&lt;&lt;8)|id</c> u16
+        /// vector WITHOUT mutating the ROM. Returns null when no shop is selected or the
+        /// ROM is unavailable.
+        /// </summary>
+        ushort[] ReadCurrentShopVector()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentShopAddr == 0) return null;
+            var entries = ItemShopCore.ReadShopItems(rom, CurrentShopAddr);
+            var vec = new ushort[entries.Count];
+            for (int i = 0; i < entries.Count; i++)
+            {
+                uint a = entries[i].addr;
+                uint id = rom.u8(a);
+                uint qty = rom.u8(a + 1);
+                vec[i] = (ushort)((qty << 8) | id);
+            }
+            return vec;
+        }
+
+        /// <summary>
+        /// Build the desired item vector for a per-slot WRITE: the current shop's items
+        /// with the currently-selected slot replaced by the edited (<see cref="ItemId"/>,
+        /// <see cref="Quantity"/>) pair. Matches the slot by address (== <see cref="CurrentAddr"/>).
+        /// Returns null when no shop/slot is selected (caller: "select a slot first").
+        /// Does NOT mutate the ROM.
+        /// </summary>
+        public ushort[] BuildVectorForWrite()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentShopAddr == 0 || CurrentAddr == 0) return null;
+
+            var entries = ItemShopCore.ReadShopItems(rom, CurrentShopAddr);
+            var vec = new ushort[entries.Count];
+            int matched = -1;
+            for (int i = 0; i < entries.Count; i++)
+            {
+                uint a = entries[i].addr;
+                if (a == CurrentAddr)
+                {
+                    matched = i;
+                    vec[i] = (ushort)((Quantity << 8) | ItemId);
+                }
+                else
+                {
+                    uint id = rom.u8(a);
+                    uint qty = rom.u8(a + 1);
+                    vec[i] = (ushort)((qty << 8) | id);
+                }
+            }
+            if (matched < 0) return null;   // selected slot not part of this shop list
+            return vec;
+        }
+
+        /// <summary>
+        /// Build the desired item vector for an APPEND: the current shop's items plus one
+        /// new entry (id=1, qty=1 — matching the ROM-path default). Returns null when no
+        /// shop is selected. Does NOT mutate the ROM.
+        /// </summary>
+        public ushort[] BuildVectorForAppend()
+        {
+            ushort[] cur = ReadCurrentShopVector();
+            if (cur == null) return null;
+            var vec = new ushort[cur.Length + 1];
+            Array.Copy(cur, vec, cur.Length);
+            vec[cur.Length] = (ushort)((1 << 8) | 1);   // id=1, qty=1
+            return vec;
+        }
+
+        /// <summary>
+        /// Build the desired item vector for a REMOVE-LAST: the current shop's items minus
+        /// the last entry. Returns null when no shop is selected OR the list is already
+        /// empty (nothing to remove). Does NOT mutate the ROM.
+        /// </summary>
+        public ushort[] BuildVectorForRemoveLast()
+        {
+            ushort[] cur = ReadCurrentShopVector();
+            if (cur == null || cur.Length == 0) return null;
+            var vec = new ushort[cur.Length - 1];
+            Array.Copy(cur, vec, cur.Length - 1);
+            return vec;
+        }
+
+        /// <summary>
+        /// Route a decomp-mode shop save to the owning decomp source list (#1347 Slice 5a).
+        /// Resolves the current shop's address to a manifest u16-list owner and delegates to
+        /// <see cref="DecompShopSourceWriteCore.TryRouteShopSaveToSource"/>. NEVER mutates the
+        /// ROM — on a non-Routed result the caller keeps the #1159 ROM-only guard.
+        /// </summary>
+        public DecompShopRouteResult TryRouteCurrentShopToSource(IReadOnlyList<ushort> desired)
+        {
+            return DecompShopSourceWriteCore.TryRouteShopSaveToSource(
+                CoreState.ROM,
+                CoreState.DecompProject,
+                CoreState.AsmMapFileAsmCache?.GetAsmMapFile(),
+                CurrentShopAddr,
+                desired);
+        }
+
+        // ===================================================================
         // IDataVerifiable
         // ===================================================================
 
