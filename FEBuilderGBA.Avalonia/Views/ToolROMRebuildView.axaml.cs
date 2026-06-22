@@ -20,7 +20,8 @@ namespace FEBuilderGBA.Avalonia.Views
         public ToolROMRebuildView()
         {
             InitializeComponent();
-            IntroText.Text = R._("Analyze the modified ROM against the clean original and write a .rebuild report listing the modified regions and reusable free space. The full defragment (compacting Make/Apply with auto-reopen) is not yet available in this build.");
+            IntroText.Text = R._("Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.");
+            RebuildHelpText.Text = R._("Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).");
             Opened += (_, _) =>
             {
                 try
@@ -37,6 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         StatusText.Text = R._("This ROM does not use an extended region, so it cannot be rebuilt.");
                         MakeButton.IsEnabled = false;
+                        RebuildButton.IsEnabled = false;
                         return;
                     }
                     string found = _vm.FindOriginal();
@@ -71,6 +73,113 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Shared address gate for both the Rebuild and analysis-report flows: parse the hex
+        /// field, hard-fail on misaligned/unsafe, Yes/No prompt on below-extends. Returns the
+        /// parsed address on success; null when the caller must abort (bad field, unsafe, or the
+        /// user declined the below-extends warning) — a status message is set in every abort case.
+        /// </summary>
+        async Task<uint?> ValidateAddressForFlow()
+        {
+            if (!TryParseHex(RebuildAddressTextBox.Text, out uint rebuildAddress))
+            {
+                StatusText.Text = R._("The rebuild address is not a valid hexadecimal number.");
+                return null;
+            }
+
+            var check = _vm.ValidateRebuildAddress(rebuildAddress);
+            if (check == ToolROMRebuildViewModel.AddressCheck.NotAligned)
+            {
+                StatusText.Text = R._("This address ({0}) cannot be used: it is not a multiple of 4.", "0x" + string.Format("{0:X8}", rebuildAddress));
+                return null;
+            }
+            if (check == ToolROMRebuildViewModel.AddressCheck.Unsafe)
+            {
+                StatusText.Text = R._("This address ({0}) cannot be used: the address range is dangerous.", "0x" + string.Format("{0:X8}", rebuildAddress));
+                return null;
+            }
+            if (check == ToolROMRebuildViewModel.AddressCheck.BelowExtends)
+            {
+                var dr = await MessageBoxWindow.Show(this,
+                    R._("Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?", "0x" + string.Format("{0:X8}", rebuildAddress)),
+                    ViewTitle, MessageBoxMode.YesNo);
+                if (dr != MessageBoxResult.Yes)
+                {
+                    // Honour the doc-comment contract: set a status message in every abort case so
+                    // the user sees why nothing happened (rather than a stale/blank status).
+                    StatusText.Text = R._("Cancelled.");
+                    return null;
+                }
+            }
+            return rebuildAddress;
+        }
+
+        async void Rebuild_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string original = OriginalRomTextBox.Text ?? "";
+                if (string.IsNullOrWhiteSpace(original) || !File.Exists(original))
+                {
+                    StatusText.Text = R._("Please select a valid original (unmodified) ROM.");
+                    return;
+                }
+
+                uint? validated = await ValidateAddressForFlow();
+                if (validated == null) return;
+                uint rebuildAddress = validated.Value;
+
+                string suggested = "rebuilt_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".gba";
+                string? output = await FileDialogHelper.SaveFile(this,
+                    R._("Save rebuilt ROM"), R._("GBA ROM"), "*.gba", suggested);
+                if (string.IsNullOrEmpty(output))
+                    return;   // user cancelled
+
+                MakeButton.IsEnabled = false;
+                RebuildButton.IsEnabled = false;
+                StatusText.Text = R._("Rebuilding…");
+
+                // Progress<T> captures the UI SynchronizationContext here, so Report() marshals
+                // back to the UI thread — set the text directly (see Make_Click rationale).
+                var progress = new Progress<string>(msg => StatusText.Text = msg);
+
+                // The produce→apply→write pipeline is Core/headless; run it off the UI thread so
+                // a large ROM (the apply step reserves 32MB + recompresses LZ77) never freezes the
+                // window. RebuildRom catches the gate-refusal InvalidOperationException internally.
+                var result = await Task.Run(() => _vm.RebuildRom(original, rebuildAddress, output, progress));
+
+                StatusText.Text = result switch
+                {
+                    ToolROMRebuildViewModel.RebuildResult.Ok =>
+                        R._("ROM rebuilt successfully. Wrote {0} ({1} bytes).", output, _vm.LastRebuiltSize.ToString()),
+                    ToolROMRebuildViewModel.RebuildResult.NoRom => R._("No ROM is loaded."),
+                    ToolROMRebuildViewModel.RebuildResult.OriginalMissing => R._("Please select a valid original (unmodified) ROM."),
+                    ToolROMRebuildViewModel.RebuildResult.OriginalUnreadable => R._("The original ROM could not be read."),
+                    ToolROMRebuildViewModel.RebuildResult.OriginalNotMatching => R._("The selected ROM is not the unmodified original for this game (CRC32 mismatch). Select the official clean ROM."),
+                    ToolROMRebuildViewModel.RebuildResult.BadAddress => R._("The rebuild address is invalid."),
+                    ToolROMRebuildViewModel.RebuildResult.OutputCollision => R._("The output ROM must be a different file from the original ROM and the loaded ROM."),
+                    // Gate refusal — surface the Core reason verbatim (it begins "ROM rebuild unavailable: …").
+                    ToolROMRebuildViewModel.RebuildResult.GateRefused => _vm.LastMessage,
+                    ToolROMRebuildViewModel.RebuildResult.Cancelled => R._("The rebuild was cancelled."),
+                    ToolROMRebuildViewModel.RebuildResult.ApplyFailed => R._("The rebuild could not be completed. {0}", _vm.LastMessage),
+                    _ => R._("Failed to rebuild the ROM. {0}", _vm.LastMessage),
+                };
+
+                if (result == ToolROMRebuildViewModel.RebuildResult.Ok)
+                    RevealInExplorer(output);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolROMRebuildView.Rebuild_Click failed: " + ex);
+                StatusText.Text = R._("Failed to rebuild the ROM.");
+            }
+            finally
+            {
+                MakeButton.IsEnabled = true;
+                RebuildButton.IsEnabled = true;
+            }
+        }
+
         async void Make_Click(object? sender, RoutedEventArgs e)
         {
             try
@@ -82,32 +191,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                if (!TryParseHex(RebuildAddressTextBox.Text, out uint rebuildAddress))
-                {
-                    StatusText.Text = R._("The rebuild address is not a valid hexadecimal number.");
-                    return;
-                }
-
                 // WF CheckRebuildAddress: hard-fail on misaligned/unsafe, warn (Yes/No) when below extends.
-                var check = _vm.ValidateRebuildAddress(rebuildAddress);
-                if (check == ToolROMRebuildViewModel.AddressCheck.NotAligned)
-                {
-                    StatusText.Text = R._("This address ({0}) cannot be used: it is not a multiple of 4.", "0x" + string.Format("{0:X8}", rebuildAddress));
-                    return;
-                }
-                if (check == ToolROMRebuildViewModel.AddressCheck.Unsafe)
-                {
-                    StatusText.Text = R._("This address ({0}) cannot be used: the address range is dangerous.", "0x" + string.Format("{0:X8}", rebuildAddress));
-                    return;
-                }
-                if (check == ToolROMRebuildViewModel.AddressCheck.BelowExtends)
-                {
-                    var dr = await MessageBoxWindow.Show(this,
-                        R._("Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?", "0x" + string.Format("{0:X8}", rebuildAddress)),
-                        ViewTitle, MessageBoxMode.YesNo);
-                    if (dr != MessageBoxResult.Yes)
-                        return;
-                }
+                uint? validated = await ValidateAddressForFlow();
+                if (validated == null) return;
+                uint rebuildAddress = validated.Value;
 
                 string suggested = ToolROMRebuildViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
                 string? output = await FileDialogHelper.SaveFile(this,
@@ -116,6 +203,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;   // user cancelled
 
                 MakeButton.IsEnabled = false;
+                RebuildButton.IsEnabled = false;
                 StatusText.Text = R._("Analyzing…");
 
                 // Progress<T> is constructed here on the UI thread, so it captures the UI
@@ -151,6 +239,7 @@ namespace FEBuilderGBA.Avalonia.Views
             finally
             {
                 MakeButton.IsEnabled = true;
+                RebuildButton.IsEnabled = true;
             }
         }
 

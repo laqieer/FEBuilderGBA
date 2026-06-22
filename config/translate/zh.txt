@@ -25939,3 +25939,48 @@ Png2Dmp 图像（无 .dmp 提示）：{0}
 :Undo data is required for MargeAndUpdate.
 MargeAndUpdate 需要撤销数据。
 
+:Rebuild ROM…
+重建 ROM…
+
+:Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.
+重建（整理碎片）ROM：将修改后的 ROM 与干净的原始 ROM 比较，生成忠实的 rebuild 清单，应用到干净的原始 ROM 上，并写出压缩后的 ROM。你也可以写出一份列出修改区域和可重用空闲空间的 .rebuild 分析报告。
+
+:Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).
+端到端重建 ROM，并将压缩后的 ROM 写入你选择的文件。如果此 ROM 带有重建器无法复现的已安装补丁，则会附带说明拒绝重建（不写入任何文件）。
+
+:Save rebuilt ROM
+保存重建后的 ROM
+
+:Rebuilding…
+重建中…
+
+:The rebuild was cancelled.
+重建已取消。
+
+:The rebuild manifest was not produced.
+未生成重建清单。
+
+:The rebuilt ROM could not be written.
+无法写入重建后的 ROM。
+
+:The rebuild produced no ROM data.
+重建未生成任何 ROM 数据。
+
+:ROM rebuilt successfully. Wrote {0} ({1} bytes).
+ROM 重建成功。已写入 {0}（{1} 字节）。
+
+:The rebuild could not be completed. {0}
+重建未能完成。{0}
+
+:Failed to rebuild the ROM. {0}
+重建 ROM 失败。{0}
+
+:Failed to rebuild the ROM.
+重建 ROM 失败。
+
+:Cancelled.
+已取消。
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+输出 ROM 必须与原始 ROM 和已加载的 ROM 是不同的文件。
+

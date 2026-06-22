@@ -12098,3 +12098,48 @@ Png2Dmp画像(.dmpヒントなし): {0}
 :Undo data is required for MargeAndUpdate.
 MargeAndUpdate には Undo データが必要です。
 
+:Rebuild ROM…
+ROMをRebuild…
+
+:Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.
+ROMをRebuild（デフラグ）します：改造ROMと無改造ROMを比較して忠実なrebuildマニフェストを生成し、無改造ROMに適用して、圧縮されたROMを書き出します。変更領域と再利用可能な空き領域を一覧する.rebuild分析レポートを作成することもできます。
+
+:Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).
+ROMをエンドツーエンドでRebuildし、圧縮されたROMを選択したファイルに書き出します。このROMにRebuildが再現できないパッチがインストールされている場合、理由を示してRebuildを拒否します（ファイルは書き出されません）。
+
+:Save rebuilt ROM
+RebuildしたROMを保存
+
+:Rebuilding…
+Rebuild中…
+
+:The rebuild was cancelled.
+Rebuildはキャンセルされました。
+
+:The rebuild manifest was not produced.
+rebuildマニフェストが生成されませんでした。
+
+:The rebuilt ROM could not be written.
+RebuildしたROMを書き出せませんでした。
+
+:The rebuild produced no ROM data.
+RebuildはROMデータを生成しませんでした。
+
+:ROM rebuilt successfully. Wrote {0} ({1} bytes).
+ROMのRebuildに成功しました。{0}（{1}バイト）を書き出しました。
+
+:The rebuild could not be completed. {0}
+Rebuildを完了できませんでした。{0}
+
+:Failed to rebuild the ROM. {0}
+ROMのRebuildに失敗しました。{0}
+
+:Failed to rebuild the ROM.
+ROMのRebuildに失敗しました。
+
+:Cancelled.
+キャンセルしました。
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+出力先のROMは、元のROMおよび読み込み中のROMとは別のファイルにしてください。
+

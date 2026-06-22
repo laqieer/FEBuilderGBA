@@ -20760,3 +20760,48 @@ Unable to write the compiled file: {0}
 :Undo data is required for MargeAndUpdate.
 Undo data is required for MargeAndUpdate.
 
+:Rebuild ROM…
+Rebuild ROM…
+
+:Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.
+Rebuild (defragment) the ROM: produce a faithful rebuild manifest from the modified ROM against the clean original, apply it onto the clean base, and write the compacted ROM. You can also write a .rebuild analysis report listing the modified regions and reusable free space.
+
+:Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).
+Rebuilds the ROM end-to-end and writes the compacted ROM to a file you choose. If this ROM carries an installed patch the rebuilder cannot reproduce, the rebuild is refused with an explanation (no file is written).
+
+:Save rebuilt ROM
+Save rebuilt ROM
+
+:Rebuilding…
+Rebuilding…
+
+:The rebuild was cancelled.
+The rebuild was cancelled.
+
+:The rebuild manifest was not produced.
+The rebuild manifest was not produced.
+
+:The rebuilt ROM could not be written.
+The rebuilt ROM could not be written.
+
+:The rebuild produced no ROM data.
+The rebuild produced no ROM data.
+
+:ROM rebuilt successfully. Wrote {0} ({1} bytes).
+ROM rebuilt successfully. Wrote {0} ({1} bytes).
+
+:The rebuild could not be completed. {0}
+The rebuild could not be completed. {0}
+
+:Failed to rebuild the ROM. {0}
+Failed to rebuild the ROM. {0}
+
+:Failed to rebuild the ROM.
+Failed to rebuild the ROM.
+
+:Cancelled.
+Cancelled.
+
+:The output ROM must be a different file from the original ROM and the loaded ROM.
+The output ROM must be a different file from the original ROM and the loaded ROM.
+
