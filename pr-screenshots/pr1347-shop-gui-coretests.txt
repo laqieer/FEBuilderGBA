@@ -1,0 +1,49 @@
+#1347 Slice 5a — Item Shop GUI decomp source-routing + StripComments no-clobber fix
+PROOF: Core test-run output (the Avalonia GUI could not be driven headless in this
+worktree — no roms/ folder, no MCP computer-use venv — so per the repo guidance the
+test-run output is captured as proof instead of a fabricated screenshot).
+
+The GUI handlers (ItemShopViewerView Write/Append/RemoveLast) call the SAME Core
+routing logic that these tests exercise directly:
+  ItemShopViewerViewModel.BuildVectorFor{Write,Append,RemoveLast}  -> packed (qty<<8)|id vectors
+  ItemShopViewerViewModel.TryRouteCurrentShopToSource
+    -> DecompShopSourceWriteCore.TryRouteShopSaveToSource (ROM-bound, never-mutates-ROM)
+       -> DecompShopSourceResolver.TryResolveShopOwner + DecompSourceWriterCore.WriteListEntries
+
+=== Core helper + VM tests (43 total: 12 router + 6 VM + 25 list-writer incl 3 Part A) ===
+
+Passed!  - Failed: 0, Passed: 43, Skipped: 0, Total: 43 - FEBuilderGBA.Core.Tests.dll
+
+-- DecompShopSourceWriteCore.TryRouteShopSaveToSource (#1347 Slice 5a B1) --
+Passed TryRoute_OwnedLiteralList_Routed_WritesSource_RomUntouched   (Routed: writes source, ROM untouched)
+Passed TryRoute_SymbolUnresolvable_NotRouted_NoRomMutation
+Passed TryRoute_NoManifestOwner_NotRouted
+Passed TryRoute_MacroList_NotRouted_NoClobber                       (#1159 no-clobber)
+Passed TryRoute_RomOnlyPolicy_NotRouted
+Passed TryRoute_NotDecompMode_NotRouted_NoRomMutation               (classic mode unchanged)
+Passed TryRoute_ProjectNotActive_NotRouted
+Passed TryRoute_NullAsmMap_NotRouted
+Passed TryRoute_NullRom_NotRouted                                   (ROM-bound guard)
+Passed TryRoute_RomNotActive_NotRouted                              (ROM-bound guard)
+Passed TryRoute_SourceFileMissingOnDisk_NotRouted_SourceNotFound
+Passed TryRoute_InvalidUtf8Source_Error_SourceUntouched            (Error path)
+
+-- ItemShopViewerViewModel BuildVectorFor* (#1347 Slice 5a B2, headless VM) --
+Passed BuildVectorForWrite_ReplacesSelectedSlot
+Passed BuildVectorForWrite_NoSlotSelected_ReturnsNull
+Passed BuildVectorForAppend_AddsDefaultEntry
+Passed BuildVectorForRemoveLast_DropsLastEntry
+Passed BuildVectorForRemoveLast_EmptyShop_ReturnsNull
+Passed BuildVectors_NoShopSelected_ReturnNull
+
+-- DecompSourceWriterCore.StripComments no-clobber regressions (#1347 Part A) --
+Passed RewriteListBody_InlineLineComment_BeforeFinalMacro_Refused_NoClobber
+Passed RewriteListBody_BlockComment_MidList_AroundHexElement_StillRewrites
+Passed RewriteListBody_LastElement_TrailingLineComment_StillRewritesIdempotently
+
+=== Full suites ===
+FEBuilderGBA.Core.Tests : Passed 5317, Failed 10 (env-only Skill* — config/patch2 submodule
+                          not checked out; `git submodule status config/patch2` = "-..."), Skipped 6
+FEBuilderGBA.Tests      : Passed 1879, Failed 0   (incl DecompAuditDocConsistencyTest,
+                          AvaloniaDarkModeTests, Shops_AreNotInSourceBackedTables,
+                          Shops_HaveSourceBackedListSaveRow, all Avalonia gates)
