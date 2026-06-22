@@ -197,7 +197,9 @@ dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp
 # --items=<id:qty,...> ids/qtys are hex-or-dec 0..255, id != 0; an empty --items= empties
 # the shop. The whole list targets a RAW-HEX list (the export format); a list containing a
 # non-literal macro element is REFUSED (no-clobber) — export to raw hex or edit by hand.
-# Exit codes: 0 = source rewritten (or no-op); 2 = not owned / ROM-only / manual; 1 = usage/parse error.
+# Exit codes: 0 = source rewritten (or no-op); 2 = any advisory/no-write outcome (not owned, ROM-only,
+# manual, unsupported-field/no-clobber refusal, rejected path-escape, malformed manifest, not decomp mode);
+# 1 = usage/parse error (and unexpected-error / source-not-found).
 dotnet run --project FEBuilderGBA.CLI -- --write-shop --project=path/to/decomp --symbol=ItemList_WM_FluornArmory --items=0x01:5,0x02:3
 dotnet run --project FEBuilderGBA.CLI -- --write-shop --project=path/to/decomp --shop-addr=0xB2A18 --items=0x16:1
 

@@ -455,8 +455,11 @@ FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=h
 ### `--write-shop`
 
 Rewrite an owning variable-length **`u16` `ITEM_NONE`-terminated shop LIST** in source in place
-(#1347), instead of mutating the preview ROM. The whole `{…}` body is re-serialized to the
-requested raw-hex item vector + a fresh `0x0000` terminator, churn-free.
+(#1347), instead of mutating the preview ROM. The whole `{…}` initializer body is **re-serialized**
+to the requested raw-hex item vector (one `0xNNNN,` per line) + a fresh `0x0000` terminator. This is
+NOT a minimal-token splice: the body is reformatted to the canonical raw-hex style and any per-item
+comments inside the braces are dropped (the bytes OUTSIDE the `{…}` body are untouched). When the
+body already matches that canonical form, the rewrite is a byte-identical no-op (no churn).
 
 | Option | Required | Description |
 |---|---|---|
@@ -475,7 +478,10 @@ FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_FluornArmor
 FEBuilderGBA.CLI --write-shop --project=decomp/ --shop-addr=0xB2A18 --items=0x16:1
 ```
 
-**Exit code:** 0 on success (or clean no-op), 2 on not owned / ROM-only / manual, 1 on usage / parse fault.
+**Exit code:** `0` on success (or clean no-op); `2` for any advisory / no-write outcome — not owned,
+ROM-only, manual, **unsupported field** (macro/no-clobber refusal), **rejected** (sourceFile path
+escapes the project root), **malformed manifest**, or **not decomp mode**; `1` for a usage / parse
+fault (and the unexpected-error / source-not-found cases).
 
 ---
 
