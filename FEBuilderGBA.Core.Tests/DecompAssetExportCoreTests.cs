@@ -790,15 +790,25 @@ namespace FEBuilderGBA.Core.Tests
 
         static DecompAssetExportCore.ShopExportRecord MakeShop(
             string label, uint shopAddr, uint slotAddr, params ushort[] items)
-            => new DecompAssetExportCore.ShopExportRecord(label, shopAddr, slotAddr,
-                new System.Collections.Generic.List<ushort>(items ?? Array.Empty<ushort>()));
+        {
+            var list = new System.Collections.Generic.List<DecompAssetExportCore.ShopItemEntry>();
+            foreach (ushort v in items ?? Array.Empty<ushort>())
+                list.Add(new DecompAssetExportCore.ShopItemEntry(v, "Item" + (v & 0xFF)));
+            return new DecompAssetExportCore.ShopExportRecord(label, shopAddr, slotAddr, list);
+        }
+
+        static int CountOccurrences(string haystack, string needle)
+        {
+            int n = 0, i = 0;
+            while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0) { n++; i += needle.Length; }
+            return n;
+        }
 
         [Fact]
         public void FormatShops_NullList_DoesNotThrow_EmitsHeaderOnly()
         {
             string body = DecompAssetExportCore.FormatShops(null);
             Assert.NotNull(body);
-            // The migration header is always present; no ORG/SHORT lines for a null set.
             Assert.Contains("FEBuilderGBA shop-list migration export (#1149)", body);
             Assert.DoesNotContain("ORG 0x", body);
             Assert.DoesNotContain("SHORT 0x", body);
@@ -816,7 +826,6 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void FormatShops_EmptyShop_EmitsOrgAndTerminatorOnly()
         {
-            // A shop with NO items still gets its ORG header + a single terminator.
             var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
             {
                 MakeShop("Empty Shop", 0x800100, 0x800200),
@@ -824,9 +833,7 @@ namespace FEBuilderGBA.Core.Tests
             string body = DecompAssetExportCore.FormatShops(shops);
             Assert.Contains("ORG 0x800100", body);
             Assert.Contains("SHORT 0x0000", body);                 // terminator
-            // No item SHORT line (only the terminator's 0x0000).
-            int shortLines = CountOccurrences(body, "SHORT 0x");
-            Assert.Equal(1, shortLines);
+            Assert.Equal(1, CountOccurrences(body, "SHORT 0x"));   // only the terminator
         }
 
         [Fact]
@@ -839,7 +846,6 @@ namespace FEBuilderGBA.Core.Tests
             };
             string body = DecompAssetExportCore.FormatShops(shops);
 
-            // Both shop headers + ORGs present.
             Assert.Contains("// Shop: Preparation Shop  (list @ 0x800100, ptr-slot @ 0x800010)", body);
             Assert.Contains("ORG 0x800100", body);
             Assert.Contains("// Shop: Ch1 Armory  (list @ 0x800200, ptr-slot @ 0x800020)", body);
@@ -851,16 +857,77 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("SHORT 0x8016", body);   // high-byte flag preserved verbatim
             Assert.Contains("SHORT 0x004B", body);
 
-            // Two terminators (one per shop): 4 item entries + 2 terminators = 6 SHORT lines.
+            // 4 item entries + 2 terminators = 6 SHORT lines.
             Assert.Equal(6, CountOccurrences(body, "SHORT 0x"));
             Assert.Equal(2, CountOccurrences(body, "SHORT 0x0000"));
+
+            // Pre-resolved names appear in the trailing comment (formatter does NOT touch the ROM).
+            Assert.Contains("SHORT 0x0001   // Item1", body);
+            Assert.Contains("SHORT 0x004B   // Item75", body);   // 0x4B & 0xFF = 75
         }
 
-        static int CountOccurrences(string haystack, string needle)
+        [Fact]
+        public void FormatShops_IsRomIndependent_NullRom_StillEmitsStoredNames()
         {
-            int n = 0, i = 0;
-            while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0) { n++; i += needle.Length; }
-            return n;
+            // FINDING B/D: FormatShops must be genuinely PURE — formatting must NOT read the
+            // ROM. With CoreState.ROM cleared, formatting the pre-resolved record still works
+            // and emits the stored names verbatim.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
+                {
+                    MakeShop("Shop", 0x800100, 0x800010, 0x0001),
+                };
+                string body = DecompAssetExportCore.FormatShops(shops);
+                Assert.Contains("SHORT 0x0001   // Item1", body);   // stored name, no ROM read
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void SanitizeLabel_StripsControlChars_CollapsesToSpace()
+        {
+            // FINDING A: worldmap point names can carry raw FE control bytes (e.g. 0x1F) —
+            // they must not corrupt the // Shop comment line. Build the dirty string with
+            // explicit control chars so the test has no invisible bytes.
+            string dirty = "Ide" + (char)0x1F + "WorldMap" + (char)0x1F + "Armory";
+            string clean = DecompAssetExportCore.SanitizeLabel(dirty);
+            foreach (char c in clean)
+                Assert.True(c >= 0x20 && c != 0x7F, $"control char survived: 0x{(int)c:X2}");
+            Assert.Equal("Ide WorldMap Armory", clean);
+        }
+
+        [Fact]
+        public void SanitizeLabel_NullOrEmpty_ReturnsEmpty()
+        {
+            Assert.Equal("", DecompAssetExportCore.SanitizeLabel(null));
+            Assert.Equal("", DecompAssetExportCore.SanitizeLabel(""));
+        }
+
+        [Fact]
+        public void SanitizeLabel_LeadingTrailingControl_Trimmed()
+        {
+            string dirty = (char)0x01 + "Mid" + (char)0x1F;
+            Assert.Equal("Mid", DecompAssetExportCore.SanitizeLabel(dirty));
+        }
+
+        [Fact]
+        public void FormatShops_SanitizedLabelIsUsed_NoControlCharsInComment()
+        {
+            // ExportShops sanitizes the label; here we pass a control-char label THROUGH
+            // SanitizeLabel and confirm the emitted comment is clean.
+            string sanitized = DecompAssetExportCore.SanitizeLabel("A" + (char)0x01 + "B");
+            var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
+            {
+                MakeShop(sanitized, 0x800100, 0x800010, 0x0001),
+            };
+            string body = DecompAssetExportCore.FormatShops(shops);
+            Assert.Contains("// Shop: A B  (list @ 0x800100", body);
+            foreach (char c in body)
+                Assert.True(c >= 0x20 || c == '\n' || c == '\r' || c == '\t',
+                    $"control char in body: 0x{(int)c:X2}");
         }
 
         [Fact]
