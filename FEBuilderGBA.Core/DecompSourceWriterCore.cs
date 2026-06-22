@@ -605,12 +605,18 @@ namespace FEBuilderGBA
 
                 // Parse existing top-level elements. If ANY is NOT a plain integer literal
                 // (a macro / identifier / expression — e.g. ITEM_NONE, ITEM_SWORD), full-
-                // vector replacement would clobber it: refuse (#1159 no-clobber).
+                // vector replacement would clobber it: refuse (#1159 no-clobber). Line/block
+                // comments are stripped from each token first (so an inline `// ITEM_NONE`
+                // annotation — including the one this writer itself emits on the terminator —
+                // is NOT mistaken for a macro element, keeping the rewrite idempotent).
                 List<(int start, int end)> tokens = SplitTopLevelTokens(sourceText, bodyOpen + 1, bodyClose);
                 int firstElemStart = -1;
                 foreach (var (ts, te) in tokens)
                 {
-                    string tok = sourceText.Substring(ts, te - ts).Trim();
+                    string raw = sourceText.Substring(ts, te - ts);
+                    string tok = StripComments(raw).Trim();
+                    if (tok.Length == 0)
+                        continue;   // comment-only / whitespace-only span → not an element
                     if (!TryParseIntLiteral(tok, out _, out _, out _))
                     {
                         result.Status = DecompSourceWriteStatus.UnsupportedField;
@@ -2086,6 +2092,36 @@ namespace FEBuilderGBA
                 return j;
             }
             return i;
+        }
+
+        /// <summary>
+        /// Strip C line (<c>//…</c>) and block (<c>/*…*/</c>) comments from a token span,
+        /// keeping only the code text. Used by the u16-list element check (#1347) so an inline
+        /// comment annotation (e.g. the writer's own <c>0x0000,  // ITEM_NONE</c> terminator)
+        /// is not misclassified as a non-literal macro element. String/char literals are not
+        /// expected inside a u16 list, so they are not specially preserved. NEVER throws.
+        /// </summary>
+        static string StripComments(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.IndexOf('/') < 0)
+                return s ?? "";
+            var sb = new StringBuilder(s.Length);
+            int i = 0, n = s.Length;
+            while (i < n)
+            {
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '/')
+                    break;   // line comment runs to end of the span
+                if (s[i] == '/' && i + 1 < n && s[i + 1] == '*')
+                {
+                    int j = i + 2;
+                    while (j + 1 < n && !(s[j] == '*' && s[j + 1] == '/')) j++;
+                    i = Math.Min(n, j + 2);
+                    continue;
+                }
+                sb.Append(s[i]);
+                i++;
+            }
+            return sb.ToString();
         }
 
         /// <summary>Match a brace at <paramref name="open"/> ('{'), comment/string aware. Returns the '}' index or -1.</summary>
