@@ -138,7 +138,9 @@ namespace FEBuilderGBA
             rows.Add(new DecompAuditRow("Icon Editor", "icon", "Icon export",
                 DecompCoverage.SourceTreeExporter, "Indexed PNG via graphics exporter (16x16 tiles)"));
             rows.Add(new DecompAuditRow("Map Editor", "map", "Map layout export",
-                DecompCoverage.SourceTreeExporter, ".mar tilemap + sidecar .mar.json (faithful)"));
+                DecompCoverage.SourceTreeExporter, ".mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body, tile index < 0x2000); compressed container re-derived by the build, not byte-pinned"));
+            rows.Add(new DecompAuditRow("Map Editor", "map", "Map layout import/verify",
+                DecompCoverage.SourceTreeExporter, "Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM"));
             rows.Add(new DecompAuditRow("Text Editor", "text", "Text export",
                 DecompCoverage.SourceTreeExporter, "texts.txt + textdefs.txt (migration format, not lossless macro round-trip)"));
 

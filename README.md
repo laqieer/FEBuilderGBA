@@ -122,6 +122,17 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --projec
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 
+# Decomp .mar map LAYOUT re-import + round-trip verify (never mutates the ROM):
+# --import-asset    → reconstruct the RAW UNCOMPRESSED tilemap blob ([w][h] + w*h raw u16 LE)
+#                     from an edited .mar (+ its sidecar .mar.json); the build re-compresses from source.
+# --roundtrip-asset → validate + prove the .mar u16 LAYOUT body round-trips byte-identically.
+# The .mar map LAYOUT is now export AND import/verify and is lossless for tile indices < 0x2000.
+# The compressed ROM bytes are NOT byte-pinned (FEBuilder's LZ77 packer is non-canonical, so the
+# decomp build re-compresses from source). OBJ/TSA/tile-animations/map-change sub-assets remain
+# export-only / manual.
+dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin
+dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=map --in=map/chapter1.mar
+
 # Decomp source-backed table writer: rewrite the owning C array element (or JSON
 # element) of a structured table entry instead of mutating the preview ROM (the
 # source is the source of truth). The table must declare a source owner in the

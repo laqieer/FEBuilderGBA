@@ -297,6 +297,251 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(dir, true); }
         }
 
+        // ---- ImportMap (#1148) ----
+
+        // Helpers: write a .mar body of (rawTile<<3) LE entries + matching sidecar JSON.
+        static byte[] MakeMarBody(int w, int h, Func<int, ushort> rawTileForIndex)
+        {
+            byte[] body = new byte[w * h * 2];
+            for (int i = 0; i < w * h; i++)
+            {
+                ushort marTile = (ushort)(rawTileForIndex(i) << 3);
+                body[i * 2 + 0] = (byte)(marTile & 0xFF);
+                body[i * 2 + 1] = (byte)(marTile >> 8);
+            }
+            return body;
+        }
+
+        static void WriteMarPlusSidecar(string marPath, int w, int h, byte[] body)
+        {
+            File.WriteAllBytes(marPath, body);
+            File.WriteAllText(marPath + ".json",
+                $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x100\",\n  \"format\": \"febuilder-mar-u16-shl3\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportMap_HappyPath_ReconstructsRawUncompressedBlob()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 4, h = 3; // 12 entries
+                // rawTile values 0x0000, 0x0001, ... up to known values all < 0x2000
+                ushort[] rawTiles = new ushort[w * h];
+                for (int i = 0; i < rawTiles.Length; i++)
+                    rawTiles[i] = (ushort)(i == rawTiles.Length - 1 ? 0x1FFF : i);
+
+                byte[] body = MakeMarBody(w, h, i => rawTiles[i]);
+                string marPath = Path.Combine(dir, "chapter.mar");
+                WriteMarPlusSidecar(marPath, w, h, body);
+
+                string outPath = Path.Combine(dir, "chapter.tmap_raw.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.True(result.Ok, $"ImportMap failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+
+                // Expected raw blob = [w][h] + raw u16 LE entries.
+                byte[] expected = new byte[2 + w * h * 2];
+                expected[0] = (byte)w;
+                expected[1] = (byte)h;
+                for (int i = 0; i < w * h; i++)
+                {
+                    expected[2 + i * 2 + 0] = (byte)(rawTiles[i] & 0xFF);
+                    expected[2 + i * 2 + 1] = (byte)(rawTiles[i] >> 8);
+                }
+
+                byte[] actual = File.ReadAllBytes(outPath);
+                Assert.Equal(expected, actual);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_NoRomLoaded_StillWorks()
+        {
+            // Explicitly assert the import never depends on the ambient ROM.
+            CoreState.ROM = null;
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = MakeMarBody(w, h, i => (ushort)(i + 1));
+                string marPath = Path.Combine(dir, "norom.mar");
+                WriteMarPlusSidecar(marPath, w, h, body);
+
+                string outPath = Path.Combine(dir, "norom.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.True(result.Ok, $"ImportMap failed: {result.Message}");
+                Assert.Null(CoreState.ROM); // unchanged — never set the ROM
+                Assert.True(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_BodyRoundTrips()
+        {
+            int w = 4, h = 3;
+            byte[] body = MakeMarBody(w, h, i => (ushort)(i == 11 ? 0x1FFF : i));
+            Assert.True(DecompAssetExportCore.RoundTripMarBody(body));
+        }
+
+        [Fact]
+        public void ImportMap_MissingSidecar_Refuses_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = MakeMarBody(w, h, i => (ushort)(i + 1));
+                string marPath = Path.Combine(dir, "nosidecar.mar");
+                File.WriteAllBytes(marPath, body); // NO sidecar
+
+                string outPath = Path.Combine(dir, "nosidecar.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_WidthZero_Refuses_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // body length is irrelevant; the sidecar declares width=0.
+                int w = 0, h = 2;
+                string marPath = Path.Combine(dir, "w0.mar");
+                File.WriteAllBytes(marPath, new byte[0]);
+                File.WriteAllText(marPath + ".json",
+                    $"{{\n  \"width\": {w},\n  \"height\": {h}\n}}\n");
+
+                string outPath = Path.Combine(dir, "w0.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_Width256_Refuses_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // Body matches w*h*2 so the validator passes the length check, but
+                // width=256 exceeds the u8 header bound — ImportMap must refuse.
+                int w = 256, h = 1;
+                byte[] body = new byte[w * h * 2]; // all zero → low-3-bits clear, length matches
+                string marPath = Path.Combine(dir, "w256.mar");
+                File.WriteAllBytes(marPath, body);
+                File.WriteAllText(marPath + ".json",
+                    $"{{\n  \"width\": {w},\n  \"height\": {h}\n}}\n");
+
+                string outPath = Path.Combine(dir, "w256.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_CorruptShift_Refuses_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = MakeMarBody(w, h, i => (ushort)(i + 1));
+                body[0] |= 1; // set a low-3-bit on the first entry → <<3 invariant broken
+                string marPath = Path.Combine(dir, "corrupt.mar");
+                WriteMarPlusSidecar(marPath, w, h, body);
+
+                string outPath = Path.Combine(dir, "corrupt.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_LengthMismatch_Refuses_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2; // sidecar declares 8-byte body
+                byte[] body = MakeMarBody(w, h, i => (ushort)(i + 1));
+                byte[] truncated = new byte[body.Length - 2]; // 6 bytes != 2*2*2
+                Array.Copy(body, truncated, truncated.Length);
+                string marPath = Path.Combine(dir, "trunc.mar");
+                WriteMarPlusSidecar(marPath, w, h, truncated);
+
+                string outPath = Path.Combine(dir, "trunc.bin");
+                var result = DecompAssetExportCore.ImportMap(marPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMap_NullArgs_ReturnBadArgs()
+        {
+            var r1 = DecompAssetExportCore.ImportMap(null, "/tmp/x.bin");
+            Assert.False(r1.Ok);
+            Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
+
+            var r2 = DecompAssetExportCore.ImportMap("/tmp/x.mar", null);
+            Assert.False(r2.Ok);
+            Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
+        }
+
+        // ---- RoundTripMarBody (pure) ----
+
+        [Fact]
+        public void RoundTripMarBody_True_ForCleanEvenBody()
+        {
+            byte[] body = MakeMarBody(4, 3, i => (ushort)(i == 11 ? 0x1FFF : i));
+            Assert.True(DecompAssetExportCore.RoundTripMarBody(body));
+        }
+
+        [Fact]
+        public void RoundTripMarBody_False_ForOddLengthBody()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMarBody(new byte[3]));
+        }
+
+        [Fact]
+        public void RoundTripMarBody_False_ForNull()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMarBody(null));
+        }
+
+        [Fact]
+        public void RoundTripMarBody_False_ForLowBitsSet()
+        {
+            byte[] body = MakeMarBody(2, 2, i => (ushort)(i + 1));
+            body[0] |= 1; // entry no longer (rawTile<<3) — fails the shift invariant
+            Assert.False(DecompAssetExportCore.RoundTripMarBody(body));
+        }
+
         // ---- FormatTexts (internal, testable without ROM) ----
 
         [Fact]

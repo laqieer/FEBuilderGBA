@@ -1,0 +1,14 @@
+=== FEBuilderGBA #1148: .mar map-layout import + roundtrip-verify proof ===
+
+$ FEBuilderGBA.CLI --import-asset --kind=map --in=chapter.mar --out=chapter.tmap_raw.bin
+Imported 4x3 map layout to raw uncompressed tilemap blob (26 bytes)
+Wrote: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-aeda5e9b0dbb56861\.proof\chapter.tmap_raw.bin
+(exit=0)
+
+$ FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=chapter.mar
+Round-trip OK (lossless map layout body)
+(exit=0)
+
+=== output raw blob hexdump ([w=04][h=03] + 12 raw u16 LE) ===
+ 04 03 00 00 01 00 02 00 03 00 04 00 05 00 06 00
+ 07 00 08 00 09 00 0a 00 ff 1f

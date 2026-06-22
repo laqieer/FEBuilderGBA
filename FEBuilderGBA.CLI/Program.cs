@@ -352,6 +352,21 @@ namespace FEBuilderGBA.CLI
                 return RunValidateAsset(argsDic);
             }
 
+            // --import-asset --kind=map --in=<x.mar> --out=<x.tmap_raw.bin>: re-import a
+            // .mar map LAYOUT to a raw uncompressed tilemap blob in the source tree (#1148).
+            // NEVER mutates the ROM.
+            if (argsDic.ContainsKey("--import-asset"))
+            {
+                return RunImportAsset(argsDic);
+            }
+
+            // --roundtrip-asset --kind=map --in=<x.mar>: validate + prove the .mar BODY
+            // round-trips losslessly (#1148). READ-ONLY, never loads a ROM.
+            if (argsDic.ContainsKey("--roundtrip-asset"))
+            {
+                return RunRoundtripAsset(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -553,6 +568,13 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --validate-asset         Structurally validate a decomp IMPORT asset on disk (no ROM; never mutates)");
             Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map");
             Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map)");
+            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT to a raw uncompressed tilemap blob in the source tree (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map             Only map layout is supported (.mar + sidecar .mar.json required)");
+            Console.WriteLine("    --in=<x.mar>           Input .mar map layout file");
+            Console.WriteLine("    --out=<x.bin>          Output raw uncompressed tilemap blob ([w][h] + w*h raw u16 LE); project-relative when --project");
+            Console.WriteLine("  --roundtrip-asset        Validate + prove a .mar map LAYOUT body round-trips losslessly (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map             Only map layout is supported");
+            Console.WriteLine("    --in=<x.mar>           Input .mar map layout file");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -588,6 +610,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
@@ -4646,6 +4670,104 @@ namespace FEBuilderGBA.CLI
 
             Console.WriteLine($"Validation: {result.Errors.Count} error(s), {result.Warnings.Count} warning(s) — {(result.Ok ? "OK" : "FAILED")}");
             return result.Ok ? 0 : 2;
+        }
+
+        /// <summary>
+        /// --import-asset: re-import a decomp <c>.mar</c> map LAYOUT to a RAW UNCOMPRESSED tilemap
+        /// blob written into the source tree (#1148) — the IMPORT/verify direction that makes the
+        /// <c>.mar</c> a genuine source-backed round-trip artifact (export → edit → re-import).
+        /// NEVER mutates the ROM. Only <c>--kind=map</c> is supported. With <c>--project=&lt;dir&gt;</c>
+        /// the output path is project-root-contained; otherwise it is resolved against the cwd.
+        /// Exit 0 on success, 2 on import/path fault, 1 on a usage / bad-kind fault.
+        /// </summary>
+        static int RunImportAsset(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map"); return 1; }
+            AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
+            if (kind == null || kind.Value != AssetKind.MapLayout)
+            { Console.Error.WriteLine("Error: only --kind=map is supported for --import-asset"); return 1; }
+
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar>"); return 1; }
+            string absIn = argsDic["--in"];
+
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --import-asset requires --out=<x.tmap_raw.bin>"); return 1; }
+            string outRel = argsDic["--out"];
+
+            RomLoader.InitEnvironment();
+
+            // Optional --project gives project-root containment for the output path. If
+            // LoadProject fails (e.g. no preview ROM), fall back to no project (cwd-relative).
+            DecompProject project = null;
+            if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
+            {
+                string projectDir = argsDic["--project"];
+                if (RomLoader.LoadProject(projectDir))
+                    project = CoreState.DecompProject;
+            }
+
+            string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);
+            if (absOut == null)
+            {
+                Console.Error.WriteLine("Error: output path rejected (outside project root or invalid)");
+                return 2;
+            }
+
+            DecompAssetResult result = DecompAssetExportCore.ImportMap(absIn, absOut);
+            if (result.Ok)
+            {
+                Console.WriteLine(result.Message);
+                foreach (string path in result.WrittenPaths)
+                    Console.WriteLine($"Wrote: {path}");
+                return 0;
+            }
+
+            Console.Error.WriteLine($"Error: {result.Message}");
+            return 2;
+        }
+
+        /// <summary>
+        /// --roundtrip-asset: validate a decomp <c>.mar</c> map LAYOUT and PROVE its u16 layout
+        /// BODY round-trips losslessly (export→import→export is byte-identical) (#1148). READ-ONLY;
+        /// NEVER loads a ROM. Exit 0 when the body round-trips, 2 on validation failure or a shift
+        /// mismatch, 1 on a usage / bad-kind fault.
+        /// </summary>
+        static int RunRoundtripAsset(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map"); return 1; }
+            AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
+            if (kind == null || kind.Value != AssetKind.MapLayout)
+            { Console.Error.WriteLine("Error: only --kind=map is supported for --roundtrip-asset"); return 1; }
+
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar>"); return 1; }
+            string inPath = argsDic["--in"];
+
+            AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapLayout, inPath);
+            if (!v.Ok)
+            {
+                foreach (AssetIssue e in v.Errors)
+                    Console.Error.WriteLine($"ERROR [{e.Code}] {e.Message}");
+                return 2;
+            }
+
+            byte[] body;
+            try { body = File.ReadAllBytes(inPath); }
+            catch (Exception ex)
+            { Console.Error.WriteLine($"Error: could not read .mar: {ex.Message}"); return 2; }
+
+            bool ok = DecompAssetExportCore.RoundTripMarBody(body);
+            if (ok)
+            {
+                Console.WriteLine("Round-trip OK (lossless map layout body)");
+                return 0;
+            }
+
+            Console.Error.WriteLine("Round-trip MISMATCH");
+            return 2;
         }
 
         /// <summary>
