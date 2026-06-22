@@ -290,10 +290,10 @@ namespace FEBuilderGBA
         /// raw tilemap u16 shifted left by 3 (WF SaveAsMAR parity). The sidecar JSON
         /// records the original width/height and source address for reconstruction.
         ///
-        /// The <c>&lt;&lt;3</c> encoding only fits a u16 when the raw tile index is
-        /// &lt; 0x2000; a larger index is REJECTED (<see cref="DecompAssetStatus.NotData"/>)
-        /// rather than silently truncated, so the exported .mar is guaranteed to round-trip
-        /// through <see cref="ImportMap"/>.
+        /// The <c>&lt;&lt;3</c> encoding only fits a u16 when the WHOLE raw tilemap entry is
+        /// &lt; 0x2000 (its palette/flag bits 13-15 are clear); a larger raw entry is REJECTED
+        /// (<see cref="DecompAssetStatus.NotData"/>) rather than silently truncated, so the
+        /// exported .mar is guaranteed to round-trip through <see cref="ImportMap"/>.
         /// </summary>
         /// <param name="rom">Loaded ROM. Must not be null.</param>
         /// <param name="addrOffset">ROM byte offset of the LZ77-compressed tilemap data.</param>
@@ -325,11 +325,12 @@ namespace FEBuilderGBA
                     return Fail(DecompAssetStatus.NotData,
                         $"Decompressed data ({blob.Length} bytes) too small for {w}x{h} map (need {expectedSize})");
 
-                // Build .mar body: for each u16 tile entry, write (rawU16 << 3) as LE u16.
-                // The <<3 only fits in a u16 when rawTile < 0x2000; a larger value would have
-                // its top 3 bits SILENTLY truncated by the (ushort) cast, so the .mar would not
-                // round-trip back to the original tilemap. Reject up front rather than emit a
-                // lossy .mar (Copilot #1148 plan-review finding — keeps the round-trip claim honest).
+                // Build .mar body: for each raw tilemap u16 entry, write (rawU16 << 3) as LE u16.
+                // The <<3 only fits in a u16 when the WHOLE raw entry is < 0x2000 (i.e. bits 13-15 —
+                // the palette/flag bits — are clear); a larger value would have those top 3 bits
+                // SILENTLY truncated by the (ushort) cast, so the .mar would not round-trip back to
+                // the original tilemap. Reject up front rather than emit a lossy .mar (Copilot #1148
+                // review finding — keeps the round-trip claim honest).
                 byte[] marBody = new byte[w * h * 2];
                 for (int i = 0; i < w * h; i++)
                 {
@@ -337,7 +338,7 @@ namespace FEBuilderGBA
                     ushort rawTile = (ushort)(blob[srcOffset] | (blob[srcOffset + 1] << 8));
                     if (rawTile >= 0x2000)
                         return Fail(DecompAssetStatus.NotData,
-                            $"Tile entry #{i} (0x{rawTile:X4}) >= 0x2000 — the <<3 .mar encoding would truncate its top 3 bits and is not round-trippable; this tilemap is not a supported .mar layout.");
+                            $"Raw tilemap entry #{i} (0x{rawTile:X4}) >= 0x2000 — its top 3 bits (palette/flag bits 13-15) would be truncated by the <<3 .mar encoding and is not round-trippable; this tilemap is not a supported .mar layout.");
                     ushort marTile = (ushort)(rawTile << 3);
                     marBody[i * 2 + 0] = (byte)(marTile & 0xFF);
                     marBody[i * 2 + 1] = (byte)(marTile >> 8);

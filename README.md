@@ -126,9 +126,10 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gb
 # --import-asset    → reconstruct the RAW UNCOMPRESSED tilemap blob ([w][h] + w*h raw u16 LE)
 #                     from an edited .mar (+ its sidecar .mar.json); the build re-compresses from source.
 # --roundtrip-asset → validate + prove the .mar u16 LAYOUT body round-trips byte-identically.
-# The .mar map LAYOUT is now export AND import/verify and is lossless for tile indices < 0x2000.
-# --export-asset --kind=map REJECTS a tilemap with any tile index >= 0x2000 (the <<3 .mar encoding
-# would truncate its top 3 bits) rather than emit a silently-lossy .mar, so every exported .mar is
+# The .mar map LAYOUT is now export AND import/verify and is lossless for raw tilemap u16 entries
+# < 0x2000 (palette/flag bits 13-15 clear).
+# --export-asset --kind=map REJECTS a tilemap with any raw u16 entry >= 0x2000 (the <<3 .mar encoding
+# would truncate its top 3 bits — the palette/flag bits) rather than emit a silently-lossy .mar, so every exported .mar is
 # guaranteed to round-trip. The compressed ROM bytes are NOT byte-pinned (FEBuilder's LZ77 packer is
 # non-canonical, so the decomp build re-compresses from source). OBJ/TSA/tile-animations/map-change
 # sub-assets remain export-only / manual.
@@ -430,7 +431,7 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Graphics Editor | graphics | Graphics export | SourceTreeExporter | Indexed PNG (color type 3) + sidecar .pal |
 | Portrait Editor | portrait | Portrait export | SourceTreeExporter | Export via --export-portrait-all (PNG package) |
 | Icon Editor | icon | Icon export | SourceTreeExporter | Indexed PNG via graphics exporter (16x16 tiles) |
-| Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body, tile index < 0x2000); compressed container re-derived by the build, not byte-pinned |
+| Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Sentinel-terminated variable-length lists; no clean source-of-truth C array |

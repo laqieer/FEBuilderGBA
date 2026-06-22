@@ -4676,11 +4676,14 @@ namespace FEBuilderGBA.CLI
         /// --import-asset: re-import a decomp <c>.mar</c> map LAYOUT to a RAW UNCOMPRESSED tilemap
         /// blob written into the source tree (#1148) — the IMPORT/verify direction that makes the
         /// <c>.mar</c> a genuine source-backed round-trip artifact (export → edit → re-import).
-        /// NEVER mutates the ROM. Only <c>--kind=map</c> is supported. With <c>--project=&lt;dir&gt;</c>
-        /// the OUTPUT path (<c>--out</c>) is project-root-contained; otherwise it is resolved against
-        /// the cwd. The INPUT path (<c>--in</c>) is intentionally NOT containment-checked: an external
-        /// <c>.mar</c> (e.g. one exported elsewhere) may be re-imported INTO the project tree — only
-        /// writes are constrained to the project, reads are free.
+        /// NEVER mutates the ROM (<see cref="DecompAssetExportCore.ImportMap"/> has no ROM parameter and
+        /// never touches <c>CoreState.ROM</c>). Only <c>--kind=map</c> is supported. With
+        /// <c>--project=&lt;dir&gt;</c> the OUTPUT path (<c>--out</c>) is project-root-contained; the project
+        /// MUST open (else exit 2 — we never silently drop containment), even though only its root is
+        /// needed for the path check. Without <c>--project</c>, <c>--out</c> resolves against the cwd. The
+        /// INPUT path (<c>--in</c>) is intentionally NOT containment-checked: an external <c>.mar</c>
+        /// (e.g. one exported elsewhere) may be re-imported INTO the project tree — only writes are
+        /// constrained to the project, reads are free.
         /// Exit 0 on success, 2 on import/path fault, 1 on a usage / bad-kind fault.
         /// </summary>
         static int RunImportAsset(Dictionary<string, string> argsDic)
@@ -4701,14 +4704,21 @@ namespace FEBuilderGBA.CLI
 
             RomLoader.InitEnvironment();
 
-            // Optional --project gives project-root containment for the output path. If
-            // LoadProject fails (e.g. no preview ROM), fall back to no project (cwd-relative).
+            // Optional --project gives project-root containment for the output path. If the
+            // user asked for a project, it MUST load successfully — we never silently fall back
+            // to no-containment (cwd-relative), which would let --out escape the project tree
+            // when the project is unbuilt (Copilot PR #1346 inline finding). Without --project,
+            // --out is resolved against the cwd with no containment (classic export parity).
             DecompProject project = null;
             if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
             {
                 string projectDir = argsDic["--project"];
-                if (RomLoader.LoadProject(projectDir))
-                    project = CoreState.DecompProject;
+                if (!RomLoader.LoadProject(projectDir))
+                {
+                    Console.Error.WriteLine($"Error: could not open decomp project at '{projectDir}' (containment for --out cannot be enforced)");
+                    return 2;
+                }
+                project = CoreState.DecompProject;
             }
 
             string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);

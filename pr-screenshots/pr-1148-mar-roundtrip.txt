@@ -1,6 +1,6 @@
 === #1148 .mar map-layout source-backed round-trip (import/verify) - CLI proof ===
 
-Synthetic .mar (4x3, tiles 0..10 + 0x1FFF, all < 0x2000) + sidecar created.
+Synthetic .mar (4x3, raw u16 entries 0..10 + 0x1FFF, all < 0x2000) + sidecar created.
 
 $ --import-asset --kind=map --in=chapter1.mar --out=chapter1.tmap_raw.bin
 Imported 4x3 map layout to raw uncompressed tilemap blob (26 bytes)
@@ -23,6 +23,6 @@ ERROR [BAD_MAR_SHIFT] Entry at byte offset 0 (value 0x0001) has non-zero low 3 b
 decomp coverage matrix (map rows) - .mar layout is now export AND import/verify:
 Map Settings Editor	map_settings	Row save	SourceBackedWriter	Main structured-row save only
 Map Settings Editor	map_settings	Chapter pointer fields (EventDataPtr, difficulty)	ManualMigration	Pointer fields (D0/EventDataPtr, D96-D108 difficulty) are not source-backed
-Map Editor	map	Map layout export	SourceTreeExporter	.mar tilemap + sidecar .mar.json - export AND re-import/verify (lossless u16 layout body, tile index < 0x2000); compressed container re-derived by the build, not byte-pinned
+Map Editor	map	Map layout export	SourceTreeExporter	.mar tilemap + sidecar .mar.json - export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned
 Map Editor	map	Map layout import/verify	SourceTreeExporter	Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM
 Map Editor	map_asset_binaries	Raw map asset save (GUI: OBJ/TSA/anim/map-change)	ManualMigration	GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) - NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset

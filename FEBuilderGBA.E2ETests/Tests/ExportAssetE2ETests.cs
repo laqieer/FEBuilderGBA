@@ -379,6 +379,39 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
+        // ---- Containment safety: --import-asset --project must NOT silently drop containment
+        //      when the project cannot open (e.g. its builtRom is missing). #1148 Copilot finding:
+        //      an unbuilt project previously left project=null and let --out escape the tree. ----
+
+        [Fact]
+        public void ImportAsset_Map_UnbuiltProject_OutEscapes_ExitsTwo_NoEscapeWrite()
+        {
+            // No ROM needed: the project manifest points at a builtRom that does NOT exist, so
+            // LoadProject fails. The import MUST reject (exit 2) rather than fall back to cwd
+            // resolution and write outside the project root.
+            string projectDir = NewTempDir("import_unbuilt");
+            try
+            {
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"does_not_exist.gba\" }");
+
+                string marPath = Path.Combine(projectDir, "chapter.mar");
+                WriteSyntheticMar(marPath, 2, 2);
+
+                string escapingOut = "../escaped_unbuilt.tmap_raw.bin";
+                string args = $"--import-asset --kind=map --project=\"{projectDir}\" --in=\"{marPath}\" --out={escapingOut}";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.False(File.Exists(Path.Combine(projectDir, "..", "escaped_unbuilt.tmap_raw.bin")),
+                    "an unbuilt project must NOT let --out escape the project root");
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
         // ---- Dispatch order: --import-asset --project must NOT be swallowed by the bare
         //      --project rom-info fallthrough (#1148, same hazard as --export-asset #1133) ----
 
