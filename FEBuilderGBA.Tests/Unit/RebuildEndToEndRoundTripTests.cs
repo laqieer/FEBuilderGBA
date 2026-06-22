@@ -111,6 +111,13 @@ namespace FEBuilderGBA.Tests.Unit
 
             string savedBaseDir = CoreState.BaseDirectory;
             string tmpDir = Path.Combine(Path.GetTempPath(), "feb_e2e_rt_" + Guid.NewGuid().ToString("N"));
+            // The two Program.LoadROM calls below persist Last_Rom_Filename through Program.Config.Save()
+            // into <repoRoot>/config/config.xml — which would DIRTY the checkout (Copilot PR-review finding
+            // 1). Snapshot that file so the finally block can restore it exactly (or delete it if it did not
+            // exist before), keeping the test fully isolated / non-persisting.
+            string configXmlPath = Path.Combine(repoRoot, "config", "config.xml");
+            bool configXmlExisted = File.Exists(configXmlPath);
+            byte[] configXmlSnapshot = configXmlExisted ? File.ReadAllBytes(configXmlPath) : null;
             try
             {
                 Directory.CreateDirectory(tmpDir);
@@ -119,10 +126,17 @@ namespace FEBuilderGBA.Tests.Unit
                 BootstrapWinFormsProgram(repoRoot);
 
                 // ---- (1) Load vanilla FE8U via the full WF path (wires the event-script disassembler). ----
+                // The ONLY allowed skip is no-ROM (handled above, before any state mutation). Once the ROM
+                // file EXISTS, a load/version/multibyte failure is NOT a skip — it would silently report a
+                // passing test that never exercised the producer->apply->reload->reparse contract. So these
+                // are ASSERTIONS, not early-returns (Copilot PR-review finding 2): with a present FE8U the
+                // proof is always non-vacuous.
                 bool loaded = Program.LoadROM(romPath, "");
-                if (!loaded || Program.ROM == null) return; // ROM did not load — early-exit (Pass)
-                if (Program.ROM.RomInfo.version != 8) return; // calibrated on FE8U — early-exit (Pass)
-                if (Program.ROM.RomInfo.is_multibyte) return; // FE8U is non-multibyte; FE8J is a different gate
+                Assert.True(loaded && Program.ROM != null,
+                    "roms/FE8U.gba exists but Program.LoadROM failed — the ROM is present so the e2e proof "
+                    + "must run, not skip (a broken bootstrap or corrupt ROM path must FAIL, not pass).");
+                Assert.Equal(8, Program.ROM.RomInfo.version);        // must be FE8U (this harness is calibrated on it)
+                Assert.False(Program.ROM.RomInfo.is_multibyte);      // FE8U is non-multibyte; FE8J is a different gate
 
                 ROM rom = Program.ROM;
                 // The "vanilla" base is the unmodified FE8U — a fresh ROM re-loaded from the same bytes
@@ -190,13 +204,19 @@ namespace FEBuilderGBA.Tests.Unit
                 Assert.DoesNotContain("Missing!", result.Log ?? "");
 
                 byte[] rebuilt = result.Rebuilt;
-                Assert.True(rebuilt.Length >= rebuildAddress,
-                    "rebuilt ROM must at least contain the preserved non-rebuild base region");
 
-                // (B2) Vanilla base preserved: [0, rebuildAddress) is byte-identical to vanilla.
+                // (B2) Vanilla base preserved: the FULL non-rebuild region [0, rebuildAddress) is byte-
+                // identical to vanilla. Require BOTH ROMs to actually contain that whole range first — a
+                // clamped Math.Min compare would silently shrink the validated window on a trimmed/short ROM
+                // and pass vacuously (Copilot PR-review inline finding). Compare exactly [0, rebuildAddress).
                 byte[] vanData = vanilla.Data;
-                uint baseLen = Math.Min(rebuildAddress, (uint)Math.Min(vanData.Length, rebuilt.Length));
-                for (uint i = 0; i < baseLen; i++)
+                Assert.True(vanData.Length >= rebuildAddress,
+                    $"vanilla FE8U (0x{vanData.Length:X} bytes) must contain the entire non-rebuild base "
+                    + $"region [0, 0x{rebuildAddress:X}) for the faithfulness compare to be non-vacuous.");
+                Assert.True(rebuilt.Length >= rebuildAddress,
+                    $"rebuilt ROM (0x{rebuilt.Length:X} bytes) must contain the entire preserved non-rebuild "
+                    + $"base region [0, 0x{rebuildAddress:X}).");
+                for (uint i = 0; i < rebuildAddress; i++)
                 {
                     if (rebuilt[i] != vanData[i])
                     {
@@ -254,6 +274,20 @@ namespace FEBuilderGBA.Tests.Unit
             {
                 CoreState.BaseDirectory = savedBaseDir;
                 try { Directory.Delete(tmpDir, true); } catch { }
+                // Restore config/config.xml to its pre-test state so the test never dirties the checkout:
+                // re-write the snapshot if it existed, otherwise delete the file the load calls created.
+                try
+                {
+                    if (configXmlExisted)
+                    {
+                        File.WriteAllBytes(configXmlPath, configXmlSnapshot);
+                    }
+                    else if (File.Exists(configXmlPath))
+                    {
+                        File.Delete(configXmlPath);
+                    }
+                }
+                catch { }
             }
         }
 
