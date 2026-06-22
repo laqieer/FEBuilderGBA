@@ -23,6 +23,11 @@
       <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_AddressHelp_Label" Name="AddressHelpText"
                  TextWrapping="Wrap" Opacity="0.8" />
 
+      <Button AutomationProperties.AutomationId="ToolROMRebuild_Rebuild_Button" Name="RebuildButton"
+              Content="Rebuild ROM…" Click="Rebuild_Click" FontWeight="Bold" />
+      <TextBlock AutomationProperties.AutomationId="ToolROMRebuild_RebuildHelp_Label" Name="RebuildHelpText"
+                 TextWrapping="Wrap" Opacity="0.8" />
+
       <Button AutomationProperties.AutomationId="ToolROMRebuild_Make_Button" Name="MakeButton"
               Content="Make ROMRebuild report…" Click="Make_Click" />
 
