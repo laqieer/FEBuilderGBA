@@ -313,6 +313,15 @@ namespace FEBuilderGBA.CLI
                 return RunWriteSource(argsDic);
             }
 
+            // --write-shop --project=<dir> (--shop-addr=0x.. | --symbol=<name>) --items=<csv>:
+            // in-place source-backed shop-list writer (#1347) — rewrite the owning u16
+            // ITEM_NONE-terminated C list instead of mutating the preview ROM. Must precede
+            // the bare --project rom-info fallthrough or it is swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--write-shop"))
+            {
+                return RunWriteShop(argsDic);
+            }
+
             // --build-project --project=<dir> [--reload] [--yes] [--timeout=<ms>]:
             // run the decomp project's declared build command + optionally reload
             // the built ROM into CoreState (#1134). Must precede the bare --project
@@ -549,6 +558,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --field=<name>         C/JSON field name to change (must be declared on the owner; REPEATABLE — pair each --field with a following --value; other flags may appear between them; a 2nd --field before its --value, or an unpaired --field/--value, is a usage error)");
             Console.WriteLine("    --value=<int>          New value for the preceding --field (0x hex or decimal; signed fields take the two's-complement magnitude; REPEATABLE)");
             Console.WriteLine("    --out-diff=<path>      Optional: write a unified-diff-ish before/after of the changed element");
+            Console.WriteLine("  --write-shop             Rewrite an owning u16 ITEM_NONE-terminated shop LIST in source (requires --project, --items, and one of --shop-addr/--symbol)");
+            Console.WriteLine("    --project=<dir>        Decomp project directory (manifest must declare a u16-list list-owner for the shop's symbol)");
+            Console.WriteLine("    --shop-addr=<hex>      Shop item-list ROM OFFSET; resolved to a list symbol via the project .map/.elf/.sym + manifest list-owner");
+            Console.WriteLine("    --symbol=<name>        OR look up the list-owner directly by name (skips the address resolver)");
+            Console.WriteLine("    --items=<csv>          New list as id:qty pairs (e.g. 0x01:5,0x02:3); id/qty hex-or-dec 0..255, id!=0; empty = emptied shop (just terminator)");
             Console.WriteLine("  --build-project          Run the decomp project's declared build command (requires --project; gated behind --yes)");
             Console.WriteLine("    --project=<dir>        Decomp project directory containing febuilder.project.json with a build section");
             Console.WriteLine("    --yes                  Required to actually execute the build command (explicit opt-in gate)");
@@ -620,6 +634,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_attributes --id=1 --field=b1 --value=2   (assumes owner declares b0..b1 or uses .bN= initializers)");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_talks --id=0 --field=w4 --value=0x0A12   (assumes owner declares the ordered prefix up to w4 or uses .bN= initializers)");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_FluornArmory --items=0x01:5,0x02:3");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-shop --project=decomp/ --shop-addr=0xB2A18 --items=0x16:1   (resolves the shop symbol from the project .map/.elf/.sym)");
             Console.WriteLine("  FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
@@ -5117,6 +5133,154 @@ namespace FEBuilderGBA.CLI
                     Console.Error.WriteLine($"Error: {res.Message}");
                     return 1;
             }
+        }
+
+        /// <summary>
+        /// CLI entry for the in-place source-backed SHOP-LIST writer (#1347). Opens a decomp
+        /// project, resolves the owning u16-list declaration (by <c>--symbol</c> directly, or
+        /// by resolving <c>--shop-addr</c> to a list symbol via the project's merged
+        /// .map/.elf/.sym + manifest list-owner), then rewrites the owning variable-length
+        /// <c>ITEM_NONE</c>-terminated C list instead of mutating the preview ROM. READ-ONLY
+        /// w.r.t. the ROM; the only mutation is to the project's declared source file.
+        ///
+        /// Exit codes: 0 = source rewritten (or clean no-op); 2 = not owned / ROM-only /
+        /// manual / unsupported field / rejected / malformed manifest (advisory, no write);
+        /// 1 = usage fault / parse failure / source-not-found / unexpected error.
+        /// </summary>
+        static int RunWriteShop(Dictionary<string, string> argsDic)
+        {
+            // ---- Required: --project ----
+            string projectDir = argsDic.ContainsKey("--project") ? argsDic["--project"] : "";
+            if (string.IsNullOrEmpty(projectDir))
+            { Console.Error.WriteLine("Error: --write-shop requires --project=<dir>"); return 1; }
+
+            // ---- Owner selector: exactly one of --symbol / --shop-addr ----
+            bool hasSymbol = argsDic.ContainsKey("--symbol") && !string.IsNullOrEmpty(argsDic["--symbol"]);
+            bool hasShopAddr = argsDic.ContainsKey("--shop-addr") && !string.IsNullOrEmpty(argsDic["--shop-addr"]);
+            if (!hasSymbol && !hasShopAddr)
+            { Console.Error.WriteLine("Error: --write-shop requires one of --symbol=<name> or --shop-addr=0x..."); return 1; }
+            if (hasSymbol && hasShopAddr)
+            { Console.Error.WriteLine("Error: --write-shop takes EITHER --symbol or --shop-addr, not both"); return 1; }
+
+            uint shopAddr = 0;
+            if (hasShopAddr && !TryParseUIntArg(argsDic["--shop-addr"], out shopAddr))
+            { Console.Error.WriteLine($"Error: Invalid --shop-addr: {argsDic["--shop-addr"]}"); return 1; }
+
+            // ---- Required: --items=<csv> (may be empty for an emptied shop) ----
+            if (!argsDic.ContainsKey("--items"))
+            { Console.Error.WriteLine("Error: --write-shop requires --items=<id:qty,...> (empty = emptied shop)"); return 1; }
+            if (!TryParseShopItems(argsDic["--items"], out ushort[] items, out string itemsErr))
+            { Console.Error.WriteLine($"Error: {itemsErr}"); return 1; }
+
+            // ---- Open the project (sets CoreState.DecompProject + loads built ROM) ----
+            RomLoader.InitEnvironment();
+            if (!RomLoader.LoadProject(projectDir))
+                return 1;
+
+            DecompProject project = CoreState.DecompProject;
+
+            // ---- Resolve the list owner ----
+            DecompTableEntry owner;
+            string symbolName;
+            if (hasSymbol)
+            {
+                symbolName = argsDic["--symbol"];
+                owner = project.TryGetListOwner(symbolName);
+            }
+            else
+            {
+                IAsmMapFile map = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                DecompShopSourceResolver.TryResolveShopOwner(project, map, shopAddr, out owner, out symbolName);
+            }
+
+            if (owner == null)
+            {
+                Console.Error.WriteLine("Not owned: no list-owner declared/resolved for this shop. Use --export-asset --kind=shop to migrate.");
+                return 2;
+            }
+
+            // ---- Rewrite the owning source list ----
+            DecompSourceWriteResult res = DecompSourceWriterCore.WriteListEntries(project, owner, items);
+
+            if (res.Ok)
+            {
+                Console.WriteLine($"Source file: {res.SourceFile}");
+
+                bool anyChanged = res.ChangedFields != null && res.ChangedFields.Count > 0;
+                if (!anyChanged)
+                {
+                    Console.WriteLine("No change needed (source already matches the requested list).");
+                    Console.WriteLine("NeedsRebuild=false");
+                    return 0;
+                }
+
+                Console.WriteLine($"Shop list: {(string.IsNullOrEmpty(symbolName) ? owner.EffectiveSymbol : symbolName)}, {items.Length} item(s)");
+                Console.WriteLine($"Lines {res.ChangedLineStart}-{res.ChangedLineEnd}");
+                Console.WriteLine("--- BEFORE ---");
+                Console.WriteLine(res.BeforeText);
+                Console.WriteLine("--- AFTER ---");
+                Console.WriteLine(res.AfterText);
+                Console.WriteLine("NeedsRebuild=true");
+                return 0;
+            }
+
+            // Failure: route to advisory (2) vs error (1) exit codes.
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.NotOwned:
+                case DecompSourceWriteStatus.RomOnly:
+                case DecompSourceWriteStatus.Manual:
+                case DecompSourceWriteStatus.UnsupportedField:
+                case DecompSourceWriteStatus.Rejected:
+                case DecompSourceWriteStatus.MalformedManifest:
+                case DecompSourceWriteStatus.NotDecompMode:
+                    Console.Error.WriteLine($"Not owned / ROM-only / manual: {res.Message}");
+                    return 2;
+                default:
+                    Console.Error.WriteLine($"Error: {res.Message}");
+                    return 1;
+            }
+        }
+
+        /// <summary>
+        /// Parse the <c>--items</c> CSV (<c>id:qty,id:qty,...</c>) into a packed <c>ushort[]</c>
+        /// where each element is <c>(qty &lt;&lt; 8) | id</c> (little-endian u16: low byte = item
+        /// id, high byte = quantity — matching the ROM itemId,quantity byte pair). id/qty are
+        /// hex-or-dec, each 0..255; id must be non-zero (0 == terminator). An EMPTY csv yields an
+        /// empty array (an emptied shop). NEVER throws.
+        /// </summary>
+        static bool TryParseShopItems(string csv, out ushort[] items, out string error)
+        {
+            items = Array.Empty<ushort>();
+            error = "";
+            csv = (csv ?? "").Trim();
+            if (csv.Length == 0)
+                return true;   // emptied shop
+
+            string[] parts = csv.Split(',');
+            var list = new List<ushort>(parts.Length);
+            foreach (string raw in parts)
+            {
+                string pair = raw.Trim();
+                if (pair.Length == 0) continue;   // tolerate trailing/double commas
+                string[] kv = pair.Split(':');
+                if (kv.Length != 2)
+                { error = $"Invalid --items entry '{pair}' (expected id:qty)"; items = Array.Empty<ushort>(); return false; }
+
+                if (!TryParseUIntArg(kv[0].Trim(), out uint id))
+                { error = $"Invalid item id '{kv[0].Trim()}'"; items = Array.Empty<ushort>(); return false; }
+                if (!TryParseUIntArg(kv[1].Trim(), out uint qty))
+                { error = $"Invalid quantity '{kv[1].Trim()}'"; items = Array.Empty<ushort>(); return false; }
+
+                if (id == 0 || id > 0xFF)
+                { error = $"Item id {kv[0].Trim()} out of range (1..255; 0 == ITEM_NONE terminator)"; items = Array.Empty<ushort>(); return false; }
+                if (qty > 0xFF)
+                { error = $"Quantity {kv[1].Trim()} out of range (0..255)"; items = Array.Empty<ushort>(); return false; }
+
+                list.Add((ushort)((qty << 8) | id));
+            }
+            items = list.ToArray();
+            return true;
         }
 
         // ---- --write-source helpers ----

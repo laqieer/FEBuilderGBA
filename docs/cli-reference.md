@@ -440,7 +440,8 @@ ROM. This produces a churn-free, minimal diff and marks the project as "needs re
 | `--value=<int>` | Yes | New value for the preceding `--field` (`0x` hex or decimal; signed fields take the two's-complement magnitude). **REPEATABLE.** |
 | `--out-diff=<path>` | No | Write a before/after of the changed source element. |
 
-Unsupported / pointer-like fields fall back to ROM-only / manual handling, and shops are ROM-only.
+Unsupported / pointer-like fields fall back to ROM-only / manual handling. Shops (variable-length
+lists) are written by `--write-shop` instead (see below).
 
 ```
 FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A
@@ -448,6 +449,33 @@ FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=h
 ```
 
 **Exit code:** 0 on success, non-zero on usage / write fault.
+
+---
+
+### `--write-shop`
+
+Rewrite an owning variable-length **`u16` `ITEM_NONE`-terminated shop LIST** in source in place
+(#1347), instead of mutating the preview ROM. The whole `{…}` body is re-serialized to the
+requested raw-hex item vector + a fresh `0x0000` terminator, churn-free.
+
+| Option | Required | Description |
+|---|---|---|
+| `--project=<dir>` | Yes | Decomp project directory (the manifest must declare a `u16-list` list-owner for the shop's symbol). |
+| `--symbol=<name>` | One of | Look up the list-owner directly by name (skips the address resolver). |
+| `--shop-addr=<hex>` | One of | Shop item-list **ROM offset**; resolved to a list symbol via the project `.map`/`.elf`/`.sym` + a manifest list-owner (strict exact-or-span-covering match). |
+| `--items=<csv>` | Yes | New list as `id:qty` pairs (e.g. `0x01:5,0x02:3`); `id`/`qty` hex-or-dec `0..255`, `id != 0`; an **empty** `--items=` empties the shop (just the terminator). |
+
+A list containing a non-literal **macro** element (e.g. `{ ITEM_IRONSWORD, ITEM_NONE }`) is REFUSED
+(no-clobber) — export it to a raw-hex list (`--export-asset --kind=shop`) or edit it by hand. With no
+decomp symbol AND no manifest list-owner, the command reports **not owned** (exit 2) and you degrade
+to `--export-asset --kind=shop`.
+
+```
+FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_FluornArmory --items=0x01:5,0x02:3
+FEBuilderGBA.CLI --write-shop --project=decomp/ --shop-addr=0xB2A18 --items=0x16:1
+```
+
+**Exit code:** 0 on success (or clean no-op), 2 on not owned / ROM-only / manual, 1 on usage / parse fault.
 
 ---
 
@@ -612,6 +640,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 | `--resolve-addr=<hex>` | — | — | — | — | `--project` | Project |
 | `--migrate-diff` | — | — | — | Optional | `--project`, `--rom2` | Project |
 | `--write-source` | — | — | — | — | `--project`, `--table`, `--id`, `--field`, `--value` | Project |
+| `--write-shop` | — | — | — | — | `--project`, `--items`, one of `--symbol`/`--shop-addr` | Project |
 | `--export-asset` | Optional | — | — | Required | `--kind` (+ `--rom` or `--project`) | Project |
 | `--validate-asset` | — | — | Required | — | `--kind` | No |
 | `--build-project` | — | — | — | — | `--project` (`--yes` to execute) | Project |
