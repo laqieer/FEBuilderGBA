@@ -810,7 +810,7 @@ namespace FEBuilderGBA
                 || !string.Equals(format, "febuilder-mapchange-u16", StringComparison.Ordinal))
             {
                 r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_FORMAT",
-                    $"Sidecar '{Path.GetFileName(sidecar)}.json' must declare format \"febuilder-mapchange-u16\"; got \"{format ?? "(missing)"}\"."));
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare format \"febuilder-mapchange-u16\"; got \"{format ?? "(missing)"}\"."));
                 return;
             }
 
