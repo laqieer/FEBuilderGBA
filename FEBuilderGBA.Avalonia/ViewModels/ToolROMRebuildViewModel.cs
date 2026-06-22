@@ -343,7 +343,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch
             {
-                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                // Best-effort cleanup of the partial temp file; the write already failed so a
+                // delete failure here is not separately actionable.
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best-effort cleanup */ }
                 return false;
             }
         }
