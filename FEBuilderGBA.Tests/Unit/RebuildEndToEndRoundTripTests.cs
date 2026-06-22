@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Tests.Unit
     ///   <item>VALIDATE the rebuilt ROM is FAITHFUL (the strongest available proof — see below).</item>
     /// </list>
     /// <para>
-    /// <b>Two rebuild addresses, both faithful (a [Theory]).</b>
+    /// <b>Three rebuild addresses, all faithful (a [Theory]).</b>
     /// <list type="bullet">
     ///   <item><b>EXTENDS</b> — <c>rebuildAddress = U.toOffset(RomInfo.extends_address)</c> (= 0x01000000 for
     ///   FE8U), the value the GUI uses by default (<c>ToolROMRebuildForm.cs:190</c>). On a VANILLA FE8U this
@@ -41,6 +41,14 @@ namespace FEBuilderGBA.Tests.Unit
     ///   above it actually RELOCATES. The proof is the STRONG one: the relocated data is preserved, every
     ///   pointer is fixed up to its new address (0 <c>Missing!</c>), and the rebuilt ROM differs from vanilla
     ///   (relocation genuinely happened) while staying a structurally valid, completely re-parseable FE8U.</item>
+    ///   <item><b>LOWRELOCATE</b> — <c>rebuildAddress = 0x00800000</c> (#1344), an even LOWER address that
+    ///   ADDITIONALLY forces relocated MIX blocks (FE8U chapters 0x07/0x11) to carry an embedded pointer
+    ///   <c>0x08072628</c> INTO the non-rebuild base region. Before the base-region pointer-resolution port
+    ///   those two tokens were permanent <c>Missing!</c> (<c>Success=false</c>); now they resolve to themselves
+    ///   (identity) and the case is 0 <c>Missing!</c>. Because the base region legitimately holds pointer SLOTS
+    ///   into the rebuild region here, (B2) is the relocation-aware variant (each base divergence is a 4-byte
+    ///   forward-pointer fix-up; non-pointer base bytes stay identical) PLUS a targeted proof that the
+    ///   base-region <c>0x08072628</c> survives UNCHANGED in the relocated tail.</item>
     /// </list>
     /// </para>
     /// <para>
@@ -57,8 +65,10 @@ namespace FEBuilderGBA.Tests.Unit
     ///   could not resolve would surface here as <c>Missing!</c> and FAIL — the precise "real gap" the brief
     ///   asks to catch (it would point at an omitted <c>ResolvUnkLength</c>/<c>AppendLDR</c> Make phase).</item>
     ///   <item><b>(B2) Vanilla base preserved.</b> The non-rebuild region <c>[0, rebuildAddress)</c> of the
-    ///   rebuilt ROM is byte-identical to vanilla (Apply seeds the output from the vanilla base and only
-    ///   relocates the rebuild region above it).</item>
+    ///   rebuilt ROM is left in place: byte-identical to vanilla for EXTENDS/RELOCATE (no base forward-refs),
+    ///   and for LOWRELOCATE the relocation-aware variant — every base divergence is a 4-byte forward-pointer
+    ///   fix-up (vanilla word pointed into the rebuild region, rebuilt word is the relocated address), non-
+    ///   pointer base bytes unchanged.</item>
     ///   <item><b>(B3) Real reload re-detects FE8U.</b> The rebuilt bytes are written to a temp <c>.gba</c>
     ///   and re-loaded through <c>Program.LoadROM</c> (NOT <c>SwapNewROMDataDirect</c>, which would leave
     ///   stale <c>RomInfo</c>/caches): the relocated ROM still detects as <c>version==8</c> from its own
@@ -70,15 +80,18 @@ namespace FEBuilderGBA.Tests.Unit
     /// </list>
     /// </para>
     /// <para>
-    /// <b>KNOWN SLICE-1 LIMITATION (documented, NOT exercised as a passing case).</b> Driving the RELOCATE
-    /// case from an even LOWER <c>rebuildAddress = 0x00800000</c> reveals a real gap: two event-script MIX
-    /// blocks (chapters 0x07 / 0x11) carry a pointer <c>0x08072628</c> into the NON-rebuild base region, which
-    /// the append-only slice-1 Apply leaves as a permanent <c>Missing!</c> (<c>Success=false</c>). The
-    /// base-region target is never registered in the AddressMap because only RELOCATED entries register, so
-    /// the MIX <c>@</c>-token never resolves. The full WinForms tool handles this via the additional
-    /// base-pointer <c>@DEF</c>/<c>ResolvUnkLength</c> Make phases that slice-1 omits. This is reported as the
-    /// follow-up Make-phase slice, NOT papered over — the two faithful cases above use addresses where the
-    /// relocated structs do not forward-reference the base region.
+    /// <b>#1344 — base-region pointer resolution (formerly the documented slice-1 limitation).</b> Driving the
+    /// rebuild from the LOW <c>rebuildAddress = 0x00800000</c> forces two event-script MIX blocks (FE8U
+    /// chapters 0x07 / 0x11) to carry an embedded pointer <c>0x08072628</c> into the NON-rebuild base region.
+    /// The base region is never relocated (Apply seeds the output from vanilla and only moves data at/after
+    /// <c>rebuildAddress</c>), so that target stays at its original address: it resolves to ITSELF (identity),
+    /// it is NOT <c>Missing!</c>. The WinForms tool achieves this with the <c>@DEF</c>/<c>ResolvUnkLength</c>
+    /// Make phases (<c>ToolROMRebuildMake.cs:291/704</c> → <c>ToolROMRebuildApply.DEF</c> identity-map); the
+    /// Core pipeline reproduces the SAME end result on the Apply side — <see cref="RebuildApplyCore"/> now
+    /// identity-maps any unresolved token whose target lies in <c>[0, rebuildAddress)</c>, exactly what a
+    /// <c>@DEF</c> for that base-region struct would have produced (and what WF's own
+    /// <c>BrokenData(addr)</c> already does for non-extends addresses). The <c>LowRelocate</c> case below
+    /// EXERCISES this as a passing 0-<c>Missing!</c> case.
     /// </para>
     /// <para>SKIP-IF-NO-ROM: requires <c>roms/FE8U.gba</c> (gitignored — absent in CI / most worktrees,
     /// present in the user's checkout). When no ROM is found the test returns early and xUnit reports Pass (a
@@ -96,12 +109,23 @@ namespace FEBuilderGBA.Tests.Unit
         // A rebuildAddress mode. EXTENDS == U.toOffset(RomInfo.extends_address) (the GUI default; nothing
         // relocates on a vanilla FE8U). RELOCATE == a fixed lower address that forces a real slab of FE8U
         // structs to relocate (above it) while staying faithful (no base-region forward-refs at 0x00B00000).
-        public enum Mode { Extends, Relocate }
+        // LOWRELOCATE == an even LOWER address (0x00800000) that ALSO forces relocated MIX blocks (FE8U
+        // chapters 0x07/0x11) to carry an embedded pointer 0x08072628 INTO the non-rebuild base region — the
+        // #1344 case that previously left 2 permanent Missing! and is now resolved by the base-region @DEF/
+        // ResolvUnkLength port in RebuildApplyCore (identity-map of base-region targets).
+        public enum Mode { Extends, Relocate, LowRelocate }
         const uint RELOCATE_REBUILD_ADDRESS = 0x00B00000u;
+        const uint LOW_RELOCATE_REBUILD_ADDRESS = 0x00800000u;
+
+        // The two FE8U event-script MIX blocks (chapters 0x07/0x11) carry this embedded pointer into the base
+        // region [0, 0x00800000); at LowRelocate it is the #1344 base-region target that must resolve to itself
+        // (identity), NOT Missing!.
+        const uint BASE_REGION_FORWARD_REF = 0x08072628u;
 
         [Theory]
         [InlineData(Mode.Extends)]
         [InlineData(Mode.Relocate)]
+        [InlineData(Mode.LowRelocate)]
         public void FullPipeline_RealFE8U_MakeWithProducer_Apply_RebuiltRomIsFaithful(Mode mode)
         {
             string repoRoot = FindRepoRootWithRom();
@@ -144,9 +168,19 @@ namespace FEBuilderGBA.Tests.Unit
                 var vanilla = new ROM();
                 Assert.True(vanilla.Load(romPath, out string _), "vanilla FE8U must load");
 
-                uint rebuildAddress = mode == Mode.Extends
-                    ? U.toOffset(rom.RomInfo.extends_address)   // GUI default (ToolROMRebuildForm.cs:190)
-                    : RELOCATE_REBUILD_ADDRESS;                 // forces real struct relocation
+                uint rebuildAddress;
+                switch (mode)
+                {
+                    case Mode.Extends:
+                        rebuildAddress = U.toOffset(rom.RomInfo.extends_address); // GUI default (ToolROMRebuildForm.cs:190)
+                        break;
+                    case Mode.Relocate:
+                        rebuildAddress = RELOCATE_REBUILD_ADDRESS;                 // forces real struct relocation
+                        break;
+                    default: // Mode.LowRelocate
+                        rebuildAddress = LOW_RELOCATE_REBUILD_ADDRESS;             // forces base-region forward-refs (#1344)
+                        break;
+                }
                 Assert.True(U.isPadding4(rebuildAddress), "rebuild address must be 4-aligned");
 
                 string manifestPath = Path.Combine(tmpDir, "fe8u.rebuild");
@@ -205,10 +239,10 @@ namespace FEBuilderGBA.Tests.Unit
 
                 byte[] rebuilt = result.Rebuilt;
 
-                // (B2) Vanilla base preserved: the FULL non-rebuild region [0, rebuildAddress) is byte-
-                // identical to vanilla. Require BOTH ROMs to actually contain that whole range first — a
-                // clamped Math.Min compare would silently shrink the validated window on a trimmed/short ROM
-                // and pass vacuously (Copilot PR-review inline finding). Compare exactly [0, rebuildAddress).
+                // (B2) Vanilla base preserved: the non-rebuild region [0, rebuildAddress) is left in place.
+                // Require BOTH ROMs to actually contain that whole range first — a clamped Math.Min compare
+                // would silently shrink the validated window on a trimmed/short ROM and pass vacuously (Copilot
+                // PR-review inline finding).
                 byte[] vanData = vanilla.Data;
                 Assert.True(vanData.Length >= rebuildAddress,
                     $"vanilla FE8U (0x{vanData.Length:X} bytes) must contain the entire non-rebuild base "
@@ -216,13 +250,96 @@ namespace FEBuilderGBA.Tests.Unit
                 Assert.True(rebuilt.Length >= rebuildAddress,
                     $"rebuilt ROM (0x{rebuilt.Length:X} bytes) must contain the entire preserved non-rebuild "
                     + $"base region [0, 0x{rebuildAddress:X}).");
-                for (uint i = 0; i < rebuildAddress; i++)
+
+                if (mode != Mode.LowRelocate)
                 {
-                    if (rebuilt[i] != vanData[i])
+                    // EXTENDS / RELOCATE: the chosen addresses have NO base-region forward-refs, so the base
+                    // is byte-identical to vanilla. Compare exactly [0, rebuildAddress).
+                    for (uint i = 0; i < rebuildAddress; i++)
                     {
-                        Assert.Fail($"rebuilt non-rebuild base diverges from vanilla at offset 0x{i:X}: "
-                            + $"expected 0x{vanData[i]:X2} got 0x{rebuilt[i]:X2} (rebuildAddress=0x{rebuildAddress:X})");
+                        if (rebuilt[i] != vanData[i])
+                        {
+                            Assert.Fail($"rebuilt non-rebuild base diverges from vanilla at offset 0x{i:X}: "
+                                + $"expected 0x{vanData[i]:X2} got 0x{rebuilt[i]:X2} (rebuildAddress=0x{rebuildAddress:X})");
+                        }
                     }
+                }
+                else
+                {
+                    // LOWRELOCATE (#1344): at this LOW rebuildAddress the base region legitimately holds
+                    // pointer SLOTS that point INTO the rebuild region [rebuildAddress, vanillaLen). Those
+                    // targets relocate, so each such slot MUST be fixed up in place — the base is NOT byte-
+                    // identical, but every divergence is one of those 4-byte pointer fix-ups. Walk the base in
+                    // 4-byte ARM-aligned words: a word is allowed to differ ONLY when the VANILLA word was a
+                    // pointer into the rebuild region (i.e. it genuinely had to move) AND the REBUILT word is a
+                    // safe ROM pointer (the relocated address). Any other divergence is a real corruption of the
+                    // preserved base and FAILS. (Non-pointer base bytes stay byte-identical.)
+                    uint baseEnd = rebuildAddress & ~3u;
+                    int fixups = 0;
+                    for (uint i = 0; i + 3 < baseEnd; i += 4)
+                    {
+                        uint vWord = (uint)(vanData[i] | (vanData[i + 1] << 8) | (vanData[i + 2] << 16) | ((uint)vanData[i + 3] << 24));
+                        uint rWord = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
+                        if (vWord == rWord)
+                        {
+                            // identical word — but if any of its 4 bytes were touched at a non-word boundary we
+                            // would have skipped it; ARM pointers are word-aligned, so a byte diff inside an
+                            // identical word cannot happen. Still, guard the (rare) sub-word byte diff below.
+                            continue;
+                        }
+                        // The word differs. It is a faithful fix-up iff vanilla pointed into the rebuild region
+                        // and the rebuilt value is a safe ROM pointer (the relocated address).
+                        bool vanPointedIntoRebuild = U.isPointer(vWord)
+                            && U.toOffset(vWord) >= rebuildAddress
+                            && U.toOffset(vWord) < (uint)vanData.Length;
+                        bool rebuiltIsSafePointer = U.isPointer(rWord)
+                            && U.toOffset(rWord) < (uint)rebuilt.Length;
+                        Assert.True(vanPointedIntoRebuild && rebuiltIsSafePointer,
+                            $"LOWRELOCATE: rebuilt base word at offset 0x{i:X} diverges from vanilla "
+                            + $"(van=0x{vWord:X8} reb=0x{rWord:X8}) but is NOT a faithful forward-pointer fix-up "
+                            + $"(vanPointedIntoRebuild={vanPointedIntoRebuild}, rebuiltIsSafePointer={rebuiltIsSafePointer}) "
+                            + $"— the preserved base region was corrupted.");
+                        fixups++;
+                    }
+                    // Belt-and-suspenders: every BYTE-level divergence must fall on one of those fixed-up words
+                    // (no stray sub-word base byte changed). Vanilla and rebuilt may only differ on a 4-aligned
+                    // pointer word; assert no divergence outside an allowed fix-up word.
+                    for (uint i = 0; i < baseEnd; i++)
+                    {
+                        if (rebuilt[i] == vanData[i]) continue;
+                        uint w = i & ~3u;
+                        uint vWord = (uint)(vanData[w] | (vanData[w + 1] << 8) | (vanData[w + 2] << 16) | ((uint)vanData[w + 3] << 24));
+                        bool vanPointedIntoRebuild = U.isPointer(vWord)
+                            && U.toOffset(vWord) >= rebuildAddress
+                            && U.toOffset(vWord) < (uint)vanData.Length;
+                        Assert.True(vanPointedIntoRebuild,
+                            $"LOWRELOCATE: base byte at offset 0x{i:X} changed but its containing word 0x{w:X} "
+                            + $"(van=0x{vWord:X8}) was NOT a forward-pointer into the rebuild region — corruption.");
+                    }
+                    Assert.True(fixups > 0,
+                        "LOWRELOCATE must actually fix up at least one base-region forward pointer "
+                        + "(otherwise the case is not exercising the base->rebuild forward-ref path).");
+
+                    // #1344 TARGETED PROOF: the two FE8U event-script MIX blocks (chapters 0x07/0x11) embed a
+                    // pointer to 0x08072628 — an address in the BASE region [0, rebuildAddress) that is NEVER
+                    // relocated. Before the base-region @DEF/ResolvUnkLength port these two tokens were
+                    // permanent Missing!; now they must resolve to themselves (identity). Scan the rebuilt tail
+                    // (the relocated MIX data, at/after the original ROM end) for the embedded token bytes and
+                    // require the unchanged base-region pointer 0x08072628 to appear — proving the identity-map
+                    // wrote the correct value, not a corrupted/zeroed pointer.
+                    Assert.True(U.toOffset(BASE_REGION_FORWARD_REF) < rebuildAddress,
+                        "sanity: the #1344 forward-ref target must lie in the base region [0, rebuildAddress).");
+                    int forwardRefHits = 0;
+                    for (uint i = (uint)vanData.Length; i + 3 < rebuilt.Length; i += 1)
+                    {
+                        uint w = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
+                        if (w == BASE_REGION_FORWARD_REF) forwardRefHits++;
+                    }
+                    Assert.True(forwardRefHits >= 2,
+                        $"#1344: expected the base-region forward-ref 0x{BASE_REGION_FORWARD_REF:X8} to survive "
+                        + $"UNCHANGED (identity-mapped) at >= 2 relocated MIX positions in the rebuilt tail, "
+                        + $"found {forwardRefHits}. A lower count means the base-region pointer was NOT resolved "
+                        + "to identity (the #1344 gap regressed).");
                 }
 
                 // Mode-specific relocation invariant: EXTENDS relocates nothing (rebuilt == vanilla);

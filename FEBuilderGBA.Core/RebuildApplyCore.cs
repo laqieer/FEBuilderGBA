@@ -152,6 +152,38 @@ namespace FEBuilderGBA
                 return addr > this.RebuildAddress;
             }
 
+            // ---- base-region pointer resolution (#1344 — the WF @DEF/ResolvUnkLength Make
+            // phase, ported to the Apply consumer) -----------------------------------------
+            //
+            // A pointer TOKEN inside a relocated MIX/IFR/LZ77 block can target an address that
+            // lies in the NON-rebuild base region [0, RebuildAddress). That base region is
+            // NEVER relocated — Apply seeds the output from the vanilla base and only moves
+            // data at/after RebuildAddress (Alloc appends to the tail). So such a target stays
+            // at its ORIGINAL address: it resolves to itself (identity), it is NOT Missing!.
+            //
+            // The WinForms ToolROMRebuildMake emits a `@DEF <addr>` manifest entry for every
+            // such base-region struct (ToolROMRebuildMake.cs:291/1014 + the AppendPointer/
+            // AppendLDR/ProcssPointer discovery phases), which ToolROMRebuildApply.DEF then
+            // identity-maps (ResolvedPointer(labelPointer, labelPointer)). Those producer-side
+            // discovery phases are deeply WinForms-coupled (MoveToFreeSapceForm.SearchPointer,
+            // AsmMapFileAsmCache, the BL/LDR re-scan) and are NOT ported here. Instead the Core
+            // pipeline reproduces the SAME end result on the Apply side: the base region is
+            // identity by construction, so any unresolved token whose target is in
+            // [0, RebuildAddress) is registered as identity — byte-for-byte what a `@DEF` for
+            // that target would have produced. This is exactly the rule WF's own
+            // BrokenData(addr) uses for non-extends addresses: ResolvedPointer(labelPointer,
+            // labelPointer) (ToolROMRebuildApply.cs:524). The high-address Extends/Relocate
+            // cases are unaffected (their forward-refs all land in the rebuild region, which is
+            // resolved the normal way via the relocated entries' ResolvedPointer calls).
+            //
+            // isBaseRegionPointer takes a GBA pointer (the token value) and reports whether its
+            // ROM offset is strictly below RebuildAddress — i.e. it is never relocated.
+            bool isBaseRegionPointer(uint gbaPointer)
+            {
+                uint offset = U.toOffset(gbaPointer);
+                return offset < this.RebuildAddress;
+            }
+
             //append-only allocation (slice 1 — no free-area recycler).
             uint Alloc(uint size, uint current_addr)
             {
@@ -581,6 +613,11 @@ namespace FEBuilderGBA
                         {
                             U.append_u32(bin, new_pointer);
                         }
+                        else if (isBaseRegionPointer(p))
+                        {//#1344 base-region target: never relocated -> identity (= a WF @DEF).
+                            ResolvedPointer(p, p, debugInfo + " //BASE_DEF");
+                            U.append_u32(bin, p);
+                        }
                         else
                         {//アドレスのデータがないよ! 不明なポインタとしてリストに登録. 後で判明したら書き戻す
                             this.MissingPointerList.Add(new MissingPointer(p
@@ -597,6 +634,11 @@ namespace FEBuilderGBA
                         if (this.AddressMap.TryGetValue(p, out new_pointer))
                         {
                             U.append_u32(bin, new_pointer + 0x80000000);
+                        }
+                        else if (isBaseRegionPointer(p))
+                        {//#1344 base-region target: never relocated -> identity (= a WF @DEF).
+                            ResolvedPointer(p, p, debugInfo + " //BASE_DEF");
+                            U.append_u32(bin, p + 0x80000000);
                         }
                         else
                         {//アドレスのデータがないよ! 不明なポインタとしてリストに登録. 後で判明したら書き戻す
@@ -620,6 +662,12 @@ namespace FEBuilderGBA
                             && this.AddressMap.TryGetValue(p - 1, out new_pointer))
                         {
                             U.append_u32(bin, new_pointer + 1);
+                        }
+                        else if (isBaseRegionPointer(p))
+                        {//#1344 base-region ASM target: never relocated -> identity (= a WF @DEF).
+                            //p already carries its thumb (odd) bit; the identity value is p itself.
+                            ResolvedPointer(p, p, debugInfo + " //BASE_DEF");
+                            U.append_u32(bin, p);
                         }
                         else
                         {//アドレスのデータがないよ! 不明なポインタとしてリストに登録. 後で判明したら書き戻す
