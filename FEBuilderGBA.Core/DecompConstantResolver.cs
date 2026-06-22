@@ -32,6 +32,14 @@ namespace FEBuilderGBA
     /// entries to the wrong names. The default
     /// (<c>include/constants/items.h</c>) is only tried when no explicit path was
     /// declared at all.</para>
+    ///
+    /// <para>The parser is SCOPED to the <c>ITEM_</c> identifier prefix: only
+    /// <c>ITEM_*</c> enum/<c>#define</c> constants are mapped id&lt;-&gt;macro. A sibling
+    /// constant (e.g. <c>FALSE</c>, <c>NULL</c>, an unrelated header macro) is ignored and
+    /// can never claim an id, so a symbolic shop-list rewrite can never emit the wrong
+    /// macro name (including a wrong <c>ITEM_NONE</c> terminator). Sibling enum members
+    /// still advance the C auto-increment counter so neighbouring <c>ITEM_*</c> members
+    /// keep the correct base.</para>
     /// </summary>
     public sealed class DecompConstantResolver
     {
@@ -391,12 +399,16 @@ namespace FEBuilderGBA
                         continue;
                     if (knownBase && counter >= 0 && counter <= ushort.MaxValue)
                     {
-                        Assign(name, (ushort)counter);
+                        // Only ITEM_* identifiers are mapped (a sibling enum constant
+                        // such as FALSE/NULL must NOT claim an id); the running counter
+                        // still advances so following ITEM_* members keep the right base.
+                        if (IsItemMacro(name))
+                            Assign(name, (ushort)counter);
                         counter++;
                     }
-                    else
+                    else if (IsItemMacro(name))
                     {
-                        // Unknown base ⇒ this implicit member is ambiguous; counter
+                        // Unknown base ⇒ this implicit ITEM_* member is ambiguous; counter
                         // stays unknown until an explicit-literal member re-anchors it.
                         MarkAmbiguous(name);
                     }
@@ -410,17 +422,21 @@ namespace FEBuilderGBA
 
                     if (TryParseUShortLiteral(valueExpr, out ushort lit))
                     {
-                        Assign(name, lit);
-                        // Re-anchor the running counter to a KNOWN base.
+                        // Re-anchor the counter on ANY explicit literal (even a non-ITEM_*
+                        // sibling), but map only ITEM_* names.
+                        if (IsItemMacro(name))
+                            Assign(name, lit);
                         counter = (long)lit + 1;
                         knownBase = true;
                     }
                     else
                     {
-                        // Non-literal expression (A | B, FOO+1, > 0xFFFF, …) ⇒ ambiguous.
-                        // The counter is now UNKNOWN — subsequent implicit members stay
-                        // ambiguous until the next explicit literal.
-                        MarkAmbiguous(name);
+                        // Non-literal expression (A | B, FOO+1, > 0xFFFF, …). The counter
+                        // is now UNKNOWN — subsequent implicit members stay ambiguous
+                        // until the next explicit literal. An ITEM_* name is also marked
+                        // ambiguous (so a list entry using it is refused, never mis-mapped).
+                        if (IsItemMacro(name))
+                            MarkAmbiguous(name);
                         knownBase = false;
                     }
                 }
@@ -456,8 +472,9 @@ namespace FEBuilderGBA
                     {
                         string name = body.Substring(0, sp).Trim();
                         string val = body.Substring(sp).Trim();
-                        // A function-like macro (IDENT(...)) is not a constant.
-                        if (IsIdent(name) && TryParseUShortLiteral(val, out ushort lit))
+                        // A function-like macro (IDENT(...)) is not a constant; only
+                        // ITEM_* names are mapped (an unrelated #define must not claim an id).
+                        if (IsIdent(name) && IsItemMacro(name) && TryParseUShortLiteral(val, out ushort lit))
                             Assign(name, lit);
                     }
                 }
@@ -730,5 +747,15 @@ namespace FEBuilderGBA
         }
 
         static bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+        // This resolver is SCOPED to the item constant universe: only identifiers with
+        // the ITEM_ prefix are mapped id<->macro. A sibling enum/define constant (FALSE,
+        // NULL, an unrelated header macro) must NEVER claim an id, or a symbolic shop-list
+        // rewrite could emit the wrong macro name — including an incorrect terminator.
+        static bool IsItemMacro(string name)
+            => !string.IsNullOrEmpty(name)
+               && name.StartsWith(ItemPrefix, StringComparison.Ordinal);
+
+        const string ItemPrefix = "ITEM_";
     }
 }

@@ -82,14 +82,14 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumParse_AutoIncrement_AssignsRunningCounter()
         {
-            var project = ProjectWithDefaultHeader("enum { A = 0x10, B, C };");
+            var project = ProjectWithDefaultHeader("enum { ITEM_A = 0x10, ITEM_B, ITEM_C };");
             var r = DecompConstantResolver.BuildForProject(project, null);
 
-            Assert.True(r.TryResolveMacroToId("A", out ushort a));
+            Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
             Assert.Equal(0x10, a);
-            Assert.True(r.TryResolveMacroToId("B", out ushort b));
+            Assert.True(r.TryResolveMacroToId("ITEM_B", out ushort b));
             Assert.Equal(0x11, b);
-            Assert.True(r.TryResolveMacroToId("C", out ushort c));
+            Assert.True(r.TryResolveMacroToId("ITEM_C", out ushort c));
             Assert.Equal(0x12, c);
         }
 
@@ -98,29 +98,85 @@ namespace FEBuilderGBA.Core.Tests
         [Fact]
         public void EnumParse_AmbiguousExpression_PoisonsFollowingImplicit_UntilNextLiteral()
         {
-            // A=1, B=(A|0x80) ambiguous, C bare (unknown base) ambiguous, D=5 re-anchors.
-            var project = ProjectWithDefaultHeader("enum { A = 0x01, B = (A | 0x80), C, D = 0x05 };");
+            // ITEM_A=1, ITEM_B=(ITEM_A|0x80) ambiguous, ITEM_C bare (unknown base) ambiguous,
+            // ITEM_D=5 re-anchors.
+            var project = ProjectWithDefaultHeader(
+                "enum { ITEM_A = 0x01, ITEM_B = (ITEM_A | 0x80), ITEM_C, ITEM_D = 0x05 };");
             var r = DecompConstantResolver.BuildForProject(project, null);
 
-            Assert.True(r.TryResolveMacroToId("A", out ushort a));
+            Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
             Assert.Equal(0x01, a);
-            // B is ambiguous (non-literal expression) — no macro->id mapping.
-            Assert.False(r.TryResolveMacroToId("B", out _));
-            // C is implicit on an UNKNOWN base — stays ambiguous.
-            Assert.False(r.TryResolveMacroToId("C", out _));
-            // D re-establishes a known base via an explicit literal.
-            Assert.True(r.TryResolveMacroToId("D", out ushort d));
+            // ITEM_B is ambiguous (non-literal expression) — no macro->id mapping.
+            Assert.False(r.TryResolveMacroToId("ITEM_B", out _));
+            // ITEM_C is implicit on an UNKNOWN base — stays ambiguous.
+            Assert.False(r.TryResolveMacroToId("ITEM_C", out _));
+            // ITEM_D re-establishes a known base via an explicit literal.
+            Assert.True(r.TryResolveMacroToId("ITEM_D", out ushort d));
             Assert.Equal(0x05, d);
         }
 
         [Fact]
         public void EnumParse_ImplicitAfterReanchor_Resolves()
         {
-            // After D=5 re-anchors, E (bare) should be 6.
-            var project = ProjectWithDefaultHeader("enum { A = 0x01, B = (A | 0x80), C, D = 0x05, E };");
+            // After ITEM_D=5 re-anchors, ITEM_E (bare) should be 6.
+            var project = ProjectWithDefaultHeader(
+                "enum { ITEM_A = 0x01, ITEM_B = (ITEM_A | 0x80), ITEM_C, ITEM_D = 0x05, ITEM_E };");
             var r = DecompConstantResolver.BuildForProject(project, null);
-            Assert.True(r.TryResolveMacroToId("E", out ushort e));
+            Assert.True(r.TryResolveMacroToId("ITEM_E", out ushort e));
             Assert.Equal(0x06, e);
+        }
+
+        // ----------------------------------------- ITEM_-prefix scoping (PR #1356 review)
+
+        [Fact]
+        public void NonItemMacro_DoesNotClaimId_AdvancesCounterOnly()
+        {
+            // FALSE/NULL/MAX_CARRY are siblings in the same enum/header but must NOT be
+            // mapped — only ITEM_* names are. A bare sibling member still advances the C
+            // auto-increment counter so the following ITEM_* member gets the correct id.
+            var project = ProjectWithDefaultHeader(
+                "enum {\n" +
+                "    ITEM_NONE = 0x00,\n" +
+                "    FALSE,\n" +              // sibling at 1 — NOT mapped, counter -> 2
+                "    ITEM_SWORD_IRON,\n" +    // bare ITEM_* on a KNOWN base -> 0x02
+                "};\n" +
+                "#define NULL 0\n" +
+                "#define MAX_CARRY 5\n");
+            var r = DecompConstantResolver.BuildForProject(project, null);
+
+            // No sibling constant claimed an id.
+            Assert.False(r.TryResolveMacroToId("FALSE", out _));
+            Assert.False(r.TryResolveMacroToId("NULL", out _));
+            Assert.False(r.TryResolveMacroToId("MAX_CARRY", out _));
+
+            // id 0 maps to ITEM_NONE (NOT to a sibling such as FALSE/NULL), so the
+            // terminator is correct.
+            Assert.True(r.ItemNoneIsZero);
+            Assert.Equal("ITEM_NONE", r.ItemNoneMacro);
+            Assert.True(r.TryResolveIdToMacro(0x00, out string m0));
+            Assert.Equal("ITEM_NONE", m0);
+
+            // The counter still advanced across FALSE, so ITEM_SWORD_IRON resolves to 0x02.
+            Assert.True(r.TryResolveMacroToId("ITEM_SWORD_IRON", out ushort iron));
+            Assert.Equal(0x02, iron);
+            Assert.True(r.TryResolveIdToMacro(0x02, out string m2));
+            Assert.Equal("ITEM_SWORD_IRON", m2);
+        }
+
+        [Fact]
+        public void NonItemMacro_AtIdZero_DoesNotBecomeTerminator()
+        {
+            // A sibling that claims id 0 (FALSE = 0) must not be picked as the ITEM_NONE
+            // terminator; ITEM_NONE is injected because no ITEM_* maps to 0.
+            var project = ProjectWithDefaultHeader(
+                "enum { FALSE = 0x00, ITEM_SWORD_IRON = 0x01 };");
+            var r = DecompConstantResolver.BuildForProject(project, null);
+
+            Assert.True(r.ItemNoneIsZero);
+            Assert.Equal("ITEM_NONE", r.ItemNoneMacro);
+            Assert.True(r.TryResolveIdToMacro(0x00, out string m0));
+            Assert.Equal("ITEM_NONE", m0);
+            Assert.False(r.TryResolveMacroToId("FALSE", out _));
         }
 
         // ------------------------------------------------------------ #define form
