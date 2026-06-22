@@ -456,26 +456,41 @@ FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=h
 
 Rewrite an owning variable-length **`u16` `ITEM_NONE`-terminated shop LIST** in source in place
 (#1347), instead of mutating the preview ROM. The whole `{…}` initializer body is **re-serialized**
-to the requested raw-hex item vector (one `0xNNNN,` per line) + a fresh `0x0000` terminator. This is
-NOT a minimal-token splice: the body is reformatted to the canonical raw-hex style and any per-item
-comments inside the braces are dropped (the bytes OUTSIDE the `{…}` body are untouched). When the
-body already matches that canonical form, the rewrite is a byte-identical no-op (no churn).
+to the requested item vector + a fresh terminator. This is NOT a minimal-token splice: the body is
+reformatted to a canonical style and any per-item comments inside the braces are dropped (the bytes
+OUTSIDE the `{…}` body are untouched). When the body already matches that canonical form, the rewrite
+is a byte-identical no-op (no churn).
+
+**Symbolic `ITEM_*` lists (#1354):** when the existing source list uses `ITEM_*` macro names (the
+canonical FE8U `worldmap_shop_data.c` **item-id-only** form, e.g. `{ ITEM_SWORD_IRON, ITEM_NONE, }`),
+the body is re-serialized **symbolically** with the resolved `ITEM_*` macro names instead of raw hex.
+The id↔macro map is parsed from the project's constants header — an **enum** (auto-incrementing, with
+explicit-literal anchors) or `#define` table, typically `include/constants/items.h`. Discovery
+precedence: the owner's project-relative **`constantsHeader`**, then the manifest top-level
+**`artifacts.itemConstants`**, then the conventional default **`include/constants/items.h`**. An
+EXPLICIT path (`constantsHeader`/`artifacts.itemConstants`) that is absolute / escapes the project
+root / missing / unparseable makes the resolver **unavailable** and does NOT fall back to the default
+(wrong-universe danger). Symbolic lists are **item-id-only**: each `--items` entry's **quantity must
+be `0`** (a non-zero quantity is an actionable refusal — keep quantity 0 or migrate to a raw-hex list)
+and an id with no `ITEM_*` constant is refused. A list of plain hex literals still re-serializes to a
+raw-hex vector + a `0x0000` terminator.
 
 | Option | Required | Description |
 |---|---|---|
 | `--project=<dir>` | Yes | Decomp project directory (the manifest must declare a `u16-list` list-owner for the shop's symbol). |
 | `--symbol=<name>` | One of | Look up the list-owner directly by name (skips the address resolver). |
 | `--shop-addr=<hex>` | One of | Shop item-list **ROM offset**; resolved to a list symbol via the project `.map`/`.elf`/`.sym` + a manifest list-owner (strict exact-or-span-covering match). |
-| `--items=<csv>` | Yes | New list as `id:qty` pairs (e.g. `0x01:5,0x02:3`); `id`/`qty` hex-or-dec `0..255`, `id != 0`; an **empty** `--items=` empties the shop (just the terminator). |
+| `--items=<csv>` | Yes | New list as `id:qty` pairs (e.g. `0x01:5,0x02:3`); `id`/`qty` hex-or-dec `0..255`, `id != 0`; an **empty** `--items=` empties the shop (just the terminator). For a **symbolic** owner, the quantity must be `0` (item-id-only) — e.g. `0x01:0,0x14:0`. |
 
-A list containing a non-literal **macro** element (e.g. `{ ITEM_IRONSWORD, ITEM_NONE }`) is REFUSED
-(no-clobber) — export it to a raw-hex list (`--export-asset --kind=shop`) or edit it by hand. With no
-decomp symbol AND no manifest list-owner, the command reports **not owned** (exit 2) and you degrade
-to `--export-asset --kind=shop`.
+A list containing an **unknown or ambiguous** macro element (one the constants header does not resolve
+unambiguously) is REFUSED (no-clobber) — export it to a raw-hex list (`--export-asset --kind=shop`) or
+edit it by hand. With no decomp symbol AND no manifest list-owner, the command reports **not owned**
+(exit 2) and you degrade to `--export-asset --kind=shop`.
 
 ```
 FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_FluornArmory --items=0x01:5,0x02:3
 FEBuilderGBA.CLI --write-shop --project=decomp/ --shop-addr=0xB2A18 --items=0x16:1
+FEBuilderGBA.CLI --write-shop --project=decomp/ --symbol=ItemList_WM_Ide_Armory --items=0x01:0,0x14:0   # symbolic ITEM_* (item-id-only)
 ```
 
 **Exit code:** `0` on success (or clean no-op); `2` for any advisory / no-write outcome — not owned,
