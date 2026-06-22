@@ -4707,8 +4707,8 @@ namespace FEBuilderGBA.CLI
             // Optional --project gives project-root containment for the output path. If the
             // user asked for a project, it MUST load successfully — we never silently fall back
             // to no-containment (cwd-relative), which would let --out escape the project tree
-            // when the project is unbuilt (Copilot PR #1346 inline finding). Without --project,
-            // --out is resolved against the cwd with no containment (classic export parity).
+            // when the project is unbuilt (#1148 review finding). Without --project, --out is
+            // resolved against the cwd with no containment (classic export parity).
             DecompProject project = null;
             if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
             {

@@ -367,8 +367,11 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Re-import a <c>.mar</c> tilemap LAYOUT (the inverse of <see cref="ExportMap"/>) into a
-        /// RAW UNCOMPRESSED tilemap blob written ONLY into the source tree — this is the IMPORT/verify
-        /// direction that makes the <c>.mar</c> a genuine source-backed round-trip artifact (#1148).
+        /// RAW UNCOMPRESSED tilemap blob — the IMPORT/verify direction that makes the <c>.mar</c> a
+        /// genuine source-backed round-trip artifact (#1148). The blob is written to
+        /// <paramref name="absOutBlobPath"/> verbatim; this method does NOT itself enforce
+        /// project-root containment — callers that need it (e.g. the CLI) must pre-resolve the path
+        /// through <see cref="ResolveSourcePath"/> so the write lands inside the project tree.
         ///
         /// <para>This method NEVER mutates <see cref="CoreState.ROM"/> and NEVER throws (every fault
         /// becomes a typed <see cref="DecompAssetResult"/>). It does NOT LZ77-compress and does NOT
@@ -381,9 +384,9 @@ namespace FEBuilderGBA
         /// <c>[w:u8][h:u8]</c> then <c>w*h</c> raw u16 LE tilemap entries. For each <c>.mar</c> body
         /// entry <c>marU16</c>, the raw tile is reconstructed as <c>rawTile = marU16 &gt;&gt; 3</c>
         /// (the exact inverse of the export-side <c>rawTile &lt;&lt; 3</c>). Because the export-side
-        /// shift truncates bits 13-15, the layout is LOSSLESS for tile indices &lt; 0x2000 — every
-        /// valid <c>.mar</c> entry already has its low 3 bits clear (the validator enforces this),
-        /// so the reconstruction is exact for the understood u16 layout body.</para>
+        /// shift truncates bits 13-15 (the palette/flag bits), the layout is LOSSLESS for raw u16
+        /// entries &lt; 0x2000 — every valid <c>.mar</c> entry already has its low 3 bits clear (the
+        /// validator enforces this), so the reconstruction is exact for the understood u16 layout body.</para>
         /// </summary>
         /// <param name="absInMarPath">Absolute path to the input <c>.mar</c> file. A sidecar
         /// <c>&lt;path&gt;.mar.json</c> (the export-side JSON) is REQUIRED — its width/height are
