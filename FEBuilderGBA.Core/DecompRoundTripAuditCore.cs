@@ -80,6 +80,44 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
+    /// Per-tier tally of the decomp coverage matrix (#1150). Immutable value type.
+    /// <see cref="Total"/> is the row count; <see cref="Unclassified"/> counts rows whose
+    /// coverage is not a defined <see cref="DecompCoverage"/> value (0 for the maintained
+    /// matrix — surfaced so the "no editor is unclassified" contract is explicit).
+    /// </summary>
+    public readonly struct DecompCoverageSummary
+    {
+        /// <summary>Count of <see cref="DecompCoverage.SourceBackedWriter"/> rows.</summary>
+        public int SourceBackedWriter { get; }
+        /// <summary>Count of <see cref="DecompCoverage.SourceTreeExporter"/> rows.</summary>
+        public int SourceTreeExporter { get; }
+        /// <summary>Count of <see cref="DecompCoverage.ImportPreviewOnly"/> rows.</summary>
+        public int ImportPreviewOnly { get; }
+        /// <summary>Count of <see cref="DecompCoverage.ManualMigration"/> rows.</summary>
+        public int ManualMigration { get; }
+        /// <summary>Count of <see cref="DecompCoverage.RomOnlyUnsupported"/> rows.</summary>
+        public int RomOnlyUnsupported { get; }
+        /// <summary>Count of rows whose coverage is not a defined enum value (expect 0).</summary>
+        public int Unclassified { get; }
+        /// <summary>Total row count (sum of all tiers + unclassified).</summary>
+        public int Total { get; }
+
+        /// <summary>Construct a coverage summary from per-tier counts.</summary>
+        public DecompCoverageSummary(int sourceBackedWriter, int sourceTreeExporter,
+            int importPreviewOnly, int manualMigration, int romOnlyUnsupported,
+            int unclassified, int total)
+        {
+            SourceBackedWriter = sourceBackedWriter;
+            SourceTreeExporter = sourceTreeExporter;
+            ImportPreviewOnly = importPreviewOnly;
+            ManualMigration = manualMigration;
+            RomOnlyUnsupported = romOnlyUnsupported;
+            Unclassified = unclassified;
+            Total = total;
+        }
+    }
+
+    /// <summary>
     /// Maintained, hand-curated decomp ROUND-TRIP COVERAGE MATRIX (#1150).
     ///
     /// This is a documentation-grade lookup that maps each FEBuilder editor / action to
@@ -96,6 +134,43 @@ namespace FEBuilderGBA
     /// </summary>
     public static class DecompRoundTripAuditCore
     {
+        /// <summary>
+        /// INDEPENDENT registry of the decomp-relevant FEBuilder editors that MUST appear
+        /// in the coverage matrix (#1150). This is a SEPARATE source of truth from
+        /// <see cref="BuildMatrix"/>: a completeness test asserts every name here has at
+        /// least one matrix row AND every matrix editor is registered here, so the matrix
+        /// cannot silently drop (or grow past) the maintained inventory.
+        ///
+        /// IMPORTANT — honest scope: "complete" here means complete RELATIVE TO THIS
+        /// MAINTAINED INVENTORY. It is a maintained classification, NOT an exhaustive
+        /// byte-level runtime round-trip proof, and NOT a guarantee that no FEBuilder
+        /// editor anywhere is unlisted. When a new decomp-relevant editor is added, it is
+        /// added here AND to <see cref="BuildMatrix"/> together.
+        /// </summary>
+        public static readonly IReadOnlyList<string> ExpectedDecompEditors = Array.AsReadOnly(new[]
+        {
+            "Item Editor",
+            "Unit Editor",
+            "Class Editor",
+            "Map Settings Editor",
+            "Support Unit Editor",
+            "Support Attribute Editor",
+            "Support Talk Editor",
+            "Palette Editor",
+            "Graphics Editor",
+            "Portrait Editor",
+            "Icon Editor",
+            "Map Editor",
+            "Text Editor",
+            "Item Shop Editor",
+            "Event Editor",
+            "Battle Animation Editor",
+            "Song Table Editor",
+            "Magic Editor",
+            "Hex Editor",
+            "Patch Manager",
+        });
+
         /// <summary>
         /// Build the maintained coverage matrix. Returns a fresh immutable list on every
         /// call (callers may sort/filter freely). NEVER throws.
@@ -221,6 +296,73 @@ namespace FEBuilderGBA
             {
                 // never throw at the boundary
                 return "Editor\tTable\tAction\tCoverage\tNotes\n";
+            }
+        }
+
+        /// <summary>
+        /// Tally the matrix into a per-tier coverage summary (#1150). PURE; NEVER throws.
+        /// <see cref="DecompCoverageSummary.Unclassified"/> counts rows whose
+        /// <see cref="DecompAuditRow.Coverage"/> is not a defined <see cref="DecompCoverage"/>
+        /// value — structurally 0 for the maintained matrix, but computed + surfaced so the
+        /// "no decomp-relevant editor is unclassified" contract is explicit and a future bad
+        /// row would show up instead of hiding.
+        /// </summary>
+        public static DecompCoverageSummary BuildSummary(IReadOnlyList<DecompAuditRow> rows)
+        {
+            int sourceBacked = 0, exporter = 0, preview = 0, manual = 0, romOnly = 0, unclassified = 0, total = 0;
+            try
+            {
+                rows ??= Array.Empty<DecompAuditRow>();
+                foreach (DecompAuditRow r in rows)
+                {
+                    total++;
+                    switch (r.Coverage)
+                    {
+                        case DecompCoverage.SourceBackedWriter: sourceBacked++; break;
+                        case DecompCoverage.SourceTreeExporter: exporter++; break;
+                        case DecompCoverage.ImportPreviewOnly: preview++; break;
+                        case DecompCoverage.ManualMigration: manual++; break;
+                        case DecompCoverage.RomOnlyUnsupported: romOnly++; break;
+                        default: unclassified++; break;
+                    }
+                }
+            }
+            catch
+            {
+                // never throw at the boundary
+            }
+            return new DecompCoverageSummary(sourceBacked, exporter, preview, manual, romOnly, unclassified, total);
+        }
+
+        /// <summary>
+        /// Format a coverage summary as a stable plaintext block (#1150): one
+        /// <c>Coverage = N</c> line per tier, a <c>Total = N</c> line, an explicit
+        /// <c>Unclassified = N</c> line, an inventory-size line, and a one-line HONEST
+        /// caveat. PURE; NEVER throws.
+        /// </summary>
+        public static string FormatSummary(DecompCoverageSummary s)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("Decomp round-trip coverage summary (#1150)");
+                sb.AppendLine($"SourceBackedWriter = {s.SourceBackedWriter}");
+                sb.AppendLine($"SourceTreeExporter = {s.SourceTreeExporter}");
+                sb.AppendLine($"ImportPreviewOnly  = {s.ImportPreviewOnly}");
+                sb.AppendLine($"ManualMigration    = {s.ManualMigration}");
+                sb.AppendLine($"RomOnlyUnsupported = {s.RomOnlyUnsupported}");
+                sb.AppendLine($"Total              = {s.Total}");
+                sb.AppendLine($"Unclassified       = {s.Unclassified}");
+                sb.AppendLine($"MaintainedInventory = {ExpectedDecompEditors.Count} editors");
+                sb.AppendLine("Note: complete relative to the maintained audit inventory; a maintained");
+                sb.AppendLine("classification matrix, not exhaustive byte-level runtime round-trip proof.");
+                sb.AppendLine("Decomp feature set currently lives on master, ahead of any tagged release");
+                sb.AppendLine("(see docs/DECOMP-FEATURE-INVENTORY.md).");
+                return sb.ToString();
+            }
+            catch
+            {
+                return "Decomp round-trip coverage summary (#1150)\n";
             }
         }
 

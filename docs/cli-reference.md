@@ -511,13 +511,21 @@ Print the maintained decomp **round-trip coverage matrix** (#1150) — which FEB
 
 | Option | Required | Description |
 |---|---|---|
-| `--format=<tsv\|md>` | No | Output format: `tsv` (default) or `md` (GitHub markdown table). |
-| `--out=<path>` | No | Write the matrix to a file (otherwise printed to stdout). |
+| `--format=<tsv\|md>` | No | Output format for the **table**: `tsv` (default) or `md` (GitHub markdown table). Ignored when `--summary` is set. |
+| `--summary` | No | Print the per-tier coverage **summary** (counts per tier + `Total` + explicit `Unclassified = N` + the master-ahead-of-release note) instead of the table. Takes precedence over `--format` (the summary is always plaintext). |
+| `--out=<path>` | No | Write the matrix/summary to a file (otherwise printed to stdout). |
 
 ```
 FEBuilderGBA.CLI --decomp-audit
 FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md
+FEBuilderGBA.CLI --decomp-audit --summary
 ```
+
+The matrix is **complete relative to the maintained audit inventory**
+(`DecompRoundTripAuditCore.ExpectedDecompEditors`) — a maintained classification, **not**
+exhaustive byte-level runtime round-trip proof. The full decomp feature set + release status
+(currently on `master`, ahead of any tagged release) is enumerated in
+[DECOMP-FEATURE-INVENTORY.md](DECOMP-FEATURE-INVENTORY.md).
 
 **Exit code:** 0 (1 on a write fault).
 

@@ -73,6 +73,19 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void DecompAuditSummary_ExitsZero_AndShowsCountsAndReleaseNote()
+        {
+            // #1150 (reopened): the --summary mode prints the per-tier coverage counts,
+            // an explicit Unclassified line, and the master-ahead-of-release note.
+            var (code, stdout, _) = AppRunner.Run(CliExe, "--decomp-audit --summary", timeoutMs: 30_000);
+            Assert.Equal(0, code);
+            Assert.Contains("Total", stdout, StringComparison.Ordinal);
+            Assert.Contains("Unclassified       = 0", stdout, StringComparison.Ordinal);
+            Assert.Contains("not exhaustive byte-level runtime round-trip proof", stdout, StringComparison.Ordinal);
+            Assert.Contains("ahead of any tagged release", stdout, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void NmmToManifest_ExitsZero_AndOutputsTable()
         {
             string nmm = Path.Combine(Path.GetTempPath(), "cli_nmm_" + Guid.NewGuid().ToString("N") + ".nmm");

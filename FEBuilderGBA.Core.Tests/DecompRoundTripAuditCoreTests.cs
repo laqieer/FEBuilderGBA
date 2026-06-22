@@ -182,5 +182,131 @@ namespace FEBuilderGBA.Core.Tests
                 r.Table == "shops" && r.Coverage == DecompCoverage.SourceBackedWriter);
             Assert.DoesNotContain("shops", DecompSourceWriterCore.SourceBackedTables);
         }
+
+        // ---- #1150 (reopened) COMPLETENESS: the matrix is "complete relative to the
+        //      maintained inventory" — enforced against an INDEPENDENT editor registry,
+        //      not just self-consistency. ----
+
+        [Fact]
+        public void EveryExpectedEditor_HasAtLeastOneRow()
+        {
+            // The real "no decomp-relevant editor is missing/unclassified" enforcement:
+            // every editor in the INDEPENDENT ExpectedDecompEditors registry must have at
+            // least one matrix row. A registered editor dropped from the matrix fails here.
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            var matrixEditors = rows.Select(r => r.Editor).ToHashSet(StringComparer.Ordinal);
+
+            foreach (string editor in DecompRoundTripAuditCore.ExpectedDecompEditors)
+            {
+                Assert.True(matrixEditors.Contains(editor),
+                    $"registered decomp editor '{editor}' has no row in the coverage matrix");
+            }
+        }
+
+        [Fact]
+        public void EveryMatrixEditor_IsRegistered()
+        {
+            // The inverse lockstep: a NEW matrix editor that wasn't added to the registry
+            // also fails, so the two sources of truth can't silently diverge.
+            var registry = DecompRoundTripAuditCore.ExpectedDecompEditors.ToHashSet(StringComparer.Ordinal);
+            foreach (DecompAuditRow r in DecompRoundTripAuditCore.BuildMatrix())
+            {
+                Assert.True(registry.Contains(r.Editor),
+                    $"matrix editor '{r.Editor}' is not in ExpectedDecompEditors (update the registry)");
+            }
+        }
+
+        [Fact]
+        public void ExpectedDecompEditors_IsNonEmpty_AndHasNoDuplicates()
+        {
+            var reg = DecompRoundTripAuditCore.ExpectedDecompEditors;
+            Assert.NotNull(reg);
+            Assert.True(reg.Count >= 10, $"expected a real editor inventory (>=10), got {reg.Count}");
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string e in reg)
+            {
+                Assert.False(string.IsNullOrEmpty(e), "registry editor name must be non-empty");
+                Assert.True(seen.Add(e), $"duplicate registry editor: {e}");
+            }
+        }
+
+        [Fact]
+        public void EveryCoverageTier_HasAtLeastOneRow()
+        {
+            // Completeness floor: the matrix exercises ALL five coverage tiers, so the
+            // summary's per-tier counts are all > 0 and no tier is silently absent.
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            var present = rows.Select(r => r.Coverage).ToHashSet();
+            foreach (DecompCoverage tier in (DecompCoverage[])Enum.GetValues(typeof(DecompCoverage)))
+            {
+                Assert.True(present.Contains(tier),
+                    $"coverage tier {tier} has no representative row in the matrix");
+            }
+        }
+
+        // ---- #1150 (reopened) SUMMARY: per-tier counts + explicit Unclassified=0. ----
+
+        [Fact]
+        public void BuildSummary_CountsEqual_MatrixRows_AndZeroUnclassified()
+        {
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            DecompCoverageSummary s = DecompRoundTripAuditCore.BuildSummary(rows);
+
+            Assert.Equal(rows.Count, s.Total);
+            Assert.Equal(0, s.Unclassified);
+
+            // Per-tier counts must sum to Total.
+            int sum = s.SourceBackedWriter + s.SourceTreeExporter + s.ImportPreviewOnly
+                      + s.ManualMigration + s.RomOnlyUnsupported + s.Unclassified;
+            Assert.Equal(s.Total, sum);
+
+            // Each per-tier count matches a direct matrix tally.
+            Assert.Equal(rows.Count(r => r.Coverage == DecompCoverage.SourceBackedWriter), s.SourceBackedWriter);
+            Assert.Equal(rows.Count(r => r.Coverage == DecompCoverage.SourceTreeExporter), s.SourceTreeExporter);
+            Assert.Equal(rows.Count(r => r.Coverage == DecompCoverage.ImportPreviewOnly), s.ImportPreviewOnly);
+            Assert.Equal(rows.Count(r => r.Coverage == DecompCoverage.ManualMigration), s.ManualMigration);
+            Assert.Equal(rows.Count(r => r.Coverage == DecompCoverage.RomOnlyUnsupported), s.RomOnlyUnsupported);
+        }
+
+        [Fact]
+        public void BuildSummary_NullRows_DoesNotThrow_AndIsZero()
+        {
+            DecompCoverageSummary s = DecompRoundTripAuditCore.BuildSummary(null);
+            Assert.Equal(0, s.Total);
+            Assert.Equal(0, s.Unclassified);
+        }
+
+        [Fact]
+        public void FormatSummary_HasCounts_TotalUnclassified_AndHonestCaveat()
+        {
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            DecompCoverageSummary s = DecompRoundTripAuditCore.BuildSummary(rows);
+            string text = DecompRoundTripAuditCore.FormatSummary(s);
+
+            Assert.Contains("SourceBackedWriter = ", text);
+            Assert.Contains("SourceTreeExporter = ", text);
+            Assert.Contains("ImportPreviewOnly", text);
+            Assert.Contains("ManualMigration", text);
+            Assert.Contains("RomOnlyUnsupported", text);
+            Assert.Contains($"Total              = {s.Total}", text);
+            Assert.Contains($"Unclassified       = {s.Unclassified}", text);
+            Assert.Contains("MaintainedInventory", text);
+            // Honest caveat + release-visibility note.
+            Assert.Contains("not exhaustive byte-level runtime round-trip proof", text);
+            Assert.Contains("ahead of any tagged release", text);
+        }
+
+        [Fact]
+        public void Map148_And_Shop149_Rows_RemainPresent()
+        {
+            // Regression lock: the #1148 map-layout import/verify + #1149 shop-export rows
+            // (reflected per the reopened ask) must stay in the matrix.
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            Assert.Contains(rows, r => r.Action == "Map layout import/verify"
+                && r.Coverage == DecompCoverage.SourceTreeExporter);
+            Assert.Contains(rows, r => r.Editor == "Item Shop Editor" && r.Action == "Shop list export"
+                && r.Coverage == DecompCoverage.SourceTreeExporter);
+        }
     }
 }

@@ -556,7 +556,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --timeout=<ms>         Build timeout in milliseconds (default 600000 = 10 minutes)");
             Console.WriteLine("  --decomp-audit           Print the maintained decomp round-trip coverage matrix (no ROM; editor/table/action/coverage/notes)");
             Console.WriteLine("    --format=<tsv|md>      Output format: tsv (default) or md (GitHub markdown table)");
-            Console.WriteLine("    --out=<path>           Optional: write the matrix to a file (otherwise printed to stdout)");
+            Console.WriteLine("    --summary              Print the per-tier coverage SUMMARY (counts + Total + Unclassified + release-state note) instead of the table");
+            Console.WriteLine("    --out=<path>           Optional: write the matrix/summary to a file (otherwise printed to stdout)");
             Console.WriteLine("  --nmm-to-manifest        Parse a No$gba memory map (.nmm) into a decomp manifest tables[] entry JSON (no ROM)");
             Console.WriteLine("    --in=<x.nmm>           Input .nmm file (the FormatNMM grammar)");
             Console.WriteLine("    --table=<name>         Table name for the emitted entry (default 'table'); unsupported fields are flagged, never dropped");
@@ -607,6 +608,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=shop --rom=rom.gba --out=shops/");
             Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md");
+            Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --summary");
             Console.WriteLine("  FEBuilderGBA.CLI --nmm-to-manifest --in=items.nmm --table=items --out=items.tables.json");
             Console.WriteLine("  FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=graphics --in=gfx/tiles.png");
@@ -4504,11 +4506,42 @@ namespace FEBuilderGBA.CLI
 
         /// <summary>
         /// --decomp-audit: print the maintained decomp round-trip coverage matrix (#1150).
-        /// READ-ONLY; never loads a ROM. Honors --format=tsv|md (default tsv) and writes to
-        /// --out or stdout. Exit 0 always (or 1 on a write fault).
+        /// READ-ONLY; never loads a ROM. With --summary prints the per-tier coverage
+        /// summary (counts + Unclassified + release-visibility note) instead of the table.
+        /// Otherwise honors --format=tsv|md (default tsv). Writes to --out or stdout.
+        /// Exit 0 always (or 1 on a write fault).
         /// </summary>
         static int RunDecompAudit(Dictionary<string, string> argsDic)
         {
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            string text;
+
+            // --summary: print the per-tier coverage summary + completeness/release note
+            // (no table). Independent of --format.
+            if (argsDic.ContainsKey("--summary"))
+            {
+                var summary = DecompRoundTripAuditCore.BuildSummary(rows);
+                text = DecompRoundTripAuditCore.FormatSummary(summary);
+
+                if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
+                {
+                    try
+                    {
+                        File.WriteAllText(argsDic["--out"], text);
+                        Console.WriteLine($"Wrote: {argsDic["--out"]}");
+                        return 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine($"Error: could not write '{argsDic["--out"]}': {ex.Message}");
+                        return 1;
+                    }
+                }
+
+                Console.Write(text);
+                return 0;
+            }
+
             string fmt = argsDic.ContainsKey("--format") && !string.IsNullOrEmpty(argsDic["--format"])
                 ? argsDic["--format"].Trim().ToLowerInvariant()
                 : "tsv";
@@ -4518,8 +4551,7 @@ namespace FEBuilderGBA.CLI
                 return 1;
             }
 
-            var rows = DecompRoundTripAuditCore.BuildMatrix();
-            string text = DecompRoundTripAuditCore.FormatMatrix(rows, fmt);
+            text = DecompRoundTripAuditCore.FormatMatrix(rows, fmt);
 
             if (argsDic.ContainsKey("--out") && !string.IsNullOrEmpty(argsDic["--out"]))
             {
