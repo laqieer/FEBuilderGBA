@@ -147,7 +147,7 @@ namespace FEBuilderGBA
         /// editor anywhere is unlisted. When a new decomp-relevant editor is added, it is
         /// added here AND to <see cref="BuildMatrix"/> together.
         /// </summary>
-        public static readonly IReadOnlyList<string> ExpectedDecompEditors = new[]
+        public static readonly IReadOnlyList<string> ExpectedDecompEditors = Array.AsReadOnly(new[]
         {
             "Item Editor",
             "Unit Editor",
@@ -169,7 +169,7 @@ namespace FEBuilderGBA
             "Magic Editor",
             "Hex Editor",
             "Patch Manager",
-        };
+        });
 
         /// <summary>
         /// Build the maintained coverage matrix. Returns a fresh immutable list on every

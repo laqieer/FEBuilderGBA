@@ -511,8 +511,8 @@ Print the maintained decomp **round-trip coverage matrix** (#1150) — which FEB
 
 | Option | Required | Description |
 |---|---|---|
-| `--format=<tsv\|md>` | No | Output format: `tsv` (default) or `md` (GitHub markdown table). |
-| `--summary` | No | Print the per-tier coverage **summary** (counts per tier + `Total` + explicit `Unclassified = N` + the master-ahead-of-release note) instead of the table. |
+| `--format=<tsv\|md>` | No | Output format for the **table**: `tsv` (default) or `md` (GitHub markdown table). Ignored when `--summary` is set. |
+| `--summary` | No | Print the per-tier coverage **summary** (counts per tier + `Total` + explicit `Unclassified = N` + the master-ahead-of-release note) instead of the table. Takes precedence over `--format` (the summary is always plaintext). |
 | `--out=<path>` | No | Write the matrix/summary to a file (otherwise printed to stdout). |
 
 ```
