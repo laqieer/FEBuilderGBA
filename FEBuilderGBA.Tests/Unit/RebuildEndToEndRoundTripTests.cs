@@ -177,9 +177,13 @@ namespace FEBuilderGBA.Tests.Unit
                     case Mode.Relocate:
                         rebuildAddress = RELOCATE_REBUILD_ADDRESS;                 // forces real struct relocation
                         break;
-                    default: // Mode.LowRelocate
+                    case Mode.LowRelocate:
                         rebuildAddress = LOW_RELOCATE_REBUILD_ADDRESS;             // forces base-region forward-refs (#1344)
                         break;
+                    default:
+                        // Explicit (Copilot PR #1345 inline finding): a new Mode must NOT silently fall into
+                        // the low-address path — fail loudly so the case is added deliberately.
+                        throw new ArgumentOutOfRangeException(nameof(mode), mode, "unhandled rebuild Mode");
                 }
                 Assert.True(U.isPadding4(rebuildAddress), "rebuild address must be 4-aligned");
 
@@ -251,11 +255,14 @@ namespace FEBuilderGBA.Tests.Unit
                     $"rebuilt ROM (0x{rebuilt.Length:X} bytes) must contain the entire preserved non-rebuild "
                     + $"base region [0, 0x{rebuildAddress:X}).");
 
+                // Indices below are kept as `int` (not `uint`) so byte[] indexing is unambiguous (Copilot
+                // PR #1345 inline finding); all ROM offsets here are < 0x1000000, well within int range.
                 if (mode != Mode.LowRelocate)
                 {
                     // EXTENDS / RELOCATE: the chosen addresses have NO base-region forward-refs, so the base
                     // is byte-identical to vanilla. Compare exactly [0, rebuildAddress).
-                    for (uint i = 0; i < rebuildAddress; i++)
+                    int baseLen = (int)rebuildAddress;
+                    for (int i = 0; i < baseLen; i++)
                     {
                         if (rebuilt[i] != vanData[i])
                         {
@@ -274,9 +281,9 @@ namespace FEBuilderGBA.Tests.Unit
                     // pointer into the rebuild region (i.e. it genuinely had to move) AND the REBUILT word is a
                     // safe ROM pointer (the relocated address). Any other divergence is a real corruption of the
                     // preserved base and FAILS. (Non-pointer base bytes stay byte-identical.)
-                    uint baseEnd = rebuildAddress & ~3u;
+                    int baseEnd = (int)(rebuildAddress & ~3u);
                     int fixups = 0;
-                    for (uint i = 0; i + 3 < baseEnd; i += 4)
+                    for (int i = 0; i + 3 < baseEnd; i += 4)
                     {
                         uint vWord = (uint)(vanData[i] | (vanData[i + 1] << 8) | (vanData[i + 2] << 16) | ((uint)vanData[i + 3] << 24));
                         uint rWord = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
@@ -304,10 +311,10 @@ namespace FEBuilderGBA.Tests.Unit
                     // Belt-and-suspenders: every BYTE-level divergence must fall on one of those fixed-up words
                     // (no stray sub-word base byte changed). Vanilla and rebuilt may only differ on a 4-aligned
                     // pointer word; assert no divergence outside an allowed fix-up word.
-                    for (uint i = 0; i < baseEnd; i++)
+                    for (int i = 0; i < baseEnd; i++)
                     {
                         if (rebuilt[i] == vanData[i]) continue;
-                        uint w = i & ~3u;
+                        int w = i & ~3;
                         uint vWord = (uint)(vanData[w] | (vanData[w + 1] << 8) | (vanData[w + 2] << 16) | ((uint)vanData[w + 3] << 24));
                         bool vanPointedIntoRebuild = U.isPointer(vWord)
                             && U.toOffset(vWord) >= rebuildAddress
@@ -330,7 +337,7 @@ namespace FEBuilderGBA.Tests.Unit
                     Assert.True(U.toOffset(BASE_REGION_FORWARD_REF) < rebuildAddress,
                         "sanity: the #1344 forward-ref target must lie in the base region [0, rebuildAddress).");
                     int forwardRefHits = 0;
-                    for (uint i = (uint)vanData.Length; i + 3 < rebuilt.Length; i += 1)
+                    for (int i = vanData.Length; i + 3 < rebuilt.Length; i++)
                     {
                         uint w = (uint)(rebuilt[i] | (rebuilt[i + 1] << 8) | (rebuilt[i + 2] << 16) | ((uint)rebuilt[i + 3] << 24));
                         if (w == BASE_REGION_FORWARD_REF) forwardRefHits++;
