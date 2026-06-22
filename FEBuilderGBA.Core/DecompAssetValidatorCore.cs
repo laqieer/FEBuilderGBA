@@ -282,20 +282,50 @@ namespace FEBuilderGBA
                     $"Sheet palette has {info.PaletteColorCount} colors; a GBA portrait is 4bpp (max {PortraitPaletteMax}). Indices >15 would be clipped on import."));
             }
 
-            // 5) Sidecar palette: optional JASC .pal. When present, validate its structure AND
-            // compare it entry-by-entry against the sheet's embedded PLTE.
+            // 5) Sidecar palette: optional JASC .pal. The sidecar that BELONGS to this sheet
+            // is the one whose name matches the sheet (sheet.png -> sheet.pal); picking the
+            // first sorted *.pal could compare the sheet PLTE against an unrelated palette and
+            // emit false PALETTE_* mismatches (Copilot PR #1353 review). Match by sheet name;
+            // any OTHER *.pal in the dir is reported as an extra sidecar (informational warn).
+            string expectedPal = Path.ChangeExtension(sheetPath, ".pal");
             string[] pals = Directory.GetFiles(dirPath, "*.pal");
             Array.Sort(pals, StringComparer.Ordinal);
-            if (pals.Length == 0)
+            string matchedPal = null;
+            foreach (string p in pals)
             {
+                if (string.Equals(Path.GetFullPath(p), Path.GetFullPath(expectedPal),
+                        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                {
+                    matchedPal = p;
+                    break;
+                }
+            }
+
+            if (matchedPal == null)
+            {
+                // No sidecar matching the sheet name. The sheet's embedded PLTE was checked by
+                // ValidatePng above (when the PNG was indexed); a JASC sidecar matching the
+                // sheet is still recommended for decomp builds. Keep the wording generic — for
+                // a NON_INDEXED / invalid-PLTE sheet the embedded palette may not have validated.
                 r.Warnings.Add(new AssetIssue("MISSING_PALETTE",
-                    $"No *.pal sidecar found in '{dirPath}'. The sheet's embedded PLTE was validated, but a JASC sidecar is recommended for decomp builds."));
+                    $"No sidecar '{Path.GetFileName(expectedPal)}' found in '{dirPath}'. A JASC sidecar matching the sheet name is recommended for decomp builds."));
+                // Surface any unrelated *.pal so the user knows it was NOT used for comparison.
+                if (pals.Length > 0)
+                {
+                    r.Warnings.Add(new AssetIssue("EXTRA_PALETTE",
+                        $"Found {pals.Length} *.pal file(s) but none match the sheet name '{Path.GetFileNameWithoutExtension(sheetPath)}.pal'; palette consistency was NOT checked."));
+                }
             }
             else
             {
-                string palPath = pals[0];
-                ValidatePalette(palPath, r);
-                ComparePaletteConsistency(palPath, info, r);
+                ValidatePalette(matchedPal, r);
+                ComparePaletteConsistency(matchedPal, info, r);
+                // Note any additional sidecars that are not the sheet's own.
+                if (pals.Length > 1)
+                {
+                    r.Warnings.Add(new AssetIssue("EXTRA_PALETTE",
+                        $"Found {pals.Length} *.pal file(s); only '{Path.GetFileName(matchedPal)}' (matching the sheet) was used for palette consistency."));
+                }
             }
         }
 
@@ -603,8 +633,24 @@ namespace FEBuilderGBA
                         || !TryParseByte(parts[0], out int rr)
                         || !TryParseByte(parts[1], out int gg)
                         || !TryParseByte(parts[2], out int bb))
-                        break; // a malformed triple stops the scan; ValidatePalette already errored
+                    {
+                        // A malformed triple means the JASC file is structurally invalid (and
+                        // ValidatePalette already errored on it). Return FALSE so the caller
+                        // SKIPS the consistency comparison rather than emitting a misleading
+                        // PALETTE_COUNT_MISMATCH/PALETTE_COLOR_MISMATCH on a partial color list
+                        // (Copilot PR #1353 review).
+                        colors = new List<(int, int, int)>();
+                        return false;
+                    }
                     colors.Add((rr, gg, bb));
+                }
+
+                // Fewer triples than the header declared => also structurally invalid (the
+                // declared count was not satisfied). Skip the comparison for the same reason.
+                if (colors.Count < count)
+                {
+                    colors = new List<(int, int, int)>();
+                    return false;
                 }
                 return true;
             }

@@ -380,6 +380,67 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(dir); }
         }
 
+        // The sidecar is matched by the SHEET name (sheet.png -> sheet.pal). A .pal with an
+        // UNRELATED name must NOT be used for the consistency comparison (Copilot PR #1353
+        // review): it would otherwise emit a false PALETTE_COLOR_MISMATCH. The sheet's own
+        // sidecar is absent → MISSING_PALETTE, and the unrelated one is flagged EXTRA_PALETTE.
+        [Fact]
+        public void Package_UnrelatedSidecarName_NotUsed_NoFalseMismatch()
+        {
+            string dir = FreshDir();
+            try
+            {
+                byte[] png = BuildSheetPng(128, 112, 16);
+                File.WriteAllBytes(Path.Combine(dir, "sheet.png"), png);
+
+                // A structurally valid JASC that DIFFERS from the sheet PLTE, but named so it
+                // does NOT match the sheet (other.pal, not sheet.pal).
+                IndexedPngInfo info = IndexedPngReader.Read(png);
+                int count = info.PaletteRgb.Length / 3;
+                var sb = new StringBuilder();
+                sb.Append("JASC-PAL\r\n0100\r\n").Append(count).Append("\r\n");
+                for (int i = 0; i < count; i++)
+                    sb.Append(255).Append(' ').Append(0).Append(' ').Append(0).Append("\r\n"); // all red, definitely != PLTE
+                File.WriteAllText(Path.Combine(dir, "other.pal"), sb.ToString());
+
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAssetPackage(AssetKind.PortraitPackage, dir);
+                // The unrelated palette was NOT compared → no false mismatch.
+                Assert.DoesNotContain(r.Errors, e => e.Code == "PALETTE_COLOR_MISMATCH");
+                Assert.DoesNotContain(r.Errors, e => e.Code == "PALETTE_COUNT_MISMATCH");
+                // The sheet's own sidecar is missing, and the unrelated one is flagged.
+                Assert.Contains(r.Warnings, w => w.Code == "MISSING_PALETTE");
+                Assert.Contains(r.Warnings, w => w.Code == "EXTRA_PALETTE");
+            }
+            finally { Cleanup(dir); }
+        }
+
+        // A structurally INVALID sidecar (bad RGB triple) must be caught by ValidatePalette
+        // (BAD_PALETTE_*) WITHOUT a misleading PALETTE_COUNT/COLOR_MISMATCH layered on top —
+        // TryParseJascColors now returns false for a malformed/short palette so the
+        // consistency comparison is skipped (Copilot PR #1353 review).
+        [Fact]
+        public void Package_MalformedSidecar_NoConsistencyMismatch_OnlyStructuralError()
+        {
+            string dir = FreshDir();
+            try
+            {
+                byte[] png = BuildSheetPng(128, 112, 16);
+                File.WriteAllBytes(Path.Combine(dir, "sheet.png"), png);
+                // Header declares 16 colors but a triple is malformed (300 is out of 0..255).
+                File.WriteAllText(Path.Combine(dir, "sheet.pal"),
+                    "JASC-PAL\r\n0100\r\n16\r\n0 0 0\r\n300 0 0\r\n");
+
+                AssetValidationResult r = DecompAssetValidatorCore.ValidateAssetPackage(AssetKind.PortraitPackage, dir);
+                Assert.False(r.Ok);
+                // ValidatePalette reports the structural fault.
+                Assert.Contains(r.Errors, e => e.Code == "BAD_PALETTE_COLOR" || e.Code == "BAD_PALETTE_COUNT");
+                // No misleading consistency diagnostics on a structurally invalid palette.
+                Assert.DoesNotContain(r.Errors, e => e.Code == "PALETTE_COUNT_MISMATCH");
+                Assert.DoesNotContain(r.Errors, e => e.Code == "PALETTE_COLOR_MISMATCH");
+            }
+            finally { Cleanup(dir); }
+        }
+
         // ---------------------------------------------------------------- fault safety
 
         [Fact]
