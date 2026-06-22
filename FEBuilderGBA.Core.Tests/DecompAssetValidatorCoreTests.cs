@@ -460,6 +460,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("icon", AssetKind.Icon)]
         [InlineData("map", AssetKind.MapLayout)]
         [InlineData("MapLayout", AssetKind.MapLayout)]
+        [InlineData("mapchange", AssetKind.MapChangeOverlay)]
+        [InlineData("mapchange-overlay", AssetKind.MapChangeOverlay)]
+        [InlineData("MapChange", AssetKind.MapChangeOverlay)]
         public void ParseKind_Maps(string s, AssetKind expected)
         {
             Assert.Equal(expected, DecompAssetValidatorCore.ParseKind(s));

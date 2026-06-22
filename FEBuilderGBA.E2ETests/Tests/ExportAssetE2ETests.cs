@@ -541,5 +541,171 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(projectDir, true); } catch { }
             }
         }
+
+        // ============================================================================
+        // Map-change OVERLAY (raw uncompressed u16 LE, #1355)
+        // ============================================================================
+
+        // Build a synthetic .change overlay body (raw u16 LE, any value) + matching sidecar.
+        static void WriteSyntheticChange(string changePath, int w, int h, string format = "febuilder-mapchange-u16")
+        {
+            byte[] body = new byte[w * h * 2];
+            for (int i = 0; i < w * h; i++)
+            {
+                ushort v = (ushort)(i * 0x101 + 0x2222); // arbitrary u16, includes >= 0x2000
+                body[i * 2 + 0] = (byte)(v & 0xFF);
+                body[i * 2 + 1] = (byte)(v >> 8);
+            }
+            File.WriteAllBytes(changePath, body);
+            File.WriteAllText(changePath + ".json",
+                $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportAsset_MapChange_ExitsZero_WritesIdentityBlob()
+        {
+            string dir = NewTempDir("import_change");
+            try
+            {
+                int w = 4, h = 3;
+                string changePath = Path.Combine(dir, "chapter.change");
+                WriteSyntheticChange(changePath, w, h);
+
+                string outBin = Path.Combine(dir, "chapter.change_raw.bin");
+                string args = $"--import-asset --kind=mapchange --in=\"{changePath}\" --out=\"{outBin}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --kind=mapchange exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outBin), $"Expected raw blob at {outBin}");
+
+                // Identity copy: blob == .change body byte-for-byte.
+                byte[] src = File.ReadAllBytes(changePath);
+                byte[] dst = File.ReadAllBytes(outBin);
+                Assert.Equal(src, dst);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapChange_Clean_ExitsZero()
+        {
+            string dir = NewTempDir("rt_change_ok");
+            try
+            {
+                string changePath = Path.Combine(dir, "chapter.change");
+                WriteSyntheticChange(changePath, 4, 3);
+
+                string args = $"--roundtrip-asset --kind=mapchange --in=\"{changePath}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--roundtrip-asset --kind=mapchange exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Round-trip OK", stdout);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapChange_TruncatedBody_ExitsTwo()
+        {
+            string dir = NewTempDir("rt_change_bad");
+            try
+            {
+                int w = 4, h = 3;
+                string changePath = Path.Combine(dir, "chapter.change");
+                WriteSyntheticChange(changePath, w, h);
+
+                // Truncate the body by 2 bytes (sidecar still says 4x3) → length mismatch.
+                byte[] body = File.ReadAllBytes(changePath);
+                byte[] truncated = new byte[body.Length - 2];
+                Array.Copy(body, truncated, truncated.Length);
+                File.WriteAllBytes(changePath, truncated);
+
+                string args = $"--roundtrip-asset --kind=mapchange --in=\"{changePath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ImportAsset_MapChange_UnknownKind_ExitsNonZero()
+        {
+            // --import-asset only supports map | mapchange; a bogus kind is exit 1.
+            var (code, _, _) = RunWithRetry("--import-asset --kind=bogus --in=x.change --out=x.bin");
+            Assert.NotEqual(0, code);
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapChange_UnknownKind_ExitsNonZero()
+        {
+            var (code, _, _) = RunWithRetry("--roundtrip-asset --kind=bogus --in=x.change");
+            Assert.NotEqual(0, code);
+        }
+
+        [Fact]
+        public void VerifyAsset_UnknownKind_ExitsOne()
+        {
+            // --verify-asset only supports mapchange; map is rejected as a usage error (exit 1).
+            var (code, _, _) = RunWithRetry("--verify-asset --kind=map --in=x.mar --addr=0x200 --width=2 --height=2 --rom=fake.gba");
+            Assert.Equal(1, code);
+        }
+
+        // ---- ROM-backed export + verify (needs a real ROM; skipped otherwise). ----
+
+        [SkippableFact]
+        public void ExportAsset_MapChange_Rom_ExitsZero_WritesChangeAndSidecar_VerifyMatches()
+        {
+            Skip.If(FirstRom == null, "No ROM available for export-asset mapchange test");
+
+            string dir = NewTempDir("export_change");
+            string outChange = Path.Combine(dir, "chapter.change");
+            try
+            {
+                // A benign in-ROM offset (>= 0x200) and tiny dims so the region is in bounds.
+                // We don't care WHAT bytes are there — only that export reads them and that a
+                // subsequent verify against the SAME address is byte-identical.
+                const string addr = "0x1000";
+                int w = 2, h = 2;
+                string exportArgs =
+                    $"--export-asset --kind=mapchange --rom=\"{FirstRom}\" --addr={addr} --width={w} --height={h} --out=\"{outChange}\"";
+                var (code, stdout, stderr) = RunWithRetry(exportArgs);
+
+                Assert.True(code == 0,
+                    $"--export-asset --kind=mapchange exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outChange), $"Expected .change at {outChange}");
+                Assert.True(File.Exists(outChange + ".json"), "Expected sidecar .change.json");
+                Assert.Equal(w * h * 2, new FileInfo(outChange).Length);
+
+                // Verify the exported overlay against the SAME ROM address → byte-identical (exit 0).
+                string verifyArgs =
+                    $"--verify-asset --kind=mapchange --rom=\"{FirstRom}\" --addr={addr} --width={w} --height={h} --in=\"{outChange}\"";
+                var (vcode, vstdout, vstderr) = RunWithRetry(verifyArgs);
+                Assert.True(vcode == 0,
+                    $"--verify-asset (matching) exited with {vcode}\nStdout: {vstdout}\nStderr: {vstderr}");
+
+                // Edit a byte in the .change file → verify must now MISMATCH (exit 2).
+                byte[] edited = File.ReadAllBytes(outChange);
+                edited[0] ^= 0xFF;
+                File.WriteAllBytes(outChange, edited);
+                var (mcode, _, _) = RunWithRetry(verifyArgs);
+                Assert.Equal(2, mcode);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
     }
 }

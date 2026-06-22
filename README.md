@@ -123,6 +123,7 @@ dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --colors=16 --out=gfx/palette.pal
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=shop --rom=rom.gba --out=shops/
 
@@ -139,6 +140,20 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=shop --rom=rom.gb
 # sub-assets remain export-only / manual.
 dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin
 dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=map --in=map/chapter1.mar
+
+# Decomp map-change OVERLAY tile data block (#1355): a RAW UNCOMPRESSED u16 LE array of width*height
+# config-descriptor indices (the record +8 change pointer's target) — NOT the .mar tile layout and
+# NOT the 12-byte change-RECORD chain (terminator/flagID/PLIST metadata).
+# --export-asset --kind=mapchange  → read the live ROM overlay block (--addr=change_mar, --width, --height)
+#                                     into a .change file + .change.json sidecar (format "febuilder-mapchange-u16").
+# --import-asset --kind=mapchange  → identity copy of the validated .change body to a raw blob (NO header, NO shift, NO LZ77).
+# --roundtrip-asset --kind=mapchange → structure-exact identity proof (body length == width*height*2).
+# --verify-asset --kind=mapchange  → byte-exact ROM-backed mismatch proof (reads the ROM READ-ONLY; the
+#                                     ONLY ROM-backed verification — export/import never touch the ROM).
+# srcAddr in the sidecar is provenance metadata ONLY (no symbol/owner is fabricated).
+dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin
+dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=mapchange --in=map/chapter1.change
+dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change
 
 # Decomp source-backed table writer: rewrite the owning C array element (or JSON
 # element) of a structured table entry instead of mutating the preview ROM (the
@@ -468,11 +483,12 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Icon Editor | icon | Icon export | SourceTreeExporter | Indexed PNG via graphics exporter (16x16 tiles) |
 | Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
+| Map Editor | map_change_overlay | Map-change overlay import/verify | SourceTreeExporter | Raw uncompressed u16 overlay tile data block — export (--export-asset --kind=mapchange) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapchange) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the .mar layout and NOT the 12-byte change-record chain |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) AND the source list is literal-only (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers, unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347). Supports BOTH a LITERAL raw-hex list AND a SYMBOLIC ITEM_* (item-id-only, quantity 0) list whose macro names resolve from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h); a non-zero quantity or an id with no ITEM_* constant is an actionable refusal, not a clobber (#1354) |
-| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset |
+| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block (which is source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
 | Event Editor | chapter_event_pointers | Event/difficulty pointer fields | ManualMigration | Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed |
 | Battle Animation Editor | battle_anime | Animation view | ImportPreviewOnly | Preview-only in decomp mode; no source write-back (export via --export-battle-anime) |
 | Song Table Editor | song_table | Song view | ImportPreviewOnly | Preview-only; song data edits must be made in source by hand |

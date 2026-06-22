@@ -74,6 +74,35 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MapChangeOverlay_Row_IsSourceTreeExporter_ImportVerify()
+        {
+            // #1355: the map-change overlay import/verify row is a SourceTreeExporter row.
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            var row = rows.SingleOrDefault(r =>
+                r.Table == "map_change_overlay"
+                && r.Action == "Map-change overlay import/verify");
+            Assert.NotNull(row);
+            Assert.Equal(DecompCoverage.SourceTreeExporter, row.Coverage);
+            Assert.Contains("--verify-asset", row.Notes);
+            Assert.Contains("NOT the .mar layout", row.Notes);
+        }
+
+        [Fact]
+        public void MapAssetBinaries_Row_StillManualMigration_NoLongerMentionsOverlay()
+        {
+            // #1355: the map-change OVERLAY tile data block is now source-backed, so the
+            // map_asset_binaries ManualMigration row must no longer claim "overlay".
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            var row = rows.SingleOrDefault(r => r.Table == "map_asset_binaries");
+            Assert.NotNull(row);
+            Assert.Equal(DecompCoverage.ManualMigration, row.Coverage);
+            // The row must EXCLUDE the overlay (it is now source-backed export/import/verify),
+            // and must no longer LIST it among the remaining LZ77/pointer binaries.
+            Assert.Contains("NOT the map-change overlay tile data block", row.Notes);
+            Assert.DoesNotContain("tile animations 1/2, map-change overlay", row.Notes);
+        }
+
+        [Fact]
         public void ManualAndRomOnly_Tables_DoNotAppear_AsSourceBackedRowSave_ForSameEditor()
         {
             var rows = DecompRoundTripAuditCore.BuildMatrix();

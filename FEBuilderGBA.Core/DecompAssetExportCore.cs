@@ -525,6 +525,257 @@ namespace FEBuilderGBA
             }
         }
 
+        // ---- Map-change OVERLAY (raw uncompressed u16 LE, #1355) ----
+
+        /// <summary>
+        /// Export a Map-Change OVERLAY tile DATA BLOCK (#1355) — a RAW UNCOMPRESSED <c>u16</c> LE
+        /// array of <c>width*height</c> config-descriptor indices — to a <c>.change</c> file plus a
+        /// sidecar JSON. This is NOT the <c>.mar</c> tile layout (no <c>&lt;&lt;3</c> shift, no LZ77)
+        /// and NOT the 12-byte change-RECORD chain (terminator/flagID/PLIST metadata): it is ONLY the
+        /// overlay data block that the change pointer (record <c>+8</c>) points at.
+        ///
+        /// <para>The body is copied BYTE-FOR-BYTE from the (already-uncompressed) ROM region at
+        /// <paramref name="changeAddr"/>; <c>srcAddr</c> in the sidecar is provenance metadata ONLY
+        /// (no symbol/owner is fabricated). This method is READ-ONLY (never mutates the ROM) and
+        /// NEVER throws.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="changeAddr">ROM byte offset of the raw overlay data block (record <c>+8</c>
+        /// change pointer, dereferenced).</param>
+        /// <param name="width">Overlay width (record <c>+3</c>), 1..255.</param>
+        /// <param name="height">Overlay height (record <c>+4</c>), 1..255.</param>
+        /// <param name="absOutChangePath">Absolute path for the output <c>.change</c> file. A sidecar
+        /// <c>&lt;path&gt;.change.json</c> is written at the same path with <c>.json</c> appended.</param>
+        public static DecompAssetResult ExportMapChange(ROM rom, uint changeAddr, int width, int height, string absOutChangePath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutChangePath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output .change path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Dimensions must fit the u8 record fields (1..255).
+                if (width < 1 || width > 255 || height < 1 || height > 255)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map-change overlay dimensions {width}x{height} (must be 1..255)");
+
+                long bodyLen = (long)width * height * 2;
+                // Bounds: the start must be a safe offset AND the whole body (last byte inclusive)
+                // must lie inside the ROM. Use a long for the end so a huge w*h cannot wrap a uint.
+                if (!U.isSafetyOffset(changeAddr, rom)
+                    || changeAddr + bodyLen > rom.Data.Length
+                    || changeAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Overlay region [0x{changeAddr:X}, 0x{changeAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                // Copy the raw overlay body byte-for-byte from the (already-uncompressed) ROM.
+                byte[] body = rom.getBinaryData(changeAddr, (int)bodyLen);
+                if (body == null || body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData, $"Could not read {bodyLen}-byte overlay body at 0x{changeAddr:X}");
+
+                EnsureParentDir(absOutChangePath);
+                File.WriteAllBytes(absOutChangePath, body);
+
+                string jsonPath = absOutChangePath + ".json";
+                string json = BuildMapChangeJson(width, height, changeAddr);
+                File.WriteAllText(jsonPath, json, Encoding.UTF8);
+
+                var result = new DecompAssetResult { Status = DecompAssetStatus.Ok, Message = $"Map-change overlay exported ({width}x{height})" };
+                result.WrittenPaths.Add(absOutChangePath);
+                result.WrittenPaths.Add(jsonPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-import a <c>.change</c> map-change OVERLAY (the inverse of <see cref="ExportMapChange"/>)
+        /// into a RAW UNCOMPRESSED overlay blob (#1355). The overlay is an IDENTITY copy — there is NO
+        /// <c>[w][h]</c> header prepend, NO <c>&gt;&gt;3</c> shift, NO LZ77 compression — so the output
+        /// blob is the validated body written VERBATIM.
+        ///
+        /// <para>This method NEVER reads <see cref="CoreState.ROM"/>, NEVER LZ77-compresses, NEVER
+        /// mutates the ROM, and NEVER throws. The REQUIRED sidecar dims (validated against the body
+        /// length) make this a genuine source-backed artifact.</para>
+        /// </summary>
+        /// <param name="absInChangePath">Absolute path to the input <c>.change</c> file. A sidecar
+        /// <c>&lt;path&gt;.change.json</c> (the export-side JSON) is REQUIRED.</param>
+        /// <param name="absOutBlobPath">Absolute path for the output RAW overlay blob (identity copy
+        /// of the validated body).</param>
+        public static DecompAssetResult ImportMapChange(string absInChangePath, string absOutBlobPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absInChangePath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .change path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlobPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural validation (required sidecar, format, dims, even length, w*h*2).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, absInChangePath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absInChangePath);
+
+                // The sidecar dims are REQUIRED (the validator already errors when missing, but
+                // re-read here to size-check the body before the identity copy).
+                string sidecar = absInChangePath + ".json";
+                if (!TryReadMapChangeDims(sidecar, out int width, out int height))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .change.json required to read dimensions");
+
+                int expected = width * height * 2;
+                if (body.Length != expected)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != width*height*2 ({width}*{height}*2 = {expected})");
+
+                // The overlay is an identity copy: write the validated body VERBATIM.
+                EnsureParentDir(absOutBlobPath);
+                File.WriteAllBytes(absOutBlobPath, body);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported {width}x{height} map-change overlay to raw blob ({body.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlobPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE structural round-trip proof for a map-change OVERLAY BODY (#1355): true iff
+        /// <paramref name="body"/> is non-null, has even length, the dims are positive, and
+        /// <c>body.Length == width*height*2</c>. Try/catch → false.
+        ///
+        /// <para>This is source-level structure-exact IDENTITY, NOT a byte-pinned ROM round-trip.
+        /// For a byte-exact ROM mismatch proof use <see cref="VerifyMapChangeAgainstRom"/>.</para>
+        /// </summary>
+        public static bool RoundTripMapChangeBody(byte[] body, int width, int height)
+        {
+            try
+            {
+                if (body == null) return false;
+                if (body.Length % 2 != 0) return false;
+                if (width < 1 || height < 1) return false;
+                return body.Length == width * height * 2;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Byte-exact ROM-backed mismatch proof for a map-change OVERLAY (#1355): compare the
+        /// raw ROM overlay region at <paramref name="changeAddr"/> against the <c>.change</c> file
+        /// body byte-for-byte. This is the ONLY ROM-backed verification path (export/import never
+        /// touch the ROM). READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="changeAddr">ROM byte offset of the raw overlay data block.</param>
+        /// <param name="width">Overlay width, 1..255.</param>
+        /// <param name="height">Overlay height, 1..255.</param>
+        /// <param name="absInChangePath">Absolute path to the <c>.change</c> file (with required sidecar).</param>
+        public static DecompAssetResult VerifyMapChangeAgainstRom(ROM rom, uint changeAddr, int width, int height, string absInChangePath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absInChangePath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .change path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Validate the .change file first (required sidecar, format, dims, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, absInChangePath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                if (width < 1 || width > 255 || height < 1 || height > 255)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map-change overlay dimensions {width}x{height} (must be 1..255)");
+
+                long bodyLen = (long)width * height * 2;
+                if (!U.isSafetyOffset(changeAddr, rom)
+                    || changeAddr + bodyLen > rom.Data.Length
+                    || changeAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Overlay region [0x{changeAddr:X}, 0x{changeAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                byte[] body = File.ReadAllBytes(absInChangePath);
+                if (body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != width*height*2 ({width}*{height}*2 = {bodyLen})");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    byte romByte = rom.Data[changeAddr + i];
+                    byte fileByte = body[i];
+                    if (romByte != fileByte)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"Overlay mismatch at byte offset {i}: ROM=0x{romByte:X2} file=0x{fileByte:X2}");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Verified {width}x{height} map-change overlay byte-identical to ROM"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read width/height from a <c>.change.json</c> sidecar (the export-side JSON). NEVER throws;
+        /// returns false on any fault or non-positive dim. Public so the CLI <c>--roundtrip-asset</c>
+        /// path can size the overlay body before calling <see cref="RoundTripMapChangeBody"/>.
+        /// </summary>
+        public static bool TryReadMapChangeDims(string sidecarPath, out int width, out int height)
+        {
+            width = 0; height = 0;
+            try
+            {
+                if (string.IsNullOrEmpty(sidecarPath) || !File.Exists(sidecarPath))
+                    return false;
+                string json = File.ReadAllText(sidecarPath);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("width", out System.Text.Json.JsonElement w)
+                    && w.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    width = w.GetInt32();
+                if (root.TryGetProperty("height", out System.Text.Json.JsonElement h)
+                    && h.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    height = h.GetInt32();
+                return width > 0 && height > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         // ---- ExportText ----
 
         /// <summary>
@@ -831,6 +1082,12 @@ namespace FEBuilderGBA
         {
             // Hand-built to avoid any dependency on System.Text.Json serializer options
             return $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mar-u16-shl3\"\n}}\n";
+        }
+
+        static string BuildMapChangeJson(int w, int h, uint addrOffset)
+        {
+            // Hand-built (same shape as BuildMapJson); srcAddr is provenance metadata ONLY.
+            return $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapchange-u16\"\n}}\n";
         }
     }
 }
