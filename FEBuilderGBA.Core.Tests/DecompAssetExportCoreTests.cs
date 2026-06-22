@@ -612,6 +612,487 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(DecompAssetExportCore.RoundTripMarBody(body));
         }
 
+        // ============================================================================
+        // Map-change OVERLAY (raw uncompressed u16 LE, #1355)
+        // ============================================================================
+
+        // Build a raw u16 LE overlay body (any value valid — no <<3 shift).
+        static byte[] MakeOverlayBody(int w, int h, Func<int, ushort> valueForIndex)
+        {
+            byte[] body = new byte[w * h * 2];
+            for (int i = 0; i < w * h; i++)
+            {
+                ushort v = valueForIndex(i);
+                body[i * 2 + 0] = (byte)(v & 0xFF);
+                body[i * 2 + 1] = (byte)(v >> 8);
+            }
+            return body;
+        }
+
+        static void WriteChangePlusSidecar(string changePath, int w, int h, byte[] body, string format = "febuilder-mapchange-u16")
+        {
+            File.WriteAllBytes(changePath, body);
+            File.WriteAllText(changePath + ".json",
+                $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        // ---- RoundTripMapChangeBody (pure) ----
+
+        [Fact]
+        public void RoundTripMapChangeBody_True_ForEvenWxH2Body()
+        {
+            int w = 4, h = 3;
+            byte[] body = MakeOverlayBody(w, h, i => (ushort)(i * 137)); // arbitrary u16, may be >= 0x2000
+            Assert.True(DecompAssetExportCore.RoundTripMapChangeBody(body, w, h));
+        }
+
+        [Fact]
+        public void RoundTripMapChangeBody_False_ForNull()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(null, 2, 2));
+        }
+
+        [Fact]
+        public void RoundTripMapChangeBody_False_ForOddLength()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(new byte[3], 1, 1));
+        }
+
+        [Fact]
+        public void RoundTripMapChangeBody_False_ForWrongCount()
+        {
+            byte[] body = MakeOverlayBody(2, 2, i => (ushort)i); // 8 bytes
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(body, 3, 3)); // 18 expected
+        }
+
+        [Fact]
+        public void RoundTripMapChangeBody_False_ForDimsBelow1()
+        {
+            byte[] body = MakeOverlayBody(2, 2, i => (ushort)i);
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(body, 0, 2));
+            Assert.False(DecompAssetExportCore.RoundTripMapChangeBody(body, 2, 0));
+        }
+
+        // ---- ImportMapChange ----
+
+        [Fact]
+        public void ImportMapChange_HappyPath_IdentityCopy()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 3, h = 2; // 6 entries
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)(i == 5 ? 0xFFFF : i + 0x1000));
+                string changePath = Path.Combine(dir, "ch.change");
+                WriteChangePlusSidecar(changePath, w, h, body);
+
+                // Capture CoreState.ROM before/after to prove it is untouched.
+                ROM before = CoreState.ROM;
+
+                string outPath = Path.Combine(dir, "ch.change_raw.bin");
+                var result = DecompAssetExportCore.ImportMapChange(changePath, outPath);
+
+                Assert.True(result.Ok, $"ImportMapChange failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+                Assert.Same(before, CoreState.ROM); // ROM reference unchanged
+
+                // Output blob == input body byte-for-byte (identity copy, no header, no shift).
+                byte[] actual = File.ReadAllBytes(outPath);
+                Assert.Equal(body, actual);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChange_RootConfined_OutputLandsWhereTold()
+        {
+            // The Core method writes verbatim to absOutBlobPath; containment is a CLI concern.
+            // Assert the output is exactly the path we passed (under the temp dir).
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)i);
+                string changePath = Path.Combine(dir, "r.change");
+                WriteChangePlusSidecar(changePath, w, h, body);
+
+                string outPath = Path.Combine(dir, "sub", "r.bin");
+                var result = DecompAssetExportCore.ImportMapChange(changePath, outPath);
+
+                Assert.True(result.Ok, result.Message);
+                Assert.Contains(outPath, result.WrittenPaths);
+                Assert.True(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChange_MissingSidecar_ReturnsNotData_NoThrow_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)i);
+                string changePath = Path.Combine(dir, "nosidecar.change");
+                File.WriteAllBytes(changePath, body); // NO sidecar
+
+                string outPath = Path.Combine(dir, "nosidecar.bin");
+                var result = DecompAssetExportCore.ImportMapChange(changePath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChange_NullArgs_ReturnBadArgs()
+        {
+            var r1 = DecompAssetExportCore.ImportMapChange(null, "/tmp/x.bin");
+            Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
+            var r2 = DecompAssetExportCore.ImportMapChange("/tmp/x.change", null);
+            Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
+        }
+
+        // ---- ExportMapChange ----
+
+        [Fact]
+        public void ExportMapChange_WritesRawBody_AndSidecar()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 3, h = 2; // 6 entries → 12 bytes
+                uint addr = 0x200;
+                byte[] romData = new byte[0x400];
+                // Plant overlay u16 LE entries at offset 0x200.
+                ushort[] vals = new ushort[w * h];
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    vals[i] = (ushort)(i * 0x123 + 0x2345); // varied, includes >= 0x2000 (valid for overlay)
+                    romData[addr + i * 2 + 0] = (byte)(vals[i] & 0xFF);
+                    romData[addr + i * 2 + 1] = (byte)(vals[i] >> 8);
+                }
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string changePath = Path.Combine(dir, "c.change");
+                var result = DecompAssetExportCore.ExportMapChange(rom, addr, w, h, changePath);
+
+                Assert.True(result.Ok, $"ExportMapChange failed: {result.Message}");
+                Assert.True(File.Exists(changePath));
+
+                // .change bytes == planted u16 LE.
+                byte[] changeBytes = File.ReadAllBytes(changePath);
+                Assert.Equal(w * h * 2, changeBytes.Length);
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    ushort actual = (ushort)(changeBytes[i * 2] | (changeBytes[i * 2 + 1] << 8));
+                    Assert.Equal(vals[i], actual);
+                }
+
+                // Sidecar has width/height/srcAddr/format.
+                string jsonPath = changePath + ".json";
+                Assert.True(File.Exists(jsonPath));
+                string json = File.ReadAllText(jsonPath);
+                Assert.Contains($"\"width\": {w}", json);
+                Assert.Contains($"\"height\": {h}", json);
+                Assert.Contains($"\"srcAddr\": \"0x{addr:X}\"", json);
+                Assert.Contains("\"format\": \"febuilder-mapchange-u16\"", json);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChange_OutOfBounds_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]); // tiny ROM
+                // addr 0x200 + 10*10*2 = 0x200 + 200 = past the 0x210 end.
+                string changePath = Path.Combine(dir, "oob.change");
+                var result = DecompAssetExportCore.ExportMapChange(rom, 0x200, 10, 10, changePath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(changePath), "no .change must be written on a bounds fault");
+                Assert.False(File.Exists(changePath + ".json"), "no sidecar either");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChange_BadDims_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string changePath = Path.Combine(dir, "baddims.change");
+                var result = DecompAssetExportCore.ExportMapChange(rom, 0x200, 256, 1, changePath); // width > 255
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(changePath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChange_NullRom_ReturnsBadArgs()
+        {
+            var result = DecompAssetExportCore.ExportMapChange(null, 0x200, 2, 2, "/tmp/x.change");
+            Assert.False(result.Ok);
+            Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        [Fact]
+        public void ExportMapChange_DoesNotMutateRomData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 4, h = 4;
+                uint addr = 0x200;
+                byte[] romData = new byte[0x400];
+                for (int i = 0; i < w * h; i++)
+                {
+                    romData[addr + i * 2 + 0] = (byte)(i & 0xFF);
+                    romData[addr + i * 2 + 1] = (byte)(i >> 8);
+                }
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+                byte[] before = (byte[])rom.Data.Clone();
+
+                DecompAssetExportCore.ExportMapChange(rom, addr, w, h, Path.Combine(dir, "x.change"));
+
+                Assert.Equal(before, rom.Data);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- VerifyMapChangeAgainstRom ----
+
+        [Fact]
+        public void VerifyMapChangeAgainstRom_Match_ReturnsOk()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 3, h = 2;
+                uint addr = 0x200;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)(i * 0x1111));
+                byte[] romData = new byte[0x400];
+                Array.Copy(body, 0, romData, addr, body.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string changePath = Path.Combine(dir, "v.change");
+                WriteChangePlusSidecar(changePath, w, h, body);
+
+                var result = DecompAssetExportCore.VerifyMapChangeAgainstRom(rom, addr, w, h, changePath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapChangeAgainstRom_SingleByteEdit_ReturnsNotData_WithFirstDiffOffset()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 3, h = 2;
+                uint addr = 0x200;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)(i + 1));
+                byte[] romData = new byte[0x400];
+                Array.Copy(body, 0, romData, addr, body.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                // Edit byte offset 4 in the file body (not in the ROM).
+                byte[] edited = (byte[])body.Clone();
+                edited[4] ^= 0xFF;
+                string changePath = Path.Combine(dir, "v.change");
+                WriteChangePlusSidecar(changePath, w, h, edited);
+
+                var result = DecompAssetExportCore.VerifyMapChangeAgainstRom(rom, addr, w, h, changePath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Contains("byte offset 4", result.Message);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapChangeAgainstRom_OutOfBoundsAddr_ReturnsNotData_NoThrow()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 10, h = 10;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)i);
+                string changePath = Path.Combine(dir, "oob.change");
+                WriteChangePlusSidecar(changePath, w, h, body);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]); // too small for 200-byte overlay at 0x200
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var result = DecompAssetExportCore.VerifyMapChangeAgainstRom(rom, 0x200, w, h, changePath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Equal(before, rom.Data); // ROM unchanged
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- ValidateMapChange (via DecompAssetValidatorCore) ----
+
+        [Fact]
+        public void ValidateMapChange_CleanOverlay_Ok()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 4, h = 3;
+                byte[] body = MakeOverlayBody(w, h, i => (ushort)(i * 999)); // values may exceed 0x2000
+                string changePath = Path.Combine(dir, "ok.change");
+                WriteChangePlusSidecar(changePath, w, h, body);
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.True(v.Ok, "expected clean overlay to validate: " + DescribeErrors(v));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_OddLength_BadLength()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string changePath = Path.Combine(dir, "odd.change");
+                File.WriteAllBytes(changePath, new byte[5]); // odd
+                File.WriteAllText(changePath + ".json",
+                    "{\n  \"width\": 1,\n  \"height\": 1,\n  \"format\": \"febuilder-mapchange-u16\"\n}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPCHANGE_LENGTH");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_WrongCountVsSidecar_BadLength()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // sidecar says 3x3 (18 bytes) but body is 2x2 (8 bytes).
+                byte[] body = new byte[8];
+                string changePath = Path.Combine(dir, "wrongcount.change");
+                File.WriteAllBytes(changePath, body);
+                File.WriteAllText(changePath + ".json",
+                    "{\n  \"width\": 3,\n  \"height\": 3,\n  \"format\": \"febuilder-mapchange-u16\"\n}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPCHANGE_LENGTH");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_DimsOver255_BadDims()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 256, h = 1;
+                byte[] body = new byte[w * h * 2];
+                string changePath = Path.Combine(dir, "bigdims.change");
+                File.WriteAllBytes(changePath, body);
+                File.WriteAllText(changePath + ".json",
+                    $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"format\": \"febuilder-mapchange-u16\"\n}}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPCHANGE_DIMS");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_MissingSidecar_NoSidecarError()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string changePath = Path.Combine(dir, "nos.change");
+                File.WriteAllBytes(changePath, new byte[8]); // no sidecar
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "MAPCHANGE_NO_SIDECAR");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_WrongFormat_BadFormat()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = new byte[w * h * 2];
+                string changePath = Path.Combine(dir, "wrongfmt.change");
+                File.WriteAllBytes(changePath, body);
+                // Wrong format (the .mar format, not the overlay format).
+                File.WriteAllText(changePath + ".json",
+                    $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"format\": \"febuilder-mar-u16-shl3\"\n}}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPCHANGE_FORMAT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChange_MissingFormat_BadFormat()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int w = 2, h = 2;
+                byte[] body = new byte[w * h * 2];
+                string changePath = Path.Combine(dir, "nofmt.change");
+                File.WriteAllBytes(changePath, body);
+                File.WriteAllText(changePath + ".json",
+                    $"{{\n  \"width\": {w},\n  \"height\": {h}\n}}\n"); // no format field
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChangeOverlay, changePath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPCHANGE_FORMAT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        static string DescribeErrors(AssetValidationResult v)
+        {
+            var sb = new StringBuilder();
+            foreach (AssetIssue e in v.Errors) sb.Append($"[{e.Code}] {e.Message}; ");
+            return sb.ToString();
+        }
+
         // ---- FormatTexts (internal, testable without ROM) ----
 
         [Fact]

@@ -508,25 +508,52 @@ music, portraits, and battle animations.
 
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `text`. |
+| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `mapchange` (raw u16 map-change overlay), `text`, `shop`. |
 | `--out=<path>` | Yes | Output path (project-relative when `--project`; absolute or relative when `--rom`). |
 | `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
-| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`). |
+| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`, `mapchange`). For `mapchange` it is the `change_mar` offset (the record `+8` change pointer, dereferenced). |
 | `--palette-addr=<hex>` | Cond. | ROM address of the palette data (required for `graphics`). |
-| `--width=<int>` | Cond. | Image width in pixels (required for `graphics`). |
-| `--height=<int>` | Cond. | Image height in pixels (required for `graphics`). |
+| `--width=<int>` | Cond. | Image width in pixels (required for `graphics`; overlay width for `mapchange`, record `+3`). |
+| `--height=<int>` | Cond. | Image height in pixels (required for `graphics`; overlay height for `mapchange`, record `+4`). |
 | `--colors=<int>` | No | Palette colors (for `palette` and `graphics`). Default: **16**. |
 | `--bpp=<int>` | No | Bits per pixel for `graphics`: `4` or `8`. Default: **4**. |
 | `--compressed` | No | (graphics only) the source tiles at `--addr` are LZ77-compressed (flag). |
+
+The `mapchange` kind (#1355) exports the **raw uncompressed map-change OVERLAY tile data block** — a flat
+`width*height` array of `u16` LE config-descriptor indices. It is **NOT** the `.mar` tile layout (no `<<3`
+shift, no LZ77) and **NOT** the 12-byte change-RECORD chain (terminator / flagID / PLIST metadata). The body
+is copied byte-for-byte from the (already-uncompressed) ROM; `srcAddr` in the `.change.json` sidecar is
+provenance metadata only. Re-import / round-trip / byte-exact ROM verify are below.
 
 ```
 FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out=gfx/palette.pal
 FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
 FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
+FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
 FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 ```
 
 **Exit code:** 0 on success, non-zero on usage / export fault.
+
+---
+
+### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange)
+
+Re-import an edited map asset to a raw uncompressed blob, prove a body round-trips, or verify a map-change
+overlay byte-for-byte against the ROM. The `map` (`.mar` layout) variants are documented under `--export-asset`
+above; the `mapchange` (#1355) variants are:
+
+| Command | Reads ROM? | Description |
+|---|---|---|
+| `--import-asset --kind=mapchange --in=<x.change> --out=<x.bin>` | No | Identity copy of the validated `.change` body to a raw blob (NO `[w][h]` header, NO `>>3` shift, NO LZ77). Requires the `.change.json` sidecar. |
+| `--roundtrip-asset --kind=mapchange --in=<x.change>` | No | Structure-exact identity proof (`body.Length == width*height*2`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
+| `--verify-asset --kind=mapchange --in=<x.change> --addr=<hex> --width --height (--rom\|--project)` | **Yes (read-only)** | Byte-exact ROM-backed mismatch proof — the ONLY ROM-backed verification path. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
+
+```
+FEBuilderGBA.CLI --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin
+FEBuilderGBA.CLI --roundtrip-asset --kind=mapchange --in=map/chapter1.change
+FEBuilderGBA.CLI --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change
+```
 
 ---
 
@@ -618,14 +645,14 @@ FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.n
 
 ### `--validate-asset`
 
-Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar).
+Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar); `.change` map-change overlay (`--kind=mapchange`, #1355) → REQUIRED `.change.json` sidecar declaring `format "febuilder-mapchange-u16"` + dims 1..255, even length, `length == width*height*2` (NO `<<3` invariant — overlay indices are raw u16).
 
 The `portrait-package` kind (#1350) is a **multi-file PACKAGE validator** over a DIRECTORY: it requires exactly one composite sheet PNG, reuses the single-PNG structural checks, then verifies the canonical 128×112 slot geometry (mini/eye/mouth slots fit; a 96×80 main-mug-only sheet is `INCOMPLETE_PACKAGE` unless `--allow-main-only`), the 4bpp (≤16-color) portrait palette cap, and **palette consistency** between the sheet's embedded PLTE and an optional JASC `.pal` sidecar (count + per-entry RGB). It still never loads the ROM.
 
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`, `portrait-package`. |
-| `--in=<srcAsset>` | Required (single-file kinds) | Input asset file (PNG / `.pal` / `.mar`). |
+| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`, `mapchange`, `portrait-package`. |
+| `--in=<srcAsset>` | Required (single-file kinds) | Input asset file (PNG / `.pal` / `.mar` / `.change`). |
 | `--path=<dir>` | Required for `--kind=portrait-package` | Package directory (one 128×112 sheet PNG + optional JASC `.pal`). |
 | `--allow-main-only` | Optional (`portrait-package`) | Accept a 96×80 main-mug-only sheet (warn instead of error). |
 | `--project=<dir>` | Optional (`portrait-package`) | Confine `--path` to the decomp project root (rejects absolute / escaping paths; **never loads the preview ROM**). |

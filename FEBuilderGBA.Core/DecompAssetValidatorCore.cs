@@ -23,6 +23,11 @@ namespace FEBuilderGBA
         /// <summary>.mar tile layout binary (validated against its sidecar JSON).</summary>
         MapLayout,
         /// <summary>
+        /// Raw uncompressed u16 LE map-change overlay tile data block (#1355). NOT the .mar
+        /// layout, NOT the change-record chain.
+        /// </summary>
+        MapChangeOverlay,
+        /// <summary>
         /// A multi-file PORTRAIT PACKAGE directory (#1350): a single 128x112 composite
         /// portrait sheet PNG + an optional sidecar JASC .pal. Validated for sheet-slot
         /// geometry and palette consistency (PLTE-vs-JASC), NOT write-back / frame order.
@@ -137,6 +142,9 @@ namespace FEBuilderGBA
                         break;
                     case AssetKind.MapLayout:
                         ValidateMar(path, r);
+                        break;
+                    case AssetKind.MapChangeOverlay:
+                        ValidateMapChange(path, r);
                         break;
                     case AssetKind.Graphics:
                     case AssetKind.Portrait:
@@ -397,8 +405,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Map a kind string ("graphics"/"palette"/"portrait"/"icon"/"map"|"maplayout"/
-        /// "portrait-package"|"portraitpackage", case-insensitive) to an
-        /// <see cref="AssetKind"/>; null when unrecognized.
+        /// "mapchange"|"mapchange-overlay"/"portrait-package"|"portraitpackage",
+        /// case-insensitive) to an <see cref="AssetKind"/>; null when unrecognized.
         /// </summary>
         public static AssetKind? ParseKind(string s)
         {
@@ -411,6 +419,8 @@ namespace FEBuilderGBA
                 case "icon": return AssetKind.Icon;
                 case "map":
                 case "maplayout": return AssetKind.MapLayout;
+                case "mapchange":
+                case "mapchange-overlay": return AssetKind.MapChangeOverlay;
                 case "portrait-package":
                 case "portraitpackage": return AssetKind.PortraitPackage;
                 default: return null;
@@ -752,6 +762,109 @@ namespace FEBuilderGBA
                 if (root.TryGetProperty("height", out JsonElement h) && h.ValueKind == JsonValueKind.Number)
                     height = h.GetInt32();
                 return width > 0 && height > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ------------------------------------------------ MapChangeOverlay (raw u16 LE)
+
+        /// <summary>
+        /// Validate a RAW UNCOMPRESSED map-change OVERLAY tile data block (#1355) — a flat
+        /// array of <c>width*height</c> u16 LE config-descriptor indices. Unlike <see cref="ValidateMar"/>
+        /// there is NO <c>&lt;&lt;3</c> low-3-bits invariant (overlay indices are raw u16, any value
+        /// is valid) and almost no intrinsic structure, so the sidecar JSON is REQUIRED (it carries
+        /// the dimensions AND the format declaration). Checks:
+        /// <list type="bullet">
+        ///   <item>sidecar <c>&lt;name&gt;.json</c> present and declares <c>format ==
+        ///   "febuilder-mapchange-u16"</c> — else <c>MAPCHANGE_NO_SIDECAR</c>/<c>BAD_MAPCHANGE_FORMAT</c>;</item>
+        ///   <item>dimensions readable and in u8 range 1..255 — else <c>BAD_MAPCHANGE_DIMS</c>;</item>
+        ///   <item>body length even AND equal to <c>width*height*2</c> — else <c>BAD_MAPCHANGE_LENGTH</c>.</item>
+        /// </list>
+        /// NEVER reads the ROM, NEVER throws.
+        /// </summary>
+        static void ValidateMapChange(string path, AssetValidationResult r)
+        {
+            byte[] body;
+            try { body = File.ReadAllBytes(path); }
+            catch (Exception ex)
+            {
+                r.Errors.Add(new AssetIssue("READ_FAILED", "Could not read file: " + ex.Message));
+                return;
+            }
+
+            // The overlay body has almost no intrinsic invariant, so the sidecar is REQUIRED
+            // (it carries both the dimensions and the format declaration).
+            string sidecar = path + ".json";
+            if (!File.Exists(sidecar))
+            {
+                r.Errors.Add(new AssetIssue("MAPCHANGE_NO_SIDECAR",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' is required for a map-change overlay (it carries width/height and the format declaration)."));
+                return;
+            }
+
+            // The sidecar MUST declare format == "febuilder-mapchange-u16".
+            if (!TryReadSidecarFormat(sidecar, out string format)
+                || !string.Equals(format, "febuilder-mapchange-u16", StringComparison.Ordinal))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_FORMAT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}.json' must declare format \"febuilder-mapchange-u16\"; got \"{format ?? "(missing)"}\"."));
+                return;
+            }
+
+            // Dimensions are required and must fit u8 (1..255).
+            if (!TryReadSidecarDims(sidecar, out int width, out int height))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_DIMS",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare positive integer width/height."));
+                return;
+            }
+            if (width < 1 || width > 255 || height < 1 || height > 255)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_DIMS",
+                    $"Dimensions {width}x{height} are out of the u8 range 1..255."));
+                return;
+            }
+
+            // Length must be even (a sequence of u16 entries).
+            if (body.Length % 2 != 0)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_LENGTH",
+                    $"File length {body.Length} is odd; a map-change overlay is a flat array of u16 entries."));
+                return;
+            }
+
+            // Length must equal width*height*2 exactly.
+            int expected = width * height * 2;
+            if (body.Length != expected)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_LENGTH",
+                    $"File length {body.Length} != width*height*2 ({width}*{height}*2 = {expected})."));
+            }
+        }
+
+        /// <summary>
+        /// Read the root-object <c>format</c> string property from a sidecar JSON. NEVER throws;
+        /// returns false (and <paramref name="format"/> = null) on any fault or a missing/non-string
+        /// property. Mirrors <see cref="TryReadSidecarDims"/>'s shape.
+        /// </summary>
+        static bool TryReadSidecarFormat(string sidecar, out string format)
+        {
+            format = null;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return false;
+                if (root.TryGetProperty("format", out JsonElement f) && f.ValueKind == JsonValueKind.String)
+                {
+                    format = f.GetString();
+                    return format != null;
+                }
+                return false;
             }
             catch
             {

@@ -369,11 +369,20 @@ namespace FEBuilderGBA.CLI
                 return RunImportAsset(argsDic);
             }
 
-            // --roundtrip-asset --kind=map --in=<x.mar>: validate + prove the .mar BODY
-            // round-trips losslessly (#1148). READ-ONLY, never loads a ROM.
+            // --roundtrip-asset --kind=map|mapchange --in=<x.mar|x.change>: validate + prove the
+            // BODY round-trips (#1148/#1355). READ-ONLY, never loads a ROM.
             if (argsDic.ContainsKey("--roundtrip-asset"))
             {
                 return RunRoundtripAsset(argsDic);
+            }
+
+            // --verify-asset --kind=mapchange --in=<x.change> --addr --width --height (+ ROM via
+            // --project/--rom): byte-exact ROM-backed mismatch proof for a map-change overlay
+            // (#1355). Reads the ROM READ-ONLY; never mutates it. Must precede the bare --project
+            // rom-info fallthrough so --verify-asset --project is not swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--verify-asset"))
+            {
+                return RunVerifyAsset(argsDic);
             }
 
             // --project=<dir> [--rom-info]: open a decomp project and report its
@@ -542,6 +551,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --max-gap=<int>        Optional: small-gap merge distance for range coalescing (default 16)");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
+            Console.WriteLine("    --kind=mapchange       Raw uncompressed map-change OVERLAY tile data block (needs --addr=<change_mar hex>, --width, --height); NOT the .mar layout, NOT the record chain (#1355)");
             Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
             Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
             Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map)");
@@ -587,13 +597,19 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
             Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
             Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
-            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT to a raw uncompressed tilemap blob in the source tree (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map             Only map layout is supported (.mar + sidecar .mar.json required)");
-            Console.WriteLine("    --in=<x.mar>           Input .mar map layout file");
-            Console.WriteLine("    --out=<x.bin>          Output raw uncompressed tilemap blob ([w][h] + w*h raw u16 LE); project-relative when --project");
-            Console.WriteLine("  --roundtrip-asset        Validate + prove a .mar map LAYOUT body round-trips losslessly (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map             Only map layout is supported");
-            Console.WriteLine("    --in=<x.mar>           Input .mar map layout file");
+            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change map-change OVERLAY) to a raw uncompressed blob in the source tree (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange   map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (.change + .change.json, identity copy) (#1355)");
+            Console.WriteLine("    --in=<x.mar|x.change>  Input asset file");
+            Console.WriteLine("    --out=<x.bin>          Output raw uncompressed blob; project-relative when --project");
+            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay body round-trips (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange   map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355)");
+            Console.WriteLine("    --in=<x.mar|x.change>  Input asset file");
+            Console.WriteLine("  --verify-asset           Byte-exact ROM-backed mismatch proof for a map-change OVERLAY (reads ROM READ-ONLY; never mutates) (#1355)");
+            Console.WriteLine("    --kind=mapchange       Only map-change overlay is supported");
+            Console.WriteLine("    --in=<x.change>        Input .change overlay file (+ required .change.json sidecar)");
+            Console.WriteLine("    --addr=<hex>           change_mar offset of the overlay block in the ROM");
+            Console.WriteLine("    --width=<int> --height=<int>  Overlay dimensions (record +3/+4)");
+            Console.WriteLine("    --rom=<path> | --project=<dir>  ROM source (the preview build for --project)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -623,6 +639,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out=gfx/palette.pal");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=shop --rom=rom.gba --out=shops/");
             Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md");
@@ -633,7 +650,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=palette --in=gfx/palette.pal");
             Console.WriteLine("  FEBuilderGBA.CLI --validate-asset --kind=portrait-package --path portraits/eirika/");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=map/chapter1.mar");
+            Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=mapchange --in=map/chapter1.change");
+            Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
@@ -4792,17 +4812,17 @@ namespace FEBuilderGBA.CLI
         static int RunImportAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --kind=map"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || kind.Value != AssetKind.MapLayout)
-            { Console.Error.WriteLine("Error: only --kind=map is supported for --import-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
+            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --import-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar>"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar|x.change>"); return 1; }
             string absIn = argsDic["--in"];
 
             if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --out=<x.tmap_raw.bin>"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --out=<x.bin>"); return 1; }
             string outRel = argsDic["--out"];
 
             RomLoader.InitEnvironment();
@@ -4833,7 +4853,9 @@ namespace FEBuilderGBA.CLI
                 return 2;
             }
 
-            DecompAssetResult result = DecompAssetExportCore.ImportMap(absIn, absOut);
+            DecompAssetResult result = kind.Value == AssetKind.MapChangeOverlay
+                ? DecompAssetExportCore.ImportMapChange(absIn, absOut)
+                : DecompAssetExportCore.ImportMap(absIn, absOut);
             if (result.Ok)
             {
                 Console.WriteLine(result.Message);
@@ -4855,16 +4877,16 @@ namespace FEBuilderGBA.CLI
         static int RunRoundtripAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || kind.Value != AssetKind.MapLayout)
-            { Console.Error.WriteLine("Error: only --kind=map is supported for --roundtrip-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
+            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --roundtrip-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar>"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar|x.change>"); return 1; }
             string inPath = argsDic["--in"];
 
-            AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapLayout, inPath);
+            AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(kind.Value, inPath);
             if (!v.Ok)
             {
                 foreach (AssetIssue e in v.Errors)
@@ -4875,12 +4897,27 @@ namespace FEBuilderGBA.CLI
             byte[] body;
             try { body = File.ReadAllBytes(inPath); }
             catch (Exception ex)
-            { Console.Error.WriteLine($"Error: could not read .mar: {ex.Message}"); return 2; }
+            { Console.Error.WriteLine($"Error: could not read input: {ex.Message}"); return 2; }
 
-            bool ok = DecompAssetExportCore.RoundTripMarBody(body);
+            bool ok;
+            string okMsg;
+            if (kind.Value == AssetKind.MapChangeOverlay)
+            {
+                // The overlay body has no intrinsic dims — read them from the REQUIRED sidecar.
+                if (!DecompAssetExportCore.TryReadMapChangeDims(inPath + ".json", out int w, out int h))
+                { Console.Error.WriteLine("Error: sidecar .change.json required to read dimensions"); return 2; }
+                ok = DecompAssetExportCore.RoundTripMapChangeBody(body, w, h);
+                okMsg = "Round-trip OK (structure-exact map-change overlay body)";
+            }
+            else
+            {
+                ok = DecompAssetExportCore.RoundTripMarBody(body);
+                okMsg = "Round-trip OK (lossless map layout body)";
+            }
+
             if (ok)
             {
-                Console.WriteLine("Round-trip OK (lossless map layout body)");
+                Console.WriteLine(okMsg);
                 return 0;
             }
 
@@ -4889,15 +4926,101 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
-        /// --export-asset: export a ROM asset (palette/graphics/map/text) to a decomp source-tree path.
-        /// Supports both --project=&lt;dir&gt; (with path containment) and --rom=&lt;path&gt; (classic, no containment).
-        /// READ-ONLY: never modifies the ROM.
+        /// --verify-asset: byte-exact ROM-backed mismatch proof for a map-change OVERLAY (#1355).
+        /// Compares the raw ROM overlay region at <c>--addr</c> against the <c>.change</c> file body
+        /// byte-for-byte. This path DOES load the ROM (READ-ONLY) — it is the ONLY ROM-backed
+        /// verification path (export/import never touch the ROM). Only <c>--kind=mapchange</c> is
+        /// supported. With <c>--project=&lt;dir&gt;</c> the ROM is the project's preview build; otherwise
+        /// <c>--rom=&lt;path&gt;</c>. Exit 0 byte-identical, 2 mismatch / fault, 1 usage error.
+        /// </summary>
+        static int RunVerifyAsset(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange"); return 1; }
+            AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
+            if (kind == null || kind.Value != AssetKind.MapChangeOverlay)
+            { Console.Error.WriteLine("Error: only --kind=mapchange is supported for --verify-asset"); return 1; }
+
+            if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
+            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change>"); return 1; }
+            string absIn = argsDic["--in"];
+
+            if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+            { Console.Error.WriteLine("Error: --verify-asset requires --addr=<hex>"); return 1; }
+            if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
+            { Console.Error.WriteLine("Error: --verify-asset requires --width=<int>"); return 1; }
+            if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
+            { Console.Error.WriteLine("Error: --verify-asset requires --height=<int>"); return 1; }
+
+            // ---- ROM source: --project or --rom ----
+            bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
+            bool isRom = argsDic.ContainsKey("--rom") && !string.IsNullOrEmpty(argsDic["--rom"]);
+            if (!isProject && !isRom)
+            { Console.Error.WriteLine("Error: --verify-asset requires --rom=<path> or --project=<dir>"); return 1; }
+
+            RomLoader.InitEnvironment();
+
+            if (isProject)
+            {
+                string projectDir = argsDic["--project"];
+                if (!RomLoader.LoadProject(projectDir))
+                    return 1;
+            }
+            else
+            {
+                string romPath = argsDic["--rom"];
+                if (!File.Exists(romPath))
+                { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+                string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+                if (!RomLoader.LoadRom(romPath, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+            }
+
+            // ---- Parse hex address + int dims (same convention as RunExportAsset) ----
+            static bool TryParseAddr(string s, out uint result)
+            {
+                result = 0;
+                if (string.IsNullOrEmpty(s)) return false;
+                string clean = s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s.Substring(2) : s;
+                if (!uint.TryParse(clean, System.Globalization.NumberStyles.HexNumber, null, out result))
+                    return false;
+                result = U.toOffset(result);
+                return true;
+            }
+
+            if (!TryParseAddr(argsDic["--addr"], out uint addr))
+            { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+            if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
+            { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
+            if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
+            { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
+
+            DecompAssetResult result = DecompAssetExportCore.VerifyMapChangeAgainstRom(CoreState.ROM, addr, width, height, absIn);
+            if (result.Ok)
+            {
+                Console.WriteLine(result.Message);
+                return 0;
+            }
+
+            Console.Error.WriteLine($"Error: {result.Message}");
+            return 2;
+        }
+
+        /// <summary>
+        /// --export-asset: export a ROM asset (palette/graphics/map/mapchange/text/shop) to a decomp
+        /// source-tree path. Supports both --project=&lt;dir&gt; (with path containment) and
+        /// --rom=&lt;path&gt; (classic, no containment). READ-ONLY: never modifies the ROM.
+        ///
+        /// <c>--kind=mapchange</c> (#1355) exports the RAW UNCOMPRESSED map-change OVERLAY tile data
+        /// block (requires <c>--addr</c> = the change_mar offset, <c>--width</c>, <c>--height</c>) — NOT
+        /// the .mar tile layout and NOT the 12-byte change-record chain.
         /// </summary>
         static int RunExportAsset(Dictionary<string, string> argsDic)
         {
             // ---- Required: --kind ----
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|text|shop>"); return 1; }
+            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|mapchange|text|shop>"); return 1; }
             string kind = argsDic["--kind"].ToLowerInvariant();
 
             // ---- Required: --out ----
@@ -5020,6 +5143,27 @@ namespace FEBuilderGBA.CLI
                     break;
                 }
 
+                case "mapchange":
+                case "mapchange-overlay":
+                {
+                    // Map-change OVERLAY tile data block (#1355): a RAW UNCOMPRESSED u16 LE array.
+                    // --addr is the change_mar offset (record +8 pointer, dereferenced), plus dims.
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapchange requires --addr=<hex>"); return 1; }
+                    if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapchange requires --width=<int>"); return 1; }
+                    if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapchange requires --height=<int>"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    if (!int.TryParse(argsDic["--width"], out int mcWidth) || mcWidth <= 0)
+                    { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
+                    if (!int.TryParse(argsDic["--height"], out int mcHeight) || mcHeight <= 0)
+                    { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
+                    result = DecompAssetExportCore.ExportMapChange(rom, addr, mcWidth, mcHeight, absOut);
+                    break;
+                }
+
                 case "text":
                 {
                     // --out is treated as a directory for text export
@@ -5037,7 +5181,7 @@ namespace FEBuilderGBA.CLI
                 }
 
                 default:
-                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, text, shop");
+                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, mapchange, text, shop");
                     return 1;
             }
 

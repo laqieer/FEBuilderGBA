@@ -1,0 +1,43 @@
+=== #1355 map-change overlay source export/import/verify — CLI proof ===
+ROM: roms/FE8U.gba (real FE8U, read-only). Overlay region: 0x300000, 15x10 (raw u16 LE).
+  (an arbitrary in-bounds region used only to prove export reads the ROM and verify is byte-exact;
+   srcAddr is provenance metadata only — no symbol/owner is fabricated.)
+
+$ --export-asset --kind=mapchange --rom=roms/FE8U.gba --addr=0x300000 --width=15 --height=10 --out=chapter.change
+Wrote: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-ac3b7431f8b96038e\pr-screenshots\_chapter.change
+Wrote: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-ac3b7431f8b96038e\pr-screenshots\_chapter.change.json
+exit=0
+
+--- sidecar chapter.change.json ---
+﻿{
+  "width": 15,
+  "height": 10,
+  "srcAddr": "0x300000",
+  "format": "febuilder-mapchange-u16"
+}
+--- chapter.change size ---
+300
+
+$ --import-asset --kind=mapchange --in=chapter.change --out=chapter.change_raw.bin   (ROM-FREE, identity copy)
+Imported 15x10 map-change overlay to raw blob (300 bytes)
+Wrote: C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-ac3b7431f8b96038e\pr-screenshots\_chapter.change_raw.bin
+exit=0
+identity-copy byte-for-byte match: YES
+
+$ --roundtrip-asset --kind=mapchange --in=chapter.change   (ROM-FREE, structure-exact)
+Round-trip OK (structure-exact map-change overlay body)
+exit=0
+
+$ --verify-asset --kind=mapchange --rom=roms/FE8U.gba --addr=0x300000 --width=15 --height=10 --in=chapter.change   (MATCH)
+Verified 15x10 map-change overlay byte-identical to ROM
+exit=0
+
+--- corrupt 1 byte of chapter.change, re-verify against ROM (MISMATCH expected) ---
+$ --verify-asset --kind=mapchange ... --in=chapter.change   (MISMATCH)
+Error: Overlay mismatch at byte offset 0: ROM=0xFE file=0x01
+exit=2
+
+--- validate the corrupted-but-structurally-valid file (still structurally OK; length unchanged) ---
+$ --validate-asset --kind=mapchange --in=chapter.change
+Validation: 0 error(s), 0 warning(s) - OK
+exit=0
