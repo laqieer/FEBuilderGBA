@@ -146,7 +146,13 @@ namespace FEBuilderGBA
 
             // ---- ManualMigration rows: variable-length / raw-binary / pointer data. ----
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list save",
-                DecompCoverage.ManualMigration, "Sentinel-terminated variable-length lists; no clean source-of-truth C array"));
+                DecompCoverage.ManualMigration, "In-place GUI save stays ROM-only/manual: variable-length ITEM_NONE-terminated u16 lists reached via scattered pointers (hensei/worldmap/event-cond) — no manifest mapping from a ROM shop address to its owning decomp list symbol, and no variable-length writer/repoint model yet"));
+            // #1149: shop lists have no manifest-owned rectangular C-array the in-place row
+            // writer can target, but they CAN be migrated to source via an EA .event export
+            // (distinct Action, so the SourceBackedWriter mirror invariant in
+            // DecompSourceWriterCore.SourceBackedTables is unaffected).
+            rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list export",
+                DecompCoverage.SourceTreeExporter, "EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip)"));
             rows.Add(new DecompAuditRow("Map Editor", "map_asset_binaries", "Raw map asset save (GUI: OBJ/TSA/anim/map-change)",
                 DecompCoverage.ManualMigration, "GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset"));
             rows.Add(new DecompAuditRow("Event Editor", "chapter_event_pointers", "Event/difficulty pointer fields",

@@ -573,7 +573,159 @@ namespace FEBuilderGBA
             }
         }
 
+        // ---- ExportShops (#1149) ----
+
+        /// <summary>
+        /// One shop's exportable contents: a display label, the source address of its
+        /// sentinel-terminated item list, the address of the 4-byte pointer slot that
+        /// references it, and the <c>u16</c> item entries (terminator excluded). Used by
+        /// <see cref="ExportShops"/> and the pure <see cref="FormatShops"/> formatter
+        /// (testable without a ROM).
+        /// </summary>
+        internal readonly struct ShopExportRecord
+        {
+            /// <summary>Human-readable shop label (e.g. "Preparation Shop", "Ch1 Armory").</summary>
+            public readonly string Label;
+            /// <summary>ROM byte offset of the shop's item list (the ORG target).</summary>
+            public readonly uint ShopAddr;
+            /// <summary>ROM byte offset of the 4-byte pointer slot that references the list.</summary>
+            public readonly uint PointerSlotAddr;
+            /// <summary>
+            /// The raw <c>u16</c> item entries, in order, terminator excluded. Each entry is a
+            /// full 16-bit value — the low byte is the item id; the high byte is preserved
+            /// verbatim (it is meaningful to some hacks and to the decomp <c>u16[]</c> shop
+            /// lists, which are terminated by <c>ITEM_NONE</c>, i.e. 0x0000).
+            /// </summary>
+            public readonly List<ushort> Items;
+            public ShopExportRecord(string label, uint shopAddr, uint pointerSlotAddr, List<ushort> items)
+            { Label = label ?? ""; ShopAddr = shopAddr; PointerSlotAddr = pointerSlotAddr; Items = items ?? new List<ushort>(); }
+        }
+
+        /// <summary>
+        /// Export every shop's item list to a reviewable EA <c>.event</c> MIGRATION artifact
+        /// (<c>shops.event</c> under <paramref name="absOutDir"/>).
+        ///
+        /// <para>Shop inventories in the GBA FE engine are NOT a manifest-owned rectangular
+        /// C-array row table: each is a variable-length, <b>sentinel-terminated</b> (a zero
+        /// <c>u16</c> entry, i.e. <c>ITEM_NONE</c>) list of <c>u16</c> item entries reached
+        /// only via scattered pointers (the hensei preparation pointer, FE8 worldmap-point
+        /// shop pointers, and per-map event-cond OBJECT records). The fireemblem8u decomp
+        /// tree DOES carry source-level shop-list symbols (e.g. <c>ItemList_WM_*Armory</c> in
+        /// <c>src/worldmap_shop_data.c</c>, <c>GMapNodeData.{armory,vendor,secretShop}</c>
+        /// pointers, and <c>Armory(...)</c> event macros), but FEBuilder has no manifest
+        /// mapping from a ROM shop address / pointer slot to its owning list symbol, and no
+        /// variable-length list writer/repoint model. So the
+        /// <see cref="DecompSourceWriterCore"/> in-place row rewriter cannot target shops —
+        /// the decomp migration path for shops is this EXPORT, not an in-place writer.</para>
+        ///
+        /// <para>The emitted file is a MIGRATION AID, not a byte-pinned round-trip (exactly
+        /// like <see cref="ExportText"/>): it recreates each shop list at its recorded
+        /// address via <c>ORG</c> + <c>SHORT</c> (u16) directives the decomp build
+        /// understands. The contributor drops it into the source tree and ORGs/repoints as
+        /// needed.</para>
+        ///
+        /// READ-ONLY (never mutates the ROM) and NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="absOutDir">Absolute path to the output directory (created if absent).</param>
+        public static DecompAssetResult ExportShops(ROM rom, string absOutDir)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Output directory path is null or empty");
+
+                var records = new List<ShopExportRecord>();
+                List<AddrResult> shops = ItemShopCore.MakeShopList(rom) ?? new List<AddrResult>();
+                uint romLen = (uint)rom.Data.Length;
+                foreach (AddrResult shop in shops)
+                {
+                    var items = new List<ushort>();
+                    for (uint i = 0; i < ItemShopCore.MAX_SCAN_ENTRIES; i++)
+                    {
+                        uint entryAddr = shop.addr + i * ItemShopCore.ENTRY_SIZE;
+                        if (entryAddr + ItemShopCore.ENTRY_SIZE > romLen) break;
+                        // Shop entries are u16; the list ends at a zero u16 (ITEM_NONE).
+                        // The enumerator (ItemShopCore) terminates on the low byte == 0,
+                        // so mirror that exactly to stay consistent with the editor view.
+                        if (rom.u8(entryAddr) == 0) break;   // sentinel terminator
+                        items.Add((ushort)rom.u16(entryAddr));
+                    }
+                    records.Add(new ShopExportRecord(shop.name, shop.addr, shop.tag, items));
+                }
+
+                string body = FormatShops(records);
+
+                Directory.CreateDirectory(absOutDir);
+                string outPath = Path.Combine(absOutDir, "shops.event");
+                File.WriteAllText(outPath, body, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Exported {records.Count} shop(s)"
+                };
+                result.WrittenPaths.Add(outPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
         // ---- Internal formatters (testable without ROM) ----
+
+        /// <summary>
+        /// Format shop records into the <c>shops.event</c> migration body. PURE — extracted
+        /// so unit tests can exercise the exact byte-stable format without a ROM. NEVER throws.
+        ///
+        /// <para>Per shop: a comment header (label + source list address + pointer-slot
+        /// address), then <c>ORG 0x&lt;addr&gt;</c>, one <c>SHORT 0xNNNN</c> (u16) line per
+        /// item (full 16-bit value, item name from the low byte in a trailing comment), then
+        /// a <c>SHORT 0x0000</c> terminator (<c>ITEM_NONE</c>). Shops are separated by a
+        /// blank line. A null record list / null inner item list is treated as empty.</para>
+        /// </summary>
+        internal static string FormatShops(List<ShopExportRecord> shops)
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                sb.AppendLine("// FEBuilderGBA shop-list migration export (#1149)");
+                sb.AppendLine("// Migration aid (NOT source-backed in-place editing, NOT a byte-pinned");
+                sb.AppendLine("// round-trip): recreates each shop's u16 item list, ITEM_NONE-terminated,");
+                sb.AppendLine("// at its source address. ORG/repoint into your decomp tree as needed.");
+                sb.AppendLine();
+
+                if (shops != null)
+                {
+                    foreach (ShopExportRecord shop in shops)
+                    {
+                        sb.AppendLine($"// Shop: {shop.Label}  (list @ 0x{shop.ShopAddr:X}, ptr-slot @ 0x{shop.PointerSlotAddr:X})");
+                        sb.AppendLine($"ORG 0x{shop.ShopAddr:X}");
+                        var items = shop.Items;
+                        if (items != null)
+                        {
+                            foreach (ushort entry in items)
+                            {
+                                // Item id is the low byte; the high byte is a flag preserved verbatim.
+                                string itemName = NameResolver.GetItemName((uint)(entry & 0xFF)) ?? "";
+                                sb.AppendLine($"SHORT 0x{entry:X4}   // {itemName}");
+                            }
+                        }
+                        sb.AppendLine("SHORT 0x0000   // terminator (ITEM_NONE)");
+                        sb.AppendLine();
+                    }
+                }
+            }
+            catch
+            {
+                // never throw at the boundary — return whatever was built
+            }
+            return sb.ToString();
+        }
 
         /// <summary>
         /// Format text entries into the two output file bodies.

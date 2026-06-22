@@ -237,6 +237,55 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(0, code);
         }
 
+        // ---- --export-asset --kind=shop (#1149) ----
+
+        [SkippableFact]
+        public void ExportAsset_Shop_Rom_ExitsZero_WritesShopsEvent()
+        {
+            Skip.If(FirstRom == null, "No ROM available for export-asset shop test");
+
+            string dir = NewTempDir("shop");
+            try
+            {
+                // --out is a directory for shop export (like text); shops.event is written inside.
+                string args = $"--export-asset --kind=shop --rom=\"{FirstRom}\" --out=\"{dir}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--export-asset --kind=shop exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Wrote:", stdout);
+
+                string shopsEvent = Path.Combine(dir, "shops.event");
+                Assert.True(File.Exists(shopsEvent), $"Expected shops.event at {shopsEvent}");
+
+                string content = File.ReadAllText(shopsEvent);
+                // The migration header is always present; a real ROM has at least one shop,
+                // so the artifact contains ORG + u16 SHORT directives + the ITEM_NONE terminator.
+                Assert.Contains("shop-list migration export (#1149)", content);
+                Assert.Contains("ORG 0x", content);
+                Assert.Contains("SHORT 0x", content);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ExportAsset_UnknownKind_ExitsNonZero()
+        {
+            // A bogus kind (and the new "shop" kind being known) — unknown kind still errors.
+            var (code, _, stderr) = RunWithRetry("--export-asset --kind=bogus --rom=fake.gba --out=x/");
+            Assert.NotEqual(0, code);
+        }
+
+        [Fact]
+        public void ExportAsset_Shop_MissingOut_ExitsNonZero()
+        {
+            var (code, _, _) = RunWithRetry("--export-asset --kind=shop --rom=fake.gba");
+            Assert.NotEqual(0, code);
+        }
+
         // ---- --import-asset / --roundtrip-asset (.mar map layout, #1148) ----
 
         // Build a synthetic .mar body of (rawTile<<3) LE entries + matching sidecar.

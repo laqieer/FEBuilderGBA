@@ -533,7 +533,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --max-gap=<int>        Optional: small-gap merge distance for range coalescing (default 16)");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text (map data is always LZ77-decompressed)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
             Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
             Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map)");
             Console.WriteLine("    --colors=<int>         Number of palette colors (default 16; for --kind=palette and --kind=graphics)");
@@ -605,6 +605,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=shop --rom=rom.gba --out=shops/");
             Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md");
             Console.WriteLine("  FEBuilderGBA.CLI --nmm-to-manifest --in=items.nmm --table=items --out=items.tables.json");
             Console.WriteLine("  FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.nmm");
@@ -4794,7 +4795,7 @@ namespace FEBuilderGBA.CLI
         {
             // ---- Required: --kind ----
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|text>"); return 1; }
+            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|text|shop>"); return 1; }
             string kind = argsDic["--kind"].ToLowerInvariant();
 
             // ---- Required: --out ----
@@ -4924,8 +4925,17 @@ namespace FEBuilderGBA.CLI
                     break;
                 }
 
+                case "shop":
+                {
+                    // --out is treated as a directory for shop export (#1149). Shops have no
+                    // in-place C-array owner, so the decomp path is an EA .event migration
+                    // artifact (shops.event) recreating each sentinel-terminated item list.
+                    result = DecompAssetExportCore.ExportShops(rom, absOut);
+                    break;
+                }
+
                 default:
-                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, text");
+                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, text, shop");
                     return 1;
             }
 

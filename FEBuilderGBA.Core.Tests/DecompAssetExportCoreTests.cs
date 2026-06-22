@@ -785,6 +785,106 @@ namespace FEBuilderGBA.Core.Tests
             var ex5 = Record.Exception(() => DecompAssetExportCore.ResolveSourcePath(null, null));
             Assert.Null(ex5);
         }
+
+        // ---- ExportShops / FormatShops (#1149) ----
+
+        static DecompAssetExportCore.ShopExportRecord MakeShop(
+            string label, uint shopAddr, uint slotAddr, params ushort[] items)
+            => new DecompAssetExportCore.ShopExportRecord(label, shopAddr, slotAddr,
+                new System.Collections.Generic.List<ushort>(items ?? Array.Empty<ushort>()));
+
+        [Fact]
+        public void FormatShops_NullList_DoesNotThrow_EmitsHeaderOnly()
+        {
+            string body = DecompAssetExportCore.FormatShops(null);
+            Assert.NotNull(body);
+            // The migration header is always present; no ORG/SHORT lines for a null set.
+            Assert.Contains("FEBuilderGBA shop-list migration export (#1149)", body);
+            Assert.DoesNotContain("ORG 0x", body);
+            Assert.DoesNotContain("SHORT 0x", body);
+        }
+
+        [Fact]
+        public void FormatShops_EmptyList_EmitsHeaderOnly()
+        {
+            string body = DecompAssetExportCore.FormatShops(
+                new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>());
+            Assert.Contains("migration export (#1149)", body);
+            Assert.DoesNotContain("ORG 0x", body);
+        }
+
+        [Fact]
+        public void FormatShops_EmptyShop_EmitsOrgAndTerminatorOnly()
+        {
+            // A shop with NO items still gets its ORG header + a single terminator.
+            var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
+            {
+                MakeShop("Empty Shop", 0x800100, 0x800200),
+            };
+            string body = DecompAssetExportCore.FormatShops(shops);
+            Assert.Contains("ORG 0x800100", body);
+            Assert.Contains("SHORT 0x0000", body);                 // terminator
+            // No item SHORT line (only the terminator's 0x0000).
+            int shortLines = CountOccurrences(body, "SHORT 0x");
+            Assert.Equal(1, shortLines);
+        }
+
+        [Fact]
+        public void FormatShops_MultiShopMultiItem_EmitsU16EntriesAndTerminators()
+        {
+            var shops = new System.Collections.Generic.List<DecompAssetExportCore.ShopExportRecord>
+            {
+                MakeShop("Preparation Shop", 0x800100, 0x800010, 0x0001, 0x0002, 0x8016),
+                MakeShop("Ch1 Armory", 0x800200, 0x800020, 0x004B),
+            };
+            string body = DecompAssetExportCore.FormatShops(shops);
+
+            // Both shop headers + ORGs present.
+            Assert.Contains("// Shop: Preparation Shop  (list @ 0x800100, ptr-slot @ 0x800010)", body);
+            Assert.Contains("ORG 0x800100", body);
+            Assert.Contains("// Shop: Ch1 Armory  (list @ 0x800200, ptr-slot @ 0x800020)", body);
+            Assert.Contains("ORG 0x800200", body);
+
+            // u16 entries emitted as 4-digit SHORT, high byte preserved (0x8016 stays 0x8016).
+            Assert.Contains("SHORT 0x0001", body);
+            Assert.Contains("SHORT 0x0002", body);
+            Assert.Contains("SHORT 0x8016", body);   // high-byte flag preserved verbatim
+            Assert.Contains("SHORT 0x004B", body);
+
+            // Two terminators (one per shop): 4 item entries + 2 terminators = 6 SHORT lines.
+            Assert.Equal(6, CountOccurrences(body, "SHORT 0x"));
+            Assert.Equal(2, CountOccurrences(body, "SHORT 0x0000"));
+        }
+
+        static int CountOccurrences(string haystack, string needle)
+        {
+            int n = 0, i = 0;
+            while ((i = haystack.IndexOf(needle, i, StringComparison.Ordinal)) >= 0) { n++; i += needle.Length; }
+            return n;
+        }
+
+        [Fact]
+        public void ExportShops_NullRom_ReturnsBadArgs_NoThrow()
+        {
+            var ex = Record.Exception(() =>
+            {
+                var result = DecompAssetExportCore.ExportShops(null, NewTempDir());
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+            });
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void ExportShops_NullOrEmptyOut_ReturnsBadArgs()
+        {
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x200]);
+            var r1 = DecompAssetExportCore.ExportShops(rom, null);
+            Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
+            var r2 = DecompAssetExportCore.ExportShops(rom, "");
+            Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
+        }
     }
 
     /// <summary>

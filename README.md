@@ -115,12 +115,16 @@ dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0
 # --kind=graphics → indexed PNG (color type 3, palette indices preserved) + sidecar .pal
 # --kind=map      → .mar tilemap (raw u16<<3 entries, WF SaveAsMAR parity) + sidecar JSON
 # --kind=text     → texts.txt + textdefs.txt (migration aid; not a lossless macro round-trip)
+# --kind=shop     → shops.event (EA .event migration aid; recreates each u16 ITEM_NONE-terminated
+#                   shop list at its source address; #1149). Shops have no manifest-owned C-array
+#                   row table, so this is an EXPORT/migration path, NOT source-backed in-place editing.
 # Note: MIDI/portrait/battle-animation exports use existing commands:
 #   --export-midi, --export-portrait-all, --export-battle-anime
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --colors=16 --out=gfx/palette.pal
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=shop --rom=rom.gba --out=shops/
 
 # Decomp .mar map LAYOUT re-import + round-trip verify (never mutates the ROM):
 # --import-asset    → reconstruct the RAW UNCOMPRESSED tilemap blob ([w][h] + w*h raw u16 LE)
@@ -166,9 +170,14 @@ dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=map --in=map/c
 # #1133/#1140), and the nested `chapter_settings.json` shape (nested objects / bools /
 # enum strings / split obj1Id|obj2Id are reported UnsupportedField/Manual, never
 # silently corrupted — flat top-level Number fields in that file still rewrite).
-# Shops (sentinel-terminated variable-length lists) remain ROM-only/manual. Support
-# data (support_units, support_attributes, support_talks) is source-writable when
-# the manifest declares a source owner for those tables (#1149).
+# Shops: in-place GUI editing stays ROM-only/manual (variable-length ITEM_NONE-terminated
+# u16 lists reached via scattered hensei/worldmap/event-cond pointers; no manifest mapping
+# from a ROM shop address to its owning decomp list symbol, and no variable-length
+# writer/repoint model yet). Their lists CAN be migrated to source via the
+# `--export-asset --kind=shop` EA .event export above (an export/migration aid, #1149) —
+# this is NOT source-backed in-place shop editing. Support data (support_units,
+# support_attributes, support_talks) is source-writable when the manifest declares a
+# source owner for those tables (#1149).
 #
 # Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned; 1 = usage/parse error.
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
@@ -364,7 +373,7 @@ sibling.
   overlay — migrate via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
   shape (nested objects / bools / enum strings / split `obj1Id`|`obj2Id` are reported
   UnsupportedField/Manual, never silently corrupted; flat top-level Number fields still rewrite).
-  **Shops remain ROM-only/manual** (sentinel-terminated variable-length lists, no clean source-of-truth C array). **Support data** (`support_units`, `support_attributes`, `support_talks`) **is source-writable** when the manifest `tables[]` section declares a source owner for those tables (#1149); use byte-offset field names (`b0`..`b23` / `b0`..`b31` / `b0`..`b7` / `b0`+`w4`+…) in `--field`. **Positional-initializer constraint:** for a source that uses positional `{ … }` C initializers, the writer maps a byte-offset field name to a positional index by the ORDER of the owner's `fields[]` array — so a field's declared index must equal its real token position. Editing only a **leading prefix** (`b0`, then `b0`+`b1`, …) is always safe with a minimal `fields[]` that lists just those leading fields in order. Editing a **non-leading** field positionally (e.g. `b7` or `w4`) requires the owner declare the full ordered prefix up to that index (e.g. `b0`..`b7`) — OR use designated `.bN = …` initializers, which are matched by name and need no ordered list. Declaring the full ordered struct layout (e.g. all of `b0`..`b23` for `support_units`) is the safest, easiest guarantee but is not strictly required when you only edit a leading prefix. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
+  **Shop in-place editing remains ROM-only/manual** (variable-length `ITEM_NONE`-terminated `u16` lists reached via scattered hensei/worldmap/event-cond pointers; FEBuilder has no manifest mapping from a ROM shop address to its owning decomp list symbol, and no variable-length writer/repoint model yet — so the in-place row writer cannot target shops). Their lists CAN instead be **migrated to source** via `--export-asset --kind=shop` (a reviewable `shops.event` EA export, #1149) — an export/migration aid, NOT source-backed in-place shop editing. **Support data** (`support_units`, `support_attributes`, `support_talks`) **is source-writable** when the manifest `tables[]` section declares a source owner for those tables (#1149); use byte-offset field names (`b0`..`b23` / `b0`..`b31` / `b0`..`b7` / `b0`+`w4`+…) in `--field`. **Positional-initializer constraint:** for a source that uses positional `{ … }` C initializers, the writer maps a byte-offset field name to a positional index by the ORDER of the owner's `fields[]` array — so a field's declared index must equal its real token position. Editing only a **leading prefix** (`b0`, then `b0`+`b1`, …) is always safe with a minimal `fields[]` that lists just those leading fields in order. Editing a **non-leading** field positionally (e.g. `b7` or `w4`) requires the owner declare the full ordered prefix up to that index (e.g. `b0`..`b7`) — OR use designated `.bN = …` initializers, which are matched by name and need no ordered list. Declaring the full ordered struct layout (e.g. all of `b0`..`b23` for `support_units`) is the safest, easiest guarantee but is not strictly required when you only edit a leading prefix. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source
   rewritten; `2` = ROM-only / manual / not owned / unsupported field / path rejected;
   `1` = usage / parse error / source not found.
@@ -434,7 +443,8 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
-| Item Shop Editor | shops | Shop list save | ManualMigration | Sentinel-terminated variable-length lists; no clean source-of-truth C array |
+| Item Shop Editor | shops | Shop list save | ManualMigration | In-place GUI save stays ROM-only/manual: variable-length ITEM_NONE-terminated u16 lists reached via scattered pointers (hensei/worldmap/event-cond) — no manifest mapping from a ROM shop address to its owning decomp list symbol, and no variable-length writer/repoint model yet |
+| Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset |
 | Event Editor | chapter_event_pointers | Event/difficulty pointer fields | ManualMigration | Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed |
 | Battle Animation Editor | battle_anime | Animation view | ImportPreviewOnly | Preview-only in decomp mode; no source write-back (export via --export-battle-anime) |
