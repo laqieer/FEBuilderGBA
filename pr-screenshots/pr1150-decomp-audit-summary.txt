@@ -1,0 +1,13 @@
+Decomp round-trip coverage summary (#1150)
+SourceBackedWriter = 7
+SourceTreeExporter = 8
+ImportPreviewOnly  = 3
+ManualMigration    = 4
+RomOnlyUnsupported = 2
+Total              = 24
+Unclassified       = 0
+MaintainedInventory = 20 editors
+Note: complete relative to the maintained audit inventory; a maintained
+classification matrix, not exhaustive byte-level runtime round-trip proof.
+Decomp feature set currently lives on master, ahead of any tagged release
+(see docs/DECOMP-FEATURE-INVENTORY.md).

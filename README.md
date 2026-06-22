@@ -461,6 +461,19 @@ fields + multi-field in #1141 (full-document JSON validation + width-aware signe
 hardening in #1145). Asset exporters (#1133) and in-app build/reload (#1134)
 round out the suite.
 
+`--decomp-audit --summary` prints the per-tier coverage counts (with an explicit
+`Unclassified = N` line and the size of the maintained editor inventory). The matrix is
+**complete relative to the maintained audit inventory** — a maintained classification, not
+exhaustive byte-level runtime round-trip proof; full byte-level round-trip editing of every
+format remains partial by design (#1150).
+
+> **Decomp feature inventory & release status:** the full decomp project-mode feature set —
+> and the PRs/commits that landed each slice — is enumerated in
+> [docs/DECOMP-FEATURE-INVENTORY.md](docs/DECOMP-FEATURE-INVENTORY.md). These features
+> currently live on **`master`, ahead of any tagged release** (the latest tag is
+> `ver_20260204.22`; all decomp work landed after it), so they are not part of an existing
+> released build yet. Build from `master` to use them.
+
 ### Running on Android (experimental)
 
 Two distinct paths exist, both covered in detail in [docs/CROSS_PLATFORM.md → Running on Android](docs/CROSS_PLATFORM.md#running-on-android):
