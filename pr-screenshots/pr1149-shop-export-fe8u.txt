@@ -1,0 +1,49 @@
+# PR #1149 — Decomp shop source-tree export (--export-asset --kind=shop) — CLI proof
+# Generated on real FE8U.gba (roms/FE8U.gba). 39 shops, 606 lines.
+# Labels sanitized of control bytes (worldmap point names carry raw 0x1F); item names pre-resolved.
+
+$ FEBuilderGBA.CLI --export-asset --kind=shop --rom=roms/FE8U.gba --out=shops/
+Wrote: <outdir>/shops/shops.event
+
+# ===== head of generated shops.event =====
+
+// FEBuilderGBA shop-list migration export (#1149)
+// Migration aid (NOT source-backed in-place editing, NOT a byte-pinned
+// round-trip): recreates each shop's u16 item list, ITEM_NONE-terminated,
+// at its source address. ORG/repoint into your decomp tree as needed.
+
+// Shop: Preparation Shop  (list @ 0xA188E4, ptr-slot @ 0x99E64)
+ORG 0xA188E4
+SHORT 0x0001   // Iron Sword
+SHORT 0x0014   // Iron Lance
+SHORT 0x001F   // Iron Axe
+SHORT 0x002D   // Iron Bow
+SHORT 0x0038   // Fire
+SHORT 0x0045   // Flux
+SHORT 0x003F   // Lightning
+SHORT 0x004B   // Heal
+SHORT 0x0000   // terminator (ITEM_NONE)
+
+// Shop: Ide  WorldMap 武器屋  (list @ 0xA3EFB8, ptr-slot @ 0x2060FC)
+ORG 0xA3EFB8
+SHORT 0x0001   // Iron Sword
+SHORT 0x0002   // Slim Sword
+SHORT 0x0014   // Iron Lance
+SHORT 0x0015   // Slim Lance
+SHORT 0x001C   // Javelin
+SHORT 0x001F   // Iron Axe
+SHORT 0x0020   // Steel Axe
+SHORT 0x0028   // Hand Axe
+SHORT 0x0000   // terminator (ITEM_NONE)
+
+// Shop: Serafew  WorldMap 武器屋  (list @ 0xA3EFCE, ptr-slot @ 0x20615C)
+ORG 0xA3EFCE
+SHORT 0x0001   // Iron Sword
+
+# ----- a worldmap shop (label sanitized: the 0x1F after the point name became a space) -----
+// Shop: Ide  WorldMap 武器屋  (list @ 0xA3EFB8, ptr-slot @ 0x2060FC)
+ORG 0xA3EFB8
+SHORT 0x0001   // Iron Sword
+SHORT 0x0002   // Slim Sword
+--
+// Shop: Serafew  WorldMap 武器屋  (list @ 0xA3EFCE, ptr-slot @ 0x20615C)

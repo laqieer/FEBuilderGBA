@@ -153,5 +153,34 @@ namespace FEBuilderGBA.Core.Tests
                 r.Action == "Map layout import/verify"
                 && r.Coverage == DecompCoverage.SourceTreeExporter);
         }
+
+        [Fact]
+        public void Shops_HaveTwoDistinctRows_SaveManual_And_ExportSourceTree()
+        {
+            // #1149: shops have NO in-place C-array owner — the in-place GUI save stays
+            // ManualMigration ("Shop list save"), but their lists CAN be migrated to source
+            // via an EA .event export ("Shop list export" = SourceTreeExporter). Two distinct
+            // rows with distinct Actions for the same editor/table.
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+
+            Assert.Contains(rows, r =>
+                r.Editor == "Item Shop Editor" && r.Table == "shops"
+                && r.Action == "Shop list save" && r.Coverage == DecompCoverage.ManualMigration);
+
+            Assert.Contains(rows, r =>
+                r.Editor == "Item Shop Editor" && r.Table == "shops"
+                && r.Action == "Shop list export" && r.Coverage == DecompCoverage.SourceTreeExporter);
+        }
+
+        [Fact]
+        public void Shops_AreNotInSourceBackedTables()
+        {
+            // #1149: shops must NEVER be classified as a SourceBackedWriter row, and the
+            // canonical source-backed set must not contain "shops".
+            var rows = DecompRoundTripAuditCore.BuildMatrix();
+            Assert.DoesNotContain(rows, r =>
+                r.Table == "shops" && r.Coverage == DecompCoverage.SourceBackedWriter);
+            Assert.DoesNotContain("shops", DecompSourceWriterCore.SourceBackedTables);
+        }
     }
 }

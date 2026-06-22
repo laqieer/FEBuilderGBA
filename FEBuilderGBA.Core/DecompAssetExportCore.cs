@@ -573,7 +573,223 @@ namespace FEBuilderGBA
             }
         }
 
+        // ---- ExportShops (#1149) ----
+
+        /// <summary>
+        /// One <c>u16</c> shop item entry plus its already-resolved display name. The name is
+        /// resolved by <see cref="ExportShops"/> (which owns the ROM) and stored here so the
+        /// formatter stays ROM-independent (#1149).
+        /// </summary>
+        internal readonly struct ShopItemEntry
+        {
+            /// <summary>
+            /// The full 16-bit item entry — the low byte is the item id; the high byte is a
+            /// flag preserved verbatim (it is meaningful to some hacks and to the decomp
+            /// <c>u16[]</c> shop lists).
+            /// </summary>
+            public readonly ushort Value;
+            /// <summary>The pre-resolved item display name (from the export ROM), for the comment.</summary>
+            public readonly string Name;
+            public ShopItemEntry(ushort value, string name) { Value = value; Name = name ?? ""; }
+        }
+
+        /// <summary>
+        /// One shop's exportable contents: a display label, the source address of its
+        /// sentinel-terminated item list, the address of the 4-byte pointer slot that
+        /// references it, and the <c>u16</c> item entries (terminator excluded, names already
+        /// resolved). Used by <see cref="ExportShops"/> and the pure <see cref="FormatShops"/>
+        /// formatter (testable without a ROM).
+        /// </summary>
+        internal readonly struct ShopExportRecord
+        {
+            /// <summary>
+            /// Human-readable shop label (e.g. "Preparation Shop", "Ch1 Armory"), already
+            /// sanitized of control characters so it is safe to inline in a comment.
+            /// </summary>
+            public readonly string Label;
+            /// <summary>ROM byte offset of the shop's item list (the ORG target).</summary>
+            public readonly uint ShopAddr;
+            /// <summary>ROM byte offset of the 4-byte pointer slot that references the list.</summary>
+            public readonly uint PointerSlotAddr;
+            /// <summary>The <c>u16</c> item entries (with resolved names), in order, terminator excluded.</summary>
+            public readonly List<ShopItemEntry> Items;
+            public ShopExportRecord(string label, uint shopAddr, uint pointerSlotAddr, List<ShopItemEntry> items)
+            { Label = label ?? ""; ShopAddr = shopAddr; PointerSlotAddr = pointerSlotAddr; Items = items ?? new List<ShopItemEntry>(); }
+        }
+
+        /// <summary>
+        /// Strip control characters (anything below <c>0x20</c> or <c>0x7F</c>) from a label so
+        /// it can be inlined into a <c>//</c> comment without corrupting the line. Worldmap
+        /// point names come from the ROM text table and may carry raw FE control bytes (e.g.
+        /// <c>0x1F</c>); those are replaced with a single space and collapsed. NEVER throws.
+        /// </summary>
+        internal static string SanitizeLabel(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return "";
+            var sb = new StringBuilder(label.Length);
+            bool lastWasSpace = false;
+            foreach (char c in label)
+            {
+                bool isControl = c < 0x20 || c == 0x7F;
+                if (isControl)
+                {
+                    if (!lastWasSpace) { sb.Append(' '); lastWasSpace = true; }
+                }
+                else
+                {
+                    sb.Append(c);
+                    lastWasSpace = (c == ' ');
+                }
+            }
+            return sb.ToString().Trim();
+        }
+
+        /// <summary>
+        /// Export every shop's item list to a reviewable EA <c>.event</c> MIGRATION artifact
+        /// (<c>shops.event</c> under <paramref name="absOutDir"/>).
+        ///
+        /// <para>Shop inventories in the GBA FE engine are NOT a manifest-owned rectangular
+        /// C-array row table: each is a variable-length list of <c>u16</c> item entries,
+        /// <b>terminated by a zero item id</b> (the low byte == 0, i.e. <c>ITEM_NONE</c> —
+        /// the same termination FEBuilder's <see cref="ItemShopCore"/> and the editor use),
+        /// reached only via scattered pointers (the hensei preparation pointer, FE8
+        /// worldmap-point shop pointers, and per-map event-cond OBJECT records). The
+        /// fireemblem8u decomp tree DOES carry source-level shop-list symbols (e.g.
+        /// <c>ItemList_WM_*Armory</c> in <c>src/worldmap_shop_data.c</c>,
+        /// <c>GMapNodeData.{armory,vendor,secretShop}</c> pointers, and <c>Armory(...)</c>
+        /// event macros), but FEBuilder has no manifest mapping from a ROM shop address /
+        /// pointer slot to its owning list symbol, and no variable-length list writer/repoint
+        /// model. So the <see cref="DecompSourceWriterCore"/> in-place row rewriter cannot
+        /// target shops — the decomp migration path for shops is this EXPORT, not an in-place
+        /// writer.</para>
+        ///
+        /// <para>The emitted file is a MIGRATION AID, not a byte-pinned round-trip (exactly
+        /// like <see cref="ExportText"/>): it recreates each shop list at its recorded
+        /// address via <c>ORG</c> + <c>SHORT</c> (u16) directives the decomp build
+        /// understands. The contributor drops it into the source tree and ORGs/repoints as
+        /// needed.</para>
+        ///
+        /// <para>Item names in the comments are resolved here against the ACTIVE ROM
+        /// (<see cref="CoreState.ROM"/>) — the CLI loads the export ROM into the active slot,
+        /// so the common path resolves correctly; if the passed <paramref name="rom"/> is not
+        /// the active ROM the entries still emit (with neutral names) so the artifact is never
+        /// wrong, just less annotated.</para>
+        ///
+        /// READ-ONLY (never mutates the ROM) and NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="absOutDir">Absolute path to the output directory (created if absent).</param>
+        public static DecompAssetResult ExportShops(ROM rom, string absOutDir)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Output directory path is null or empty");
+
+                // NameResolver.GetItemName reads the ambient CoreState.ROM, so only resolve
+                // names when the passed ROM IS the active one (the CLI export path loads the
+                // export ROM into CoreState.ROM, so this is the common case). Otherwise emit
+                // the u16 entries with no name comment rather than wrong/empty names.
+                bool canResolveNames = ReferenceEquals(rom, CoreState.ROM);
+
+                var records = new List<ShopExportRecord>();
+                List<AddrResult> shops = ItemShopCore.MakeShopList(rom) ?? new List<AddrResult>();
+                uint romLen = (uint)rom.Data.Length;
+                foreach (AddrResult shop in shops)
+                {
+                    var items = new List<ShopItemEntry>();
+                    for (uint i = 0; i < ItemShopCore.MAX_SCAN_ENTRIES; i++)
+                    {
+                        uint entryAddr = shop.addr + i * ItemShopCore.ENTRY_SIZE;
+                        if (entryAddr + ItemShopCore.ENTRY_SIZE > romLen) break;
+                        // Shop entries are u16; ItemShopCore (and the editor) terminate the
+                        // list on the item-id LOW BYTE == 0 (ITEM_NONE). Mirror that exactly.
+                        if (rom.u8(entryAddr) == 0) break;   // sentinel terminator (low byte == 0)
+                        ushort value = (ushort)rom.u16(entryAddr);
+                        // Resolve the item name HERE (we own the ROM); the formatter stays pure.
+                        string name = canResolveNames
+                            ? (NameResolver.GetItemName((uint)(value & 0xFF)) ?? "")
+                            : "";
+                        items.Add(new ShopItemEntry(value, name));
+                    }
+                    records.Add(new ShopExportRecord(SanitizeLabel(shop.name), shop.addr, shop.tag, items));
+                }
+
+                string body = FormatShops(records);
+
+                Directory.CreateDirectory(absOutDir);
+                string outPath = Path.Combine(absOutDir, "shops.event");
+                File.WriteAllText(outPath, body, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Exported {records.Count} shop(s)"
+                };
+                result.WrittenPaths.Add(outPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
         // ---- Internal formatters (testable without ROM) ----
+
+        /// <summary>
+        /// Format shop records into the <c>shops.event</c> migration body. GENUINELY PURE —
+        /// it formats only the pre-resolved <see cref="ShopExportRecord"/> data (labels +
+        /// u16 values + already-resolved item names from <see cref="ExportShops"/>) and NEVER
+        /// reads the ROM, so unit tests exercise the exact byte-stable format with no ROM.
+        /// NEVER throws.
+        ///
+        /// <para>Per shop: a comment header (sanitized label + source list address +
+        /// pointer-slot address), then <c>ORG 0x&lt;addr&gt;</c>, one <c>SHORT 0xNNNN</c>
+        /// (u16) line per item (full 16-bit value, with the pre-resolved item name in a
+        /// trailing comment), then a <c>SHORT 0x0000</c> terminator (<c>ITEM_NONE</c>). Shops
+        /// are separated by a blank line. A null record list / null inner item list is
+        /// treated as empty.</para>
+        /// </summary>
+        internal static string FormatShops(List<ShopExportRecord> shops)
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                sb.AppendLine("// FEBuilderGBA shop-list migration export (#1149)");
+                sb.AppendLine("// Migration aid (NOT source-backed in-place editing, NOT a byte-pinned");
+                sb.AppendLine("// round-trip): recreates each shop's u16 item list, ITEM_NONE-terminated,");
+                sb.AppendLine("// at its source address. ORG/repoint into your decomp tree as needed.");
+                sb.AppendLine();
+
+                if (shops != null)
+                {
+                    foreach (ShopExportRecord shop in shops)
+                    {
+                        sb.AppendLine($"// Shop: {shop.Label}  (list @ 0x{shop.ShopAddr:X}, ptr-slot @ 0x{shop.PointerSlotAddr:X})");
+                        sb.AppendLine($"ORG 0x{shop.ShopAddr:X}");
+                        var items = shop.Items;
+                        if (items != null)
+                        {
+                            foreach (ShopItemEntry entry in items)
+                            {
+                                // Name was pre-resolved by ExportShops (which owns the ROM).
+                                sb.AppendLine($"SHORT 0x{entry.Value:X4}   // {entry.Name}");
+                            }
+                        }
+                        sb.AppendLine("SHORT 0x0000   // terminator (ITEM_NONE)");
+                        sb.AppendLine();
+                    }
+                }
+            }
+            catch
+            {
+                // never throw at the boundary — return whatever was built
+            }
+            return sb.ToString();
+        }
 
         /// <summary>
         /// Format text entries into the two output file bodies.
