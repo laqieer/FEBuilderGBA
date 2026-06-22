@@ -359,9 +359,11 @@ namespace FEBuilderGBA
                 int kw = IndexOfWord(text, "enum", i);
                 if (kw < 0)
                     break;
-                // Find the next top-level '{' after the keyword (skipping an optional
-                // tag name); the body ends at the matching '}'.
-                int brace = text.IndexOf('{', kw + 4);
+                // Find the next top-level '{' after the keyword (skipping an optional tag
+                // name); the body ends at the matching '}'. The scan is comment/string
+                // aware so a '{' inside a comment or string between `enum` and the real
+                // body (e.g. `enum /* { */ Items { ... }`) is NOT mistaken for the body.
+                int brace = FindOpeningBrace(text, kw + 4);
                 if (brace < 0)
                     break;
                 int close = MatchBrace(text, brace);
@@ -486,6 +488,19 @@ namespace FEBuilderGBA
         // ITEM_NONE when no macro maps to 0; flag a non-zero ITEM_NONE as unusable.
         void FinalizeItemNone()
         {
+            // PREFER the literal ITEM_NONE name for the id-0 terminator regardless of
+            // declaration order: if an ITEM_NONE constant is itself declared at id 0, the
+            // terminator name MUST be "ITEM_NONE" even when an alias (e.g. ITEM_SLOT_EMPTY
+            // = 0) was declared first and won the _idToMacro[0] display slot. Re-pin the
+            // display name so a symbolic list never serializes the alias as the terminator.
+            if (_macroToId.TryGetValue("ITEM_NONE", out ushort declaredNone) && declaredNone == 0)
+            {
+                _idToMacro[0] = "ITEM_NONE";
+                ItemNoneMacro = "ITEM_NONE";
+                ItemNoneIsZero = true;
+                return;
+            }
+
             // Did some macro claim id 0?
             if (_idToMacro.TryGetValue(0, out string zeroName))
             {
@@ -592,6 +607,24 @@ namespace FEBuilderGBA
                 i = idx + word.Length;
                 if (i >= text.Length) return -1;
             }
+        }
+
+        // Find the first top-level '{' at/after `from`, skipping comments and string/char
+        // literals (so a brace inside `enum /* { */ Tag { ... }` is ignored). Returns the
+        // brace index, or -1 if none before EOF. NEVER throws.
+        static int FindOpeningBrace(string text, int from)
+        {
+            int i = from;
+            int n = text.Length;
+            while (i < n)
+            {
+                int skip = SkipTriviaAndLiterals(text, i, n);
+                if (skip != i) { i = skip; continue; }
+                if (text[i] == '{')
+                    return i;
+                i++;
+            }
+            return -1;
         }
 
         // Match the brace at `open` ('{') to its closing '}', comment/string aware. -1

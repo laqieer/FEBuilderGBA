@@ -371,5 +371,52 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.False(r.ItemNoneIsZero);
         }
+
+        [Fact]
+        public void ItemNone_PreferredOverId0AliasDeclaredFirst()
+        {
+            // An ITEM_* ALIAS at id 0 (ITEM_SLOT_EMPTY) is declared BEFORE ITEM_NONE = 0.
+            // The id-0 terminator name MUST be ITEM_NONE, not the alias, regardless of
+            // declaration order (PR #1356 review).
+            var project = ProjectWithDefaultHeader(
+                "enum { ITEM_SLOT_EMPTY = 0x00, ITEM_NONE = 0x00, ITEM_SWORD_IRON = 0x01 };");
+            var r = DecompConstantResolver.BuildForProject(project, null);
+
+            Assert.True(r.ItemNoneIsZero);
+            Assert.Equal("ITEM_NONE", r.ItemNoneMacro);
+            Assert.True(r.TryResolveIdToMacro(0x00, out string m0));
+            Assert.Equal("ITEM_NONE", m0);
+        }
+
+        // ----------------------------------------- comment/string-aware enum brace (PR #1356)
+
+        [Fact]
+        public void EnumParse_BraceInCommentBeforeBody_IgnoresFakeBrace()
+        {
+            // A '{' inside a comment between `enum` and the real body must NOT be taken as
+            // the enum body; ParseEnumBody must operate on the REAL { ITEM_A, ITEM_B }.
+            var project = ProjectWithDefaultHeader(
+                "enum /* { fake */ Items { ITEM_NONE = 0, ITEM_A = 0x01, ITEM_B = 0x02 };");
+            var r = DecompConstantResolver.BuildForProject(project, null);
+
+            Assert.False(r.IsUnavailable, r.Reason);
+            Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
+            Assert.Equal(0x01, a);
+            Assert.True(r.TryResolveMacroToId("ITEM_B", out ushort b));
+            Assert.Equal(0x02, b);
+            Assert.True(r.ItemNoneIsZero);
+        }
+
+        [Fact]
+        public void EnumParse_BraceInLineCommentBeforeBody_IgnoresFakeBrace()
+        {
+            var project = ProjectWithDefaultHeader(
+                "enum Items // a { brace in a line comment\n" +
+                "{ ITEM_NONE = 0, ITEM_A = 0x03 };");
+            var r = DecompConstantResolver.BuildForProject(project, null);
+
+            Assert.True(r.TryResolveMacroToId("ITEM_A", out ushort a));
+            Assert.Equal(0x03, a);
+        }
     }
 }
