@@ -385,6 +385,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (r != null && r.Routed)
             {
+                // Re-baseline the dirty flag exactly like the ROM-save success path
+                // (Write_Click) so the UI does not show a misleading "unsaved changes"
+                // after a successful source route. Applies to all three routed handlers
+                // (Write / Append / RemoveLast) since they share this helper.
+                _vm.MarkClean();
                 string ok = R._("Wrote shop list to source. Rebuild to refresh the preview.");
                 StatusLabel.Text = ok + " " + r.SourceFile;
                 CoreState.Services?.ShowInfo(ok + " " + r.SourceFile);

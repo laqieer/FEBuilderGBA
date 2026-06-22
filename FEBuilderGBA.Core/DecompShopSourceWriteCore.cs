@@ -102,12 +102,19 @@ namespace FEBuilderGBA
                     return result;
                 }
 
-                // Gate: decomp mode with this exact project active.
-                if (project == null || !CoreState.IsDecompMode
-                    || !ReferenceEquals(CoreState.DecompProject, project))
+                // Gate: decomp mode with this exact project active. Distinguish the two
+                // distinct causes in the user-visible message (not-in-decomp-mode vs the
+                // passed project not being the active one) so the NotRouted reason is honest.
+                if (project == null || !CoreState.IsDecompMode)
                 {
                     result.Outcome = DecompShopRouteOutcome.NotRouted;
-                    result.Message = "Not in decomp mode (no active project) — source routing skipped.";
+                    result.Message = "Not in decomp mode (no active decomp project) — source routing skipped.";
+                    return result;
+                }
+                if (!ReferenceEquals(CoreState.DecompProject, project))
+                {
+                    result.Outcome = DecompShopRouteOutcome.NotRouted;
+                    result.Message = "Passed project is not the active decomp project — source routing skipped.";
                     return result;
                 }
 
@@ -166,7 +173,9 @@ namespace FEBuilderGBA
             catch (Exception ex)
             {
                 result.Outcome = DecompShopRouteOutcome.Error;
-                result.Message = "Unexpected fault: " + ex.Message;
+                // Surface the full type/stack — this Message is the only diagnostic detail
+                // the caller sees on an Error outcome (it is a result string, not a Log call).
+                result.Message = "Unexpected fault: " + ex.ToString();
                 return result;
             }
         }
