@@ -2110,7 +2110,15 @@ namespace FEBuilderGBA
             while (i < n)
             {
                 if (s[i] == '/' && i + 1 < n && s[i + 1] == '/')
-                    break;   // line comment runs to end of the span
+                {
+                    // line comment runs only to the next newline; KEEP scanning the
+                    // remainder so code AFTER the newline (e.g. the final ITEM_NONE
+                    // element of a span that begins with an inline comment) survives.
+                    int j = i;
+                    while (j < n && s[j] != '\n') j++;
+                    i = j;   // leave '\n' (or EOF) for the next iteration to append/scan
+                    continue;
+                }
                 if (s[i] == '/' && i + 1 < n && s[i + 1] == '*')
                 {
                     int j = i + 2;

@@ -394,9 +394,14 @@ sibling.
   **Support Talk** (FE8/FE7/FE6, #1149) editor Write buttons route to the source writer when the
   matching table is source-owned (showing e.g. *"Support unit source updated. Project needs rebuild."*)
   instead of mutating the preview ROM; an owned-but-unsupported / ROM-only entry shows a ROM-only notice
-  instead of a silent ROM write. **Shop editors** (Item Shop Viewer) block all three mutating
-  operations (Write, Append Slot, Remove Last Slot) in decomp mode with a ROM-only/manual notice
-  (#1149). **#1148 pointer-edit guard:** when the user edits ONLY an
+  instead of a silent ROM write. **Shop editors** (Item Shop Viewer): in decomp mode all three
+  mutating operations (Write, Append Slot, Remove Last Slot) now **route to the owning decomp source
+  list** when the selected shop's ROM address resolves to a manifest `u16-list` owner (symbol-resolved
+  via the project `.map`/`.elf`/`.sym`) AND that source list is literal-only — showing *"Wrote shop list
+  to source. Rebuild to refresh the preview."* and never touching the preview ROM (#1347 Slice 5a).
+  When the shop is unresolved/unowned, or the source list contains a non-literal **macro** element,
+  the editor keeps the #1149 ROM-only/manual notice (no ROM write, no clobber) and the carried reason
+  is shown — migrate via `--export-asset --kind=shop`. **#1148 pointer-edit guard:** when the user edits ONLY an
   unsupported chapter pointer field (e.g. EventDataPtr / a difficulty pointer), the gate shows an
   explicit ROM-only/manual notice and does NOT mutate the preview ROM (rather than a misleading
   "no change needed"). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
@@ -455,7 +460,7 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
-| Item Shop Editor | shops | Shop list save | ManualMigration | In-place GUI save stays ROM-only/manual: variable-length ITEM_NONE-terminated u16 lists reached via scattered pointers (hensei/worldmap/event-cond) — no manifest mapping from a ROM shop address to its owning decomp list symbol, and no variable-length writer/repoint model yet |
+| Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) AND the source list is literal-only (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers, unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347) |
 | Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77 map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2, map-change overlay) — NOT the .mar tile layout (which is source-backed import/verify above); migrate these via --export-asset |

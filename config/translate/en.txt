@@ -20805,3 +20805,15 @@ Cancelled.
 :The output ROM must be a different file from the original ROM and the loaded ROM.
 The output ROM must be a different file from the original ROM and the loaded ROM.
 
+:Wrote shop list to source. Rebuild to refresh the preview.
+Wrote shop list to source. Rebuild to refresh the preview.
+
+:Select a slot first (or use Append Slot to add one).
+Select a slot first (or use Append Slot to add one).
+
+:Select a shop first.
+Select a shop first.
+
+:Nothing to remove (shop is empty).
+Nothing to remove (shop is empty).
+

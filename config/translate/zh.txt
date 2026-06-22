@@ -25984,3 +25984,15 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :The output ROM must be a different file from the original ROM and the loaded ROM.
 输出 ROM 必须与原始 ROM 和已加载的 ROM 是不同的文件。
 
+:Wrote shop list to source. Rebuild to refresh the preview.
+已将商店列表写入源代码。重建以刷新预览。
+
+:Select a slot first (or use Append Slot to add one).
+请先选择一个槽位（或使用“追加槽位”添加）。
+
+:Select a shop first.
+请先选择一个商店。
+
+:Nothing to remove (shop is empty).
+没有可删除的内容（商店为空）。
+

@@ -186,6 +186,73 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(t1, t2);
         }
 
+        // -------------------------------------------------- Part A: StripComments no-clobber
+        // The final top-level element token spans from the previous comma through '}'. A
+        // span that BEGINS with an inline // comment must NOT swallow the code (macro) that
+        // follows the newline — otherwise the macro is mis-detected as comment-only/empty,
+        // the list looks all-literal, and the writer would CLOBBER the macro (#1159).
+
+        [Fact]
+        public void RewriteListBody_InlineLineComment_BeforeFinalMacro_Refused_NoClobber()
+        {
+            // The final element span = "// comment\n    ITEM_NONE". The over-strip bug
+            // dropped ITEM_NONE; the fix keeps it so the macro is detected and the rewrite
+            // is REFUSED (UnsupportedField), leaving the source untouched.
+            string src =
+                "const u16 ItemList_Foo[] = {\n" +
+                "    0x0501, // a comment\n" +
+                "    ITEM_NONE\n" +
+                "};\n";
+            var res = DecompSourceWriterCore.RewriteListBody(src, "ItemList_Foo", new ushort[] { 0x0102 }, out string outText);
+
+            Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+            Assert.Contains("non-literal element", res.Message);
+            Assert.Equal(src, outText);   // unchanged (no clobber)
+        }
+
+        [Fact]
+        public void RewriteListBody_BlockComment_MidList_AroundHexElement_StillRewrites()
+        {
+            // A /* */ block comment around a hex element must be stripped (not swallow the
+            // element), so an all-literal list still parses + rewrites.
+            string src =
+                "const u16 ItemList_Foo[] = {\n" +
+                "    0x0501, /* iron sword */\n" +
+                "    0x0203,\n" +
+                "    0x0000,\n" +
+                "};\n";
+            var res = DecompSourceWriterCore.RewriteListBody(src, "ItemList_Foo", new ushort[] { 0x0102, 0x0304 }, out string outText);
+
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains("0x0102,", outText);
+            Assert.Contains("0x0304,", outText);
+            Assert.Contains("0x0000,  // ITEM_NONE (terminator)", outText);
+            Assert.DoesNotContain("0x0501", outText);
+        }
+
+        [Fact]
+        public void RewriteListBody_LastElement_TrailingLineComment_StillRewritesIdempotently()
+        {
+            // A pure raw-hex list whose LAST element carries an inline // annotation must
+            // still rewrite, and re-running is a byte-identical no-op (idempotent). This is
+            // the exact shape the writer itself emits ("0x0000,  // ITEM_NONE (terminator)").
+            string src =
+                "const u16 ItemList_Foo[] = {\n" +
+                "    0x0501,\n" +
+                "    0x0000,  // ITEM_NONE (terminator)\n" +
+                "};\n";
+            var r1 = DecompSourceWriterCore.RewriteListBody(src, "ItemList_Foo", new ushort[] { 0x0102, 0x0304 }, out string t1);
+            Assert.True(r1.Ok, r1.Message);
+            Assert.Contains("0x0102,", t1);
+            Assert.Contains("0x0304,", t1);
+
+            // Idempotent re-run: byte-identical no-op.
+            var r2 = DecompSourceWriterCore.RewriteListBody(t1, "ItemList_Foo", new ushort[] { 0x0102, 0x0304 }, out string t2);
+            Assert.True(r2.Ok, r2.Message);
+            Assert.Empty(r2.ChangedFields);
+            Assert.Equal(t1, t2);
+        }
+
         // -------------------------------------------------------- TryGetListOwner
 
         static DecompProject ProjectFromManifestJson(string tablesJson)

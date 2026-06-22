@@ -221,7 +221,7 @@ namespace FEBuilderGBA
 
             // ---- ManualMigration rows: variable-length / raw-binary / pointer data. ----
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list save",
-                DecompCoverage.ManualMigration, "In-place GUI save stays ROM-only/manual: variable-length ITEM_NONE-terminated u16 lists reached via scattered pointers (hensei/worldmap/event-cond) — no manifest mapping from a ROM shop address to its owning decomp list symbol, and no variable-length writer/repoint model yet"));
+                DecompCoverage.ManualMigration, "Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) AND the source list is literal-only (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers, unresolved/unnamed shops degrade to --export-asset --kind=shop)"));
             // #1149: shop lists have no manifest-owned rectangular C-array the in-place row
             // writer can target, but they CAN be migrated to source via an EA .event export
             // (distinct Action, so the SourceBackedWriter mirror invariant in
