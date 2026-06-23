@@ -571,7 +571,7 @@ The `mapanime2pal` (#1360) variants mirror `mapchange` exactly, swapping the wid
 |---|---|---|
 | `--import-asset --kind=mapanime2pal --in=<x.mapanime2pal> --out=<x.bin>` | No | Identity copy of the validated palette body to a raw blob (NO header, NO `>>3` shift, NO LZ77). Requires the `.mapanime2pal.json` sidecar. |
 | `--roundtrip-asset --kind=mapanime2pal --in=<x.mapanime2pal>` | No | Structure-exact identity proof (`body.Length == count*2`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
-| `--verify-asset --kind=mapanime2pal --in=<x.mapanime2pal> --addr=<hex> --count (--rom\|--project)` | **Yes (read-only)** | Byte-exact ROM-backed mismatch proof — the ONLY ROM-backed verification path. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
+| `--verify-asset --kind=mapanime2pal --in=<x.mapanime2pal> --addr=<hex> --count=<int> (--rom\|--project)` | **Yes (read-only)** | Byte-exact ROM-backed mismatch proof — the ONLY ROM-backed verification path. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
 
 ```
 FEBuilderGBA.CLI --import-asset --kind=mapanime2pal --in=map/chapter1.mapanime2pal --out=map/chapter1.mapanime2pal_raw.bin
