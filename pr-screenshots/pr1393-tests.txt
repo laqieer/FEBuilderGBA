@@ -1,0 +1,25 @@
+FE-Repo CG + Battle Background wiring (#1393) — test evidence
+=============================================================
+
+Core resolver tests (FEBuilderGBA.Core.Tests):
+  dotnet test --filter FullyQualifiedName~FERepoResourceBrowser
+  Passed!  - Failed: 0, Passed: 29, Skipped: 0, Total: 29
+  (includes updated CGImage/BackgroundImage -> "Background CGs" InlineData rows
+   + new GetFERepoFolderForEditor_WiredFolder_IsPopulated_WhenSubmodulePresent guard)
+
+Avalonia view tests (FEBuilderGBA.Avalonia.Tests):
+  dotnet test --filter "ImageBattleBG|BigCG|EditorTopBar|Smoke"
+  Passed!  - Failed: 0, Passed: 217, Skipped: 0, Total: 217
+
+Headless GUI screenshot capture (FE8U.gba):
+  FEBuilderGBA.Avalonia --rom FE8U.gba --screenshot-all --screenshot-dir=...
+  SCREENSHOT: ImageBattleBGView ... OK
+  SCREENSHOT: BigCGViewerView ... OK
+  -> pr1393-battlebg-fe8u.png (Battle Background Editor, real BG loaded)
+  -> pr1393-bigcg-fe8u.png   (Big CG Editor, real CG loaded, FE-Repo button VISIBLE
+     in the button bar between "Import PNG" and "Export PAL")
+
+FE-Repo folder verification (pinned commit 3eb758268b09be70230e0ff94f05fa3b3d3bc787):
+  BGs, Interface Elements/CG Images          -> README.md only (EMPTY) -> BUG, remapped
+  BGs, Interface Elements/Background CGs      -> 1166 PNGs, all 256x160 -> CGImage/BackgroundImage
+  BGs, Interface Elements/Battle Frames & Backgrounds -> 439 PNGs incl. 213 at 240x160 -> BattleBackground
