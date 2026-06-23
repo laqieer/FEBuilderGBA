@@ -12173,6 +12173,7 @@ FE-RepoのCG画像フォルダからインポート
 :Import from the FE-Repo Generic Minimugs folder
 FE-Repoの汎用ミニ顔フォルダからインポート
 
+
 :Export Map (Tiled .tmx)
 マップをエクスポート (Tiled .tmx)
 
@@ -12190,4 +12191,10 @@ Tiledタイルセット用のチップセット画像を描画できませんで
 
 :Exported Tiled map to {0} (+ {1}, {2}).
 Tiledマップを {0} にエクスポートしました（+ {1}, {2}）。
+
+:Import from the FE-Repo Background CGs folder
+FE-Repoの背景CGフォルダからインポート
+
+:Import from the FE-Repo Battle Backgrounds folder
+FE-Repoの戦闘背景フォルダからインポート
 
