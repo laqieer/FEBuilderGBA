@@ -391,17 +391,18 @@ namespace FEBuilderGBA.CLI
                 return RunImportAsset(argsDic);
             }
 
-            // --roundtrip-asset --kind=map|mapchange --in=<x.mar|x.change>: validate + prove the
-            // BODY round-trips (#1148/#1355). READ-ONLY, never loads a ROM.
+            // --roundtrip-asset --kind=map|mapchange|mapanime2pal|objtiles --in=<asset>: validate +
+            // prove the BODY round-trips (#1148/#1355/#1360/#1371). READ-ONLY, never loads a ROM.
             if (argsDic.ContainsKey("--roundtrip-asset"))
             {
                 return RunRoundtripAsset(argsDic);
             }
 
-            // --verify-asset --kind=mapchange --in=<x.change> --addr --width --height (+ ROM via
-            // --project/--rom): byte-exact ROM-backed mismatch proof for a map-change overlay
-            // (#1355). Reads the ROM READ-ONLY; never mutates it. Must precede the bare --project
-            // rom-info fallthrough so --verify-asset --project is not swallowed by RunRomInfo.
+            // --verify-asset --kind=mapchange|mapanime2pal|objtiles --in=<asset> --addr (+ dims/count
+            // for mapchange/mapanime2pal) (+ ROM via --project/--rom): ROM-backed mismatch proof for a
+            // map-change overlay (#1355), anime-2 palette (#1360), or OBJ tileset (#1371; re-decompress
+            // + byte-compare). Reads the ROM READ-ONLY; never mutates it. Must precede the bare
+            // --project rom-info fallthrough so --verify-asset --project is not swallowed by RunRomInfo.
             if (argsDic.ContainsKey("--verify-asset"))
             {
                 return RunVerifyAsset(argsDic);
@@ -631,18 +632,19 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
             Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
             Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
-            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change map-change OVERLAY, or .objtiles OBJ tileset) to a raw uncompressed blob in the source tree (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|objtiles  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (.change + .change.json, identity copy) (#1355); objtiles = decompressed 4bpp OBJ payload (.objtiles + .objtiles.json, identity copy) (#1371)");
-            Console.WriteLine("    --in=<x.mar|x.change|x.objtiles>  Input asset file");
+            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change overlay, .mapanime2pal palette, or .objtiles OBJ tileset) to a raw uncompressed blob in the source tree (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (#1355); mapanime2pal = raw u16 anime-2 palette block (#1360); objtiles = decompressed 4bpp OBJ payload (#1371); all identity copies with required .json sidecars");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file");
             Console.WriteLine("    --out=<x.bin>          Output raw uncompressed blob; project-relative when --project");
-            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/objtiles body round-trips (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|objtiles  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); objtiles = structure-exact .objtiles decompressed body (#1371)");
-            Console.WriteLine("    --in=<x.mar|x.change|x.objtiles>  Input asset file");
-            Console.WriteLine("  --verify-asset           ROM-backed mismatch proof for a map-change OVERLAY or OBJ tileset (reads ROM READ-ONLY; never mutates) (#1355/#1371)");
-            Console.WriteLine("    --kind=mapchange|objtiles  mapchange = byte-exact overlay compare (needs --width/--height); objtiles = decompress-and-byte-compare the OBJ payload (no --width/--height)");
-            Console.WriteLine("    --in=<x.change|x.objtiles>  Input overlay/objtiles file (+ required .json sidecar)");
-            Console.WriteLine("    --addr=<hex>           mapchange: change_mar offset; objtiles: the DEREFERENCED OBJ LZ77 stream address (FE7 obj2 = separate --addr)");
+            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/anime2pal/objtiles body round-trips (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); mapanime2pal = structure-exact anime-2 palette (#1360); objtiles = structure-exact .objtiles decompressed body (#1371)");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file");
+            Console.WriteLine("  --verify-asset           ROM-backed mismatch proof for a map-change OVERLAY, anime-2 PALETTE, or OBJ tileset (reads ROM READ-ONLY; never mutates) (#1355/#1360/#1371)");
+            Console.WriteLine("    --kind=mapchange|mapanime2pal|objtiles  mapchange = byte-exact overlay compare (needs --width/--height); mapanime2pal = byte-exact palette compare (needs --count); objtiles = decompress-and-byte-compare the OBJ payload (no --width/--height/--count)");
+            Console.WriteLine("    --in=<x.change|x.mapanime2pal|x.objtiles>  Input overlay/anime2pal/objtiles file (+ required .json sidecar)");
+            Console.WriteLine("    --addr=<hex>           mapchange: change_mar offset; mapanime2pal: anime-2 entry +0 palette ptr; objtiles: the DEREFERENCED OBJ LZ77 stream address (FE7 obj2 = separate --addr)");
             Console.WriteLine("    --width=<int> --height=<int>  Overlay dimensions (mapchange only; record +3/+4)");
+            Console.WriteLine("    --count=<int>         Palette color count (mapanime2pal only; entry +5)");
             Console.WriteLine("    --rom=<path> | --project=<dir>  ROM source (the preview build for --project)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
