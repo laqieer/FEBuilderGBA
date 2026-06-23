@@ -198,14 +198,14 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.UnitMoveIcon, "Map Sprites", null)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.ItemIcon, "Item Icons", null)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait, "Item Icons", "Special - Generic Minimugs")]
-        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BackgroundImage, "BGs, Interface Elements", "CG Images")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BackgroundImage, "BGs, Interface Elements", "Background CGs")]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.Portrait, "Portrait Repository", null)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.ClassCard, "Class Cards", null)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleAnimation, "Battle Animations", null)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.SkillIcon, "Item Icons", "Special - Skill Icons")]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.SpellAnimation, "Spells n Skills", "7. Spells")]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleBackground, "BGs, Interface Elements", "Battle Frames & Backgrounds")]
-        [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage, "BGs, Interface Elements", "CG Images")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage, "BGs, Interface Elements", "Background CGs")]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.Tileset, "Tilesets", null)]
         public void GetFERepoFolderForEditor_ReturnsExpectedFolder(
             FERepoResourceBrowser.FERepoEditorKind kind, string category, string subCategory)
@@ -303,6 +303,45 @@ namespace FEBuilderGBA.Core.Tests
         public void IsMusicRepoAvailable_False_WhenBaseDirNull()
         {
             Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(null));
+        }
+
+        // #1393 — integration guard against a wired editor pointing at an EMPTY
+        // FE-Repo folder (the exact failure the "CG Images" -> "Background CGs"
+        // fix corrects). Runs only when the submodule is checked out; skips on CI
+        // where it is not initialized so it never blocks the pipeline.
+        [Theory]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BackgroundImage)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleBackground)]
+        public void GetFERepoFolderForEditor_WiredFolder_IsPopulated_WhenSubmodulePresent(
+            FERepoResourceBrowser.FERepoEditorKind kind)
+        {
+            string repoRoot = FERepoResourceBrowser.FindRepoRoot(
+                CoreState.BaseDirectory ?? System.AppDomain.CurrentDomain.BaseDirectory);
+            if (repoRoot == null)
+                return; // submodule not initialized (CI) — skip
+
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(kind);
+            Assert.True(folder.Supported);
+
+            // Skip if this specific category subtree was not checked out (a
+            // partial submodule checkout); only assert when the category dir
+            // exists with content.
+            string catDir = Path.Combine(repoRoot, folder.Category);
+            if (!Directory.Exists(catDir))
+                return;
+
+            var files = FERepoResourceBrowser.GetResourceFiles(
+                repoRoot, folder.Category, folder.SubCategory, maxResults: 1);
+            // The wired folder subtree exists but is missing — that is the bug.
+            string seedDir = string.IsNullOrEmpty(folder.SubCategory)
+                ? catDir
+                : Path.Combine(catDir, folder.SubCategory);
+            if (!Directory.Exists(seedDir))
+                return; // subcategory not checked out — skip
+
+            Assert.True(files.Length > 0,
+                $"{kind} seeds an EMPTY FE-Repo folder ({folder.Category}/{folder.SubCategory}) — pick a populated source folder");
         }
     }
 }

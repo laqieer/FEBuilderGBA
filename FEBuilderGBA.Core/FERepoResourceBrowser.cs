@@ -325,8 +325,13 @@ namespace FEBuilderGBA
                 case FERepoEditorKind.GenericEnemyPortrait:
                     return new FERepoFolderResult(true, "Item Icons", "Special - Generic Minimugs");
 
+                // #1393: at the pinned FE-Repo commit "CG Images" holds only a
+                // README.md (its referenced PNGs are not in the tree), so seeding
+                // it shows a blank browser. "Background CGs" is the populated
+                // full-screen CG/background folder (256x160 assets); the
+                // Background Image and CG editors both seed there.
                 case FERepoEditorKind.BackgroundImage:
-                    return new FERepoFolderResult(true, "BGs, Interface Elements", "CG Images");
+                    return new FERepoFolderResult(true, "BGs, Interface Elements", "Background CGs");
 
                 case FERepoEditorKind.Portrait:
                     return new FERepoFolderResult(true, "Portrait Repository", null);
@@ -346,8 +351,11 @@ namespace FEBuilderGBA
                 case FERepoEditorKind.BattleBackground:
                     return new FERepoFolderResult(true, "BGs, Interface Elements", "Battle Frames & Backgrounds");
 
+                // #1393: see BackgroundImage above — "Background CGs" is the
+                // populated 256x160 full-screen CG folder; "CG Images" is empty
+                // at the pinned commit.
                 case FERepoEditorKind.CGImage:
-                    return new FERepoFolderResult(true, "BGs, Interface Elements", "CG Images");
+                    return new FERepoFolderResult(true, "BGs, Interface Elements", "Background CGs");
 
                 case FERepoEditorKind.Tileset:
                     return new FERepoFolderResult(true, "Tilesets", null);

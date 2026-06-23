@@ -89,58 +89,97 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16);
                 if (loadResult == null) return;
-                if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
-
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
-
-                _undoService.Begin("Import Big CG Image");
-                try
-                {
-                    uint addr = _vm.CurrentAddr;
-
-                    // Encode TSA with tile deduplication
-                    var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                    if (tsaResult == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode TSA"); return; }
-
-                    // Write compressed TSA
-                    uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 4);
-                    if (tsaAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for TSA data"); return; }
-
-                    // Write palette
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
-                    if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
-
-                    // For tile data: write as single compressed block and update first table entry
-                    uint tablePtr = rom.u32(addr + 0);
-                    if (U.isPointer(tablePtr))
-                    {
-                        uint tableAddr = U.toOffset(tablePtr);
-                        byte[] compressed = LZ77.compress(tsaResult.TileData);
-                        if (compressed != null)
-                        {
-                            uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
-                            if (tileAddr != U.NOT_FOUND)
-                            {
-                                // Update first table entry to point to the tile data
-                                rom.write_p32(tableAddr, tileAddr);
-                                // Zero out remaining table entries (entries 1-9)
-                                for (int i = 1; i < 10; i++)
-                                    rom.write_u32(tableAddr + (uint)(i * 4), 0);
-                            }
-                        }
-                    }
-
-                    _undoService.Commit();
-                    _vm.LoadBigCG(addr);
-                    UpdateUI();
-                    LoadImage();
-                    _vm.MarkClean();
-                    CoreState.Services.ShowInfo("BigCG image imported successfully.");
-                }
-                catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+                RunBigCGImport(loadResult);
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        // #1393 — FE-Repo button: pick a 256x160 CG from the FE-Repo
+        // "Background CGs" folder and route it through the SAME import body
+        // (strictSize so a non-256x160 asset is rejected, not silently
+        // cropped). No second import code path.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FERepoPickHelper.PickForEditor(this,
+                    FERepoResourceBrowser.FERepoEditorKind.CGImage);
+                if (string.IsNullOrEmpty(path)) return;
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(path, 256, 160, 16, strictSize: true);
+                RunBigCGImport(loadResult);
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        // Shared import body for the file-dialog (Import Image) and FE-Repo
+        // picker paths (#1393): single import code path so the size/format
+        // validation stays consistent.
+        void RunBigCGImport(ImageImportService.LoadResult loadResult)
+        {
+            if (loadResult == null) return;
+            if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            _undoService.Begin("Import Big CG Image");
+            try
+            {
+                uint addr = _vm.CurrentAddr;
+
+                // Encode TSA with tile deduplication
+                var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                if (tsaResult == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode TSA"); return; }
+
+                // Write compressed TSA
+                uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 4);
+                if (tsaAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for TSA data"); return; }
+
+                // Write palette
+                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
+                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
+
+                // For tile data: write as single compressed block and update first table entry.
+                // #1393 (Copilot review): a failed tile write must NOT fall through to a
+                // success commit — that would leave the ROM partially updated (TSA/palette
+                // written, tile pointer stale) and show a misleading success toast. Roll
+                // back and report instead.
+                uint tablePtr = rom.u32(addr + 0);
+                if (!U.isPointer(tablePtr))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("Big CG table pointer is invalid — cannot write tile data");
+                    return;
+                }
+                uint tableAddr = U.toOffset(tablePtr);
+                byte[] compressed = LZ77.compress(tsaResult.TileData);
+                if (compressed == null)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("Failed to compress tile data");
+                    return;
+                }
+                uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                if (tileAddr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("No free space for tile data");
+                    return;
+                }
+                // Update first table entry to point to the tile data
+                rom.write_p32(tableAddr, tileAddr);
+                // Zero out remaining table entries (entries 1-9)
+                for (int i = 1; i < 10; i++)
+                    rom.write_u32(tableAddr + (uint)(i * 4), 0);
+
+                _undoService.Commit();
+                _vm.LoadBigCG(addr);
+                UpdateUI();
+                LoadImage();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("BigCG image imported successfully.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
         async void ExportPal_Click(object? sender, RoutedEventArgs e)

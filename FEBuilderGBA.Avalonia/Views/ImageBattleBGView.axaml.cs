@@ -67,11 +67,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ImportImageFromFile(string filePath)
+        // #1393: the FE-Repo button routes through this SAME FromFile import
+        // path. strictSize=true (used by FE-Repo) rejects a non-240x160 asset
+        // with the existing size error rather than silently cropping/quantizing
+        // it; drag-and-drop keeps the lenient default (strictSize=false).
+        void ImportImageFromFile(string filePath, bool strictSize = false)
         {
             try
             {
-                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 240, 160, 16);
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 240, 160, 16, strictSize: strictSize);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -209,6 +213,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        // #1393 — FE-Repo button: pick a 240x160 battle background from the
+        // FE-Repo "Battle Frames & Backgrounds" folder and route it through the
+        // SAME FromFile import path (strictSize so a non-240x160 asset is
+        // rejected, not silently cropped).
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.BattleBackground);
+            if (string.IsNullOrEmpty(path)) return;
+            ImportImageFromFile(path, strictSize: true);
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)
