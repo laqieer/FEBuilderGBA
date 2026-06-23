@@ -116,6 +116,57 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// Reverse of <see cref="GetBattleAnimeAddrWhereID"/>: scan the class table
+        /// for the FIRST class whose battle-anime SETTING pointer
+        /// (<c>p32(classAddr + 48)</c> FE6 / <c>p32(classAddr + 52)</c> FE7-8)
+        /// equals <paramref name="findAddress"/>, and return its class id (0-based
+        /// table index). Cross-platform mirror of WinForms
+        /// <c>ClassForm.GetIDWhereBattleAnimeAddr</c>:
+        /// the lookup normalizes <paramref name="findAddress"/> through
+        /// <see cref="U.toOffset"/> first (so a raw GBA pointer and its offset both
+        /// resolve), rejects an unsafe offset, then compares against each class's
+        /// stored setting pointer (already an offset — <c>rom.p32</c> applies
+        /// <c>U.toOffset</c>). Returns <see cref="U.NOT_FOUND"/> on a miss or an
+        /// unresolvable ROM/table. Guarded — never throws.
+        /// <para>
+        /// Used by the Avalonia Battle Animation Editor's Class-Editor Jump (#1377)
+        /// to recognize a class battle-anime setting pointer (which lives in a
+        /// per-class region, NOT the global anime-list table) so the editor can
+        /// load the correct entry instead of falling back to entry 0.
+        /// </para>
+        /// </summary>
+        public static uint GetIDWhereBattleAnimeAddr(ROM rom, uint findAddress)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            findAddress = U.toOffset(findAddress);
+            if (!U.isSafetyOffset(findAddress, rom)) return U.NOT_FOUND;
+
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint datasize = rom.RomInfo.class_datasize;
+            if (datasize == 0) return U.NOT_FOUND;
+            if (classPtr == 0 || (ulong)classPtr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            // FE6 stores the anime-setting pointer at +48; FE7/FE8 at +52.
+            uint settingOffsetInEntry = rom.RomInfo.version == 6 ? 48u : 52u;
+
+            int count = GetClassCount(rom, baseAddr, datasize);
+            uint addr = baseAddr;
+            for (int i = 0; i < count; i++, addr += datasize)
+            {
+                uint settingSlot = addr + settingOffsetInEntry;
+                if (!U.isSafetyOffset(settingSlot, rom)) break;
+                // 4-byte EOF guard before the p32 read (the slot may sit in the
+                // last 1-3 bytes near EOF where isSafetyOffset still passes).
+                if ((ulong)settingSlot + 4 > (ulong)rom.Data.Length) break;
+                if (rom.p32(settingSlot) == findAddress)
+                    return (uint)i;
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
         /// Read the first battle-anime ID from an anime-setting pointer. Mirror of
         /// WinForms <c>ImageBattleAnimeForm.GetAnimeIDByAnimeSettingPointer</c>
         /// (<c>ImageBattleAnimeForm.cs:339-350</c>): the anime-setting block stores

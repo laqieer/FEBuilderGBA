@@ -214,8 +214,18 @@ namespace FEBuilderGBA.Avalonia.Controls
             ApplySearchFilter();
         }
 
-        /// <summary>Select an item by address.</summary>
-        public void SelectAddress(uint address)
+        /// <summary>
+        /// Select the item whose <see cref="AddrResult.addr"/> equals
+        /// <paramref name="address"/>.
+        /// </summary>
+        /// <returns><c>true</c> if a matching row was found and selected;
+        /// <c>false</c> if no row matched (the previous selection is left
+        /// untouched). The return value lets callers distinguish a real hit from
+        /// a miss — e.g. the Battle Animation Editor's Class-Editor Jump
+        /// (#1377) falls back to a direct load when the jumped pointer is a
+        /// class setting pointer that is NOT one of the list rows. Existing
+        /// callers that ignore the return value are unaffected.</returns>
+        public bool SelectAddress(uint address)
         {
             // Find the display index that corresponds to this address.
             for (int displayIdx = 0; displayIdx < _filteredIndices.Count; displayIdx++)
@@ -225,9 +235,10 @@ namespace FEBuilderGBA.Avalonia.Controls
                 {
                     AddressList.SelectedIndex = displayIdx;
                     AddressList.ScrollIntoView(displayIdx);
-                    return;
+                    return true;
                 }
             }
+            return false;
         }
 
         /// <summary>Get a defensive copy of the current (unfiltered) item list.</summary>

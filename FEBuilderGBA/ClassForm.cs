@@ -621,35 +621,14 @@ namespace FEBuilderGBA
             return GetBattleAnimeAddrWhereID(cid, out pointer);
         }
         //戦闘アニメの設定アドレスから、クラスIDの逆変換
+        // Delegates to the cross-platform Core port (#1377). The Core helper
+        // resolves the class table via RomInfo.class_pointer / class_datasize and
+        // counts rows with the same read-max rule (u8(addr+4)!=0, capped 0xFF) as
+        // Init's callback, so behavior is identical to the original InputFormRef
+        // scan — now shared with the Avalonia Battle Animation Editor's jump.
         public static uint GetIDWhereBattleAnimeAddr(uint find_address)
         {
-            find_address = U.toOffset(find_address);
-            if (!U.isSafetyOffset(find_address))
-            {
-                return U.NOT_FOUND;
-            }
-
-            InputFormRef InputFormRef = Init(null);
-            uint addr = InputFormRef.BaseAddress;
-            for (int i = 0; i < InputFormRef.DataCount; i++, addr += InputFormRef.BlockSize)
-            {
-                uint p;
-                if (Program.ROM.RomInfo.version == 6)
-                {//FE6
-                    p = Program.ROM.p32(addr + 48);
-                }
-                else
-                {//FE7 FE8
-                    p = Program.ROM.p32(addr + 52);
-                }
-
-                if (p == find_address)
-                {
-                    return (uint)i;
-                }
-            }
-
-            return U.NOT_FOUND;
+            return FEBuilderGBA.Core.ClassFormCore.GetIDWhereBattleAnimeAddr(Program.ROM, find_address);
         }
 
         public static uint DataCount()

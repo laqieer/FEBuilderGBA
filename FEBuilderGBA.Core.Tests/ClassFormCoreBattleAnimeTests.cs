@@ -178,6 +178,132 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ================================================================
+        // GetIDWhereBattleAnimeAddr — reverse lookup (#1377): setting pointer -> cid
+        // ================================================================
+
+        /// <summary>
+        /// The reverse lookup iterates the class table by row count (the WF
+        /// read-max rule: class 0 always counts, then <c>u8(addr+4)!=0</c>). The
+        /// base <see cref="MakeRom"/> leaves entries 1..N all-zero, so the count
+        /// stops at 1 and <see cref="TEST_CLASS_ID"/> is never reached. Plant a
+        /// non-zero <c>+4</c> "valid class" marker for rows 1..TEST_CLASS_ID so
+        /// the scan reaches the owning class.
+        /// </summary>
+        static void MakeClassRowsValid(ROM rom, uint classBase, uint datasize, int upToInclusive)
+        {
+            for (int i = 1; i <= upToInclusive; i++)
+                U.write_u8(rom.Data, classBase + (uint)i * datasize + 4, 1);
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_FE8_FindsOwningClass_ViaPlus52()
+        {
+            // class TEST_CLASS_ID's +52 holds the setting pointer ANIME_SETTING_PTR;
+            // the reverse lookup must return TEST_CLASS_ID for that offset.
+            ROM rom = MakeRom(8);
+            MakeClassRowsValid(rom, CLASS_BASE, CLASS_DATASIZE, TEST_CLASS_ID);
+            uint cid = ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(ANIME_SETTING_PTR));
+            Assert.Equal((uint)TEST_CLASS_ID, cid);
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_AcceptsRawPointerOrOffset()
+        {
+            // The lookup normalizes through U.toOffset, so passing the OFFSET
+            // directly (not the GBA pointer) resolves the same class.
+            ROM rom = MakeRom(8);
+            MakeClassRowsValid(rom, CLASS_BASE, CLASS_DATASIZE, TEST_CLASS_ID);
+            Assert.Equal((uint)TEST_CLASS_ID,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(rom, ANIME_SETTING_PTR));
+            Assert.Equal((uint)TEST_CLASS_ID,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(ANIME_SETTING_PTR)));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_FE6_FindsOwningClass_ViaPlus48()
+        {
+            ROM rom = MakeRom(6);
+            MakeClassRowsValid(rom, CLASS_BASE, CLASS_DATASIZE, TEST_CLASS_ID);
+            uint cid = ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(ANIME_SETTING_PTR));
+            Assert.Equal((uint)TEST_CLASS_ID, cid);
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_NoOwningClass_ReturnsNotFound()
+        {
+            // A valid in-ROM offset that no class's +52 setting pointer references.
+            ROM rom = MakeRom(8);
+            MakeClassRowsValid(rom, CLASS_BASE, CLASS_DATASIZE, TEST_CLASS_ID);
+            uint unowned = ANIME_SETTING_PTR + 0x1000; // safe offset, not any class's pointer
+            Assert.Equal(U.NOT_FOUND,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(unowned)));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_FE6vsFE8_OffsetSplitMatters()
+        {
+            // Plant the setting pointer ONLY at the FE6 (+48) slot, but ask an
+            // FE8 ROM (reads +52) -> must NOT resolve TEST_CLASS_ID.
+            ROM rom = MakeRom(8);
+            MakeClassRowsValid(rom, CLASS_BASE, CLASS_DATASIZE, TEST_CLASS_ID);
+            uint classAddr = CLASS_BASE + (uint)TEST_CLASS_ID * CLASS_DATASIZE;
+            U.write_u32(rom.Data, classAddr + 52, 0);
+            U.write_u32(rom.Data, classAddr + 48, U.toPointer(ANIME_SETTING_PTR));
+            Assert.Equal(U.NOT_FOUND,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(ANIME_SETTING_PTR)));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_NullRom_ReturnsNotFound()
+        {
+            Assert.Equal(U.NOT_FOUND,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(null, U.toPointer(ANIME_SETTING_PTR)));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_UnsafeFindAddress_ReturnsNotFound()
+        {
+            // 0x12345678 -> offset 0x12345678 is out of a 16MB ROM -> unsafe -> NOT_FOUND, no throw.
+            ROM rom = MakeRom(8);
+            Assert.Equal(U.NOT_FOUND,
+                ClassFormCore.GetIDWhereBattleAnimeAddr(rom, 0x12345678));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_ZeroAddress_ReturnsNotFound()
+        {
+            // toOffset(0) = 0, which is below the isSafetyOffset floor (0x200) -> NOT_FOUND.
+            ROM rom = MakeRom(8);
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetIDWhereBattleAnimeAddr(rom, 0));
+        }
+
+        [Fact]
+        public void GetIDWhereBattleAnimeAddr_SettingSlotNearEOF_ReturnsNotFound_NoThrow()
+        {
+            // The per-row +52 p32 read must be EOF-safe: if a class's setting slot
+            // lands in the last 1-3 bytes, the scan stops (break) without throwing.
+            const int version = 8;
+            const uint dataSize = 84;
+            uint romLen = 0x10000;
+            // Position the class table so class 0's +52 sits 2 bytes before EOF;
+            // class 0 always counts (read-max rule), so the loop reaches it.
+            uint settingSlot = romLen - 2;
+            uint classBase = settingSlot - 52; // class 0 entry at classBase
+
+            var rom = new ROM();
+            byte[] data = new byte[romLen];
+            Array.Fill(data, (byte)0x00);
+            rom.LoadLow("synth.gba", data, "BE8E01");
+            SetRomInfo(rom, new StubRomInfo(version, classPointer: CLASS_PTR_SLOT,
+                classDataSize: dataSize, unitPalettePointer: UNITPAL_PTR_SLOT));
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(classBase));
+
+            // Any safe target offset: no throw, returns NOT_FOUND.
+            uint result = ClassFormCore.GetIDWhereBattleAnimeAddr(rom, U.toPointer(0x4000));
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        // ================================================================
         // GetAnimeIDByAnimeSettingPointer — the u16(ptr + 2) read
         // ================================================================
 
