@@ -1,6 +1,7 @@
 using Xunit;
 using FEBuilderGBA;
 using System.IO;
+using System.Linq;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -186,6 +187,16 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Contains(result, p => p.Name == "Top");
                 // PatchFilePath is the actual file (re-loadable by PatchFilterCore).
                 Assert.All(result, p => Assert.True(File.Exists(p.PatchFilePath)));
+
+                // DirectoryName is the patch's REAL containing folder — guards the CLI
+                // --patch-name / folder filter. The two subdir patches are under SYSTEM;
+                // the top-level patch is under the base dir's own leaf name.
+                var eirika = result.First(p => p.Name == "Eirika Patch");
+                var ephraim = result.First(p => p.Name == "Ephraim Patch");
+                var top = result.First(p => p.Name == "Top");
+                Assert.Equal("SYSTEM", eirika.DirectoryName);
+                Assert.Equal("SYSTEM", ephraim.DirectoryName);
+                Assert.Equal(Path.GetFileName(baseDir), top.DirectoryName);
             }
             finally
             {

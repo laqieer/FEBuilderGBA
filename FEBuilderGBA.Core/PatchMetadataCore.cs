@@ -66,8 +66,14 @@ namespace FEBuilderGBA
             {
                 patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
             }
-            catch
+            catch (Exception ex)
             {
+                // Log before returning empty so a real failure (PathTooLong, permission
+                // denied, ...) is distinguishable from a genuinely empty patch dir —
+                // otherwise it silently regresses into "0 patches", the exact
+                // silent-empty class of bug this change fixes. Log.Error is
+                // params string[] (joined with spaces), so concatenate — do NOT use {0}.
+                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.ToString());
                 return result;
             }
 
