@@ -121,6 +121,76 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        static string MakeFakeMusicRepo(out string firstCategory)
+        {
+            string baseDir = Path.Combine(Path.GetTempPath(), "febuilder-ferepo-music-seed-" + Path.GetRandomFileName());
+            firstCategory = "Battle Themes";
+            string cat = Path.Combine(baseDir, "resources", "FE-Repo-Music-No-Preview", firstCategory);
+            Directory.CreateDirectory(cat);
+            // One of each advertised music extension so a parameterized test can
+            // assert the music-mode selection works for all of them.
+            File.WriteAllText(Path.Combine(cat, "song.s"), "@ mock sondfont source");
+            File.WriteAllText(Path.Combine(cat, "tune.mid"), "MThd-mock");
+            File.WriteAllText(Path.Combine(cat, "sample.wav"), "RIFF-mock");
+            return baseDir;
+        }
+
+        [Theory]
+        [InlineData("song.s")]
+        [InlineData("tune.mid")]
+        [InlineData("sample.wav")]
+        public void MusicMode_SelectingMusicFile_EnablesInsert_NoBitmap(string fileName)
+        {
+            // #1383: music files are NOT images. OnSelectedFileChanged must set
+            // SelectedFilePath + CanInsert WITHOUT attempting a Bitmap preview,
+            // otherwise the Insert button is permanently dead in music mode.
+            string baseDir = MakeFakeMusicRepo(out string cat);
+            string prev = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+                var vm = new FERepoResourceBrowserViewModel(true, cat, null);
+                Assert.False(vm.NotFound);
+                Assert.NotEmpty(vm.ResourceFiles);
+
+                var item = System.Linq.Enumerable.First(vm.ResourceFiles, f => f.FileName == fileName);
+                vm.SelectedFile = item;
+
+                Assert.True(vm.CanInsert, $"{fileName} should enable Insert in music mode");
+                Assert.Equal(item.FullPath, vm.SelectedFilePath);
+                Assert.Null(vm.PreviewImage); // no image preview for music files
+                Assert.Contains(fileName, vm.StatusText);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prev;
+                Directory.Delete(baseDir, true);
+            }
+        }
+
+        [Fact]
+        public void MusicMode_Seed_TopLevelCategory_PreSelects()
+        {
+            string baseDir = MakeFakeMusicRepo(out string cat);
+            string prev = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+                var vm = new FERepoResourceBrowserViewModel(true, cat, null);
+
+                Assert.False(vm.NotFound);
+                Assert.NotNull(vm.SelectedCategory);
+                Assert.Equal(cat, vm.SelectedCategory.Category);
+                // All three mock music files were loaded.
+                Assert.Equal(3, vm.ResourceFiles.Count);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prev;
+                Directory.Delete(baseDir, true);
+            }
+        }
+
         [Fact]
         public void MusicMode_EmptyPlaceholder_ShowsMusicInitCommand()
         {

@@ -12173,3 +12173,12 @@ FE-RepoのCG画像フォルダからインポート
 :Import from the FE-Repo Generic Minimugs folder
 FE-Repoの汎用ミニ顔フォルダからインポート
 
+:FE-Repo-Music
+FE-Repo-音楽
+
+:FE-Repo Music Browser
+FE-Repo-音楽ブラウザ
+
+:Browse the FE-Repo-Music submodule and import the selected music file into the current song (same import path as Import Music File).
+FE-Repo-音楽サブモジュールを参照し、選択した音楽ファイルを現在の曲にインポートします（Import Music File と同じインポート経路）。
+

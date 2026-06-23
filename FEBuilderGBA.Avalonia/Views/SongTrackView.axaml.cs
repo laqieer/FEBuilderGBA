@@ -417,6 +417,52 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
+                // ONE import path: both the file-picker Import and the
+                // FE-Repo-Music button route the chosen path through the same
+                // extension dispatcher (#1383).
+                await ImportMusicPath(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #1383: the FE-Repo-Music button opens the music-mode FE-Repo browser
+        // and feeds the selected music file through the SAME dispatcher as the
+        // "Import Music File" button (ImportMusicPath) — no second import path.
+        // The button is only visible when the music submodule is checked out
+        // (FERepoPickHelper.IsMusicSupported, bound to VM.IsFERepoMusicAvailable).
+        // -----------------------------------------------------------------
+        async void FERepoMusic_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            try
+            {
+                string? path = await FERepoPickHelper.PickMusic(this);
+                if (string.IsNullOrEmpty(path)) return;
+                await ImportMusicPath(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.FERepoMusic_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// The single music-import dispatcher (#1001 / #1383). Routes a music
+        /// file by extension to the appropriate import sub-flow for the
+        /// currently selected song. Shared by the file-picker Import button and
+        /// the FE-Repo-Music button.
+        /// </summary>
+        async System.Threading.Tasks.Task ImportMusicPath(string path)
+        {
+            if (!_vm.IsLoaded) return;
+            try
+            {
+                if (string.IsNullOrEmpty(path)) return;
+
                 // Dispatch by extension (case-insensitive).
                 string ext = Path.GetExtension(path).ToLowerInvariant();
                 if (ext == ".wav")
@@ -550,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+                Log.Error("SongTrackView.ImportMusicPath failed: {0}", ex.Message);
             }
         }
 

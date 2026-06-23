@@ -202,6 +202,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (value == null) return;
 
+            // Music files (.s/.mid/.wav) are NOT images: never attempt to load a
+            // Bitmap preview for them, otherwise the Bitmap ctor throws, leaving
+            // CanInsert/SelectedFilePath unset and the Insert button permanently
+            // dead in music mode (#1383). Select the file directly with a
+            // filename/size status and no preview image.
+            if (_musicMode)
+            {
+                SelectedFilePath = value.FullPath;
+                CanInsert = true;
+                try
+                {
+                    var info = new FileInfo(value.FullPath);
+                    StatusText = $"{value.FileName} ({info.Length} bytes)";
+                }
+                catch
+                {
+                    StatusText = value.FileName;
+                }
+                return;
+            }
+
             try
             {
                 PreviewImage = new Bitmap(value.FullPath);

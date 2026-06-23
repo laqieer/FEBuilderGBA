@@ -102,6 +102,17 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// True when the FE-Repo-Music submodule is checked out (resolves to a
+        /// real, populated root from <paramref name="baseDir"/>). Shared guard
+        /// used by both GUIs to decide whether to show/enable the
+        /// "FE-Repo-Music" button on the Song editors (#1383). Reuses the #1380
+        /// empty-placeholder-as-not-found semantics of
+        /// <see cref="FindMusicRepoRoot"/>. Never throws.
+        /// </summary>
+        public static bool IsMusicRepoAvailable(string baseDir)
+            => FindMusicRepoRoot(baseDir) != null;
+
+        /// <summary>
         /// Get music resource files within a category and optional subcategory.
         /// Filters for .s, .mid, .midi, .wav files.
         /// </summary>

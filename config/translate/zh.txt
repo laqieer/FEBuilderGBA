@@ -26014,3 +26014,12 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Import from the FE-Repo Generic Minimugs folder
 从 FE-Repo 通用小头像文件夹导入
 
+:FE-Repo-Music
+FE-Repo-音乐
+
+:FE-Repo Music Browser
+FE-Repo-音乐浏览器
+
+:Browse the FE-Repo-Music submodule and import the selected music file into the current song (same import path as Import Music File).
+浏览 FE-Repo-Music 子模块并将选中的音乐文件导入当前歌曲（与 Import Music File 相同的导入路径）。
+

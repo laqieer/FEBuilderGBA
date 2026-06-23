@@ -87,6 +87,14 @@
                       Name="ImportButton" Content="Import Music File"
                       Width="140" Click="ImportMidi_Click"
                       ToolTip.Tip="Imports by file extension: a MIDI (.mid), a raw RIFF WAV (.wav, builds a one-track song that plays the sample), an instrument set (.instrument), or a SondFont source (.s, pick an instrument set then assemble)." />
+              <!-- #1383: import sourced from the FE-Repo-Music submodule. Routes
+                   the chosen music file through the SAME dispatcher as "Import
+                   Music File". Visible only when the music submodule exists. -->
+              <Button AutomationProperties.AutomationId="SongTrack_FERepoMusic_Button"
+                      Name="FERepoMusicButton" Content="FE-Repo-Music"
+                      Width="140" Click="FERepoMusic_Click"
+                      IsVisible="{Binding IsFERepoMusicAvailable}"
+                      ToolTip.Tip="Browse the FE-Repo-Music submodule and import the selected music file into the current song (same import path as Import Music File)." />
               <Button AutomationProperties.AutomationId="SongTrack_Export_Button"
                       Name="ExportButton" Content="Export Music File"
                       Width="140" Click="ExportMidi_Click" />

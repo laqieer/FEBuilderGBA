@@ -38,5 +38,32 @@ namespace FEBuilderGBA.Avalonia.Services
             string result = await browser.ShowDialog<string>(owner);
             return string.IsNullOrEmpty(result) ? null : result;
         }
+
+        /// <summary>
+        /// True when the FE-Repo-Music submodule is checked out (folder present /
+        /// not an empty placeholder). The Song editors use this to decide whether
+        /// to show/enable the "FE-Repo-Music" button (#1383).
+        /// </summary>
+        public static bool IsMusicSupported()
+            => FERepoResourceBrowser.IsMusicRepoAvailable(
+                CoreState.BaseDirectory ?? System.AppContext.BaseDirectory);
+
+        /// <summary>
+        /// Open the FE-Repo-Music browser (music mode) and await the user's chosen
+        /// music file path. Optionally pre-navigate to a seed category/subcategory.
+        /// Returns null when the music submodule is unavailable, the dialog was
+        /// cancelled, or nothing was selected. The caller feeds the returned path
+        /// through the SAME music-import dispatcher as its file-picker Import —
+        /// no second import code path (#1383).
+        /// </summary>
+        public static async Task<string?> PickMusic(Window owner,
+            string seedCategory = null, string seedSubCategory = null)
+        {
+            if (!IsMusicSupported()) return null;
+
+            var browser = new FERepoResourceBrowserWindow(true, seedCategory, seedSubCategory);
+            string result = await browser.ShowDialog<string>(owner);
+            return string.IsNullOrEmpty(result) ? null : result;
+        }
     }
 }

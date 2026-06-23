@@ -22,29 +22,76 @@ namespace FEBuilderGBA
             this.SongTable.OwnerDraw(ListBoxEx.DrawTextOnly, DrawMode.OwnerDrawFixed);
             this.OtherROMSongTable.OwnerDraw(ListBoxEx.DrawTextOnly, DrawMode.OwnerDrawFixed);
 
-            // Add FE-Repo Music browse button
-            var feRepoMusicButton = new Button
+            // #1383: "FE-Repo-Music" import button — only shown when the
+            // FE-Repo-Music submodule is checked out. Upgraded from the old
+            // clipboard-copy behaviour to actually IMPORT the selected music file
+            // into the currently-selected song, reusing the SAME music-import
+            // dispatcher as the Song Track Editor (SongTrackForm.ImportMusicFileToSong).
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            if (FERepoResourceBrowser.IsMusicRepoAvailable(baseDir))
             {
-                Text = R._("FE-Repo Music"),
-                Size = new System.Drawing.Size(120, 25),
-                Location = new System.Drawing.Point(5, 5)
-            };
-            feRepoMusicButton.Click += FERepoMusicButton_Click;
-            this.Controls.Add(feRepoMusicButton);
-            feRepoMusicButton.BringToFront();
+                var feRepoMusicButton = new Button
+                {
+                    Text = R._("FE-Repo-Music"),
+                    Size = new System.Drawing.Size(120, 25),
+                    Location = new System.Drawing.Point(5, 5)
+                };
+                feRepoMusicButton.Click += FERepoMusicButton_Click;
+                this.Controls.Add(feRepoMusicButton);
+                feRepoMusicButton.BringToFront();
+            }
         }
 
         void FERepoMusicButton_Click(object sender, EventArgs e)
         {
+            // Import the chosen music file into the selected song on the left
+            // ("my ROM") list, via the SAME dispatcher as the Song Track Editor.
+            if (this.MySongList == null
+                || this.SongTable.SelectedIndex < 0
+                || this.SongTable.SelectedIndex >= this.MySongList.Count)
+            {
+                R.ShowStopError(R._("インポートする曲がリストから選択されていません."));
+                return;
+            }
+            if (this.SongTable.SelectedIndex == 0)
+            {
+                R.ShowStopError(R._("SongID: 0x0に書き込むことはできません"));
+                return;
+            }
+
             using (var browser = new FERepoMusicBrowserForm())
             {
-                if (browser.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(browser.SelectedFilePath))
+                if (browser.ShowDialog(this) != DialogResult.OK
+                    || string.IsNullOrEmpty(browser.SelectedFilePath))
                 {
-                    // Copy selected .s file path to clipboard for use in song exchange
-                    System.Windows.Forms.Clipboard.SetText(browser.SelectedFilePath);
-                    R.ShowOK(R._("Music file path copied to clipboard:\n{0}\n\nUse this path with the song exchange import."),
-                        browser.SelectedFilePath);
+                    return;
                 }
+
+                SongSt destsong = this.MySongList[this.SongTable.SelectedIndex];
+                string filename = browser.SelectedFilePath;
+                // destsong.table = the songtable entry address (offset);
+                // destsong.voices = the current voicegroup pointer (= P4 / instrument set).
+                string error = SongTrackForm.ImportMusicFileToSong(
+                    this, destsong.voices, destsong.table, ref filename, out string ext);
+                if (error == null)
+                {
+                    return; // user cancelled an inner dialog — no write.
+                }
+                if (error != "")
+                {
+                    R.ShowStopError(error);
+                    return;
+                }
+                R.Notify("{0}, SongID: {1} ,Ext: {2} ,Filename: {3}", this.Text, this.SongTable.SelectedIndex, ext, filename);
+
+                // Refresh the left song list so the imported song reflects.
+                int nowselect = this.SongTable.SelectedIndex;
+                this.MySongList = SongTableToSongList(Program.ROM.Data);
+                SongListToListBox(this.MySongList, this.SongTable, true);
+                U.SelectedIndexSafety(this.SongTable, nowselect);
+
+                SongTableForm.ReloadList();
+                InputFormRef.ShowWriteNotifyAnimation(this, 0);
             }
         }
         public class SongSt

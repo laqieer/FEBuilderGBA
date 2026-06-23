@@ -31,6 +31,19 @@ namespace FEBuilderGBA.Avalonia.Views
             DataContext = new FERepoResourceBrowserViewModel(false, seedCategory, seedSubCategory);
         }
 
+        /// <summary>
+        /// Open the browser in graphics or music mode, optionally pre-navigated
+        /// to a seed category/subcategory (#1383 — music sibling of the #1380
+        /// seed ctor). Music mode sets the music title and resolves the music
+        /// repo root.
+        /// </summary>
+        public FERepoResourceBrowserWindow(bool musicMode, string seedCategory, string seedSubCategory)
+        {
+            InitializeComponent();
+            DataContext = new FERepoResourceBrowserViewModel(musicMode, seedCategory, seedSubCategory);
+            if (musicMode) Title = R._("FE-Repo Music Browser");
+        }
+
         void InsertButton_Click(object sender, RoutedEventArgs e)
         {
             Close(SelectedFilePath);

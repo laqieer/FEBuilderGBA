@@ -243,5 +243,66 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.False(string.IsNullOrEmpty(result.Category), $"{kind} should have a category");
             }
         }
+
+        // -----------------------------------------------------------------
+        // #1383 — IsMusicRepoAvailable: the shared existence guard the Song
+        // editors use to show/hide the "FE-Repo-Music" button.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void IsMusicRepoAvailable_True_WhenPopulated()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string repoDir = Path.Combine(tempDir, "resources", "FE-Repo-Music-No-Preview");
+            Directory.CreateDirectory(Path.Combine(repoDir, "Battle Themes"));
+            try
+            {
+                Assert.True(FERepoResourceBrowser.IsMusicRepoAvailable(tempDir));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void IsMusicRepoAvailable_False_WhenEmptyPlaceholder()
+        {
+            // #1380 reuse: an uninitialized music submodule leaves an empty
+            // placeholder dir that must be treated as not-available so the
+            // button stays hidden.
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string repoDir = Path.Combine(tempDir, "resources", "FE-Repo-Music-No-Preview");
+            Directory.CreateDirectory(repoDir); // empty placeholder
+            try
+            {
+                Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(tempDir));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void IsMusicRepoAvailable_False_WhenAbsent()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir); // no resources/ at all
+            try
+            {
+                Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(tempDir));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void IsMusicRepoAvailable_False_WhenBaseDirNull()
+        {
+            Assert.False(FERepoResourceBrowser.IsMusicRepoAvailable(null));
+        }
     }
 }
