@@ -550,8 +550,19 @@ FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 -
 FEBuilderGBA.CLI --export-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --out=map/chapter1.mapanime2pal
 FEBuilderGBA.CLI --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles
 FEBuilderGBA.CLI --export-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --out=map/chapter1.mapchipconfig
+FEBuilderGBA.CLI --export-asset --kind=mapanime1gfx --rom=rom.gba --addr=0x600000 --length=512 --out=map/chapter1.mapanime1gfx
 FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 ```
+
+The `mapanime1gfx` (#1389) kind exports the **map tile-animation-1 per-entry GRAPHICS block** — a RAW
+UNCOMPRESSED 4bpp tile-byte block sized by the entry's `+2` `u16` length, reached by each anime-1 entry's
+`+4` pointer (the inverse of anime-2's `+0`). It is the structural TWIN of `mapchange`/`mapanime2pal`
+(RAW, length-sized), **NOT** the LZ77 `objtiles`/`mapchipconfig` pattern: the WF read/import/rebuild paths
+treat this block as raw `ImageToByte16Tile` 4bpp bytes (a rebuild `IMG` block), never an LZ77 stream.
+`--addr` is the **DEREFERENCED** anime-1 entry `+4` graphics pointer and `--length` is the entry `+2` byte
+length. It is **NOT** the anime-1 ENTRY/PLIST table (pointer-per-row, no clean source owner — stays guarded,
+tracked by #1389) and **NOT** the `.mar` layout. Re-import / round-trip / read-only RAW byte-compare ROM
+verify are below.
 
 **Exit code:** 0 on success, non-zero on usage / export fault.
 
@@ -595,7 +606,7 @@ FEBuilderGBA.CLI --export-voicegroup --project=decomp/ --voicegroup-addr=0x20747
 
 ---
 
-### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / mapanime2pal / objtiles / mapchipconfig)
+### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / mapanime2pal / objtiles / mapchipconfig / mapanime1gfx)
 
 Re-import an edited map asset to a raw uncompressed blob, prove a body round-trips, or verify a map-change
 overlay / anime-2 palette block / OBJ tileset / chipset config byte-for-byte against the ROM. The `map` (`.mar`
@@ -662,6 +673,24 @@ from the sidecar (`febuilder-mapchipconfig-lz77`). NOT the anime-1/anime-2 entry
 FEBuilderGBA.CLI --import-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig --out=map/chapter1.mapchipconfig_raw.bin
 FEBuilderGBA.CLI --roundtrip-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig
 FEBuilderGBA.CLI --verify-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --in=map/chapter1.mapchipconfig
+```
+
+The `mapanime1gfx` (#1389) variants are the RAW-block TWIN of `mapchange`/`mapanime2pal` (NOT the LZ77
+`objtiles`/`mapchipconfig` decompress pattern): the source body is the RAW UNCOMPRESSED 4bpp graphics block;
+`--verify-asset` reads the live ROM block and byte-compares **without** decompression (READ-ONLY). `--addr` is
+the **DEREFERENCED** anime-1 entry `+4` graphics pointer and `--length` is the entry `+2` byte length (the RAW
+block is not self-delimiting, so the length is REQUIRED — it does NOT come from a sidecar-only path on verify):
+
+| Command | Reads ROM? | Description |
+|---|---|---|
+| `--import-asset --kind=mapanime1gfx --in=<x.mapanime1gfx> --out=<x.bin>` | No | Identity copy of the validated RAW body to a blob (NO header, NO `>>3` shift, NO LZ77). Requires the `.mapanime1gfx.json` sidecar. |
+| `--roundtrip-asset --kind=mapanime1gfx --in=<x.mapanime1gfx>` | No | Structure-exact identity proof (`body.Length == length`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
+| `--verify-asset --kind=mapanime1gfx --in=<x.mapanime1gfx> --addr=<hex> --length=<int> (--rom\|--project)` | **Yes (read-only)** | Byte-exact RAW ROM-backed mismatch proof (no decompression). Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
+
+```
+FEBuilderGBA.CLI --import-asset --kind=mapanime1gfx --in=map/chapter1.mapanime1gfx --out=map/chapter1.mapanime1gfx_raw.bin
+FEBuilderGBA.CLI --roundtrip-asset --kind=mapanime1gfx --in=map/chapter1.mapanime1gfx
+FEBuilderGBA.CLI --verify-asset --kind=mapanime1gfx --rom=rom.gba --addr=0x600000 --length=512 --in=map/chapter1.mapanime1gfx
 ```
 
 The `portrait-package` (#1374) variants are a **multi-file DIRECTORY** write-back / round-trip (NOT a file `--in`):

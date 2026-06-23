@@ -695,5 +695,123 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("chipconfig").Value);
             Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("MAPCHIPCONFIG").Value);
         }
+
+        // ---- MapTileAnimation1Graphics validator (#1389) — RAW twin of mapchange/mapanime2pal ----
+
+        static void WriteMapAnime1GfxForValidator(string path, byte[] body = null, string format = "febuilder-mapanime1gfx-raw4bpp", bool writeSidecar = true)
+        {
+            if (body == null) body = new byte[64];
+            File.WriteAllBytes(path, body);
+            if (writeSidecar)
+                File.WriteAllText(path + ".json",
+                    $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ValidateMapAnime1Gfx_Good_Ok()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxForValidator(path);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.True(r.Ok, "Expected Ok but got errors");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime1Gfx_MissingSidecar_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxForValidator(path, null, "febuilder-mapanime1gfx-raw4bpp", false);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "MAPANIME1GFX_NO_SIDECAR") { found = true; break; }
+                Assert.True(found, "Expected MAPANIME1GFX_NO_SIDECAR error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime1Gfx_BadFormat_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                // The LZ77 objtiles format must be REJECTED for a RAW anime-1 graphics asset.
+                WriteMapAnime1GfxForValidator(path, format: "febuilder-objtiles-lz77");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPANIME1GFX_FORMAT") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPANIME1GFX_FORMAT error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime1Gfx_LengthMismatch_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                byte[] body = new byte[64];
+                File.WriteAllBytes(path, body);
+                // Sidecar says length=128, but file is 64
+                File.WriteAllText(path + ".json",
+                    "{\"length\": 128, \"srcAddr\": \"0x200\", \"format\": \"febuilder-mapanime1gfx-raw4bpp\"}\n");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPANIME1GFX_LENGTH") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPANIME1GFX_LENGTH error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime1Gfx_LengthOver65535_Error()
+        {
+            // The raw block length is the anime-1 entry +2 u16 → must be 1..65535. A sidecar that
+            // declares a length > 0xFFFF (matched by an equally-large body) must still be REJECTED,
+            // keeping the validator consistent with Export/Verify (Copilot PR #1400 review).
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                byte[] body = new byte[0x10000]; // 65536 bytes
+                File.WriteAllBytes(path, body);
+                File.WriteAllText(path + ".json",
+                    "{\"length\": 65536, \"srcAddr\": \"0x200\", \"format\": \"febuilder-mapanime1gfx-raw4bpp\"}\n");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPANIME1GFX_LENGTH") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPANIME1GFX_LENGTH error for length > 65535");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseKind_MapAnime1Gfx()
+        {
+            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("mapanime1gfx").Value);
+            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("map-tileanime1-graphics").Value);
+            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("anime1gfx").Value);
+            Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("MAPANIME1GFX").Value);
+        }
     }
 }
