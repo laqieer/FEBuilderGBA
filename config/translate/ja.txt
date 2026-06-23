@@ -12173,6 +12173,25 @@ FE-RepoのCG画像フォルダからインポート
 :Import from the FE-Repo Generic Minimugs folder
 FE-Repoの汎用ミニ顔フォルダからインポート
 
+
+:Export Map (Tiled .tmx)
+マップをエクスポート (Tiled .tmx)
+
+:Import Map (Tiled .tmx)
+マップをインポート (Tiled .tmx)
+
+:Tiled export requires a local file path (not supported on this storage provider).
+Tiledエクスポートにはローカルファイルパスが必要です（このストレージプロバイダーではサポートされていません）。
+
+:Could not render the chipset image for the Tiled tileset.
+Tiledタイルセット用のチップセット画像を描画できませんでした。
+
+:Failed to write the chipset PNG.
+チップセットPNGの書き込みに失敗しました。
+
+:Exported Tiled map to {0} (+ {1}, {2}).
+Tiledマップを {0} にエクスポートしました（+ {1}, {2}）。
+
 :Import from the FE-Repo Background CGs folder
 FE-Repoの背景CGフォルダからインポート
 

@@ -32,6 +32,8 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshMapBtn.Click += OnRefreshMap;
             ExportCsvButton.Click += ExportCsv_Click;
             ImportCsvButton.Click += ImportCsv_Click;
+            ExportTmxButton.Click += ExportTmx_Click;
+            ImportTmxButton.Click += ImportTmx_Click;
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
@@ -497,6 +499,188 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("MapEditorView.ImportCsv_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Export the current map as a Tiled project: a <c>.tmx</c> (default
+        /// <c>&lt;tile gid&gt;</c> XML layer), a matching <c>.tsx</c> tileset, and the
+        /// chipset PNG so Tiled renders the canvas faithfully. The three files are
+        /// written as siblings (same base name) from a single save dialog. Read-only —
+        /// does not touch the ROM. See <see cref="MapTmxCore"/> for the GID↔MAR
+        /// convention. (#1387)
+        /// </summary>
+        async void ExportTmx_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] cachedMap = _vm.GetMapDataSnapshot();
+                if (cachedMap == null || cachedMap.Length < 2)
+                {
+                    CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
+                    return;
+                }
+                if (StorageProvider == null) return;
+
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = R._("Export Map (Tiled .tmx)"),
+                    DefaultExtension = "tmx",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("Tiled map files") { Patterns = new[] { "*.tmx" } },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } }
+                    }
+                });
+                if (file == null) return;
+
+                // The three-file (.tmx + .tsx + .png) export needs a local sibling
+                // directory; resolve it via the picker's local path (same constraint
+                // as the CSV export). On providers without one (sandboxed SAF), fail
+                // cleanly without writing anything.
+                string tmxPath = file.TryGetLocalPath();
+                if (string.IsNullOrEmpty(tmxPath))
+                {
+                    CoreState.Services?.ShowError(R._("Tiled export requires a local file path (not supported on this storage provider)."));
+                    return;
+                }
+
+                string dir = Path.GetDirectoryName(tmxPath) ?? "";
+                string baseName = Path.GetFileNameWithoutExtension(tmxPath);
+                if (string.IsNullOrEmpty(baseName)) baseName = "map";
+                string tsxName = baseName + ".tsx";
+                string pngName = baseName + ".png";
+                string tsxPath = Path.Combine(dir, tsxName);
+                string pngPath = Path.Combine(dir, pngName);
+
+                // Chipset PNG (32-column grid, 16x16 chipsets) — same renderer as the
+                // live palette, so Tiled matches the in-game render.
+                byte[] paletteRgba = _vm.RenderChipsetPalette(out int pw, out int ph);
+                if (paletteRgba == null || pw <= 0 || ph <= 0)
+                {
+                    CoreState.Services?.ShowError(R._("Could not render the chipset image for the Tiled tileset."));
+                    return;
+                }
+
+                // Build AND validate the text artifacts BEFORE writing any file, so a
+                // failure can't leave a stray PNG/TSX behind ("validate-all-before-write").
+                int tileCount = (pw / MapTmxCore.TILE_PIXELS) * (ph / MapTmxCore.TILE_PIXELS);
+                string tsx = MapTmxCore.SerializeTsx(pngName, pw, ph, tileCount);
+                string tmx = MapTmxCore.SerializeTmx(cachedMap, tsxName);
+                if (string.IsNullOrEmpty(tmx))
+                {
+                    CoreState.Services?.ShowError(R._("Map data is invalid or too small."));
+                    return;
+                }
+
+                // WriteableBitmap is IDisposable — dispose after writing the PNG so
+                // repeated exports don't leak the unmanaged backing buffer.
+                using (var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph))
+                {
+                    if (bmp == null || !ImageExportService.SavePngToFile(bmp, pngPath))
+                    {
+                        CoreState.Services?.ShowError(R._("Failed to write the chipset PNG."));
+                        return;
+                    }
+                }
+
+                File.WriteAllText(tsxPath, tsx);
+                File.WriteAllText(tmxPath, tmx);
+                CoreState.Services?.ShowInfo(string.Format(
+                    R._("Exported Tiled map to {0} (+ {1}, {2})."), file.Name, tsxName, pngName));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.ExportTmx_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(string.Format(R._("Export failed: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Import a Tiled <c>.tmx</c> file (any common encoding: CSV / default XML /
+        /// Base64 / Base64+gzip / Base64+zlib) and apply its tile layer to the
+        /// currently-loaded map. Reuses the exact CSV import path:
+        /// <see cref="MapTmxCore.ParseTmx"/> → <see cref="MapEditorViewModel.ApplyMapGrid"/>
+        /// under one undo scope. Requires an exact W×H match; resize is not supported.
+        /// Blocked in decomp mode (map tile layout is a source asset). (#1387)
+        /// </summary>
+        async void ImportTmx_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] cachedMap = _vm.GetMapDataSnapshot();
+                if (cachedMap == null || cachedMap.Length < 2)
+                {
+                    CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
+                    return;
+                }
+
+                // Map tile layout is a source asset in decomp mode — block writes.
+                if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                    return;
+
+                if (StorageProvider == null) return;
+
+                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = R._("Import Map (Tiled .tmx)"),
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("Tiled map files") { Patterns = new[] { "*.tmx" } },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } }
+                    }
+                });
+
+                if (files == null || files.Count == 0) return;
+                var file = files[0];
+
+                // Read via the storage stream API so import works on providers that
+                // don't expose a local path (Android SAF, sandboxed environments).
+                string xml;
+                using (var stream = await file.OpenReadAsync())
+                using (var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8))
+                {
+                    xml = await reader.ReadToEndAsync();
+                }
+
+                if (!MapTmxCore.ParseTmx(xml, out int w, out int h, out ushort[] mars, out string parseErr))
+                {
+                    CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), parseErr));
+                    return;
+                }
+
+                bool ok;
+                string applyErr;
+                uint addr;
+                _undo.Begin("MapEditor.ImportTmx");
+                try
+                {
+                    ok = _vm.ApplyMapGrid(mars, w, h, out applyErr, out addr);
+                }
+                catch (Exception)
+                {
+                    _undo.Rollback();
+                    throw;
+                }
+
+                if (ok)
+                {
+                    _undo.Commit();
+                    OnRefreshMap(this, new RoutedEventArgs());
+                    UpdateTilePalette();
+                    CoreState.Services?.ShowInfo(string.Format(R._("Imported map from {0} ({1}x{2} tiles)."), file.Name, w, h));
+                }
+                else
+                {
+                    _undo.Rollback();
+                    CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), applyErr));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.ImportTmx_Click failed: " + ex.ToString());
                 CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), ex.Message));
             }
         }

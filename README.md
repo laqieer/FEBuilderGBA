@@ -569,7 +569,21 @@ sibling.
   (`# FEBuilderGBA Map Export: width=N, height=M`) and row-major decimal u16 MAR grid are parsed,
   validated (strict W×H match required — resize is not supported; select a map of matching dimensions
   or edit the CSV), and applied under a single LZ77 compress + write + repoint undo scope, mirroring
-  the existing tile-paint write path. Blocked in decomp mode (same guard as tile writes). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
+  the existing tile-paint write path. Blocked in decomp mode (same guard as tile writes).
+  **#1387 Tiled (.tmx) import/export:** the Visual Map Editor toolbar adds *"Export Map (Tiled .tmx)"*
+  and *"Import Map (Tiled .tmx)"* buttons so maps can be authored in [Tiled](https://www.mapeditor.org/).
+  **Import** parses a `.tmx` tile layer in any common encoding — plain CSV, the default `<tile gid=".."/>`
+  XML, Base64, Base64+gzip and Base64+zlib — and applies it through the exact same `ApplyMapGrid`
+  path as the CSV import (one undo scope, strict W×H match, blocked in decomp mode). **Export** emits a
+  three-file Tiled project from one save dialog: `foo.tmx` (default `<tile gid>` XML layer), `foo.tsx`
+  (32-column, 16×16 chipset tileset) and `foo.png` (the chipset image, rendered by the same path as the
+  live tile palette so Tiled matches the in-game render). **GID ↔ MAR convention:** `gid - 1 ==
+  chipsetIndex == MAR >> 2` on a 32-column chipset grid (`firstgid = 1`); per-tile flip/rotation flags
+  are masked off on import (GBA chipset indices carry no flip). Empty cells (`gid 0`) normalize to
+  chipset 0, so textual GID equality is not claimed for empty tiles — round-trip equality is on the
+  decoded MAR grid. The three-file export requires a local file path (desktop); it fails cleanly with a
+  message on sandboxed storage providers (import still works via the stream API). The parse/emit +
+  encoding decoders live in pure Core `MapTmxCore` (mirrors `MapExportCsv`). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
   write, Map Style OBJ/palette/chipset import + write, Event Map Change write/import/expand) surface
   an export-only/manual notice in decomp mode instead of silently writing the build-preview ROM —
   migrate those via the asset-export pipeline. The toolbar badge gains a *" · needs rebuild"* suffix

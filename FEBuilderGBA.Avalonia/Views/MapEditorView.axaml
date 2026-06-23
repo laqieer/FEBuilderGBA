@@ -29,6 +29,16 @@
                   Content="Import Map (CSV)"
                   Margin="8,0,0,0"
                   VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="MapEditor_ExportTmx_Button"
+                  Name="ExportTmxButton"
+                  Content="Export Map (Tiled .tmx)"
+                  Margin="16,0,0,0"
+                  VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="MapEditor_ImportTmx_Button"
+                  Name="ImportTmxButton"
+                  Content="Import Map (Tiled .tmx)"
+                  Margin="8,0,0,0"
+                  VerticalAlignment="Center" />
         </StackPanel>
       </StackPanel>
 
