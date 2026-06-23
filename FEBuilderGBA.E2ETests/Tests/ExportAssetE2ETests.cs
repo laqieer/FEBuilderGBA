@@ -1003,10 +1003,12 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [SkippableFact]
-        public void VerifyAsset_MapChipConfig_NonLz77Addr_ExitsTwo()
+        public void VerifyAsset_MapChipConfig_NotValidLz77Addr_ExitsTwo()
         {
-            // A benign in-ROM offset that is NOT a valid LZ77 stream → the verify path must
-            // fail (exit 2), never crash. ROM-backed but no synthetic LZ77 stream needed.
+            // An in-range in-ROM offset (>= 0x200, past the U.isSafetyOffset floor) that is NOT a
+            // valid LZ77 stream → the verify path must FAIL on the non-LZ77 detection (getCompressedSize
+            // == 0), exit 2, never crash. 0x1000 is past the safety floor so this actually exercises the
+            // non-LZ77 branch (not the out-of-safety-range guard). ROM-backed but no synthetic stream needed.
             Skip.If(FirstRom == null, "No ROM available for verify-asset mapchipconfig test");
 
             string dir = NewTempDir("verify_chipconfig_nolz77");
@@ -1015,8 +1017,9 @@ namespace FEBuilderGBA.E2ETests.Tests
                 string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
                 WriteSyntheticChipConfig(chipPath, 64);
 
-                // 0x4 is not a valid LZ77 stream start (and is in the header guard zone).
-                string args = $"--verify-asset --kind=mapchipconfig --rom=\"{FirstRom}\" --addr=0x4 --in=\"{chipPath}\"";
+                // 0x1000 is in-range (>= 0x200) but is not a valid LZ77 stream start in a vanilla FE
+                // ROM header region — so verify fails on non-LZ77 detection, not the safety-range guard.
+                string args = $"--verify-asset --kind=mapchipconfig --rom=\"{FirstRom}\" --addr=0x1000 --in=\"{chipPath}\"";
                 var (code, _, _) = RunWithRetry(args);
 
                 Assert.Equal(2, code);

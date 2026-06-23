@@ -5135,7 +5135,7 @@ namespace FEBuilderGBA.CLI
             bool isChipConfig = kind.Value == AssetKind.MapChipConfig;
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change|x.mapanime2pal|x.objtiles>"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change|x.mapanime2pal|x.objtiles|x.mapchipconfig>"); return 1; }
             string absIn = argsDic["--in"];
 
             if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
