@@ -5152,12 +5152,17 @@ namespace FEBuilderGBA.CLI
             }
 
             // ---- Export (READ-ONLY) ----
-            byte[] before = (byte[])rom.Data.Clone();
+            // Read-only invariant proof WITHOUT cloning the whole (tens-of-MB) ROM:
+            // a length + content hash before/after detects any mutation cheaply
+            // (Copilot review).
+            int beforeLen = rom.Data.Length;
+            byte[] beforeHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+
             var result = VoicegroupAsmExportCore.Export(rom, voicegroupOffset, number);
 
-            // Read-only invariant: the export must not have touched the ROM.
-            if (rom.Data.Length != before.Length || !ByteArrayEquals(rom.Data, before))
-            { Console.Error.WriteLine("Error: internal — voicegroup export mutated the ROM (aborting, no write)."); return 3; }
+            byte[] afterHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+            if (rom.Data.Length != beforeLen || !ByteArrayEquals(beforeHash, afterHash))
+            { Console.Error.WriteLine("Error: internal -- voicegroup export mutated the ROM (aborting, no write)."); return 3; }
 
             if (!result.Ok)
             {

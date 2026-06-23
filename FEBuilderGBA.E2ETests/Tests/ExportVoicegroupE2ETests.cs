@@ -146,18 +146,24 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             Skip.If(FirstRom == null, "No ROM available");
 
-            // A minimal decomp project root (DecompProject.Detect tolerates a bare dir;
-            // the path-confinement check rejects an escaping --out regardless).
+            // Build a VALID decomp project (manifest + a copied built ROM) so
+            // LoadProject SUCCEEDS and the export actually reaches the --out
+            // containment check — otherwise a bare temp dir fails to load first and
+            // the path-escape rejection logic is never exercised (Copilot review).
             string projectDir = NewTempDir("proj");
             try
             {
-                // --out escapes the project root via ".." -> must be rejected (exit 2), no write.
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\" }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // --out escapes the project root via ".." -> must be REJECTED (exit 2), no write.
                 string args = $"--export-voicegroup --project=\"{projectDir}\" --voicegroup-addr=0x207470 --out=\"..{Path.DirectorySeparatorChar}escape.s\"";
                 var (code, _, stderr) = Run(args);
-                // Either the project failed to load (nonzero) OR the path was rejected (exit 2);
-                // both are acceptable "no out-of-root write" outcomes. The escape file must not exist.
+
                 string escapePath = Path.GetFullPath(Path.Combine(projectDir, "..", "escape.s"));
-                Assert.True(code != 0, $"Expected nonzero exit for an out-of-root --out\nStderr: {stderr}");
+                // The project loads, then the escaping --out is rejected with exit 2 (path rejected).
+                Assert.Equal(2, code);
                 Assert.False(File.Exists(escapePath), "An escaping --out must not write outside the project root");
             }
             finally

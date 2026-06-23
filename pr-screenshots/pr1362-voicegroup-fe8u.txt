@@ -1,14 +1,17 @@
-$ FEBuilderGBA.CLI --export-voicegroup --rom=FE8U.gba --song-id=1 --out=voicegroup001.s
+$ FEBuilderGBA.CLI --export-voicegroup --rom=FE8U.gba --song-id=1 --out=sound/voicegroups/voicegroup001.s
 
-C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-aa4925cd96c806400\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338 [C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-aa4925cd96c806400\FEBuilderGBA.CLI\FEBuilderGBA.CLI.csproj]
-C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-aa4925cd96c806400\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338
-Exported voicegroup001 (128 voices) to C:\Users\zhiwenzhu\AppData\Local\Temp\vgout\voicegroup001.s
+Exported voicegroup001 (128 voices) to sound/voicegroups/voicegroup001.s
 Diagnostics (25):
   Voice 14: the sample pointer 0x082263B4 is an unresolved raw ROM address (no decomp symbol inferred).
   Voice 33: the sample pointer 0x08227988 is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 46: the sample pointer 0x0822807C is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 47: the sample pointer 0x08228C7C is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 48: the sample pointer 0x0822B4DC is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 49: the sample pointer 0x08233650 is an unresolved raw ROM address (no decomp symbol inferred).
+  ... (further unresolved-pointer / drum diagnostics omitted)
 
---- head of voicegroup001.s ---
-@ Exported by FEBuilderGBA (#1362) — review before building.
+--- head of the generated voicegroup001.s ---
+@ Exported by FEBuilderGBA (#1362) -- review before building.
 @ Source voicegroup ROM offset: 0x207470
 .include "asm/macros/music_voice.inc"
 

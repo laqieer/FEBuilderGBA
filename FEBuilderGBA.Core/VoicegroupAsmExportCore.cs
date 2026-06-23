@@ -197,7 +197,7 @@ namespace FEBuilderGBA
             if (voicegroupNumber < 0) voicegroupNumber = 0;
             string label = "voicegroup" + voicegroupNumber.ToString("D3");
 
-            sb.Append("@ Exported by FEBuilderGBA (#1362) — review before building.\n");
+            sb.Append("@ Exported by FEBuilderGBA (#1362) -- review before building.\n");
             sb.Append("@ Source voicegroup ROM offset: 0x" + provenanceBaseOffset.ToString("X") + "\n");
             sb.Append(".include \"asm/macros/music_voice.inc\"\n\n");
             sb.Append("\t.section .rodata\n");
@@ -301,7 +301,7 @@ namespace FEBuilderGBA
                     // UNSUPPORTED (0x18 + unknown): commented placeholder + the raw 12
                     // bytes for provenance — NEVER a guessed macro byte.
                     sb.Append("\t@ UNSUPPORTED voice type 0x" + v.Type.ToString("X2")
-                        + " (raw: " + RawHex(v.Raw) + ") — emit manually\n");
+                        + " (raw: " + RawHex(v.Raw) + ") -- emit manually\n");
                     diagnostics.Add(R._("Voice {0}: unsupported voice type 0x{1:X2}; emitted as a commented placeholder (manual conversion required).", v.Index, v.Type));
                     break;
                 }
