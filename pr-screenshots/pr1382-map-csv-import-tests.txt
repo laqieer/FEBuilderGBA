@@ -1,0 +1,21 @@
+PR #1382 — Import Map (CSV) test proof
+=======================================
+
+Core.Tests (MapExportCsv.Parse + MapEditorTilesetCore.TryStageGridEdit):
+  Passed!  - Failed: 0, Passed: 25, Skipped: 0, Total: 25
+
+Avalonia.Tests (Map Editor, incl. FE8U real-ROM success-path ApplyMapGrid):
+  Passed!  - Failed: 0, Passed: 15, Skipped: 0, Total: 15
+  (0 skipped => the RomTestHelper.WithRom("FE8U") success-path integration
+   test executed against roms/FE8U.gba: loaded a real map, applied a full
+   MAR grid via ApplyMapGrid, asserted single write + repoint + cache swap.)
+
+Full suite (env note):
+  Core.Tests: 5535 passed, 11 failed — ALL Skill* failures are the
+  config/patch2 submodule not checked out in the worktree (env-only,
+  NOT a regression; they pass in CI).
+  Avalonia.Tests: 8404 passed, 0 failed, 3 skipped.
+
+Screenshot: pr1382-map-csv-import-editor.png shows the Visual Map Editor
+toolbar with the new "Import Map (CSV)" button beside "Export Map (CSV)",
+with a real FE8U chapter map loaded and rendered.
