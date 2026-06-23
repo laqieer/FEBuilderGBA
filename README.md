@@ -412,9 +412,11 @@ sibling.
   instead of a silent ROM write. **Shop editors** (Item Shop Viewer): in decomp mode all three
   mutating operations (Write, Append Slot, Remove Last Slot) now **route to the owning decomp source
   list** when the selected shop's ROM address resolves to a manifest `u16-list` owner (symbol-resolved
-  via the project `.map`/`.elf`/`.sym`) AND that source list is literal-only — showing *"Wrote shop list
+  via the project `.map`/`.elf`/`.sym`) — covering **both** literal raw-hex lists **and** resolvable
+  symbolic `ITEM_*` item-id-only lists (#1354) — showing *"Wrote shop list
   to source. Rebuild to refresh the preview."* and never touching the preview ROM (#1347 Slice 5a).
-  When the shop is unresolved/unowned, or the source list contains a non-literal **macro** element,
+  When the shop is unresolved/unowned, the requested write needs a nonzero quantity on a symbolic list,
+  or the source list contains an **unknown/ambiguous macro** element,
   the editor keeps the #1149 ROM-only/manual notice (no ROM write, no clobber) and the carried reason
   is shown — migrate via `--export-asset --kind=shop`. **#1148 pointer-edit guard:** when the user edits ONLY an
   unsupported chapter pointer field (e.g. EventDataPtr / a difficulty pointer), the gate shows an
@@ -485,7 +487,7 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Map Editor | map_change_overlay | Map-change overlay import/verify | SourceTreeExporter | Raw uncompressed u16 overlay tile data block — export (--export-asset --kind=mapchange) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapchange) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the .mar layout and NOT the 12-byte change-record chain |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
-| Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) AND the source list is literal-only (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers, unresolved/unnamed shops degrade to --export-asset --kind=shop) |
+| Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) for BOTH literal raw-hex lists AND resolvable symbolic ITEM_* item-id-only lists (#1354) (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers; nonzero-quantity symbolic writes, unknown/ambiguous macros, and unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347). Supports BOTH a LITERAL raw-hex list AND a SYMBOLIC ITEM_* (item-id-only, quantity 0) list whose macro names resolve from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h); a non-zero quantity or an id with no ITEM_* constant is an actionable refusal, not a clobber (#1354) |
 | Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block (which is source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
