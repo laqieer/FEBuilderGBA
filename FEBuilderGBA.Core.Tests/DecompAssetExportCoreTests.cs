@@ -1982,8 +1982,9 @@ namespace FEBuilderGBA.Core.Tests
             raw = new byte[rawSize];
             for (int i = 0; i < rawSize; i++) raw[i] = (byte)(i ^ 0xAB); // known pattern
             byte[] comp = LZ77.compress(raw);
-            byte[] romData = new byte[addr + comp.Length + 16];
-            Array.Copy(comp, 0, romData, (int)addr, comp.Length);
+            int baseOffset = checked((int)addr);
+            byte[] romData = new byte[baseOffset + comp.Length + 16];
+            Array.Copy(comp, 0, romData, baseOffset, comp.Length);
             return romData;
         }
 
