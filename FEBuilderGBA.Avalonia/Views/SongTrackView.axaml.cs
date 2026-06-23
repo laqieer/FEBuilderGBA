@@ -1003,14 +1003,49 @@ namespace FEBuilderGBA.Avalonia.Views
         public ViewModelBase? DataViewModel => _vm;
 
         /// <summary>
-        /// #1383: import a music file into the currently-selected song through the
+        /// #1383: import a music file into the song at <paramref name="songHeaderAddr"/>
+        /// (the song-header OFFSET, matching each list item's address) through the
         /// ONE shared dispatcher (ImportMusicPath). Used by the Avalonia Song
         /// Exchange tool's FE-Repo-Music button, which navigates here for the
         /// selected destination song and then hands off the chosen path — so both
         /// Song editors funnel through the exact same import code path, with no
         /// duplicate importer.
+        ///
+        /// Robustness (#1399 review): the editor's list is populated on Opened,
+        /// which may not have run yet when this is called right after Navigate.
+        /// So we ensure the list is loaded, actively select the requested song by
+        /// its header address, and FAIL CLOSED (no import) if that song cannot be
+        /// selected — never import into the wrong/default song.
         /// </summary>
-        public System.Threading.Tasks.Task ImportMusicFromExternal(string path)
-            => ImportMusicPath(path);
+        public async System.Threading.Tasks.Task ImportMusicFromExternal(uint songHeaderAddr, string path)
+        {
+            // Ensure the list has been populated (Opened -> LoadList may not have
+            // fired yet for a freshly-navigated window).
+            if (!_vm.IsLoaded && EntryList.GetItems().Count == 0)
+            {
+                LoadList();
+                // Give the dispatcher a turn so the ListBox realizes the items
+                // before we try to select one.
+                await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                    () => { }, global::Avalonia.Threading.DispatcherPriority.Background);
+            }
+
+            // Actively select the requested destination song by its header
+            // address; bail out (no import) if it is not present.
+            if (!EntryList.SelectAddress(songHeaderAddr))
+            {
+                CoreState.Services.ShowError(R._(
+                    "Could not select the destination song for import."));
+                return;
+            }
+            if (!_vm.IsLoaded)
+            {
+                CoreState.Services.ShowError(R._(
+                    "The destination song could not be loaded for import."));
+                return;
+            }
+
+            await ImportMusicPath(path);
+        }
     }
 }

@@ -58,6 +58,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("FERepoPickHelper.PickMusic", body);
             Assert.Contains("Navigate<SongTrackView>", body);
             Assert.Contains("ImportMusicFromExternal", body);
+            // Resolves the destination song's HEADER address (not its index) so
+            // the Song Track list selects the correct song (#1399 review).
+            Assert.Contains(".Header", body);
             // No duplicate importer in Song Exchange.
             Assert.DoesNotContain("SongUtil.ImportS", src);
             Assert.DoesNotContain("ImportMidi(", src);
@@ -71,9 +74,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void SongTrackView_ExposesImportMusicFromExternal_SharedEntry()
         {
             string src = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongTrackView.axaml.cs"));
-            // The public hand-off entry delegates to the SAME private dispatcher.
-            Assert.Contains("ImportMusicFromExternal(string path)", src);
-            Assert.Contains("=> ImportMusicPath(path)", src);
+            // The public hand-off entry takes the destination song HEADER address
+            // (not an index), selects that song, and delegates to the SAME shared
+            // dispatcher (ImportMusicPath).
+            Assert.Contains("ImportMusicFromExternal(uint songHeaderAddr, string path)", src);
+            Assert.Contains("EntryList.SelectAddress(songHeaderAddr)", src);
+            Assert.Contains("await ImportMusicPath(path)", src);
         }
 
         static string ReadSource(string relativePath)

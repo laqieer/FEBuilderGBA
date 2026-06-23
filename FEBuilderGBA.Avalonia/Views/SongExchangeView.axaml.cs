@@ -188,13 +188,22 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                if (destIndex >= _vm.MySongList.Count)
+                {
+                    CoreState.Services.ShowError(R._("No song selected to import."));
+                    return;
+                }
+                // The Song Track list selects by song-HEADER address, not index,
+                // so resolve the destination song's header offset (#1399 review).
+                uint destHeaderAddr = _vm.MySongList[destIndex].Header;
+
                 string? path = await FERepoPickHelper.PickMusic(this);
                 if (string.IsNullOrEmpty(path)) return;
 
                 // Navigate to the Song Track Editor at the selected destination
                 // song, then run its single import dispatcher with the chosen path.
-                var view = WindowManager.Instance.Navigate<SongTrackView>((uint)destIndex);
-                await view.ImportMusicFromExternal(path);
+                var view = WindowManager.Instance.Navigate<SongTrackView>(destHeaderAddr);
+                await view.ImportMusicFromExternal(destHeaderAddr, path);
             }
             catch (Exception ex)
             {
