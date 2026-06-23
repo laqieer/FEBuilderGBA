@@ -707,5 +707,146 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(dir, true); } catch { }
             }
         }
+
+        // ============================================================================
+        // Map tile-animation-2 PALETTE block (raw uncompressed u16 LE, #1360)
+        // ============================================================================
+
+        // Build a synthetic .mapanime2pal palette body (raw u16 LE, any value) + matching sidecar.
+        static void WriteSyntheticAnime2Pal(string palPath, int count, string format = "febuilder-mapanime2-pal-u16")
+        {
+            byte[] body = new byte[count * 2];
+            for (int i = 0; i < count; i++)
+            {
+                ushort v = (ushort)(i * 0x101 + 0x2222); // arbitrary u16, includes >= 0x2000
+                body[i * 2 + 0] = (byte)(v & 0xFF);
+                body[i * 2 + 1] = (byte)(v >> 8);
+            }
+            File.WriteAllBytes(palPath, body);
+            File.WriteAllText(palPath + ".json",
+                $"{{\n  \"count\": {count},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportAsset_MapAnime2Pal_ExitsZero_WritesIdentityBlob()
+        {
+            string dir = NewTempDir("import_anime2pal");
+            try
+            {
+                int count = 12;
+                string palPath = Path.Combine(dir, "chapter.mapanime2pal");
+                WriteSyntheticAnime2Pal(palPath, count);
+
+                string outBin = Path.Combine(dir, "chapter.mapanime2pal_raw.bin");
+                string args = $"--import-asset --kind=mapanime2pal --in=\"{palPath}\" --out=\"{outBin}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --kind=mapanime2pal exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outBin), $"Expected raw blob at {outBin}");
+
+                // Identity copy: blob == .mapanime2pal body byte-for-byte.
+                byte[] src = File.ReadAllBytes(palPath);
+                byte[] dst = File.ReadAllBytes(outBin);
+                Assert.Equal(src, dst);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapAnime2Pal_Clean_ExitsZero()
+        {
+            string dir = NewTempDir("rt_anime2pal_ok");
+            try
+            {
+                string palPath = Path.Combine(dir, "chapter.mapanime2pal");
+                WriteSyntheticAnime2Pal(palPath, 12);
+
+                string args = $"--roundtrip-asset --kind=mapanime2pal --in=\"{palPath}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--roundtrip-asset --kind=mapanime2pal exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Round-trip OK", stdout);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapAnime2Pal_TruncatedBody_ExitsTwo()
+        {
+            string dir = NewTempDir("rt_anime2pal_bad");
+            try
+            {
+                int count = 12;
+                string palPath = Path.Combine(dir, "chapter.mapanime2pal");
+                WriteSyntheticAnime2Pal(palPath, count);
+
+                // Truncate the body by 2 bytes (sidecar still says 12 colors) → length mismatch.
+                byte[] body = File.ReadAllBytes(palPath);
+                byte[] truncated = new byte[body.Length - 2];
+                Array.Copy(body, truncated, truncated.Length);
+                File.WriteAllBytes(palPath, truncated);
+
+                string args = $"--roundtrip-asset --kind=mapanime2pal --in=\"{palPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void ExportAsset_MapAnime2Pal_Rom_ExitsZero_WritesPalAndSidecar_VerifyMatches()
+        {
+            Skip.If(FirstRom == null, "No ROM available for export-asset mapanime2pal test");
+
+            string dir = NewTempDir("export_anime2pal");
+            string outPal = Path.Combine(dir, "chapter.mapanime2pal");
+            try
+            {
+                // A benign in-ROM offset (>= 0x200) and a small count so the region is in bounds.
+                // We don't care WHAT bytes are there — only that export reads them and that a
+                // subsequent verify against the SAME address is byte-identical.
+                const string addr = "0x1000";
+                int count = 16;
+                string exportArgs =
+                    $"--export-asset --kind=mapanime2pal --rom=\"{FirstRom}\" --addr={addr} --count={count} --out=\"{outPal}\"";
+                var (code, stdout, stderr) = RunWithRetry(exportArgs);
+
+                Assert.True(code == 0,
+                    $"--export-asset --kind=mapanime2pal exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outPal), $"Expected .mapanime2pal at {outPal}");
+                Assert.True(File.Exists(outPal + ".json"), "Expected sidecar .mapanime2pal.json");
+                Assert.Equal(count * 2, new FileInfo(outPal).Length);
+
+                // Verify the exported palette against the SAME ROM address → byte-identical (exit 0).
+                string verifyArgs =
+                    $"--verify-asset --kind=mapanime2pal --rom=\"{FirstRom}\" --addr={addr} --count={count} --in=\"{outPal}\"";
+                var (vcode, vstdout, vstderr) = RunWithRetry(verifyArgs);
+                Assert.True(vcode == 0,
+                    $"--verify-asset (matching) exited with {vcode}\nStdout: {vstdout}\nStderr: {vstderr}");
+
+                // Edit a byte in the .mapanime2pal file → verify must now MISMATCH (exit 2).
+                byte[] edited = File.ReadAllBytes(outPal);
+                edited[0] ^= 0xFF;
+                File.WriteAllBytes(outPal, edited);
+                var (mcode, _, _) = RunWithRetry(verifyArgs);
+                Assert.Equal(2, mcode);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
     }
 }

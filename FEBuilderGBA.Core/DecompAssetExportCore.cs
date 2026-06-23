@@ -776,6 +776,254 @@ namespace FEBuilderGBA
             }
         }
 
+        // ---- Map tile-animation-2 PALETTE block (raw uncompressed u16 LE, #1360) ----
+
+        /// <summary>
+        /// Export a map tile-animation-2 PALETTE DATA BLOCK (#1360) — a RAW UNCOMPRESSED <c>u16</c> LE
+        /// array of <paramref name="count"/> 15-bit GBA colors (<c>count*2</c> bytes) — to a <c>.mapanime2pal</c>
+        /// file plus a sidecar JSON. This is the structural TWIN of <see cref="ExportMapChange"/> (the
+        /// map-change overlay path, #1355) with a single <c>count</c> descriptor in place of width/height.
+        /// It is reached by each anime-2 entry's <c>+0</c> pointer (see
+        /// <see cref="MapTileAnimation2Core.EntryRow.P0"/> / <c>Count</c> = u8 at entry <c>+5</c>) — NOT
+        /// the anime-2 ENTRY/PLIST table, NOT a <c>&lt;&lt;3</c>-shifted <c>.mar</c> layout, NOT LZ77.
+        ///
+        /// <para>The body is copied BYTE-FOR-BYTE from the (already-uncompressed) ROM region at
+        /// <paramref name="palAddr"/>; <c>srcAddr</c> in the sidecar is provenance metadata ONLY
+        /// (no symbol/owner is fabricated). This method is READ-ONLY (never mutates the ROM) and
+        /// NEVER throws.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="palAddr">ROM byte offset of the raw palette data block (anime-2 entry <c>+0</c>
+        /// pointer, dereferenced).</param>
+        /// <param name="count">Number of <c>u16</c> colors (anime-2 entry <c>+5</c>), 1..255.</param>
+        /// <param name="absOutPath">Absolute path for the output <c>.mapanime2pal</c> file. A sidecar
+        /// <c>&lt;path&gt;.json</c> is written at the same path with <c>.json</c> appended.</param>
+        public static DecompAssetResult ExportMapAnime2Pal(ROM rom, uint palAddr, int count, string absOutPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output .mapanime2pal path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Count must fit the u8 record field (1..255).
+                if (count < 1 || count > 255)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map tile-animation-2 palette count {count} (must be 1..255)");
+
+                long bodyLen = (long)count * 2;
+                // Bounds: the start must be a safe offset AND the whole body (last byte inclusive)
+                // must lie inside the ROM. Use a long for the end so a huge count cannot wrap a uint.
+                if (!U.isSafetyOffset(palAddr, rom)
+                    || palAddr + bodyLen > rom.Data.Length
+                    || palAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Palette region [0x{palAddr:X}, 0x{palAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                // Copy the raw palette body byte-for-byte from the (already-uncompressed) ROM.
+                byte[] body = rom.getBinaryData(palAddr, (int)bodyLen);
+                if (body == null || body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData, $"Could not read {bodyLen}-byte palette body at 0x{palAddr:X}");
+
+                EnsureParentDir(absOutPath);
+                File.WriteAllBytes(absOutPath, body);
+
+                string jsonPath = absOutPath + ".json";
+                string json = BuildMapAnime2PalJson(count, palAddr);
+                File.WriteAllText(jsonPath, json, Encoding.UTF8);
+
+                var result = new DecompAssetResult { Status = DecompAssetStatus.Ok, Message = $"Map tile-animation-2 palette exported ({count} colors)" };
+                result.WrittenPaths.Add(absOutPath);
+                result.WrittenPaths.Add(jsonPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-import a <c>.mapanime2pal</c> map tile-animation-2 PALETTE block (the inverse of
+        /// <see cref="ExportMapAnime2Pal"/>, #1360) into a RAW UNCOMPRESSED palette blob. The block is an
+        /// IDENTITY copy — NO header prepend, NO <c>&gt;&gt;3</c> shift, NO LZ77 compression — so the output
+        /// blob is the validated body written VERBATIM.
+        ///
+        /// <para>This method NEVER reads <see cref="CoreState.ROM"/>, NEVER LZ77-compresses, NEVER
+        /// mutates the ROM, and NEVER throws. The REQUIRED sidecar <c>count</c> (validated against the body
+        /// length) makes this a genuine source-backed artifact.</para>
+        /// </summary>
+        /// <param name="absIn">Absolute path to the input <c>.mapanime2pal</c> file. A sidecar
+        /// <c>&lt;path&gt;.json</c> (the export-side JSON) is REQUIRED.</param>
+        /// <param name="absOutBlob">Absolute path for the output RAW palette blob (identity copy of the
+        /// validated body).</param>
+        public static DecompAssetResult ImportMapAnime2Pal(string absIn, string absOutBlob)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absIn))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapanime2pal path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlob))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural validation (required sidecar, format, count, even length, count*2).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, absIn);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absIn);
+
+                // The sidecar count is REQUIRED (the validator already errors when missing, but
+                // re-read here to size-check the body before the identity copy).
+                string sidecar = absIn + ".json";
+                if (!TryReadMapAnime2PalCount(sidecar, out int count))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .json required to read count");
+
+                int expected = count * 2;
+                if (body.Length != expected)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != count*2 ({count}*2 = {expected})");
+
+                // The block is an identity copy: write the validated body VERBATIM.
+                EnsureParentDir(absOutBlob);
+                File.WriteAllBytes(absOutBlob, body);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported {count}-color map tile-animation-2 palette to raw blob ({body.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlob);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE structural round-trip proof for a map tile-animation-2 PALETTE BODY (#1360): true iff
+        /// <paramref name="body"/> is non-null, has even length, the count is positive, and
+        /// <c>body.Length == count*2</c>. Try/catch → false.
+        ///
+        /// <para>This is source-level structure-exact IDENTITY, NOT a byte-pinned ROM round-trip.
+        /// For a byte-exact ROM mismatch proof use <see cref="VerifyMapAnime2PalAgainstRom"/>.</para>
+        /// </summary>
+        public static bool RoundTripMapAnime2PalBody(byte[] body, int count)
+        {
+            try
+            {
+                if (body == null) return false;
+                if (body.Length % 2 != 0) return false;
+                if (count < 1) return false;
+                return body.Length == count * 2;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Byte-exact ROM-backed mismatch proof for a map tile-animation-2 PALETTE block (#1360): compare
+        /// the raw ROM palette region at <paramref name="palAddr"/> against the <c>.mapanime2pal</c> file
+        /// body byte-for-byte. This is the ONLY ROM-backed verification path (export/import never touch the
+        /// ROM). READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="palAddr">ROM byte offset of the raw palette data block.</param>
+        /// <param name="count">Number of <c>u16</c> colors, 1..255.</param>
+        /// <param name="absIn">Absolute path to the <c>.mapanime2pal</c> file (with required sidecar).</param>
+        public static DecompAssetResult VerifyMapAnime2PalAgainstRom(ROM rom, uint palAddr, int count, string absIn)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absIn))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapanime2pal path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Validate the .mapanime2pal file first (required sidecar, format, count, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, absIn);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                if (count < 1 || count > 255)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map tile-animation-2 palette count {count} (must be 1..255)");
+
+                long bodyLen = (long)count * 2;
+                if (!U.isSafetyOffset(palAddr, rom)
+                    || palAddr + bodyLen > rom.Data.Length
+                    || palAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Palette region [0x{palAddr:X}, 0x{palAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                byte[] body = File.ReadAllBytes(absIn);
+                if (body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != count*2 ({count}*2 = {bodyLen})");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    byte romByte = rom.Data[palAddr + i];
+                    byte fileByte = body[i];
+                    if (romByte != fileByte)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"Palette mismatch at byte offset {i}: ROM=0x{romByte:X2} file=0x{fileByte:X2}");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Verified {count}-color map tile-animation-2 palette byte-identical to ROM"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read <c>count</c> from a <c>.mapanime2pal.json</c> sidecar (the export-side JSON). NEVER throws;
+        /// returns false on any fault or non-positive count. Public so the CLI <c>--roundtrip-asset</c>
+        /// path can size the palette body before calling <see cref="RoundTripMapAnime2PalBody"/>.
+        /// </summary>
+        public static bool TryReadMapAnime2PalCount(string sidecarPath, out int count)
+        {
+            count = 0;
+            try
+            {
+                if (string.IsNullOrEmpty(sidecarPath) || !File.Exists(sidecarPath))
+                    return false;
+                string json = File.ReadAllText(sidecarPath);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("count", out System.Text.Json.JsonElement c)
+                    && c.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    count = c.GetInt32();
+                return count > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         // ---- ExportText ----
 
         /// <summary>
@@ -1088,6 +1336,13 @@ namespace FEBuilderGBA
         {
             // Hand-built (same shape as BuildMapJson); srcAddr is provenance metadata ONLY.
             return $"{{\n  \"width\": {w},\n  \"height\": {h},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapchange-u16\"\n}}\n";
+        }
+
+        static string BuildMapAnime2PalJson(int count, uint addrOffset)
+        {
+            // Hand-built (twin of BuildMapChangeJson with a single count descriptor); srcAddr is
+            // provenance metadata ONLY (no symbol/owner is fabricated).
+            return $"{{\n  \"count\": {count},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}}\n";
         }
     }
 }
