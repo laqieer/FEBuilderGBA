@@ -83,6 +83,24 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(ok);
         }
 
+        // Incomplete or malformed tokens (mid-keystroke / typos) must NOT take the
+        // hardcoding branch — they fall through to substring filtering, so no per-patch
+        // ROM scan and no forced-empty result. Regression for Copilot PR #1384 review.
+        [Theory]
+        [InlineData("hardcoding_")]        // no '=' yet, no type
+        [InlineData("hardcoding_unit")]    // no '=' yet
+        [InlineData("HARDCODING_UNIT")]    // no '=' yet (upper)
+        [InlineData("hardcoding_=01")]     // '=' present but empty type name
+        [InlineData("hardcoding_unit=")]   // recognized type but no value
+        [InlineData("hardcoding_xyz=01")]  // unrecognized type
+        [InlineData("hardcoding_unit=zz")] // non-hex value
+        [InlineData("hardcoding_weapon=05")] // unrecognized type
+        public void TryParse_IncompleteOrMalformedToken_ReturnsFalse(string filter)
+        {
+            bool ok = PatchFilterCore.TryParseHardCodingToken(filter, out _, out _);
+            Assert.False(ok);
+        }
+
         [Fact]
         public void TryParse_NullFilter_ReturnsFalse_NoThrow()
         {

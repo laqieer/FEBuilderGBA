@@ -53,9 +53,15 @@ namespace FEBuilderGBA
         /// simple lower-case is needed — the WF migemo/narrow-font transforms in
         /// <c>U.CleanupFindString</c> are irrelevant to this synthetic token.
         /// </para>
-        /// Returns false (and empty/zero outs) when the trimmed/lower-cased filter does
-        /// NOT start with <c>hardcoding_</c>, so the caller falls through to the substring
-        /// path. Never throws.
+        /// Returns true ONLY for a FULLY-FORMED token — it begins with <c>hardcoding_</c>,
+        /// has an <c>=</c> separator, a RECOGNIZED type (<c>UNIT</c>/<c>CLASS</c>/<c>ITEM</c>),
+        /// and a value whose first character is a hex digit. Otherwise returns false (with
+        /// empty/zero outs) so the caller falls through to the normal substring path. This
+        /// keeps a partially-typed or malformed <c>hardcoding_</c> input (mid-keystroke
+        /// <c>hardcoding_</c> / <c>hardcoding_unit</c>, an empty value <c>hardcoding_unit=</c>,
+        /// a bad type <c>hardcoding_xyz=01</c>, or non-hex <c>hardcoding_unit=zz</c>) from
+        /// triggering the per-patch LoadPatch/ROM scan and from forcing an empty result.
+        /// A complete <c>hardcoding_unit=01</c> parses unchanged. Never throws.
         /// </summary>
         public static bool TryParseHardCodingToken(string filter, out string typeNameUpper, out uint value)
         {
@@ -66,9 +72,23 @@ namespace FEBuilderGBA
             string f = filter.Trim().ToLowerInvariant();
             if (f.IndexOf("hardcoding_", StringComparison.Ordinal) != 0) return false;
 
+            // Require a '=' separator before taking the hardcoding branch.
+            if (f.IndexOf('=', StringComparison.Ordinal) < 0) return false;
+
             // U.cut / U.skip are the same primitives WF uses.
-            typeNameUpper = U.cut(f, "hardcoding_", "=").ToUpperInvariant();
-            value = U.atoh(U.skip(f, "="));
+            string typeLower = U.cut(f, "hardcoding_", "=");
+            string type = typeLower.ToUpperInvariant();
+            // Only the three real ADDRESS_TYPE values are seeded by the editors.
+            if (type != "UNIT" && type != "CLASS" && type != "ITEM") return false;
+
+            // Require a non-empty value whose first char is a hex digit (so "zz"/"" -> fall
+            // back to substring, not a forced-empty hardcoding result). atoh truncates at
+            // the first non-hex char, matching WF's parse for the kept hex prefix.
+            string valueStr = U.skip(f, "=");
+            if (valueStr.Length == 0 || !U.ishex(valueStr[0])) return false;
+
+            typeNameUpper = type;
+            value = U.atoh(valueStr);
             return true;
         }
 
