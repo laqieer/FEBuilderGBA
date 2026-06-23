@@ -32,6 +32,9 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1397 — FE-Repo browse button on the SAME ROW as Import/Export.
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -508,7 +511,31 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportFromFilename(imagefilename);
+        }
 
+        // #1397 — FE-Repo button: import a portrait from the FE-Repo
+        // "Portrait Repository" folder, routed through the SAME ImportFromFilename
+        // body (128x112 / 80x80 size handling is unchanged — no second path).
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            if (!InputFormRef.CheckWriteProtectionID00())
+            {
+                return;
+            }
+
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.Portrait);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+                ImportFromFilename(browser.SelectedFilePath);
+            }
+        }
+
+        private void ImportFromFilename(string imagefilename)
+        {
             Bitmap fullColor = ImageUtil.OpenLowBitmap(imagefilename); //bitmapそのものの色で開く.
             if (fullColor == null)
             {

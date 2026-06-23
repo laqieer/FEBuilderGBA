@@ -70,8 +70,35 @@ namespace FEBuilderGBA.Avalonia.Services
         public static async Task<string?> ImportIconAsync(
             Window owner, ROM rom, uint iconByteAddr, uint paletteAddr, UndoService undo)
         {
-            if (owner == null || rom == null || rom.Data == null || undo == null)
+            if (owner == null)
                 return R._("Internal error: missing ROM or editor context.");
+
+            // File dialog → then the SHARED path-taking core. The FE-Repo
+            // button (#1397) calls ImportIconFromPath directly with the chosen
+            // FE-Repo file, so there is exactly ONE import body.
+            string filePath = await FileDialogHelper.OpenImageFile(owner);
+            if (string.IsNullOrEmpty(filePath))
+                return null; // user cancelled — distinct from success ("").
+
+            return ImportIconFromPath(rom, iconByteAddr, paletteAddr, undo, filePath);
+        }
+
+        /// <summary>
+        /// #1397 — path-taking core shared by the file-dialog import
+        /// (<see cref="ImportIconAsync"/>) and the FE-Repo button. Same
+        /// contract: <c>null</c> only for a null/empty path (treated as
+        /// cancel), <c>""</c> on success, non-empty = localized error.
+        /// 16x16 strict size + remap-to-existing-16-color-palette — a 17+-color
+        /// source sheet is REDUCED onto the ROM palette, never silently
+        /// corrupted.
+        /// </summary>
+        public static string? ImportIconFromPath(
+            ROM rom, uint iconByteAddr, uint paletteAddr, UndoService undo, string filePath)
+        {
+            if (rom == null || rom.Data == null || undo == null)
+                return R._("Internal error: missing ROM or editor context.");
+            if (string.IsNullOrEmpty(filePath))
+                return null; // nothing chosen — treat as cancel.
 
             // Read the existing skill palette so the user image is remapped to
             // the in-ROM colors (import never overwrites the palette — WF parity).
@@ -79,11 +106,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (palette == null || palette.Length < 32)
                 return R._("Could not read the skill palette; aborting import.");
 
-            // File dialog + load + strict 16x16 size enforcement + remap.
-            string filePath = await FileDialogHelper.OpenImageFile(owner);
-            if (string.IsNullOrEmpty(filePath))
-                return null; // user cancelled — distinct from success ("").
-
+            // Load + strict 16x16 size enforcement + remap.
             var loadResult = ImageImportService.LoadAndRemapFromFile(
                 filePath, IconWidth, IconHeight, palette, 16, strictSize: true);
             if (loadResult == null || !loadResult.Success)

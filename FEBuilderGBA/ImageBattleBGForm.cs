@@ -21,6 +21,9 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1397 — FE-Repo browse button on the SAME ROW as Import/Export.
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -127,7 +130,6 @@ namespace FEBuilderGBA
 
         private void ImportButton_Click(object sender, EventArgs e)
         {
-            int width = 30 * 8;
             int height = 20 * 8;
             int palette_count = 8;
             Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUI(this, null, 0, height, true, palette_count);
@@ -135,6 +137,33 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
+
+        // #1397 — FE-Repo button: import a 240x160 battle background from the
+        // FE-Repo "Battle Frames & Backgrounds" folder, routed through the SAME
+        // ImportBitmap body (the existing crop/size handling applies).
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            int height = 20 * 8;
+            int palette_count = 8;
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.BattleBackground);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+                Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUILow(browser.SelectedFilePath, null, 0, height, true, palette_count);
+                if (bitmap == null) return;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
+            int width = 30 * 8;
+            int height = 20 * 8;
+            int palette_count = 8;
             if (bitmap.Width > width || bitmap.Height > height)
             {//幅サイズが超えていたら削り落とす.
                 Bitmap newBitmap = ImageUtil.Blank(width, height , bitmap);

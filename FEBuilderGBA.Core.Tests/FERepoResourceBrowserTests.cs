@@ -313,6 +313,11 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.BackgroundImage)]
         [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleBackground)]
+        // #1397 — newly-wired editors (Portrait/SpellAnim/Tileset/Skill batch):
+        // each must seed a POPULATED FE-Repo folder, never an empty placeholder.
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.Portrait)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.SkillIcon)]
         public void GetFERepoFolderForEditor_WiredFolder_IsPopulated_WhenSubmodulePresent(
             FERepoResourceBrowser.FERepoEditorKind kind)
         {

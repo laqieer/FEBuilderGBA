@@ -1,0 +1,21 @@
+#1397 — WinForms FE-Repo wiring: build + test verification (live GUI capture
+is blocked in the worktree by the patch2-submodule startup dialog, an env-only
+limitation — so this PR relies on the clean build + the source-text wiring tests
+for the 6 WinForms editors, plus the live Avalonia GUI screenshots).
+
+$ dotnet build FEBuilderGBA/FEBuilderGBA.csproj -c Debug
+Build succeeded.
+    0 Error(s)
+
+WinForms editors wired (FE-Repo button on the Import/Export row via
+FERepoResourceBrowserForm.AddBrowseButton, each routing the chosen file through
+the editor's existing/extracted ImportBitmap-style body):
+  - ImageCGForm           -> CGImage           (Background CGs, 256x160)
+  - ImageCGFE7UForm       -> CGImage           (Background CGs, 256x160)
+  - ImageBGForm           -> BackgroundImage    (Background CGs)
+  - ImageBattleBGForm     -> BattleBackground   (Battle Frames & Backgrounds, 240x160)
+  - ImagePortraitFE6Form  -> Portrait           (Portrait Repository)
+  - ImageGenericEnemyPortraitForm -> GenericEnemyPortrait (Special - Generic Minimugs, 32x32)
+
+Source-text wiring guards (FEBuilderGBA.Tests/FERepoRemainingEditorsWiringTests):
+  Passed!  - Failed: 0, Passed: 33  (covers WinForms wired + dropped editors)

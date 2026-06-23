@@ -84,10 +84,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
+            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return; // cancelled
+            ImportImageFromFile(filePath);
+        }
+
+        // #1397 — the FE-Repo button routes through this SAME FromFile import
+        // path. strictSize=true (used by FE-Repo) rejects a non-240x160 asset
+        // with the existing size error rather than silently cropping/quantizing
+        // it; the file-picker keeps the lenient default (strictSize=false).
+        void ImportImageFromFile(string filePath, bool strictSize = false)
+        {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
-                if (loadResult == null) return; // cancelled
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 240, 160, 16, strictSize: strictSize);
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
                 ROM rom = CoreState.ROM;
@@ -109,6 +119,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
+        }
+
+        // #1397 — FE-Repo button: pick a 240x160 battle background from the
+        // FE-Repo "Battle Frames & Backgrounds" folder and route it through the
+        // SAME FromFile import path (strictSize so a non-240x160 asset is
+        // rejected, not silently cropped).
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.BattleBackground);
+            if (string.IsNullOrEmpty(path)) return;
+            ImportImageFromFile(path, strictSize: true);
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)

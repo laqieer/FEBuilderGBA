@@ -22,6 +22,9 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1397 — FE-Repo browse button on the SAME ROW as Import/Export.
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -143,6 +146,28 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
+
+        // #1397 — FE-Repo button: import a 256x160 CG from the FE-Repo
+        // "Background CGs" folder, routed through the SAME ImportBitmap body.
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.CGImage);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+                Bitmap bitmap = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
+                if (bitmap == null) return;
+                bitmap.Tag = browser.SelectedFilePath;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
             int width = 32 * 8;
             int height = 20 * 8;
             int palette_count = 8;
