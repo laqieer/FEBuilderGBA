@@ -508,10 +508,10 @@ music, portraits, and battle animations.
 
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `mapchange` (raw u16 map-change overlay), `mapanime2pal` (raw u16 map tile-animation-2 palette), `objtiles` (LZ77-decompressed 4bpp OBJ tile payload), `text`, `shop`. |
+| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `mapchange` (raw u16 map-change overlay), `mapanime2pal` (raw u16 map tile-animation-2 palette), `objtiles` (LZ77-decompressed 4bpp OBJ tile payload), `mapchipconfig` (LZ77-decompressed chipset TSA/config payload), `text`, `shop`. |
 | `--out=<path>` | Yes | Output path (project-relative when `--project`; absolute or relative when `--rom`). |
 | `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
-| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`, `mapchange`, `mapanime2pal`, `objtiles`). For `mapchange` it is the `change_mar` offset (the record `+8` change pointer, dereferenced); for `mapanime2pal` it is the anime-2 entry `+0` palette pointer, dereferenced; for `objtiles` it is the **DEREFERENCED** OBJ LZ77 stream address (NOT `RomInfo.map_obj_pointer`). |
+| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`, `mapchange`, `mapanime2pal`, `objtiles`, `mapchipconfig`). For `mapchange` it is the `change_mar` offset (the record `+8` change pointer, dereferenced); for `mapanime2pal` it is the anime-2 entry `+0` palette pointer, dereferenced; for `objtiles` it is the **DEREFERENCED** OBJ LZ77 stream address (NOT `RomInfo.map_obj_pointer`); for `mapchipconfig` it is the **DEREFERENCED** config LZ77 stream address (the CONFIG-PLIST pointer dereferenced, NOT `RomInfo.map_config_pointer`; FE7 split layouts use a separate per-plist `--addr`). |
 | `--palette-addr=<hex>` | Cond. | ROM address of the palette data (required for `graphics`). |
 | `--width=<int>` | Cond. | Image width in pixels (required for `graphics`; overlay width for `mapchange`, record `+3`). |
 | `--height=<int>` | Cond. | Image height in pixels (required for `graphics`; overlay height for `mapchange`, record `+4`). |
@@ -533,6 +533,15 @@ by each anime-2 entry's `+0` pointer. It uses a single `--count` descriptor (1..
 entry-index auto-resolve); `srcAddr` in the `.mapanime2pal.json` sidecar is provenance metadata only. Re-import /
 round-trip / byte-exact ROM verify are below.
 
+The `mapchipconfig` kind (#1375) is the structural **twin** of `objtiles`: it exports the **LZ77-decompressed
+chipset TSA/config payload** — a single LZ77 stream reached by one dereferenced CONFIG-PLIST pointer (WF
+`ImageUtilMap.UnLZ77ChipsetData`). The source body is the **DECOMPRESSED** bytes, NOT a byte-pinned LZ77 stream
+(FEBuilder's packer is non-canonical, so the build re-compresses). `--addr` is the **DEREFERENCED** config LZ77
+stream address (NOT `RomInfo.map_config_pointer`; FE7 split layouts use a separate per-plist `--addr`). No
+`--width`/`--height`/`--count` — the decompressed length comes from the sidecar (`febuilder-mapchipconfig-lz77`).
+It is **NOT** the anime-1/anime-2 entry tables, **NOT** the map-change record chain, **NOT** the `.mar` layout.
+Re-import / round-trip / read-only decompress-and-byte-compare ROM verify are below.
+
 ```
 FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out=gfx/palette.pal
 FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
@@ -540,6 +549,7 @@ FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=m
 FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
 FEBuilderGBA.CLI --export-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --out=map/chapter1.mapanime2pal
 FEBuilderGBA.CLI --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles
+FEBuilderGBA.CLI --export-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --out=map/chapter1.mapchipconfig
 FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 ```
 
@@ -585,11 +595,11 @@ FEBuilderGBA.CLI --export-voicegroup --project=decomp/ --voicegroup-addr=0x20747
 
 ---
 
-### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / mapanime2pal / objtiles)
+### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / mapanime2pal / objtiles / mapchipconfig)
 
 Re-import an edited map asset to a raw uncompressed blob, prove a body round-trips, or verify a map-change
-overlay / anime-2 palette block / OBJ tileset byte-for-byte against the ROM. The `map` (`.mar` layout) variants are
-documented under `--export-asset` above; the `mapchange` (#1355) variants are:
+overlay / anime-2 palette block / OBJ tileset / chipset config byte-for-byte against the ROM. The `map` (`.mar`
+layout) variants are documented under `--export-asset` above; the `mapchange` (#1355) variants are:
 
 | Command | Reads ROM? | Description |
 |---|---|---|
@@ -634,6 +644,24 @@ stream/`--addr`, never concatenated). No `--width`/`--height`/`--count` — the 
 FEBuilderGBA.CLI --import-asset --kind=objtiles --in=map/chapter1.objtiles --out=map/chapter1.objtiles_raw.bin
 FEBuilderGBA.CLI --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles
 FEBuilderGBA.CLI --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles
+```
+
+The `mapchipconfig` (#1375) variants mirror `objtiles` exactly (its structural twin): the source body is the
+LZ77-DECOMPRESSED chipset TSA/config payload; `--verify-asset` re-decompresses the live ROM block and byte-compares
+(READ-ONLY). `--addr` is the **DEREFERENCED** config LZ77 stream address (NOT `RomInfo.map_config_pointer`; FE7
+split layouts use a separate per-plist `--addr`). No `--width`/`--height`/`--count` — the decompressed length comes
+from the sidecar (`febuilder-mapchipconfig-lz77`). NOT the anime-1/anime-2 entry tables, NOT the map-change record chain:
+
+| Command | Reads ROM? | Description |
+|---|---|---|
+| `--import-asset --kind=mapchipconfig --in=<x.mapchipconfig> --out=<x.bin>` | No | Identity copy of the validated decompressed body to a raw blob (NO LZ77 compression). Requires the `.mapchipconfig.json` sidecar. |
+| `--roundtrip-asset --kind=mapchipconfig --in=<x.mapchipconfig>` | No | Structure-exact identity proof (`body.Length == length`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
+| `--verify-asset --kind=mapchipconfig --in=<x.mapchipconfig> --addr=<hex> (--rom\|--project)` | **Yes (read-only)** | LZ77-decompresses the ROM block at `--addr` and byte-compares vs the file body. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
+
+```
+FEBuilderGBA.CLI --import-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig --out=map/chapter1.mapchipconfig_raw.bin
+FEBuilderGBA.CLI --roundtrip-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig
+FEBuilderGBA.CLI --verify-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --in=map/chapter1.mapchipconfig
 ```
 
 The `portrait-package` (#1374) variants are a **multi-file DIRECTORY** write-back / round-trip (NOT a file `--in`):
@@ -743,14 +771,14 @@ FEBuilderGBA.CLI --manifest-to-nmm --project=decomp/ --table=items --out=items.n
 
 ### `--validate-asset`
 
-Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar); `.change` map-change overlay (`--kind=mapchange`, #1355) → REQUIRED `.change.json` sidecar declaring `format "febuilder-mapchange-u16"` + dims 1..255, even length, `length == width*height*2` (NO `<<3` invariant — overlay indices are raw u16); `.mapanime2pal` map tile-animation-2 palette (`--kind=mapanime2pal`, #1360) → REQUIRED `.mapanime2pal.json` sidecar declaring `format "febuilder-mapanime2-pal-u16"` + count 1..255, even length, `length == count*2` (raw u16 colors; `count == 0` is an intentional refusal — a meaningful source asset must have ≥1 color); `.objtiles` OBJ tileset decompressed payload (`--kind=objtiles`, #1371) → REQUIRED `.objtiles.json` sidecar declaring `format "febuilder-objtiles-lz77"` + a positive `length`, and `body.Length == length` (the decompressed 4bpp payload; NO ROM read, NO LZ77).
+Structurally validate a decomp IMPORT asset on disk (#1150) **before** wiring it into a build. READ-ONLY; **NEVER loads a ROM**. Indexed PNG → color type 3 / tile alignment / palette size / in-range indices; JASC `.pal` → header/count/color triples; `.mar` → length == w*h*2 and the `<<3` low-3-bits-zero invariant (validated against the `.mar.json` sidecar); `.change` map-change overlay (`--kind=mapchange`, #1355) → REQUIRED `.change.json` sidecar declaring `format "febuilder-mapchange-u16"` + dims 1..255, even length, `length == width*height*2` (NO `<<3` invariant — overlay indices are raw u16); `.mapanime2pal` map tile-animation-2 palette (`--kind=mapanime2pal`, #1360) → REQUIRED `.mapanime2pal.json` sidecar declaring `format "febuilder-mapanime2-pal-u16"` + count 1..255, even length, `length == count*2` (raw u16 colors; `count == 0` is an intentional refusal — a meaningful source asset must have ≥1 color); `.objtiles` OBJ tileset decompressed payload (`--kind=objtiles`, #1371) → REQUIRED `.objtiles.json` sidecar declaring `format "febuilder-objtiles-lz77"` + a positive `length`, and `body.Length == length` (the decompressed 4bpp payload; NO ROM read, NO LZ77); `.mapchipconfig` chipset TSA/config decompressed payload (`--kind=mapchipconfig`, #1375) → REQUIRED `.mapchipconfig.json` sidecar declaring `format "febuilder-mapchipconfig-lz77"` + a positive `length`, and `body.Length == length` (the decompressed chipset config payload, structural twin of `objtiles`; NO ROM read, NO LZ77).
 
 The `portrait-package` kind (#1350) is a **multi-file PACKAGE validator** over a DIRECTORY: it requires exactly one composite sheet PNG, reuses the single-PNG structural checks, then verifies the canonical 128×112 slot geometry (mini/eye/mouth slots fit; a 96×80 main-mug-only sheet is `INCOMPLETE_PACKAGE` unless `--allow-main-only`), the 4bpp (≤16-color) portrait palette cap, and **palette consistency** between the sheet's embedded PLTE and an optional JASC `.pal` sidecar (count + per-entry RGB). It still never loads the ROM.
 
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`, `mapchange`, `mapanime2pal`, `objtiles`, `portrait-package`. |
-| `--in=<srcAsset>` | Required (single-file kinds) | Input asset file (PNG / `.pal` / `.mar` / `.change` / `.mapanime2pal` / `.objtiles`). |
+| `--kind=<kind>` | Required | Asset kind: `graphics`, `palette`, `portrait`, `icon`, `map`, `mapchange`, `mapanime2pal`, `objtiles`, `mapchipconfig`, `portrait-package`. |
+| `--in=<srcAsset>` | Required (single-file kinds) | Input asset file (PNG / `.pal` / `.mar` / `.change` / `.mapanime2pal` / `.objtiles` / `.mapchipconfig`). |
 | `--path=<dir>` | Required for `--kind=portrait-package` | Package directory (one 128×112 sheet PNG + optional JASC `.pal`). |
 | `--allow-main-only` | Optional (`portrait-package`) | Accept a 96×80 main-mug-only sheet (warn instead of error). |
 | `--project=<dir>` | Optional (`portrait-package`) | Confine `--path` to the decomp project root (rejects absolute / escaping paths; **never loads the preview ROM**). |

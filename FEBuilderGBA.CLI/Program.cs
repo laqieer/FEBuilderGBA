@@ -576,9 +576,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
             Console.WriteLine("    --kind=mapchange       Raw uncompressed map-change OVERLAY tile data block (needs --addr=<change_mar hex>, --width, --height); NOT the .mar layout, NOT the record chain (#1355)");
             Console.WriteLine("    --kind=objtiles        OBJ tileset LZ77 block — exports the DECOMPRESSED 4bpp payload (needs --addr=<DEREFERENCED OBJ LZ77 stream hex>, NOT RomInfo.map_obj_pointer); FE7 obj2 is a separate stream/--addr; NOT chipset TSA/config, NOT tile animations 1/2 (#1371)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|mapchange|mapanime2pal|objtiles|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
+            Console.WriteLine("    --kind=mapchipconfig   Chipset TSA/config LZ77 block — exports the DECOMPRESSED config payload (needs --addr=<DEREFERENCED config LZ77 stream hex>, NOT RomInfo.map_config_pointer); FE7 split layouts use a separate per-plist --addr; NOT the anime-1/anime-2 entry tables, NOT the map-change record chain (#1375)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|mapchange|mapanime2pal|objtiles|mapchipconfig|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
             Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
-            Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map, mapchange, mapanime2pal, objtiles)");
+            Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map, mapchange, mapanime2pal, objtiles, mapchipconfig)");
             Console.WriteLine("    --colors=<int>         Number of palette colors (default 16; for --kind=palette and --kind=graphics)");
             Console.WriteLine("    --bpp=<int>            Bits per pixel (default 4; 4 or 8; for --kind=graphics)");
             Console.WriteLine("    --width=<int>          Image width in pixels (required for --kind=graphics)");
@@ -627,26 +628,26 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --table=<name>         Table name to export to .nmm; pointer/var fields are flagged unsafe via warnings (stderr)");
             Console.WriteLine("    --out=<path>           Optional: write the .nmm to a file (otherwise printed to stdout)");
             Console.WriteLine("  --validate-asset         Structurally validate a decomp IMPORT asset on disk (no ROM; never mutates)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|portrait-package");
-            Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map, .change/.mapanime2pal/.objtiles for those kinds)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package");
+            Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map, .change/.mapanime2pal/.objtiles/.mapchipconfig for those kinds)");
             Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
             Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
             Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
-            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change overlay, .mapanime2pal palette, .objtiles OBJ tileset) to a raw blob, OR write-back a portrait PACKAGE dir, in the source tree (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|portrait-package  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (#1355); mapanime2pal = raw u16 anime-2 palette block (#1360); objtiles = decompressed 4bpp OBJ payload (#1371); portrait-package = 128x112 sheet+sidecar identity write-back (#1374)");
-            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file (map kinds)");
+            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change overlay, .mapanime2pal palette, .objtiles OBJ tileset, .mapchipconfig chipset config) to a raw blob, OR write-back a portrait PACKAGE dir, in the source tree (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (#1355); mapanime2pal = raw u16 anime-2 palette block (#1360); objtiles = decompressed 4bpp OBJ payload (#1371); mapchipconfig = decompressed chipset config payload (#1375); portrait-package = 128x112 sheet+sidecar identity write-back (#1374)");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles|x.mapchipconfig>  Input asset file (map kinds)");
             Console.WriteLine("    --out=<x.bin|destDir>  Output raw blob (map kinds) or owner package dir (portrait-package); project-relative when --project");
             Console.WriteLine("    --path=<srcDir>       portrait-package: SOURCE package dir (read; not containment-checked)");
             Console.WriteLine("    --allow-main-only     portrait-package: accept a 96x80 main-mug-only sheet (warn not error)");
             Console.WriteLine("    --overwrite           portrait-package: replace an existing single-package owner at --out (else OWNER_EXISTS refusal)");
-            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/anime2pal/objtiles body round-trips, OR a portrait PACKAGE matches a baseline (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|portrait-package  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); mapanime2pal = structure-exact anime-2 palette (#1360); objtiles = structure-exact .objtiles decompressed body (#1371); portrait-package = byte-identical to an --expect baseline (#1374)");
-            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file (map kinds)");
+            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/anime2pal/objtiles/mapchipconfig body round-trips, OR a portrait PACKAGE matches a baseline (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); mapanime2pal = structure-exact anime-2 palette (#1360); objtiles = structure-exact .objtiles decompressed body (#1371); mapchipconfig = structure-exact .mapchipconfig decompressed body (#1375); portrait-package = byte-identical to an --expect baseline (#1374)");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles|x.mapchipconfig>  Input asset file (map kinds)");
             Console.WriteLine("    --path=<srcDir> --expect=<baselineDir>  portrait-package: source dir + REQUIRED baseline oracle dir (no self-compare)");
-            Console.WriteLine("  --verify-asset           ROM-backed mismatch proof for a map-change OVERLAY, anime-2 PALETTE, or OBJ tileset (reads ROM READ-ONLY; never mutates) (#1355/#1360/#1371)");
-            Console.WriteLine("    --kind=mapchange|mapanime2pal|objtiles  mapchange = byte-exact overlay compare (needs --width/--height); mapanime2pal = byte-exact palette compare (needs --count); objtiles = decompress-and-byte-compare the OBJ payload (no --width/--height/--count)");
-            Console.WriteLine("    --in=<x.change|x.mapanime2pal|x.objtiles>  Input overlay/anime2pal/objtiles file (+ required .json sidecar)");
-            Console.WriteLine("    --addr=<hex>           mapchange: change_mar offset; mapanime2pal: anime-2 entry +0 palette ptr; objtiles: the DEREFERENCED OBJ LZ77 stream address (FE7 obj2 = separate --addr)");
+            Console.WriteLine("  --verify-asset           ROM-backed mismatch proof for a map-change OVERLAY, anime-2 PALETTE, OBJ tileset, or chipset config (reads ROM READ-ONLY; never mutates) (#1355/#1360/#1371/#1375)");
+            Console.WriteLine("    --kind=mapchange|mapanime2pal|objtiles|mapchipconfig  mapchange = byte-exact overlay compare (needs --width/--height); mapanime2pal = byte-exact palette compare (needs --count); objtiles = decompress-and-byte-compare the OBJ payload (no --width/--height/--count); mapchipconfig = decompress-and-byte-compare the chipset config payload (no --width/--height/--count)");
+            Console.WriteLine("    --in=<x.change|x.mapanime2pal|x.objtiles|x.mapchipconfig>  Input overlay/anime2pal/objtiles/mapchipconfig file (+ required .json sidecar)");
+            Console.WriteLine("    --addr=<hex>           mapchange: change_mar offset; mapanime2pal: anime-2 entry +0 palette ptr; objtiles: DEREFERENCED OBJ LZ77 stream address (FE7 obj2 = separate --addr); mapchipconfig: DEREFERENCED config LZ77 stream address (NOT RomInfo.map_config_pointer)");
             Console.WriteLine("    --width=<int> --height=<int>  Overlay dimensions (mapchange only; record +3/+4)");
             Console.WriteLine("    --count=<int>         Palette color count (mapanime2pal only; entry +5)");
             Console.WriteLine("    --rom=<path> | --project=<dir>  ROM source (the preview build for --project)");
@@ -681,6 +682,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --out=map/chapter1.mapchipconfig");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=shop --rom=rom.gba --out=shops/");
             Console.WriteLine("  FEBuilderGBA.CLI --decomp-audit --format=md --out=docs/decomp-coverage.md");
@@ -693,13 +695,16 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=objtiles --in=map/chapter1.objtiles --out=map/chapter1.objtiles_raw.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig --out=map/chapter1.mapchipconfig_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=portrait-package --path portraits/src/eirika/ --out portraits/eirika/ --project=decomp/");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=mapchange --in=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles");
+            Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=mapchipconfig --in=map/chapter1.mapchipconfig");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=portrait-package --path portraits/src/eirika/ --expect portraits/eirika/");
             Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles");
+            Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=mapchipconfig --rom=rom.gba --addr=0x500000 --in=map/chapter1.mapchipconfig");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=support_units --id=0 --field=b0 --value=6 --field=b1 --value=3   (leading prefix — safe with minimal fields[])");
@@ -4781,10 +4786,10 @@ namespace FEBuilderGBA.CLI
         static int RunValidateAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|portrait-package>"); return 1; }
+            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package>"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
             if (kind == null)
-            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, mapchange, mapanime2pal, objtiles, portrait-package"); return 1; }
+            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, mapchange, mapanime2pal, objtiles, mapchipconfig, portrait-package"); return 1; }
 
             // --kind=portrait-package is a DIRECTORY validator: --path (not --in), optional
             // --allow-main-only, optional --project containment. NEVER loads the preview ROM.
@@ -4858,10 +4863,10 @@ namespace FEBuilderGBA.CLI
         static int RunImportAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|mapanime2pal|objtiles|portrait-package"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.PortraitPackage))
-            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles or --kind=portrait-package is supported for --import-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.MapChipConfig && kind.Value != AssetKind.PortraitPackage))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles, --kind=mapchipconfig or --kind=portrait-package is supported for --import-asset"); return 1; }
 
             // --kind=portrait-package is a DIRECTORY write-back (#1374): --path=<srcDir> (read,
             // not containment-checked) + --out=<destDir> (project-root-confined when --project is
@@ -4908,6 +4913,8 @@ namespace FEBuilderGBA.CLI
             DecompAssetResult result;
             if (kind.Value == AssetKind.ObjTiles)
                 result = DecompAssetExportCore.ImportObjTiles(absIn, absOut);
+            else if (kind.Value == AssetKind.MapChipConfig)
+                result = DecompAssetExportCore.ImportMapChipConfig(absIn, absOut);
             else if (kind.Value == AssetKind.MapChangeOverlay)
                 result = DecompAssetExportCore.ImportMapChange(absIn, absOut);
             else if (kind.Value == AssetKind.MapTileAnimation2Palette)
@@ -4997,10 +5004,10 @@ namespace FEBuilderGBA.CLI
         static int RunRoundtripAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|mapanime2pal|objtiles|portrait-package"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|mapanime2pal|objtiles|mapchipconfig|portrait-package"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.PortraitPackage))
-            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles or --kind=portrait-package is supported for --roundtrip-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.MapChipConfig && kind.Value != AssetKind.PortraitPackage))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles, --kind=mapchipconfig or --kind=portrait-package is supported for --roundtrip-asset"); return 1; }
 
             // --kind=portrait-package (#1374): a DIRECTORY round-trip against an explicit BASELINE.
             // Requires --path=<srcDir> + --expect=<baselineDir> (the oracle — NOT a self-compare).
@@ -5049,6 +5056,14 @@ namespace FEBuilderGBA.CLI
                 { Console.Error.WriteLine("Error: sidecar .objtiles.json required to read length"); return 2; }
                 ok = DecompAssetExportCore.RoundTripObjTilesBody(body, expectedLen);
                 okMsg = "Round-trip OK (structure-exact OBJ tileset decompressed body)";
+            }
+            else if (kind.Value == AssetKind.MapChipConfig)
+            {
+                // The decompressed chipset config body has no intrinsic length — read it from the REQUIRED sidecar.
+                if (!DecompAssetExportCore.TryReadMapChipConfigLength(inPath + ".json", out int expectedLen))
+                { Console.Error.WriteLine("Error: sidecar .mapchipconfig.json required to read length"); return 2; }
+                ok = DecompAssetExportCore.RoundTripMapChipConfigBody(body, expectedLen);
+                okMsg = "Round-trip OK (structure-exact map chipset config decompressed body)";
             }
             else
             {
@@ -5111,12 +5126,13 @@ namespace FEBuilderGBA.CLI
         static int RunVerifyAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange|mapanime2pal|objtiles"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange|mapanime2pal|objtiles|mapchipconfig"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles))
-            { Console.Error.WriteLine("Error: only --kind=mapchange, --kind=mapanime2pal or --kind=objtiles is supported for --verify-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.MapChipConfig))
+            { Console.Error.WriteLine("Error: only --kind=mapchange, --kind=mapanime2pal, --kind=objtiles or --kind=mapchipconfig is supported for --verify-asset"); return 1; }
             bool isAnime2Pal = kind.Value == AssetKind.MapTileAnimation2Palette;
             bool isObjTiles = kind.Value == AssetKind.ObjTiles;
+            bool isChipConfig = kind.Value == AssetKind.MapChipConfig;
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change|x.mapanime2pal|x.objtiles>"); return 1; }
@@ -5124,10 +5140,11 @@ namespace FEBuilderGBA.CLI
 
             if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
             { Console.Error.WriteLine("Error: --verify-asset requires --addr=<hex>"); return 1; }
-            if (isObjTiles)
+            if (isObjTiles || isChipConfig)
             {
-                // objtiles (#1371) needs ONLY --addr (the DEREFERENCED OBJ LZ77 stream address);
-                // the decompressed length comes from the REQUIRED sidecar, NOT width/height/count.
+                // objtiles (#1371) / mapchipconfig (#1375) need ONLY --addr (the DEREFERENCED LZ77
+                // stream address); the decompressed length comes from the REQUIRED sidecar, NOT
+                // width/height/count.
             }
             else if (isAnime2Pal)
             {
@@ -5190,6 +5207,12 @@ namespace FEBuilderGBA.CLI
                 // objtiles (#1371): only --addr and --in; the ROM block is re-decompressed and
                 // byte-compared against the .objtiles body (read-only, never mutates the ROM).
                 result = DecompAssetExportCore.VerifyObjTilesAgainstRom(CoreState.ROM, addr, absIn);
+            }
+            else if (isChipConfig)
+            {
+                // mapchipconfig (#1375): only --addr and --in; the ROM block is re-decompressed and
+                // byte-compared against the .mapchipconfig body (read-only, never mutates the ROM).
+                result = DecompAssetExportCore.VerifyMapChipConfigAgainstRom(CoreState.ROM, addr, absIn);
             }
             else if (isAnime2Pal)
             {
@@ -5731,6 +5754,24 @@ namespace FEBuilderGBA.CLI
                     if (!TryParseAddr(argsDic["--addr"], out uint addr))
                     { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
                     result = DecompAssetExportCore.ExportObjTiles(rom, addr, absOut);
+                    break;
+                }
+
+                case "mapchipconfig":
+                case "mapchip-config":
+                case "chipconfig":
+                {
+                    // Map chipset TSA/config (#1375): LZ77-DECOMPRESS the block at --addr and write the
+                    // DECOMPRESSED config payload as the source body (the decomp build re-compresses;
+                    // FEBuilder's LZ77 packer is non-canonical). --addr is the DEREFERENCED config LZ77
+                    // stream address (e.g. the CONFIG-PLIST pointer dereferenced, NOT RomInfo.map_config_pointer).
+                    // FE7 split layouts use a separate per-plist --addr. NOT the anime-1/anime-2 entry
+                    // tables, NOT the map-change record chain, NOT the .mar layout.
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapchipconfig requires --addr=<hex> (the DEREFERENCED config LZ77 stream address, NOT RomInfo.map_config_pointer)"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    result = DecompAssetExportCore.ExportMapChipConfig(rom, addr, absOut);
                     break;
                 }
 
