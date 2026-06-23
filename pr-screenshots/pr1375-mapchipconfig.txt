@@ -1,0 +1,42 @@
+=== #1375 mapchipconfig decomp source export/import/roundtrip/ROM-verify — CLI proof ===
+(paths/usernames redacted; run in a clean temp dir <WORK>)
+
+synthesized chapter1.mapchipconfig (96 bytes decompressed payload) + sidecar
+
+--- validate-asset (good) -> exit 0 ---
+Validation: 0 error(s), 0 warning(s) - OK
+exit=0
+
+--- import-asset (identity copy -> raw blob) ---
+Imported map chipset config decompressed payload to blob (96 bytes)
+Wrote: <WORK>\chapter1.mapchipconfig_raw.bin
+exit=0
+
+--- roundtrip-asset (structure-exact, clean) -> exit 0 ---
+Round-trip OK (structure-exact map chipset config decompressed body)
+exit=0
+
+--- roundtrip-asset (tampered: truncate 2 bytes -> mismatch, exit 2) ---
+ERROR [BAD_MAPCHIPCONFIG_LENGTH] File length 94 != sidecar length 96.
+exit=2
+
+--- validate-asset (wrong format sidecar -> error, exit 2) ---
+ERROR [BAD_MAPCHIPCONFIG_FORMAT] Sidecar 'bad.mapchipconfig.json' must declare format "febuilder-mapchipconfig-lz77"; got "febuilder-objtiles-lz77".
+Validation: 1 error(s), 0 warning(s) - FAILED
+exit=2
+
+--- import-asset (missing sidecar -> NotData, exit 2) ---
+Error: validation failed: [MAPCHIPCONFIG_NO_SIDECAR] Sidecar 'nosidecar.mapchipconfig.json' is required for a map chipset config asset (it carries length and the format declaration).
+exit=2
+
+=== ROM-backed export + verify(match) + tamper(mismatch) + non-LZ77/over-bounds(NotData) ===
+Proven by Core.Tests (a real LZ77 stream at a known dereferenced --addr needs a ROM, which this
+headless worktree env has none of — the same idiom #1371 objtiles uses):
+  ExportMapChipConfig_WritesDecompressedBody_AndSidecar       (export LZ77-decompresses -> body+sidecar)
+  VerifyMapChipConfigAgainstRom_Match_Ok                      (re-decompress ROM, byte-identical -> Ok)
+  VerifyMapChipConfigAgainstRom_Mismatch_ReturnsNotData       (tampered byte -> NotData 'offset 5')
+  ExportMapChipConfig_NonLz77Addr_ReturnsNotData_NoFile       (non-LZ77 --addr -> NotData, no file)
+  ExportMapChipConfig_OverBounds_ReturnsNotData               (truncated LZ77 stream -> NotData)
+  ExportMapChipConfig_AddrInLastBytes_ReturnsNotData_NoThrow  (last-1-3-byte --addr -> NotData, no throw)
+  ExportMapChipConfig_ReadOnly_RomLengthAndSha256Invariant    (export: ROM length+SHA-256 unchanged)
+  VerifyMapChipConfigAgainstRom_ReadOnly_RomLengthAndSha256Invariant (verify is READ-ONLY)

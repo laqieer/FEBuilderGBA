@@ -2241,6 +2241,324 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally { Directory.Delete(dir, true); }
         }
+
+        // ============================================================
+        // Map chipset TSA/config section (#1375) — structural TWIN of OBJ tileset
+        // ============================================================
+
+        static void WriteMapChipConfigPlusSidecar(string path, byte[] body, string format = "febuilder-mapchipconfig-lz77")
+        {
+            File.WriteAllBytes(path, body);
+            File.WriteAllText(path + ".json",
+                $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        // ---- ExportMapChipConfig ----
+
+        [Fact]
+        public void ExportMapChipConfig_WritesDecompressedBody_AndSidecar()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 128, out byte[] raw);
+                string outPath = Path.Combine(dir, "chip.mapchipconfig");
+
+                var result = DecompAssetExportCore.ExportMapChipConfig(rom, addr, outPath);
+                Assert.True(result.Ok, $"ExportMapChipConfig failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+
+                byte[] body = File.ReadAllBytes(outPath);
+                Assert.Equal(raw, body);
+
+                string jsonPath = outPath + ".json";
+                Assert.True(File.Exists(jsonPath));
+                string json = File.ReadAllText(jsonPath);
+                Assert.Contains($"\"length\": {raw.Length}", json);
+                Assert.Contains($"\"srcAddr\": \"0x{addr:X}\"", json);
+                Assert.Contains("\"format\": \"febuilder-mapchipconfig-lz77\"", json);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChipConfig_NonLz77Addr_ReturnsNotData_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]); // zeros — not a valid LZ77 stream
+                string outPath = Path.Combine(dir, "chip.mapchipconfig");
+
+                var result = DecompAssetExportCore.ExportMapChipConfig(rom, 0x200, outPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChipConfig_OverBounds_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // Valid LZ77 header but truncated stream → getCompressedSize returns 0.
+                var rom = new ROM();
+                byte[] romData = new byte[0x210];
+                romData[0x200] = 0x10;
+                romData[0x201] = 0x00;
+                romData[0x202] = 0x04;
+                romData[0x203] = 0x00; // 0x400 uncompressed
+                rom.SwapNewROMDataDirect(romData);
+                string outPath = Path.Combine(dir, "chip.mapchipconfig");
+
+                var result = DecompAssetExportCore.ExportMapChipConfig(rom, 0x200, outPath);
+                Assert.False(result.Ok);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChipConfig_NullRom_ReturnsBadArgs()
+        {
+            var result = DecompAssetExportCore.ExportMapChipConfig(null, 0x200, "/tmp/chip.mapchipconfig");
+            Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        [Fact]
+        public void ExportMapChipConfig_AddrInLastBytes_ReturnsNotData_NoThrow()
+        {
+            // Boundary hazard (#1375, same as objtiles #1371): an addr within the last 1-3 ROM
+            // bytes must surface as a clean NotData (the 4-byte LZ77 header is out of bounds),
+            // NOT a Faulted IndexOutOfRangeException from getCompressedSize reading input[offset+3].
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string outPath = Path.Combine(dir, "chip.mapchipconfig");
+
+                var result = DecompAssetExportCore.ExportMapChipConfig(rom, 0x3FE, outPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapChipConfig_ReadOnly_RomLengthAndSha256Invariant()
+        {
+            // READ-ONLY invariant: export must NOT mutate the ROM (length AND SHA-256 unchanged).
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 96, out _);
+                byte[] before = (byte[])rom.Data.Clone();
+                string beforeSha = Sha256Hex(before);
+
+                var result = DecompAssetExportCore.ExportMapChipConfig(rom, addr, Path.Combine(dir, "chip.mapchipconfig"));
+                Assert.True(result.Ok, $"export failed: {result.Message}");
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(beforeSha, Sha256Hex(rom.Data));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapChipConfigAgainstRom_AddrInLastBytes_ReturnsNotData_NoThrow()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, body);
+
+                var result = DecompAssetExportCore.VerifyMapChipConfigAgainstRom(rom, 0x3FE, inPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- ImportMapChipConfig ----
+
+        [Fact]
+        public void ImportMapChipConfig_IdentityCopy()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[64];
+                for (int i = 0; i < body.Length; i++) body[i] = (byte)(i * 3);
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, body);
+
+                string outPath = Path.Combine(dir, "chip.bin");
+                var result = DecompAssetExportCore.ImportMapChipConfig(inPath, outPath);
+                Assert.True(result.Ok, $"ImportMapChipConfig failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+                Assert.Equal(body, File.ReadAllBytes(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChipConfig_DoesNotMutateCoreStateRom()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, body);
+
+                ROM before = CoreState.ROM;
+                DecompAssetExportCore.ImportMapChipConfig(inPath, Path.Combine(dir, "chip.bin"));
+                Assert.Same(before, CoreState.ROM);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChipConfig_MissingSidecar_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                File.WriteAllBytes(inPath, body); // no sidecar
+
+                var result = DecompAssetExportCore.ImportMapChipConfig(inPath, Path.Combine(dir, "chip.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapChipConfig_WrongFormatSidecar_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                // A wrong format declaration (e.g. the objtiles format) must be refused.
+                WriteMapChipConfigPlusSidecar(inPath, body, format: "febuilder-objtiles-lz77");
+
+                var result = DecompAssetExportCore.ImportMapChipConfig(inPath, Path.Combine(dir, "chip.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- RoundTripMapChipConfigBody ----
+
+        [Fact]
+        public void RoundTripMapChipConfigBody_Matches_True()
+        {
+            byte[] body = new byte[128];
+            Assert.True(DecompAssetExportCore.RoundTripMapChipConfigBody(body, 128));
+        }
+
+        [Fact]
+        public void RoundTripMapChipConfigBody_WrongLen_False()
+        {
+            byte[] body = new byte[128];
+            Assert.False(DecompAssetExportCore.RoundTripMapChipConfigBody(body, 64));
+        }
+
+        [Fact]
+        public void RoundTripMapChipConfigBody_Null_False()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapChipConfigBody(null, 64));
+        }
+
+        // ---- VerifyMapChipConfigAgainstRom ----
+
+        [Fact]
+        public void VerifyMapChipConfigAgainstRom_Match_Ok()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 64, out byte[] raw);
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, raw);
+
+                var result = DecompAssetExportCore.VerifyMapChipConfigAgainstRom(rom, addr, inPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapChipConfigAgainstRom_Mismatch_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 64, out byte[] raw);
+                byte[] tampered = (byte[])raw.Clone();
+                tampered[5] ^= 0xFF; // flip byte at offset 5
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, tampered);
+
+                var result = DecompAssetExportCore.VerifyMapChipConfigAgainstRom(rom, addr, inPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Contains("offset 5", result.Message);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapChipConfigAgainstRom_ReadOnly_RomLengthAndSha256Invariant()
+        {
+            // The verify path re-decompresses the ROM block READ-ONLY — it must not mutate the ROM.
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 64, out byte[] raw);
+                string inPath = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigPlusSidecar(inPath, raw);
+
+                byte[] before = (byte[])rom.Data.Clone();
+                string beforeSha = Sha256Hex(before);
+
+                var result = DecompAssetExportCore.VerifyMapChipConfigAgainstRom(rom, addr, inPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(beforeSha, Sha256Hex(rom.Data));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        static string Sha256Hex(byte[] data)
+        {
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            byte[] hash = sha.ComputeHash(data);
+            var sb = new System.Text.StringBuilder(hash.Length * 2);
+            foreach (byte b in hash) sb.Append(b.ToString("x2"));
+            return sb.ToString();
+        }
     }
 
     /// <summary>

@@ -601,5 +601,99 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("obj").Value);
             Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("OBJ").Value);
         }
+
+        // ---- MapChipConfig validator (#1375) — structural TWIN of ObjTiles ----
+
+        static void WriteMapChipConfigForValidator(string path, byte[] body = null, string format = "febuilder-mapchipconfig-lz77", bool writeSidecar = true)
+        {
+            if (body == null) body = new byte[64];
+            File.WriteAllBytes(path, body);
+            if (writeSidecar)
+                File.WriteAllText(path + ".json",
+                    $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ValidateMapChipConfig_Good_Ok()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valchip_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigForValidator(path);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, path);
+                Assert.True(r.Ok, "Expected Ok but got errors");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChipConfig_MissingSidecar_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valchip_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "chip.mapchipconfig");
+                WriteMapChipConfigForValidator(path, null, "febuilder-mapchipconfig-lz77", false);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "MAPCHIPCONFIG_NO_SIDECAR") { found = true; break; }
+                Assert.True(found, "Expected MAPCHIPCONFIG_NO_SIDECAR error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChipConfig_BadFormat_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valchip_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "chip.mapchipconfig");
+                // The objtiles format must be REJECTED for a chipconfig asset (no cross-kind aliasing).
+                WriteMapChipConfigForValidator(path, format: "febuilder-objtiles-lz77");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPCHIPCONFIG_FORMAT") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPCHIPCONFIG_FORMAT error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapChipConfig_LengthMismatch_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valchip_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "chip.mapchipconfig");
+                byte[] body = new byte[64];
+                File.WriteAllBytes(path, body);
+                // Sidecar says length=128, but file is 64
+                File.WriteAllText(path + ".json",
+                    "{\"length\": 128, \"srcAddr\": \"0x200\", \"format\": \"febuilder-mapchipconfig-lz77\"}\n");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPCHIPCONFIG_LENGTH") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPCHIPCONFIG_LENGTH error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseKind_MapChipConfig()
+        {
+            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("mapchipconfig").Value);
+            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("mapchip-config").Value);
+            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("chipconfig").Value);
+            Assert.Equal(AssetKind.MapChipConfig, DecompAssetValidatorCore.ParseKind("MAPCHIPCONFIG").Value);
+        }
     }
 }

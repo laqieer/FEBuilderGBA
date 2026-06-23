@@ -47,6 +47,16 @@ namespace FEBuilderGBA
         /// and <c>"length"</c>. NOT chipset TSA/config, NOT tile animations 1/2.
         /// </summary>
         ObjTiles,
+        /// <summary>
+        /// LZ77-decompressed map chipset TSA/CONFIG payload (#1375). The structural TWIN of
+        /// <see cref="ObjTiles"/>: a single LZ77 stream reached by one dereferenced CONFIG-PLIST
+        /// pointer (WF <c>ImageUtilMap.UnLZ77ChipsetData</c>). The source body is the DECOMPRESSED
+        /// bytes — NOT a byte-pinned LZ77 stream (FEBuilder's packer is non-canonical; the build
+        /// re-compresses). Requires a sidecar <c>&lt;name&gt;.mapchipconfig.json</c> with
+        /// <c>"format": "febuilder-mapchipconfig-lz77"</c> and <c>"length"</c>. NOT the anime-1/anime-2
+        /// entry tables, NOT the map-change record chain.
+        /// </summary>
+        MapChipConfig,
     }
 
     /// <summary>One validation finding (error or warning): a stable CODE + a message.</summary>
@@ -165,6 +175,9 @@ namespace FEBuilderGBA
                         break;
                     case AssetKind.ObjTiles:
                         ValidateObjTiles(path, r);
+                        break;
+                    case AssetKind.MapChipConfig:
+                        ValidateMapChipConfig(path, r);
                         break;
                     case AssetKind.Graphics:
                     case AssetKind.Portrait:
@@ -449,6 +462,9 @@ namespace FEBuilderGBA
                 case "objtiles":
                 case "obj-tiles":
                 case "obj": return AssetKind.ObjTiles;
+                case "mapchipconfig":
+                case "mapchip-config":
+                case "chipconfig": return AssetKind.MapChipConfig;
                 default: return null;
             }
         }
@@ -934,6 +950,74 @@ namespace FEBuilderGBA
             if (body.Length != len)
             {
                 r.Errors.Add(new AssetIssue("BAD_OBJTILES_LENGTH",
+                    $"File length {body.Length} != sidecar length {len}."));
+            }
+        }
+
+        // ------------------------------ MapChipConfig (LZ77-decompressed chipset config payload, #1375)
+
+        /// <summary>
+        /// Validate a LZ77-decompressed map chipset TSA/CONFIG payload (#1375). The structural TWIN
+        /// of <see cref="ValidateObjTiles"/>: the body is the DECOMPRESSED bytes — NOT a byte-pinned
+        /// LZ77 stream. The sidecar JSON is REQUIRED (it carries the format declaration and the
+        /// length). Checks:
+        /// <list type="bullet">
+        ///   <item>sidecar present and declares <c>format == "febuilder-mapchipconfig-lz77"</c>;</item>
+        ///   <item>sidecar declares a positive <c>length</c>;</item>
+        ///   <item>body length equals sidecar length.</item>
+        /// </list>
+        /// NEVER reads the ROM, NEVER throws.
+        /// </summary>
+        static void ValidateMapChipConfig(string path, AssetValidationResult r)
+        {
+            byte[] body;
+            try { body = File.ReadAllBytes(path); }
+            catch (Exception ex)
+            {
+                r.Errors.Add(new AssetIssue("READ_FAILED", "Could not read file: " + ex.Message));
+                return;
+            }
+
+            string sidecar = path + ".json";
+            if (!File.Exists(sidecar))
+            {
+                r.Errors.Add(new AssetIssue("MAPCHIPCONFIG_NO_SIDECAR",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' is required for a map chipset config asset (it carries length and the format declaration)."));
+                return;
+            }
+
+            if (!TryReadSidecarFormat(sidecar, out string format)
+                || !string.Equals(format, "febuilder-mapchipconfig-lz77", StringComparison.Ordinal))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHIPCONFIG_FORMAT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare format \"febuilder-mapchipconfig-lz77\"; got \"{format ?? "(missing)"}\"."));
+                return;
+            }
+
+            // Read the required length from the sidecar.
+            int len = 0;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object
+                    && root.TryGetProperty("length", out JsonElement lProp)
+                    && lProp.ValueKind == JsonValueKind.Number)
+                    len = lProp.GetInt32();
+            }
+            catch { }
+
+            if (len <= 0)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHIPCONFIG_LENGTH",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a positive integer 'length'."));
+                return;
+            }
+
+            if (body.Length != len)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPCHIPCONFIG_LENGTH",
                     $"File length {body.Length} != sidecar length {len}."));
             }
         }

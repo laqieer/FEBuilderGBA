@@ -848,5 +848,186 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(dir, true); } catch { }
             }
         }
+
+        // ============================================================================
+        // Map chipset TSA/config (LZ77 decompressed payload, #1375)
+        // ============================================================================
+
+        // Build a synthetic .mapchipconfig decompressed body + matching sidecar.
+        static void WriteSyntheticChipConfig(string path, int len, string format = "febuilder-mapchipconfig-lz77")
+        {
+            byte[] body = new byte[len];
+            for (int i = 0; i < len; i++) body[i] = (byte)(i ^ 0x3C); // arbitrary pattern
+            File.WriteAllBytes(path, body);
+            File.WriteAllText(path + ".json",
+                $"{{\n  \"length\": {len},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportAsset_MapChipConfig_ExitsZero_WritesIdentityBlob()
+        {
+            string dir = NewTempDir("import_chipconfig");
+            try
+            {
+                int len = 96;
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                WriteSyntheticChipConfig(chipPath, len);
+
+                string outBin = Path.Combine(dir, "chapter.mapchipconfig_raw.bin");
+                string args = $"--import-asset --kind=mapchipconfig --in=\"{chipPath}\" --out=\"{outBin}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --kind=mapchipconfig exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outBin), $"Expected raw blob at {outBin}");
+
+                // Identity copy: blob == .mapchipconfig body byte-for-byte.
+                byte[] src = File.ReadAllBytes(chipPath);
+                byte[] dst = File.ReadAllBytes(outBin);
+                Assert.Equal(src, dst);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapChipConfig_Clean_ExitsZero()
+        {
+            string dir = NewTempDir("rt_chipconfig_ok");
+            try
+            {
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                WriteSyntheticChipConfig(chipPath, 96);
+
+                string args = $"--roundtrip-asset --kind=mapchipconfig --in=\"{chipPath}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--roundtrip-asset --kind=mapchipconfig exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Round-trip OK", stdout);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapChipConfig_TruncatedBody_ExitsTwo()
+        {
+            string dir = NewTempDir("rt_chipconfig_bad");
+            try
+            {
+                int len = 96;
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                WriteSyntheticChipConfig(chipPath, len);
+
+                // Truncate the body by 2 bytes (sidecar still says 96) → length mismatch.
+                byte[] body = File.ReadAllBytes(chipPath);
+                byte[] truncated = new byte[body.Length - 2];
+                Array.Copy(body, truncated, truncated.Length);
+                File.WriteAllBytes(chipPath, truncated);
+
+                string args = $"--roundtrip-asset --kind=mapchipconfig --in=\"{chipPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ValidateAsset_MapChipConfig_Good_ExitsZero()
+        {
+            string dir = NewTempDir("val_chipconfig_ok");
+            try
+            {
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                WriteSyntheticChipConfig(chipPath, 96);
+
+                string args = $"--validate-asset --kind=mapchipconfig --in=\"{chipPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(0, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ValidateAsset_MapChipConfig_WrongFormatSidecar_ExitsNonZero()
+        {
+            string dir = NewTempDir("val_chipconfig_bad");
+            try
+            {
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                // Declare the objtiles format → must be rejected for a mapchipconfig asset.
+                WriteSyntheticChipConfig(chipPath, 96, format: "febuilder-objtiles-lz77");
+
+                string args = $"--validate-asset --kind=mapchipconfig --in=\"{chipPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.NotEqual(0, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ImportAsset_MapChipConfig_MissingSidecar_ExitsNonZero()
+        {
+            string dir = NewTempDir("import_chipconfig_nosidecar");
+            try
+            {
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                File.WriteAllBytes(chipPath, new byte[64]); // no sidecar
+
+                string args = $"--import-asset --kind=mapchipconfig --in=\"{chipPath}\" --out=\"{Path.Combine(dir, "out.bin")}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.NotEqual(0, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void VerifyAsset_MapChipConfig_NotValidLz77Addr_ExitsTwo()
+        {
+            // An in-range in-ROM offset (>= 0x200, past the U.isSafetyOffset floor) that is NOT a
+            // valid LZ77 stream → the verify path must FAIL on the non-LZ77 detection (getCompressedSize
+            // == 0), exit 2, never crash. 0x1000 is past the safety floor so this actually exercises the
+            // non-LZ77 branch (not the out-of-safety-range guard). ROM-backed but no synthetic stream needed.
+            Skip.If(FirstRom == null, "No ROM available for verify-asset mapchipconfig test");
+
+            string dir = NewTempDir("verify_chipconfig_nolz77");
+            try
+            {
+                string chipPath = Path.Combine(dir, "chapter.mapchipconfig");
+                WriteSyntheticChipConfig(chipPath, 64);
+
+                // 0x1000 is in-range (>= 0x200) but is not a valid LZ77 stream start in a vanilla FE
+                // ROM header region — so verify fails on non-LZ77 detection, not the safety-range guard.
+                string args = $"--verify-asset --kind=mapchipconfig --rom=\"{FirstRom}\" --addr=0x1000 --in=\"{chipPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
     }
 }

@@ -1623,6 +1623,288 @@ namespace FEBuilderGBA
             return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-objtiles-lz77\"\n}}\n";
         }
 
+        // ---- Map chipset TSA/config LZ77 decompressed-payload export/import/verify (#1375) ----
+
+        /// <summary>
+        /// Export a map chipset TSA/CONFIG LZ77 block at <paramref name="configAddr"/> by
+        /// LZ77-DECOMPRESSING it and writing the DECOMPRESSED config payload to
+        /// <paramref name="absOutPath"/> plus a sidecar JSON (#1375). This is the structural
+        /// TWIN of <see cref="ExportObjTiles"/>: the chipset config is a single LZ77 stream
+        /// reached by one dereferenced CONFIG-PLIST pointer (WF <c>ImageUtilMap.UnLZ77ChipsetData</c>
+        /// = <c>LZ77.decompress(config_offset)</c>), so the source body is the DECOMPRESSED bytes,
+        /// NOT a byte-pinned LZ77 stream (FEBuilder's LZ77 packer is non-canonical, so the build
+        /// re-compresses). READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="configAddr">ROM byte offset of the chipset config LZ77 stream (the
+        /// DEREFERENCED address — e.g. <c>MapChangeCore.PlistToOffsetAddr(CONFIG, plist)</c> —
+        /// NOT <c>RomInfo.map_config_pointer</c>). FE7 split layouts use a separate per-plist
+        /// <c>configAddr</c>; this method exports ONE stream.</param>
+        /// <param name="absOutPath">Absolute path for the output <c>.mapchipconfig</c> file.
+        /// A sidecar <c>&lt;path&gt;.json</c> is written at the same path with <c>.json</c> appended.</param>
+        public static DecompAssetResult ExportMapChipConfig(ROM rom, uint configAddr, string absOutPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output .mapchipconfig path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                if (!U.isSafetyOffset(configAddr, rom))
+                    return Fail(DecompAssetStatus.NotData, $"Address 0x{configAddr:X} is outside the ROM safety range");
+
+                // The 4-byte LZ77 header is at configAddr..configAddr+3. getCompressedSize reads
+                // input[offset+3] but only guards length-offset < 3, so a configAddr within the
+                // last 1-3 ROM bytes would throw. Guard the FULL header in-bounds first so the
+                // boundary surfaces as a clean NotData, never a Faulted exception.
+                if ((long)configAddr + 4 > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 header at 0x{configAddr:X} extends beyond ROM (romSize={rom.Data.Length})");
+
+                uint compLen = LZ77.getCompressedSize(rom.Data, configAddr);
+                if (compLen == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"0x{configAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
+
+                if ((long)configAddr + compLen > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 stream at 0x{configAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
+
+                byte[] body = LZ77.decompress(rom.Data, configAddr);
+                if (body == null || body.Length == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 decompression failed at 0x{configAddr:X}");
+
+                EnsureParentDir(absOutPath);
+                File.WriteAllBytes(absOutPath, body);
+
+                string jsonPath = absOutPath + ".json";
+                string json = BuildMapChipConfigJson(body.Length, configAddr);
+                File.WriteAllText(jsonPath, json, Encoding.UTF8);
+
+                var result = new DecompAssetResult { Status = DecompAssetStatus.Ok, Message = $"Map chipset config exported ({body.Length} bytes decompressed)" };
+                result.WrittenPaths.Add(absOutPath);
+                result.WrittenPaths.Add(jsonPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-import a <c>.mapchipconfig</c> decompressed chipset config payload (the inverse of
+        /// <see cref="ExportMapChipConfig"/>, #1375) — an IDENTITY copy of the validated decompressed
+        /// body to <paramref name="absOutBlobPath"/>. This method NEVER reads <see cref="CoreState.ROM"/>,
+        /// NEVER LZ77-compresses, NEVER mutates the ROM, and NEVER throws.
+        /// </summary>
+        /// <param name="absInPath">Absolute path to the input <c>.mapchipconfig</c> file.
+        /// A sidecar <c>&lt;path&gt;.json</c> with <c>"format": "febuilder-mapchipconfig-lz77"</c> and
+        /// <c>"length"</c> is REQUIRED.</param>
+        /// <param name="absOutBlobPath">Absolute path for the output RAW decompressed config blob
+        /// (identity copy of the validated body).</param>
+        public static DecompAssetResult ImportMapChipConfig(string absInPath, string absOutBlobPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absInPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapchipconfig path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlobPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural validation (required sidecar, format, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, absInPath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absInPath);
+
+                // The sidecar length is REQUIRED to verify the body before the identity copy.
+                string sidecar = absInPath + ".json";
+                if (!TryReadMapChipConfigLength(sidecar, out int len))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .mapchipconfig.json required to read length");
+
+                if (body.Length != len)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != sidecar length {len}");
+
+                // Identity copy: write the validated body VERBATIM.
+                EnsureParentDir(absOutBlobPath);
+                File.WriteAllBytes(absOutBlobPath, body);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported map chipset config decompressed payload to blob ({body.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlobPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE structural round-trip proof for a map chipset config decompressed body (#1375): true iff
+        /// <paramref name="body"/> is non-null, <paramref name="expectedLen"/> is positive, and
+        /// <c>body.Length == expectedLen</c>. Try/catch → false.
+        ///
+        /// <para>This is source-level structure-exact IDENTITY, NOT a byte-pinned ROM round-trip.
+        /// For a byte-exact ROM mismatch proof use <see cref="VerifyMapChipConfigAgainstRom"/>.</para>
+        /// </summary>
+        public static bool RoundTripMapChipConfigBody(byte[] body, int expectedLen)
+        {
+            try
+            {
+                if (body == null) return false;
+                if (expectedLen <= 0) return false;
+                return body.Length == expectedLen;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Decompress-and-byte-compare ROM-backed mismatch proof for a map chipset config (#1375):
+        /// LZ77-decompresses the ROM at <paramref name="configAddr"/> and compares byte-for-byte
+        /// against the <c>.mapchipconfig</c> file body. READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="configAddr">ROM byte offset of the chipset config LZ77 stream (DEREFERENCED address).</param>
+        /// <param name="absInPath">Absolute path to the <c>.mapchipconfig</c> file (with required sidecar).</param>
+        public static DecompAssetResult VerifyMapChipConfigAgainstRom(ROM rom, uint configAddr, string absInPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absInPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapchipconfig path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Validate the .mapchipconfig file first.
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapChipConfig, absInPath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                if (!U.isSafetyOffset(configAddr, rom))
+                    return Fail(DecompAssetStatus.NotData, $"Address 0x{configAddr:X} is outside the ROM safety range");
+
+                // Guard the FULL 4-byte LZ77 header in-bounds before getCompressedSize (which
+                // reads input[offset+3]) so a last-1-3-byte configAddr surfaces as NotData, not Faulted.
+                if ((long)configAddr + 4 > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 header at 0x{configAddr:X} extends beyond ROM (romSize={rom.Data.Length})");
+
+                uint compLen = LZ77.getCompressedSize(rom.Data, configAddr);
+                if (compLen == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"0x{configAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
+
+                if ((long)configAddr + compLen > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 stream at 0x{configAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
+
+                byte[] romBody = LZ77.decompress(rom.Data, configAddr);
+                // LZ77.decompress returns an EMPTY array (not null) on failure — treat
+                // null OR empty as a decompression fault.
+                if (romBody == null || romBody.Length == 0)
+                    return Fail(DecompAssetStatus.NotData, $"LZ77 decompression failed at 0x{configAddr:X}");
+
+                byte[] body = File.ReadAllBytes(absInPath);
+                string sidecar = absInPath + ".json";
+                // The sidecar length is REQUIRED — a read/parse fault here must fail cleanly,
+                // never proceed with a bogus (zero) length.
+                if (!TryReadMapChipConfigLength(sidecar, out int len))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .mapchipconfig.json required to read length");
+
+                // Compare lengths BEFORE byte-diff.
+                if (romBody.Length != len)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"ROM decompressed length {romBody.Length} != sidecar length {len}");
+
+                if (romBody.Length != body.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"ROM decompressed length {romBody.Length} != file length {body.Length}");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    byte romByte = romBody[i];
+                    byte fileByte = body[i];
+                    if (romByte != fileByte)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"Map chipset config mismatch at byte offset {i}: ROM=0x{romByte:X2} file=0x{fileByte:X2}");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Verified map chipset config decompressed payload byte-identical to ROM ({body.Length} bytes)"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read <c>length</c> from a <c>.mapchipconfig.json</c> sidecar. NEVER throws;
+        /// returns false on any fault or a non-positive length. Public so the CLI
+        /// <c>--roundtrip-asset</c> path can size the body before calling
+        /// <see cref="RoundTripMapChipConfigBody"/>.
+        /// </summary>
+        public static bool TryReadMapChipConfigLength(string sidecarPath, out int len)
+        {
+            len = 0;
+            try
+            {
+                if (string.IsNullOrEmpty(sidecarPath) || !File.Exists(sidecarPath))
+                    return false;
+                string json = File.ReadAllText(sidecarPath);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("length", out System.Text.Json.JsonElement l)
+                    && l.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    len = l.GetInt32();
+                return len > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Build the sidecar JSON for a map chipset config export. Hand-built to avoid serializer deps.
+        /// <paramref name="addrOffset"/> is provenance ONLY — the decomp build re-compresses the
+        /// decompressed body (FEBuilder's LZ77 packer is non-canonical).
+        /// </summary>
+        static string BuildMapChipConfigJson(int length, uint addrOffset)
+        {
+            // srcAddr is provenance ONLY — the decomp build re-compresses the decompressed body.
+            // FEBuilder's LZ77 packer is non-canonical; the source is the DECOMPRESSED config payload.
+            return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapchipconfig-lz77\"\n}}\n";
+        }
+
         // ---- Portrait PACKAGE source-tree write-back + round-trip (#1374) ----
 
         /// <summary>
