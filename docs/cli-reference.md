@@ -636,6 +636,23 @@ FEBuilderGBA.CLI --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles
 FEBuilderGBA.CLI --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles
 ```
 
+The `portrait-package` (#1374) variants are a **multi-file DIRECTORY** write-back / round-trip (NOT a file `--in`):
+a portrait package is a 128×112 composite sheet PNG + an optional name-matched JASC `.pal` sidecar (the same
+package the `--validate-asset --kind=portrait-package` validator checks). Both paths are ROM-free and never mutate
+the preview ROM. The import refuses unless the destination is an **unambiguous owner**; the round-trip requires an
+explicit `--expect` baseline (the oracle — no self-compare). Residual: there is **no ROM byte-pin** (no canonical
+ROM→128×112-sheet builder exists, so the preview ROM is never the source of truth for a portrait package):
+
+| Command | Reads ROM? | Description |
+|---|---|---|
+| `--import-asset --kind=portrait-package --path=<srcDir> --out=<destDir> [--allow-main-only] [--overwrite] [--project=<dir>]` | No | Validate the source package then identity-copy the sheet PNG + matched sidecar into an unambiguous owner dir. A clean/empty dest writes; an existing single-package owner needs `--overwrite` (else `OWNER_EXISTS`); a multi-PNG/different-layout dest is refused (`AMBIGUOUS_OWNER`). `--out` is project-root-confined when `--project` is given. Exit 0 ok, 2 validation/owner/path fault, 1 usage. |
+| `--roundtrip-asset --kind=portrait-package --path=<srcDir> --expect=<baselineDir> [--allow-main-only]` | No | Validate BOTH dirs then prove the source sheet + sidecar are byte-identical to the REQUIRED baseline (the oracle). Exit 0 byte-identical, 2 mismatch/validation fault, 1 usage. |
+
+```
+FEBuilderGBA.CLI --import-asset --kind=portrait-package --path portraits/src/eirika/ --out portraits/eirika/ --project=decomp/
+FEBuilderGBA.CLI --roundtrip-asset --kind=portrait-package --path portraits/src/eirika/ --expect portraits/eirika/
+```
+
 ---
 
 ### `--build-project`

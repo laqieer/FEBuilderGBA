@@ -632,13 +632,17 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
             Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
             Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
-            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change overlay, .mapanime2pal palette, or .objtiles OBJ tileset) to a raw uncompressed blob in the source tree (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (#1355); mapanime2pal = raw u16 anime-2 palette block (#1360); objtiles = decompressed 4bpp OBJ payload (#1371); all identity copies with required .json sidecars");
-            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file");
-            Console.WriteLine("    --out=<x.bin>          Output raw uncompressed blob; project-relative when --project");
-            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/anime2pal/objtiles body round-trips (no ROM; never mutates)");
-            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); mapanime2pal = structure-exact anime-2 palette (#1360); objtiles = structure-exact .objtiles decompressed body (#1371)");
-            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file");
+            Console.WriteLine("  --import-asset           Re-import a .mar map LAYOUT (or .change overlay, .mapanime2pal palette, .objtiles OBJ tileset) to a raw blob, OR write-back a portrait PACKAGE dir, in the source tree (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|portrait-package  map = .mar layout (+ .mar.json); mapchange = raw u16 overlay block (#1355); mapanime2pal = raw u16 anime-2 palette block (#1360); objtiles = decompressed 4bpp OBJ payload (#1371); portrait-package = 128x112 sheet+sidecar identity write-back (#1374)");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file (map kinds)");
+            Console.WriteLine("    --out=<x.bin|destDir>  Output raw blob (map kinds) or owner package dir (portrait-package); project-relative when --project");
+            Console.WriteLine("    --path=<srcDir>       portrait-package: SOURCE package dir (read; not containment-checked)");
+            Console.WriteLine("    --allow-main-only     portrait-package: accept a 96x80 main-mug-only sheet (warn not error)");
+            Console.WriteLine("    --overwrite           portrait-package: replace an existing single-package owner at --out (else OWNER_EXISTS refusal)");
+            Console.WriteLine("  --roundtrip-asset        Validate + prove a map LAYOUT/overlay/anime2pal/objtiles body round-trips, OR a portrait PACKAGE matches a baseline (no ROM; never mutates)");
+            Console.WriteLine("    --kind=map|mapchange|mapanime2pal|objtiles|portrait-package  map = lossless u16 .mar layout; mapchange = structure-exact .change overlay (#1355); mapanime2pal = structure-exact anime-2 palette (#1360); objtiles = structure-exact .objtiles decompressed body (#1371); portrait-package = byte-identical to an --expect baseline (#1374)");
+            Console.WriteLine("    --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>  Input asset file (map kinds)");
+            Console.WriteLine("    --path=<srcDir> --expect=<baselineDir>  portrait-package: source dir + REQUIRED baseline oracle dir (no self-compare)");
             Console.WriteLine("  --verify-asset           ROM-backed mismatch proof for a map-change OVERLAY, anime-2 PALETTE, or OBJ tileset (reads ROM READ-ONLY; never mutates) (#1355/#1360/#1371)");
             Console.WriteLine("    --kind=mapchange|mapanime2pal|objtiles  mapchange = byte-exact overlay compare (needs --width/--height); mapanime2pal = byte-exact palette compare (needs --count); objtiles = decompress-and-byte-compare the OBJ payload (no --width/--height/--count)");
             Console.WriteLine("    --in=<x.change|x.mapanime2pal|x.objtiles>  Input overlay/anime2pal/objtiles file (+ required .json sidecar)");
@@ -689,9 +693,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=map --in=map/chapter1.mar --out=map/chapter1.tmap_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin");
             Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=objtiles --in=map/chapter1.objtiles --out=map/chapter1.objtiles_raw.bin");
+            Console.WriteLine("  FEBuilderGBA.CLI --import-asset --kind=portrait-package --path portraits/src/eirika/ --out portraits/eirika/ --project=decomp/");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=map --in=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=mapchange --in=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles");
+            Console.WriteLine("  FEBuilderGBA.CLI --roundtrip-asset --kind=portrait-package --path portraits/src/eirika/ --expect portraits/eirika/");
             Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change");
             Console.WriteLine("  FEBuilderGBA.CLI --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
@@ -4852,10 +4858,16 @@ namespace FEBuilderGBA.CLI
         static int RunImportAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|mapanime2pal|objtiles"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|mapanime2pal|objtiles|portrait-package"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles))
-            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal or --kind=objtiles is supported for --import-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.PortraitPackage))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles or --kind=portrait-package is supported for --import-asset"); return 1; }
+
+            // --kind=portrait-package is a DIRECTORY write-back (#1374): --path=<srcDir> (read,
+            // not containment-checked) + --out=<destDir> (project-root-confined when --project is
+            // given), optional --allow-main-only and --overwrite. ROM-FREE; never mutates the ROM.
+            if (kind.Value == AssetKind.PortraitPackage)
+                return RunImportPortraitPackage(argsDic);
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>"); return 1; }
@@ -4915,6 +4927,68 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
+        /// --import-asset --kind=portrait-package (#1374): write-back / import an already-validated
+        /// portrait PACKAGE directory (one 128x112 composite sheet PNG + optional name-matched JASC
+        /// sidecar) INTO the source tree as an identity copy. ROM-FREE — never loads or mutates the
+        /// ROM. Takes <c>--path=&lt;srcDir&gt;</c> (read; NOT containment-checked, mirroring --import-asset
+        /// --kind=map) and <c>--out=&lt;destDir&gt;</c> (project-root-confined when <c>--project</c> is
+        /// given). Optional <c>--allow-main-only</c> (accept a 96x80 main-mug-only sheet) and
+        /// <c>--overwrite</c> (replace an existing single-package owner; without it an existing owner
+        /// is refused). The destination-owner gate REFUSES ambiguous / already-owned destinations
+        /// before any write. Exit 0 on success, 2 on validation/owner/path fault, 1 on usage error.
+        /// </summary>
+        static int RunImportPortraitPackage(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--path") || string.IsNullOrEmpty(argsDic["--path"]))
+            { Console.Error.WriteLine("Error: --import-asset --kind=portrait-package requires --path=<srcDir>"); return 1; }
+            string srcDir = argsDic["--path"];
+
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --import-asset --kind=portrait-package requires --out=<destDir>"); return 1; }
+            string outRel = argsDic["--out"];
+
+            bool allowMainOnly = argsDic.ContainsKey("--allow-main-only");
+            bool overwrite = argsDic.ContainsKey("--overwrite");
+
+            RomLoader.InitEnvironment();
+
+            // Optional --project gives project-root containment for the OUTPUT dir. ROM-FREE: resolve
+            // the project ROOT with DecompProjectDetector.Detect (no ROM load, no InitFull) so it works
+            // for an unbuilt-but-valid project and never sets CoreState.ROM. If the user asked for a
+            // project it MUST be a valid decomp root, else exit 2 (never silently drop containment).
+            DecompProject project = null;
+            if (argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]))
+            {
+                string projectDir = argsDic["--project"];
+                project = DecompProjectDetector.Detect(projectDir);
+                if (project == null)
+                {
+                    Console.Error.WriteLine($"Error: '{projectDir}' is not a decomp project (containment for --out cannot be enforced)");
+                    return 2;
+                }
+            }
+
+            string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);
+            if (absOut == null)
+            {
+                Console.Error.WriteLine("Error: output path rejected (outside project root or invalid)");
+                return 2;
+            }
+
+            DecompAssetResult result = DecompAssetExportCore.ImportPortraitPackage(srcDir, absOut, allowMainOnly, overwrite);
+            if (result.Ok)
+            {
+                Console.WriteLine(result.Message);
+                foreach (string path in result.WrittenPaths)
+                    Console.WriteLine($"Wrote: {path}");
+                return 0;
+            }
+
+            Console.Error.WriteLine($"Error: {result.Message}");
+            return 2;
+        }
+
+        /// <summary>
         /// --roundtrip-asset: validate a decomp <c>.mar</c> map LAYOUT and PROVE its u16 layout
         /// BODY round-trips losslessly (export→import→export is byte-identical) (#1148). READ-ONLY;
         /// NEVER loads a ROM. Exit 0 when the body round-trips, 2 on validation failure or a shift
@@ -4923,10 +4997,15 @@ namespace FEBuilderGBA.CLI
         static int RunRoundtripAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|mapanime2pal|objtiles"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|mapanime2pal|objtiles|portrait-package"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles))
-            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal or --kind=objtiles is supported for --roundtrip-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette && kind.Value != AssetKind.ObjTiles && kind.Value != AssetKind.PortraitPackage))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, --kind=mapanime2pal, --kind=objtiles or --kind=portrait-package is supported for --roundtrip-asset"); return 1; }
+
+            // --kind=portrait-package (#1374): a DIRECTORY round-trip against an explicit BASELINE.
+            // Requires --path=<srcDir> + --expect=<baselineDir> (the oracle — NOT a self-compare).
+            if (kind.Value == AssetKind.PortraitPackage)
+                return RunRoundtripPortraitPackage(argsDic);
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar|x.change|x.mapanime2pal|x.objtiles>"); return 1; }
@@ -4984,6 +5063,37 @@ namespace FEBuilderGBA.CLI
             }
 
             Console.Error.WriteLine("Round-trip MISMATCH");
+            return 2;
+        }
+
+        /// <summary>
+        /// --roundtrip-asset --kind=portrait-package (#1374): validate a source portrait PACKAGE and
+        /// PROVE it is byte-identical to an explicit BASELINE package (the oracle). READ-ONLY; NEVER
+        /// loads a ROM. The <c>--expect=&lt;baselineDir&gt;</c> baseline is REQUIRED — this is NOT a
+        /// self-compare, so a validation-valid but byte-tampered source genuinely mismatches. Exit 0
+        /// when byte-identical to the baseline, 2 on mismatch or either-side validation failure, 1 on
+        /// a usage fault.
+        /// </summary>
+        static int RunRoundtripPortraitPackage(Dictionary<string, string> argsDic)
+        {
+            if (!argsDic.ContainsKey("--path") || string.IsNullOrEmpty(argsDic["--path"]))
+            { Console.Error.WriteLine("Error: --roundtrip-asset --kind=portrait-package requires --path=<srcDir>"); return 1; }
+            string srcDir = argsDic["--path"];
+
+            if (!argsDic.ContainsKey("--expect") || string.IsNullOrEmpty(argsDic["--expect"]))
+            { Console.Error.WriteLine("Error: --roundtrip-asset --kind=portrait-package requires --expect=<baselineDir> (the oracle; no self-compare)"); return 1; }
+            string baselineDir = argsDic["--expect"];
+
+            bool allowMainOnly = argsDic.ContainsKey("--allow-main-only");
+
+            DecompAssetResult result = DecompAssetExportCore.RoundTripPortraitPackageAgainstBaseline(srcDir, baselineDir, allowMainOnly);
+            if (result.Ok)
+            {
+                Console.WriteLine(result.Message);
+                return 0;
+            }
+
+            Console.Error.WriteLine($"Round-trip FAILED: {result.Message}");
             return 2;
         }
 

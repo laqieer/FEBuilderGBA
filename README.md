@@ -538,8 +538,19 @@ sibling.
   confines `--path` to the decomp project root without loading the preview ROM. Honest
   residuals: the NMM bridge informs the schema but does not make pointer fields
   source-writable; the single-PNG validator is structural + index-level; the portrait
-  PACKAGE validator now covers sheet-slot geometry + palette consistency (NOT write-back /
-  semantic frame order); the `.mar` check needs the sidecar for the exact length assertion.
+  PACKAGE validator covers sheet-slot geometry + palette consistency; the `.mar` check
+  needs the sidecar for the exact length assertion. **Portrait package write-back +
+  round-trip** (#1374): `--import-asset --kind=portrait-package --path=<srcDir>
+  --out=<destDir> [--allow-main-only] [--overwrite] [--project=<dir>]` validates the source
+  package (refusing on any error) then identity-copies the sheet PNG + name-matched JASC
+  sidecar into an **unambiguous owner** directory — a clean/empty destination, or (with
+  `--overwrite`) an existing single-package owner; a multi-PNG / different-layout destination
+  is refused (`AMBIGUOUS_OWNER`). `--roundtrip-asset --kind=portrait-package --path=<srcDir>
+  --expect=<baselineDir> [--allow-main-only]` validates both sides and proves the source is
+  **byte-identical to the required baseline** (the oracle — NOT a self-compare, so a
+  validation-valid tamper genuinely mismatches). Both paths are ROM-free and never mutate the
+  preview ROM. Residual: no ROM byte-pin (there is no canonical ROM→128×112-sheet builder, so
+  the preview ROM is never the source of truth for a portrait package).
 
 #### Round-trip coverage matrix
 
@@ -565,6 +576,7 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Palette Editor | palette | Palette export | SourceTreeExporter | JASC .pal export (faithful, lossless round-trip) |
 | Graphics Editor | graphics | Graphics export | SourceTreeExporter | Indexed PNG (color type 3) + sidecar .pal |
 | Portrait Editor | portrait | Portrait export | SourceTreeExporter | Export via --export-portrait-all (PNG package) |
+| Portrait Editor | portrait_package | Portrait package import/round-trip | SourceTreeExporter | Source-tree write-back of a validated 128x112 composite sheet + name-matched JASC sidecar — import (--import-asset --kind=portrait-package, identity copy into an unambiguous project-confined owner; --overwrite an existing owner, ambiguous/multi-PNG destinations refused) + structural round-trip against an explicit baseline (--roundtrip-asset --kind=portrait-package --expect=<baselineDir>); reuses the #1350/#1353 portrait-package validator; never mutates the preview ROM. Source-level structure-exact identity vs a supplied baseline; NO ROM byte-pin (no canonical ROM->128x112-sheet builder exists, so the preview ROM is never the source of truth) |
 | Icon Editor | icon | Icon export | SourceTreeExporter | Indexed PNG via graphics exporter (16x16 tiles) |
 | Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |

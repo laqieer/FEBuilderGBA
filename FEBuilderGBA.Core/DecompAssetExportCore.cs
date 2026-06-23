@@ -1622,5 +1622,259 @@ namespace FEBuilderGBA
             // FEBuilder's LZ77 packer is non-canonical; the source is the DECOMPRESSED 4bpp payload.
             return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-objtiles-lz77\"\n}}\n";
         }
+
+        // ---- Portrait PACKAGE source-tree write-back + round-trip (#1374) ----
+
+        /// <summary>
+        /// The resolved files of a portrait PACKAGE directory (#1374): the single composite
+        /// sheet PNG and its name-matched JASC <c>.pal</c> sidecar (null when absent). This is
+        /// the WHOLE source-owned contract — there is NO fabricated manifest; "metadata" is
+        /// exactly the sheet PNG + its matching sidecar + the slot geometry the
+        /// <see cref="DecompAssetValidatorCore"/> enforces (#1350/#1353).
+        /// </summary>
+        public sealed class PortraitPackageFiles
+        {
+            /// <summary>Absolute path to the single composite sheet PNG (null when none/ambiguous).</summary>
+            public string SheetPath;
+            /// <summary>Absolute path to the name-matched JASC sidecar (sheet.png -&gt; sheet.pal); null when absent.</summary>
+            public string SidecarPath;
+            /// <summary>Number of <c>*.png</c> files found in the directory (used for the ambiguity gate).</summary>
+            public int PngCount;
+        }
+
+        /// <summary>
+        /// Resolve a portrait PACKAGE directory to its single sheet PNG + name-matched JASC
+        /// sidecar (#1374). A package is UNAMBIGUOUS only when it contains EXACTLY ONE
+        /// <c>*.png</c>; the sidecar is the one whose name matches the sheet
+        /// (<c>sheet.png</c> -&gt; <c>sheet.pal</c>), mirroring the validator's matching rule.
+        /// Returns null when the directory has zero or multiple PNGs (ambiguous owner) or on
+        /// any fault. NEVER throws, NEVER reads the ROM.
+        /// </summary>
+        public static PortraitPackageFiles ResolvePortraitPackage(string absDir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absDir) || !Directory.Exists(absDir))
+                    return null;
+                string[] pngs = Directory.GetFiles(absDir, "*.png");
+                Array.Sort(pngs, StringComparer.Ordinal);
+                var files = new PortraitPackageFiles { PngCount = pngs.Length };
+                if (pngs.Length != 1)
+                    return files; // ambiguous (0 or >1): caller decides; SheetPath stays null.
+                files.SheetPath = pngs[0];
+
+                // Sidecar is the one whose name matches the sheet (sheet.png -> sheet.pal).
+                string expectedPal = Path.ChangeExtension(pngs[0], ".pal");
+                if (File.Exists(expectedPal))
+                    files.SidecarPath = expectedPal;
+                return files;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Write-back / import an already-validated portrait PACKAGE (#1374): copy the source
+        /// package's composite sheet PNG + its name-matched JASC sidecar VERBATIM (structure-
+        /// exact identity copy) into <paramref name="absOutDir"/>, but ONLY when the
+        /// destination is an UNAMBIGUOUS owner.
+        ///
+        /// <para>This is the portrait-package analogue of <see cref="ImportMap"/> /
+        /// <see cref="ImportObjTiles"/>: it treats the package directory + the geometry/palette
+        /// the <see cref="DecompAssetValidatorCore"/> enforces as SOURCE-OWNED input (NOT ROM
+        /// patch data). It NEVER reads or mutates <see cref="CoreState.ROM"/> and NEVER throws
+        /// (every fault becomes a typed <see cref="DecompAssetResult"/>).</para>
+        ///
+        /// <para>OWNERSHIP GATE (refuse-before-write — never guesses an owner):</para>
+        /// <list type="bullet">
+        ///   <item><description>The SOURCE must validate via
+        ///     <see cref="DecompAssetValidatorCore.ValidateAssetPackage"/>; any error REFUSES
+        ///     (NotData) — bad geometry, OOB slot, palette mismatch, multiple/missing sheets.</description></item>
+        ///   <item><description>Destination MISSING or EMPTY → a clean new owner: write.</description></item>
+        ///   <item><description>Destination already holds EXACTLY ONE same-shaped package (one PNG,
+        ///     optional matching sidecar) → the existing owner: overwrite ONLY when
+        ///     <paramref name="overwriteOwner"/> is set, else REFUSE (<c>OWNER_EXISTS</c>).</description></item>
+        ///   <item><description>Destination holds MULTIPLE PNGs / a different layout → REFUSE
+        ///     (<c>AMBIGUOUS_OWNER</c>); the owner cannot be determined, so nothing is written.</description></item>
+        /// </list>
+        /// </summary>
+        /// <param name="absInDir">Absolute path to the SOURCE package directory.</param>
+        /// <param name="absOutDir">Absolute path to the destination owner directory (must already
+        /// be project-root-confined by the caller, e.g. via <see cref="ResolveSourcePath"/>).</param>
+        /// <param name="allowMainOnly">When true a 96x80 main-mug-only source sheet is accepted
+        /// (the validator downgrades INCOMPLETE_PACKAGE to a warning).</param>
+        /// <param name="overwriteOwner">When true an existing single-package destination owner is
+        /// overwritten; otherwise an existing owner is refused with <c>OWNER_EXISTS</c>.</param>
+        public static DecompAssetResult ImportPortraitPackage(string absInDir, string absOutDir, bool allowMainOnly, bool overwriteOwner)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absInDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Input package directory is null or empty");
+                if (string.IsNullOrEmpty(absOutDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Output package directory is null or empty");
+                if (!Directory.Exists(absInDir))
+                    return Fail(DecompAssetStatus.NotData, $"Input package directory not found: {absInDir}");
+
+                // 1) Source MUST validate (refuse on any error: geometry/OOB/palette/sheet count).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAssetPackage(
+                    AssetKind.PortraitPackage, absInDir, allowMainOnly);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "source package validation failed: " + detail);
+                }
+
+                // 2) Resolve the unambiguous SOURCE sheet + sidecar.
+                PortraitPackageFiles src = ResolvePortraitPackage(absInDir);
+                if (src == null || src.SheetPath == null)
+                    return Fail(DecompAssetStatus.NotData,
+                        "source package is ambiguous (expected exactly one *.png sheet)");
+
+                // 3) OWNERSHIP GATE on the destination — refuse before any write.
+                if (Directory.Exists(absOutDir))
+                {
+                    string[] destPngs;
+                    try { destPngs = Directory.GetFiles(absOutDir, "*.png"); }
+                    catch (Exception ex) { return Fail(DecompAssetStatus.Faulted, "cannot inspect destination: " + ex.Message); }
+
+                    if (destPngs.Length > 1)
+                        return Fail(DecompAssetStatus.PathRejected,
+                            $"[AMBIGUOUS_OWNER] destination '{absOutDir}' holds {destPngs.Length} *.png files; the portrait-package owner cannot be determined. Point --out at the single owning package directory.");
+                    if (destPngs.Length == 1)
+                    {
+                        // An existing single-package owner. Overwrite ONLY when explicitly allowed.
+                        if (!overwriteOwner)
+                            return Fail(DecompAssetStatus.PathRejected,
+                                $"[OWNER_EXISTS] destination '{absOutDir}' already contains a portrait package ('{Path.GetFileName(destPngs[0])}'). Pass --overwrite to replace the owning package.");
+                    }
+                    // destPngs.Length == 0 → empty (of PNGs) dir: a clean new owner.
+                }
+                // Directory missing → a clean new owner.
+
+                // 4) Identity copy: sheet PNG (named after the SOURCE sheet) + matching sidecar.
+                Directory.CreateDirectory(absOutDir);
+                string sheetName = Path.GetFileName(src.SheetPath);
+                string destSheet = Path.Combine(absOutDir, sheetName);
+                File.Copy(src.SheetPath, destSheet, overwrite: true);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Wrote portrait package '{sheetName}'" + (src.SidecarPath != null ? " + sidecar palette" : " (no sidecar palette)")
+                };
+                result.WrittenPaths.Add(destSheet);
+
+                if (src.SidecarPath != null)
+                {
+                    string destPal = Path.Combine(absOutDir, Path.GetFileName(src.SidecarPath));
+                    File.Copy(src.SidecarPath, destPal, overwrite: true);
+                    result.WrittenPaths.Add(destPal);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Round-trip a portrait PACKAGE against an explicit BASELINE package (#1374): validate
+        /// BOTH the source and the baseline, then compare the source's sheet PNG bytes to the
+        /// baseline's sheet bytes AND the source's sidecar to the baseline's sidecar. The
+        /// REQUIRED baseline is the ORACLE — this is NOT a self-identity copy, so a
+        /// validation-valid but byte-tampered source genuinely MISMATCHES.
+        ///
+        /// <para>This proves "source package is byte-identical to an expected baseline package"
+        /// (source-level structure-exact identity vs a supplied baseline). It is NOT a
+        /// ROM-backed round-trip: no canonical ROM→128x112-sheet builder exists, so there is no
+        /// preview-ROM byte-pin for a portrait package (documented residual, consistent with the
+        /// issue non-goal "the preview ROM is never the source of truth"). READ-ONLY of the ROM
+        /// (never touches it), NEVER throws.</para>
+        /// </summary>
+        /// <param name="absSrcDir">Absolute path to the source package directory.</param>
+        /// <param name="absBaselineDir">Absolute path to the expected BASELINE package directory (the oracle).</param>
+        /// <param name="allowMainOnly">When true a 96x80 main-mug-only sheet is accepted on BOTH sides.</param>
+        public static DecompAssetResult RoundTripPortraitPackageAgainstBaseline(string absSrcDir, string absBaselineDir, bool allowMainOnly)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absSrcDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Source package directory is null or empty");
+                if (string.IsNullOrEmpty(absBaselineDir))
+                    return Fail(DecompAssetStatus.BadArgs, "Baseline package directory is null or empty");
+
+                // Validate BOTH sides — either invalid → fail (not a clean round-trip).
+                AssetValidationResult vs = DecompAssetValidatorCore.ValidateAssetPackage(
+                    AssetKind.PortraitPackage, absSrcDir, allowMainOnly);
+                if (!vs.Ok)
+                {
+                    AssetIssue first = vs.Errors.Count > 0 ? vs.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "source package validation failed: " + detail);
+                }
+                AssetValidationResult vb = DecompAssetValidatorCore.ValidateAssetPackage(
+                    AssetKind.PortraitPackage, absBaselineDir, allowMainOnly);
+                if (!vb.Ok)
+                {
+                    AssetIssue first = vb.Errors.Count > 0 ? vb.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "baseline package validation failed: " + detail);
+                }
+
+                PortraitPackageFiles src = ResolvePortraitPackage(absSrcDir);
+                PortraitPackageFiles baseline = ResolvePortraitPackage(absBaselineDir);
+                if (src == null || src.SheetPath == null)
+                    return Fail(DecompAssetStatus.NotData, "source package is ambiguous (expected exactly one *.png sheet)");
+                if (baseline == null || baseline.SheetPath == null)
+                    return Fail(DecompAssetStatus.NotData, "baseline package is ambiguous (expected exactly one *.png sheet)");
+
+                // Sheet bytes must be byte-identical to the baseline (the oracle).
+                byte[] srcSheet = File.ReadAllBytes(src.SheetPath);
+                byte[] baseSheet = File.ReadAllBytes(baseline.SheetPath);
+                if (!BytesEqual(srcSheet, baseSheet))
+                    return Fail(DecompAssetStatus.NotData,
+                        $"sheet mismatch: source '{Path.GetFileName(src.SheetPath)}' differs from baseline '{Path.GetFileName(baseline.SheetPath)}'");
+
+                // Sidecar presence + bytes must match the baseline too.
+                bool srcHasPal = src.SidecarPath != null;
+                bool baseHasPal = baseline.SidecarPath != null;
+                if (srcHasPal != baseHasPal)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"sidecar presence mismatch: source {(srcHasPal ? "has" : "lacks")} a palette, baseline {(baseHasPal ? "has" : "lacks")} one");
+                if (srcHasPal && baseHasPal)
+                {
+                    byte[] srcPal = File.ReadAllBytes(src.SidecarPath);
+                    byte[] basePal = File.ReadAllBytes(baseline.SidecarPath);
+                    if (!BytesEqual(srcPal, basePal))
+                        return Fail(DecompAssetStatus.NotData, "sidecar palette bytes differ from baseline");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = "Round-trip OK (portrait package byte-identical to baseline)"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>Byte-array equality (null-safe). NEVER throws.</summary>
+        static bool BytesEqual(byte[] a, byte[] b)
+        {
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
     }
 }
