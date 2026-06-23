@@ -575,9 +575,9 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
             Console.WriteLine("    --kind=mapchange       Raw uncompressed map-change OVERLAY tile data block (needs --addr=<change_mar hex>, --width, --height); NOT the .mar layout, NOT the record chain (#1355)");
             Console.WriteLine("    --kind=objtiles        OBJ tileset LZ77 block — exports the DECOMPRESSED 4bpp payload (needs --addr=<DEREFERENCED OBJ LZ77 stream hex>, NOT RomInfo.map_obj_pointer); FE7 obj2 is a separate stream/--addr; NOT chipset TSA/config, NOT tile animations 1/2 (#1371)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|mapchange|mapanime2pal|objtiles|text|shop (map data is always LZ77-decompressed; shop = EA .event migration artifact)");
             Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
-            Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map)");
+            Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map, mapchange, mapanime2pal, objtiles)");
             Console.WriteLine("    --colors=<int>         Number of palette colors (default 16; for --kind=palette and --kind=graphics)");
             Console.WriteLine("    --bpp=<int>            Bits per pixel (default 4; 4 or 8; for --kind=graphics)");
             Console.WriteLine("    --width=<int>          Image width in pixels (required for --kind=graphics)");
