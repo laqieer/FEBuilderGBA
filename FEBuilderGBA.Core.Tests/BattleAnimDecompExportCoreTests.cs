@@ -218,6 +218,44 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Format_MultiFrameOamBlob_EmitsAllEntries_TerminatorsInline_NotTruncated()
+        {
+            // The OAM blob is a CONCATENATION of per-frame lists: entries, a terminator,
+            // MORE entries, another terminator. The formatter must emit ALL of them (a
+            // mid-blob terminator must NOT stop emission), so frame oam_offset values
+            // that index later lists stay valid (Copilot review — the +20/+24 truncation).
+            var anime = MakeAnime();
+            anime.Modes.Add(ModeWith(0, EndMode()));
+            anime.OamRight.Add(Oam(0x0000, 0x8000, 0x0025, 0xFFF0, 0xFFE8)); // frame-0 list
+            anime.OamRight.Add(new BattleAnimDecompExportCore.OamEntry { IsTerminator = true });
+            anime.OamRight.Add(Oam(0x0000, 0x4000, 0x0029, 0x0010, 0xFFE8)); // frame-1 list (AFTER the 1st terminator)
+            anime.OamRight.Add(new BattleAnimDecompExportCore.OamEntry { IsTerminator = true });
+
+            string s = BattleAnimDecompExportCore.FormatBanimSource(anime, out _);
+
+            // Both per-frame sprite entries are present (the 2nd is NOT truncated).
+            Assert.Contains("banim_frame_oam 0x0000, 0x8000, 0x0025, 0xFFF0, 0xFFE8", s);
+            Assert.Contains("banim_frame_oam 0x0000, 0x4000, 0x0029, 0x0010, 0xFFE8", s);
+            // Two inline terminators.
+            Assert.Equal(2, CountOccurrences(s, "banim_frame_end"));
+        }
+
+        [Fact]
+        public void Format_RawTerminatorOam_EmitsRawHword()
+        {
+            var anime = MakeAnime();
+            anime.Modes.Add(ModeWith(0, EndMode()));
+            // FEditor-alt terminator: 00 FF FF FF ... -> raw .hword (byte-faithful).
+            anime.OamRight.Add(new BattleAnimDecompExportCore.OamEntry
+            { IsRawTerminator = true, Attr0 = 0xFF00, Attr1 = 0xFFFF, Attr2 = 0, Dx = 0, Dy = 0, Pad = 0 });
+
+            string s = BattleAnimDecompExportCore.FormatBanimSource(anime, out _);
+
+            Assert.Contains("@ frame-list terminator", s);
+            Assert.DoesNotContain("banim_frame_oam 0xFF00, 0xFFFF", s);
+        }
+
+        [Fact]
         public void Format_SharedOamSides_AliasesLeftToRight()
         {
             var anime = MakeAnime();
