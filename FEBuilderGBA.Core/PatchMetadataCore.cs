@@ -53,15 +53,46 @@ namespace FEBuilderGBA
             if (!Directory.Exists(patchBaseDir))
                 return result;
 
-            var dirs = Directory.GetDirectories(patchBaseDir);
-            foreach (string dir in dirs.OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
+            // Enumerate EVERY PATCH_*.txt recursively, matching WinForms
+            // PatchForm.ScanPatchs (SearchOption.AllDirectories). The previous
+            // "one patchFiles[0] per top-level directory" behavior dropped patches
+            // living in subdirectories (e.g. config/patch2/FE8U/SYSTEM/PATCH_*.txt),
+            // so hardcoding/installed patches were never loaded and the
+            // [HardCoding] filter could never match anything (#1376). Each patch is
+            // named by its NAME param (fallback = filename minus the PATCH_ prefix),
+            // matching WinForms.
+            string[] patchFiles;
+            try
             {
-                string dirName = Path.GetFileName(dir);
-                var patchFiles = Directory.GetFiles(dir, "PATCH_*.txt");
-                if (patchFiles.Length == 0)
-                    continue;
+                patchFiles = Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                // Log before returning empty so a real failure (PathTooLong, permission
+                // denied, ...) is distinguishable from a genuinely empty patch dir —
+                // otherwise it silently regresses into "0 patches", the exact
+                // silent-empty class of bug this change fixes. Log.Error is
+                // params string[] (joined with spaces), so concatenate — do NOT use {0}.
+                Log.Error("PatchMetadataCore.EnumeratePatches failed for '" + patchBaseDir + "': " + ex.ToString());
+                return result;
+            }
 
-                var info = ParsePatchFile(patchFiles[0], dirName, rom, lang);
+            foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                // Default display name = the file name without the "PATCH_" prefix
+                // (ParsePatchFile overrides it from a NAME / NAME.{lang} param).
+                string fileName = Path.GetFileNameWithoutExtension(file);
+                string defaultName = fileName.StartsWith("PATCH_", StringComparison.OrdinalIgnoreCase)
+                    ? fileName.Substring("PATCH_".Length)
+                    : fileName;
+
+                var info = ParsePatchFile(file, defaultName, rom, lang);
+                // Group by the patch's real containing folder (e.g. "SYSTEM") so the
+                // CLI --patch-name folder filter keeps working with recursion; the
+                // display Name stays the per-file default/NAME param.
+                string containingDir = Path.GetFileName(Path.GetDirectoryName(file) ?? "") ?? "";
+                if (!string.IsNullOrEmpty(containingDir))
+                    info.DirectoryName = containingDir;
                 result.Add(info);
             }
             return result;

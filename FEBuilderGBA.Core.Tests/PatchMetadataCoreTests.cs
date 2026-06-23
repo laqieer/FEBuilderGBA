@@ -1,6 +1,7 @@
 using Xunit;
 using FEBuilderGBA;
 using System.IO;
+using System.Linq;
 
 namespace FEBuilderGBA.Core.Tests
 {
@@ -153,6 +154,54 @@ namespace FEBuilderGBA.Core.Tests
 
             var result = PatchMetadataCore.EnumeratePatches("/nonexistent/path", rom, "en");
             Assert.Empty(result);
+        }
+
+        // EnumeratePatches must find EVERY PATCH_*.txt recursively (matching WinForms
+        // ScanPatchs), including subdirectories and multiple files per directory — not
+        // just one file per top-level dir. Regression for #1376: hardcoding patches
+        // live in subdirs (e.g. FE8U/SYSTEM/PATCH_*.txt) and were previously dropped,
+        // so the [HardCoding] token filter could never match anything in the GUI.
+        [Fact]
+        public void EnumeratePatches_RecursesAndFindsAllPatchFiles()
+        {
+            byte[] data = new byte[0x100];
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+
+            string baseDir = Path.Combine(Path.GetTempPath(), "PatchEnum_" + Guid.NewGuid().ToString("N"));
+            string sub = Path.Combine(baseDir, "SYSTEM");
+            Directory.CreateDirectory(sub);
+            try
+            {
+                // Two patches in the same subdir + one at the top level.
+                File.WriteAllLines(Path.Combine(sub, "PATCH_Eirika.txt"), new[] { "TYPE=ADDR", "NAME=Eirika Patch" });
+                File.WriteAllLines(Path.Combine(sub, "PATCH_Ephraim.txt"), new[] { "TYPE=ADDR", "NAME=Ephraim Patch" });
+                File.WriteAllLines(Path.Combine(baseDir, "PATCH_Top.txt"), new[] { "TYPE=ADDR" });
+
+                var result = PatchMetadataCore.EnumeratePatches(baseDir, rom, "en");
+
+                Assert.Equal(3, result.Count);
+                Assert.Contains(result, p => p.Name == "Eirika Patch");
+                Assert.Contains(result, p => p.Name == "Ephraim Patch");
+                // Top-level file with no NAME -> default name = file minus PATCH_ prefix.
+                Assert.Contains(result, p => p.Name == "Top");
+                // PatchFilePath is the actual file (re-loadable by PatchFilterCore).
+                Assert.All(result, p => Assert.True(File.Exists(p.PatchFilePath)));
+
+                // DirectoryName is the patch's REAL containing folder — guards the CLI
+                // --patch-name / folder filter. The two subdir patches are under SYSTEM;
+                // the top-level patch is under the base dir's own leaf name.
+                var eirika = result.First(p => p.Name == "Eirika Patch");
+                var ephraim = result.First(p => p.Name == "Ephraim Patch");
+                var top = result.First(p => p.Name == "Top");
+                Assert.Equal("SYSTEM", eirika.DirectoryName);
+                Assert.Equal("SYSTEM", ephraim.DirectoryName);
+                Assert.Equal(Path.GetFileName(baseDir), top.DirectoryName);
+            }
+            finally
+            {
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
         }
 
         [Fact]
