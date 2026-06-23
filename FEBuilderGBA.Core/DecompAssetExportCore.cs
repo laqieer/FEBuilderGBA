@@ -1346,7 +1346,7 @@ namespace FEBuilderGBA
         }
 
 
-        // ---- OBJ tileset LZ77 decompressed-payload export/import/verify (#1360) ----
+        // ---- OBJ tileset LZ77 decompressed-payload export/import/verify (#1371) ----
 
         /// <summary>
         /// Export an OBJ tileset LZ77 block at <paramref name="objAddr"/> by LZ77-DECOMPRESSING it
@@ -1465,7 +1465,7 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// PURE structural round-trip proof for an OBJ tileset decompressed body (#1360): true iff
+        /// PURE structural round-trip proof for an OBJ tileset decompressed body (#1371): true iff
         /// <paramref name="body"/> is non-null, <paramref name="expectedLen"/> is positive, and
         /// <c>body.Length == expectedLen</c>. Try/catch → false.
         ///
@@ -1487,7 +1487,7 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Decompress-and-byte-compare ROM-backed mismatch proof for an OBJ tileset (#1360):
+        /// Decompress-and-byte-compare ROM-backed mismatch proof for an OBJ tileset (#1371):
         /// LZ77-decompresses the ROM at <paramref name="objAddr"/> and compares byte-for-byte
         /// against the <c>.objtiles</c> file body. READ-ONLY (never mutates the ROM), NEVER throws.
         /// </summary>
