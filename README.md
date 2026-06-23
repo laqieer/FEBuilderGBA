@@ -511,7 +511,12 @@ sibling.
   is shown — migrate via `--export-asset --kind=shop`. **#1148 pointer-edit guard:** when the user edits ONLY an
   unsupported chapter pointer field (e.g. EventDataPtr / a difficulty pointer), the gate shows an
   explicit ROM-only/manual notice and does NOT mutate the preview ROM (rather than a misleading
-  "no change needed"). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
+  "no change needed"). **#1382 Import Map (CSV):** the Visual Map Editor toolbar now has an
+  *"Import Map (CSV)"* button that round-trips the *"Export Map (CSV)"* format. The CSV header
+  (`# FEBuilderGBA Map Export: width=N, height=M`) and row-major decimal u16 MAR grid are parsed,
+  validated (strict W×H match required — resize is not supported; select a map of matching dimensions
+  or edit the CSV), and applied under a single LZ77 compress + write + repoint undo scope, mirroring
+  the existing tile-paint write path. Blocked in decomp mode (same guard as tile writes). **#1148 map-asset guard:** the raw map ASSET editors (Visual Map Editor tile
   write, Map Style OBJ/palette/chipset import + write, Event Map Change write/import/expand) surface
   an export-only/manual notice in decomp mode instead of silently writing the build-preview ROM —
   migrate those via the asset-export pipeline. The toolbar badge gains a *" · needs rebuild"* suffix

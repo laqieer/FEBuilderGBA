@@ -157,6 +157,69 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Stage a full-grid replacement of the decompressed map buffer from a row-major
+        /// array of MAR values. Validates that the cache header matches (width, height)
+        /// and that mars.Length == width*height. Returns a NEW buffer (header preserved,
+        /// all MARs written little-endian row-major); never mutates the input.
+        /// Returns false + error on dimension mismatch, null input, or oversize.
+        /// PURE — no ROM access.
+        /// </summary>
+        public static bool TryStageGridEdit(
+            byte[] cachedMapData,
+            int width,
+            int height,
+            ushort[] mars,
+            out byte[] staged,
+            out string error)
+        {
+            staged = null;
+            error = null;
+
+            if (cachedMapData == null)
+            {
+                error = "cachedMapData is null";
+                return false;
+            }
+            if (width <= 0 || height <= 0)
+            {
+                error = $"invalid dimensions {width}x{height}";
+                return false;
+            }
+            int needed = 2 + width * height * 2;
+            if (cachedMapData.Length < needed)
+            {
+                error = $"cachedMapData too short ({cachedMapData.Length} < {needed})";
+                return false;
+            }
+            if (cachedMapData[0] != width || cachedMapData[1] != height)
+            {
+                error = $"map dimension mismatch: header says {cachedMapData[0]}x{cachedMapData[1]}, caller says {width}x{height}";
+                return false;
+            }
+            if (mars == null)
+            {
+                error = "mars array is null";
+                return false;
+            }
+            if (mars.Length != width * height)
+            {
+                error = $"mars.Length {mars.Length} != width*height {width * height}";
+                return false;
+            }
+
+            byte[] clone = (byte[])cachedMapData.Clone();
+            for (int i = 0; i < mars.Length; i++)
+            {
+                int offset = 2 + i * 2;
+                clone[offset] = (byte)(mars[i] & 0xFF);
+                clone[offset + 1] = (byte)((mars[i] >> 8) & 0xFF);
+            }
+
+            staged = clone;
+            return true;
+        }
+
+        /// <summary>
         /// Read the MAR value at (tileX, tileY) from decompressed map data.
         /// Returns false if coordinates are out of range or the buffer is too small.
         /// </summary>

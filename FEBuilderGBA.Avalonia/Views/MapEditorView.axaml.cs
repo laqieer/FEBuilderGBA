@@ -31,6 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteTileBtn.Click += OnWriteTile;
             RefreshMapBtn.Click += OnRefreshMap;
             ExportCsvButton.Click += ExportCsv_Click;
+            ImportCsvButton.Click += ImportCsv_Click;
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
@@ -411,6 +412,92 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapEditorView.ExportCsv_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Export failed: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Import a CSV file (produced by <see cref="ExportCsv_Click"/>) and apply the
+        /// full grid of MAR values to the currently-loaded map under a single undo scope.
+        /// Requires an exact W×H match with the selected map; resize is not supported.
+        /// (#1382)
+        /// </summary>
+        async void ImportCsv_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] cachedMap = _vm.GetMapDataSnapshot();
+                if (cachedMap == null || cachedMap.Length < 2)
+                {
+                    CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
+                    return;
+                }
+
+                // Map tile layout is a source asset in decomp mode — block writes.
+                if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                    return;
+
+                if (StorageProvider == null) return;
+
+                var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = R._("Import Map (CSV)"),
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } }
+                    }
+                });
+
+                if (files == null || files.Count == 0) return;
+                var file = files[0];
+
+                string path = file.TryGetLocalPath();
+                if (string.IsNullOrEmpty(path))
+                {
+                    CoreState.Services?.ShowError(R._("Could not resolve a local file path for import."));
+                    return;
+                }
+
+                string csv = File.ReadAllText(path);
+
+                if (!MapExportCsv.Parse(csv, out int w, out int h, out ushort[] mars, out string parseErr))
+                {
+                    CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), parseErr));
+                    return;
+                }
+
+                bool ok;
+                string applyErr;
+                uint addr;
+                _undo.Begin("MapEditor.ImportCsv");
+                try
+                {
+                    ok = _vm.ApplyMapGrid(mars, w, h, out applyErr, out addr);
+                }
+                catch (Exception)
+                {
+                    _undo.Rollback();
+                    throw;
+                }
+
+                if (ok)
+                {
+                    _undo.Commit();
+                    OnRefreshMap(this, new RoutedEventArgs());
+                    UpdateTilePalette();
+                    CoreState.Services?.ShowInfo(string.Format(R._("Imported map from {0} ({1}x{2} tiles)."), file.Name, w, h));
+                }
+                else
+                {
+                    _undo.Rollback();
+                    CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), applyErr));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.ImportCsv_Click failed: " + ex.Message);
+                CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), ex.Message));
             }
         }
 
