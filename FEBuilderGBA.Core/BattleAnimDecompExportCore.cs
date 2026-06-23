@@ -112,7 +112,7 @@ namespace FEBuilderGBA
             // OAM lists (frame oam_offset values index the WHOLE blob), so terminators are
             // emitted INLINE and parsing continues past them (Copilot review).
             public bool IsTerminator;      // exact 01 00..00 -> banim_frame_end (.word 1,0,0)
-            public bool IsRawTerminator;   // other terminator-like 12 bytes -> raw .hword
+            public bool IsRawTerminator;   // the FEditor alt terminator (00 FF FF FF ...) -> raw .hword
         }
 
         /// <summary>The full decoded animation (script modes + OAM lists + provenance).</summary>
@@ -383,9 +383,16 @@ namespace FEBuilderGBA
             }
         }
 
-        static void ParseOamEntries(byte[] oamData, List<OamEntry> oam, List<string> diagnostics)
+        /// <summary>
+        /// Parse the WHOLE concatenated OAM blob into <paramref name="oam"/> entries
+        /// (sprite / affine / terminator). <c>internal</c> so the parser itself — where
+        /// the truncation bug lived — is unit-tested directly with a byte blob (Copilot
+        /// review), not only via the formatter.
+        /// </summary>
+        internal static void ParseOamEntries(byte[] oamData, List<OamEntry> oam, List<string> diagnostics)
         {
             if (oamData == null) return;
+            if (diagnostics == null) diagnostics = new List<string>();
 
             // The OAM blob is a CONCATENATION of per-frame OAM lists; each list ends with
             // a 12-byte terminator and frame oam_offset values index the WHOLE blob. So we
@@ -408,8 +415,8 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                // FEditor serialized alternate terminator (00 FF FF FF ...) or any other
-                // terminator-like 12-byte word -> emit raw .hword (byte-faithful), keep going.
+                // FEditor serialized alternate terminator (exactly 00 FF FF FF ...) ->
+                // emit raw .hword (byte-faithful) and keep walking the blob.
                 if (b0 == 0 && oamData[pos + 1] == 0xFF && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
                 {
                     oam.Add(new OamEntry

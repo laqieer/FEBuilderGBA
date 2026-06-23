@@ -255,6 +255,70 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("banim_frame_oam 0xFF00, 0xFFFF", s);
         }
 
+        // ---- PARSER-level tests: ParseOamEntries on a raw byte blob ----------
+        // These exercise the ACTUAL parser (where the truncation bug lived), not just
+        // the formatter (Copilot review on #1370).
+
+        static byte[] OamSpriteBytes(byte b0, byte b1, byte b2, byte b3, byte b4, byte b5)
+        {
+            // a 12-byte OAM sprite entry (remaining bytes 0).
+            return new byte[] { b0, b1, b2, b3, b4, b5, 0, 0, 0, 0, 0, 0 };
+        }
+
+        static readonly byte[] FrameEndBytes = new byte[] { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        [Fact]
+        public void ParseOamEntries_MultiList_DoesNotStopAtFirstTerminator()
+        {
+            // blob = [sprite][frame_end][sprite][frame_end] — the parser must walk ALL
+            // four 12-byte entries, not stop at the first terminator.
+            var blob = new List<byte>();
+            blob.AddRange(OamSpriteBytes(0x00, 0x80, 0x25, 0x00, 0xF0, 0xFF)); // frame-0 sprite
+            blob.AddRange(FrameEndBytes);
+            blob.AddRange(OamSpriteBytes(0x00, 0x40, 0x29, 0x00, 0x10, 0x00)); // frame-1 sprite
+            blob.AddRange(FrameEndBytes);
+
+            var oam = new List<BattleAnimDecompExportCore.OamEntry>();
+            BattleAnimDecompExportCore.ParseOamEntries(blob.ToArray(), oam, new List<string>());
+
+            Assert.Equal(4, oam.Count);
+            Assert.False(oam[0].IsTerminator);
+            Assert.True(oam[1].IsTerminator);
+            Assert.False(oam[2].IsTerminator);   // the 2nd sprite is NOT truncated away
+            Assert.True(oam[3].IsTerminator);
+        }
+
+        [Fact]
+        public void ParseOamEntries_RecognizesFEditorAltTerminator_AsRawTerminator()
+        {
+            // 00 FF FF FF ... -> IsRawTerminator (and parsing continues past it).
+            var blob = new List<byte>();
+            blob.AddRange(new byte[] { 0x00, 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0 });
+            blob.AddRange(OamSpriteBytes(0x00, 0x40, 0x29, 0x00, 0x10, 0x00));
+
+            var oam = new List<BattleAnimDecompExportCore.OamEntry>();
+            BattleAnimDecompExportCore.ParseOamEntries(blob.ToArray(), oam, new List<string>());
+
+            Assert.Equal(2, oam.Count);
+            Assert.True(oam[0].IsRawTerminator);
+            Assert.False(oam[0].IsTerminator);
+            Assert.False(oam[1].IsRawTerminator);   // parsing continued past the terminator
+        }
+
+        [Fact]
+        public void ParseOamEntries_RecognizesAffineEntry()
+        {
+            // bytes [2..3] == 0xFFFF but b0 != 0 -> affine matrix entry (raw .hword).
+            byte[] blob = new byte[] { 0x10, 0x00, 0xFF, 0xFF, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
+
+            var oam = new List<BattleAnimDecompExportCore.OamEntry>();
+            BattleAnimDecompExportCore.ParseOamEntries(blob, oam, new List<string>());
+
+            Assert.Single(oam);
+            Assert.True(oam[0].IsAffine);
+            Assert.False(oam[0].IsTerminator);
+        }
+
         [Fact]
         public void Format_SharedOamSides_AliasesLeftToRight()
         {
