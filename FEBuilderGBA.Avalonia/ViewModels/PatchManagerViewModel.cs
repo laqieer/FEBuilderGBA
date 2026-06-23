@@ -295,10 +295,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             _filteredPatches.Clear();
             string filter = _filterText.Trim();
+
+            if (string.IsNullOrEmpty(filter))
+            {
+                foreach (var p in _allPatches)
+                    _filteredPatches.Add(p);
+                return;
+            }
+
+            // Special-case the synthetic Patch Manager tokens BEFORE the substring
+            // search, mirroring WinForms PatchForm.MakeFiltedPatchs (PatchForm.cs:143):
+            //   "!"                      -> installed-only
+            //   "HARDCODING_{type}=NN"   -> patches that hard-code that id (#1376)
+            // The HardCoding links on the Unit/Class/Item editors seed the second form.
+            ROM rom = CoreState.ROM;
+            if (rom != null)
+            {
+                // WinForms-style scanner language (ja/en/zh) — NOT GetLanguageSuffix(),
+                // which returns "" for Japanese and would drift CleanupKey fallback.
+                string lang = PatchFilterCore.ScanLang(CoreState.Language);
+
+                if (PatchFilterCore.IsInstalledOnlyToken(filter))
+                {
+                    foreach (var p in _allPatches)
+                    {
+                        if (PatchFilterCore.IsInstalledForFilter(rom, p.PatchFilePath, lang))
+                            _filteredPatches.Add(p);
+                    }
+                    return;
+                }
+
+                if (PatchFilterCore.TryParseHardCodingToken(filter, out string typeNameUpper, out uint value))
+                {
+                    foreach (var p in _allPatches)
+                    {
+                        if (PatchFilterCore.IsHardCodingTokenMatch(rom, p.PatchFilePath, lang, value, typeNameUpper))
+                            _filteredPatches.Add(p);
+                    }
+                    return;
+                }
+            }
+
+            // Plain substring search (Name/Tags/Author/Description) — unchanged.
             foreach (var p in _allPatches)
             {
-                if (string.IsNullOrEmpty(filter) ||
-                    p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                if (p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     p.Tags.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     p.Author.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     p.Description.Contains(filter, StringComparison.OrdinalIgnoreCase))
