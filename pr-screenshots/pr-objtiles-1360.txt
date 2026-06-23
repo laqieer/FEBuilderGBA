@@ -1,16 +1,33 @@
-  Determining projects to restore...
-C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338 [C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\FEBuilderGBA.Core.Tests.csproj]
-  All projects are up-to-date for restore.
-C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338
-  FEBuilderGBA.Core -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\bin\Debug\net9.0\FEBuilderGBA.Core.dll
-  FEBuilderGBA.SkiaSharp -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.SkiaSharp\bin\Debug\net9.0\FEBuilderGBA.SkiaSharp.dll
-  FEBuilderGBA.Core.Tests -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\bin\Debug\net9.0\FEBuilderGBA.Core.Tests.dll
-Test run for C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\bin\Debug\net9.0\FEBuilderGBA.Core.Tests.dll (.NETCoreApp,Version=v9.0)
-VSTest version 17.14.1 (x64)
+### OBJ tileset decomp asset — real FE8U end-to-end CLI proof (#1360)
+ROM: FE8U.gba  |  OBJ LZ77 stream addr=0x1AF604 (resolved via OBJECT plist 222; compLen=428, decLen=758)
 
-Starting test execution, please wait...
-A total of 1 test files matched the specified pattern.
+$ --export-asset --kind=objtiles --addr=0x1AF604 --out=ch.objtiles
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\objproof\ch.objtiles
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\objproof\ch.objtiles.json
+  exit=0
+  body bytes: 758  | sidecar:
+    ﻿{
+      "length": 758,
+      "srcAddr": "0x1AF604",
+      "format": "febuilder-objtiles-lz77"
+    }
 
-Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 121 ms - FEBuilderGBA.Core.Tests.dll (net9.0)
+$ --verify-asset --kind=objtiles --addr=0x1AF604 --in=ch.objtiles   (expect MATCH, exit 0)
+Verified OBJ tileset decompressed payload byte-identical to ROM (758 bytes)
+  exit=0
 
-Workload updates are available. Run `dotnet workload list` for more information.
+$ --import-asset --kind=objtiles --in=ch.objtiles --out=ch.objtiles_raw.bin   (no ROM)
+Imported OBJ tileset decompressed payload to blob (758 bytes)
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\objproof\ch.objtiles_raw.bin
+  exit=0
+$ --roundtrip-asset --kind=objtiles --in=ch.objtiles   (expect OK, exit 0)
+Round-trip OK (structure-exact OBJ tileset decompressed body)
+  exit=0
+
+### Negative: tamper one byte then verify against the SAME ROM addr (expect MISMATCH, exit 2)
+Error: OBJ tileset mismatch at byte offset 10: ROM=0x9C file=0xFF
+  exit=2
+
+### Negative: --addr pointing at non-LZ77 bytes (expect NotData, no file)
+Error: 0x300 is not a valid LZ77 stream (getCompressedSize returned 0)
+  file created? NO
