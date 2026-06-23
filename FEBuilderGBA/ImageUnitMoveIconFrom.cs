@@ -28,15 +28,10 @@ namespace FEBuilderGBA
             U.SetIcon(ExportAPButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportAPButton, Properties.Resources.icon_upload);
 
-            // #1380 Part B — FE-Repo browse button below Import.
-            var feRepoButton = new Button
-            {
-                Text = R._("FE-Repo"),
-                Size = new System.Drawing.Size(107, 20),
-                Location = new System.Drawing.Point(ImportButton.Left, ImportButton.Bottom + 2)
-            };
-            feRepoButton.Click += FERepoButton_Click;
-            ImportButton.Parent?.Controls.Add(feRepoButton);
+            // #1380 Part B — FE-Repo browse button on the SAME ROW as Import/
+            // Export (to the right of Export), avoiding overlap with the AP
+            // button row below (Copilot review #1394).
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
 
             if (Program.ROM.RomInfo.version == 8)
             {

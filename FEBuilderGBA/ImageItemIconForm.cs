@@ -41,15 +41,10 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
-            // #1380 Part B — FE-Repo browse button below Import.
-            var feRepoButton = new Button
-            {
-                Text = R._("FE-Repo"),
-                Size = new System.Drawing.Size(107, 20),
-                Location = new System.Drawing.Point(ImportButton.Left, ImportButton.Bottom + 2)
-            };
-            feRepoButton.Click += FERepoButton_Click;
-            ImportButton.Parent?.Controls.Add(feRepoButton);
+            // #1380 Part B — FE-Repo browse button on the SAME ROW as Import/
+            // Export (to the right of Export), so it is not clipped by the short
+            // DragTargetPanel2 (Copilot review #1394).
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
 
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {

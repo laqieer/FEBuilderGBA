@@ -31,6 +31,57 @@ namespace FEBuilderGBA
         /// </summary>
         public string SelectedFilePath { get; private set; }
 
+        /// <summary>
+        /// #1380 Part B — add an "FE-Repo" browse button to a graphics editor in
+        /// its Import button's parent panel, placed in a NEW row BELOW every
+        /// existing control in that panel (so it never overlaps the Import/Export
+        /// row, the AP row, or the source/jump buttons), and GROW the panel's
+        /// height + MinimumSize so the new button is fully visible rather than
+        /// clipped by a short button panel (Copilot review on #1394).
+        /// The <paramref name="rightOf"/> parameter is unused (kept for call-site
+        /// readability of which Import row the button relates to).
+        /// </summary>
+        public static Button AddBrowseButton(Button importButton, Button rightOf, EventHandler handler)
+        {
+            Control parent = importButton.Parent;
+
+            // Place the new row below the BOTTOM-MOST existing control in the
+            // panel — including initially-hidden source/jump buttons, whose
+            // designer Bounds still define the occupied area — so there is no
+            // horizontal collision regardless of panel layout.
+            int bottomMost = importButton.Bottom;
+            if (parent != null)
+            {
+                foreach (Control c in parent.Controls)
+                {
+                    if (c.Bottom > bottomMost) bottomMost = c.Bottom;
+                }
+            }
+
+            var feRepoButton = new Button
+            {
+                Text = R._("FE-Repo"),
+                Size = new Size(107, importButton.Height),
+                Location = new Point(importButton.Left, bottomMost + 2)
+            };
+            feRepoButton.Click += handler;
+
+            if (parent != null)
+            {
+                parent.Controls.Add(feRepoButton);
+                // Panels in these editors have fixed designer Sizes; grow both
+                // Height and MinimumSize so a layout pass cannot shrink it back
+                // and clip the new button.
+                int needed = feRepoButton.Bottom + 2;
+                if (parent.Height < needed)
+                {
+                    parent.Height = needed;
+                    parent.MinimumSize = new Size(parent.MinimumSize.Width, needed);
+                }
+            }
+            return feRepoButton;
+        }
+
         public FERepoResourceBrowserForm() : this(null, null) { }
 
         /// <summary>
