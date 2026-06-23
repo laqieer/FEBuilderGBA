@@ -48,6 +48,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             "https://github.com/laqieer/FEBuilderGBA-patch2.git",
             "https://github.com/Klokinator/FE-Repo",
             "https://github.com/laqieer/FE-Repo-Music-No-Preview",
+            // #1380: literal git command the "Copy git command" button copies to
+            // the clipboard verbatim — must stay byte-identical across locales
+            // (same rationale as the URLs above), so it is allowlisted not
+            // translated.
+            "Copy: git submodule update --init resources/FE-Repo",
         };
 
         /// <summary>

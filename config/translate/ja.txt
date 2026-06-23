@@ -12155,3 +12155,18 @@ ROMのRebuildに失敗しました。
 :Nothing to remove (shop is empty).
 削除するものがありません（ショップが空です）。
 
+:Copy git command
+Gitコマンドをコピー
+
+:Import from the FE-Repo Map Sprites folder
+FE-Repoのマップスプライトフォルダからインポート
+
+:Import from the FE-Repo Item Icons folder
+FE-Repoのアイテムアイコンフォルダからインポート
+
+:Import from the FE-Repo CG Images folder
+FE-RepoのCG画像フォルダからインポート
+
+:Import from the FE-Repo Generic Minimugs folder
+FE-Repoの汎用ミニ顔フォルダからインポート
+
