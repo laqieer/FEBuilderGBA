@@ -45,6 +45,37 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("IsVisible=\"{Binding IsFERepoMusicAvailable}\"", axaml);
         }
 
+        [Fact]
+        public void SongExchange_FERepoMusic_ReusesSongTrackDispatcher_NoDuplicate()
+        {
+            // #1383 review: the Avalonia Song Exchange FE-Repo-Music button must
+            // route through the Song Track Editor's single dispatcher (navigate +
+            // ImportMusicFromExternal), NOT re-implement a .s/.mid/.wav importer.
+            string src = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongExchangeView.axaml.cs"));
+            int feHandler = src.IndexOf("FERepoMusic_Click(object? sender", StringComparison.Ordinal);
+            Assert.True(feHandler >= 0, "SongExchangeView.FERepoMusic_Click not found");
+            string body = src.Substring(feHandler);
+            Assert.Contains("FERepoPickHelper.PickMusic", body);
+            Assert.Contains("Navigate<SongTrackView>", body);
+            Assert.Contains("ImportMusicFromExternal", body);
+            // No duplicate importer in Song Exchange.
+            Assert.DoesNotContain("SongUtil.ImportS", src);
+            Assert.DoesNotContain("ImportMidi(", src);
+
+            string axaml = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongExchangeView.axaml"));
+            Assert.Contains("SongExchange_FERepoMusic_Button", axaml);
+            Assert.Contains("IsVisible=\"{Binding IsFERepoMusicAvailable}\"", axaml);
+        }
+
+        [Fact]
+        public void SongTrackView_ExposesImportMusicFromExternal_SharedEntry()
+        {
+            string src = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongTrackView.axaml.cs"));
+            // The public hand-off entry delegates to the SAME private dispatcher.
+            Assert.Contains("ImportMusicFromExternal(string path)", src);
+            Assert.Contains("=> ImportMusicPath(path)", src);
+        }
+
         static string ReadSource(string relativePath)
         {
             string root = FindRepoRoot();

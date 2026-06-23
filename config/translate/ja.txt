@@ -12182,3 +12182,6 @@ FE-Repo-音楽ブラウザ
 :Browse the FE-Repo-Music submodule and import the selected music file into the current song (same import path as Import Music File).
 FE-Repo-音楽サブモジュールを参照し、選択した音楽ファイルを現在の曲にインポートします（Import Music File と同じインポート経路）。
 
+:Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File).
+FE-Repo-音楽サブモジュールを参照し、選択した宛先の曲をソングトラックエディタのインポートで取り込みます（Import Music File と同じインポート経路）。
+

@@ -71,6 +71,30 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
+        public void SongTrackForm_FERepoButton_GrowsHostPanel_SoItIsNotClipped()
+        {
+            // #1383 review: the existing action row is full, so the button goes on
+            // a new row and the (Dock=Top) host panel must be grown to fit it,
+            // otherwise it would be clipped below the panel.
+            string src = ReadSource("SongTrackForm.cs");
+            int handler = src.IndexOf("FERepoResourceBrowser.IsMusicRepoAvailable", StringComparison.Ordinal);
+            Assert.True(handler >= 0);
+            string block = src.Substring(handler);
+            Assert.Contains("row.Height", block);
+        }
+
+        [Fact]
+        public void SongTrackForm_InstrumentExtCompare_UsesLeadingDot()
+        {
+            // #1383 review: ext carries the leading dot, so the source-cache skip
+            // must compare against ".INSTRUMENT", not the never-matching
+            // dot-less "INSTRUMENT".
+            string src = ReadSource("SongTrackForm.cs");
+            Assert.Contains("ext != \".INSTRUMENT\"", src);
+            Assert.DoesNotContain("ext != \"INSTRUMENT\"", src);
+        }
+
+        [Fact]
         public void SongExchangeForm_FERepoButton_GuardedByMusicRepoAvailability()
         {
             string src = ReadSource("SongExchangeForm.cs");

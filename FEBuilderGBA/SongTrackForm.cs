@@ -62,18 +62,30 @@ namespace FEBuilderGBA
             // #1383: "FE-Repo-Music" import button — only shown when the
             // FE-Repo-Music submodule is checked out. Imports the chosen file via
             // the same path as ImportButton (AutoDrag -> ImportButton_Click).
+            // The existing action row (Y=23) is full, so the button goes on a new
+            // row directly under Import; panel5 is Dock=Top, so growing its height
+            // pushes the content below down instead of clipping the button.
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
             if (FERepoResourceBrowser.IsMusicRepoAvailable(baseDir))
             {
+                System.Windows.Forms.Control row = this.ImportButton.Parent;
+                int newY = this.ImportButton.Location.Y + this.ImportButton.Height + 2;
                 Button feRepoMusicButton = new Button
                 {
                     Text = R._("FE-Repo-Music"),
                     Name = "FERepoMusicButton",
-                    Location = new System.Drawing.Point(this.ImportButton.Location.X, this.ImportButton.Location.Y + this.ImportButton.Height + 2),
+                    Location = new System.Drawing.Point(this.ImportButton.Location.X, newY),
                     Size = this.ImportButton.Size
                 };
                 feRepoMusicButton.Click += FERepoMusicButton_Click;
-                this.ImportButton.Parent.Controls.Add(feRepoMusicButton);
+                // Make sure the (Dock=Top) host panel is tall enough to show the
+                // whole button row — otherwise it would be clipped (#1383 review).
+                int needed = newY + feRepoMusicButton.Height + 2;
+                if (row.Height < needed)
+                {
+                    row.Height = needed;
+                }
+                row.Controls.Add(feRepoMusicButton);
                 feRepoMusicButton.BringToFront();
             }
         }
@@ -231,7 +243,11 @@ namespace FEBuilderGBA
             }
             R.Notify("{0}, SongID: {1} ,Ext: {2} ,Filename: {3}", this.Text, song_id, ext, filename);
 
-            if (ext != "INSTRUMENT")
+            // ext carries the leading dot (e.g. ".INSTRUMENT"); an instrument-set
+            // import has no playable source file to remember, so skip recording
+            // it under the per-song source cache (#1383 review — the old
+            // dot-less "INSTRUMENT" comparison never matched).
+            if (ext != ".INSTRUMENT")
             {
                 Program.ResourceCache.Update("Song_" + U.ToHexString(song_id), filename);
                 this.OpenSourceButton.Show();

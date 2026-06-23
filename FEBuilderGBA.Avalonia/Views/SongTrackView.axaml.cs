@@ -424,7 +424,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+                Log.Error("ImportMidi_Click failed:", ex.ToString());
             }
         }
 
@@ -446,7 +446,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.FERepoMusic_Click failed: {0}", ex.Message);
+                Log.Error("SongTrackView.FERepoMusic_Click failed:", ex.ToString());
             }
         }
 
@@ -596,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.ImportMusicPath failed: {0}", ex.Message);
+                Log.Error("SongTrackView.ImportMusicPath failed:", ex.ToString());
             }
         }
 
@@ -1001,5 +1001,16 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        /// <summary>
+        /// #1383: import a music file into the currently-selected song through the
+        /// ONE shared dispatcher (ImportMusicPath). Used by the Avalonia Song
+        /// Exchange tool's FE-Repo-Music button, which navigates here for the
+        /// selected destination song and then hands off the chosen path — so both
+        /// Song editors funnel through the exact same import code path, with no
+        /// duplicate importer.
+        /// </summary>
+        public System.Threading.Tasks.Task ImportMusicFromExternal(string path)
+            => ImportMusicPath(path);
     }
 }
