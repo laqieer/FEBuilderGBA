@@ -3587,6 +3587,9 @@ ID テキスト
 :Export Map (CSV)
 マップをエクスポート (CSV)
 
+:Import Map (CSV)
+マップをインポート (CSV)
+
 :No chipset selected
 チップセットが選択されていません
 

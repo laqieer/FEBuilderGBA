@@ -411,5 +411,126 @@ namespace FEBuilderGBA.Core.Tests
             byte[] buf = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE]; // no room for terrain[0]
             Assert.False(MapEditorTilesetCore.SetTerrainForChipset(0, 0x55, buf));
         }
+
+        // =====================================================================
+        // TryStageGridEdit tests (#1382)
+        // =====================================================================
+
+        /// <summary>Helper to build a minimal 2x2 map buffer.</summary>
+        static byte[] Make2x2Buffer(ushort v00 = 0x0001, ushort v10 = 0x0002,
+                                     ushort v01 = 0x0003, ushort v11 = 0x0004)
+        {
+            byte[] buf = new byte[2 + 4 * 2];
+            buf[0] = 2; buf[1] = 2;
+            buf[2] = (byte)(v00 & 0xFF); buf[3] = (byte)(v00 >> 8);
+            buf[4] = (byte)(v10 & 0xFF); buf[5] = (byte)(v10 >> 8);
+            buf[6] = (byte)(v01 & 0xFF); buf[7] = (byte)(v01 >> 8);
+            buf[8] = (byte)(v11 & 0xFF); buf[9] = (byte)(v11 >> 8);
+            return buf;
+        }
+
+        [Fact]
+        public void TryStageGridEdit_Success_HeaderPreservedAndMarsWritten()
+        {
+            byte[] original = Make2x2Buffer();
+            ushort[] newMars = new ushort[] { 0xAAAA, 0xBBBB, 0xCCCC, 0xDDDD };
+
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(original, 2, 2, newMars, out byte[] staged, out string err);
+
+            Assert.True(ok, err);
+            Assert.NotNull(staged);
+            // Header preserved
+            Assert.Equal(2, staged[0]);
+            Assert.Equal(2, staged[1]);
+            // MARs written little-endian
+            Assert.Equal(0xAA, staged[2]); Assert.Equal(0xAA, staged[3]); // 0xAAAA
+            Assert.Equal(0xBB, staged[4]); Assert.Equal(0xBB, staged[5]); // 0xBBBB
+            Assert.Equal(0xCC, staged[6]); Assert.Equal(0xCC, staged[7]); // 0xCCCC
+            Assert.Equal(0xDD, staged[8]); Assert.Equal(0xDD, staged[9]); // 0xDDDD
+        }
+
+        [Fact]
+        public void TryStageGridEdit_InputNotMutated()
+        {
+            byte[] original = Make2x2Buffer();
+            byte[] originalCopy = (byte[])original.Clone();
+            ushort[] newMars = new ushort[] { 0x1234, 0x5678, 0xABCD, 0xEF01 };
+
+            MapEditorTilesetCore.TryStageGridEdit(original, 2, 2, newMars, out _, out _);
+
+            // Original must be byte-identical after the call.
+            Assert.Equal(originalCopy, original);
+        }
+
+        [Fact]
+        public void TryStageGridEdit_DimensionMismatch_ReturnsError()
+        {
+            // Build a buffer that is large enough to hold 3x3 MAR data (needed bytes = 2+9*2=20)
+            // but set the header to say 2x2 — caller passes width=3 so the header check fires.
+            byte[] buf = new byte[2 + 9 * 2];
+            buf[0] = 2; buf[1] = 2; // header says 2x2
+            ushort[] mars = new ushort[9]; // 3x3 grid
+
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 3, 3, mars, out byte[] staged, out string err);
+
+            Assert.False(ok);
+            Assert.Null(staged);
+            Assert.NotNull(err);
+            Assert.Contains("mismatch", err, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void TryStageGridEdit_MarsWrongLength_ReturnsError()
+        {
+            byte[] buf = Make2x2Buffer();
+            ushort[] mars = new ushort[3]; // should be 4
+
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 2, 2, mars, out byte[] staged, out string err);
+
+            Assert.False(ok);
+            Assert.Null(staged);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void TryStageGridEdit_NullInput_ReturnsError()
+        {
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(null, 2, 2, new ushort[4], out byte[] staged, out string err);
+
+            Assert.False(ok);
+            Assert.Null(staged);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void TryStageGridEdit_NullMars_ReturnsError()
+        {
+            byte[] buf = Make2x2Buffer();
+
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 2, 2, null, out byte[] staged, out string err);
+
+            Assert.False(ok);
+            Assert.Null(staged);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void TryStageGridEdit_TrailingBytesPreserved()
+        {
+            // Buffer with extra trailing bytes beyond the grid area — they should remain intact.
+            byte[] buf = new byte[2 + 4 * 2 + 4]; // 4 extra bytes
+            buf[0] = 2; buf[1] = 2;
+            buf[10] = 0xDE; buf[11] = 0xAD; buf[12] = 0xBE; buf[13] = 0xEF;
+            ushort[] mars = new ushort[4];
+
+            bool ok = MapEditorTilesetCore.TryStageGridEdit(buf, 2, 2, mars, out byte[] staged, out string err);
+
+            Assert.True(ok, err);
+            Assert.Equal(buf.Length, staged.Length);
+            Assert.Equal(0xDE, staged[10]);
+            Assert.Equal(0xAD, staged[11]);
+            Assert.Equal(0xBE, staged[12]);
+            Assert.Equal(0xEF, staged[13]);
+        }
     }
 }

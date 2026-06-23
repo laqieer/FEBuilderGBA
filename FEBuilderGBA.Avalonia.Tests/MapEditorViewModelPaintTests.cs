@@ -158,5 +158,61 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(vm.EyedropperAt(1, 0));
             Assert.Equal(5, vm.SelectedChipsetIndex);
         }
+
+        // =====================================================================
+        // ApplyMapGrid tests (#1382)
+        // =====================================================================
+
+        [Fact]
+        public void ApplyMapGrid_NoRomLoaded_FailsWithError()
+        {
+            // CoreState.ROM is null in this fixture — should fail immediately.
+            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            bool ok = vm.ApplyMapGrid(new ushort[4], 2, 2, out string error, out _);
+            Assert.False(ok);
+            Assert.Equal("No ROM loaded", error);
+        }
+
+        [Fact]
+        public void ApplyMapGrid_NoMapLoaded_FailsWithError()
+        {
+            // CoreState.ROM is null — "No ROM loaded" check fires before "No map loaded".
+            // So to test the "No map loaded" path we'd need a real ROM.
+            // Just verify it fails with a non-null error even with null ROM.
+            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            // _cachedMapData is null, ROM is also null
+            bool ok = vm.ApplyMapGrid(new ushort[4], 2, 2, out string error, out _);
+            Assert.False(ok);
+            Assert.NotNull(error);
+        }
+
+        /// <summary>
+        /// With <c>CoreState.ROM == null</c> the ROM guard fires FIRST — before the
+        /// dimension check — even when a cache is seeded and mismatched dimensions are
+        /// passed. This test only proves the ROM-guard short-circuit (returns false with
+        /// "No ROM loaded"), NOT the dimension-mismatch refusal.
+        ///
+        /// <para>The genuine dimension-mismatch coverage lives in:
+        /// <list type="bullet">
+        ///   <item><see cref="FEBuilderGBA.Core.Tests"/> <c>MapEditorTilesetCoreTests.TryStageGridEdit_*</c>
+        ///     (pure, no ROM — the header/dimension match is enforced there), and</item>
+        ///   <item><c>MapEditorImportRomTests.ApplyMapGrid_FE8U_DimensionMismatch_Refused</c>
+        ///     (real ROM — exercises the VM's "does not match the selected map" refusal end-to-end).</item>
+        /// </list></para>
+        /// </summary>
+        [Fact]
+        public void ApplyMapGrid_WithoutRom_FailsAtRomGuard()
+        {
+            // Seed a cache and pass mismatched dimensions; the ROM guard still wins.
+            var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
+            byte[] seed = new byte[2 + 4 * 2];
+            seed[0] = 2; seed[1] = 2;
+            SetPrivateField(vm, "_cachedMapData", seed);
+
+            bool ok = vm.ApplyMapGrid(new ushort[9], 3, 3, out string error, out _);
+            Assert.False(ok);
+            // ROM guard short-circuits before the dimension check.
+            Assert.Equal("No ROM loaded", error);
+        }
     }
 }

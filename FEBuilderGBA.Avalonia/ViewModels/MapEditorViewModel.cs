@@ -602,6 +602,104 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Apply a full-grid replacement to the map from a row-major array of MAR values
+        /// (as produced by <see cref="MapExportCsv.Parse"/>). Mirrors
+        /// <see cref="ApplyMapEdit"/> but for the entire grid at once under a single
+        /// LZ77 compress + write + repoint operation.
+        ///
+        /// <para>The cache <c>_cachedMapData</c> only advances AFTER the ROM write and
+        /// pointer update both succeed — same fault-safe discipline as
+        /// <see cref="ApplyMapEdit"/>.</para>
+        /// </summary>
+        /// <param name="mars">Row-major MAR values; must have length == width*height.</param>
+        /// <param name="width">Expected map width (must equal <see cref="MapWidth"/>).</param>
+        /// <param name="height">Expected map height (must equal <see cref="MapHeight"/>).</param>
+        /// <param name="error">Human-readable failure reason, or null on success.</param>
+        /// <param name="writeAddr">ROM address of the newly-written compressed data, on success.</param>
+        public bool ApplyMapGrid(ushort[] mars, int width, int height, out string error, out uint writeAddr)
+        {
+            error = null;
+            writeAddr = 0;
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                error = "No ROM loaded";
+                return false;
+            }
+            if (_cachedMapData == null)
+            {
+                error = "No map loaded";
+                return false;
+            }
+
+            if (width != MapWidth || height != MapHeight)
+            {
+                error = $"CSV map size {width}x{height} does not match the selected map ({MapWidth}x{MapHeight}). Resize is not supported — select a matching map or edit the CSV.";
+                return false;
+            }
+
+            if (mars == null || mars.Length != width * height)
+            {
+                error = $"mars array is null or wrong length (expected {width * height})";
+                return false;
+            }
+
+            if (!MapEditorTilesetCore.TryStageGridEdit(
+                _cachedMapData, width, height, mars,
+                out byte[] staged, out string stageErr))
+            {
+                error = stageErr;
+                return false;
+            }
+
+            byte[] compressed;
+            try
+            {
+                compressed = LZ77.compress(staged);
+            }
+            catch (Exception ex)
+            {
+                error = "LZ77 compression threw: " + ex.Message;
+                return false;
+            }
+            if (compressed == null || compressed.Length == 0)
+            {
+                error = "LZ77 compression returned empty";
+                return false;
+            }
+
+            try
+            {
+                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            }
+            catch (Exception ex)
+            {
+                error = "ROM write threw: " + ex.Message;
+                return false;
+            }
+            if (writeAddr == U.NOT_FOUND)
+            {
+                error = "No free space in ROM for compressed map data";
+                return false;
+            }
+
+            try
+            {
+                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
+            }
+            catch (Exception ex)
+            {
+                error = "Pointer write threw: " + ex.Message;
+                return false;
+            }
+
+            // SUCCESS — swap the cache in only now.
+            _cachedMapData = staged;
+            return true;
+        }
+
+        /// <summary>
         /// Render a single 4bpp 8x8 tile into the RGBA pixel buffer.
         /// </summary>
         static void RenderTile4bpp(byte[] tileData, int tileIndex, byte[] palette, int palIndex,
