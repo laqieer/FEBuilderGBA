@@ -295,6 +295,47 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("decompress", err, StringComparison.OrdinalIgnoreCase);
         }
 
+        [Fact]
+        public void ParseTmx_LayerDimMismatch_Refused()
+        {
+            // map says 2x2 but the layer declares width=3 (raw tile count would still be 4).
+            string xml =
+                "<?xml version=\"1.0\"?>\n" +
+                "<map width=\"2\" height=\"2\" tilewidth=\"16\" tileheight=\"16\">\n" +
+                " <tileset firstgid=\"1\" source=\"t.tsx\"/>\n" +
+                " <layer width=\"3\" height=\"2\"><data encoding=\"csv\">1,2,3,4</data></layer>\n" +
+                "</map>";
+            Assert.False(MapTmxCore.ParseTmx(xml, out _, out _, out _, out string err));
+            Assert.Contains("layer width", err);
+        }
+
+        [Fact]
+        public void ParseTmx_NonNumericFirstgid_Refused()
+        {
+            string xml =
+                "<?xml version=\"1.0\"?>\n" +
+                "<map width=\"1\" height=\"1\" tilewidth=\"16\" tileheight=\"16\">\n" +
+                " <tileset firstgid=\"abc\" source=\"t.tsx\"/>\n" +
+                " <layer width=\"1\" height=\"1\"><data encoding=\"csv\">1</data></layer>\n" +
+                "</map>";
+            Assert.False(MapTmxCore.ParseTmx(xml, out _, out _, out _, out string err));
+            Assert.Contains("firstgid", err);
+        }
+
+        [Fact]
+        public void ParseTmx_MissingFirstgid_Accepted()
+        {
+            // firstgid omitted -> Tiled defaults to 1 -> we accept it.
+            string xml =
+                "<?xml version=\"1.0\"?>\n" +
+                "<map width=\"1\" height=\"1\" tilewidth=\"16\" tileheight=\"16\">\n" +
+                " <tileset source=\"t.tsx\"/>\n" +
+                " <layer width=\"1\" height=\"1\"><data encoding=\"csv\">2</data></layer>\n" +
+                "</map>";
+            Assert.True(MapTmxCore.ParseTmx(xml, out _, out _, out ushort[] mars, out string err), err);
+            Assert.Equal(new ushort[] { 4 }, mars); // gid 2 -> MAR 4
+        }
+
         // ---- Serialize ----
 
         [Fact]

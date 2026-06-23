@@ -139,10 +139,17 @@ namespace FEBuilderGBA
             }
             if (tilesets.Count == 1)
             {
-                if (TryGetIntAttr(tilesets[0], "firstgid", out int firstgid) && firstgid != 1)
+                // firstgid defaults to 1 in Tiled, but if present it MUST be 1: a
+                // missing/non-numeric value is rejected explicitly so the gid->chipset
+                // mapping assumption (gid-1 == chipsetIndex) can never be silently wrong.
+                var firstgidAttr = tilesets[0].Attribute("firstgid");
+                if (firstgidAttr != null)
                 {
-                    error = $"unsupported firstgid={firstgid} (only firstgid=1 is supported)";
-                    return false;
+                    if (!int.TryParse(firstgidAttr.Value.Trim(), out int firstgid) || firstgid != 1)
+                    {
+                        error = $"unsupported firstgid=\"{firstgidAttr.Value}\" (only firstgid=1 is supported)";
+                        return false;
+                    }
                 }
             }
 
@@ -154,6 +161,21 @@ namespace FEBuilderGBA
                 error = "no <layer> element found";
                 return false;
             }
+
+            // If the layer declares its own width/height, they MUST match the map's.
+            // A layer whose dimensions disagree (even with a coincidentally-matching
+            // raw tile count) is an authoring error, not a valid import.
+            if (TryGetIntAttr(layer, "width", out int layerW) && layerW != width)
+            {
+                error = $"layer width {layerW} does not match map width {width}";
+                return false;
+            }
+            if (TryGetIntAttr(layer, "height", out int layerH) && layerH != height)
+            {
+                error = $"layer height {layerH} does not match map height {height}";
+                return false;
+            }
+
             XElement data = null;
             foreach (var d in layer.ElementsLocal("data")) { data = d; break; }
             if (data == null)

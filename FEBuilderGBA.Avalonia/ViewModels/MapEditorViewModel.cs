@@ -635,7 +635,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (width != MapWidth || height != MapHeight)
             {
-                error = $"CSV map size {width}x{height} does not match the selected map ({MapWidth}x{MapHeight}). Resize is not supported — select a matching map or edit the CSV.";
+                // Format-agnostic wording: this path serves both the CSV and the .tmx
+                // (Tiled) importers, so don't name a specific file format here.
+                error = $"imported map size {width}x{height} does not match the selected map ({MapWidth}x{MapHeight}). Resize is not supported — select a matching map or edit the imported file.";
                 return false;
             }
 
