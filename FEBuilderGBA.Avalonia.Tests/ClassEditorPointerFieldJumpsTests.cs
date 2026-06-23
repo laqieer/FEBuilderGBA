@@ -2,6 +2,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA;
+using FEBuilderGBA.Core;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -219,68 +220,82 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
     }
 
     /// <summary>
-    /// Affirmative end-to-end: load FE8U class 0x03 Great Lord, read its
-    /// BattleAnimePtr from the loaded ROM, convert to ROM offset, and prove
-    /// the ImageBattleAnimeView's EntryList selects exactly that entry.
+    /// #1377 regression: the Class Editor's BattleAnime Jump passes the class's
+    /// P52/P48 battle-anime SETTING pointer (a per-class SP-record region, NOT a
+    /// global anime-list row). Before the fix, <c>NavigateTo</c> just called
+    /// <c>EntryList.SelectAddress</c>, which never matched that pointer and left
+    /// entry 0 selected ("No animation data found"). After the fix,
+    /// <c>NavigateTo</c> resolves the owning class
+    /// (<see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/>) and DIRECT-LOADS
+    /// the setting pointer, so the editor shows that class's animation.
+    ///
+    /// Asserts the VM's CurrentAddr == the class setting pointer and the resolved
+    /// AnimationNumber == the anime id stored at the setting pointer's +2 (the
+    /// same value WF would show), proving it did NOT fall back to entry 0.
     /// </summary>
     [AvaloniaFact]
-    public void NavigateToBattleAnime_SelectsMatchingEntry()
+    public void NavigateToBattleAnime_ClassSettingPointer_DirectLoadsCorrectAnimation()
     {
         if (!_fixture.IsAvailable) return;
 
-        // Use ClassEditorViewModel to load class 03 Great Lord (or first
-        // class with a valid BattleAnimePtr) and read its BattleAnimePtr.
+        // Find the first class whose battle-anime setting pointer is a valid,
+        // in-ROM, NON-global-list pointer (the #1377 case).
         var classVm = new ClassEditorViewModel();
         var items = classVm.LoadClassList();
         if (items.Count == 0) return;
 
-        uint sourceClassAddr = 0;
-        uint rawBattleAnimePtr = 0;
+        ROM rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        // The global anime-list base (the rows the EntryList shows).
+        uint listBase = rom!.p32(rom.RomInfo.image_battle_animelist_pointer);
+
+        uint settingOffset = 0;
+        uint expectedAnimeNo = 0;
         foreach (var item in items)
         {
             classVm.LoadClass(item.addr);
-            if (U.isPointer(classVm.BattleAnimePtr)
-                && U.isSafetyOffset(U.toOffset(classVm.BattleAnimePtr)))
-            {
-                sourceClassAddr = item.addr;
-                rawBattleAnimePtr = classVm.BattleAnimePtr;
-                break;
-            }
+            uint raw = classVm.BattleAnimePtr;
+            if (!U.isPointer(raw)) continue;
+            uint off = U.toOffset(raw);
+            if (!U.isSafetyOffset(off, rom)) continue;
+            if (off + 4 > (uint)rom.Data.Length) continue;
+            // We want a setting pointer that is NOT a global-list row so this
+            // exercises the direct-load fallback (not the SelectAddress path).
+            if (off == listBase) continue;
+            // Confirm a class genuinely owns this pointer (the reverse lookup).
+            if (ClassFormCore.GetIDWhereBattleAnimeAddr(rom, raw) == U.NOT_FOUND) continue;
+            settingOffset = off;
+            expectedAnimeNo = rom.u16(off + 2);
+            break;
         }
-        if (sourceClassAddr == 0)
+        if (settingOffset == 0)
         {
-            _output.WriteLine("No class with valid BattleAnimePtr found; skipping.");
+            _output.WriteLine("No class with a non-list-row setting pointer found; skipping.");
             return;
         }
 
-        uint expectedOffset = U.toOffset(rawBattleAnimePtr);
-        _output.WriteLine($"Class addr=0x{sourceClassAddr:X08}, raw ptr=0x{rawBattleAnimePtr:X08}, expected offset=0x{expectedOffset:X08}");
+        _output.WriteLine($"setting offset=0x{settingOffset:X08}, expected animeNo={expectedAnimeNo}");
 
         var view = new ImageBattleAnimeView();
         view.Show();
         try
         {
-            view.NavigateTo(expectedOffset);
+            view.NavigateTo(settingOffset);
 
+            var vm = view.DataViewModel as ImageBattleAnimeViewModel;
+            Assert.NotNull(vm);
+            // Direct-loaded the class setting pointer (NOT entry 0).
+            Assert.Equal(settingOffset, vm!.CurrentAddr);
+            Assert.NotEqual(0u, vm.CurrentAddr);
+            Assert.Equal(expectedAnimeNo, vm.AnimationNumber);
+
+            // The EntryList must NOT have a stale entry-0 selection pinned to the
+            // wrong (list-base) address.
             var ctrl = view.FindControl<AddressListControl>("EntryList");
             Assert.NotNull(ctrl);
-
-            // Some ROMs may have entries laid out such that the class's
-            // anime pointer aligns to a slot; if so, SelectedItem should
-            // equal expectedOffset. Otherwise the assertion is meaningful:
-            // the list does not contain that offset, which means our class
-            // points outside the list — a meaningful ROM-specific edge case.
-            // We assert: IF the list contains the offset, the selection matches.
-            var items2 = ctrl!.GetItems();
-            bool listHasEntry = items2.Any(i => i.addr == expectedOffset);
-            if (!listHasEntry)
-            {
-                _output.WriteLine($"List does not contain offset 0x{expectedOffset:X08}; selection may be empty.");
-                return;
-            }
-
-            Assert.NotNull(ctrl.SelectedItem);
-            Assert.Equal(expectedOffset, ctrl.SelectedItem!.addr);
+            if (ctrl!.SelectedItem != null)
+                Assert.NotEqual(listBase, ctrl.SelectedItem!.addr);
         }
         finally
         {

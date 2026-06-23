@@ -1,0 +1,16 @@
+#1377 Class Editor Battle Anime Jump -- before/after proof (real FE8U ROM, Avalonia headless)
+
+The Class Editor's BattleAnime (P52) Jump passes the class's battle-anime SETTING pointer.
+OLD: NavigateTo -> EntryList.SelectAddress(settingPtr) finds no row -> stays pinned on entry 0
+     (0x00C00008, "0x00 Anim") -> "No animation data found for this ID (ID=0...)".
+NEW: NavigateTo resolves the owning class (ClassFormCore.GetIDWhereBattleAnimeAddr) and
+     DIRECT-LOADS the setting pointer -> the editor shows that class's real animation.
+
+ROM version=FE8U
+Global anime-list base (entry 0 addr) = 0x00C00008
+Class P52=0x088AEFD8 -> owning cid=1 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AEFD8 AnimationNumber=1
+Class P52=0x088AEFE4 -> owning cid=2 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AEFE4 AnimationNumber=3
+Class P52=0x088AEFF0 -> owning cid=3 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AEFF0 AnimationNumber=5
+Class P52=0x088AEFFC -> owning cid=4 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AEFFC AnimationNumber=8
+Class P52=0x088AF008 -> owning cid=5 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AF008 AnimationNumber=52
+Class P52=0x088AF018 -> owning cid=6 | OLD(SelectAddress) would pin entry0=0x00C00008 | NEW NavigateTo: CurrentAddr=0x008AF018 AnimationNumber=55
