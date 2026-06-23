@@ -4812,13 +4812,13 @@ namespace FEBuilderGBA.CLI
         static int RunImportAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|mapanime2pal"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
-            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --import-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange or --kind=mapanime2pal is supported for --import-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar|x.change>"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar|x.change|x.mapanime2pal>"); return 1; }
             string absIn = argsDic["--in"];
 
             if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
@@ -4853,9 +4853,13 @@ namespace FEBuilderGBA.CLI
                 return 2;
             }
 
-            DecompAssetResult result = kind.Value == AssetKind.MapChangeOverlay
-                ? DecompAssetExportCore.ImportMapChange(absIn, absOut)
-                : DecompAssetExportCore.ImportMap(absIn, absOut);
+            DecompAssetResult result;
+            if (kind.Value == AssetKind.MapChangeOverlay)
+                result = DecompAssetExportCore.ImportMapChange(absIn, absOut);
+            else if (kind.Value == AssetKind.MapTileAnimation2Palette)
+                result = DecompAssetExportCore.ImportMapAnime2Pal(absIn, absOut);
+            else
+                result = DecompAssetExportCore.ImportMap(absIn, absOut);
             if (result.Ok)
             {
                 Console.WriteLine(result.Message);
@@ -4877,13 +4881,13 @@ namespace FEBuilderGBA.CLI
         static int RunRoundtripAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|mapanime2pal"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
-            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --roundtrip-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange or --kind=mapanime2pal is supported for --roundtrip-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar|x.change>"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar|x.change|x.mapanime2pal>"); return 1; }
             string inPath = argsDic["--in"];
 
             AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(kind.Value, inPath);
@@ -4909,6 +4913,14 @@ namespace FEBuilderGBA.CLI
                 ok = DecompAssetExportCore.RoundTripMapChangeBody(body, w, h);
                 okMsg = "Round-trip OK (structure-exact map-change overlay body)";
             }
+            else if (kind.Value == AssetKind.MapTileAnimation2Palette)
+            {
+                // The palette body has no intrinsic count — read it from the REQUIRED sidecar.
+                if (!DecompAssetExportCore.TryReadMapAnime2PalCount(inPath + ".json", out int count))
+                { Console.Error.WriteLine("Error: sidecar .json required to read count"); return 2; }
+                ok = DecompAssetExportCore.RoundTripMapAnime2PalBody(body, count);
+                okMsg = "Round-trip OK (structure-exact map tile-animation-2 palette body)";
+            }
             else
             {
                 ok = DecompAssetExportCore.RoundTripMarBody(body);
@@ -4926,31 +4938,43 @@ namespace FEBuilderGBA.CLI
         }
 
         /// <summary>
-        /// --verify-asset: byte-exact ROM-backed mismatch proof for a map-change OVERLAY (#1355).
-        /// Compares the raw ROM overlay region at <c>--addr</c> against the <c>.change</c> file body
-        /// byte-for-byte. This path DOES load the ROM (READ-ONLY) — it is the ONLY ROM-backed
-        /// verification path (export/import never touch the ROM). Only <c>--kind=mapchange</c> is
-        /// supported. With <c>--project=&lt;dir&gt;</c> the ROM is the project's preview build; otherwise
+        /// --verify-asset: byte-exact ROM-backed mismatch proof for a map-change OVERLAY (#1355) or a
+        /// map tile-animation-2 PALETTE block (#1360). Compares the raw ROM region at <c>--addr</c>
+        /// against the input file body byte-for-byte. This path DOES load the ROM (READ-ONLY) — it is
+        /// the ONLY ROM-backed verification path (export/import never touch the ROM). <c>--kind=mapchange</c>
+        /// (requires <c>--width</c>/<c>--height</c>) and <c>--kind=mapanime2pal</c> (requires <c>--count</c>)
+        /// are supported. With <c>--project=&lt;dir&gt;</c> the ROM is the project's preview build; otherwise
         /// <c>--rom=&lt;path&gt;</c>. Exit 0 byte-identical, 2 mismatch / fault, 1 usage error.
         /// </summary>
         static int RunVerifyAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange|mapanime2pal"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || kind.Value != AssetKind.MapChangeOverlay)
-            { Console.Error.WriteLine("Error: only --kind=mapchange is supported for --verify-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.MapTileAnimation2Palette))
+            { Console.Error.WriteLine("Error: only --kind=mapchange or --kind=mapanime2pal is supported for --verify-asset"); return 1; }
+            bool isAnime2Pal = kind.Value == AssetKind.MapTileAnimation2Palette;
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change>"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change|x.mapanime2pal>"); return 1; }
             string absIn = argsDic["--in"];
 
             if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
             { Console.Error.WriteLine("Error: --verify-asset requires --addr=<hex>"); return 1; }
-            if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --width=<int>"); return 1; }
-            if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --height=<int>"); return 1; }
+            if (isAnime2Pal)
+            {
+                // mapanime2pal (#1360) uses a single --count, NOT width/height.
+                if (!argsDic.ContainsKey("--count") || string.IsNullOrEmpty(argsDic["--count"]))
+                { Console.Error.WriteLine("Error: --verify-asset --kind=mapanime2pal requires --count=<int>"); return 1; }
+            }
+            else
+            {
+                // mapchange (#1355) uses width/height.
+                if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
+                { Console.Error.WriteLine("Error: --verify-asset requires --width=<int>"); return 1; }
+                if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
+                { Console.Error.WriteLine("Error: --verify-asset requires --height=<int>"); return 1; }
+            }
 
             // ---- ROM source: --project or --rom ----
             bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
@@ -4991,12 +5015,22 @@ namespace FEBuilderGBA.CLI
 
             if (!TryParseAddr(argsDic["--addr"], out uint addr))
             { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
-            if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
-            { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
-            if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
-            { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
 
-            DecompAssetResult result = DecompAssetExportCore.VerifyMapChangeAgainstRom(CoreState.ROM, addr, width, height, absIn);
+            DecompAssetResult result;
+            if (isAnime2Pal)
+            {
+                if (!int.TryParse(argsDic["--count"], out int count) || count <= 0)
+                { Console.Error.WriteLine($"Error: Invalid --count: {argsDic["--count"]}"); return 1; }
+                result = DecompAssetExportCore.VerifyMapAnime2PalAgainstRom(CoreState.ROM, addr, count, absIn);
+            }
+            else
+            {
+                if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
+                { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
+                if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
+                { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
+                result = DecompAssetExportCore.VerifyMapChangeAgainstRom(CoreState.ROM, addr, width, height, absIn);
+            }
             if (result.Ok)
             {
                 Console.WriteLine(result.Message);
@@ -5015,12 +5049,17 @@ namespace FEBuilderGBA.CLI
         /// <c>--kind=mapchange</c> (#1355) exports the RAW UNCOMPRESSED map-change OVERLAY tile data
         /// block (requires <c>--addr</c> = the change_mar offset, <c>--width</c>, <c>--height</c>) — NOT
         /// the .mar tile layout and NOT the 12-byte change-record chain.
+        ///
+        /// <c>--kind=mapanime2pal</c> (#1360) exports the RAW UNCOMPRESSED map tile-animation-2 PALETTE
+        /// data block (requires <c>--addr</c> = the anime-2 entry <c>+0</c> pointer offset, <c>--count</c>
+        /// = the entry <c>+5</c> color count) — a flat <c>u16</c> LE array of <c>count</c> 15-bit GBA
+        /// colors, NOT the anime-2 entry/PLIST table and NOT LZ77.
         /// </summary>
         static int RunExportAsset(Dictionary<string, string> argsDic)
         {
             // ---- Required: --kind ----
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|mapchange|text|shop>"); return 1; }
+            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|mapchange|mapanime2pal|text|shop>"); return 1; }
             string kind = argsDic["--kind"].ToLowerInvariant();
 
             // ---- Required: --out ----
@@ -5164,6 +5203,25 @@ namespace FEBuilderGBA.CLI
                     break;
                 }
 
+                case "mapanime2pal":
+                case "map-tileanime2-palette":
+                {
+                    // Map tile-animation-2 PALETTE block (#1360): a RAW UNCOMPRESSED u16 LE array of
+                    // `count` 15-bit GBA colors (count*2 bytes). --addr is the anime-2 entry +0 pointer
+                    // (dereferenced) and --count is the entry +5 color count. The CLI takes EXPLICIT
+                    // --addr/--count (no entry-index auto-resolve / owner guessing); srcAddr is provenance.
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapanime2pal requires --addr=<hex>"); return 1; }
+                    if (!argsDic.ContainsKey("--count") || string.IsNullOrEmpty(argsDic["--count"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=mapanime2pal requires --count=<int>"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    if (!int.TryParse(argsDic["--count"], out int palCount) || palCount <= 0)
+                    { Console.Error.WriteLine($"Error: Invalid --count: {argsDic["--count"]}"); return 1; }
+                    result = DecompAssetExportCore.ExportMapAnime2Pal(rom, addr, palCount, absOut);
+                    break;
+                }
+
                 case "text":
                 {
                     // --out is treated as a directory for text export
@@ -5181,7 +5239,7 @@ namespace FEBuilderGBA.CLI
                 }
 
                 default:
-                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, mapchange, text, shop");
+                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, mapchange, mapanime2pal, text, shop");
                     return 1;
             }
 

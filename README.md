@@ -124,6 +124,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=palette --rom=rom
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --out=map/chapter1.mapanime2pal
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=shop --rom=rom.gba --out=shops/
 
@@ -155,6 +156,19 @@ dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=map --in=map/c
 dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin
 dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=mapchange --in=map/chapter1.change
 dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change
+
+# Decomp map tile-animation-2 PALETTE block (#1360): the structural TWIN of --kind=mapchange — a RAW
+# UNCOMPRESSED u16 LE array of `count` 15-bit GBA colors (count*2 bytes), reached by each anime-2 entry's
+# +0 pointer — NOT the anime-2 ENTRY/PLIST table and NOT LZ77. Single --count descriptor (1..255), no width/height.
+# --export-asset --kind=mapanime2pal  → read the live ROM palette block (--addr=anime2 entry +0 ptr, --count)
+#                                        into a .mapanime2pal file + .json sidecar (format "febuilder-mapanime2-pal-u16").
+# --import-asset --kind=mapanime2pal  → identity copy of the validated body to a raw blob (NO header, NO shift, NO LZ77).
+# --roundtrip-asset --kind=mapanime2pal → structure-exact identity proof (body length == count*2).
+# --verify-asset --kind=mapanime2pal  → byte-exact ROM-backed mismatch proof (reads the ROM READ-ONLY).
+# The CLI takes EXPLICIT --addr/--count (no entry-index auto-resolve); srcAddr in the sidecar is provenance ONLY.
+dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=mapanime2pal --in=map/chapter1.mapanime2pal --out=map/chapter1.mapanime2pal_raw.bin
+dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=mapanime2pal --in=map/chapter1.mapanime2pal
+dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --in=map/chapter1.mapanime2pal
 
 # Decomp source-backed table writer: rewrite the owning C array element (or JSON
 # element) of a structured table entry instead of mutating the preview ROM (the
@@ -406,11 +420,16 @@ sibling.
   re-derived by the build, not byte-pinned), and the **map-change OVERLAY** tile-data block is source
   export/import/round-trip + read-only byte-exact ROM verify (`--export-asset`/`--import-asset`/
   `--roundtrip-asset`/`--verify-asset --kind=mapchange`, #1355/PR #1357 — source-level structure-exact
-  AND byte-exact ROM compare, NOT a byte-pinned ROM re-insertion). ROM-only/manual remain the
+  AND byte-exact ROM compare, NOT a byte-pinned ROM re-insertion). The **map tile-animation-2 PALETTE**
+  block — a raw uncompressed `u16` array of `count` 15-bit GBA colors reached by each anime-2 entry's
+  `+0` pointer — joins the same raw-u16 source-backed classes with export/import/round-trip + read-only
+  byte-exact ROM verify (`--kind=mapanime2pal`, #1360); the OBJ/chipset tilesets and anime-1 graphics
+  stay manual. ROM-only/manual remain the
   event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw LZ77 map ASSET binaries
-  (OBJ tileset, palette, chipset config/TSA, tile animations 1/2) and the 12-byte map-change RECORD
-  chain (structured pointer metadata — terminator/flagID/PLIST — not the overlay tile-data block;
-  migrate these via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
+  (OBJ tileset, palette, chipset config/TSA, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table +
+  non-palette anime-2 record/provenance chain) and the 12-byte map-change RECORD
+  chain (structured pointer metadata — terminator/flagID/PLIST — not the overlay tile-data block nor the
+  anime-2 palette block; migrate these via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
   shape (nested objects / bools / enum strings / split `obj1Id`|`obj2Id` are reported
   UnsupportedField/Manual, never silently corrupted; flat top-level Number fields still rewrite).
   **Shop lists are source-writable in place via `--write-shop` (#1347)** when the manifest declares a `u16-list` list-owner for the shop's resolved DATA symbol (variable-length `ITEM_NONE`-terminated `u16` lists reached via scattered hensei/worldmap/event-cond pointers). The owner is resolved by `--symbol=<name>` directly, or by `--shop-addr=<ROM offset>` mapped to a list symbol via the project `.map`/`.elf`/`.sym` + the manifest list-owner (strict exact-or-span-covering match). The whole `{…}` body is re-serialized to the requested vector + a fresh terminator. **Symbolic `ITEM_*` lists (#1354):** when the existing source list uses `ITEM_*` macro names (the canonical FE8U `worldmap_shop_data.c` item-id-only form, e.g. `{ ITEM_SWORD_IRON, ITEM_NONE, }`), the writer re-serializes it SYMBOLICALLY — resolving id↔macro from the constants header (an **enum** or `#define` table, typically `include/constants/items.h`). Discovery precedence: the owner's `constantsHeader` (project-relative), then the manifest top-level `artifacts.itemConstants`, then the conventional default `include/constants/items.h`; an EXPLICIT path that is absolute / escapes the root / missing / unparseable refuses (it does NOT fall back to the default — wrong-universe danger). Symbolic lists are **item-id-only**: each entry's quantity must be `0` (a non-zero quantity is an actionable refusal — keep quantity 0 or migrate to a raw-hex list), and an id with no `ITEM_*` constant is refused. A plain-hex list still re-serializes to a raw-hex vector + a `0x0000` terminator; a list containing an UNKNOWN or AMBIGUOUS macro element is REFUSED (no-clobber — export to raw hex or edit by hand). With no decomp symbol AND no manifest list-owner, this degrades to the `--export-asset --kind=shop` migration export (#1149). **Support data** (`support_units`, `support_attributes`, `support_talks`) **is source-writable** when the manifest `tables[]` section declares a source owner for those tables (#1149); use byte-offset field names (`b0`..`b23` / `b0`..`b31` / `b0`..`b7` / `b0`+`w4`+…) in `--field`. **Positional-initializer constraint:** for a source that uses positional `{ … }` C initializers, the writer maps a byte-offset field name to a positional index by the ORDER of the owner's `fields[]` array — so a field's declared index must equal its real token position. Editing only a **leading prefix** (`b0`, then `b0`+`b1`, …) is always safe with a minimal `fields[]` that lists just those leading fields in order. Editing a **non-leading** field positionally (e.g. `b7` or `w4`) requires the owner declare the full ordered prefix up to that index (e.g. `b0`..`b7`) — OR use designated `.bN = …` initializers, which are matched by name and need no ordered list. Declaring the full ordered struct layout (e.g. all of `b0`..`b23` for `support_units`) is the safest, easiest guarantee but is not strictly required when you only edit a leading prefix. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
@@ -499,11 +518,12 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map | Map layout export | SourceTreeExporter | .mar tilemap + sidecar .mar.json — export AND re-import/verify (lossless u16 layout body for raw entries < 0x2000, i.e. palette/flag bits 13-15 clear); compressed container re-derived by the build, not byte-pinned |
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Map Editor | map_change_overlay | Map-change overlay import/verify | SourceTreeExporter | Raw uncompressed u16 overlay tile data block — export (--export-asset --kind=mapchange) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapchange) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the .mar layout and NOT the 12-byte change-record chain |
+| Map Editor | map_tileanime2_palette | Map tile-animation-2 palette import/verify | SourceTreeExporter | Raw uncompressed u16 palette data block (count*2 bytes reached by each anime-2 entry's +0 pointer) — export (--export-asset --kind=mapanime2pal) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapanime2pal) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the anime2 entry/PLIST table and NOT LZ77 |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) for BOTH literal raw-hex lists AND resolvable symbolic ITEM_* item-id-only lists (#1354) (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers; nonzero-quantity symbolic writes, unknown/ambiguous macros, and unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347). Supports BOTH a LITERAL raw-hex list AND a SYMBOLIC ITEM_* (item-id-only, quantity 0) list whose macro names resolve from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h); a non-zero quantity or an id with no ITEM_* constant is an actionable refusal, not a clobber (#1354) |
-| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (OBJ tileset, chipset TSA/config, tile animations 1/2) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block (which is source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
+| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (OBJ tileset, chipset TSA/config, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table + non-palette anime-2 record/provenance chain) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block NOR the anime-2 PALETTE block (both source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
 | Event Editor | chapter_event_pointers | Event/difficulty pointer fields | ManualMigration | Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed |
 | Battle Animation Editor | battle_anime | Animation view | ImportPreviewOnly | Preview-only in decomp mode; no source write-back (export via --export-battle-anime) |
 | Song Table Editor | song_table | Song view | ImportPreviewOnly | Preview-only; song data edits must be made in source by hand |

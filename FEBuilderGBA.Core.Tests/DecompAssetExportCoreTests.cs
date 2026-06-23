@@ -1086,6 +1086,544 @@ namespace FEBuilderGBA.Core.Tests
             finally { Directory.Delete(dir, true); }
         }
 
+        // ============================================================================
+        // Map tile-animation-2 PALETTE block (raw uncompressed u16 LE, #1360)
+        // ============================================================================
+
+        // Build a raw u16 LE palette body (any value valid — no <<3 shift, no compression).
+        static byte[] MakeAnime2PalBody(int count, Func<int, ushort> valueForIndex)
+        {
+            byte[] body = new byte[count * 2];
+            for (int i = 0; i < count; i++)
+            {
+                ushort v = valueForIndex(i);
+                body[i * 2 + 0] = (byte)(v & 0xFF);
+                body[i * 2 + 1] = (byte)(v >> 8);
+            }
+            return body;
+        }
+
+        static void WriteAnime2PalPlusSidecar(string palPath, int count, byte[] body, string format = "febuilder-mapanime2-pal-u16")
+        {
+            File.WriteAllBytes(palPath, body);
+            File.WriteAllText(palPath + ".json",
+                $"{{\n  \"count\": {count},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        // ---- RoundTripMapAnime2PalBody (pure) ----
+
+        [Fact]
+        public void RoundTripMapAnime2PalBody_True_ForEvenCount2Body()
+        {
+            int count = 12;
+            byte[] body = MakeAnime2PalBody(count, i => (ushort)(i * 137)); // arbitrary u16, may be >= 0x2000
+            Assert.True(DecompAssetExportCore.RoundTripMapAnime2PalBody(body, count));
+        }
+
+        [Fact]
+        public void RoundTripMapAnime2PalBody_False_ForNull()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(null, 4));
+        }
+
+        [Fact]
+        public void RoundTripMapAnime2PalBody_False_ForOddLength()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(new byte[3], 1));
+        }
+
+        [Fact]
+        public void RoundTripMapAnime2PalBody_False_ForWrongCount()
+        {
+            byte[] body = MakeAnime2PalBody(4, i => (ushort)i); // 8 bytes
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(body, 9)); // 18 expected
+        }
+
+        [Fact]
+        public void RoundTripMapAnime2PalBody_False_ForCountBelow1()
+        {
+            byte[] body = MakeAnime2PalBody(4, i => (ushort)i);
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime2PalBody(body, 0));
+        }
+
+        // ---- ImportMapAnime2Pal ----
+
+        [Fact]
+        public void ImportMapAnime2Pal_HappyPath_IdentityCopy()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 6;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)(i == 5 ? 0xFFFF : i + 0x1000));
+                string palPath = Path.Combine(dir, "p.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, body);
+
+                // Capture CoreState.ROM before/after to prove it is untouched.
+                ROM before = CoreState.ROM;
+
+                string outPath = Path.Combine(dir, "p.mapanime2pal_raw.bin");
+                var result = DecompAssetExportCore.ImportMapAnime2Pal(palPath, outPath);
+
+                Assert.True(result.Ok, $"ImportMapAnime2Pal failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+                Assert.Same(before, CoreState.ROM); // ROM reference unchanged
+
+                // Output blob == input body byte-for-byte (identity copy, no header, no shift).
+                byte[] actual = File.ReadAllBytes(outPath);
+                Assert.Equal(body, actual);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime2Pal_RootConfined_OutputLandsWhereTold()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 4;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)i);
+                string palPath = Path.Combine(dir, "r.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, body);
+
+                string outPath = Path.Combine(dir, "sub", "r.bin");
+                var result = DecompAssetExportCore.ImportMapAnime2Pal(palPath, outPath);
+
+                Assert.True(result.Ok, result.Message);
+                Assert.Contains(outPath, result.WrittenPaths);
+                Assert.True(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime2Pal_MissingSidecar_ReturnsNotData_NoThrow_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 4;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)i);
+                string palPath = Path.Combine(dir, "nosidecar.mapanime2pal");
+                File.WriteAllBytes(palPath, body); // NO sidecar
+
+                string outPath = Path.Combine(dir, "nosidecar.bin");
+                var result = DecompAssetExportCore.ImportMapAnime2Pal(palPath, outPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime2Pal_NullArgs_ReturnBadArgs()
+        {
+            var r1 = DecompAssetExportCore.ImportMapAnime2Pal(null, "/tmp/x.bin");
+            Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
+            var r2 = DecompAssetExportCore.ImportMapAnime2Pal("/tmp/x.mapanime2pal", null);
+            Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
+        }
+
+        // ---- ExportMapAnime2Pal ----
+
+        [Fact]
+        public void ExportMapAnime2Pal_WritesRawBody_AndSidecar()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 6; // 6 colors → 12 bytes
+                uint addr = 0x200;
+                byte[] romData = new byte[0x400];
+                // Plant palette u16 LE colors at offset 0x200.
+                ushort[] vals = new ushort[count];
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    vals[i] = (ushort)(i * 0x123 + 0x2345); // varied, includes >= 0x2000
+                    romData[addr + i * 2 + 0] = (byte)(vals[i] & 0xFF);
+                    romData[addr + i * 2 + 1] = (byte)(vals[i] >> 8);
+                }
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string palPath = Path.Combine(dir, "p.mapanime2pal");
+                var result = DecompAssetExportCore.ExportMapAnime2Pal(rom, addr, count, palPath);
+
+                Assert.True(result.Ok, $"ExportMapAnime2Pal failed: {result.Message}");
+                Assert.True(File.Exists(palPath));
+
+                // .mapanime2pal bytes == planted u16 LE.
+                byte[] palBytes = File.ReadAllBytes(palPath);
+                Assert.Equal(count * 2, palBytes.Length);
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    ushort actual = (ushort)(palBytes[i * 2] | (palBytes[i * 2 + 1] << 8));
+                    Assert.Equal(vals[i], actual);
+                }
+
+                // Sidecar has count/srcAddr/format.
+                string jsonPath = palPath + ".json";
+                Assert.True(File.Exists(jsonPath));
+                string json = File.ReadAllText(jsonPath);
+                Assert.Contains($"\"count\": {count}", json);
+                Assert.Contains($"\"srcAddr\": \"0x{addr:X}\"", json);
+                Assert.Contains("\"format\": \"febuilder-mapanime2-pal-u16\"", json);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime2Pal_OutOfBounds_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]); // tiny ROM
+                // addr 0x200 + 100*2 = 0x200 + 200 = past the 0x210 end.
+                string palPath = Path.Combine(dir, "oob.mapanime2pal");
+                var result = DecompAssetExportCore.ExportMapAnime2Pal(rom, 0x200, 100, palPath);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(palPath), "no .mapanime2pal must be written on a bounds fault");
+                Assert.False(File.Exists(palPath + ".json"), "no sidecar either");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime2Pal_CountBelow1_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string palPath = Path.Combine(dir, "zero.mapanime2pal");
+                var result = DecompAssetExportCore.ExportMapAnime2Pal(rom, 0x200, 0, palPath); // count < 1
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(palPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime2Pal_CountOver255_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+                string palPath = Path.Combine(dir, "big.mapanime2pal");
+                var result = DecompAssetExportCore.ExportMapAnime2Pal(rom, 0x200, 256, palPath); // count > 255
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(palPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime2Pal_NullRom_ReturnsBadArgs()
+        {
+            var result = DecompAssetExportCore.ExportMapAnime2Pal(null, 0x200, 4, "/tmp/x.mapanime2pal");
+            Assert.False(result.Ok);
+            Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        [Fact]
+        public void ExportMapAnime2Pal_DoesNotMutateRomData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 16;
+                uint addr = 0x200;
+                byte[] romData = new byte[0x400];
+                for (int i = 0; i < count; i++)
+                {
+                    romData[addr + i * 2 + 0] = (byte)(i & 0xFF);
+                    romData[addr + i * 2 + 1] = (byte)(i >> 8);
+                }
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+                byte[] before = (byte[])rom.Data.Clone();
+
+                DecompAssetExportCore.ExportMapAnime2Pal(rom, addr, count, Path.Combine(dir, "x.mapanime2pal"));
+
+                Assert.Equal(before, rom.Data);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- Export → Import full round-trip ----
+
+        [Fact]
+        public void ExportThenImportMapAnime2Pal_IsByteIdentical()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 10;
+                uint addr = 0x200;
+                byte[] romData = new byte[0x400];
+                byte[] planted = MakeAnime2PalBody(count, i => (ushort)(i * 0x0707 + 0x1234));
+                Array.Copy(planted, 0, romData, addr, planted.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string palPath = Path.Combine(dir, "rt.mapanime2pal");
+                var exp = DecompAssetExportCore.ExportMapAnime2Pal(rom, addr, count, palPath);
+                Assert.True(exp.Ok, exp.Message);
+
+                string outPath = Path.Combine(dir, "rt_raw.bin");
+                var imp = DecompAssetExportCore.ImportMapAnime2Pal(palPath, outPath);
+                Assert.True(imp.Ok, imp.Message);
+
+                byte[] roundtripped = File.ReadAllBytes(outPath);
+                Assert.Equal(planted, roundtripped);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- VerifyMapAnime2PalAgainstRom ----
+
+        [Fact]
+        public void VerifyMapAnime2PalAgainstRom_Match_ReturnsOk()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 6;
+                uint addr = 0x200;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)(i * 0x1111));
+                byte[] romData = new byte[0x400];
+                Array.Copy(body, 0, romData, addr, body.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string palPath = Path.Combine(dir, "v.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, body);
+
+                var result = DecompAssetExportCore.VerifyMapAnime2PalAgainstRom(rom, addr, count, palPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapAnime2PalAgainstRom_SingleByteEdit_ReturnsNotData_WithFirstDiffOffset()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 6;
+                uint addr = 0x200;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)(i + 1));
+                byte[] romData = new byte[0x400];
+                Array.Copy(body, 0, romData, addr, body.Length);
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                // Edit byte offset 4 in the file body (not in the ROM).
+                byte[] edited = (byte[])body.Clone();
+                edited[4] ^= 0xFF;
+                string palPath = Path.Combine(dir, "v.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, edited);
+
+                var result = DecompAssetExportCore.VerifyMapAnime2PalAgainstRom(rom, addr, count, palPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Contains("byte offset 4", result.Message);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapAnime2PalAgainstRom_OutOfBoundsAddr_ReturnsNotData_NoThrow()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 100;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)i);
+                string palPath = Path.Combine(dir, "oob.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, body);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]); // too small for 200-byte palette at 0x200
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var result = DecompAssetExportCore.VerifyMapAnime2PalAgainstRom(rom, 0x200, count, palPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Equal(before, rom.Data); // ROM unchanged
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- ValidateMapAnime2Pal (via DecompAssetValidatorCore) ----
+
+        [Fact]
+        public void ValidateMapAnime2Pal_CleanBlock_Ok()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 12;
+                byte[] body = MakeAnime2PalBody(count, i => (ushort)(i * 999)); // values may exceed 0x2000
+                string palPath = Path.Combine(dir, "ok.mapanime2pal");
+                WriteAnime2PalPlusSidecar(palPath, count, body);
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.True(v.Ok, "expected clean palette block to validate: " + DescribeErrors(v));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_OddLength_BadLength()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string palPath = Path.Combine(dir, "odd.mapanime2pal");
+                File.WriteAllBytes(palPath, new byte[5]); // odd
+                File.WriteAllText(palPath + ".json",
+                    "{\n  \"count\": 1,\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_LENGTH");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_WrongCountVsSidecar_BadLength()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // sidecar says 9 colors (18 bytes) but body is 4 colors (8 bytes).
+                byte[] body = new byte[8];
+                string palPath = Path.Combine(dir, "wrongcount.mapanime2pal");
+                File.WriteAllBytes(palPath, body);
+                File.WriteAllText(palPath + ".json",
+                    "{\n  \"count\": 9,\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_LENGTH");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_CountOver255_BadCount()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 256;
+                byte[] body = new byte[count * 2];
+                string palPath = Path.Combine(dir, "bigcount.mapanime2pal");
+                File.WriteAllBytes(palPath, body);
+                File.WriteAllText(palPath + ".json",
+                    $"{{\n  \"count\": {count},\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_COUNT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_CountZero_BadCount()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // count==0 is an INTENTIONAL refusal (a meaningful source asset must have >=1 color).
+                byte[] body = new byte[0];
+                string palPath = Path.Combine(dir, "zerocount.mapanime2pal");
+                File.WriteAllBytes(palPath, body);
+                File.WriteAllText(palPath + ".json",
+                    "{\n  \"count\": 0,\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_COUNT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_MissingSidecar_NoSidecarError()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string palPath = Path.Combine(dir, "nos.mapanime2pal");
+                File.WriteAllBytes(palPath, new byte[8]); // no sidecar
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "MAPANIME2PAL_NO_SIDECAR");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_WrongFormat_BadFormat()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 4;
+                byte[] body = new byte[count * 2];
+                string palPath = Path.Combine(dir, "wrongfmt.mapanime2pal");
+                File.WriteAllBytes(palPath, body);
+                // Wrong format (the map-change overlay format, not the palette format).
+                File.WriteAllText(palPath + ".json",
+                    $"{{\n  \"count\": {count},\n  \"format\": \"febuilder-mapchange-u16\"\n}}\n");
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_FORMAT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateMapAnime2Pal_MissingFormat_BadFormat()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                int count = 4;
+                byte[] body = new byte[count * 2];
+                string palPath = Path.Combine(dir, "nofmt.mapanime2pal");
+                File.WriteAllBytes(palPath, body);
+                File.WriteAllText(palPath + ".json",
+                    $"{{\n  \"count\": {count}\n}}\n"); // no format field
+
+                var v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation2Palette, palPath);
+                Assert.False(v.Ok);
+                Assert.Contains(v.Errors, e => e.Code == "BAD_MAPANIME2PAL_FORMAT");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         static string DescribeErrors(AssetValidationResult v)
         {
             var sb = new StringBuilder();

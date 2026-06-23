@@ -28,6 +28,12 @@ namespace FEBuilderGBA
         /// </summary>
         MapChangeOverlay,
         /// <summary>
+        /// Raw uncompressed u16 LE map tile-animation-2 PALETTE data block (#1360): a flat array
+        /// of <c>count</c> 15-bit GBA colors reached by each anime-2 entry's <c>+0</c> pointer.
+        /// NOT compressed, NOT the anime2 ENTRY/PLIST table.
+        /// </summary>
+        MapTileAnimation2Palette,
+        /// <summary>
         /// A multi-file PORTRAIT PACKAGE directory (#1350): a single 128x112 composite
         /// portrait sheet PNG + an optional sidecar JASC .pal. Validated for sheet-slot
         /// geometry and palette consistency (PLTE-vs-JASC), NOT write-back / frame order.
@@ -145,6 +151,9 @@ namespace FEBuilderGBA
                         break;
                     case AssetKind.MapChangeOverlay:
                         ValidateMapChange(path, r);
+                        break;
+                    case AssetKind.MapTileAnimation2Palette:
+                        ValidateMapAnime2Pal(path, r);
                         break;
                     case AssetKind.Graphics:
                     case AssetKind.Portrait:
@@ -405,8 +414,9 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Map a kind string ("graphics"/"palette"/"portrait"/"icon"/"map"|"maplayout"/
-        /// "mapchange"|"mapchange-overlay"/"portrait-package"|"portraitpackage",
-        /// case-insensitive) to an <see cref="AssetKind"/>; null when unrecognized.
+        /// "mapchange"|"mapchange-overlay"/"mapanime2pal"|"map-tileanime2-palette"/
+        /// "portrait-package"|"portraitpackage", case-insensitive) to an
+        /// <see cref="AssetKind"/>; null when unrecognized.
         /// </summary>
         public static AssetKind? ParseKind(string s)
         {
@@ -421,6 +431,8 @@ namespace FEBuilderGBA
                 case "maplayout": return AssetKind.MapLayout;
                 case "mapchange":
                 case "mapchange-overlay": return AssetKind.MapChangeOverlay;
+                case "mapanime2pal":
+                case "map-tileanime2-palette": return AssetKind.MapTileAnimation2Palette;
                 case "portrait-package":
                 case "portraitpackage": return AssetKind.PortraitPackage;
                 default: return null;
@@ -865,6 +877,109 @@ namespace FEBuilderGBA
                     return format != null;
                 }
                 return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ------------------------------ MapTileAnimation2Palette (raw u16 LE, #1360)
+
+        /// <summary>
+        /// Validate a map tile-animation-2 PALETTE block (#1360) — the structural TWIN of
+        /// <see cref="ValidateMapChange"/> with a single <c>count</c> descriptor instead of
+        /// width/height:
+        /// <list type="bullet">
+        ///   <item>sidecar <c>&lt;name&gt;.json</c> present and declares <c>format ==
+        ///   "febuilder-mapanime2-pal-u16"</c> — else <c>MAPANIME2PAL_NO_SIDECAR</c>/<c>BAD_MAPANIME2PAL_FORMAT</c>;</item>
+        ///   <item>count readable and in u8 range 1..255 — else <c>BAD_MAPANIME2PAL_COUNT</c>;</item>
+        ///   <item>body length even AND equal to <c>count*2</c> — else <c>BAD_MAPANIME2PAL_LENGTH</c>.</item>
+        /// </list>
+        /// NEVER reads the ROM, NEVER throws.
+        ///
+        /// NOTE: rejecting <c>count == 0</c> is an INTENTIONAL guard for a MEANINGFUL source asset —
+        /// the underlying ROM helpers CAN enumerate a zero-count empty palette list, so a 0 count is a
+        /// valid data layout but NOT a useful source export. It is NOT a data-layout fact.
+        /// </summary>
+        static void ValidateMapAnime2Pal(string path, AssetValidationResult r)
+        {
+            byte[] body;
+            try { body = File.ReadAllBytes(path); }
+            catch (Exception ex)
+            {
+                r.Errors.Add(new AssetIssue("READ_FAILED", "Could not read file: " + ex.Message));
+                return;
+            }
+
+            // The palette body has almost no intrinsic invariant, so the sidecar is REQUIRED
+            // (it carries both the count and the format declaration).
+            string sidecar = path + ".json";
+            if (!File.Exists(sidecar))
+            {
+                r.Errors.Add(new AssetIssue("MAPANIME2PAL_NO_SIDECAR",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' is required for a map tile-animation-2 palette (it carries count and the format declaration)."));
+                return;
+            }
+
+            // The sidecar MUST declare format == "febuilder-mapanime2-pal-u16".
+            if (!TryReadSidecarFormat(sidecar, out string format)
+                || !string.Equals(format, "febuilder-mapanime2-pal-u16", StringComparison.Ordinal))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME2PAL_FORMAT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare format \"febuilder-mapanime2-pal-u16\"; got \"{format ?? "(missing)"}\"."));
+                return;
+            }
+
+            // Count is required and must fit u8 (1..255). count==0 is rejected on purpose (see
+            // the method note): an empty palette is a valid ROM layout but not a meaningful source asset.
+            if (!TryReadSidecarCount(sidecar, out int count))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME2PAL_COUNT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a positive integer count."));
+                return;
+            }
+            if (count < 1 || count > 255)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME2PAL_COUNT",
+                    $"Count {count} is out of the u8 range 1..255."));
+                return;
+            }
+
+            // Length must be even (a sequence of u16 colors).
+            if (body.Length % 2 != 0)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME2PAL_LENGTH",
+                    $"File length {body.Length} is odd; a map tile-animation-2 palette is a flat array of u16 colors."));
+                return;
+            }
+
+            // Length must equal count*2 exactly.
+            int expected = count * 2;
+            if (body.Length != expected)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME2PAL_LENGTH",
+                    $"File length {body.Length} != count*2 ({count}*2 = {expected})."));
+            }
+        }
+
+        /// <summary>
+        /// Read the root-object <c>count</c> Number property from a sidecar JSON. NEVER throws;
+        /// returns false (and <paramref name="count"/> = 0) on any fault or a missing/non-positive
+        /// property. Mirrors <see cref="TryReadSidecarDims"/>'s shape (#1360).
+        /// </summary>
+        static bool TryReadSidecarCount(string sidecar, out int count)
+        {
+            count = 0;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return false;
+                if (root.TryGetProperty("count", out JsonElement c) && c.ValueKind == JsonValueKind.Number)
+                    count = c.GetInt32();
+                return count > 0;
             }
             catch
             {
