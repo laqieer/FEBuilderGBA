@@ -334,7 +334,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _ = sender; _ = e;
                 const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                Process.Start(new ProcessStartInfo
                 {
                     FileName = url,
                     UseShellExecute = true,
@@ -343,8 +343,9 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 // Core Log.Error is params string[] (string.Join, NOT composite
-                // formatting) — concat, never a "{0}" placeholder.
-                Log.Error("SongTrackView.LinkInternet_Click failed: " + ex.Message);
+                // formatting) — concat, never a "{0}" placeholder. Log the full
+                // exception (stack + inner) to ease debugging launch failures.
+                Log.Error("SongTrackView.LinkInternet_Click failed: " + ex.ToString());
             }
         }
 
