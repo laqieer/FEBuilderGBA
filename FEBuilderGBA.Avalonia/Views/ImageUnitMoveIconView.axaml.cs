@@ -236,21 +236,53 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Import_Click(object? sender, RoutedEventArgs e)
         {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No move icon selected.")); return; }
+
+            byte[] selfPalette = ReadSelfPalette(rom);
+            if (selfPalette == null) return;
+
+            var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 0, 0, selfPalette, 16);
+            if (result == null) return; // cancelled
+            RunMoveIconImport(rom, result);
+        }
+
+        // #1380 Part B — FE-Repo button: same as Import, sourced from the
+        // FE-Repo "Map Sprites" folder. Routes through the SAME import path; a
+        // non-32-wide asset fails gracefully with the existing width error.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No move icon selected.")); return; }
+
+            byte[] selfPalette = ReadSelfPalette(rom);
+            if (selfPalette == null) return;
+
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.UnitMoveIcon);
+            if (string.IsNullOrEmpty(path)) return;
+
+            var result = ImageImportService.LoadAndRemapFromFile(path, 0, 0, selfPalette, 16);
+            RunMoveIconImport(rom, result);
+        }
+
+        byte[] ReadSelfPalette(ROM rom)
+        {
+            // The move-icon entry has NO palette slot — remap the imported
+            // sheet onto the shared self-army unit palette (nearest color),
+            // the WaitIcon contract (#991) and the WF CheckPalette/ForcePalette
+            // equivalent.
+            byte[] selfPalette = ImageUtilCore.GetPalette(rom.RomInfo.unit_icon_palette_address, 16);
+            if (selfPalette == null) { CoreState.Services?.ShowError(R._("Failed to read unit icon palette.")); return null; }
+            return selfPalette;
+        }
+
+        void RunMoveIconImport(ROM rom, ImageImportService.LoadResult result)
+        {
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
-                if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No move icon selected.")); return; }
-
-                // The move-icon entry has NO palette slot — remap the imported
-                // sheet onto the shared self-army unit palette (nearest color),
-                // the WaitIcon contract (#991) and the WF CheckPalette/ForcePalette
-                // equivalent.
-                byte[] selfPalette = ImageUtilCore.GetPalette(rom.RomInfo.unit_icon_palette_address, 16);
-                if (selfPalette == null) { CoreState.Services?.ShowError(R._("Failed to read unit icon palette.")); return; }
-
-                var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 0, 0, selfPalette, 16);
-                if (result == null) return; // cancelled
                 if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; }
 
                 // Normalize to the WF target sheet 32x480 (4*8 x 60*8) if needed:

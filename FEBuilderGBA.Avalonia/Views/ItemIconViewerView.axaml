@@ -21,6 +21,8 @@
           <Button AutomationProperties.AutomationId="ItemIconViewer_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
           <Button AutomationProperties.AutomationId="ItemIconViewer_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
           <Button AutomationProperties.AutomationId="ItemIconViewer_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
+          <Button AutomationProperties.AutomationId="ItemIconViewer_FERepo_Button" Content="FE-Repo" Click="FERepo_Click"
+                  ToolTip.Tip="Import from the FE-Repo Item Icons folder" />
         </StackPanel>
         <controls:GbaImageControl AutomationProperties.AutomationId="ItemIconViewer_Image_Image" Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>

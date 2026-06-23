@@ -28,6 +28,11 @@ namespace FEBuilderGBA
             U.SetIcon(ExportAPButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportAPButton, Properties.Resources.icon_upload);
 
+            // #1380 Part B — FE-Repo browse button on the SAME ROW as Import/
+            // Export (to the right of Export), avoiding overlap with the AP
+            // button row below (Copilot review #1394).
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             if (Program.ROM.RomInfo.version == 8)
             {
                 InputFormRef.markupJumpLabel(X_JUMP_FOOTSTEPS);
@@ -297,6 +302,30 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
+
+        // #1380 Part B — FE-Repo button: same as Import, sourced from the
+        // FE-Repo "Map Sprites" folder. Routes through the SAME ImportBitmap
+        // body; a wrong-size asset is reflowed/rejected as before.
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.UnitMoveIcon);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+
+                Bitmap bitmap = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
+                if (bitmap == null) return;
+                bitmap.Tag = browser.SelectedFilePath;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
             int width = 4 * 8;
             int height = 60 * 8;
             if (width != bitmap.Width || height > bitmap.Height )

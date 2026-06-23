@@ -148,21 +148,54 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Import_Click(object? sender, RoutedEventArgs e)
         {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError("No wait icon selected."); return; }
+
+            byte[] selfPalette = ReadSelfPalette(rom);
+            if (selfPalette == null) return;
+
+            var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 0, 0, selfPalette, 16);
+            if (result == null) return; // cancelled
+            RunWaitIconImport(rom, result);
+        }
+
+        // #1380 Part B — FE-Repo button: behaves exactly like Import, but the
+        // source file comes from the FE-Repo "Map Sprites" folder instead of an
+        // OS file picker. Routes through the SAME WaitIconImportCore path, so a
+        // wrong-size asset fails gracefully with the existing dimension error.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError("No wait icon selected."); return; }
+
+            byte[] selfPalette = ReadSelfPalette(rom);
+            if (selfPalette == null) return;
+
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.UnitWaitIcon);
+            if (string.IsNullOrEmpty(path)) return;
+
+            var result = ImageImportService.LoadAndRemapFromFile(path, 0, 0, selfPalette, 16);
+            RunWaitIconImport(rom, result);
+        }
+
+        byte[] ReadSelfPalette(ROM rom)
+        {
+            // The wait-icon entry has NO palette slot — remap the imported
+            // sheet onto the shared self-army palette (nearest color), the
+            // same tradeoff WF's CheckPalette/ForcePalette interactive dialog
+            // resolves (plan v2 HIGH-1: remap, not quantize-to-fresh).
+            byte[] selfPalette = ImageUtilCore.GetPalette(rom.RomInfo.unit_icon_palette_address, 16);
+            if (selfPalette == null) { CoreState.Services?.ShowError("Failed to read unit icon palette."); return null; }
+            return selfPalette;
+        }
+
+        void RunWaitIconImport(ROM rom, ImageImportService.LoadResult result)
+        {
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
-                if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError("No wait icon selected."); return; }
-
-                // The wait-icon entry has NO palette slot — remap the imported
-                // sheet onto the shared self-army palette (nearest color), the
-                // same tradeoff WF's CheckPalette/ForcePalette interactive dialog
-                // resolves (plan v2 HIGH-1: remap, not quantize-to-fresh).
-                byte[] selfPalette = ImageUtilCore.GetPalette(rom.RomInfo.unit_icon_palette_address, 16);
-                if (selfPalette == null) { CoreState.Services?.ShowError("Failed to read unit icon palette."); return; }
-
-                var result = await ImageImportService.LoadAndRemapToExistingPalette(this, 0, 0, selfPalette, 16);
-                if (result == null) return; // cancelled
                 if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; }
 
                 uint addr = _vm.CurrentAddr;

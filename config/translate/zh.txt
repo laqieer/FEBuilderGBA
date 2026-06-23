@@ -25999,3 +25999,18 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Nothing to remove (shop is empty).
 没有可删除的内容（商店为空）。
 
+:Copy git command
+复制 git 命令
+
+:Import from the FE-Repo Map Sprites folder
+从 FE-Repo 地图精灵文件夹导入
+
+:Import from the FE-Repo Item Icons folder
+从 FE-Repo 道具图标文件夹导入
+
+:Import from the FE-Repo CG Images folder
+从 FE-Repo CG 图像文件夹导入
+
+:Import from the FE-Repo Generic Minimugs folder
+从 FE-Repo 通用小头像文件夹导入
+

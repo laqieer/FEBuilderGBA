@@ -26,11 +26,64 @@ namespace FEBuilderGBA.Core.Tests
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
             string repoDir = Path.Combine(tempDir, "resources", "FE-Repo");
-            Directory.CreateDirectory(repoDir);
+            // #1380 Part A: a populated repo dir (>=1 child directory) is a valid root.
+            Directory.CreateDirectory(Path.Combine(repoDir, "Portrait Repository"));
             try
             {
                 string result = FERepoResourceBrowser.FindRepoRoot(tempDir);
                 Assert.Equal(repoDir, result);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void FindRepoRoot_ReturnsNull_WhenEmptyPlaceholder()
+        {
+            // #1380 Part A: an uninitialized submodule leaves an empty-but-existing
+            // placeholder dir. It must be treated as not-found so the actionable
+            // "run git submodule update" message surfaces.
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string repoDir = Path.Combine(tempDir, "resources", "FE-Repo");
+            Directory.CreateDirectory(repoDir); // empty placeholder, no children
+            try
+            {
+                string result = FERepoResourceBrowser.FindRepoRoot(tempDir);
+                Assert.Null(result);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void FindMusicRepoRoot_ReturnsNull_WhenEmptyPlaceholder()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string repoDir = Path.Combine(tempDir, "resources", "FE-Repo-Music-No-Preview");
+            Directory.CreateDirectory(repoDir); // empty placeholder
+            try
+            {
+                Assert.Null(FERepoResourceBrowser.FindMusicRepoRoot(tempDir));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void FindMusicRepoRoot_FindsRepoDir_WhenPopulated()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string repoDir = Path.Combine(tempDir, "resources", "FE-Repo-Music-No-Preview");
+            Directory.CreateDirectory(Path.Combine(repoDir, "Some Category"));
+            try
+            {
+                Assert.Equal(repoDir, FERepoResourceBrowser.FindMusicRepoRoot(tempDir));
             }
             finally
             {
@@ -134,6 +187,61 @@ namespace FEBuilderGBA.Core.Tests
             }
 
             Assert.Contains("Portrait Repository", cats);
+        }
+
+        // -----------------------------------------------------------------
+        // #1380 Part B — editor-kind -> FE-Repo folder resolver
+        // -----------------------------------------------------------------
+
+        [Theory]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.UnitWaitIcon, "Map Sprites", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.UnitMoveIcon, "Map Sprites", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.ItemIcon, "Item Icons", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait, "Item Icons", "Special - Generic Minimugs")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BackgroundImage, "BGs, Interface Elements", "CG Images")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.Portrait, "Portrait Repository", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.ClassCard, "Class Cards", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleAnimation, "Battle Animations", null)]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.SkillIcon, "Item Icons", "Special - Skill Icons")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.SpellAnimation, "Spells n Skills", "7. Spells")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.BattleBackground, "BGs, Interface Elements", "Battle Frames & Backgrounds")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.CGImage, "BGs, Interface Elements", "CG Images")]
+        [InlineData(FERepoResourceBrowser.FERepoEditorKind.Tileset, "Tilesets", null)]
+        public void GetFERepoFolderForEditor_ReturnsExpectedFolder(
+            FERepoResourceBrowser.FERepoEditorKind kind, string category, string subCategory)
+        {
+            var result = FERepoResourceBrowser.GetFERepoFolderForEditor(kind);
+            Assert.True(result.Supported);
+            Assert.Equal(category, result.Category);
+            Assert.Equal(subCategory, result.SubCategory);
+        }
+
+        [Fact]
+        public void GetFERepoFolderForEditor_UnknownKind_ReturnsUnsupported()
+        {
+            // An undefined enum value (cast from an out-of-range int) must map to
+            // Unsupported so a caller hides the FE-Repo button rather than seeding
+            // a wrong/empty path.
+            var result = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                (FERepoResourceBrowser.FERepoEditorKind)9999);
+            Assert.False(result.Supported);
+            Assert.Null(result.Category);
+            Assert.Null(result.SubCategory);
+        }
+
+        [Fact]
+        public void GetFERepoFolderForEditor_EveryDefinedKind_IsSupported()
+        {
+            // All enum values defined today are real, wired-or-deferred editors
+            // with a known folder — none should be Unsupported. Guards against a
+            // new enum value being added without a mapping.
+            foreach (FERepoResourceBrowser.FERepoEditorKind kind in
+                System.Enum.GetValues(typeof(FERepoResourceBrowser.FERepoEditorKind)))
+            {
+                var result = FERepoResourceBrowser.GetFERepoFolderForEditor(kind);
+                Assert.True(result.Supported, $"{kind} should resolve to a folder");
+                Assert.False(string.IsNullOrEmpty(result.Category), $"{kind} should have a category");
+            }
         }
     }
 }

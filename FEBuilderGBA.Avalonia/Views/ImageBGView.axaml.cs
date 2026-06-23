@@ -222,6 +222,18 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
         }
 
+        // #1380 Part B — FE-Repo button: same as Import, sourced from the
+        // FE-Repo "CG Images" folder. Routes the chosen path through the SAME
+        // ImportImageFromFile pipeline as the drag-drop import; a wrong-size
+        // asset fails gracefully with the existing strict-size error.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.BackgroundImage);
+            if (string.IsNullOrEmpty(path)) return;
+            ImportImageFromFile(path);
+        }
+
         void LoadList()
         {
             _vm.IsLoading = true;

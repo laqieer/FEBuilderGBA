@@ -21,15 +21,82 @@ namespace FEBuilderGBA
 
         string repoRoot;
 
+        // #1380 Part B — optional seed so the browser opens pre-navigated to a
+        // category/subcategory for a specific graphics editor.
+        readonly string seedCategory;
+        readonly string seedSubCategory;
+
         /// <summary>
         /// The full path to the selected resource file, or null if cancelled.
         /// </summary>
         public string SelectedFilePath { get; private set; }
 
-        public FERepoResourceBrowserForm()
+        /// <summary>
+        /// #1380 Part B — add an "FE-Repo" browse button to a graphics editor in
+        /// its Import button's parent panel, placed in a NEW row BELOW every
+        /// existing control in that panel (so it never overlaps the Import/Export
+        /// row, the AP row, or the source/jump buttons), and GROW the panel's
+        /// height + MinimumSize so the new button is fully visible rather than
+        /// clipped by a short button panel (Copilot review on #1394).
+        /// The <paramref name="rightOf"/> parameter is unused (kept for call-site
+        /// readability of which Import row the button relates to).
+        /// </summary>
+        public static Button AddBrowseButton(Button importButton, Button rightOf, EventHandler handler)
         {
+            Control parent = importButton.Parent;
+
+            // Place the new row below the BOTTOM-MOST existing control in the
+            // panel — including initially-hidden source/jump buttons, whose
+            // designer Bounds still define the occupied area — so there is no
+            // horizontal collision regardless of panel layout.
+            int bottomMost = importButton.Bottom;
+            if (parent != null)
+            {
+                foreach (Control c in parent.Controls)
+                {
+                    if (c.Bottom > bottomMost) bottomMost = c.Bottom;
+                }
+            }
+
+            var feRepoButton = new Button
+            {
+                Text = R._("FE-Repo"),
+                Size = new Size(107, importButton.Height),
+                Location = new Point(importButton.Left, bottomMost + 2)
+            };
+            feRepoButton.Click += handler;
+
+            if (parent != null)
+            {
+                parent.Controls.Add(feRepoButton);
+                // Panels in these editors have fixed designer Sizes; grow both
+                // Height and MinimumSize so a layout pass cannot shrink it back
+                // and clip the new button.
+                int needed = feRepoButton.Bottom + 2;
+                if (parent.Height < needed)
+                {
+                    parent.Height = needed;
+                    parent.MinimumSize = new Size(parent.MinimumSize.Width, needed);
+                }
+            }
+            return feRepoButton;
+        }
+
+        public FERepoResourceBrowserForm() : this(null, null) { }
+
+        /// <summary>
+        /// Open the browser pre-navigated to a seed category (and optional
+        /// subcategory). Use
+        /// <see cref="FERepoResourceBrowser.GetFERepoFolderForEditor"/> to
+        /// resolve the seed for an editor kind (#1380 Part B).
+        /// </summary>
+        public FERepoResourceBrowserForm(string seedCategory, string seedSubCategory)
+        {
+            this.seedCategory = seedCategory;
+            this.seedSubCategory = seedSubCategory;
             InitializeComponent();
             LoadCategories();
+            SelectSeed();
         }
 
         void InitializeComponent()
@@ -145,6 +212,36 @@ namespace FEBuilderGBA
                     catNode.Nodes.Add(new TreeNode(sub) { Tag = sub });
                 }
                 categoryTree.Nodes.Add(catNode);
+            }
+        }
+
+        // #1380 Part B — pre-select the seed category (and optional
+        // subcategory) node so the browser opens already showing that folder's
+        // files. A non-matching seed is ignored (full category list stays).
+        void SelectSeed()
+        {
+            if (repoRoot == null || string.IsNullOrEmpty(seedCategory)) return;
+
+            foreach (TreeNode catNode in categoryTree.Nodes)
+            {
+                if (!string.Equals(catNode.Tag as string, seedCategory, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!string.IsNullOrEmpty(seedSubCategory))
+                {
+                    foreach (TreeNode subNode in catNode.Nodes)
+                    {
+                        if (string.Equals(subNode.Tag as string, seedSubCategory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            catNode.Expand();
+                            categoryTree.SelectedNode = subNode;
+                            return;
+                        }
+                    }
+                    // Subcategory not present — fall back to the top-level node.
+                }
+                categoryTree.SelectedNode = catNode;
+                return;
             }
         }
 

@@ -14,9 +14,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         Bitmap _previewImage;
         string _statusText = "Select a category to browse";
         bool _canInsert;
+        bool _notFound;
         CategoryNode _selectedCategory;
         string _repoRoot;
         bool _musicMode;
+
+        /// <summary>The graphics-submodule git init command (#1380 Part A).</summary>
+        public const string SubmoduleInitCommand = "git submodule update --init resources/FE-Repo";
+
+        /// <summary>The music-submodule git init command (#1380 Part A).</summary>
+        public const string MusicSubmoduleInitCommand = "git submodule update --init resources/FE-Repo-Music-No-Preview";
+
+        /// <summary>
+        /// The init command for THIS browser's mode (graphics vs music). The
+        /// status text, copy button, and tooltip all use this so a missing
+        /// music submodule shows the music init command, not the graphics one
+        /// (#1380 Copilot review).
+        /// </summary>
+        public string EffectiveInitCommand => _musicMode ? MusicSubmoduleInitCommand : SubmoduleInitCommand;
+
+        /// <summary>Tooltip for the "Copy git command" button — shows the effective command.</summary>
+        public string CopyTooltip => "Copy: " + EffectiveInitCommand;
 
         public ObservableCollection<CategoryNode> Categories
         {
@@ -58,6 +76,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _canInsert, value);
         }
 
+        /// <summary>
+        /// True when the FE-Repo submodule was not found (empty placeholder or
+        /// absent). The View binds a "copy init command" affordance to this so
+        /// the actionable message is not buried behind a blank tree (#1380).
+        /// </summary>
+        public bool NotFound
+        {
+            get => _notFound;
+            set => SetField(ref _notFound, value);
+        }
+
         public CategoryNode SelectedCategory
         {
             get => _selectedCategory;
@@ -72,7 +101,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public FERepoResourceBrowserViewModel() : this(false) { }
 
-        public FERepoResourceBrowserViewModel(bool musicMode)
+        public FERepoResourceBrowserViewModel(bool musicMode) : this(musicMode, null, null) { }
+
+        /// <summary>
+        /// Construct the browser, optionally pre-navigated to a seed
+        /// category/subcategory (#1380 Part B). Seed is navigation only; full
+        /// browsing remains available.
+        /// </summary>
+        public FERepoResourceBrowserViewModel(bool musicMode, string seedCategory, string seedSubCategory)
         {
             _musicMode = musicMode;
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
@@ -80,13 +116,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ? FERepoResourceBrowser.FindMusicRepoRoot(baseDir)
                 : FERepoResourceBrowser.FindRepoRoot(baseDir);
             LoadCategories();
+            if (!string.IsNullOrEmpty(seedCategory))
+                SelectSeed(seedCategory, seedSubCategory);
         }
 
         void LoadCategories()
         {
             if (_repoRoot == null)
             {
-                StatusText = "FE-Repo not found. Run: git submodule update --init resources/FE-Repo";
+                NotFound = true;
+                StatusText = "FE-Repo not found. Run: " + EffectiveInitCommand;
                 return;
             }
 
@@ -99,6 +138,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
                 Categories.Add(node);
             }
+        }
+
+        /// <summary>
+        /// Pre-select the category (and optional subcategory) node so the
+        /// browser opens already showing that folder's files. A non-matching
+        /// seed is ignored (the browser stays on the full category list).
+        /// </summary>
+        void SelectSeed(string category, string subCategory)
+        {
+            var top = Categories.FirstOrDefault(c =>
+                string.Equals(c.Category, category, StringComparison.OrdinalIgnoreCase));
+            if (top == null) return;
+
+            if (!string.IsNullOrEmpty(subCategory))
+            {
+                var child = top.Children.FirstOrDefault(c =>
+                    string.Equals(c.SubCategory, subCategory, StringComparison.OrdinalIgnoreCase));
+                if (child != null)
+                {
+                    SelectedCategory = child;
+                    return;
+                }
+                // Subcategory not present — fall back to the top-level category.
+            }
+            SelectedCategory = top;
         }
 
         void LoadCategoryFiles(CategoryNode node)

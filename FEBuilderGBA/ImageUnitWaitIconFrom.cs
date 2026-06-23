@@ -25,6 +25,11 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1380 Part B — FE-Repo browse button on the SAME ROW as Import/
+            // Export (to the right of Export), so it is not clipped by the short
+            // DragTargetPanel2 (Copilot review #1394).
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -309,7 +314,31 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
 
+        // #1380 Part B — FE-Repo button: same as Import, but the source file
+        // comes from the FE-Repo "Map Sprites" folder instead of an OS file
+        // picker. Routes through the SAME ImportBitmap body, so a wrong-size
+        // asset fails gracefully with the existing dimension error.
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.UnitWaitIcon);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+
+                Bitmap bitmap = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
+                if (bitmap == null) return;
+                bitmap.Tag = browser.SelectedFilePath;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
             uint b2 = U.NOT_FOUND;
             if (bitmap.Width == 16)
             {
