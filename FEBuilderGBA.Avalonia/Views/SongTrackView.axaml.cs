@@ -325,18 +325,28 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
         {
-            // WF: MainFormUtil.GotoMoreData() — shell-out to the FEBuilderGBA
-            // resource wiki. Avalonia parity is informational for now (the
-            // shell launcher is WinForms-coupled); the label stays clickable
-            // to surface the WF affordance to anyone driving via Automation.
+            // Opens the "Find new resources on the Internet" wiki page in the
+            // browser, mirroring WF MainFormUtil.GotoMoreData() and the other
+            // Avalonia editors (ImageMagicFEditorView / ImageMagicCSACreatorView).
+            // The fork wiki MoreData page lists the community music/graphics
+            // resources; the dead upstream wiki URL is gone (#1381).
             try
             {
                 _ = sender; _ = e;
-                CoreState.Services.ShowInfo("See https://github.com/FEBuilderGBA/FEBuilderGBA/wiki for online music resources.");
+                const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.LinkInternet_Click failed: {0}", ex.Message);
+                // Core Log.Error is params string[] (joined with spaces, NOT
+                // composite formatting) — pass the message and the full
+                // exception (stack + inner) as separate args, never a "{0}"
+                // placeholder, and avoid an extra concatenated allocation.
+                Log.Error("SongTrackView.LinkInternet_Click failed:", ex.ToString());
             }
         }
 
