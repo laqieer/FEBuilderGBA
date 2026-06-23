@@ -26014,3 +26014,9 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Import from the FE-Repo Generic Minimugs folder
 从 FE-Repo 通用小头像文件夹导入
 
+:Import from the FE-Repo Background CGs folder
+从 FE-Repo 背景 CG 文件夹导入
+
+:Import from the FE-Repo Battle Backgrounds folder
+从 FE-Repo 战斗背景文件夹导入
+

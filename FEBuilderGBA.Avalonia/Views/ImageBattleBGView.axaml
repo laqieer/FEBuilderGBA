@@ -108,7 +108,7 @@
                 Content="Import Image" Click="ImportPng_Click" />
         <Button AutomationProperties.AutomationId="ImageBattleBG_FERepo_Button"
                 Content="FE-Repo" Click="FERepo_Click"
-                ToolTip.Tip="Import a 240x160 background from the FE-Repo Battle Frames &amp; Backgrounds folder" />
+                ToolTip.Tip="Import from the FE-Repo Battle Backgrounds folder" />
         <Button AutomationProperties.AutomationId="ImageBattleBG_ExportPng_Button"
                 Content="Export Image" Click="ExportPng_Click" />
         <Button AutomationProperties.AutomationId="ImageBattleBG_DecreaseColor_Button"

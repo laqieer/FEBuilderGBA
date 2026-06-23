@@ -24,7 +24,7 @@
           <Button AutomationProperties.AutomationId="BigCGViewer_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
           <Button AutomationProperties.AutomationId="BigCGViewer_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
           <Button AutomationProperties.AutomationId="BigCGViewer_FERepo_Button" Content="FE-Repo" Click="FERepo_Click"
-                  ToolTip.Tip="Import a 256x160 CG from the FE-Repo Background CGs folder" />
+                  ToolTip.Tip="Import from the FE-Repo Background CGs folder" />
           <Button AutomationProperties.AutomationId="BigCGViewer_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
           <Button AutomationProperties.AutomationId="BigCGViewer_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
         </StackPanel>

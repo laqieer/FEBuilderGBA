@@ -139,25 +139,38 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, addr + 8);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
-                // For tile data: write as single compressed block and update first table entry
+                // For tile data: write as single compressed block and update first table entry.
+                // #1393 (Copilot review): a failed tile write must NOT fall through to a
+                // success commit — that would leave the ROM partially updated (TSA/palette
+                // written, tile pointer stale) and show a misleading success toast. Roll
+                // back and report instead.
                 uint tablePtr = rom.u32(addr + 0);
-                if (U.isPointer(tablePtr))
+                if (!U.isPointer(tablePtr))
                 {
-                    uint tableAddr = U.toOffset(tablePtr);
-                    byte[] compressed = LZ77.compress(tsaResult.TileData);
-                    if (compressed != null)
-                    {
-                        uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
-                        if (tileAddr != U.NOT_FOUND)
-                        {
-                            // Update first table entry to point to the tile data
-                            rom.write_p32(tableAddr, tileAddr);
-                            // Zero out remaining table entries (entries 1-9)
-                            for (int i = 1; i < 10; i++)
-                                rom.write_u32(tableAddr + (uint)(i * 4), 0);
-                        }
-                    }
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("Big CG table pointer is invalid — cannot write tile data");
+                    return;
                 }
+                uint tableAddr = U.toOffset(tablePtr);
+                byte[] compressed = LZ77.compress(tsaResult.TileData);
+                if (compressed == null)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("Failed to compress tile data");
+                    return;
+                }
+                uint tileAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                if (tileAddr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("No free space for tile data");
+                    return;
+                }
+                // Update first table entry to point to the tile data
+                rom.write_p32(tableAddr, tileAddr);
+                // Zero out remaining table entries (entries 1-9)
+                for (int i = 1; i < 10; i++)
+                    rom.write_u32(tableAddr + (uint)(i * 4), 0);
 
                 _undoService.Commit();
                 _vm.LoadBigCG(addr);
