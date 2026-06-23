@@ -54,6 +54,56 @@ namespace FEBuilderGBA.Tests
         }
 
         // -----------------------------------------------------------------
+        // #1397 (Copilot PR #1401 review) — REJECT-not-corrupt for the wired
+        // fixed-dimension editors whose seeded FE-Repo folder is mixed-size.
+        // The FE-Repo path must enforce the editor's exact dimensions so a
+        // wrong-size repository asset is rejected, never silently cropped.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WinForms_BattleBG_FERepoPath_EnforcesExactWidth_NotWidthZeroCrop()
+        {
+            // The lenient file-picker path loads width=0 and ImportBitmap crops
+            // anything wider than 240. The FE-Repo path (mixed folder) must
+            // instead pass the EXACT width so ConvertDecolorUI rejects a
+            // 256x160 full-screen asset rather than truncating it.
+            string src = ReadWinFormsSource("ImageBattleBGForm.cs");
+            int handler = src.IndexOf("void FERepoButton_Click", StringComparison.Ordinal);
+            Assert.True(handler >= 0);
+            // Body up to the next method (ImportBitmap) so we only inspect the
+            // FE-Repo handler.
+            int end = src.IndexOf("private void ImportBitmap", handler, StringComparison.Ordinal);
+            string handlerBody = end > handler ? src.Substring(handler, end - handler) : src.Substring(handler);
+
+            // Loads through the shared decolor pipeline with a width that resolves to 240
+            // (accept "30 * 8", "30*8", or "240"), so a non-240x160 asset is
+            // rejected before cropping. Whitespace-tolerant so reformatting
+            // cannot break the guard.
+            Assert.Contains("LoadAndConvertDecolorUILow", handlerBody);
+            Assert.Matches(@"width\s*=\s*(?:30\s*\*\s*8|240)", handlerBody);
+            // The width passed to the loader must be the `width` local (240),
+            // never the lenient literal 0 that lets ImportBitmap crop
+            // (whitespace-tolerant inside the call).
+            Assert.Matches(@"LoadAndConvertDecolorUILow\([^,]+,\s*null,\s*width", handlerBody);
+            // Must NOT load with the lenient width=0 that allows the crop path.
+            Assert.DoesNotMatch(@"LoadAndConvertDecolorUILow\([^,]+,\s*null,\s*0\s*,", handlerBody);
+        }
+
+        [Fact]
+        public void Avalonia_BattleBG_FERepoPath_UsesStrictSize()
+        {
+            // The Avalonia FE-Repo handler funnels through ImportImageFromFile
+            // with strictSize:true, and that body enforces 240x160 strictly.
+            string src = ReadAvaloniaSource("BattleBGViewerView.axaml.cs");
+            int handler = src.IndexOf("void FERepo_Click", StringComparison.Ordinal);
+            Assert.True(handler >= 0);
+            string handlerBody = src.Substring(handler);
+            Assert.Contains("ImportImageFromFile(path, strictSize: true)", handlerBody);
+            // And the shared body forwards strictSize into the dimension check.
+            Assert.Contains("LoadAndQuantizeFromFile(filePath, 240, 160, 16, strictSize: strictSize)", src);
+        }
+
+        // -----------------------------------------------------------------
         // Avalonia wired editors — FERepo_Click routes the picked path through
         // the SAME *FromFile / path-taking import body.
         // -----------------------------------------------------------------

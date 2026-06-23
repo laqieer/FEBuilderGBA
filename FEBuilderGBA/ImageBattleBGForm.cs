@@ -142,9 +142,16 @@ namespace FEBuilderGBA
 
         // #1397 — FE-Repo button: import a 240x160 battle background from the
         // FE-Repo "Battle Frames & Backgrounds" folder, routed through the SAME
-        // ImportBitmap body (the existing crop/size handling applies).
+        // ImportBitmap body. The "Battle Frames & Backgrounds" folder is mixed
+        // (240x160 + 256x160 + preview/template strips), so — unlike the lenient
+        // file-picker which loads width=0 and crops anything wider — the FE-Repo
+        // path passes the EXACT 240x160 dimensions to LoadAndConvertDecolorUILow.
+        // ConvertDecolorUI then REJECTS any non-240x160 asset with the existing
+        // size error instead of silently truncating it (Copilot PR #1401 review:
+        // "reject, not corrupt").
         private void FERepoButton_Click(object sender, EventArgs e)
         {
+            int width = 30 * 8;
             int height = 20 * 8;
             int palette_count = 8;
             var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
@@ -153,7 +160,7 @@ namespace FEBuilderGBA
             {
                 if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
                     return;
-                Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUILow(browser.SelectedFilePath, null, 0, height, true, palette_count);
+                Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUILow(browser.SelectedFilePath, null, width, height, true, palette_count);
                 if (bitmap == null) return;
                 ImportBitmap(bitmap);
             }
