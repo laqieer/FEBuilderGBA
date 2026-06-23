@@ -98,7 +98,6 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 240, 160, 16, strictSize: strictSize);
-                if (loadResult == null) return; // cancelled
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
                 ROM rom = CoreState.ROM;

@@ -345,7 +345,6 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Portrait face tiles: no strict size, quantize to 16 colors
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
-                if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
                 ROM rom = CoreState.ROM;
