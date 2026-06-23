@@ -161,6 +161,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+
+        /// <summary>
+        /// True when the FE-Repo-Music submodule is checked out, so the
+        /// "FE-Repo-Music" import button should be shown (#1383). The View binds
+        /// the button's IsVisible to this. Resolved once (lazily) from the music
+        /// repo root — the submodule presence does not change at runtime, so the
+        /// directory probe is cached to avoid a filesystem hit on every binding
+        /// evaluation (#1383 review).
+        /// </summary>
+        bool? _isFERepoMusicAvailable;
+        public bool IsFERepoMusicAvailable
+            => _isFERepoMusicAvailable ??= FERepoResourceBrowser.IsMusicRepoAvailable(
+                CoreState.BaseDirectory ?? System.AppContext.BaseDirectory);
         /// <summary>Number of tracks in this song (B0).</summary>
         public uint TrackCount { get => _trackCount; set => SetField(ref _trackCount, value); }
         /// <summary>Number of blocks (B1).</summary>

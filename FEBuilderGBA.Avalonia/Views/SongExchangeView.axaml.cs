@@ -166,6 +166,52 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // #1383: open the FE-Repo-Music browser and import the selected
+        // destination song through the Song Track Editor's ONE shared dispatcher.
+        // Song Exchange is a ROM->ROM transplant with no per-song instrument
+        // picker of its own, so instead of duplicating the .s/.mid/.wav importer
+        // we navigate to the Song Track Editor for the selected destination song
+        // and hand it the chosen path (SongTrackView.ImportMusicFromExternal).
+        async void FERepoMusic_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int destIndex = MyList.SelectedIndex;
+                if (destIndex < 0)
+                {
+                    CoreState.Services.ShowError(R._("No song selected to import."));
+                    return;
+                }
+                if (destIndex == 0)
+                {
+                    CoreState.Services.ShowError(R._("Cannot write to SongID 0x0."));
+                    return;
+                }
+
+                if (destIndex >= _vm.MySongList.Count)
+                {
+                    CoreState.Services.ShowError(R._("No song selected to import."));
+                    return;
+                }
+                // The Song Track list selects by song-HEADER address, not index,
+                // so resolve the destination song's header offset (#1399 review).
+                uint destHeaderAddr = _vm.MySongList[destIndex].Header;
+
+                string? path = await FERepoPickHelper.PickMusic(this);
+                if (string.IsNullOrEmpty(path)) return;
+
+                // Navigate to the Song Track Editor at the selected destination
+                // song, then run its single import dispatcher with the chosen path.
+                var view = WindowManager.Instance.Navigate<SongTrackView>(destHeaderAddr);
+                await view.ImportMusicFromExternal(destHeaderAddr, path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongExchangeView.FERepoMusic_Click failed:", ex.ToString());
+                CoreState.Services.ShowError(R._("FE-Repo-Music import failed: {0}", ex.Message));
+            }
+        }
+
         public void NavigateTo(uint address)
         {
             // The caller passes a SONG INDEX (e.g. `SongTrackView` passes

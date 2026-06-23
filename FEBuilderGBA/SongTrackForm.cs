@@ -58,6 +58,36 @@ namespace FEBuilderGBA
                     ImportButton_Click(null, null);
                 }
             });
+
+            // #1383: "FE-Repo-Music" import button — only shown when the
+            // FE-Repo-Music submodule is checked out. Imports the chosen file via
+            // the same path as ImportButton (AutoDrag -> ImportButton_Click).
+            // The existing action row (Y=23) is full, so the button goes on a new
+            // row directly under Import; panel5 is Dock=Top, so growing its height
+            // pushes the content below down instead of clipping the button.
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            if (FERepoResourceBrowser.IsMusicRepoAvailable(baseDir))
+            {
+                System.Windows.Forms.Control row = this.ImportButton.Parent;
+                int newY = this.ImportButton.Location.Y + this.ImportButton.Height + 2;
+                Button feRepoMusicButton = new Button
+                {
+                    Text = R._("FE-Repo-Music"),
+                    Name = "FERepoMusicButton",
+                    Location = new System.Drawing.Point(this.ImportButton.Location.X, newY),
+                    Size = this.ImportButton.Size
+                };
+                feRepoMusicButton.Click += FERepoMusicButton_Click;
+                // Make sure the (Dock=Top) host panel is tall enough to show the
+                // whole button row — otherwise it would be clipped (#1383 review).
+                int needed = newY + feRepoMusicButton.Height + 2;
+                if (row.Height < needed)
+                {
+                    row.Height = needed;
+                }
+                row.Controls.Add(feRepoMusicButton);
+                feRepoMusicButton.BringToFront();
+            }
         }
         Size DrawTrack(ListBox lb, int index, Graphics g, Rectangle listbounds, bool isWithDraw)
         {
@@ -195,101 +225,16 @@ namespace FEBuilderGBA
             uint song_id = (uint)AddressList.SelectedIndex;
             uint songtable_address = InputFormRef.BaseAddress + (InputFormRef.BlockSize * song_id);
 
-            string error = "";
-
-            string ext = U.GetFilenameExt(filename);
-            if (ext == ".WAV" || ext == ".WAVE")
+            string ext;
+            // #1383: the WAV/MID/INSTRUMENT/.s dispatch lives in ONE reusable
+            // helper so both this form and SongExchangeForm share the exact same
+            // music-import path. A null error means the user cancelled an inner
+            // dialog (no write, no notify).
+            string error = ImportMusicFileToSong(this, (uint)P4.Value, songtable_address, ref filename, out ext);
+            if (error == null)
             {
-                SongTrackImportWaveForm f = (SongTrackImportWaveForm)InputFormRef.JumpFormLow<SongTrackImportWaveForm>();
-                f.Init(filename);
-                DialogResult dr = f.ShowDialog();
-                if (dr != System.Windows.Forms.DialogResult.OK)
-                {
-                    f.Dettach();
-                    return;
-                }
-                error = SongUtil.ImportWave(f.GetFilename(), songtable_address, f.UseLoop(), f.GetFromFilename());
-                f.Dettach();
+                return;
             }
-            else if (ext == ".MID" || ext == ".MIDI")
-            {
-                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.NIMAP_By_SongTrack);
-                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.DrumFix_By_SongTrack);
-
-                //楽器セットとオプションを選択してもらう.
-                SongTrackImportMidiForm f = (SongTrackImportMidiForm)InputFormRef.JumpFormLow<SongTrackImportMidiForm>();
-                f.Init((uint)P4.Value);
-                DialogResult dr = f.ShowDialog();
-                if (dr != System.Windows.Forms.DialogResult.OK)
-                {
-                    return;
-                }
-
-                //少し時間がかかるので、しばらくお待ちください表示.
-                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
-                {
-                    if (f.UseMidfix4agb())
-                    {
-                        filename = SongUtil.ConvertMidfix4agb(filename);
-                        if (filename == "")
-                        {
-                            return;
-                        }
-                    }
-
-                    if (f.GetUseMID2AGB() == SongTrackImportMidiForm.ImportMethod.FEBuilderGBA)
-                    {//FEBuilderGBAでimport
-                        error = SongUtil.ImportMidiFile(filename, songtable_address
-                            , f.GetInstrumentAddr()
-                            , f.GetIgnoreMOD()
-                            , f.GetIgnoreBEND()
-                            , f.GetIgnoreLFOS()
-                            , f.GetIgnoreHEAD()
-                            , f.GetIgnoreBACK()
-                            );
-                    }
-                    else
-                    {//mid2agbでimport
-                        error = SongUtil.ImportMidiFileMID2AGB(filename, songtable_address
-                            , f.GetInstrumentAddr()
-                            , f.GetMID2AGB_V()
-                            , f.GetMIDI2AGB_MODSC()
-                            , f.GetIgnoreMOD()
-                            , f.GetIgnoreBEND()
-                            , f.GetIgnoreLFOS()
-                            );
-                    }
-                }
-            }
-            else if (ext == ".INSTRUMENT")
-            {
-                //少し時間がかかるので、しばらくお待ちください表示.
-                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
-                {
-                    error = SongUtil.ImportInstrument(filename, songtable_address);
-                }
-            }
-            else
-            {
-                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.NIMAP_By_SongTrack);
-                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.DrumFix_By_SongTrack);
-
-                //楽器セットを選択してもらう.
-                SongTrackImportSelectInstrumentForm f = (SongTrackImportSelectInstrumentForm)InputFormRef.JumpFormLow<SongTrackImportSelectInstrumentForm>();
-                f.Init((uint)P4.Value);
-                DialogResult dr = f.ShowDialog();
-                if (dr != System.Windows.Forms.DialogResult.OK)
-                {
-                    return;
-                }
-
-                //少し時間がかかるので、しばらくお待ちください表示.
-                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(this))
-                {
-                    error = SongUtil.ImportS(filename, songtable_address, f.GetInstrumentAddr());
-                }
-            }
-            
 
             if (error != "")
             {
@@ -298,7 +243,11 @@ namespace FEBuilderGBA
             }
             R.Notify("{0}, SongID: {1} ,Ext: {2} ,Filename: {3}", this.Text, song_id, ext, filename);
 
-            if (ext != "INSTRUMENT")
+            // ext carries the leading dot (e.g. ".INSTRUMENT"); an instrument-set
+            // import has no playable source file to remember, so skip recording
+            // it under the per-song source cache (#1383 review — the old
+            // dot-less "INSTRUMENT" comparison never matched).
+            if (ext != ".INSTRUMENT")
             {
                 Program.ResourceCache.Update("Song_" + U.ToHexString(song_id), filename);
                 this.OpenSourceButton.Show();
@@ -312,6 +261,143 @@ namespace FEBuilderGBA
             SongTableForm.ReloadList();
             InputFormRef.ShowWriteNotifyAnimation(this, 0);
         }
+
+        // #1383: the single music-import dispatcher. Routes a music file by
+        // extension (.wav/.mid/.midi/.instrument/.s) into the song at
+        // songtable_address, popping the same inner dialogs as the Song Track
+        // Editor import. Shared by SongTrackForm.ImportButton_Click and by
+        // SongExchangeForm's "FE-Repo-Music" button so there is exactly ONE
+        // music-import code path.
+        //
+        // Returns:
+        //   null    -> the user cancelled an inner dialog (no write performed).
+        //   ""      -> import succeeded.
+        //   message -> import failed with that error message.
+        // filename may be rewritten (midfix4agb) so it is passed by ref; the
+        // resolved extension (e.g. ".S") is returned via outExt.
+        public static string ImportMusicFileToSong(Form owner, uint instrumentAddr, uint songtable_address, ref string filename, out string outExt)
+        {
+            string ext = U.GetFilenameExt(filename);
+            outExt = ext;
+
+            if (ext == ".WAV" || ext == ".WAVE")
+            {
+                SongTrackImportWaveForm f = (SongTrackImportWaveForm)InputFormRef.JumpFormLow<SongTrackImportWaveForm>();
+                f.Init(filename);
+                DialogResult dr = f.ShowDialog();
+                if (dr != System.Windows.Forms.DialogResult.OK)
+                {
+                    f.Dettach();
+                    return null;
+                }
+                string e1 = SongUtil.ImportWave(f.GetFilename(), songtable_address, f.UseLoop(), f.GetFromFilename());
+                f.Dettach();
+                return e1;
+            }
+            else if (ext == ".MID" || ext == ".MIDI")
+            {
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.NIMAP_By_SongTrack);
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.DrumFix_By_SongTrack);
+
+                //楽器セットとオプションを選択してもらう.
+                SongTrackImportMidiForm f = (SongTrackImportMidiForm)InputFormRef.JumpFormLow<SongTrackImportMidiForm>();
+                f.Init(instrumentAddr);
+                DialogResult dr = f.ShowDialog();
+                if (dr != System.Windows.Forms.DialogResult.OK)
+                {
+                    return null;
+                }
+
+                //少し時間がかかるので、しばらくお待ちください表示.
+                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(owner))
+                {
+                    if (f.UseMidfix4agb())
+                    {
+                        filename = SongUtil.ConvertMidfix4agb(filename);
+                        if (filename == "")
+                        {
+                            return null;
+                        }
+                    }
+
+                    if (f.GetUseMID2AGB() == SongTrackImportMidiForm.ImportMethod.FEBuilderGBA)
+                    {//FEBuilderGBAでimport
+                        return SongUtil.ImportMidiFile(filename, songtable_address
+                            , f.GetInstrumentAddr()
+                            , f.GetIgnoreMOD()
+                            , f.GetIgnoreBEND()
+                            , f.GetIgnoreLFOS()
+                            , f.GetIgnoreHEAD()
+                            , f.GetIgnoreBACK()
+                            );
+                    }
+                    else
+                    {//mid2agbでimport
+                        return SongUtil.ImportMidiFileMID2AGB(filename, songtable_address
+                            , f.GetInstrumentAddr()
+                            , f.GetMID2AGB_V()
+                            , f.GetMIDI2AGB_MODSC()
+                            , f.GetIgnoreMOD()
+                            , f.GetIgnoreBEND()
+                            , f.GetIgnoreLFOS()
+                            );
+                    }
+                }
+            }
+            else if (ext == ".INSTRUMENT")
+            {
+                //少し時間がかかるので、しばらくお待ちください表示.
+                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(owner))
+                {
+                    return SongUtil.ImportInstrument(filename, songtable_address);
+                }
+            }
+            else
+            {
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.NIMAP_By_SongTrack);
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.DrumFix_By_SongTrack);
+
+                //楽器セットを選択してもらう.
+                SongTrackImportSelectInstrumentForm f = (SongTrackImportSelectInstrumentForm)InputFormRef.JumpFormLow<SongTrackImportSelectInstrumentForm>();
+                f.Init(instrumentAddr);
+                DialogResult dr = f.ShowDialog();
+                if (dr != System.Windows.Forms.DialogResult.OK)
+                {
+                    return null;
+                }
+
+                //少し時間がかかるので、しばらくお待ちください表示.
+                using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(owner))
+                {
+                    return SongUtil.ImportS(filename, songtable_address, f.GetInstrumentAddr());
+                }
+            }
+        }
+
+        // #1383: open the FE-Repo-Music browser and import the selection into the
+        // currently selected song via the SAME path as ImportButton_Click — by
+        // re-using the AutoDrag mechanism that the drag-and-drop handler already
+        // uses. No second import code path.
+        private void FERepoMusicButton_Click(object sender, EventArgs e)
+        {
+            if (AddressList.SelectedIndex < 0)
+            {
+                return;
+            }
+            using (FERepoMusicBrowserForm browser = new FERepoMusicBrowserForm())
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK
+                    || string.IsNullOrEmpty(browser.SelectedFilePath))
+                {
+                    return;
+                }
+                using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(browser.SelectedFilePath))
+                {
+                    ImportButton_Click(null, null);
+                }
+            }
+        }
+
         private void SONGPLAY_Click(object sender, EventArgs e)
         {
             MainFormUtil.RunAsSappy((uint)AddressList.SelectedIndex);

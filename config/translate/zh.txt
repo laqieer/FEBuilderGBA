@@ -26039,3 +26039,15 @@ Tiled 导出需要本地文件路径（此存储提供程序不支持）。
 :Import from the FE-Repo Battle Backgrounds folder
 从 FE-Repo 战斗背景文件夹导入
 
+:FE-Repo-Music
+FE-Repo-音乐
+
+:FE-Repo Music Browser
+FE-Repo-音乐浏览器
+
+:Browse the FE-Repo-Music submodule and import the selected music file into the current song (same import path as Import Music File).
+浏览 FE-Repo-Music 子模块并将选中的音乐文件导入当前歌曲（与 Import Music File 相同的导入路径）。
+
+:Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File).
+浏览 FE-Repo-Music 子模块并通过歌曲编辑器导入选中的目标歌曲（与 Import Music File 相同的导入路径）。
+

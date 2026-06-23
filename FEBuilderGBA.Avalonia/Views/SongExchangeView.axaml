@@ -41,9 +41,19 @@
                    MinHeight="300" MaxHeight="420" Margin="4,2,0,0" />
         </Grid>
 
-        <Button AutomationProperties.AutomationId="SongExchange_Convert_Button"
-                Name="ConvertButton" Content="Convert (transplant -&gt;)" Click="Convert_Click"
-                HorizontalAlignment="Left" Margin="0,4,0,0" />
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+          <Button AutomationProperties.AutomationId="SongExchange_Convert_Button"
+                  Name="ConvertButton" Content="Convert (transplant -&gt;)" Click="Convert_Click"
+                  HorizontalAlignment="Left" />
+          <!-- #1383: import the selected destination song from the FE-Repo-Music
+               submodule. Routes through the Song Track Editor's ONE shared import
+               dispatcher (no duplicate importer). Shown only when the music
+               submodule exists. -->
+          <Button AutomationProperties.AutomationId="SongExchange_FERepoMusic_Button"
+                  Name="FERepoMusicButton" Content="FE-Repo-Music" Click="FERepoMusic_Click"
+                  IsVisible="{Binding IsFERepoMusicAvailable}"
+                  ToolTip.Tip="Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File)." />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

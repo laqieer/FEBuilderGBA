@@ -417,6 +417,52 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
+                // ONE import path: both the file-picker Import and the
+                // FE-Repo-Music button route the chosen path through the same
+                // extension dispatcher (#1383).
+                await ImportMusicPath(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImportMidi_Click failed:", ex.ToString());
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #1383: the FE-Repo-Music button opens the music-mode FE-Repo browser
+        // and feeds the selected music file through the SAME dispatcher as the
+        // "Import Music File" button (ImportMusicPath) — no second import path.
+        // The button is only visible when the music submodule is checked out
+        // (FERepoPickHelper.IsMusicSupported, bound to VM.IsFERepoMusicAvailable).
+        // -----------------------------------------------------------------
+        async void FERepoMusic_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            try
+            {
+                string? path = await FERepoPickHelper.PickMusic(this);
+                if (string.IsNullOrEmpty(path)) return;
+                await ImportMusicPath(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.FERepoMusic_Click failed:", ex.ToString());
+            }
+        }
+
+        /// <summary>
+        /// The single music-import dispatcher (#1001 / #1383). Routes a music
+        /// file by extension to the appropriate import sub-flow for the
+        /// currently selected song. Shared by the file-picker Import button and
+        /// the FE-Repo-Music button.
+        /// </summary>
+        async System.Threading.Tasks.Task ImportMusicPath(string path)
+        {
+            if (!_vm.IsLoaded) return;
+            try
+            {
+                if (string.IsNullOrEmpty(path)) return;
+
                 // Dispatch by extension (case-insensitive).
                 string ext = Path.GetExtension(path).ToLowerInvariant();
                 if (ext == ".wav")
@@ -550,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+                Log.Error("SongTrackView.ImportMusicPath failed:", ex.ToString());
             }
         }
 
@@ -955,5 +1001,51 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        /// <summary>
+        /// #1383: import a music file into the song at <paramref name="songHeaderAddr"/>
+        /// (the song-header OFFSET, matching each list item's address) through the
+        /// ONE shared dispatcher (ImportMusicPath). Used by the Avalonia Song
+        /// Exchange tool's FE-Repo-Music button, which navigates here for the
+        /// selected destination song and then hands off the chosen path — so both
+        /// Song editors funnel through the exact same import code path, with no
+        /// duplicate importer.
+        ///
+        /// Robustness (#1399 review): the editor's list is populated on Opened,
+        /// which may not have run yet when this is called right after Navigate.
+        /// So we ensure the list is loaded, actively select the requested song by
+        /// its header address, and FAIL CLOSED (no import) if that song cannot be
+        /// selected — never import into the wrong/default song.
+        /// </summary>
+        public async System.Threading.Tasks.Task ImportMusicFromExternal(uint songHeaderAddr, string path)
+        {
+            // Ensure the list has been populated (Opened -> LoadList may not have
+            // fired yet for a freshly-navigated window).
+            if (!_vm.IsLoaded && EntryList.GetItems().Count == 0)
+            {
+                LoadList();
+                // Give the dispatcher a turn so the ListBox realizes the items
+                // before we try to select one.
+                await global::Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                    () => { }, global::Avalonia.Threading.DispatcherPriority.Background);
+            }
+
+            // Actively select the requested destination song by its header
+            // address; bail out (no import) if it is not present.
+            if (!EntryList.SelectAddress(songHeaderAddr))
+            {
+                CoreState.Services.ShowError(R._(
+                    "Could not select the destination song for import."));
+                return;
+            }
+            if (!_vm.IsLoaded)
+            {
+                CoreState.Services.ShowError(R._(
+                    "The destination song could not be loaded for import."));
+                return;
+            }
+
+            await ImportMusicPath(path);
+        }
     }
 }
