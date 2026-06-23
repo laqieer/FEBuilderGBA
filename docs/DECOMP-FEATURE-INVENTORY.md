@@ -116,6 +116,16 @@ matrix so the gaps are visible rather than implied-away:
   macro** — these degrade to the `--export-asset --kind=shop` EA `.event` migration artifact
   (a reviewable migration aid, **not** a byte-pinned ROM round-trip). Symbolic lists are
   item-id-only (non-zero quantity is refused).
+- **Hyssopi map-editor import stays unsupported (investigated, blocked).** Importing
+  map layouts authored in Hyssopi's Fire Emblem Tile Map Editor into source-owned
+  `.mar` layouts was investigated (#1361) and is a **documented safe failure**: Hyssopi
+  exports an opaque tile-**hash** grid, but `.mar` needs each cell's raw GBA `u16`
+  tile index (`< 0x2000`), and the hash → GBA-`u16`-index crosswalk is undocumented and
+  game/tileset-version-dependent. An automatic converter would have to guess that
+  crosswalk, silently producing structurally-valid-but-wrong maps — which the #1361
+  non-goals forbid. The supported interim path remains FEBuilder's own
+  `--export-asset --kind=map` / `.mar` import. See
+  [docs/DECOMP-HYSSOPI-IMPORT-FINDINGS.md](DECOMP-HYSSOPI-IMPORT-FINDINGS.md).
 - **The `.nmm` schema bridge is a schema aid, not a writability path** — generating a
   manifest `tables[]` entry from `.nmm` does not make a table source-writable; pointer /
   var-length / odd-size fields are flagged `unsupported`, never silently treated as writable.
@@ -140,5 +150,6 @@ matrix so the gaps are visible rather than implied-away:
 - [#1350](https://github.com/laqieer/FEBuilderGBA/issues/1350) — portrait PACKAGE validator (PR #1353)
 - [#1355](https://github.com/laqieer/FEBuilderGBA/issues/1355) — map-change overlay source export/import/round-trip/ROM-verify (PR #1357)
 - [#1360](https://github.com/laqieer/FEBuilderGBA/issues/1360) — map tile-animation-2 palette source export/import/round-trip/ROM-verify
+- [#1361](https://github.com/laqieer/FEBuilderGBA/issues/1361) — Hyssopi map import investigation (documented safe failure; see [DECOMP-HYSSOPI-IMPORT-FINDINGS.md](DECOMP-HYSSOPI-IMPORT-FINDINGS.md))
 - [README → Decomp Project Support](../README.md#decomp-project-support-preview)
 - [docs/cli-reference.md](cli-reference.md)
