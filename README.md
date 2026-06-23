@@ -248,9 +248,11 @@ dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=objtiles --rom=ro
 # source import + round-trip verify (--import-asset/--roundtrip-asset --kind=map, PR #1346),
 # and the map-change OVERLAY tile-data block is source export/import/round-trip + read-only
 # byte-exact ROM verify (--export-asset/--import-asset/--roundtrip-asset/--verify-asset
-# --kind=mapchange, PR #1357) — neither mutates the preview ROM. ROM-only/manual: the
+# --kind=mapchange, PR #1357) — neither mutates the preview ROM. The OBJ tileset
+# (LZ77 decompressed-payload) is now source export/import/verify-backed via
+# --kind=objtiles (#1371/PR #1372). ROM-only/manual: the
 # event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw LZ77 map ASSET
-# binaries (OBJ tileset, palette, chipset config/TSA, tile animations 1/2) and the
+# binaries (palette, chipset config/TSA, tile animations 1/2) and the
 # 12-byte map-change RECORD chain (structured pointer metadata: terminator/flagID/PLIST)
 # — migrate these via --export-asset #1133/#1140, and the nested `chapter_settings.json`
 # shape (nested objects / bools /
@@ -474,13 +476,16 @@ sibling.
   AND byte-exact ROM compare, NOT a byte-pinned ROM re-insertion). The **map tile-animation-2 PALETTE**
   block — a raw uncompressed `u16` array of `count` 15-bit GBA colors reached by each anime-2 entry's
   `+0` pointer — joins the same raw-u16 source-backed classes with export/import/round-trip + read-only
-  byte-exact ROM verify (`--kind=mapanime2pal`, #1360); the OBJ/chipset tilesets and anime-1 graphics
-  stay manual. ROM-only/manual remain the
+  byte-exact ROM verify (`--kind=mapanime2pal`, #1360); the **OBJ tileset** (LZ77 decompressed-payload)
+  joins the same raw source-backed classes with export/import/round-trip + read-only decompress-and-byte-compare
+  ROM verify (`--kind=objtiles`, #1371/PR #1372 — decompressed-payload equivalence, NOT compressed-stream
+  byte identity; `--addr` is the DEREFERENCED OBJ LZ77 stream address); the chipset tilesets and
+  anime-1 graphics stay manual. ROM-only/manual remain the
   event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw LZ77 map ASSET binaries
-  (OBJ tileset, palette, chipset config/TSA, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table +
+  (palette, chipset config/TSA, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table +
   non-palette anime-2 record/provenance chain) and the 12-byte map-change RECORD
   chain (structured pointer metadata — terminator/flagID/PLIST — not the overlay tile-data block nor the
-  anime-2 palette block; migrate these via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
+  anime-2 palette block nor the OBJ tileset; migrate these via `--export-asset` #1133/#1140), and the **nested** `chapter_settings.json`
   shape (nested objects / bools / enum strings / split `obj1Id`|`obj2Id` are reported
   UnsupportedField/Manual, never silently corrupted; flat top-level Number fields still rewrite).
   **Shop lists are source-writable in place via `--write-shop` (#1347)** when the manifest declares a `u16-list` list-owner for the shop's resolved DATA symbol (variable-length `ITEM_NONE`-terminated `u16` lists reached via scattered hensei/worldmap/event-cond pointers). The owner is resolved by `--symbol=<name>` directly, or by `--shop-addr=<ROM offset>` mapped to a list symbol via the project `.map`/`.elf`/`.sym` + the manifest list-owner (strict exact-or-span-covering match). The whole `{…}` body is re-serialized to the requested vector + a fresh terminator. **Symbolic `ITEM_*` lists (#1354):** when the existing source list uses `ITEM_*` macro names (the canonical FE8U `worldmap_shop_data.c` item-id-only form, e.g. `{ ITEM_SWORD_IRON, ITEM_NONE, }`), the writer re-serializes it SYMBOLICALLY — resolving id↔macro from the constants header (an **enum** or `#define` table, typically `include/constants/items.h`). Discovery precedence: the owner's `constantsHeader` (project-relative), then the manifest top-level `artifacts.itemConstants`, then the conventional default `include/constants/items.h`; an EXPLICIT path that is absolute / escapes the root / missing / unparseable refuses (it does NOT fall back to the default — wrong-universe danger). Symbolic lists are **item-id-only**: each entry's quantity must be `0` (a non-zero quantity is an actionable refusal — keep quantity 0 or migrate to a raw-hex list), and an id with no `ITEM_*` constant is refused. A plain-hex list still re-serializes to a raw-hex vector + a `0x0000` terminator; a list containing an UNKNOWN or AMBIGUOUS macro element is REFUSED (no-clobber — export to raw hex or edit by hand). With no decomp symbol AND no manifest list-owner, this degrades to the `--export-asset --kind=shop` migration export (#1149). **Support data** (`support_units`, `support_attributes`, `support_talks`) **is source-writable** when the manifest `tables[]` section declares a source owner for those tables (#1149); use byte-offset field names (`b0`..`b23` / `b0`..`b31` / `b0`..`b7` / `b0`+`w4`+…) in `--field`. **Positional-initializer constraint:** for a source that uses positional `{ … }` C initializers, the writer maps a byte-offset field name to a positional index by the ORDER of the owner's `fields[]` array — so a field's declared index must equal its real token position. Editing only a **leading prefix** (`b0`, then `b0`+`b1`, …) is always safe with a minimal `fields[]` that lists just those leading fields in order. Editing a **non-leading** field positionally (e.g. `b7` or `w4`) requires the owner declare the full ordered prefix up to that index (e.g. `b0`..`b7`) — OR use designated `.bN = …` initializers, which are matched by name and need no ordered list. Declaring the full ordered struct layout (e.g. all of `b0`..`b23` for `support_units`) is the safest, easiest guarantee but is not strictly required when you only edit a leading prefix. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
