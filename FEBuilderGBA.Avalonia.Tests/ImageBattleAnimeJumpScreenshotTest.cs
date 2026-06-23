@@ -87,10 +87,28 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine($"ROM={_fixture.Version} owningCid={owningCid} settingPtr=0x{settingOffset:X08} " +
                     $"CurrentAddr=0x{vm.CurrentAddr:X08} AnimationNumber={vm.AnimationNumber} (entry-0 base would be 0x{listBase:X08})");
 
-                // The fix: direct-loaded the class setting pointer, NOT entry 0.
+                // The fix (asserted OUTSIDE any try/catch so a regression fails the
+                // test rather than being swallowed as an "environment" issue): the
+                // jump direct-loaded the class setting pointer, NOT entry 0.
                 Assert.Equal(settingOffset, vm.CurrentAddr);
                 Assert.Equal(expectedAnimeNo, vm.AnimationNumber);
 
+                // The PNG render is best-effort: the headless test app uses
+                // UseHeadlessDrawing (no rasteriser) in some environments, so a
+                // failed render/save is an environment limitation — NOT a #1377
+                // regression. Only this rendering block is wrapped in try/catch.
+                TrySaveScreenshot(view);
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        static void TrySaveScreenshot(ImageBattleAnimeView view)
+        {
+            try
+            {
                 const int W = 1100;
                 const int H = 820;
                 view.Measure(new Size(W, H));
@@ -103,15 +121,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Directory.CreateDirectory(outDir);
                 string outPath = Path.Combine(outDir, "pr1377-battleanime-jump.png");
                 bitmap.Save(outPath);
-                _output.WriteLine($"Saved screenshot to: {outPath} ({new FileInfo(outPath).Length} bytes)");
             }
-            catch (Exception ex)
+            catch
             {
-                _output.WriteLine($"Headless render failed (environment, not the #1377 fix): {ex.Message}");
-            }
-            finally
-            {
-                view.Close();
+                // Headless render unavailable in this environment — not the #1377 fix.
             }
         }
 

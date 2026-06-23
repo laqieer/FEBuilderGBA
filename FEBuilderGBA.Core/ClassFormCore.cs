@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Core
         /// (<c>p32(classAddr + 48)</c> FE6 / <c>p32(classAddr + 52)</c> FE7-8)
         /// equals <paramref name="findAddress"/>, and return its class id (0-based
         /// table index). Cross-platform mirror of WinForms
-        /// <c>ClassForm.GetIDWhereBattleAnimeAddr</c> (<c>ClassForm.cs:624-653</c>):
+        /// <c>ClassForm.GetIDWhereBattleAnimeAddr</c>:
         /// the lookup normalizes <paramref name="findAddress"/> through
         /// <see cref="U.toOffset"/> first (so a raw GBA pointer and its offset both
         /// resolve), rejects an unsafe offset, then compares against each class's

@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimeView.LoadList failed: {0}", ex.Message);
+                Log.Error("ImageBattleAnimeView.LoadList failed: " + ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimeView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ImageBattleAnimeView.LoadAndShowEntry failed: " + ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -305,13 +305,16 @@ namespace FEBuilderGBA.Avalonia.Views
         /// MantAnimation jump).</item>
         /// <item>The address is a class battle-anime SETTING pointer
         /// (P52 FE7/8 / P48 FE6 → a per-class SP-record region that is NOT a
-        /// list row). The Class Editor's Jump passes this. Resolve the owning
-        /// class via <see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/>; the
-        /// setting pointer is itself a readable SP-record, so deselect the list
-        /// and DIRECT-LOAD it (showing that class's animation) instead of
-        /// silently falling back to entry 0. This mirrors WF re-initialising
-        /// N_AddressList at <c>toOffset(ptr)</c>.</item>
+        /// list row). The Class Editor's Jump passes this. When a class genuinely
+        /// owns the pointer (<see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/>
+        /// resolves a class id), the setting pointer is a readable SP-record, so
+        /// deselect the list and DIRECT-LOAD it (showing that class's animation)
+        /// instead of silently falling back to entry 0. This mirrors WF
+        /// re-initialising N_AddressList at <c>toOffset(ptr)</c> for the owning
+        /// class.</item>
         /// </list>
+        /// An address that is neither a list row nor any class's setting pointer
+        /// is left untouched (no spurious direct-load of arbitrary ROM bytes).
         /// </summary>
         public void NavigateTo(uint address)
         {
@@ -327,9 +330,10 @@ namespace FEBuilderGBA.Avalonia.Views
             if (EntryList.SelectAddress(address))
                 return;
 
-            // Case 2: not a list row. If it's a class battle-anime setting pointer
-            // (or at least a safely-readable 4-byte SP record), direct-load it so
-            // the editor shows the correct animation instead of entry 0.
+            // Case 2: not a list row. Direct-load it only when a class genuinely
+            // owns this battle-anime setting pointer (the #1377 jump case). This
+            // both uses the reverse lookup to gate behavior and avoids loading an
+            // arbitrary unowned address as editor state.
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             uint off = U.toOffset(address);
@@ -337,12 +341,12 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!U.isSafetyOffset(off, rom)) return;
             if ((ulong)off + 4 > (ulong)rom.Data.Length) return;
 
-            // GetIDWhereBattleAnimeAddr confirms a class owns this pointer (the
-            // #1377 jump case). Even on NOT_FOUND we still direct-load the
-            // readable record, matching WF's unconditional ReInit(toOffset(ptr)).
-            _ = ClassFormCore.GetIDWhereBattleAnimeAddr(rom, off);
+            // GetIDWhereBattleAnimeAddr resolves the owning class for this setting
+            // pointer; if no class owns it, leave the current selection as-is.
+            if (ClassFormCore.GetIDWhereBattleAnimeAddr(rom, off) == U.NOT_FOUND)
+                return;
 
-            // No list row matches — clear the (entry-0) selection that
+            // A class owns this pointer — clear the (entry-0) selection that
             // SetItemsWithIcons applied, then load the setting pointer directly.
             EntryList.Deselect();
             LoadAndShowEntry(off);
