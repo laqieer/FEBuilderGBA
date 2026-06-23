@@ -1094,10 +1094,13 @@ namespace FEBuilderGBA
             }
             catch { }
 
-            if (len <= 0)
+            // The raw block length is the anime-1 entry's +2 u16 field, so it must fit 1..65535.
+            // Enforcing the upper bound here keeps the validator consistent with Export/Verify
+            // (which both reject length > 0xFFFF) and the documented contract (Copilot PR #1400 review).
+            if (len <= 0 || len > 0xFFFF)
             {
                 r.Errors.Add(new AssetIssue("BAD_MAPANIME1GFX_LENGTH",
-                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a positive integer 'length'."));
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a 'length' in 1..65535 (the anime-1 entry +2 u16); got {len}."));
                 return;
             }
 

@@ -782,6 +782,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ValidateMapAnime1Gfx_LengthOver65535_Error()
+        {
+            // The raw block length is the anime-1 entry +2 u16 → must be 1..65535. A sidecar that
+            // declares a length > 0xFFFF (matched by an equally-large body) must still be REJECTED,
+            // keeping the validator consistent with Export/Verify (Copilot PR #1400 review).
+            string dir = Path.Combine(Path.GetTempPath(), "valanime1_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "gfx.mapanime1gfx");
+                byte[] body = new byte[0x10000]; // 65536 bytes
+                File.WriteAllBytes(path, body);
+                File.WriteAllText(path + ".json",
+                    "{\"length\": 65536, \"srcAddr\": \"0x200\", \"format\": \"febuilder-mapanime1gfx-raw4bpp\"}\n");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_MAPANIME1GFX_LENGTH") { found = true; break; }
+                Assert.True(found, "Expected BAD_MAPANIME1GFX_LENGTH error for length > 65535");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
         public void ParseKind_MapAnime1Gfx()
         {
             Assert.Equal(AssetKind.MapTileAnimation1Graphics, DecompAssetValidatorCore.ParseKind("mapanime1gfx").Value);
