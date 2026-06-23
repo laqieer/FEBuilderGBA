@@ -1,0 +1,14 @@
+=== #1376 Patch Manager HARDCODING filter proof ===
+ROM: vanilla FE8U  (FE8U)
+Hard-coded unit id discovered: 0x01
+Total patch files: 1933
+Filter token seeded by [HardCoding] link: HARDCODING_UNIT=01
+OLD substring-only ApplyFilter  -> filtered: 0  (the bug: empty list)
+NEW PatchFilterCore ApplyFilter -> filtered: 2  (FIXED)
+    * PATCH_Eirika's Tale
+    * PATCH_SYSTEM_Transport unit_Eirika
+"!" installed-only token -> installed patches matched: 0
+RESULT: token filter now returns matching patches instead of 0. PASS.
+=== Core + Avalonia parity test run ===
+Passed!  - Failed:     0, Passed:    36, Skipped:     0, Total:    36, Duration: 457 ms - FEBuilderGBA.Core.Tests.dll (net9.0)
+Passed!  - Failed:     0, Passed:     6, Skipped:     0, Total:     6, Duration: 314 ms - FEBuilderGBA.Avalonia.Tests.dll (net9.0)

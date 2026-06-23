@@ -819,6 +819,37 @@ namespace FEBuilderGBA
             return U.toOffset(pp);
         }
 
+        /// <summary>
+        /// Mirror of WinForms <c>PatchForm.isFilterHardCoding</c> (FEBuilderGBA/PatchForm.cs:9569)
+        /// — the per-patch predicate behind the Patch Manager <c>hardcoding_{type}=NN</c> filter
+        /// token. Returns true iff this patch hard-codes the given 8-bit <paramref name="value"/>
+        /// for the given ADDRESS_TYPE <paramref name="typeNameUpper"/> (one of <c>UNIT</c>/<c>CLASS</c>/
+        /// <c>ITEM</c>, already upper-cased). Gated EXACTLY as WinForms:
+        /// <list type="bullet">
+        ///   <item><paramref name="value"/> must be &gt; 0 (WF: <c>value &lt;= 0 -&gt; false</c>);</item>
+        ///   <item>not <see cref="isCanonicalSkip"/>;</item>
+        ///   <item><see cref="CheckIF"/> must not return <c>"E"</c>;</item>
+        ///   <item><c>ADDRESS_TYPE</c> must equal <paramref name="typeNameUpper"/>;</item>
+        ///   <item>the resolved 8-bit id (<see cref="GetAddrPatchAddressToValue8Fast"/>) must equal
+        ///   <paramref name="value"/>.</item>
+        /// </list>
+        /// The ROM is passed EXPLICITLY (no CoreState.ROM read), honoring this file's header guarantee.
+        /// Read-only; never throws (a null patch / null Param yields false).
+        /// </summary>
+        public static bool IsHardCodingPatch(ROM rom, PatchSt patch, uint value, string typeNameUpper)
+        {
+            if (rom == null || patch == null || patch.Param == null) return false;
+            if (value <= 0) return false;
+            if (isCanonicalSkip(patch)) return false;
+            if (CheckIF(rom, patch) == "E") return false;
+
+            string addressType = U.at(patch.Param, "ADDRESS_TYPE");
+            if (addressType != typeNameUpper) return false;
+
+            uint id = GetAddrPatchAddressToValue8Fast(rom, patch);
+            return id == value;
+        }
+
         // ---- GetAddrPatchAddressToValue8Fast (~:9560) --------------------------
         // WinForms GetAddrPatchAddressFast reads the ADDRESS param with U.atoi0x,
         // which parses the FIRST token of a possibly multi-token ADDRESS (e.g.
