@@ -13,19 +13,22 @@
 
   <ScrollViewer>
   <DockPanel MinWidth="900" MinHeight="560">
-    <!-- Bottom: status + buttons -->
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
-                Margin="8" Spacing="8">
-      <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
-                 HorizontalAlignment="Left" Width="380" />
-      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CopyInitCommand_Button"
+    <!-- Bottom: status + buttons. Buttons dock right; the status text fills the
+         remaining width and WRAPS so the full "run git submodule update" command
+         is never clipped (#1380 Copilot review #3). -->
+    <DockPanel DockPanel.Dock="Bottom" Margin="8" LastChildFill="True">
+      <Button DockPanel.Dock="Right" AutomationProperties.AutomationId="FERepoResourceBrowser_CancelButton_Button"
+              Content="Cancel" Click="CancelButton_Click" Width="80" Margin="8,0,0,0" />
+      <Button DockPanel.Dock="Right" AutomationProperties.AutomationId="FERepoResourceBrowser_InsertButton_Button"
+              Content="Insert" IsEnabled="{Binding CanInsert}"
+              Click="InsertButton_Click" Width="80" Margin="8,0,0,0" />
+      <Button DockPanel.Dock="Right" AutomationProperties.AutomationId="FERepoResourceBrowser_CopyInitCommand_Button"
               Content="Copy git command" IsVisible="{Binding NotFound}"
-              Click="CopyInitCommand_Click" Width="140"
-              ToolTip.Tip="Copy: git submodule update --init resources/FE-Repo" />
-      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_InsertButton_Button" Content="Insert" IsEnabled="{Binding CanInsert}"
-              Click="InsertButton_Click" Width="80" />
-      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CancelButton_Button" Content="Cancel" Click="CancelButton_Click" Width="80" />
-    </StackPanel>
+              Click="CopyInitCommand_Click" Width="140" Margin="8,0,0,0"
+              ToolTip.Tip="{Binding CopyTooltip}" />
+      <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
+                 HorizontalAlignment="Left" TextWrapping="Wrap" />
+    </DockPanel>
 
     <!-- Main content: categories | files + preview -->
     <Grid ColumnDefinitions="250,*">

@@ -19,8 +19,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _repoRoot;
         bool _musicMode;
 
-        /// <summary>The git command shown/copied when the submodule is missing (#1380 Part A).</summary>
+        /// <summary>The graphics-submodule git init command (#1380 Part A).</summary>
         public const string SubmoduleInitCommand = "git submodule update --init resources/FE-Repo";
+
+        /// <summary>The music-submodule git init command (#1380 Part A).</summary>
+        public const string MusicSubmoduleInitCommand = "git submodule update --init resources/FE-Repo-Music-No-Preview";
+
+        /// <summary>
+        /// The init command for THIS browser's mode (graphics vs music). The
+        /// status text, copy button, and tooltip all use this so a missing
+        /// music submodule shows the music init command, not the graphics one
+        /// (#1380 Copilot review).
+        /// </summary>
+        public string EffectiveInitCommand => _musicMode ? MusicSubmoduleInitCommand : SubmoduleInitCommand;
+
+        /// <summary>Tooltip for the "Copy git command" button — shows the effective command.</summary>
+        public string CopyTooltip => "Copy: " + EffectiveInitCommand;
 
         public ObservableCollection<CategoryNode> Categories
         {
@@ -111,7 +125,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_repoRoot == null)
             {
                 NotFound = true;
-                StatusText = "FE-Repo not found. Run: " + SubmoduleInitCommand;
+                StatusText = "FE-Repo not found. Run: " + EffectiveInitCommand;
                 return;
             }
 

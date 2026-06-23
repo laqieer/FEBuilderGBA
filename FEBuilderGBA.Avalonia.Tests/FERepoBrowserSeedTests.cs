@@ -112,6 +112,32 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(vm.NotFound);
                 Assert.Empty(vm.Categories);
                 Assert.Contains(FERepoResourceBrowserViewModel.SubmoduleInitCommand, vm.StatusText);
+                Assert.Equal(FERepoResourceBrowserViewModel.SubmoduleInitCommand, vm.EffectiveInitCommand);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prev;
+                Directory.Delete(baseDir, true);
+            }
+        }
+
+        [Fact]
+        public void MusicMode_EmptyPlaceholder_ShowsMusicInitCommand()
+        {
+            // #1380 Copilot review: a missing MUSIC submodule must instruct the
+            // user to init the MUSIC submodule, not the graphics one.
+            string baseDir = Path.Combine(Path.GetTempPath(), "febuilder-ferepo-music-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(Path.Combine(baseDir, "resources", "FE-Repo-Music-No-Preview")); // empty
+            string prev = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+                var vm = new FERepoResourceBrowserViewModel(true, null, null);
+
+                Assert.True(vm.NotFound);
+                Assert.Equal(FERepoResourceBrowserViewModel.MusicSubmoduleInitCommand, vm.EffectiveInitCommand);
+                Assert.Contains("FE-Repo-Music-No-Preview", vm.StatusText);
+                Assert.Contains("FE-Repo-Music-No-Preview", vm.CopyTooltip);
             }
             finally
             {

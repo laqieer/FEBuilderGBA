@@ -45,9 +45,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Copy the EFFECTIVE command for this browser's mode (graphics vs
+                // music), so music mode copies the music submodule init command.
+                string cmd = (DataContext as FERepoResourceBrowserViewModel)?.EffectiveInitCommand
+                             ?? FERepoResourceBrowserViewModel.SubmoduleInitCommand;
                 var clipboard = Clipboard;
                 if (clipboard != null)
-                    await clipboard.SetTextAsync(FERepoResourceBrowserViewModel.SubmoduleInitCommand);
+                    await clipboard.SetTextAsync(cmd);
             }
             catch (Exception ex)
             {
