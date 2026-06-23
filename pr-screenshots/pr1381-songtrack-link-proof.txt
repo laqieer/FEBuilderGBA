@@ -7,6 +7,8 @@ PROOF 1 — the affected editor (screenshot):
   the track header. Captured headlessly via:
   FEBuilderGBA.Avalonia --rom roms/FE8U.gba --screenshot-all
   (output Avalonia_SongTrackView_FE8U.png).
+  Durable URL (post-merge, on master):
+  https://raw.githubusercontent.com/laqieer/FEBuilderGBA/master/pr-screenshots/pr1381-songtrack-link-editor.png
 
 PROOF 2 — the fork wiki target is now a real, populated page (was an
 empty placeholder before this PR):
