@@ -12210,3 +12210,9 @@ FE-Repo-音楽サブモジュールを参照し、選択した音楽ファイル
 :Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File).
 FE-Repo-音楽サブモジュールを参照し、選択した宛先の曲をソングトラックエディタのインポートで取り込みます（Import Music File と同じインポート経路）。
 
+
+:Import from the FE-Repo Portrait Repository folder
+FE-Repoの立ち絵リポジトリフォルダからインポート
+
+:Import a 16x16 skill icon from the FE-Repo Skill Icons folder.
+FE-Repoのスキルアイコンフォルダから16x16のスキルアイコンをインポート。

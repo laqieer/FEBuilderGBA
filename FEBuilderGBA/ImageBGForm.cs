@@ -27,6 +27,9 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1397 — FE-Repo browse button on the SAME ROW as Import/Export.
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             this.X_REF.ItemHeight = (int)(this.X_REF.Font.Height * 2.4);
             this.X_REF.OwnerDraw(InputFormRef.DrawRefTextList, DrawMode.OwnerDrawFixed, false);
 
@@ -161,12 +164,16 @@ namespace FEBuilderGBA
             ImageFormRef.ExportImage(this, bitmap, InputFormRef.MakeSaveImageFilename(), palette_max);
         }
 
-        void ImportButton255(ImageBGSelectPopupForm.SelectedType selectType)
+        void ImportButton255(ImageBGSelectPopupForm.SelectedType selectType, string ferepoFilename = null)
         {
             int width = 32 * 8;
             int height = 20 * 8;
             int palette_count = 16; //255 color
-            Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUI(this, null, width, height, false, palette_count);
+            // #1397: when a FE-Repo file is supplied, load it directly (no
+            // second dialog) through the SAME decolor pipeline.
+            Bitmap bitmap = string.IsNullOrEmpty(ferepoFilename)
+                ? ImageUtil.LoadAndConvertDecolorUI(this, null, width, height, false, palette_count)
+                : ImageUtil.LoadAndConvertDecolorUILow(ferepoFilename, null, width, height, false, palette_count);
             if (bitmap == null)
             {
                 return;
@@ -206,6 +213,29 @@ namespace FEBuilderGBA
 
         private void ImportButton_Click(object sender, EventArgs e)
         {
+            ImportFromFilename(null);
+        }
+
+        // #1397 — FE-Repo button: import a 256x160 BG from the FE-Repo
+        // "Background CGs" folder, routed through the SAME ImportFromFilename
+        // body (same BG256/BG224/16-color fork — no second import path).
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.BackgroundImage);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+                ImportFromFilename(browser.SelectedFilePath);
+            }
+        }
+
+        // Shared import body. ferepoFilename==null → the normal file-picker
+        // path (LoadAndConvertDecolorUI opens its own dialog); non-null → load
+        // the chosen FE-Repo file directly through the SAME decolor pipeline.
+        private void ImportFromFilename(string ferepoFilename)
+        {
             if (!CheckDangerUpdate())
             {
                 return;
@@ -217,12 +247,12 @@ namespace FEBuilderGBA
                 f.ShowDialog();
                 if (f.Selected == ImageBGSelectPopupForm.SelectedType.BG224)
                 {
-                    ImportButton255(f.Selected);
+                    ImportButton255(f.Selected, ferepoFilename);
                     return;
                 }
                 else if (f.Selected == ImageBGSelectPopupForm.SelectedType.BG255)
                 {
-                    ImportButton255(f.Selected);
+                    ImportButton255(f.Selected, ferepoFilename);
                     return;
                 }
                 else if (f.Selected == ImageBGSelectPopupForm.SelectedType.None)
@@ -234,7 +264,9 @@ namespace FEBuilderGBA
             int width = 32 * 8;
             int height = 20 * 8;
             int palette_count = 8;
-            Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUI(this, null, width, height, true, palette_count);
+            Bitmap bitmap = string.IsNullOrEmpty(ferepoFilename)
+                ? ImageUtil.LoadAndConvertDecolorUI(this, null, width, height, true, palette_count)
+                : ImageUtil.LoadAndConvertDecolorUILow(ferepoFilename, null, width, height, true, palette_count);
             if (bitmap == null)
             {
                 return;

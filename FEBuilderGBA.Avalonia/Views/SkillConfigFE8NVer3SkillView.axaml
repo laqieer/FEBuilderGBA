@@ -84,7 +84,7 @@
             </Border>
 
             <!-- Icon row: label + image + import/export buttons + IconAddr label -->
-            <Grid ColumnDefinitions="120,80,Auto,Auto,Auto" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="120,80,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Icon_Label"
                      Content="Icon" VerticalAlignment="Center" />
@@ -103,7 +103,12 @@
                       Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
                       Click="ImageExport_Click"
                       ToolTip.Tip="Export the 16x16 skill icon as a PNG." />
-              <Label Grid.Column="4"
+              <Button Grid.Column="4"
+                      AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_FERepo_Button"
+                      Name="FERepoButton" Content="FE-Repo" Margin="8,0,0,0"
+                      Click="FERepo_Click"
+                      ToolTip.Tip="Import a 16x16 skill icon from the FE-Repo Skill Icons folder." />
+              <Label Grid.Column="5"
                      AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_IconAddr_Label"
                      Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
                      FontFamily="Consolas" />

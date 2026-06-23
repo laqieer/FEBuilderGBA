@@ -250,6 +250,40 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectAddress(_vm.CurrentAddr);
         }
 
+        // #1397 — FE-Repo button: pick a 16x16 skill icon from the FE-Repo
+        // "Special - Skill Icons" folder and route it through the SAME
+        // path-taking import core (16x16 strict + remap onto the ROM palette →
+        // 17+-color sheets reduced, not corrupted). No second import path.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || !_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            if (!U.isSafetyOffset(_vm.CurrentAddr + 3, rom)) return;
+            if (!U.isSafetyOffset(SKILL_PALETTE_POINTER + 3, rom)) return;
+
+            uint iconGbaPointer = rom.u32(_vm.CurrentAddr + 0);
+            if (!U.isSafetyPointer(iconGbaPointer)) return;
+            uint iconByteAddr = U.toOffset(iconGbaPointer);
+            uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
+
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.SkillIcon);
+            if (string.IsNullOrEmpty(path)) return;
+
+            string? err = SkillConfigIconIoHelper.ImportIconFromPath(
+                rom, iconByteAddr, paletteAddr, _undoService, path);
+            if (err == null) return;
+            if (err != "")
+            {
+                Log.Notify("SkillConfigFE8UCSkillSys09xView.FERepo_Click: " + err);
+                return;
+            }
+
+            UpdateUI();
+            LoadList();
+            EntryList.SelectAddress(_vm.CurrentAddr);
+        }
+
         async void ImageExport_Click(object? sender, RoutedEventArgs e)
         {
             ROM rom = CoreState.ROM;

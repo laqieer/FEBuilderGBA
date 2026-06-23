@@ -26051,3 +26051,9 @@ FE-Repo-音乐浏览器
 :Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File).
 浏览 FE-Repo-Music 子模块并通过歌曲编辑器导入选中的目标歌曲（与 Import Music File 相同的导入路径）。
 
+
+:Import from the FE-Repo Portrait Repository folder
+从 FE-Repo 头像库文件夹导入
+
+:Import a 16x16 skill icon from the FE-Repo Skill Icons folder.
+从 FE-Repo 技能图标文件夹导入 16x16 技能图标。

@@ -20,6 +20,9 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1397 — FE-Repo browse button on the SAME ROW as Import/Export.
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
+
             InputFormRef.markupJumpLabel(ExtendsBanner);
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
@@ -134,6 +137,34 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
+
+        // #1397 — FE-Repo button: import a 32x32 generic-enemy minimug from the
+        // FE-Repo "Special - Generic Minimugs" folder, routed through the SAME
+        // ImportBitmap body (a non-32x32 asset is rejected by the existing
+        // size handling in LoadAndConvertDecolorUILow).
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            int width = 8 * 4;
+            int height = 8 * 4; //32
+            int palette_count = 1;
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+                Bitmap bitmap = ImageUtil.LoadAndConvertDecolorUILow(browser.SelectedFilePath, null, width, height, true, palette_count);
+                if (bitmap == null) return;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
+            int width = 8 * 4;
+            int height = 8 * 4; //32
             uint baseaddr = InputFormRef.SelectToAddr(this.AddressList);
             if (baseaddr == U.NOT_FOUND)
             {

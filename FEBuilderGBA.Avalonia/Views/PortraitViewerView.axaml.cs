@@ -146,10 +146,30 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
+            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return;
+            ImportImageFromFile(filePath);
+        }
+
+        // #1397 — FE-Repo button: pick a portrait mug from the FE-Repo
+        // "Portrait Repository" folder and route it through the SAME FromFile
+        // import path. Portraits are variable-dimension face sheets (no fixed
+        // size to enforce), so the lenient quantize matches the file-picker.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.Portrait);
+            if (string.IsNullOrEmpty(path)) return;
+            ImportImageFromFile(path);
+        }
+
+        // Shared FromFile import body (file-picker + FE-Repo both call this).
+        void ImportImageFromFile(string filePath)
+        {
             try
             {
                 // Portrait face tiles: no strict size, quantize to 16 colors
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 0, 0, 16);
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 

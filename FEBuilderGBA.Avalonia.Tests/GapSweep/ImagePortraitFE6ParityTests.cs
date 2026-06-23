@@ -326,10 +326,15 @@ public class ImagePortraitFE6ParityTests
     }
 
     /// <summary>
-    /// `ImportPng_Click` must record the source file path to
+    /// The PNG-import body must record the source file path to
     /// <see cref="CoreState.ResourceCache"/> after a successful import so
     /// the Open / Select Source File buttons surface afterwards.
     /// (Copilot bot PR #504 review point on .axaml.cs:177.)
+    ///
+    /// #1397: the import body was extracted into the shared
+    /// <c>ImportImageFromFile</c> method (reused by both the file-picker
+    /// <c>ImportPng_Click</c> and the new FE-Repo button), so the source-path
+    /// recording now lives there — exactly one import path.
     /// </summary>
     [Fact]
     public void View_ImportPng_RecordsSourcePathToResourceCache()
@@ -338,9 +343,9 @@ public class ImagePortraitFE6ParityTests
         string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "ImagePortraitFE6View.axaml.cs");
         string source = File.ReadAllText(viewCsPath);
-        AssertHandlerBodyContains(source, "ImportPng_Click",
+        AssertHandlerBodyContains(source, "ImportImageFromFile",
             @"loadResult\.SourcePath");
-        AssertHandlerBodyContains(source, "ImportPng_Click",
+        AssertHandlerBodyContains(source, "ImportImageFromFile",
             @"cache\.Update\s*\(\s*srcKey");
     }
 
