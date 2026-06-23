@@ -341,21 +341,25 @@ namespace FEBuilderGBA
             gids = Array.Empty<uint>();
             error = null;
 
-            // Strip ALL whitespace from the base64 payload (Tiled indents the block).
-            var sb = new StringBuilder(text.Length);
-            foreach (char c in text)
+            // Guard against an oversized/hostile base64 block BEFORE allocating any
+            // payload-sized buffer. The useful decoded layer is tiny (<=64*64*4 bytes);
+            // base64 inflates 4:3 and compressed payloads are smaller still, so
+            // MAX_DECODED_BYTES of raw <data> characters is a generous ceiling. Check
+            // the raw input length first (cheap, no allocation), then strip whitespace.
+            if (text != null && text.Length > MAX_DECODED_BYTES)
             {
-                if (char.IsWhiteSpace(c)) continue;
-                sb.Append(c);
-            }
-            // Guard against an oversized/hostile base64 block before allocating. The
-            // useful decoded layer is tiny (<=64*64*4 bytes); base64 inflates 4:3, and
-            // compressed payloads are smaller still, so MAX_DECODED_BYTES of base64
-            // characters is a generous ceiling.
-            if (sb.Length > MAX_DECODED_BYTES)
-            {
-                error = $"base64 <data> payload too large ({sb.Length} chars, max {MAX_DECODED_BYTES})";
+                error = $"base64 <data> payload too large ({text.Length} chars, max {MAX_DECODED_BYTES})";
                 return false;
+            }
+            // Strip ALL whitespace from the base64 payload (Tiled indents the block).
+            var sb = new StringBuilder(text == null ? 0 : text.Length);
+            if (text != null)
+            {
+                foreach (char c in text)
+                {
+                    if (char.IsWhiteSpace(c)) continue;
+                    sb.Append(c);
+                }
             }
             byte[] data;
             try
