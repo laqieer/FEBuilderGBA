@@ -1,0 +1,48 @@
+OBJ tileset LZ77 decompressed-payload source export + ROM verify (#1371)
+=========================================================================
+Real-FE8U end-to-end CLI proof. Paths redacted to <TMP>; build/warning noise stripped.
+
+ROM: FE8U.gba  |  OBJ LZ77 stream addr=0x1AF604 (resolved via OBJECT plist; compLen=428, decLen=758)
+
+$ --export-asset --kind=objtiles --rom=FE8U.gba --addr=0x1AF604 --out=ch.objtiles
+Wrote: <TMP>/ch.objtiles
+Wrote: <TMP>/ch.objtiles.json
+exit=0
+
+### sidecar (ch.objtiles.json) ###
+{
+  "length": 758,
+  "srcAddr": "0x1AF604",
+  "format": "febuilder-objtiles-lz77"
+}
+
+$ --verify-asset --kind=objtiles --rom=FE8U.gba --addr=0x1AF604 --in=ch.objtiles   (expect MATCH, exit 0)
+Verified OBJ tileset decompressed payload byte-identical to ROM (758 bytes)
+exit=0
+
+$ --import-asset --kind=objtiles --in=ch.objtiles --out=ch.objtiles_raw.bin   (no ROM)
+Imported OBJ tileset decompressed payload to blob (758 bytes)
+Wrote: <TMP>/ch.objtiles_raw.bin
+exit=0
+
+$ --roundtrip-asset --kind=objtiles --in=ch.objtiles   (expect OK, exit 0)
+Round-trip OK (structure-exact OBJ tileset decompressed body)
+exit=0
+
+### Negative: tamper one byte (offset 10) then verify against the SAME ROM addr (expect MISMATCH, exit 2)
+$ --verify-asset --kind=objtiles --rom=FE8U.gba --addr=0x1AF604 --in=tampered.objtiles
+Error: OBJ tileset mismatch at byte offset 10: ROM=0x9C file=0xFF
+exit=2
+
+### Negative: --addr pointing at non-LZ77 bytes (expect NotData, no file)
+$ --export-asset --kind=objtiles --rom=FE8U.gba --addr=0x300 --out=bad.objtiles
+Error: 0x300 is not a valid LZ77 stream (getCompressedSize returned 0)
+exit=1
+(no file written)
+
+Honest scope: the source body is the LZ77-DECOMPRESSED 4bpp payload; --verify-asset
+re-decompresses the live ROM block and READ-ONLY byte-compares. This is source-level
+structure-exact identity + read-only byte-exact ROM compare, NOT a byte-pinned ROM
+re-insertion (FEBuilder's LZ77 packer is non-canonical → the decomp build re-compresses).
+srcAddr is provenance metadata ONLY. FE7 obj2 high-byte split tileset is a separate
+stream/--addr (out of scope). READ-ONLY: never mutates CoreState.ROM.
