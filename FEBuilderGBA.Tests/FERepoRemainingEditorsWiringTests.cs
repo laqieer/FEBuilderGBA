@@ -75,10 +75,16 @@ namespace FEBuilderGBA.Tests
             int end = src.IndexOf("private void ImportBitmap", handler, StringComparison.Ordinal);
             string handlerBody = end > handler ? src.Substring(handler, end - handler) : src.Substring(handler);
 
-            // Loads through the shared decolor pipeline with a NON-zero width
-            // (30*8 = 240), so a non-240x160 asset is rejected before cropping.
+            // Loads through the shared decolor pipeline with a width that resolves to 240
+            // (accept "30 * 8", "30*8", or "240"), so a non-240x160 asset is
+            // rejected before cropping. Whitespace-tolerant so reformatting
+            // cannot break the guard.
             Assert.Contains("LoadAndConvertDecolorUILow", handlerBody);
-            Assert.Contains("width = 30 * 8", handlerBody);
+            Assert.Matches(@"width\s*=\s*(?:30\s*\*\s*8|240)", handlerBody);
+            // The width passed to the loader must be the `width` local (240),
+            // never the lenient literal 0 that lets ImportBitmap crop
+            // (whitespace-tolerant inside the call).
+            Assert.Matches(@"LoadAndConvertDecolorUILow\([^,]+,\s*null,\s*width", handlerBody);
             // Must NOT load with the lenient width=0 that allows the crop path.
             Assert.DoesNotMatch(@"LoadAndConvertDecolorUILow\([^,]+,\s*null,\s*0\s*,", handlerBody);
         }
