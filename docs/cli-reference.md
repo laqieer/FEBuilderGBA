@@ -546,6 +546,44 @@ FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 
 ---
 
+### `--export-voicegroup`
+
+Export a FEBuilder voicegroup (a GBA M4A / MusicPlayer2000 **instrument set**) as reviewable decomp
+**source macro assembly** for `sound/voicegroups/voicegroupNNN.s`, using the macros from
+`fireemblem8u`'s `asm/macros/music_voice.inc` (#1362). **READ-ONLY** — it reads the preview ROM to
+produce a source artifact and **never mutates the ROM**, allocates no free space, and creates no
+samples. This is an **export / source-helper**, NOT a byte-pinned ROM round-trip and NOT a full M4A
+re-assembler.
+
+| Option | Required | Description |
+|---|---|---|
+| `--out=<voicegroupNNN.s>` | Yes | Output `.s` path (project-relative + root-confined when `--project`; absolute or relative when `--rom`). |
+| `--voicegroup-addr=<hex>` **or** `--song-id=<n>` | Yes (exactly one) | The voicegroup base (ROM offset/pointer), or a song id whose header (`+4`) voicegroup pointer is resolved from the song table. |
+| `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
+| `--number=<N>` | No | The `NNN` used in the label / `.global` / comment. Default: the `--song-id`, else `0`. |
+
+**Supported voice types** are emitted as the exact `music_voice.inc` macros:
+`voice_directsound` (0x00) / `voice_directsound_no_resample` (0x08) / `voice_directsound_alt` (0x10),
+`voice_square_1` (0x01/0x09), `voice_square_2` (0x02/0x0A), `voice_programmable_wave` (0x03/0x0B),
+`voice_noise` (0x04/0x0C), `voice_keysplit` (0x40), `voice_keysplit_all` (0x80).
+
+**Conservatively handled (no guessed symbols):** a `voice_keysplit` / `voice_keysplit_all` (drum)
+sub-voicegroup / keysplit-table pointer, and a `voice_directsound` sample pointer, are emitted as
+**valid raw `0x08XXXXXX` macro arguments** plus an "unresolved pointer" diagnostic — the sub-table is
+**not** inlined (a documented manual step) and no decomp symbol is invented. An **unknown / `0x18`**
+voice type becomes a **commented placeholder + diagnostic**, never a wrong macro. All provenance /
+unresolved notes are collected into a trailing comment block (never inline between macro args). Wire
+the emitted `voicegroupNNN.s` into the decomp build via `songs.mk` / a song's `-G` voicegroup number.
+
+```
+FEBuilderGBA.CLI --export-voicegroup --rom=rom.gba --song-id=1 --out=sound/voicegroups/voicegroup001.s
+FEBuilderGBA.CLI --export-voicegroup --project=decomp/ --voicegroup-addr=0x207470 --number=42 --out=sound/voicegroups/voicegroup042.s
+```
+
+**Exit code:** 0 on success; 1 usage error; 2 export fault / path rejected / song not found; 3 internal read-only-invariant violation.
+
+---
+
 ### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / mapanime2pal)
 
 Re-import an edited map asset to a raw uncompressed blob, prove a body round-trips, or verify a map-change
