@@ -4776,7 +4776,7 @@ namespace FEBuilderGBA.CLI
             { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|portrait-package>"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
             if (kind == null)
-            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, portrait-package"); return 1; }
+            { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, mapchange, mapanime2pal, objtiles, portrait-package"); return 1; }
 
             // --kind=portrait-package is a DIRECTORY validator: --path (not --in), optional
             // --allow-main-only, optional --project containment. NEVER loads the preview ROM.
