@@ -372,7 +372,7 @@ namespace FEBuilderGBA
             try
             {
                 if (compression == "zlib")
-                    raw = Inflate(data, isZlib: true);
+                    raw = InflateZlib(data);
                 else if (compression == "gzip")
                     raw = InflateGzip(data);
                 else if (compression == "")
@@ -404,7 +404,7 @@ namespace FEBuilderGBA
             return true;
         }
 
-        static byte[] Inflate(byte[] input, bool isZlib)
+        static byte[] InflateZlib(byte[] input)
         {
             using (var src = new MemoryStream(input))
             using (var z = new ZLibStream(src, CompressionMode.Decompress))
