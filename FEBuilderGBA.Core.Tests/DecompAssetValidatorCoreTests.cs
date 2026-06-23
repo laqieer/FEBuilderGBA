@@ -508,5 +508,98 @@ namespace FEBuilderGBA.Core.Tests
             }
             return null;
         }
+
+        // ---- ObjTiles validator (#1360) ----
+
+        static void WriteObjTilesForValidator(string path, byte[] body = null, string format = "febuilder-objtiles-lz77", bool writeSidecar = true)
+        {
+            if (body == null) body = new byte[64];
+            File.WriteAllBytes(path, body);
+            if (writeSidecar)
+                File.WriteAllText(path + ".json",
+                    $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ValidateObjTiles_Good_Ok()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valobjt_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesForValidator(path);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, path);
+                Assert.True(r.Ok, "Expected Ok but got errors");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateObjTiles_MissingSidecar_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valobjt_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesForValidator(path, null, "febuilder-objtiles-lz77", false);
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "OBJTILES_NO_SIDECAR") { found = true; break; }
+                Assert.True(found, "Expected OBJTILES_NO_SIDECAR error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateObjTiles_BadFormat_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valobjt_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesForValidator(path, format: "bad-format");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_OBJTILES_FORMAT") { found = true; break; }
+                Assert.True(found, "Expected BAD_OBJTILES_FORMAT error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ValidateObjTiles_LengthMismatch_Error()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "valobjt_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                string path = Path.Combine(dir, "obj.objtiles");
+                byte[] body = new byte[64];
+                File.WriteAllBytes(path, body);
+                // Sidecar says length=128, but file is 64
+                File.WriteAllText(path + ".json",
+                    "{\"length\": 128, \"srcAddr\": \"0x200\", \"format\": \"febuilder-objtiles-lz77\"}\n");
+                var r = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, path);
+                Assert.False(r.Ok);
+                bool found = false;
+                foreach (var e in r.Errors) if (e.Code == "BAD_OBJTILES_LENGTH") { found = true; break; }
+                Assert.True(found, "Expected BAD_OBJTILES_LENGTH error");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ParseKind_ObjTiles()
+        {
+            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("objtiles").Value);
+            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("obj-tiles").Value);
+            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("obj").Value);
+            Assert.Equal(AssetKind.ObjTiles, DecompAssetValidatorCore.ParseKind("OBJ").Value);
+        }
     }
 }

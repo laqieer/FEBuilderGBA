@@ -508,10 +508,10 @@ music, portraits, and battle animations.
 
 | Option | Required | Description |
 |---|---|---|
-| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `mapchange` (raw u16 map-change overlay), `text`, `shop`. |
+| `--kind=<kind>` | Yes | Asset kind: `graphics`, `palette`, `map` (always LZ77-decompressed), `mapchange` (raw u16 map-change overlay), `text`, `shop`, `objtiles` (LZ77-decompressed 4bpp OBJ tile payload). |
 | `--out=<path>` | Yes | Output path (project-relative when `--project`; absolute or relative when `--rom`). |
 | `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
-| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`, `mapchange`). For `mapchange` it is the `change_mar` offset (the record `+8` change pointer, dereferenced). |
+| `--addr=<hex>` | Cond. | ROM address of the asset (required for `graphics`, `palette`, `map`, `mapchange`, `objtiles`). For `mapchange` it is the `change_mar` offset (the record `+8` change pointer, dereferenced). For `objtiles` it is the **DEREFERENCED** OBJ LZ77 stream address (NOT `RomInfo.map_obj_pointer`). |
 | `--palette-addr=<hex>` | Cond. | ROM address of the palette data (required for `graphics`). |
 | `--width=<int>` | Cond. | Image width in pixels (required for `graphics`; overlay width for `mapchange`, record `+3`). |
 | `--height=<int>` | Cond. | Image height in pixels (required for `graphics`; overlay height for `mapchange`, record `+4`). |
@@ -530,6 +530,7 @@ FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out
 FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png
 FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 FEBuilderGBA.CLI --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
+FEBuilderGBA.CLI --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles
 FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 ```
 
@@ -537,11 +538,11 @@ FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/
 
 ---
 
-### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange)
+### `--import-asset` / `--roundtrip-asset` / `--verify-asset` (map / mapchange / objtiles)
 
 Re-import an edited map asset to a raw uncompressed blob, prove a body round-trips, or verify a map-change
-overlay byte-for-byte against the ROM. The `map` (`.mar` layout) variants are documented under `--export-asset`
-above; the `mapchange` (#1355) variants are:
+overlay or OBJ tileset byte-for-byte against the ROM. The `map` (`.mar` layout) variants are documented under
+`--export-asset` above; the `mapchange` (#1355) variants are:
 
 | Command | Reads ROM? | Description |
 |---|---|---|
@@ -549,10 +550,21 @@ above; the `mapchange` (#1355) variants are:
 | `--roundtrip-asset --kind=mapchange --in=<x.change>` | No | Structure-exact identity proof (`body.Length == width*height*2`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
 | `--verify-asset --kind=mapchange --in=<x.change> --addr=<hex> --width --height (--rom\|--project)` | **Yes (read-only)** | Byte-exact ROM-backed mismatch proof — the ONLY ROM-backed verification path. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
 
+The `objtiles` (#1360) variants (decompressed-payload equivalence, NOT compressed-stream byte identity):
+
+| Command | Reads ROM? | Description |
+|---|---|---|
+| `--import-asset --kind=objtiles --in=<x.objtiles> --out=<x.bin>` | No | Identity copy of the validated decompressed body to a raw blob (NO LZ77 compression). Requires the `.objtiles.json` sidecar. |
+| `--roundtrip-asset --kind=objtiles --in=<x.objtiles>` | No | Structure-exact identity proof (`body.Length == length`, read from the sidecar). Exit 0 lossless, 2 mismatch. |
+| `--verify-asset --kind=objtiles --in=<x.objtiles> --addr=<hex> (--rom\|--project)` | **Yes (read-only)** | LZ77-decompresses the ROM at `--addr` and byte-compares vs the file body. Exit 0 byte-identical, 2 mismatch/fault, 1 usage error. |
+
 ```
 FEBuilderGBA.CLI --import-asset --kind=mapchange --in=map/chapter1.change --out=map/chapter1.change_raw.bin
 FEBuilderGBA.CLI --roundtrip-asset --kind=mapchange --in=map/chapter1.change
 FEBuilderGBA.CLI --verify-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --in=map/chapter1.change
+FEBuilderGBA.CLI --import-asset --kind=objtiles --in=map/chapter1.objtiles --out=map/chapter1.objtiles_raw.bin
+FEBuilderGBA.CLI --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles
+FEBuilderGBA.CLI --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles
 ```
 
 ---

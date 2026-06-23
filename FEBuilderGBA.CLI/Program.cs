@@ -4812,10 +4812,10 @@ namespace FEBuilderGBA.CLI
         static int RunImportAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --import-asset requires --kind=map|mapchange|objtiles"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
-            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --import-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.ObjTiles))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, or --kind=objtiles is supported for --import-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --import-asset requires --in=<x.mar|x.change>"); return 1; }
@@ -4853,9 +4853,11 @@ namespace FEBuilderGBA.CLI
                 return 2;
             }
 
-            DecompAssetResult result = kind.Value == AssetKind.MapChangeOverlay
-                ? DecompAssetExportCore.ImportMapChange(absIn, absOut)
-                : DecompAssetExportCore.ImportMap(absIn, absOut);
+            DecompAssetResult result = kind.Value == AssetKind.ObjTiles
+                ? DecompAssetExportCore.ImportObjTiles(absIn, absOut)
+                : kind.Value == AssetKind.MapChangeOverlay
+                    ? DecompAssetExportCore.ImportMapChange(absIn, absOut)
+                    : DecompAssetExportCore.ImportMap(absIn, absOut);
             if (result.Ok)
             {
                 Console.WriteLine(result.Message);
@@ -4877,10 +4879,10 @@ namespace FEBuilderGBA.CLI
         static int RunRoundtripAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --roundtrip-asset requires --kind=map|mapchange|objtiles"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay))
-            { Console.Error.WriteLine("Error: only --kind=map or --kind=mapchange is supported for --roundtrip-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapLayout && kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.ObjTiles))
+            { Console.Error.WriteLine("Error: only --kind=map, --kind=mapchange, or --kind=objtiles is supported for --roundtrip-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
             { Console.Error.WriteLine("Error: --roundtrip-asset requires --in=<x.mar|x.change>"); return 1; }
@@ -4909,6 +4911,13 @@ namespace FEBuilderGBA.CLI
                 ok = DecompAssetExportCore.RoundTripMapChangeBody(body, w, h);
                 okMsg = "Round-trip OK (structure-exact map-change overlay body)";
             }
+            else if (kind.Value == AssetKind.ObjTiles)
+            {
+                if (!DecompAssetExportCore.TryReadObjTilesLength(inPath + ".json", out int expectedLen))
+                { Console.Error.WriteLine("Error: sidecar .objtiles.json required to read length"); return 2; }
+                ok = DecompAssetExportCore.RoundTripObjTilesBody(body, expectedLen);
+                okMsg = "Round-trip OK (structure-exact OBJ tileset decompressed body)";
+            }
             else
             {
                 ok = DecompAssetExportCore.RoundTripMarBody(body);
@@ -4936,21 +4945,25 @@ namespace FEBuilderGBA.CLI
         static int RunVerifyAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --kind=mapchange|objtiles"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
-            if (kind == null || kind.Value != AssetKind.MapChangeOverlay)
-            { Console.Error.WriteLine("Error: only --kind=mapchange is supported for --verify-asset"); return 1; }
+            if (kind == null || (kind.Value != AssetKind.MapChangeOverlay && kind.Value != AssetKind.ObjTiles))
+            { Console.Error.WriteLine("Error: only --kind=mapchange or --kind=objtiles is supported for --verify-asset"); return 1; }
 
             if (!argsDic.ContainsKey("--in") || string.IsNullOrEmpty(argsDic["--in"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change>"); return 1; }
+            { Console.Error.WriteLine("Error: --verify-asset requires --in=<x.change|x.objtiles>"); return 1; }
             string absIn = argsDic["--in"];
 
             if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
             { Console.Error.WriteLine("Error: --verify-asset requires --addr=<hex>"); return 1; }
-            if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --width=<int>"); return 1; }
-            if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
-            { Console.Error.WriteLine("Error: --verify-asset requires --height=<int>"); return 1; }
+            // --width and --height are only required for mapchange, not for objtiles
+            if (kind.Value == AssetKind.MapChangeOverlay)
+            {
+                if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
+                { Console.Error.WriteLine("Error: --verify-asset --kind=mapchange requires --width=<int>"); return 1; }
+                if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
+                { Console.Error.WriteLine("Error: --verify-asset --kind=mapchange requires --height=<int>"); return 1; }
+            }
 
             // ---- ROM source: --project or --rom ----
             bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
@@ -4991,12 +5004,23 @@ namespace FEBuilderGBA.CLI
 
             if (!TryParseAddr(argsDic["--addr"], out uint addr))
             { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
-            if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
-            { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
-            if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
-            { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
 
-            DecompAssetResult result = DecompAssetExportCore.VerifyMapChangeAgainstRom(CoreState.ROM, addr, width, height, absIn);
+            DecompAssetResult result;
+            if (kind.Value == AssetKind.ObjTiles)
+            {
+                // --width/--height are NOT required for objtiles; only --addr and --in.
+                result = DecompAssetExportCore.VerifyObjTilesAgainstRom(CoreState.ROM, addr, absIn);
+            }
+            else
+            {
+                // MapChangeOverlay: --width and --height are required.
+                if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
+                { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
+                if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
+                { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
+                result = DecompAssetExportCore.VerifyMapChangeAgainstRom(CoreState.ROM, addr, width, height, absIn);
+            }
+
             if (result.Ok)
             {
                 Console.WriteLine(result.Message);
@@ -5180,8 +5204,20 @@ namespace FEBuilderGBA.CLI
                     break;
                 }
 
+                case "objtiles":
+                case "obj-tiles":
+                case "obj":
+                {
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=objtiles requires --addr=<hex> (the DEREFERENCED OBJ LZ77 stream address, NOT RomInfo.map_obj_pointer)"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    result = DecompAssetExportCore.ExportObjTiles(rom, addr, absOut);
+                    break;
+                }
+
                 default:
-                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, mapchange, text, shop");
+                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, mapchange, text, shop, objtiles");
                     return 1;
             }
 

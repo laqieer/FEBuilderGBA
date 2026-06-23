@@ -1,0 +1,16 @@
+  Determining projects to restore...
+C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338 [C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\FEBuilderGBA.Core.Tests.csproj]
+  All projects are up-to-date for restore.
+C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj : warning NU1902: Package 'SharpCompress' 0.38.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6c8g-7p36-r338
+  FEBuilderGBA.Core -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core\bin\Debug\net9.0\FEBuilderGBA.Core.dll
+  FEBuilderGBA.SkiaSharp -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.SkiaSharp\bin\Debug\net9.0\FEBuilderGBA.SkiaSharp.dll
+  FEBuilderGBA.Core.Tests -> C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\bin\Debug\net9.0\FEBuilderGBA.Core.Tests.dll
+Test run for C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a0bd96ca1f278c4ca\FEBuilderGBA.Core.Tests\bin\Debug\net9.0\FEBuilderGBA.Core.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 121 ms - FEBuilderGBA.Core.Tests.dll (net9.0)
+
+Workload updates are available. Run `dotnet workload list` for more information.
