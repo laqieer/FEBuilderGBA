@@ -50,6 +50,10 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            // Tolerate a leading UTF-8 BOM (U+FEFF) that some editors prepend.
+            if (csv[0] == '﻿')
+                csv = csv.Substring(1);
+
             // Split on newlines; strip \r
             string[] allLines = csv.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
 
@@ -71,8 +75,11 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            // The header MUST be the real export header: anchored to the
+            // '# FEBuilderGBA Map Export:' prefix so an arbitrary 'width=...height=...'
+            // data line can't be mistaken for it (allow trailing whitespace).
             var headerMatch = Regex.Match(header,
-                @"width\s*=\s*(\d+).*height\s*=\s*(\d+)",
+                @"^#\s*FEBuilderGBA\s+Map\s+Export:\s*width\s*=\s*(\d+)\s*,\s*height\s*=\s*(\d+)\s*$",
                 RegexOptions.IgnoreCase);
             if (!headerMatch.Success)
             {
@@ -93,18 +100,36 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            // Collect non-empty data lines after the header
+            // Collect EXACTLY `height` data rows after the header. A blank /
+            // whitespace-only line that appears BEFORE we have collected `height`
+            // rows is an error (it would otherwise shift rows up). Only blank
+            // lines AFTER the last data row are ignored (trailing newline(s)).
             var dataLines = new System.Collections.Generic.List<string>();
-            for (int i = headerLineIdx + 1; i < allLines.Length; i++)
+            int scan = headerLineIdx + 1;
+            for (; scan < allLines.Length && dataLines.Count < height; scan++)
             {
-                if (!string.IsNullOrWhiteSpace(allLines[i]))
-                    dataLines.Add(allLines[i]);
+                if (string.IsNullOrWhiteSpace(allLines[scan]))
+                {
+                    error = $"row {dataLines.Count}: unexpected empty row inside the map grid";
+                    return false;
+                }
+                dataLines.Add(allLines[scan]);
             }
 
             if (dataLines.Count != height)
             {
                 error = $"expected {height} data rows but found {dataLines.Count}";
                 return false;
+            }
+
+            // Any remaining NON-empty line after the grid is an extra (too many) row.
+            for (; scan < allLines.Length; scan++)
+            {
+                if (!string.IsNullOrWhiteSpace(allLines[scan]))
+                {
+                    error = $"expected {height} data rows but found more (extra row after the grid)";
+                    return false;
+                }
             }
 
             mars = new ushort[width * height];

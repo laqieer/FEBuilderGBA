@@ -7,8 +7,10 @@ namespace FEBuilderGBA.Avalonia.Tests
 {
     /// <summary>
     /// Integration (real-ROM) tests for the Import Map (CSV) feature (#1382).
-    /// Uses <see cref="RomTestHelper.WithRom"/> to load FE8U; gracefully skips
-    /// if the ROM is absent (CI without ROMs still passes).
+    /// Uses <see cref="RomTestHelper.WithRom"/> to load FE8U. The test is
+    /// SKIPPED (not green-passed) when FE8U.gba is genuinely unavailable; when
+    /// the ROM IS present it runs real assertions so a regression surfaces as a
+    /// failure rather than a silent skip.
     /// </summary>
     [Collection("SharedState")]
     public class MapEditorImportRomTests
@@ -18,22 +20,31 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// from the existing map data (guaranteed valid), apply it, and assert
         /// the cache was advanced and the write address is non-zero.
         /// </summary>
-        [Fact]
+        [SkippableFact]
         public void ApplyMapGrid_FE8U_SelfImport_Succeeds()
         {
+            // ROM-unavailable → SKIP (not pass). Anything after a real ROM loads
+            // is a real assertion, so an empty map list / failed load is a FAILURE.
+            string? romPath = TestRomLocator.FindRom("FE8U");
+            Skip.If(romPath == null, "FE8U.gba not available — skipping real-ROM import test.");
+
             RomTestHelper.WithRom("FE8U", () =>
             {
                 var vm = new MapEditorViewModel();
                 var list = vm.LoadList();
-                if (list == null || list.Count == 0)
-                    return; // graceful skip — no map list
+
+                // A valid FE8U ROM must yield a non-empty map list. Empty here is a
+                // genuine regression, not a reason to skip.
+                Assert.NotNull(list);
+                Assert.NotEmpty(list);
 
                 // Load the first map
                 var item = list[0];
                 vm.LoadMapImage(item.addr, item.tag);
 
-                if (vm.MapWidth <= 0 || vm.MapHeight <= 0)
-                    return; // graceful skip — map did not render
+                // A valid first map must render with positive dimensions.
+                Assert.True(vm.MapWidth > 0, $"MapWidth was {vm.MapWidth}; expected > 0 after loading the first map.");
+                Assert.True(vm.MapHeight > 0, $"MapHeight was {vm.MapHeight}; expected > 0 after loading the first map.");
 
                 // Build mars from the current cache (self-import = lossless no-op at tile level)
                 byte[] snapshot = vm.GetMapDataSnapshot();

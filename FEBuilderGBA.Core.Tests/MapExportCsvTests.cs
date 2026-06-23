@@ -234,5 +234,39 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(ok);
             Assert.NotNull(err);
         }
+
+        [Fact]
+        public void Parse_BlankRowInsideGrid_ReturnsError()
+        {
+            // 1x3 grid with a blank line in the MIDDLE — must be rejected
+            // (a skipped blank would otherwise shift rows up; Copilot finding #2).
+            string csv = "# FEBuilderGBA Map Export: width=1, height=3\n7\n\n9\n";
+            bool ok = MapExportCsv.Parse(csv, out _, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.NotNull(err);
+        }
+
+        [Fact]
+        public void Parse_DataLineLookingLikeHeader_RejectedWhenRealHeaderMissing()
+        {
+            // A bare 'width=2, height=2' line (no '# FEBuilderGBA Map Export:' prefix)
+            // must NOT be accepted as the header (anchored header; Copilot finding #1).
+            string csv = "width=2, height=2\n1,2\n3,4\n";
+            bool ok = MapExportCsv.Parse(csv, out _, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.Contains("header", err, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Parse_LeadingBom_Tolerated()
+        {
+            // A UTF-8 BOM prepended to the header must be tolerated and round-trip.
+            string csv = "﻿# FEBuilderGBA Map Export: width=2, height=2\n1,2\n3,4\n";
+            bool ok = MapExportCsv.Parse(csv, out int w, out int h, out ushort[] mars, out string err);
+            Assert.True(ok, err);
+            Assert.Equal(2, w);
+            Assert.Equal(2, h);
+            Assert.Equal(new ushort[] { 1, 2, 3, 4 }, mars);
+        }
     }
 }

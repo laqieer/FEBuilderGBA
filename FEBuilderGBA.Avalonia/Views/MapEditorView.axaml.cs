@@ -496,7 +496,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.ImportCsv_Click failed: " + ex.Message);
+                Log.Error("MapEditorView.ImportCsv_Click failed: " + ex.ToString());
                 CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), ex.Message));
             }
         }
