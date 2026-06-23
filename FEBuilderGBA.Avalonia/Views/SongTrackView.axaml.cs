@@ -342,10 +342,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                // Core Log.Error is params string[] (string.Join, NOT composite
-                // formatting) — concat, never a "{0}" placeholder. Log the full
-                // exception (stack + inner) to ease debugging launch failures.
-                Log.Error("SongTrackView.LinkInternet_Click failed: " + ex.ToString());
+                // Core Log.Error is params string[] (joined with spaces, NOT
+                // composite formatting) — pass the message and the full
+                // exception (stack + inner) as separate args, never a "{0}"
+                // placeholder, and avoid an extra concatenated allocation.
+                Log.Error("SongTrackView.LinkInternet_Click failed:", ex.ToString());
             }
         }
 

@@ -30,22 +30,37 @@ namespace FEBuilderGBA.Tests.Unit
                 SolutionDir, "FEBuilderGBA.Avalonia", "Views", "SongTrackView.axaml.cs"));
 
         /// <summary>
-        /// Extracts the body of the LinkInternet_Click handler (from its
-        /// signature up to the next method declaration) so assertions are
-        /// scoped to that handler only.
+        /// Extracts the body of the LinkInternet_Click handler by locating its
+        /// signature and brace-matching to the corresponding closing brace, so
+        /// assertions are scoped to that handler only. Brace counting is robust
+        /// to reformatting/indentation changes (does not assume a fixed indent
+        /// for the closing brace).
         /// </summary>
         private static string LinkInternetClickBody
         {
             get
             {
                 var src = SongTrackViewSource;
-                var match = Regex.Match(
-                    src,
-                    @"void\s+LinkInternet_Click\s*\([^)]*\)\s*\{.*?\n\s{8}\}",
-                    RegexOptions.Singleline);
-                Assert.True(match.Success,
+                var sig = Regex.Match(src, @"void\s+LinkInternet_Click\s*\([^)]*\)");
+                Assert.True(sig.Success,
                     "LinkInternet_Click handler not found in SongTrackView.axaml.cs");
-                return match.Value;
+
+                int open = src.IndexOf('{', sig.Index + sig.Length);
+                Assert.True(open >= 0, "Opening brace of LinkInternet_Click not found");
+
+                int depth = 0;
+                int end = -1;
+                for (int i = open; i < src.Length; i++)
+                {
+                    if (src[i] == '{') depth++;
+                    else if (src[i] == '}')
+                    {
+                        depth--;
+                        if (depth == 0) { end = i; break; }
+                    }
+                }
+                Assert.True(end > open, "Closing brace of LinkInternet_Click not found");
+                return src.Substring(sig.Index, end - sig.Index + 1);
             }
         }
 
