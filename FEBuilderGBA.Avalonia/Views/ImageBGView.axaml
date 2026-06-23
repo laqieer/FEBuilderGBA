@@ -125,6 +125,9 @@
       <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
         <Button AutomationProperties.AutomationId="ImageBG_ImportPng_Button"
                 Content="Import Image" Click="ImportPng_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_FERepo_Button"
+                Content="FE-Repo" Click="FERepo_Click"
+                ToolTip.Tip="Import from the FE-Repo CG Images folder" />
         <Button AutomationProperties.AutomationId="ImageBG_ExportPng_Button"
                 Content="Export Image" Click="ExportPng_Click" />
         <Button AutomationProperties.AutomationId="ImageBG_DecreaseColor_Button"

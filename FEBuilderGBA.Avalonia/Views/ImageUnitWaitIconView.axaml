@@ -97,6 +97,9 @@
       <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
         <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_Import_Button"
                 Content="Import Image" Click="Import_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_FERepo_Button"
+                Content="FE-Repo" Click="FERepo_Click"
+                ToolTip.Tip="Import from the FE-Repo Map Sprites folder" />
         <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_Export_Button"
                 Content="Export Image" Click="Export_Click" />
         <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_JumpMoveIcon_Button"

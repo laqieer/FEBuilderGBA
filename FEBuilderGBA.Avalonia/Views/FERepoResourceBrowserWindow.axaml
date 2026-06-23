@@ -17,7 +17,11 @@
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
                 Margin="8" Spacing="8">
       <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center"
-                 HorizontalAlignment="Left" Width="500" />
+                 HorizontalAlignment="Left" Width="380" />
+      <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CopyInitCommand_Button"
+              Content="Copy git command" IsVisible="{Binding NotFound}"
+              Click="CopyInitCommand_Click" Width="140"
+              ToolTip.Tip="Copy: git submodule update --init resources/FE-Repo" />
       <Button AutomationProperties.AutomationId="FERepoResourceBrowser_InsertButton_Button" Content="Insert" IsEnabled="{Binding CanInsert}"
               Click="InsertButton_Click" Width="80" />
       <Button AutomationProperties.AutomationId="FERepoResourceBrowser_CancelButton_Button" Content="Cancel" Click="CancelButton_Click" Width="80" />

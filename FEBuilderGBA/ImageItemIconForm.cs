@@ -41,6 +41,16 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
+            // #1380 Part B — FE-Repo browse button below Import.
+            var feRepoButton = new Button
+            {
+                Text = R._("FE-Repo"),
+                Size = new System.Drawing.Size(107, 20),
+                Location = new System.Drawing.Point(ImportButton.Left, ImportButton.Bottom + 2)
+            };
+            feRepoButton.Click += FERepoButton_Click;
+            ImportButton.Parent?.Controls.Add(feRepoButton);
+
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
                 using (ImageFormRef.AutoDrag ad = new ImageFormRef.AutoDrag(filename))
@@ -203,7 +213,30 @@ namespace FEBuilderGBA
             {
                 return;
             }
+            ImportBitmap(bitmap);
+        }
 
+        // #1380 Part B — FE-Repo button: same as Import, sourced from the
+        // FE-Repo "Item Icons" folder. Routes through the SAME ImportBitmap
+        // body; a non-16x16 asset is rejected with the existing size error.
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.ItemIcon);
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                    return;
+
+                Bitmap bitmap = ImageUtil.OpenLowBitmap(browser.SelectedFilePath);
+                if (bitmap == null) return;
+                bitmap.Tag = browser.SelectedFilePath;
+                ImportBitmap(bitmap);
+            }
+        }
+
+        private void ImportBitmap(Bitmap bitmap)
+        {
             int width = 2 * 8;
             int height = 2 * 8;
             if (bitmap.Width != width || bitmap.Height != height)

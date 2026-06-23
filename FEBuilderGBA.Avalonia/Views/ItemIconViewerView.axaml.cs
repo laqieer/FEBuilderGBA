@@ -85,18 +85,41 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
+            if (_vm.CachedPalette == null)
+            {
+                CoreState.Services.ShowError("No palette loaded. Select an icon first.");
+                return;
+            }
+            // Remap to existing shared palette instead of quantizing a new one
+            var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(
+                this, 16, 16, _vm.CachedPalette, 16, strictSize: true);
+            if (loadResult == null) return; // cancelled
+            RunIconImport(loadResult);
+        }
+
+        // #1380 Part B — FE-Repo button: same as Import PNG, sourced from the
+        // FE-Repo "Item Icons" folder. Routes through the SAME import path; a
+        // non-16x16 asset fails gracefully with the existing strict-size error.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.CachedPalette == null)
+            {
+                CoreState.Services.ShowError("No palette loaded. Select an icon first.");
+                return;
+            }
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.ItemIcon);
+            if (string.IsNullOrEmpty(path)) return;
+
+            var loadResult = ImageImportService.LoadAndRemapFromFile(
+                path, 16, 16, _vm.CachedPalette, 16, strictSize: true);
+            RunIconImport(loadResult);
+        }
+
+        void RunIconImport(ImageImportService.LoadResult loadResult)
+        {
             try
             {
-                if (_vm.CachedPalette == null)
-                {
-                    CoreState.Services.ShowError("No palette loaded. Select an icon first.");
-                    return;
-                }
-
-                // Remap to existing shared palette instead of quantizing a new one
-                var loadResult = await ImageImportService.LoadAndRemapToExistingPalette(
-                    this, 16, 16, _vm.CachedPalette, 16, strictSize: true);
-                if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
                 ROM rom = CoreState.ROM;

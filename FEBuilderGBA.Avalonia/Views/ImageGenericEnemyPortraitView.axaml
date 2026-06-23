@@ -45,6 +45,11 @@
                   ToolTip.Tip="Import Image from PNG file"
                   Click="ImportButton_Click"
                   IsEnabled="{Binding IsLoaded}" />
+          <Button AutomationProperties.AutomationId="ImageGenericEnemyPortrait_FERepo_Button"
+                  Content="FE-Repo"
+                  ToolTip.Tip="Import from the FE-Repo Generic Minimugs folder"
+                  Click="FERepo_Click"
+                  IsEnabled="{Binding IsLoaded}" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>

@@ -121,7 +121,26 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ImportButton_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return;
+            RunPortraitImport(filePath);
+        }
 
+        // #1380 Part B — FE-Repo button: same as Import, sourced from the
+        // FE-Repo "Item Icons/Special - Generic Minimugs" folder. Routes through
+        // the SAME RunPortraitImport path; a non-32x32 asset fails gracefully
+        // with the existing strict-size error.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            string? path = await FERepoPickHelper.PickForEditor(this,
+                FERepoResourceBrowser.FERepoEditorKind.GenericEnemyPortrait);
+            if (string.IsNullOrEmpty(path)) return;
+            RunPortraitImport(path);
+        }
+
+        void RunPortraitImport(string filePath)
+        {
             ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null) return;
 
@@ -139,9 +158,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     "Generic Enemy Portrait Import: could not read the active palette.");
                 return;
             }
-
-            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(this);
-            if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(
                 filePath, 32, 32, existingPalette, 16, strictSize: true);

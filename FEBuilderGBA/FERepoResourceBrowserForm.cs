@@ -21,15 +21,31 @@ namespace FEBuilderGBA
 
         string repoRoot;
 
+        // #1380 Part B — optional seed so the browser opens pre-navigated to a
+        // category/subcategory for a specific graphics editor.
+        readonly string seedCategory;
+        readonly string seedSubCategory;
+
         /// <summary>
         /// The full path to the selected resource file, or null if cancelled.
         /// </summary>
         public string SelectedFilePath { get; private set; }
 
-        public FERepoResourceBrowserForm()
+        public FERepoResourceBrowserForm() : this(null, null) { }
+
+        /// <summary>
+        /// Open the browser pre-navigated to a seed category (and optional
+        /// subcategory). Use
+        /// <see cref="FERepoResourceBrowser.GetFERepoFolderForEditor"/> to
+        /// resolve the seed for an editor kind (#1380 Part B).
+        /// </summary>
+        public FERepoResourceBrowserForm(string seedCategory, string seedSubCategory)
         {
+            this.seedCategory = seedCategory;
+            this.seedSubCategory = seedSubCategory;
             InitializeComponent();
             LoadCategories();
+            SelectSeed();
         }
 
         void InitializeComponent()
@@ -145,6 +161,36 @@ namespace FEBuilderGBA
                     catNode.Nodes.Add(new TreeNode(sub) { Tag = sub });
                 }
                 categoryTree.Nodes.Add(catNode);
+            }
+        }
+
+        // #1380 Part B — pre-select the seed category (and optional
+        // subcategory) node so the browser opens already showing that folder's
+        // files. A non-matching seed is ignored (full category list stays).
+        void SelectSeed()
+        {
+            if (repoRoot == null || string.IsNullOrEmpty(seedCategory)) return;
+
+            foreach (TreeNode catNode in categoryTree.Nodes)
+            {
+                if (!string.Equals(catNode.Tag as string, seedCategory, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (!string.IsNullOrEmpty(seedSubCategory))
+                {
+                    foreach (TreeNode subNode in catNode.Nodes)
+                    {
+                        if (string.Equals(subNode.Tag as string, seedSubCategory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            catNode.Expand();
+                            categoryTree.SelectedNode = subNode;
+                            return;
+                        }
+                    }
+                    // Subcategory not present — fall back to the top-level node.
+                }
+                categoryTree.SelectedNode = catNode;
+                return;
             }
         }
 
