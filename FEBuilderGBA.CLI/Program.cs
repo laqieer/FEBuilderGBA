@@ -315,6 +315,17 @@ namespace FEBuilderGBA.CLI
                 return RunExportVoicegroup(argsDic);
             }
 
+            // --export-battle-anim-decomp --rom=<r>|--project=<dir>
+            // (--animation-id=<n> | --banim-addr=<hex>) --out=banim/banim_<TAG>_motion.s
+            // [--number=<N>]: export a FEBuilder/FEditor-decoded battle animation as
+            // reviewable decomp SOURCE (banim_<TAG>_motion.s) using the fireemblem8u
+            // banim macros + .pal/.json sidecars (#1363). READ-ONLY — never mutates
+            // the ROM. Must precede the bare --project rom-info fallthrough.
+            if (argsDic.ContainsKey("--export-battle-anim-decomp"))
+            {
+                return RunExportBattleAnimDecomp(argsDic);
+            }
+
             // --write-source --project=<dir> --table=<name> --id=<n> --field=<f> --value=<v>:
             // source-backed writer (#1132) — rewrite the owning C array element of a
             // structured table entry instead of mutating the preview ROM. Must precede
@@ -577,6 +588,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --song-id=<n>          Resolve the voicegroup from a song id's header (exclusive with --voicegroup-addr)");
             Console.WriteLine("    --out=<voicegroupNNN.s> Output .s path (project-relative when --project; absolute/relative when --rom)");
             Console.WriteLine("    --number=<N>           Voicegroup number used in the label/.global (default: --song-id, else 0)");
+            Console.WriteLine("  --export-battle-anim-decomp  Export a battle animation as decomp source macro asm (banim_<TAG>_motion.s) + .pal/.json sidecars; READ-ONLY (#1363)");
+            Console.WriteLine("    --animation-id=<n>     0-based animation index in the ROM table (exclusive with --banim-addr)");
+            Console.WriteLine("    --banim-addr=<hex>     ROM offset/pointer of the 32-byte animation record (exclusive with --animation-id)");
+            Console.WriteLine("    --out=<banim_<TAG>_motion.s>  Output .s path (project-relative when --project; absolute/relative when --rom)");
+            Console.WriteLine("    --tag=<name>           Label tag for the emitted symbols (default: anim<NNN>)");
+            Console.WriteLine("    --number=<N>           Animation number used in the default tag (default: --animation-id, else 0)");
             Console.WriteLine("  --write-source           Rewrite an owning C/JSON source element for a structured table entry (requires --project, --table, --id, --field, --value)");
             Console.WriteLine("    --project=<dir>        Decomp project directory (the table must declare a source owner in tables[])");
             Console.WriteLine("    --table=<name>         Structured table name (items, units (alias characters), classes, ...)");
@@ -5190,6 +5207,172 @@ namespace FEBuilderGBA.CLI
                 foreach (var d in result.Diagnostics) Console.WriteLine("  " + d);
             }
             return 0;
+        }
+
+        /// <summary>
+        /// --export-battle-anim-decomp: export a FEBuilder/FEditor-decoded battle
+        /// animation as reviewable decomp SOURCE (banim_&lt;TAG&gt;_motion.s) using the
+        /// fireemblem8u banim macros + .pal/.json sidecars (#1363). READ-ONLY: reads the
+        /// preview ROM, writes source/sidecar files under the project/out root, NEVER
+        /// mutates the ROM.
+        /// </summary>
+        static int RunExportBattleAnimDecomp(Dictionary<string, string> argsDic)
+        {
+            // ---- Required: --out ----
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --export-battle-anim-decomp requires --out=<banim_<TAG>_motion.s>"); return 1; }
+            string outRel = argsDic["--out"];
+
+            // ---- Exactly one of --animation-id / --banim-addr ----
+            bool hasId = argsDic.ContainsKey("--animation-id") && !string.IsNullOrEmpty(argsDic["--animation-id"]);
+            bool hasAddr = argsDic.ContainsKey("--banim-addr") && !string.IsNullOrEmpty(argsDic["--banim-addr"]);
+            if (hasId == hasAddr)
+            { Console.Error.WriteLine("Error: --export-battle-anim-decomp requires exactly one of --animation-id=<n> or --banim-addr=<hex>"); return 1; }
+
+            // ---- ROM source: --project or --rom ----
+            bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
+            bool isRom = argsDic.ContainsKey("--rom") && !string.IsNullOrEmpty(argsDic["--rom"]);
+            if (!isProject && !isRom)
+            { Console.Error.WriteLine("Error: --export-battle-anim-decomp requires --rom=<path> or --project=<dir>"); return 1; }
+
+            RomLoader.InitEnvironment();
+
+            DecompProject project = null;
+            if (isProject)
+            {
+                if (!RomLoader.LoadProject(argsDic["--project"]))
+                    return 1;
+                project = CoreState.DecompProject;
+            }
+            else
+            {
+                string romPath = argsDic["--rom"];
+                if (!File.Exists(romPath))
+                { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+                string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+                if (!RomLoader.LoadRom(romPath, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+            }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+            { Console.Error.WriteLine("Error: ROM is not loaded."); return 1; }
+
+            // ---- Resolve output path (root-confined in project mode) ----
+            string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);
+            if (absOut == null)
+            { Console.Error.WriteLine("Error: output path rejected (outside project root or invalid)"); return 2; }
+
+            // ---- Resolve the animation record offset + tag ----
+            uint animAddr;
+            int number;
+            if (hasId)
+            {
+                if (!uint.TryParse(argsDic["--animation-id"], out uint animId))
+                { Console.Error.WriteLine($"Error: Invalid --animation-id: {argsDic["--animation-id"]}"); return 1; }
+                animAddr = BattleAnimeImportCore.ResolveBattleAnimeAddr(rom, animId);
+                if (animAddr == 0 || animAddr == U.NOT_FOUND)
+                { Console.Error.WriteLine($"Error: could not resolve animation id {animId} (out of range?)."); return 2; }
+                number = ParseNumberOrDefault(argsDic, (int)animId);
+            }
+            else
+            {
+                if (!TryParseHexAddr(argsDic["--banim-addr"], out animAddr))
+                { Console.Error.WriteLine($"Error: Invalid --banim-addr: {argsDic["--banim-addr"]}"); return 1; }
+                number = ParseNumberOrDefault(argsDic, 0);
+            }
+
+            // Tag: prefer an explicit --tag, else derive from the number.
+            string tag = argsDic.ContainsKey("--tag") && !string.IsNullOrEmpty(argsDic["--tag"])
+                ? argsDic["--tag"]
+                : ("anim" + number.ToString("D3"));
+
+            // ---- Export (READ-ONLY) ----
+            // Read-only invariant proof WITHOUT cloning the whole ROM: a length +
+            // content hash before/after detects any mutation cheaply (#1362 invariant).
+            int beforeLen = rom.Data.Length;
+            byte[] beforeHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+
+            var result = BattleAnimDecompExportCore.Export(rom, animAddr, tag);
+
+            byte[] afterHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+            if (rom.Data.Length != beforeLen || !ByteArrayEquals(beforeHash, afterHash))
+            { Console.Error.WriteLine("Error: internal -- battle-anim decomp export mutated the ROM (aborting, no write)."); return 3; }
+
+            if (!result.Ok)
+            {
+                Console.Error.WriteLine("Error: battle-anim decomp export failed:");
+                foreach (var d in result.Diagnostics) Console.Error.WriteLine("  " + d);
+                return 2;
+            }
+
+            // ---- Write the .s + sidecars (each path root-confined) ----
+            var written = new List<string>();
+            try
+            {
+                string dir = Path.GetDirectoryName(absOut);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(absOut, result.Text);
+                written.Add(absOut);
+
+                string baseNoExt = Path.Combine(
+                    Path.GetDirectoryName(absOut) ?? "",
+                    Path.GetFileNameWithoutExtension(absOut));
+
+                // Palette sidecars (.pal per 16-color team sub-palette).
+                var pals = BattleAnimDecompExportCore.BuildPaletteSidecars(result.PaletteRaw);
+                foreach (var p in pals)
+                {
+                    string palPath = baseNoExt + p.Suffix;
+                    // Confine sidecar writes to the project root too (project mode).
+                    string palAbs = ConfineSibling(project, absOut, palPath);
+                    if (palAbs == null) { Console.Error.WriteLine("Error: sidecar path rejected (outside project root)"); return 2; }
+                    File.WriteAllBytes(palAbs, p.PalBytes);
+                    written.Add(palAbs);
+                }
+
+                // JSON manifest (manual-registration checklist + mode/oam/sheet map).
+                string manifestPath = baseNoExt + ".json";
+                string manifestAbs = ConfineSibling(project, absOut, manifestPath);
+                if (manifestAbs == null) { Console.Error.WriteLine("Error: manifest path rejected (outside project root)"); return 2; }
+                File.WriteAllText(manifestAbs, BattleAnimDecompExportCore.BuildManifestJson(result.Anime));
+                written.Add(manifestAbs);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: failed to write output: {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"Exported battle animation '{BattleAnimDecompExportCore.SanitizeTag(tag)}' "
+                + $"({result.ModeCount} modes, {result.FrameCount} frames, {result.OamEntryCount} OAM entries) to {absOut}");
+            foreach (var w in written) if (w != absOut) Console.WriteLine("  sidecar: " + w);
+            if (result.Diagnostics.Count > 0)
+            {
+                Console.WriteLine($"Diagnostics ({result.Diagnostics.Count}):");
+                foreach (var d in result.Diagnostics) Console.WriteLine("  " + d);
+            }
+            return 0;
+        }
+
+        // Confine a sibling sidecar path to the project root (project mode), else
+        // accept any writable absolute path (rom mode). Returns null if rejected.
+        static string ConfineSibling(DecompProject project, string mainAbsOut, string siblingAbs)
+        {
+            if (project == null) return Path.GetFullPath(siblingAbs);
+            // In project mode, re-confine using the sibling's path RELATIVE to the
+            // project root via ResolveSourcePath (which rejects ..-escape / absolute).
+            try
+            {
+                string root = project.ProjectRoot;
+                string full = Path.GetFullPath(siblingAbs);
+                string rootFull = Path.GetFullPath(root);
+                if (!full.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
+                    return null;
+                return full;
+            }
+            catch { return null; }
         }
 
         static bool TryParseHexAddr(string s, out uint result)
