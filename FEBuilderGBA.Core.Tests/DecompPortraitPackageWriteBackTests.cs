@@ -173,6 +173,49 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Import_Overwrite_DifferentSheetName_LeavesSingleOwner_NoStalePng()
+        {
+            // Source sheet "portrait.png"; existing owner "old.png". --overwrite must REPLACE the
+            // old owner (delete old.png) so the dir holds exactly ONE png afterwards (#1379 fix).
+            string src = MakeValidPackage("portrait", colors: 16);
+            string dest = MakeValidPackage("old", colors: 8); // owner with a DIFFERENT sheet name
+            try
+            {
+                DecompAssetResult r = DecompAssetExportCore.ImportPortraitPackage(src, dest, false, overwriteOwner: true);
+                Assert.True(r.Ok, r.Message);
+
+                string[] pngs = Directory.GetFiles(dest, "*.png");
+                Assert.Single(pngs); // NOT two — old.png was removed
+                Assert.Equal("portrait.png", Path.GetFileName(pngs[0]));
+                Assert.False(File.Exists(Path.Combine(dest, "old.png")));
+                Assert.False(File.Exists(Path.Combine(dest, "old.pal"))); // old sidecar removed too
+                Assert.True(File.Exists(Path.Combine(dest, "portrait.png")));
+                Assert.True(File.Exists(Path.Combine(dest, "portrait.pal")));
+            }
+            finally { Cleanup(src); Cleanup(dest); }
+        }
+
+        [Fact]
+        public void Import_Overwrite_SourceWithoutSidecar_RemovesStaleOwnerSidecar()
+        {
+            // Source has NO sidecar; existing owner has one with the SAME sheet name. After
+            // --overwrite the stale sidecar must be gone (source is the single source of truth).
+            string src = FreshDir();
+            File.WriteAllBytes(Path.Combine(src, "portrait.png"), BuildSheetPng(128, 112, 16));
+            string dest = MakeValidPackage("portrait", colors: 8); // owner WITH a sidecar
+            try
+            {
+                Assert.True(File.Exists(Path.Combine(dest, "portrait.pal")));
+                DecompAssetResult r = DecompAssetExportCore.ImportPortraitPackage(src, dest, false, overwriteOwner: true);
+                Assert.True(r.Ok, r.Message);
+                Assert.True(File.Exists(Path.Combine(dest, "portrait.png")));
+                Assert.False(File.Exists(Path.Combine(dest, "portrait.pal"))); // stale sidecar gone
+                Assert.Single(Directory.GetFiles(dest, "*.png"));
+            }
+            finally { Cleanup(src); Cleanup(dest); }
+        }
+
+        [Fact]
         public void Import_AmbiguousDest_MultiplePngs_Refused()
         {
             string src = MakeValidPackage();

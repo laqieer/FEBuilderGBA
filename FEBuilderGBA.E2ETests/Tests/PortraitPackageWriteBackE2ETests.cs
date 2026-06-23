@@ -216,6 +216,25 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void ImportPortraitPackage_Overwrite_DifferentSheetName_LeavesSingleOwner()
+        {
+            // Source "portrait.png" overwriting an owner "old.png" must leave exactly one PNG (#1379).
+            string src = MakeValidPackageDir("imp_rename_src", seed: 1, sheetName: "portrait");
+            string dest = MakeValidPackageDir("imp_rename_dest", seed: 2, sheetName: "old");
+            try
+            {
+                string args = $"--import-asset --kind=portrait-package --path=\"{src}\" --out=\"{dest}\" --overwrite";
+                var (code, stdout, stderr) = RunWithRetry(args);
+                Assert.True(code == 0,
+                    $"--overwrite rename import exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Single(Directory.GetFiles(dest, "*.png"));
+                Assert.True(File.Exists(Path.Combine(dest, "portrait.png")));
+                Assert.False(File.Exists(Path.Combine(dest, "old.png")));
+            }
+            finally { TryDelete(src); TryDelete(dest); }
+        }
+
+        [Fact]
         public void ImportPortraitPackage_OutEscapesProject_ExitsTwo()
         {
             string projectDir = NewTempDir("imp_escape_proj");

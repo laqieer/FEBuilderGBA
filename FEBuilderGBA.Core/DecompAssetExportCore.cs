@@ -1647,8 +1647,13 @@ namespace FEBuilderGBA
         /// sidecar (#1374). A package is UNAMBIGUOUS only when it contains EXACTLY ONE
         /// <c>*.png</c>; the sidecar is the one whose name matches the sheet
         /// (<c>sheet.png</c> -&gt; <c>sheet.pal</c>), mirroring the validator's matching rule.
-        /// Returns null when the directory has zero or multiple PNGs (ambiguous owner) or on
-        /// any fault. NEVER throws, NEVER reads the ROM.
+        ///
+        /// <para>Returns <c>null</c> ONLY on a fault or a null/missing directory. For a
+        /// zero-or-multiple-PNG (ambiguous) directory it returns a non-null
+        /// <see cref="PortraitPackageFiles"/> with <see cref="PortraitPackageFiles.PngCount"/>
+        /// set and <see cref="PortraitPackageFiles.SheetPath"/> left <c>null</c> — so callers
+        /// signal ambiguity via <c>result.SheetPath == null</c> while still seeing the PNG count.
+        /// NEVER throws, NEVER reads the ROM.</para>
         /// </summary>
         public static PortraitPackageFiles ResolvePortraitPackage(string absDir)
         {
@@ -1750,6 +1755,24 @@ namespace FEBuilderGBA
                         if (!overwriteOwner)
                             return Fail(DecompAssetStatus.PathRejected,
                                 $"[OWNER_EXISTS] destination '{absOutDir}' already contains a portrait package ('{Path.GetFileName(destPngs[0])}'). Pass --overwrite to replace the owning package.");
+
+                        // REPLACE the existing owner ATOMICALLY-ish: remove the old owner's PNG
+                        // AND its name-matched sidecar BEFORE writing the source files. Without this,
+                        // an --overwrite where the source sheet has a DIFFERENT filename would leave
+                        // the old PNG behind → two PNGs → the dir becomes AMBIGUOUS right after a
+                        // "successful" import (Copilot #1379 review). It also drops a stale sidecar
+                        // when the source has none, so the owner contract holds in every case.
+                        string oldPng = destPngs[0];
+                        string oldPal = Path.ChangeExtension(oldPng, ".pal");
+                        try
+                        {
+                            File.Delete(oldPng);
+                            if (File.Exists(oldPal)) File.Delete(oldPal);
+                        }
+                        catch (Exception ex)
+                        {
+                            return Fail(DecompAssetStatus.Faulted, "cannot replace existing owner: " + ex.Message);
+                        }
                     }
                     // destPngs.Length == 0 → empty (of PNGs) dir: a clean new owner.
                 }
