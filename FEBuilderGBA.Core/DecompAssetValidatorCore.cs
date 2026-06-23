@@ -57,6 +57,20 @@ namespace FEBuilderGBA
         /// entry tables, NOT the map-change record chain.
         /// </summary>
         MapChipConfig,
+        /// <summary>
+        /// RAW (uncompressed) 4bpp map tile-animation-1 per-entry GRAPHICS payload (#1389). The
+        /// structural TWIN of <see cref="MapChangeOverlay"/>/<see cref="MapTileAnimation2Palette"/>
+        /// (a raw byte block with an explicit length descriptor) — NOT the LZ77 <see cref="ObjTiles"/>/
+        /// <see cref="MapChipConfig"/> pattern. The block is reached by ONE dereferenced anime-1 entry
+        /// <c>+4</c> graphics pointer (the inverse of anime-2, whose block pointer is at <c>+0</c>); its
+        /// byte length is the entry's <c>+2</c> <c>u16 length</c> field — the WF read/import/rebuild
+        /// paths treat it as raw <c>ImageToByte16Tile</c> 4bpp bytes (a rebuild <c>IMG</c> block), never
+        /// an LZ77 stream. Requires a sidecar <c>&lt;name&gt;.mapanime1gfx.json</c> with
+        /// <c>"format": "febuilder-mapanime1gfx-raw4bpp"</c>, a positive <c>"length"</c>, and the source
+        /// <c>"srcAddr"</c>. NOT the anime-1 ENTRY/PLIST table (pointer-per-row, no clean source owner),
+        /// NOT the chipset TSA/config, NOT the map-change record chain, NOT the <c>.mar</c> layout.
+        /// </summary>
+        MapTileAnimation1Graphics,
     }
 
     /// <summary>One validation finding (error or warning): a stable CODE + a message.</summary>
@@ -178,6 +192,9 @@ namespace FEBuilderGBA
                         break;
                     case AssetKind.MapChipConfig:
                         ValidateMapChipConfig(path, r);
+                        break;
+                    case AssetKind.MapTileAnimation1Graphics:
+                        ValidateMapAnime1Gfx(path, r);
                         break;
                     case AssetKind.Graphics:
                     case AssetKind.Portrait:
@@ -465,6 +482,9 @@ namespace FEBuilderGBA
                 case "mapchipconfig":
                 case "mapchip-config":
                 case "chipconfig": return AssetKind.MapChipConfig;
+                case "mapanime1gfx":
+                case "map-tileanime1-graphics":
+                case "anime1gfx": return AssetKind.MapTileAnimation1Graphics;
                 default: return null;
             }
         }
@@ -1018,6 +1038,72 @@ namespace FEBuilderGBA
             if (body.Length != len)
             {
                 r.Errors.Add(new AssetIssue("BAD_MAPCHIPCONFIG_LENGTH",
+                    $"File length {body.Length} != sidecar length {len}."));
+            }
+        }
+
+        /// <summary>
+        /// Validate a map tile-animation-1 per-entry GRAPHICS asset (#1389) — the structural TWIN of
+        /// <see cref="ValidateMapChange"/>/<see cref="ValidateMapAnime2Pal"/> (a RAW byte block with an
+        /// explicit length descriptor), NOT the LZ77 <see cref="ValidateObjTiles"/> pattern. Checks:
+        /// <list type="bullet">
+        ///   <item>file is readable;</item>
+        ///   <item>sidecar present and declares <c>format == "febuilder-mapanime1gfx-raw4bpp"</c>;</item>
+        ///   <item>sidecar declares a positive <c>length</c>;</item>
+        ///   <item>body length equals sidecar length.</item>
+        /// </list>
+        /// NEVER reads the ROM, NEVER throws.
+        /// </summary>
+        static void ValidateMapAnime1Gfx(string path, AssetValidationResult r)
+        {
+            byte[] body;
+            try { body = File.ReadAllBytes(path); }
+            catch (Exception ex)
+            {
+                r.Errors.Add(new AssetIssue("READ_FAILED", "Could not read file: " + ex.Message));
+                return;
+            }
+
+            string sidecar = path + ".json";
+            if (!File.Exists(sidecar))
+            {
+                r.Errors.Add(new AssetIssue("MAPANIME1GFX_NO_SIDECAR",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' is required for a map tile-animation-1 graphics asset (it carries length and the format declaration)."));
+                return;
+            }
+
+            if (!TryReadSidecarFormat(sidecar, out string format)
+                || !string.Equals(format, "febuilder-mapanime1gfx-raw4bpp", StringComparison.Ordinal))
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME1GFX_FORMAT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare format \"febuilder-mapanime1gfx-raw4bpp\"; got \"{format ?? "(missing)"}\"."));
+                return;
+            }
+
+            // Read the required length from the sidecar.
+            int len = 0;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object
+                    && root.TryGetProperty("length", out JsonElement lProp)
+                    && lProp.ValueKind == JsonValueKind.Number)
+                    len = lProp.GetInt32();
+            }
+            catch { }
+
+            if (len <= 0)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME1GFX_LENGTH",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a positive integer 'length'."));
+                return;
+            }
+
+            if (body.Length != len)
+            {
+                r.Errors.Add(new AssetIssue("BAD_MAPANIME1GFX_LENGTH",
                     $"File length {body.Length} != sidecar length {len}."));
             }
         }

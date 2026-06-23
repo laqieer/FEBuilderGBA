@@ -88,6 +88,7 @@ Each row lists the capability, the tracking issue, and the PR(s)/commit(s) that 
 | **Map tile-animation-2 palette source export/import/round-trip/ROM-verify** (`--export-asset` / `--import-asset` / `--roundtrip-asset` / `--verify-asset --kind=mapanime2pal`; the raw uncompressed `u16` palette block of `count` 15-bit GBA colors reached by each anime-2 entry's `+0` pointer — structural twin of `mapchange` with a single `count` descriptor; source-level structure-exact identity + read-only byte-exact ROM compare; not the anime-2 entry/PLIST table, not LZ77) | #1360 | PR #1365 (`b8a0b5700`) |
 | **OBJ tileset LZ77 decompressed-payload source export/import/round-trip/ROM-verify** (`--export-asset` / `--import-asset` / `--roundtrip-asset` / `--verify-asset --kind=objtiles`; the DECOMPRESSED 4bpp payload of the OBJ LZ77 tile block — decompressed-payload equivalence, NOT compressed-stream byte identity (FEBuilder's LZ77 packer is non-canonical so the build re-compresses); `--addr` is the dereferenced OBJ LZ77 stream address; FE7 obj2 split out of scope; not chipset TSA/config, not tile animations 1/2) | #1371 | PR #1372 (`026f5ddd2`) |
 | **Chipset TSA/config LZ77 decompressed-payload source export/import/round-trip/ROM-verify** (`--export-asset` / `--import-asset` / `--roundtrip-asset` / `--verify-asset --kind=mapchipconfig`; the DECOMPRESSED chipset config payload of the CONFIG LZ77 block — structural twin of `objtiles`, a single LZ77 stream reached by one dereferenced CONFIG-PLIST pointer (WF `ImageUtilMap.UnLZ77ChipsetData`); decompressed-payload equivalence, NOT compressed-stream byte identity (the build re-compresses); `--addr` is the dereferenced config LZ77 stream address (NOT `RomInfo.map_config_pointer`; FE7 split layouts use a separate per-plist `--addr`); not the anime-1/anime-2 entry tables, not the map-change record chain, not the `.mar` layout) | #1375 | (this PR) |
+| **Map tile-animation-1 per-entry RAW 4bpp graphics source export/import/round-trip/ROM-verify** (`--export-asset` / `--import-asset` / `--roundtrip-asset` / `--verify-asset --kind=mapanime1gfx`; the RAW UNCOMPRESSED 4bpp tile-byte block sized by the entry's `+2` `u16` length, reached by each anime-1 entry's `+4` pointer — the inverse of anime-2's `+0`; the structural TWIN of `mapchange`/`mapanime2pal` (RAW, length-sized), NOT the LZ77 `objtiles`/`mapchipconfig` pattern — the WF read/import/rebuild paths treat this block as raw `ImageToByte16Tile` 4bpp bytes (a rebuild `IMG` block), never an LZ77 stream; source-level structure-exact identity + read-only byte-exact RAW ROM compare; `--addr` is the dereferenced `+4` graphics pointer, `--length` the `+2` byte length; not the anime-1 ENTRY/PLIST table, not the `.mar` layout) | #1389 | (this PR) |
 | **Voicegroup source-macro-asm export** (`--export-voicegroup`; a FEBuilder M4A instrument set → reviewable `sound/voicegroups/voicegroupNNN.s` using `asm/macros/music_voice.inc`. Supported voice types emit the exact macros (`voice_directsound`/`_no_resample`/`_alt`, `voice_square_1`/`_2`, `voice_programmable_wave`, `voice_noise`, `voice_keysplit`/`_all`); keysplit/drum sub-voicegroups + DirectSound sample pointers emit valid raw `0x08XXXXXX` macro args + an unresolved-pointer diagnostic (no guessed symbol, sub-table NOT inlined); `0x18`/unknown → commented placeholder + diagnostic, never a wrong macro. READ-ONLY, never mutates the ROM, project-root-confined; EXPORT/source-helper only, not a byte-pinned round-trip or M4A re-assembler) | #1362 | PR #1368 (`670516783`) |
 
 CLI usage for every flag above is documented in
@@ -109,22 +110,28 @@ matrix so the gaps are visible rather than implied-away:
   guarded in decomp mode and migrate via `--export-asset` where an exporter exists. *(The map-change
   **overlay tile-data block** is now source export/import/verify-backed (#1355), the dereferenced
   **tile-animation-2 PALETTE body** is now source export/import/verify-backed (#1360), the **OBJ
-  tileset** is now source export/import/verify-backed (#1371), and the **chipset TSA/config** block —
+  tileset** is now source export/import/verify-backed (#1371), the **chipset TSA/config** block —
   its structural twin, a single LZ77 stream reached by one dereferenced CONFIG-PLIST pointer — is now
-  source export/import/verify-backed (#1375) — see the feature-inventory rows above.)* Each remaining
-  residual is tracked **explicitly** (narrower sub-issues under #1375):
-    - **Tile-animation-1 graphics** — 8-byte entry rows; a separate LZ77 graphics block per entry via
-      the `+4` image pointer (pointer-per-row). The dereferenced per-entry graphics block is itself a
-      single LZ77 stream, but the **entry-table → scattered-graphics** wiring (which entry, which plist,
-      provenance) has no clean source owner yet. (Sub-issue: #1389.)
+  source export/import/verify-backed (#1375), and the **tile-animation-1 per-entry GRAPHICS body** (a
+  RAW 4bpp block sized by the entry `+2` length, reached by the entry `+4` pointer) is now source
+  export/import/verify-backed (#1389) — see the feature-inventory rows above.)* Each remaining
+  residual is the **structural ENTRY/PLIST/RECORD table** (not the now-source-backed dereferenced data
+  block), tracked **explicitly** as narrower sub-issues under #1375 — each needs a manifest source owner
+  not yet defined, so it stays guarded and the `DecompMapAssetGuard` stays fail-closed:
+    - **Tile-animation-1 ENTRY/PLIST table** — 8-byte entry rows; a separate raw 4bpp graphics block per
+      entry via the `+4` pointer (the inverse of anime-2's `+0`). The per-entry **GRAPHICS body** is now
+      source-backed (#1389, RAW — NOT LZ77; the WF read/import/rebuild paths treat it as raw
+      `ImageToByte16Tile` bytes / a rebuild `IMG` block); the **entry table itself** (the rows + the PLIST
+      that points at them + per-entry `wait`/`length` metadata) is pointer-per-row with no clean source
+      owner / unambiguous manifest model. (Sub-issue: #1389.)
     - **Tile-animation-2 ENTRY/PLIST table** — 8-byte entry rows; a separate raw palette block per entry
       via the `+0` pointer. The per-entry **PALETTE body** is already source-backed (#1360); the **entry
       table itself** (the rows + the PLIST that points at them + per-entry `wait`/`count`/`startIndex`
-      metadata) is pointer-per-row with no clean source owner. (Sub-issue: #1390.)
+      metadata) is pointer-per-row with no clean source owner / unambiguous manifest model. (Sub-issue: #1390.)
     - **12-byte map-change RECORD chain** — `0xFF`-terminated 12-byte records; a separate raw overlay
       block per record via the `+8` pointer + `width`/`height`/`flagID`/PLIST metadata. The per-record
       **overlay tile-data block** is already source-backed (#1355); the **record chain itself** is
-      pointer-per-record with no clean source owner. (Sub-issue: #1391.)
+      pointer-per-record with no clean source owner / unambiguous manifest model. (Sub-issue: #1391.)
   The map **palette** block (the raw 512-byte 16-bank palette) also stays manual/export-only.
 - **Shop residuals after `--write-shop` (#1351/#1356):** shop **lists** are now source-backed
   in place (literal-numeric and symbolic `ITEM_*`), so they are **no longer** an unconditional
