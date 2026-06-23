@@ -98,7 +98,7 @@ namespace FEBuilderGBA
             public List<CommandRecord> Commands = new List<CommandRecord>();
         }
 
-        /// <summary>A decoded 12-byte OAM entry (normal sprite or affine matrix).</summary>
+        /// <summary>A decoded 12-byte OAM entry (normal sprite, affine matrix, or terminator).</summary>
         public sealed class OamEntry
         {
             public ushort Attr0;    // hword [0]
@@ -108,7 +108,11 @@ namespace FEBuilderGBA
             public ushort Dy;       // hword [4]
             public ushort Pad;      // hword [5]
             public bool IsAffine;   // bytes [2..3] == 0xFFFF (raw matrix entry)
-            public bool IsTerminator;
+            // A per-frame list terminator. The OAM blob is a CONCATENATION of per-frame
+            // OAM lists (frame oam_offset values index the WHOLE blob), so terminators are
+            // emitted INLINE and parsing continues past them (Copilot review).
+            public bool IsTerminator;      // exact 01 00..00 -> banim_frame_end (.word 1,0,0)
+            public bool IsRawTerminator;   // the FEditor alt terminator (00 FF FF FF ...) -> raw .hword
         }
 
         /// <summary>The full decoded animation (script modes + OAM lists + provenance).</summary>
@@ -379,20 +383,53 @@ namespace FEBuilderGBA
             }
         }
 
-        static void ParseOamEntries(byte[] oamData, List<OamEntry> oam, List<string> diagnostics)
+        /// <summary>
+        /// Parse the WHOLE concatenated OAM blob into <paramref name="oam"/> entries
+        /// (sprite / affine / terminator). <c>internal</c> so the parser itself — where
+        /// the truncation bug lived — is unit-tested directly with a byte blob (Copilot
+        /// review), not only via the formatter.
+        /// </summary>
+        internal static void ParseOamEntries(byte[] oamData, List<OamEntry> oam, List<string> diagnostics)
         {
             if (oamData == null) return;
+            if (diagnostics == null) diagnostics = new List<string>();
+
+            // The OAM blob is a CONCATENATION of per-frame OAM lists; each list ends with
+            // a 12-byte terminator and frame oam_offset values index the WHOLE blob. So we
+            // walk the ENTIRE blob byte-faithfully (every 12-byte entry becomes a line),
+            // emitting terminators INLINE and continuing past them — never stopping at the
+            // first one (which would truncate later frames' offsets; Copilot review).
             bool affineNoted = false;
             for (uint pos = 0; pos + 12 <= (uint)oamData.Length; pos += 12)
             {
                 byte b0 = oamData[pos];
 
-                // FEditor serialized alternate terminator (00 FF FF FF) or normal 0x01.
-                if ((b0 == 0 && oamData[pos + 1] == 0xFF && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
-                    || b0 == 0x01)
+                // Exact 01 00 00 00 00 00 00 00 00 00 00 00 == upstream banim_frame_end
+                // (.word 1, 0, 0). This is BattleAnimeImportCore.AppendTermOAM verbatim.
+                bool isFrameEnd = b0 == 0x01;
+                for (uint k = 1; k < 12 && isFrameEnd; k++)
+                    if (oamData[pos + k] != 0) isFrameEnd = false;
+                if (isFrameEnd)
                 {
                     oam.Add(new OamEntry { IsTerminator = true });
-                    break;
+                    continue;
+                }
+
+                // FEditor serialized alternate terminator (exactly 00 FF FF FF ...) ->
+                // emit raw .hword (byte-faithful) and keep walking the blob.
+                if (b0 == 0 && oamData[pos + 1] == 0xFF && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                {
+                    oam.Add(new OamEntry
+                    {
+                        IsRawTerminator = true,
+                        Attr0 = (ushort)(oamData[pos + 0] | (oamData[pos + 1] << 8)),
+                        Attr1 = (ushort)(oamData[pos + 2] | (oamData[pos + 3] << 8)),
+                        Attr2 = (ushort)(oamData[pos + 4] | (oamData[pos + 5] << 8)),
+                        Dx = (ushort)(oamData[pos + 6] | (oamData[pos + 7] << 8)),
+                        Dy = (ushort)(oamData[pos + 8] | (oamData[pos + 9] << 8)),
+                        Pad = (ushort)(oamData[pos + 10] | (oamData[pos + 11] << 8)),
+                    });
+                    continue;
                 }
 
                 bool isAffine = oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF;
@@ -413,9 +450,9 @@ namespace FEBuilderGBA
                     affineNoted = true;
                 }
 
-                if (oam.Count > 4096)
+                if (oam.Count > 65536)
                 {
-                    diagnostics.Add(R._("The OAM list exceeded 4096 entries without a terminator; truncated (manual review)."));
+                    diagnostics.Add(R._("The OAM blob exceeded 65536 entries; truncated (manual review)."));
                     break;
                 }
             }
@@ -599,7 +636,17 @@ namespace FEBuilderGBA
             {
                 if (e.IsTerminator)
                 {
+                    // exact 01 00..00 -> banim_frame_end (.word 1, 0, 0); the per-frame
+                    // list ends here but more lists may follow in the same blob.
                     sb.Append("\tbanim_frame_end\n");
+                    continue;
+                }
+                if (e.IsRawTerminator)
+                {
+                    // FEditor-alt / other terminator-like 12 bytes -> raw .hword (byte-faithful).
+                    sb.Append("\t.hword 0x" + e.Attr0.ToString("X4") + ", 0x" + e.Attr1.ToString("X4")
+                        + ", 0x" + e.Attr2.ToString("X4") + ", 0x" + e.Dx.ToString("X4")
+                        + ", 0x" + e.Dy.ToString("X4") + ", 0x" + e.Pad.ToString("X4") + " @ frame-list terminator\n");
                     continue;
                 }
                 if (e.IsAffine)
