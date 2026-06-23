@@ -5358,19 +5358,28 @@ namespace FEBuilderGBA.CLI
 
         // Confine a sibling sidecar path to the project root (project mode), else
         // accept any writable absolute path (rom mode). Returns null if rejected.
+        // In project mode, re-route through DecompAssetExportCore.ResolveSourcePath
+        // (the SAME robust containment used for the main --out) by computing the
+        // sibling's path RELATIVE to the project root — this rejects ..-escape /
+        // absolute paths and avoids the weak StartsWith-prefix / case pitfalls
+        // (Copilot review). The sidecar is always a sibling of the already-validated
+        // main .s, so a valid main --out yields a valid sidecar path.
         static string ConfineSibling(DecompProject project, string mainAbsOut, string siblingAbs)
         {
             if (project == null) return Path.GetFullPath(siblingAbs);
-            // In project mode, re-confine using the sibling's path RELATIVE to the
-            // project root via ResolveSourcePath (which rejects ..-escape / absolute).
             try
             {
-                string root = project.ProjectRoot;
-                string full = Path.GetFullPath(siblingAbs);
-                string rootFull = Path.GetFullPath(root);
-                if (!full.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
+                string rootFull = Path.GetFullPath(project.ProjectRoot);
+                string siblingFull = Path.GetFullPath(siblingAbs);
+                string rel = Path.GetRelativePath(rootFull, siblingFull);
+                // GetRelativePath returns the input unchanged (absolute / different
+                // root) or a ..-escaping path when outside the root — ResolveSourcePath
+                // rejects both.
+                if (Path.IsPathRooted(rel)
+                    || rel.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                           .Length == 0)
                     return null;
-                return full;
+                return DecompAssetExportCore.ResolveSourcePath(project, rel);
             }
             catch { return null; }
         }

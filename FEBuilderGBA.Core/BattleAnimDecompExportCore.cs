@@ -359,12 +359,15 @@ namespace FEBuilderGBA
                     mode.Commands.Add(new CommandRecord { Kind = CommandKind.Control, Payload24 = payload24 });
                     n += 4;
                 }
-                else if (cmdType == 0x80 ||
-                         (frameData[n] == 0 && frameData[n + 1] == 0 && frameData[n + 2] == 0 && frameData[n + 3] == 0x80))
+                else if (U.u32(frameData, n) == 0x80000000)
                 {
+                    // ONLY the exact 0x80000000 word ends a mode (the documented
+                    // terminator). A 0x80xxxxxx word with a nonzero payload is NOT a
+                    // terminator — it falls through to the Unknown placeholder below
+                    // rather than silently truncating the mode (Copilot review).
                     mode.Commands.Add(new CommandRecord { Kind = CommandKind.EndMode });
                     n += 4;
-                    break; // 0x80000000 terminates the mode
+                    break;
                 }
                 else
                 {
