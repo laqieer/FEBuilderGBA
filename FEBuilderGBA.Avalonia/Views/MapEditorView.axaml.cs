@@ -562,11 +562,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("Could not render the chipset image for the Tiled tileset."));
                     return;
                 }
-                var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph);
-                if (bmp == null || !ImageExportService.SavePngToFile(bmp, pngPath))
+                // WriteableBitmap is IDisposable — dispose after writing the PNG so
+                // repeated exports don't leak the unmanaged backing buffer.
+                using (var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph))
                 {
-                    CoreState.Services?.ShowError(R._("Failed to write the chipset PNG."));
-                    return;
+                    if (bmp == null || !ImageExportService.SavePngToFile(bmp, pngPath))
+                    {
+                        CoreState.Services?.ShowError(R._("Failed to write the chipset PNG."));
+                        return;
+                    }
                 }
 
                 int tileCount = (pw / MapTmxCore.TILE_PIXELS) * (ph / MapTmxCore.TILE_PIXELS);

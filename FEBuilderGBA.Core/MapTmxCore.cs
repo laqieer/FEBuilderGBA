@@ -46,6 +46,14 @@ namespace FEBuilderGBA
         public const int TILESET_COLUMNS = MapEditorTilesetCore.PALETTE_COLUMNS; // 32
 
         /// <summary>
+        /// Hard upper bound on a decoded/decompressed tile-layer payload. The largest
+        /// useful layer is 64×64 tiles × 4 bytes/GID = 16384 bytes; the cap adds generous
+        /// slack so a hostile (zip-bomb / oversized-base64) TMX fails fast instead of
+        /// allocating unbounded memory. ParseTmx independently rejects by tile count.
+        /// </summary>
+        const int MAX_DECODED_BYTES = 64 * 64 * 4 * 4; // 256 KB
+
+        /// <summary>
         /// Parse a Tiled <c>.tmx</c> document's first tile layer into width, height and a
         /// row-major array of MAR values. Handles all common <c>&lt;data&gt;</c> encodings:
         /// plain CSV, the default <c>&lt;tile gid=".."/&gt;</c> XML, Base64, Base64+gzip and
@@ -340,6 +348,15 @@ namespace FEBuilderGBA
                 if (char.IsWhiteSpace(c)) continue;
                 sb.Append(c);
             }
+            // Guard against an oversized/hostile base64 block before allocating. The
+            // useful decoded layer is tiny (<=64*64*4 bytes); base64 inflates 4:3, and
+            // compressed payloads are smaller still, so MAX_DECODED_BYTES of base64
+            // characters is a generous ceiling.
+            if (sb.Length > MAX_DECODED_BYTES)
+            {
+                error = $"base64 <data> payload too large ({sb.Length} chars, max {MAX_DECODED_BYTES})";
+                return false;
+            }
             byte[] data;
             try
             {
@@ -391,20 +408,36 @@ namespace FEBuilderGBA
         {
             using (var src = new MemoryStream(input))
             using (var z = new ZLibStream(src, CompressionMode.Decompress))
-            using (var dst = new MemoryStream())
-            {
-                z.CopyTo(dst);
-                return dst.ToArray();
-            }
+                return InflateBounded(z);
         }
 
         static byte[] InflateGzip(byte[] input)
         {
             using (var src = new MemoryStream(input))
             using (var g = new GZipStream(src, CompressionMode.Decompress))
+                return InflateBounded(g);
+        }
+
+        /// <summary>
+        /// Copy a decompression stream into memory with a hard byte cap so a crafted
+        /// "zip bomb" payload cannot exhaust memory: reads one byte past
+        /// <see cref="MAX_DECODED_BYTES"/> and throws if the stream is still producing.
+        /// </summary>
+        static byte[] InflateBounded(System.IO.Stream decompressed)
+        {
             using (var dst = new MemoryStream())
             {
-                g.CopyTo(dst);
+                byte[] buf = new byte[8192];
+                int total = 0;
+                int n;
+                while ((n = decompressed.Read(buf, 0, buf.Length)) > 0)
+                {
+                    total += n;
+                    if (total > MAX_DECODED_BYTES)
+                        throw new InvalidDataException(
+                            $"decompressed data exceeds the maximum tile-layer size ({MAX_DECODED_BYTES} bytes)");
+                    dst.Write(buf, 0, n);
+                }
                 return dst.ToArray();
             }
         }

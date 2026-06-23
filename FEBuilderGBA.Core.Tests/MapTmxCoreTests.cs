@@ -269,6 +269,32 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("firstgid", err);
         }
 
+        [Fact]
+        public void ParseTmx_OversizedBase64Payload_Refused()
+        {
+            // A base64 block far larger than any 64x64 layer must fail fast (no OOM).
+            string big = new string('A', 64 * 64 * 4 * 4 + 16);
+            string inner = $"   <data encoding=\"base64\">\n{big}\n   </data>";
+            string xml = WrapTmx(2, 2, inner);
+            Assert.False(MapTmxCore.ParseTmx(xml, out _, out _, out _, out string err));
+            Assert.Contains("too large", err);
+        }
+
+        [Fact]
+        public void ParseTmx_GzipZipBomb_Refused()
+        {
+            // Compress a payload that inflates well beyond the cap; decode must throw
+            // internally and surface a clean "decompress" error, not OOM.
+            byte[] huge = new byte[64 * 64 * 4 * 8]; // 512 KB of zeros -> tiny gzip
+            using var ms = new MemoryStream();
+            using (var g = new GZipStream(ms, CompressionLevel.Optimal, leaveOpen: true)) g.Write(huge, 0, huge.Length);
+            string b64 = Convert.ToBase64String(ms.ToArray());
+            string inner = $"   <data encoding=\"base64\" compression=\"gzip\">\n{b64}\n   </data>";
+            string xml = WrapTmx(2, 2, inner);
+            Assert.False(MapTmxCore.ParseTmx(xml, out _, out _, out _, out string err));
+            Assert.Contains("decompress", err, StringComparison.OrdinalIgnoreCase);
+        }
+
         // ---- Serialize ----
 
         [Fact]
