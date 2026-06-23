@@ -210,6 +210,8 @@ namespace FEBuilderGBA
                 DecompCoverage.SourceTreeExporter, "Indexed PNG (color type 3) + sidecar .pal"));
             rows.Add(new DecompAuditRow("Portrait Editor", "portrait", "Portrait export",
                 DecompCoverage.SourceTreeExporter, "Export via --export-portrait-all (PNG package)"));
+            rows.Add(new DecompAuditRow("Portrait Editor", "portrait_package", "Portrait package import/round-trip",
+                DecompCoverage.SourceTreeExporter, "Source-tree write-back of a validated 128x112 composite sheet + name-matched JASC sidecar — import (--import-asset --kind=portrait-package, identity copy into an unambiguous project-confined owner; --overwrite an existing owner, ambiguous/multi-PNG destinations refused) + structural round-trip against an explicit baseline (--roundtrip-asset --kind=portrait-package --expect=<baselineDir>); reuses the #1350/#1353 portrait-package validator; never mutates the preview ROM. Source-level structure-exact identity vs a supplied baseline; NO ROM byte-pin (no canonical ROM->128x112-sheet builder exists, so the preview ROM is never the source of truth)"));
             rows.Add(new DecompAuditRow("Icon Editor", "icon", "Icon export",
                 DecompCoverage.SourceTreeExporter, "Indexed PNG via graphics exporter (16x16 tiles)"));
             rows.Add(new DecompAuditRow("Map Editor", "map", "Map layout export",

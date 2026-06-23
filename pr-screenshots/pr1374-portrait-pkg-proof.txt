@@ -1,0 +1,25 @@
+# FEBuilderGBA #1374 — portrait package source-tree write-back + round-trip (CLI proof)
+
+$ # 1. Validate the source portrait package (reuses the #1350/#1353 validator)
+Validation: 0 error(s), 0 warning(s) - OK
+
+$ # 2. Write-back: import the validated package into the decomp project tree (root-confined)
+Wrote portrait package 'portrait.png' + sidecar palette
+Wrote: <TMPDIR>\decomp\portraits\eirika\portrait.png
+Wrote: <TMPDIR>\decomp\portraits\eirika\portrait.pal
+
+$ # 3. Round-trip vs the baseline oracle (byte-identical) -> exit 0
+Round-trip OK (portrait package byte-identical to baseline)
+exit=0
+
+$ # 4. Tampered (still-VALID) source vs baseline -> MISMATCH, exit 2
+Round-trip FAILED: sheet mismatch: source 'portrait.png' differs from baseline 'portrait.png'
+exit=2
+
+$ # 5. Existing owner without --overwrite -> refused (OWNER_EXISTS), exit 2
+Error: [OWNER_EXISTS] destination '<TMPDIR>\baseline' already contains a portrait package ('portrait.png'). Pass --overwrite to replace the owning package.
+exit=2
+
+$ # 6. Ambiguous destination (two PNGs) -> refused (AMBIGUOUS_OWNER), exit 2
+Error: [AMBIGUOUS_OWNER] destination '<TMPDIR>\ambig' holds 2 *.png files; the portrait-package owner cannot be determined. Point --out at the single owning package directory.
+exit=2
