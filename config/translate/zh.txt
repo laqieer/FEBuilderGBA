@@ -26014,3 +26014,21 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Import from the FE-Repo Generic Minimugs folder
 从 FE-Repo 通用小头像文件夹导入
 
+:Export Map (Tiled .tmx)
+导出地图 (Tiled .tmx)
+
+:Import Map (Tiled .tmx)
+导入地图 (Tiled .tmx)
+
+:Tiled export requires a local file path (not supported on this storage provider).
+Tiled 导出需要本地文件路径（此存储提供程序不支持）。
+
+:Could not render the chipset image for the Tiled tileset.
+无法为 Tiled 图块集渲染图块集图像。
+
+:Failed to write the chipset PNG.
+写入图块集 PNG 失败。
+
+:Exported Tiled map to {0} (+ {1}, {2}).
+已将 Tiled 地图导出到 {0}（+ {1}, {2}）。
+
