@@ -30,21 +30,40 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             RomTestHelper.WithRom("FE8U", () =>
             {
-                var vm = new MapEditorViewModel();
-                var list = vm.LoadList();
+                // LoadMapImage requires an IImageService to decode the tileset; wire the
+                // Skia implementation if a previous test hasn't already (RomTestHelper
+                // wires the ROM + caches but not the image service).
+                if (CoreState.ImageService == null)
+                    CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
+
+                var probe = new MapEditorViewModel();
+                var list = probe.LoadList();
 
                 // A valid FE8U ROM must yield a non-empty map list. Empty here is a
                 // genuine regression, not a reason to skip.
                 Assert.NotNull(list);
                 Assert.NotEmpty(list);
 
-                // Load the first map
-                var item = list[0];
-                vm.LoadMapImage(item.addr, item.tag);
+                // Scan for the first map that actually loads with positive dimensions.
+                // (FE8U map ID 0 / some entries are empty placeholders that resolve to
+                // no data — those legitimately render 0x0; we want a real chapter map.)
+                MapEditorViewModel loaded = null;
+                foreach (var entry in list)
+                {
+                    var candidate = new MapEditorViewModel();
+                    candidate.LoadMapImage(entry.addr, entry.tag);
+                    if (candidate.MapWidth > 0 && candidate.MapHeight > 0)
+                    {
+                        loaded = candidate;
+                        break;
+                    }
+                }
 
-                // A valid first map must render with positive dimensions.
-                Assert.True(vm.MapWidth > 0, $"MapWidth was {vm.MapWidth}; expected > 0 after loading the first map.");
-                Assert.True(vm.MapHeight > 0, $"MapHeight was {vm.MapHeight}; expected > 0 after loading the first map.");
+                // A valid FE8U ROM must contain at least one renderable map.
+                // None => real regression (not a skip).
+                Assert.True(loaded != null,
+                    "No FE8U map loaded with positive dimensions — expected at least one renderable map.");
+                var vm = loaded!;
 
                 // Build mars from the current cache (self-import = lossless no-op at tile level)
                 byte[] snapshot = vm.GetMapDataSnapshot();
