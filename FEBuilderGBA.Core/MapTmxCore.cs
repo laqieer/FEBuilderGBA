@@ -51,7 +51,7 @@ namespace FEBuilderGBA
         /// slack so a hostile (zip-bomb / oversized-base64) TMX fails fast instead of
         /// allocating unbounded memory. ParseTmx independently rejects by tile count.
         /// </summary>
-        const int MAX_DECODED_BYTES = 64 * 64 * 4 * 4; // 256 KB
+        const int MAX_DECODED_BYTES = 64 * 64 * 4 * 4; // 65,536 bytes (64 KB) = 4x the 16 KB max layer
 
         /// <summary>
         /// Parse a Tiled <c>.tmx</c> document's first tile layer into width, height and a
