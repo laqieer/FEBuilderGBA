@@ -186,22 +186,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(error);
         }
 
+        /// <summary>
+        /// With <c>CoreState.ROM == null</c> the ROM guard fires FIRST — before the
+        /// dimension check — even when a cache is seeded and mismatched dimensions are
+        /// passed. This test only proves the ROM-guard short-circuit (returns false with
+        /// "No ROM loaded"), NOT the dimension-mismatch refusal.
+        ///
+        /// <para>The genuine dimension-mismatch coverage lives in:
+        /// <list type="bullet">
+        ///   <item><see cref="FEBuilderGBA.Core.Tests"/> <c>MapEditorTilesetCoreTests.TryStageGridEdit_*</c>
+        ///     (pure, no ROM — the header/dimension match is enforced there), and</item>
+        ///   <item><c>MapEditorImportRomTests.ApplyMapGrid_FE8U_DimensionMismatch_Refused</c>
+        ///     (real ROM — exercises the VM's "does not match the selected map" refusal end-to-end).</item>
+        /// </list></para>
+        /// </summary>
         [Fact]
-        public void ApplyMapGrid_DimensionMismatch_FailsWithDescriptiveError()
+        public void ApplyMapGrid_WithoutRom_FailsAtRomGuard()
         {
-            // Seed cache + non-matching width to reach dimension check.
-            // ROM is null → "No ROM loaded" fires first before dim check.
-            // The test confirms false+non-null error for a null-ROM call.
+            // Seed a cache and pass mismatched dimensions; the ROM guard still wins.
             var vm = new MapEditorViewModel { MapWidth = 2, MapHeight = 2 };
             byte[] seed = new byte[2 + 4 * 2];
             seed[0] = 2; seed[1] = 2;
             SetPrivateField(vm, "_cachedMapData", seed);
 
-            // Pass 3x3 mars to a 2x2 map — ROM is null so it fails at ROM check,
-            // not dim check; regardless result must be false.
             bool ok = vm.ApplyMapGrid(new ushort[9], 3, 3, out string error, out _);
             Assert.False(ok);
-            Assert.NotNull(error);
+            // ROM guard short-circuits before the dimension check.
+            Assert.Equal("No ROM loaded", error);
         }
     }
 }

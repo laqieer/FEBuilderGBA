@@ -92,5 +92,58 @@ namespace FEBuilderGBA.Avalonia.Tests
                 }
             });
         }
+
+        /// <summary>
+        /// Real-ROM coverage of the VM's dimension-mismatch refusal (the VM-level
+        /// unit test can't reach this path because the ROM-null guard fires first).
+        /// Loads a renderable FE8U map, then calls ApplyMapGrid with a width that
+        /// does NOT match the selected map and asserts it returns false with a
+        /// "does not match" error and writes nothing.
+        /// </summary>
+        [SkippableFact]
+        public void ApplyMapGrid_FE8U_DimensionMismatch_Refused()
+        {
+            string? romPath = TestRomLocator.FindRom("FE8U");
+            Skip.If(romPath == null, "FE8U.gba not available — skipping real-ROM dimension-mismatch test.");
+
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                if (CoreState.ImageService == null)
+                    CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
+
+                var probe = new MapEditorViewModel();
+                var list = probe.LoadList();
+                Assert.NotNull(list);
+                Assert.NotEmpty(list);
+
+                // Scan for the first renderable map (placeholder maps render 0x0).
+                MapEditorViewModel loaded = null;
+                foreach (var entry in list)
+                {
+                    var candidate = new MapEditorViewModel();
+                    candidate.LoadMapImage(entry.addr, entry.tag);
+                    if (candidate.MapWidth > 0 && candidate.MapHeight > 0)
+                    {
+                        loaded = candidate;
+                        break;
+                    }
+                }
+                Assert.True(loaded != null,
+                    "No FE8U map loaded with positive dimensions — expected at least one renderable map.");
+                var vm = loaded!;
+
+                // Build a mismatched grid: width + 1 (so width != MapWidth).
+                int wrongWidth = vm.MapWidth + 1;
+                ushort[] mars = new ushort[wrongWidth * vm.MapHeight];
+
+                bool ok = vm.ApplyMapGrid(mars, wrongWidth, vm.MapHeight, out string err, out uint addr);
+
+                // The VM must refuse: false, descriptive "does not match" error, no write.
+                Assert.False(ok);
+                Assert.NotNull(err);
+                Assert.Contains("does not match", err, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(0u, addr);
+            });
+        }
     }
 }

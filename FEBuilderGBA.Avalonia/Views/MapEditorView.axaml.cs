@@ -452,14 +452,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (files == null || files.Count == 0) return;
                 var file = files[0];
 
-                string path = file.TryGetLocalPath();
-                if (string.IsNullOrEmpty(path))
+                // Read via the storage stream API so import works on providers that
+                // don't expose a local path (Android SAF, sandboxed environments).
+                string csv;
+                using (var stream = await file.OpenReadAsync())
+                using (var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8))
                 {
-                    CoreState.Services?.ShowError(R._("Could not resolve a local file path for import."));
-                    return;
+                    csv = await reader.ReadToEndAsync();
                 }
-
-                string csv = File.ReadAllText(path);
 
                 if (!MapExportCsv.Parse(csv, out int w, out int h, out ushort[] mars, out string parseErr))
                 {

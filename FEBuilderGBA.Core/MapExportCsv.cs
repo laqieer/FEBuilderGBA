@@ -51,7 +51,7 @@ namespace FEBuilderGBA
             }
 
             // Tolerate a leading UTF-8 BOM (U+FEFF) that some editors prepend.
-            if (csv[0] == '﻿')
+            if (csv[0] == '\uFEFF')
                 csv = csv.Substring(1);
 
             // Split on newlines; strip \r
