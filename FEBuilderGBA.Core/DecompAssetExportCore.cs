@@ -1344,5 +1344,269 @@ namespace FEBuilderGBA
             // provenance metadata ONLY (no symbol/owner is fabricated).
             return $"{{\n  \"count\": {count},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapanime2-pal-u16\"\n}}\n";
         }
+
+
+        // ---- OBJ tileset LZ77 decompressed-payload export/import/verify (#1360) ----
+
+        /// <summary>
+        /// Export an OBJ tileset LZ77 block at <paramref name="objAddr"/> by LZ77-DECOMPRESSING it
+        /// and writing the DECOMPRESSED 4bpp payload to <paramref name="absOutObjTilesPath"/>
+        /// plus a sidecar JSON. This is the source body the decomp build re-compresses (FEBuilder's
+        /// LZ77 packer is non-canonical, so the source is the decompressed payload, NOT the stream).
+        /// READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="objAddr">ROM byte offset of the OBJ LZ77 stream (the DEREFERENCED address,
+        /// NOT <c>RomInfo.map_obj_pointer</c>). FE7 obj2 split is out of scope.</param>
+        /// <param name="absOutObjTilesPath">Absolute path for the output <c>.objtiles</c> file.
+        /// A sidecar <c>&lt;path&gt;.json</c> is written at the same path with <c>.json</c> appended.</param>
+        public static DecompAssetResult ExportObjTiles(ROM rom, uint objAddr, string absOutObjTilesPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutObjTilesPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output .objtiles path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                if (!U.isSafetyOffset(objAddr, rom))
+                    return Fail(DecompAssetStatus.NotData, $"Address 0x{objAddr:X} is outside the ROM safety range");
+
+                uint compLen = LZ77.getCompressedSize(rom.Data, objAddr);
+                if (compLen == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"0x{objAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
+
+                if (objAddr + compLen > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 stream at 0x{objAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
+
+                byte[] body = LZ77.decompress(rom.Data, objAddr);
+                if (body == null || body.Length == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 decompression failed at 0x{objAddr:X}");
+
+                EnsureParentDir(absOutObjTilesPath);
+                File.WriteAllBytes(absOutObjTilesPath, body);
+
+                string jsonPath = absOutObjTilesPath + ".json";
+                string json = BuildObjTilesJson(body.Length, objAddr);
+                File.WriteAllText(jsonPath, json, Encoding.UTF8);
+
+                var result = new DecompAssetResult { Status = DecompAssetStatus.Ok, Message = $"OBJ tileset exported ({body.Length} bytes decompressed)" };
+                result.WrittenPaths.Add(absOutObjTilesPath);
+                result.WrittenPaths.Add(jsonPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-import a <c>.objtiles</c> decompressed 4bpp OBJ payload (the inverse of
+        /// <see cref="ExportObjTiles"/>) — an IDENTITY copy of the validated decompressed body
+        /// to <paramref name="absOutBlobPath"/>. This method NEVER reads <see cref="CoreState.ROM"/>,
+        /// NEVER LZ77-compresses, NEVER mutates the ROM, and NEVER throws.
+        /// </summary>
+        /// <param name="absInObjTilesPath">Absolute path to the input <c>.objtiles</c> file.
+        /// A sidecar <c>&lt;path&gt;.json</c> with <c>"format": "febuilder-objtiles-lz77"</c> and
+        /// <c>"length"</c> is REQUIRED.</param>
+        /// <param name="absOutBlobPath">Absolute path for the output RAW decompressed OBJ blob
+        /// (identity copy of the validated body).</param>
+        public static DecompAssetResult ImportObjTiles(string absInObjTilesPath, string absOutBlobPath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absInObjTilesPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .objtiles path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlobPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural validation (required sidecar, format, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, absInObjTilesPath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absInObjTilesPath);
+
+                // The sidecar length is REQUIRED to verify the body before the identity copy.
+                string sidecar = absInObjTilesPath + ".json";
+                if (!TryReadObjTilesLength(sidecar, out int len))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .objtiles.json required to read length");
+
+                if (body.Length != len)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != sidecar length {len}");
+
+                // Identity copy: write the validated body VERBATIM.
+                EnsureParentDir(absOutBlobPath);
+                File.WriteAllBytes(absOutBlobPath, body);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported OBJ tileset decompressed payload to blob ({body.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlobPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE structural round-trip proof for an OBJ tileset decompressed body (#1360): true iff
+        /// <paramref name="body"/> is non-null, <paramref name="expectedLen"/> is positive, and
+        /// <c>body.Length == expectedLen</c>. Try/catch → false.
+        ///
+        /// <para>This is source-level structure-exact IDENTITY, NOT a byte-pinned ROM round-trip.
+        /// For a byte-exact ROM mismatch proof use <see cref="VerifyObjTilesAgainstRom"/>.</para>
+        /// </summary>
+        public static bool RoundTripObjTilesBody(byte[] body, int expectedLen)
+        {
+            try
+            {
+                if (body == null) return false;
+                if (expectedLen <= 0) return false;
+                return body.Length == expectedLen;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Decompress-and-byte-compare ROM-backed mismatch proof for an OBJ tileset (#1360):
+        /// LZ77-decompresses the ROM at <paramref name="objAddr"/> and compares byte-for-byte
+        /// against the <c>.objtiles</c> file body. READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="objAddr">ROM byte offset of the OBJ LZ77 stream (DEREFERENCED address).</param>
+        /// <param name="absInObjTilesPath">Absolute path to the <c>.objtiles</c> file (with required sidecar).</param>
+        public static DecompAssetResult VerifyObjTilesAgainstRom(ROM rom, uint objAddr, string absInObjTilesPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absInObjTilesPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .objtiles path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Validate the .objtiles file first.
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.ObjTiles, absInObjTilesPath);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                if (!U.isSafetyOffset(objAddr, rom))
+                    return Fail(DecompAssetStatus.NotData, $"Address 0x{objAddr:X} is outside the ROM safety range");
+
+                uint compLen = LZ77.getCompressedSize(rom.Data, objAddr);
+                if (compLen == 0)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"0x{objAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
+
+                if (objAddr + compLen > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 stream at 0x{objAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
+
+                byte[] romBody = LZ77.decompress(rom.Data, objAddr);
+                // LZ77.decompress returns an EMPTY array (not null) on failure — treat
+                // null OR empty as a decompression fault.
+                if (romBody == null || romBody.Length == 0)
+                    return Fail(DecompAssetStatus.NotData, $"LZ77 decompression failed at 0x{objAddr:X}");
+
+                byte[] body = File.ReadAllBytes(absInObjTilesPath);
+                string sidecar = absInObjTilesPath + ".json";
+                // The sidecar length is REQUIRED — a read/parse fault here must fail cleanly,
+                // never proceed with a bogus (zero) length.
+                if (!TryReadObjTilesLength(sidecar, out int len))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .objtiles.json required to read length");
+
+                // Compare lengths BEFORE byte-diff.
+                if (romBody.Length != len)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"ROM decompressed length {romBody.Length} != sidecar length {len}");
+
+                if (romBody.Length != body.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"ROM decompressed length {romBody.Length} != file length {body.Length}");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    byte romByte = romBody[i];
+                    byte fileByte = body[i];
+                    if (romByte != fileByte)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"OBJ tileset mismatch at byte offset {i}: ROM=0x{romByte:X2} file=0x{fileByte:X2}");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Verified OBJ tileset decompressed payload byte-identical to ROM ({body.Length} bytes)"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read <c>length</c> from a <c>.objtiles.json</c> sidecar. NEVER throws;
+        /// returns false on any fault or a non-positive length. Public so the CLI
+        /// <c>--roundtrip-asset</c> path can size the body before calling
+        /// <see cref="RoundTripObjTilesBody"/>.
+        /// </summary>
+        public static bool TryReadObjTilesLength(string sidecarPath, out int len)
+        {
+            len = 0;
+            try
+            {
+                if (string.IsNullOrEmpty(sidecarPath) || !File.Exists(sidecarPath))
+                    return false;
+                string json = File.ReadAllText(sidecarPath);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("length", out System.Text.Json.JsonElement l)
+                    && l.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    len = l.GetInt32();
+                return len > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Build the sidecar JSON for an OBJ tileset export. Hand-built to avoid serializer deps.
+        /// <paramref name="addrOffset"/> is provenance ONLY — the decomp build re-compresses the
+        /// decompressed body (FEBuilder's LZ77 packer is non-canonical).
+        /// </summary>
+        static string BuildObjTilesJson(int length, uint addrOffset)
+        {
+            // srcAddr is provenance ONLY — the decomp build re-compresses the decompressed body.
+            // FEBuilder's LZ77 packer is non-canonical; the source is the DECOMPRESSED 4bpp payload.
+            return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-objtiles-lz77\"\n}}\n";
+        }
     }
 }

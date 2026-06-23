@@ -39,6 +39,14 @@ namespace FEBuilderGBA
         /// geometry and palette consistency (PLTE-vs-JASC), NOT write-back / frame order.
         /// </summary>
         PortraitPackage,
+        /// <summary>
+        /// LZ77-decompressed 4bpp OBJ tile payload (#1360/#1371). The source body is the
+        /// DECOMPRESSED bytes — NOT a byte-pinned LZ77 stream (FEBuilder's packer is
+        /// non-canonical; the build re-compresses). Requires a sidecar
+        /// <c>&lt;name&gt;.objtiles.json</c> with <c>"format": "febuilder-objtiles-lz77"</c>
+        /// and <c>"length"</c>. NOT chipset TSA/config, NOT tile animations 1/2.
+        /// </summary>
+        ObjTiles,
     }
 
     /// <summary>One validation finding (error or warning): a stable CODE + a message.</summary>
@@ -154,6 +162,9 @@ namespace FEBuilderGBA
                         break;
                     case AssetKind.MapTileAnimation2Palette:
                         ValidateMapAnime2Pal(path, r);
+                        break;
+                    case AssetKind.ObjTiles:
+                        ValidateObjTiles(path, r);
                         break;
                     case AssetKind.Graphics:
                     case AssetKind.Portrait:
@@ -435,6 +446,9 @@ namespace FEBuilderGBA
                 case "map-tileanime2-palette": return AssetKind.MapTileAnimation2Palette;
                 case "portrait-package":
                 case "portraitpackage": return AssetKind.PortraitPackage;
+                case "objtiles":
+                case "obj-tiles":
+                case "obj": return AssetKind.ObjTiles;
                 default: return null;
             }
         }
@@ -854,6 +868,73 @@ namespace FEBuilderGBA
             {
                 r.Errors.Add(new AssetIssue("BAD_MAPCHANGE_LENGTH",
                     $"File length {body.Length} != width*height*2 ({width}*{height}*2 = {expected})."));
+            }
+        }
+
+        // ------------------------------------------------ ObjTiles (LZ77-decompressed 4bpp payload)
+
+        /// <summary>
+        /// Validate a LZ77-decompressed 4bpp OBJ tile payload (#1360/#1371). The body is the DECOMPRESSED
+        /// bytes — NOT a byte-pinned LZ77 stream. The sidecar JSON is REQUIRED (it carries the
+        /// format declaration and the length). Checks:
+        /// <list type="bullet">
+        ///   <item>sidecar present and declares <c>format == "febuilder-objtiles-lz77"</c>;</item>
+        ///   <item>sidecar declares a positive <c>length</c>;</item>
+        ///   <item>body length equals sidecar length.</item>
+        /// </list>
+        /// NEVER reads the ROM, NEVER throws.
+        /// </summary>
+        static void ValidateObjTiles(string path, AssetValidationResult r)
+        {
+            byte[] body;
+            try { body = File.ReadAllBytes(path); }
+            catch (Exception ex)
+            {
+                r.Errors.Add(new AssetIssue("READ_FAILED", "Could not read file: " + ex.Message));
+                return;
+            }
+
+            string sidecar = path + ".json";
+            if (!File.Exists(sidecar))
+            {
+                r.Errors.Add(new AssetIssue("OBJTILES_NO_SIDECAR",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' is required for an OBJ tileset asset (it carries length and the format declaration)."));
+                return;
+            }
+
+            if (!TryReadSidecarFormat(sidecar, out string format)
+                || !string.Equals(format, "febuilder-objtiles-lz77", StringComparison.Ordinal))
+            {
+                r.Errors.Add(new AssetIssue("BAD_OBJTILES_FORMAT",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare format \"febuilder-objtiles-lz77\"; got \"{format ?? "(missing)"}\"."));
+                return;
+            }
+
+            // Read the required length from the sidecar.
+            int len = 0;
+            try
+            {
+                string json = File.ReadAllText(sidecar);
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object
+                    && root.TryGetProperty("length", out JsonElement lProp)
+                    && lProp.ValueKind == JsonValueKind.Number)
+                    len = lProp.GetInt32();
+            }
+            catch { }
+
+            if (len <= 0)
+            {
+                r.Errors.Add(new AssetIssue("BAD_OBJTILES_LENGTH",
+                    $"Sidecar '{Path.GetFileName(sidecar)}' must declare a positive integer 'length'."));
+                return;
+            }
+
+            if (body.Length != len)
+            {
+                r.Errors.Add(new AssetIssue("BAD_OBJTILES_LENGTH",
+                    $"File length {body.Length} != sidecar length {len}."));
             }
         }
 

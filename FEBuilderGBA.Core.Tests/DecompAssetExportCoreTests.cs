@@ -1971,6 +1971,233 @@ namespace FEBuilderGBA.Core.Tests
             var r2 = DecompAssetExportCore.ExportShops(rom, "");
             Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
         }
+
+
+        // ============================================================
+        // OBJ tileset section (#1371)
+        // ============================================================
+
+        static byte[] MakeAndPlantLz77(uint addr, int rawSize, out byte[] raw)
+        {
+            raw = new byte[rawSize];
+            for (int i = 0; i < rawSize; i++) raw[i] = (byte)(i ^ 0xAB); // known pattern
+            byte[] comp = LZ77.compress(raw);
+            byte[] romData = new byte[addr + comp.Length + 16];
+            Array.Copy(comp, 0, romData, (int)addr, comp.Length);
+            return romData;
+        }
+
+        static ROM MakeRomWithLz77(uint addr, int rawSize, out byte[] raw)
+        {
+            byte[] romData = MakeAndPlantLz77(addr, rawSize, out raw);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(romData);
+            return rom;
+        }
+
+        // ---- ExportObjTiles ----
+
+        [Fact]
+        public void ExportObjTiles_WritesDecompressedBody_AndSidecar()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 128, out byte[] raw);
+                string outPath = Path.Combine(dir, "obj.objtiles");
+
+                var result = DecompAssetExportCore.ExportObjTiles(rom, addr, outPath);
+                Assert.True(result.Ok, $"ExportObjTiles failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+
+                byte[] body = File.ReadAllBytes(outPath);
+                Assert.Equal(raw, body);
+
+                string jsonPath = outPath + ".json";
+                Assert.True(File.Exists(jsonPath));
+                string json = File.ReadAllText(jsonPath);
+                Assert.Contains($"\"length\": {raw.Length}", json);
+                Assert.Contains($"\"srcAddr\": \"0x{addr:X}\"", json);
+                Assert.Contains("\"format\": \"febuilder-objtiles-lz77\"", json);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportObjTiles_NonLz77Addr_ReturnsNotData_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]); // zeros — not a valid LZ77 stream
+                string outPath = Path.Combine(dir, "obj.objtiles");
+
+                var result = DecompAssetExportCore.ExportObjTiles(rom, 0x200, outPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportObjTiles_OverBounds_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // Put a valid LZ77 header at 0x200 but with decompressed size pointing beyond ROM
+                var rom = new ROM();
+                byte[] romData = new byte[0x210]; // tiny
+                // Set LZ77 magic byte 0x10, then 3 bytes of uncompressed size (large)
+                romData[0x200] = 0x10;
+                romData[0x201] = 0x00;
+                romData[0x202] = 0x04;
+                romData[0x203] = 0x00; // 0x400 uncompressed
+                // Compressed data is missing/truncated → getCompressedSize returns 0
+                rom.SwapNewROMDataDirect(romData);
+                string outPath = Path.Combine(dir, "obj.objtiles");
+
+                var result = DecompAssetExportCore.ExportObjTiles(rom, 0x200, outPath);
+                Assert.False(result.Ok);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportObjTiles_NullRom_ReturnsBadArgs()
+        {
+            var result = DecompAssetExportCore.ExportObjTiles(null, 0x200, "/tmp/obj.objtiles");
+            Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        // ---- ImportObjTiles ----
+
+        static void WriteObjTilesPlusSidecar(string path, byte[] body, string format = "febuilder-objtiles-lz77")
+        {
+            File.WriteAllBytes(path, body);
+            File.WriteAllText(path + ".json",
+                $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportObjTiles_IdentityCopy()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[64];
+                for (int i = 0; i < body.Length; i++) body[i] = (byte)(i * 3);
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesPlusSidecar(inPath, body);
+
+                string outPath = Path.Combine(dir, "obj.bin");
+                var result = DecompAssetExportCore.ImportObjTiles(inPath, outPath);
+                Assert.True(result.Ok, $"ImportObjTiles failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+                Assert.Equal(body, File.ReadAllBytes(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportObjTiles_DoesNotMutateCoreStateRom()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesPlusSidecar(inPath, body);
+
+                ROM before = CoreState.ROM;
+                DecompAssetExportCore.ImportObjTiles(inPath, Path.Combine(dir, "obj.bin"));
+                Assert.Same(before, CoreState.ROM);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportObjTiles_MissingSidecar_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                File.WriteAllBytes(inPath, body); // no sidecar
+
+                var result = DecompAssetExportCore.ImportObjTiles(inPath, Path.Combine(dir, "obj.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- RoundTripObjTilesBody ----
+
+        [Fact]
+        public void RoundTripObjTilesBody_Matches_True()
+        {
+            byte[] body = new byte[128];
+            Assert.True(DecompAssetExportCore.RoundTripObjTilesBody(body, 128));
+        }
+
+        [Fact]
+        public void RoundTripObjTilesBody_WrongLen_False()
+        {
+            byte[] body = new byte[128];
+            Assert.False(DecompAssetExportCore.RoundTripObjTilesBody(body, 64));
+        }
+
+        [Fact]
+        public void RoundTripObjTilesBody_Null_False()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripObjTilesBody(null, 64));
+        }
+
+        // ---- VerifyObjTilesAgainstRom ----
+
+        [Fact]
+        public void VerifyObjTilesAgainstRom_Match_Ok()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 64, out byte[] raw);
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesPlusSidecar(inPath, raw);
+
+                var result = DecompAssetExportCore.VerifyObjTilesAgainstRom(rom, addr, inPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyObjTilesAgainstRom_Mismatch_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithLz77(addr, 64, out byte[] raw);
+                byte[] tampered = (byte[])raw.Clone();
+                tampered[5] ^= 0xFF; // flip byte at offset 5
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesPlusSidecar(inPath, tampered);
+
+                var result = DecompAssetExportCore.VerifyObjTilesAgainstRom(rom, addr, inPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Contains("offset 5", result.Message);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
     }
 
     /// <summary>

@@ -125,6 +125,7 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --projec
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=mapchange --rom=rom.gba --addr=0x300000 --width=15 --height=10 --out=map/chapter1.change
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --out=map/chapter1.mapanime2pal
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=shop --rom=rom.gba --out=shops/
 
@@ -205,6 +206,20 @@ dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=mapchange --rom=r
 dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=mapanime2pal --in=map/chapter1.mapanime2pal --out=map/chapter1.mapanime2pal_raw.bin
 dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=mapanime2pal --in=map/chapter1.mapanime2pal
 dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=mapanime2pal --rom=rom.gba --addr=0x400000 --count=16 --in=map/chapter1.mapanime2pal
+
+# Decomp OBJ tileset LZ77 decompressed-payload source (#1371): exports the DECOMPRESSED 4bpp payload,
+# NOT a byte-pinned LZ77 stream (FEBuilder's packer is non-canonical; the build re-compresses).
+# --addr is the DEREFERENCED OBJ LZ77 stream address (NOT RomInfo.map_obj_pointer).
+# FE7 obj2 split is out of scope (a separate stream/--addr). NOT chipset TSA/config, NOT tile animations 1/2.
+# --export-asset --kind=objtiles  → LZ77-decompress the live ROM block at --addr into a .objtiles file
+#                                    + .json sidecar (format "febuilder-objtiles-lz77", with length + provenance srcAddr).
+# --import-asset --kind=objtiles  → identity copy of the validated decompressed body to a raw blob (NO ROM read, NO LZ77).
+# --roundtrip-asset --kind=objtiles → structure-exact identity proof (body length == sidecar length).
+# --verify-asset --kind=objtiles  → read-only decompress-and-byte-compare ROM mismatch proof (re-decompresses the ROM block).
+dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --out=map/chapter1.objtiles
+dotnet run --project FEBuilderGBA.CLI -- --import-asset --kind=objtiles --in=map/chapter1.objtiles --out=map/chapter1.objtiles_raw.bin
+dotnet run --project FEBuilderGBA.CLI -- --roundtrip-asset --kind=objtiles --in=map/chapter1.objtiles
+dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=objtiles --rom=rom.gba --addr=0x400000 --in=map/chapter1.objtiles
 
 # Decomp source-backed table writer: rewrite the owning C array element (or JSON
 # element) of a structured table entry instead of mutating the preview ROM (the
@@ -555,11 +570,12 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map | Map layout import/verify | SourceTreeExporter | Re-import .mar to raw uncompressed tilemap blob + roundtrip-verify; never mutates the preview ROM |
 | Map Editor | map_change_overlay | Map-change overlay import/verify | SourceTreeExporter | Raw uncompressed u16 overlay tile data block — export (--export-asset --kind=mapchange) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapchange) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the .mar layout and NOT the 12-byte change-record chain |
 | Map Editor | map_tileanime2_palette | Map tile-animation-2 palette import/verify | SourceTreeExporter | Raw uncompressed u16 palette data block (count*2 bytes reached by each anime-2 entry's +0 pointer) — export (--export-asset --kind=mapanime2pal) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapanime2pal) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact ROM compare; NOT the anime2 entry/PLIST table and NOT LZ77 |
+| Map Editor | map_obj_tileset | OBJ tileset import/verify | SourceTreeExporter | LZ77 OBJ tile block — export the DECOMPRESSED 4bpp payload (--export-asset --kind=objtiles) + import (--import-asset) + read-only decompress-and-byte-compare ROM verify (--verify-asset --kind=objtiles) + structural roundtrip; never mutates the preview ROM. Decompressed-payload equivalence, NOT compressed-stream byte identity (FEBuilder's LZ77 packer is non-canonical so the build re-compresses); --addr is the DEREFERENCED OBJ LZ77 stream address (FE7 obj2 secondary tileset is a separate stream/address, never concatenated). NOT chipset TSA/config, NOT tile animations 1/2 |
 | Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) for BOTH literal raw-hex lists AND resolvable symbolic ITEM_* item-id-only lists (#1354) (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers; nonzero-quantity symbolic writes, unknown/ambiguous macros, and unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347). Supports BOTH a LITERAL raw-hex list AND a SYMBOLIC ITEM_* (item-id-only, quantity 0) list whose macro names resolve from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h); a non-zero quantity or an id with no ITEM_* constant is an actionable refusal, not a clobber (#1354) |
-| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (OBJ tileset, chipset TSA/config, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table + non-palette anime-2 record/provenance chain) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block NOR the anime-2 PALETTE block (both source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
+| Map Editor | map_asset_binaries | Raw map asset save (GUI: OBJ/TSA/anim/map-change) | ManualMigration | GUI raw-ROM-save path for the remaining LZ77/pointer map binaries (chipset TSA/config, tile-animation-1 graphics, the anime-2 ENTRY/PLIST table + non-palette anime-2 record/provenance chain) AND the 12-byte map-change RECORD chain (terminator/flagID/PLIST metadata) — NOT the map-change overlay tile data block NOR the anime-2 PALETTE block NOR the OBJ tileset (all three source-backed export/import/verify above) and NOT the .mar tile layout; migrate these via --export-asset |
 | Event Editor | chapter_event_pointers | Event/difficulty pointer fields | ManualMigration | Chapter pointer fields (EventDataPtr, difficulty pointers) are not source-backed |
 | Battle Animation Editor | battle_anime | Animation view | ImportPreviewOnly | Preview-only in decomp mode; no source write-back (export via --export-battle-anime) |
 | Song Table Editor | song_table | Song view | ImportPreviewOnly | Preview-only; song data edits must be made in source by hand |
