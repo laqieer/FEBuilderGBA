@@ -1,0 +1,33 @@
+$ FEBuilderGBA.CLI --export-voicegroup --rom=FE8U.gba --song-id=1 --out=sound/voicegroups/voicegroup001.s
+
+Exported voicegroup001 (128 voices) to sound/voicegroups/voicegroup001.s
+Diagnostics (25):
+  Voice 14: the sample pointer 0x082263B4 is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 33: the sample pointer 0x08227988 is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 46: the sample pointer 0x0822807C is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 47: the sample pointer 0x08228C7C is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 48: the sample pointer 0x0822B4DC is an unresolved raw ROM address (no decomp symbol inferred).
+  Voice 49: the sample pointer 0x08233650 is an unresolved raw ROM address (no decomp symbol inferred).
+  ... (further unresolved-pointer / drum diagnostics omitted)
+
+--- head of the generated voicegroup001.s ---
+@ Exported by FEBuilderGBA (#1362) -- review before building.
+@ Source voicegroup ROM offset: 0x207470
+.include "asm/macros/music_voice.inc"
+
+	.section .rodata
+	.align 2
+	.global voicegroup001
+voicegroup001:
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0
+	voice_square_1 0, 2, 0, 0, 15, 0

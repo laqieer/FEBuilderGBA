@@ -304,6 +304,17 @@ namespace FEBuilderGBA.CLI
                 return RunExportAsset(argsDic);
             }
 
+            // --export-voicegroup --rom=<r>|--project=<dir> (--voicegroup-addr=<hex> |
+            // --song-id=<n>) --out=voicegroupNNN.s [--number=<N>]: export a FEBuilder
+            // voicegroup (M4A instrument set) as reviewable decomp SOURCE macro asm
+            // using asm/macros/music_voice.inc (#1362). READ-ONLY — never mutates the
+            // ROM. Must precede the bare --project rom-info fallthrough so
+            // --export-voicegroup --project is not swallowed by RunRomInfo.
+            if (argsDic.ContainsKey("--export-voicegroup"))
+            {
+                return RunExportVoicegroup(argsDic);
+            }
+
             // --write-source --project=<dir> --table=<name> --id=<n> --field=<f> --value=<v>:
             // source-backed writer (#1132) — rewrite the owning C array element of a
             // structured table entry instead of mutating the preview ROM. Must precede
@@ -561,6 +572,11 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --height=<int>         Image height in pixels (required for --kind=graphics)");
             Console.WriteLine("    --palette-addr=<hex>   ROM address of the palette data (required for --kind=graphics)");
             Console.WriteLine("    --compressed           (graphics only) the source tile data at --addr is LZ77-compressed (flag)");
+            Console.WriteLine("  --export-voicegroup      Export a voicegroup (M4A instrument set) as decomp source macro asm (voicegroupNNN.s); READ-ONLY (#1362)");
+            Console.WriteLine("    --voicegroup-addr=<hex> ROM offset/pointer of the voicegroup base (exclusive with --song-id)");
+            Console.WriteLine("    --song-id=<n>          Resolve the voicegroup from a song id's header (exclusive with --voicegroup-addr)");
+            Console.WriteLine("    --out=<voicegroupNNN.s> Output .s path (project-relative when --project; absolute/relative when --rom)");
+            Console.WriteLine("    --number=<N>           Voicegroup number used in the label/.global (default: --song-id, else 0)");
             Console.WriteLine("  --write-source           Rewrite an owning C/JSON source element for a structured table entry (requires --project, --table, --id, --field, --value)");
             Console.WriteLine("    --project=<dir>        Decomp project directory (the table must declare a source owner in tables[])");
             Console.WriteLine("    --table=<name>         Structured table name (items, units (alias characters), classes, ...)");
@@ -5055,6 +5071,153 @@ namespace FEBuilderGBA.CLI
         /// = the entry <c>+5</c> color count) — a flat <c>u16</c> LE array of <c>count</c> 15-bit GBA
         /// colors, NOT the anime-2 entry/PLIST table and NOT LZ77.
         /// </summary>
+        /// <summary>
+        /// --export-voicegroup: export a FEBuilder voicegroup (M4A instrument set) as
+        /// reviewable decomp SOURCE macro asm (voicegroupNNN.s) using
+        /// asm/macros/music_voice.inc (#1362). READ-ONLY: reads the preview ROM,
+        /// writes a .s source file under the project/out root, NEVER mutates the ROM.
+        /// </summary>
+        static int RunExportVoicegroup(Dictionary<string, string> argsDic)
+        {
+            // ---- Required: --out ----
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --export-voicegroup requires --out=<voicegroupNNN.s>"); return 1; }
+            string outRel = argsDic["--out"];
+
+            // ---- Exactly one of --voicegroup-addr / --song-id ----
+            bool hasAddr = argsDic.ContainsKey("--voicegroup-addr") && !string.IsNullOrEmpty(argsDic["--voicegroup-addr"]);
+            bool hasSong = argsDic.ContainsKey("--song-id") && !string.IsNullOrEmpty(argsDic["--song-id"]);
+            if (hasAddr == hasSong)
+            { Console.Error.WriteLine("Error: --export-voicegroup requires exactly one of --voicegroup-addr=<hex> or --song-id=<n>"); return 1; }
+
+            // ---- ROM source: --project or --rom ----
+            bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
+            bool isRom = argsDic.ContainsKey("--rom") && !string.IsNullOrEmpty(argsDic["--rom"]);
+            if (!isProject && !isRom)
+            { Console.Error.WriteLine("Error: --export-voicegroup requires --rom=<path> or --project=<dir>"); return 1; }
+
+            RomLoader.InitEnvironment();
+
+            DecompProject project = null;
+            if (isProject)
+            {
+                if (!RomLoader.LoadProject(argsDic["--project"]))
+                    return 1;
+                project = CoreState.DecompProject;
+            }
+            else
+            {
+                string romPath = argsDic["--rom"];
+                if (!File.Exists(romPath))
+                { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+                string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+                if (!RomLoader.LoadRom(romPath, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+            }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+            { Console.Error.WriteLine("Error: ROM is not loaded."); return 1; }
+
+            // ---- Resolve output path (root-confined in project mode) ----
+            string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);
+            if (absOut == null)
+            { Console.Error.WriteLine("Error: output path rejected (outside project root or invalid)"); return 2; }
+
+            // ---- Resolve the voicegroup base offset + number ----
+            uint voicegroupOffset;
+            int number;
+            if (hasAddr)
+            {
+                if (!TryParseHexAddr(argsDic["--voicegroup-addr"], out voicegroupOffset))
+                { Console.Error.WriteLine($"Error: Invalid --voicegroup-addr: {argsDic["--voicegroup-addr"]}"); return 1; }
+                number = ParseNumberOrDefault(argsDic, 0);
+            }
+            else
+            {
+                if (!int.TryParse(argsDic["--song-id"], out int songId) || songId < 0)
+                { Console.Error.WriteLine($"Error: Invalid --song-id: {argsDic["--song-id"]}"); return 1; }
+                uint tableAddr = SongExchangeCore.FindSongTablePointer(rom.Data, rom.RomInfo.sound_table_pointer);
+                if (tableAddr == 0)
+                { Console.Error.WriteLine("Error: could not locate the song table for this ROM."); return 2; }
+                var songs = SongExchangeCore.SongTableToSongList(rom.Data, tableAddr);
+                var song = songs.Find(s => (int)s.Number == songId);
+                if (song == null)
+                { Console.Error.WriteLine($"Error: song id {songId} was not found in the song table."); return 2; }
+                if (song.Voices == 0)
+                { Console.Error.WriteLine($"Error: song id {songId} has no voicegroup pointer."); return 2; }
+                voicegroupOffset = song.Voices;
+                number = ParseNumberOrDefault(argsDic, songId);
+            }
+
+            // ---- Export (READ-ONLY) ----
+            // Read-only invariant proof WITHOUT cloning the whole (tens-of-MB) ROM:
+            // a length + content hash before/after detects any mutation cheaply
+            // (Copilot review).
+            int beforeLen = rom.Data.Length;
+            byte[] beforeHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+
+            var result = VoicegroupAsmExportCore.Export(rom, voicegroupOffset, number);
+
+            byte[] afterHash = System.Security.Cryptography.SHA256.HashData(rom.Data);
+            if (rom.Data.Length != beforeLen || !ByteArrayEquals(beforeHash, afterHash))
+            { Console.Error.WriteLine("Error: internal -- voicegroup export mutated the ROM (aborting, no write)."); return 3; }
+
+            if (!result.Ok)
+            {
+                Console.Error.WriteLine("Error: voicegroup export failed:");
+                foreach (var d in result.Diagnostics) Console.Error.WriteLine("  " + d);
+                return 2;
+            }
+
+            try
+            {
+                string dir = Path.GetDirectoryName(absOut);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(absOut, result.Text);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: failed to write {absOut}: {ex.Message}");
+                return 2;
+            }
+
+            Console.WriteLine($"Exported voicegroup{number:D3} ({result.VoiceCount} voices) to {absOut}");
+            if (result.Diagnostics.Count > 0)
+            {
+                Console.WriteLine($"Diagnostics ({result.Diagnostics.Count}):");
+                foreach (var d in result.Diagnostics) Console.WriteLine("  " + d);
+            }
+            return 0;
+        }
+
+        static bool TryParseHexAddr(string s, out uint result)
+        {
+            result = 0;
+            if (string.IsNullOrEmpty(s)) return false;
+            string clean = s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s.Substring(2) : s;
+            if (!uint.TryParse(clean, System.Globalization.NumberStyles.HexNumber, null, out result))
+                return false;
+            result = U.toOffset(result);
+            return true;
+        }
+
+        static int ParseNumberOrDefault(Dictionary<string, string> argsDic, int fallback)
+        {
+            if (argsDic.ContainsKey("--number") && !string.IsNullOrEmpty(argsDic["--number"])
+                && int.TryParse(argsDic["--number"], out int n) && n >= 0)
+                return n;
+            return fallback;
+        }
+
+        static bool ByteArrayEquals(byte[] a, byte[] b)
+        {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+            return true;
+        }
+
         static int RunExportAsset(Dictionary<string, string> argsDic)
         {
             // ---- Required: --kind ----
