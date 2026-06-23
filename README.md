@@ -249,8 +249,10 @@ dotnet run --project FEBuilderGBA.CLI -- --verify-asset --kind=objtiles --rom=ro
 # and the map-change OVERLAY tile-data block is source export/import/round-trip + read-only
 # byte-exact ROM verify (--export-asset/--import-asset/--roundtrip-asset/--verify-asset
 # --kind=mapchange, PR #1357) — neither mutates the preview ROM. The OBJ tileset
-# (LZ77 decompressed-payload) is now source export/import/verify-backed via
-# --kind=objtiles (#1371/PR #1372). ROM-only/manual: the
+# (LZ77 decompressed-payload) is now source export/import/round-trip + read-only
+# decompress-and-byte-compare ROM verify (--export-asset/--import-asset/
+# --roundtrip-asset/--verify-asset --kind=objtiles, #1371/PR #1372) — never
+# mutates the preview ROM. ROM-only/manual: the
 # event/difficulty POINTER fields (D0/EventDataPtr, D96–D108), the raw LZ77 map ASSET
 # binaries (palette, chipset config/TSA, tile animations 1/2) and the
 # 12-byte map-change RECORD chain (structured pointer metadata: terminator/flagID/PLIST)
