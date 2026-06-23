@@ -626,8 +626,8 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --table=<name>         Table name to export to .nmm; pointer/var fields are flagged unsafe via warnings (stderr)");
             Console.WriteLine("    --out=<path>           Optional: write the .nmm to a file (otherwise printed to stdout)");
             Console.WriteLine("  --validate-asset         Structurally validate a decomp IMPORT asset on disk (no ROM; never mutates)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map|portrait-package");
-            Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|portrait-package");
+            Console.WriteLine("    --in=<srcAsset>        Input asset file (PNG for graphics/portrait/icon, .pal for palette, .mar for map, .change/.mapanime2pal/.objtiles for those kinds)");
             Console.WriteLine("    --path=<dir>          For --kind=portrait-package: package DIRECTORY (one 128x112 sheet PNG + optional JASC .pal)");
             Console.WriteLine("    --allow-main-only     For --kind=portrait-package: accept a 96x80 main-mug-only sheet (warn instead of error)");
             Console.WriteLine("    --project=<dir>       For --kind=portrait-package: confine --path to the decomp project root (no ROM load)");
@@ -4773,7 +4773,7 @@ namespace FEBuilderGBA.CLI
         static int RunValidateAsset(Dictionary<string, string> argsDic)
         {
             if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
-            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|portrait-package>"); return 1; }
+            { Console.Error.WriteLine("Error: --validate-asset requires --kind=<graphics|palette|portrait|icon|map|mapchange|mapanime2pal|objtiles|portrait-package>"); return 1; }
             AssetKind? kind = DecompAssetValidatorCore.ParseKind(argsDic["--kind"]);
             if (kind == null)
             { Console.Error.WriteLine($"Error: unknown --kind '{argsDic["--kind"]}'. Use: graphics, palette, portrait, icon, map, portrait-package"); return 1; }
