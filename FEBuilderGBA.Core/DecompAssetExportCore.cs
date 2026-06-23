@@ -1905,6 +1905,269 @@ namespace FEBuilderGBA
             return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapchipconfig-lz77\"\n}}\n";
         }
 
+        // ---- Map tile-animation-1 per-entry RAW 4bpp GRAPHICS block (#1389) ----
+
+        /// <summary>
+        /// Export a map tile-animation-1 per-entry RAW 4bpp GRAPHICS DATA BLOCK (#1389) — a RAW
+        /// UNCOMPRESSED 4bpp tile-byte block of <paramref name="length"/> bytes — to a
+        /// <c>.mapanime1gfx</c> file plus a sidecar JSON. This is the structural TWIN of
+        /// <see cref="ExportMapChange"/>/<see cref="ExportMapAnime2Pal"/> (a raw byte block with an
+        /// explicit length descriptor), NOT the LZ77 <see cref="ExportObjTiles"/>/
+        /// <see cref="ExportMapChipConfig"/> pattern: the WF read/import/rebuild paths treat this block
+        /// as raw <c>ImageToByte16Tile</c> 4bpp bytes (a rebuild <c>IMG</c> block) sized by the entry's
+        /// <c>+2</c> <c>u16 length</c>, NEVER an LZ77 stream.
+        ///
+        /// <para>It is reached by each anime-1 entry's <c>+4</c> graphics pointer (see
+        /// <see cref="MapTileAnimation1Core.EntryRow.P4"/>; the inverse of anime-2, whose block pointer
+        /// is at <c>+0</c>) — NOT the anime-1 ENTRY/PLIST table (pointer-per-row, no clean source owner),
+        /// NOT a <c>&lt;&lt;3</c>-shifted <c>.mar</c> layout, NOT LZ77. <paramref name="length"/> is the
+        /// raw byte length (the entry's <c>+2</c> field). The body is copied BYTE-FOR-BYTE from the
+        /// (already-uncompressed) ROM region at <paramref name="gfxAddr"/>; <c>srcAddr</c> in the sidecar
+        /// is provenance metadata ONLY (no symbol/owner is fabricated). READ-ONLY (never mutates the
+        /// ROM), NEVER throws.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="gfxAddr">ROM byte offset of the raw 4bpp graphics block (anime-1 entry <c>+4</c>
+        /// pointer, dereferenced).</param>
+        /// <param name="length">Raw byte length of the graphics block (anime-1 entry <c>+2</c>), &gt; 0.</param>
+        /// <param name="absOutPath">Absolute path for the output <c>.mapanime1gfx</c> file. A sidecar
+        /// <c>&lt;path&gt;.json</c> is written at the same path with <c>.json</c> appended.</param>
+        public static DecompAssetResult ExportMapAnime1Gfx(ROM rom, uint gfxAddr, int length, string absOutPath)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absOutPath))
+                    return Fail(DecompAssetStatus.BadArgs, "Output .mapanime1gfx path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // The entry +2 length is a u16 (1..65535); reject non-positive / overflow.
+                if (length < 1 || length > 0xFFFF)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map tile-animation-1 graphics length {length} (must be 1..65535)");
+
+                long bodyLen = length;
+                // Bounds: the start must be a safe offset AND the whole body (last byte inclusive)
+                // must lie inside the ROM. Use a long for the end so length cannot wrap a uint.
+                if (!U.isSafetyOffset(gfxAddr, rom)
+                    || gfxAddr + bodyLen > rom.Data.Length
+                    || gfxAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Graphics region [0x{gfxAddr:X}, 0x{gfxAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                // Copy the raw graphics body byte-for-byte from the (already-uncompressed) ROM.
+                byte[] body = rom.getBinaryData(gfxAddr, (int)bodyLen);
+                if (body == null || body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData, $"Could not read {bodyLen}-byte graphics body at 0x{gfxAddr:X}");
+
+                EnsureParentDir(absOutPath);
+                File.WriteAllBytes(absOutPath, body);
+
+                string jsonPath = absOutPath + ".json";
+                string json = BuildMapAnime1GfxJson(length, gfxAddr);
+                File.WriteAllText(jsonPath, json, Encoding.UTF8);
+
+                var result = new DecompAssetResult { Status = DecompAssetStatus.Ok, Message = $"Map tile-animation-1 graphics exported ({length} bytes)" };
+                result.WrittenPaths.Add(absOutPath);
+                result.WrittenPaths.Add(jsonPath);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-import a <c>.mapanime1gfx</c> map tile-animation-1 per-entry RAW 4bpp GRAPHICS block (the
+        /// inverse of <see cref="ExportMapAnime1Gfx"/>, #1389) into a RAW UNCOMPRESSED blob. The block is
+        /// an IDENTITY copy — NO header prepend, NO <c>&gt;&gt;3</c> shift, NO LZ77 compression — so the
+        /// output blob is the validated body written VERBATIM.
+        ///
+        /// <para>This method NEVER reads <see cref="CoreState.ROM"/>, NEVER LZ77-compresses, NEVER mutates
+        /// the ROM, and NEVER throws. The REQUIRED sidecar <c>length</c> (validated against the body
+        /// length) makes this a genuine source-backed artifact.</para>
+        /// </summary>
+        /// <param name="absIn">Absolute path to the input <c>.mapanime1gfx</c> file. A sidecar
+        /// <c>&lt;path&gt;.json</c> (the export-side JSON) is REQUIRED.</param>
+        /// <param name="absOutBlob">Absolute path for the output RAW graphics blob (identity copy of the
+        /// validated body).</param>
+        public static DecompAssetResult ImportMapAnime1Gfx(string absIn, string absOutBlob)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(absIn))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapanime1gfx path is null or empty");
+                if (string.IsNullOrEmpty(absOutBlob))
+                    return Fail(DecompAssetStatus.BadArgs, "Output blob path is null or empty");
+
+                // Structural validation (required sidecar, format, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, absIn);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                byte[] body = File.ReadAllBytes(absIn);
+
+                // The sidecar length is REQUIRED (the validator already errors when missing, but
+                // re-read here to size-check the body before the identity copy).
+                string sidecar = absIn + ".json";
+                if (!TryReadMapAnime1GfxLength(sidecar, out int len))
+                    return Fail(DecompAssetStatus.NotData, "sidecar .mapanime1gfx.json required to read length");
+
+                if (body.Length != len)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != sidecar length {len}");
+
+                // The block is an identity copy: write the validated body VERBATIM.
+                EnsureParentDir(absOutBlob);
+                File.WriteAllBytes(absOutBlob, body);
+
+                var result = new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Imported {len}-byte map tile-animation-1 graphics to raw blob ({body.Length} bytes)"
+                };
+                result.WrittenPaths.Add(absOutBlob);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// PURE structural round-trip proof for a map tile-animation-1 GRAPHICS BODY (#1389): true iff
+        /// <paramref name="body"/> is non-null, <paramref name="expectedLen"/> is positive, and
+        /// <c>body.Length == expectedLen</c>. Try/catch → false.
+        ///
+        /// <para>This is source-level structure-exact IDENTITY, NOT a byte-pinned ROM round-trip.
+        /// For a byte-exact ROM mismatch proof use <see cref="VerifyMapAnime1GfxAgainstRom"/>.</para>
+        /// </summary>
+        public static bool RoundTripMapAnime1GfxBody(byte[] body, int expectedLen)
+        {
+            try
+            {
+                if (body == null) return false;
+                if (expectedLen <= 0) return false;
+                return body.Length == expectedLen;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Byte-exact ROM-backed mismatch proof for a map tile-animation-1 GRAPHICS block (#1389): compare
+        /// the raw ROM graphics region at <paramref name="gfxAddr"/> against the <c>.mapanime1gfx</c> file
+        /// body byte-for-byte. This is the ONLY ROM-backed verification path (export/import never touch the
+        /// ROM). The block is RAW (uncompressed) — there is NO LZ77 decompression, just a raw byte compare
+        /// (the TWIN of <see cref="VerifyMapChangeAgainstRom"/>, NOT the decompress-and-compare
+        /// <see cref="VerifyObjTilesAgainstRom"/>). READ-ONLY (never mutates the ROM), NEVER throws.
+        /// </summary>
+        /// <param name="rom">Loaded ROM. Must not be null.</param>
+        /// <param name="gfxAddr">ROM byte offset of the raw 4bpp graphics block.</param>
+        /// <param name="length">Raw byte length of the graphics block, &gt; 0.</param>
+        /// <param name="absIn">Absolute path to the <c>.mapanime1gfx</c> file (with required sidecar).</param>
+        public static DecompAssetResult VerifyMapAnime1GfxAgainstRom(ROM rom, uint gfxAddr, int length, string absIn)
+        {
+            try
+            {
+                if (rom == null)
+                    return Fail(DecompAssetStatus.BadArgs, "ROM is null");
+                if (string.IsNullOrEmpty(absIn))
+                    return Fail(DecompAssetStatus.BadArgs, "Input .mapanime1gfx path is null or empty");
+                if (rom.Data == null)
+                    return Fail(DecompAssetStatus.NotData, "ROM has no data");
+
+                // Validate the .mapanime1gfx file first (required sidecar, format, length).
+                AssetValidationResult v = DecompAssetValidatorCore.ValidateAsset(AssetKind.MapTileAnimation1Graphics, absIn);
+                if (!v.Ok)
+                {
+                    AssetIssue first = v.Errors.Count > 0 ? v.Errors[0] : null;
+                    string detail = first != null ? $"[{first.Code}] {first.Message}" : "unknown error";
+                    return Fail(DecompAssetStatus.NotData, "validation failed: " + detail);
+                }
+
+                if (length < 1 || length > 0xFFFF)
+                    return Fail(DecompAssetStatus.NotData, $"Invalid map tile-animation-1 graphics length {length} (must be 1..65535)");
+
+                long bodyLen = length;
+                if (!U.isSafetyOffset(gfxAddr, rom)
+                    || gfxAddr + bodyLen > rom.Data.Length
+                    || gfxAddr + bodyLen - 1 >= rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"Graphics region [0x{gfxAddr:X}, 0x{gfxAddr + bodyLen:X}) is outside ROM (size 0x{rom.Data.Length:X})");
+
+                byte[] body = File.ReadAllBytes(absIn);
+                if (body.Length != bodyLen)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"File length {body.Length} != length {bodyLen}");
+
+                for (int i = 0; i < body.Length; i++)
+                {
+                    byte romByte = rom.Data[gfxAddr + i];
+                    byte fileByte = body[i];
+                    if (romByte != fileByte)
+                        return Fail(DecompAssetStatus.NotData,
+                            $"Graphics mismatch at byte offset {i}: ROM=0x{romByte:X2} file=0x{fileByte:X2}");
+                }
+
+                return new DecompAssetResult
+                {
+                    Status = DecompAssetStatus.Ok,
+                    Message = $"Verified {length}-byte map tile-animation-1 graphics byte-identical to ROM"
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(DecompAssetStatus.Faulted, ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Read <c>length</c> from a <c>.mapanime1gfx.json</c> sidecar (the export-side JSON). NEVER throws;
+        /// returns false on any fault or a non-positive length. Public so the CLI <c>--roundtrip-asset</c>
+        /// path can size the graphics body before calling <see cref="RoundTripMapAnime1GfxBody"/>.
+        /// </summary>
+        public static bool TryReadMapAnime1GfxLength(string sidecarPath, out int len)
+        {
+            len = 0;
+            try
+            {
+                if (string.IsNullOrEmpty(sidecarPath) || !File.Exists(sidecarPath))
+                    return false;
+                string json = File.ReadAllText(sidecarPath);
+                using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json);
+                System.Text.Json.JsonElement root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return false;
+                if (root.TryGetProperty("length", out System.Text.Json.JsonElement l)
+                    && l.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    len = l.GetInt32();
+                return len > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Build the sidecar JSON for a map tile-animation-1 graphics export. Hand-built to avoid
+        /// serializer deps. <paramref name="addrOffset"/> is provenance ONLY. The body is RAW 4bpp bytes
+        /// (NOT LZ77) — the source is the raw block exactly as it lives in the ROM.
+        /// </summary>
+        static string BuildMapAnime1GfxJson(int length, uint addrOffset)
+        {
+            return $"{{\n  \"length\": {length},\n  \"srcAddr\": \"0x{addrOffset:X}\",\n  \"format\": \"febuilder-mapanime1gfx-raw4bpp\"\n}}\n";
+        }
+
         // ---- Portrait PACKAGE source-tree write-back + round-trip (#1374) ----
 
         /// <summary>

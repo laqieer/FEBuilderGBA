@@ -1029,5 +1029,163 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(dir, true); } catch { }
             }
         }
+
+        // ============================================================================
+        // Map tile-animation-1 per-entry RAW 4bpp graphics (#1389) — RAW twin of
+        // mapchange/mapanime2pal (NOT the LZ77 objtiles/mapchipconfig pattern).
+        // ============================================================================
+
+        // Build a synthetic .mapanime1gfx raw 4bpp body + matching sidecar.
+        static void WriteSyntheticAnime1Gfx(string path, int len, string format = "febuilder-mapanime1gfx-raw4bpp")
+        {
+            byte[] body = new byte[len];
+            for (int i = 0; i < len; i++) body[i] = (byte)((i * 7 + 3) & 0xFF); // arbitrary pattern
+            File.WriteAllBytes(path, body);
+            File.WriteAllText(path + ".json",
+                $"{{\n  \"length\": {len},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        [Fact]
+        public void ImportAsset_MapAnime1Gfx_ExitsZero_WritesIdentityBlob()
+        {
+            string dir = NewTempDir("import_anime1gfx");
+            try
+            {
+                int len = 128;
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                WriteSyntheticAnime1Gfx(gfxPath, len);
+
+                string outBin = Path.Combine(dir, "chapter.mapanime1gfx_raw.bin");
+                string args = $"--import-asset --kind=mapanime1gfx --in=\"{gfxPath}\" --out=\"{outBin}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--import-asset --kind=mapanime1gfx exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.True(File.Exists(outBin), $"Expected raw blob at {outBin}");
+
+                byte[] src = File.ReadAllBytes(gfxPath);
+                byte[] dst = File.ReadAllBytes(outBin);
+                Assert.Equal(src, dst);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapAnime1Gfx_Clean_ExitsZero()
+        {
+            string dir = NewTempDir("rt_anime1gfx_ok");
+            try
+            {
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                WriteSyntheticAnime1Gfx(gfxPath, 128);
+
+                string args = $"--roundtrip-asset --kind=mapanime1gfx --in=\"{gfxPath}\"";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--roundtrip-asset --kind=mapanime1gfx exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+                Assert.Contains("Round-trip OK", stdout);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RoundtripAsset_MapAnime1Gfx_TruncatedBody_ExitsTwo()
+        {
+            string dir = NewTempDir("rt_anime1gfx_bad");
+            try
+            {
+                int len = 128;
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                WriteSyntheticAnime1Gfx(gfxPath, len);
+
+                // Truncate the body by 2 bytes (sidecar still says 128) → length mismatch.
+                byte[] body = File.ReadAllBytes(gfxPath);
+                byte[] truncated = new byte[body.Length - 2];
+                Array.Copy(body, truncated, truncated.Length);
+                File.WriteAllBytes(gfxPath, truncated);
+
+                string args = $"--roundtrip-asset --kind=mapanime1gfx --in=\"{gfxPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ValidateAsset_MapAnime1Gfx_Good_ExitsZero()
+        {
+            string dir = NewTempDir("val_anime1gfx_ok");
+            try
+            {
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                WriteSyntheticAnime1Gfx(gfxPath, 128);
+
+                string args = $"--validate-asset --kind=mapanime1gfx --in=\"{gfxPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.Equal(0, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ValidateAsset_MapAnime1Gfx_WrongFormatSidecar_ExitsNonZero()
+        {
+            string dir = NewTempDir("val_anime1gfx_bad");
+            try
+            {
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                // Declare the LZ77 objtiles format → must be rejected for a RAW mapanime1gfx asset.
+                WriteSyntheticAnime1Gfx(gfxPath, 128, format: "febuilder-objtiles-lz77");
+
+                string args = $"--validate-asset --kind=mapanime1gfx --in=\"{gfxPath}\"";
+                var (code, _, _) = RunWithRetry(args);
+
+                Assert.NotEqual(0, code);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        [SkippableFact]
+        public void VerifyAsset_MapAnime1Gfx_RoundTripsAgainstRom_ExitsZero()
+        {
+            // RAW byte-compare against a real ROM region: export the block at --addr (--length bytes),
+            // then verify it byte-identical (read-only). 0x200 is past the U.isSafetyOffset floor.
+            Skip.If(FirstRom == null, "No ROM available for verify-asset mapanime1gfx test");
+
+            string dir = NewTempDir("verify_anime1gfx_rom");
+            try
+            {
+                string gfxPath = Path.Combine(dir, "chapter.mapanime1gfx");
+                string exportArgs = $"--export-asset --kind=mapanime1gfx --rom=\"{FirstRom}\" --addr=0x200 --length=256 --out=\"{gfxPath}\"";
+                var (ecode, estdout, estderr) = RunWithRetry(exportArgs);
+                Assert.True(ecode == 0, $"export exited with {ecode}\nStdout: {estdout}\nStderr: {estderr}");
+
+                string verifyArgs = $"--verify-asset --kind=mapanime1gfx --rom=\"{FirstRom}\" --addr=0x200 --length=256 --in=\"{gfxPath}\"";
+                var (vcode, _, _) = RunWithRetry(verifyArgs);
+                Assert.Equal(0, vcode);
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
     }
 }

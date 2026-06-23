@@ -2559,6 +2559,386 @@ namespace FEBuilderGBA.Core.Tests
             foreach (byte b in hash) sb.Append(b.ToString("x2"));
             return sb.ToString();
         }
+
+        // ============================================================
+        // Map tile-animation-1 per-entry RAW 4bpp GRAPHICS section (#1389)
+        // Structural TWIN of mapchange/mapanime2pal (RAW, length-sized) —
+        // NOT the LZ77 objtiles/mapchipconfig pattern.
+        // ============================================================
+
+        static void WriteMapAnime1GfxPlusSidecar(string path, byte[] body, string format = "febuilder-mapanime1gfx-raw4bpp")
+        {
+            File.WriteAllBytes(path, body);
+            File.WriteAllText(path + ".json",
+                $"{{\n  \"length\": {body.Length},\n  \"srcAddr\": \"0x200\",\n  \"format\": \"{format}\"\n}}\n");
+        }
+
+        // Plant a raw byte block at addr; return the ROM and the planted bytes.
+        static ROM MakeRomWithRawBlock(uint addr, int length, out byte[] raw)
+        {
+            byte[] romData = new byte[0x1000];
+            raw = new byte[length];
+            for (int i = 0; i < length; i++) raw[i] = (byte)((i * 7 + 3) & 0xFF);
+            Array.Copy(raw, 0, romData, addr, length);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(romData);
+            return rom;
+        }
+
+        // ---- ExportMapAnime1Gfx ----
+
+        [Fact]
+        public void ExportMapAnime1Gfx_WritesRawBody_AndSidecar()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                int length = 128;
+                var rom = MakeRomWithRawBlock(addr, length, out byte[] raw);
+                string outPath = Path.Combine(dir, "gfx.mapanime1gfx");
+
+                var result = DecompAssetExportCore.ExportMapAnime1Gfx(rom, addr, length, outPath);
+                Assert.True(result.Ok, $"ExportMapAnime1Gfx failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+
+                byte[] body = File.ReadAllBytes(outPath);
+                Assert.Equal(raw, body);
+
+                string jsonPath = outPath + ".json";
+                Assert.True(File.Exists(jsonPath));
+                string json = File.ReadAllText(jsonPath);
+                Assert.Contains($"\"length\": {length}", json);
+                Assert.Contains($"\"srcAddr\": \"0x{addr:X}\"", json);
+                Assert.Contains("\"format\": \"febuilder-mapanime1gfx-raw4bpp\"", json);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime1Gfx_OutOfBounds_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]); // tiny
+                string outPath = Path.Combine(dir, "gfx.mapanime1gfx");
+
+                var result = DecompAssetExportCore.ExportMapAnime1Gfx(rom, 0x200, 0x100, outPath); // runs past end
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime1Gfx_LengthBelow1_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = MakeRomWithRawBlock(0x200, 64, out _);
+                string outPath = Path.Combine(dir, "gfx.mapanime1gfx");
+
+                var result = DecompAssetExportCore.ExportMapAnime1Gfx(rom, 0x200, 0, outPath); // length < 1
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime1Gfx_LengthOver65535_ReturnsNotData_NoFileWritten()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x20000]);
+                string outPath = Path.Combine(dir, "gfx.mapanime1gfx");
+
+                var result = DecompAssetExportCore.ExportMapAnime1Gfx(rom, 0x200, 0x10000, outPath); // length > 65535
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportMapAnime1Gfx_NullRom_ReturnsBadArgs()
+        {
+            var result = DecompAssetExportCore.ExportMapAnime1Gfx(null, 0x200, 64, "/tmp/x.mapanime1gfx");
+            Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        [Fact]
+        public void ExportMapAnime1Gfx_DoesNotMutateRom_ShaInvariant()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                var rom = MakeRomWithRawBlock(addr, 64, out _);
+                byte[] before = (byte[])rom.Data.Clone();
+                string beforeSha = Sha256Hex(before);
+
+                var result = DecompAssetExportCore.ExportMapAnime1Gfx(rom, addr, 64, Path.Combine(dir, "gfx.mapanime1gfx"));
+                Assert.True(result.Ok);
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(beforeSha, Sha256Hex(rom.Data));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- ImportMapAnime1Gfx ----
+
+        [Fact]
+        public void ImportMapAnime1Gfx_IdentityCopy()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[64];
+                for (int i = 0; i < body.Length; i++) body[i] = (byte)(i * 3);
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, body);
+
+                string outPath = Path.Combine(dir, "gfx.bin");
+                var result = DecompAssetExportCore.ImportMapAnime1Gfx(inPath, outPath);
+                Assert.True(result.Ok, $"ImportMapAnime1Gfx failed: {result.Message}");
+                Assert.True(File.Exists(outPath));
+                Assert.Equal(body, File.ReadAllBytes(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime1Gfx_DoesNotMutateCoreStateRom()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, body);
+
+                ROM before = CoreState.ROM;
+                DecompAssetExportCore.ImportMapAnime1Gfx(inPath, Path.Combine(dir, "gfx.bin"));
+                Assert.Same(before, CoreState.ROM);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime1Gfx_MissingSidecar_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                File.WriteAllBytes(inPath, body); // no sidecar
+
+                var result = DecompAssetExportCore.ImportMapAnime1Gfx(inPath, Path.Combine(dir, "gfx.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime1Gfx_BadFormat_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, body, format: "febuilder-objtiles-lz77"); // wrong format
+
+                var result = DecompAssetExportCore.ImportMapAnime1Gfx(inPath, Path.Combine(dir, "gfx.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime1Gfx_LengthMismatch_Fails()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                File.WriteAllBytes(inPath, body);
+                // sidecar declares 64 but body is 32 → validator rejects
+                File.WriteAllText(inPath + ".json",
+                    "{\n  \"length\": 64,\n  \"srcAddr\": \"0x200\",\n  \"format\": \"febuilder-mapanime1gfx-raw4bpp\"\n}\n");
+
+                var result = DecompAssetExportCore.ImportMapAnime1Gfx(inPath, Path.Combine(dir, "gfx.bin"));
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ImportMapAnime1Gfx_NullArgs_ReturnBadArgs()
+        {
+            var r1 = DecompAssetExportCore.ImportMapAnime1Gfx(null, "/tmp/x.bin");
+            Assert.Equal(DecompAssetStatus.BadArgs, r1.Status);
+            var r2 = DecompAssetExportCore.ImportMapAnime1Gfx("/tmp/x.mapanime1gfx", null);
+            Assert.Equal(DecompAssetStatus.BadArgs, r2.Status);
+        }
+
+        // ---- RoundTripMapAnime1GfxBody ----
+
+        [Fact]
+        public void RoundTripMapAnime1GfxBody_Matches_True()
+        {
+            byte[] body = new byte[128];
+            Assert.True(DecompAssetExportCore.RoundTripMapAnime1GfxBody(body, 128));
+        }
+
+        [Fact]
+        public void RoundTripMapAnime1GfxBody_WrongLen_False()
+        {
+            byte[] body = new byte[128];
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime1GfxBody(body, 64));
+        }
+
+        [Fact]
+        public void RoundTripMapAnime1GfxBody_Null_False()
+        {
+            Assert.False(DecompAssetExportCore.RoundTripMapAnime1GfxBody(null, 64));
+        }
+
+        // ---- VerifyMapAnime1GfxAgainstRom ----
+
+        [Fact]
+        public void VerifyMapAnime1GfxAgainstRom_Match_Ok()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                int length = 64;
+                var rom = MakeRomWithRawBlock(addr, length, out byte[] raw);
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, raw);
+
+                var result = DecompAssetExportCore.VerifyMapAnime1GfxAgainstRom(rom, addr, length, inPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapAnime1GfxAgainstRom_Mismatch_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                int length = 64;
+                var rom = MakeRomWithRawBlock(addr, length, out byte[] raw);
+                byte[] tampered = (byte[])raw.Clone();
+                tampered[5] ^= 0xFF; // flip byte at offset 5
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, tampered);
+
+                var result = DecompAssetExportCore.VerifyMapAnime1GfxAgainstRom(rom, addr, length, inPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.Contains("offset 5", result.Message);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapAnime1GfxAgainstRom_ReadOnly_ShaInvariant()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                uint addr = 0x200;
+                int length = 64;
+                var rom = MakeRomWithRawBlock(addr, length, out byte[] raw);
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, raw);
+
+                byte[] before = (byte[])rom.Data.Clone();
+                string beforeSha = Sha256Hex(before);
+
+                var result = DecompAssetExportCore.VerifyMapAnime1GfxAgainstRom(rom, addr, length, inPath);
+                Assert.True(result.Ok, $"verify failed: {result.Message}");
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(beforeSha, Sha256Hex(rom.Data));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyMapAnime1GfxAgainstRom_OutOfBounds_ReturnsNotData()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x210]);
+                byte[] body = new byte[0x100];
+                string inPath = Path.Combine(dir, "gfx.mapanime1gfx");
+                WriteMapAnime1GfxPlusSidecar(inPath, body);
+
+                var result = DecompAssetExportCore.VerifyMapAnime1GfxAgainstRom(rom, 0x200, 0x100, inPath); // runs past end
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- MapTileAnimation1Core +4 pointer / +2 length proof (#1389) ----
+
+        [Fact]
+        public void MapTileAnimation1Core_Entry_GraphicsPointerAtPlus4_LengthAtPlus2()
+        {
+            // Prove the dereferenced --addr contract: an anime-1 entry's graphics pointer is at +4
+            // (the inverse of anime-2's +0) and its raw byte length is the +2 u16 field. This is the
+            // exact (addr,length) pair the mapanime1gfx exporter consumes.
+            byte[] romData = new byte[0x1000];
+            uint baseAddr = 0x200;
+            uint gfxAddr = 0x800;
+            ushort wait = 0x000A;
+            ushort length = 0x0080;
+            // entry row: wait@+0, length@+2, imagePointer@+4 (GBA pointer 0x08000000 | gfxAddr)
+            romData[baseAddr + 0] = (byte)(wait & 0xFF);
+            romData[baseAddr + 1] = (byte)(wait >> 8);
+            romData[baseAddr + 2] = (byte)(length & 0xFF);
+            romData[baseAddr + 3] = (byte)(length >> 8);
+            uint gbaPtr = 0x08000000 | gfxAddr;
+            romData[baseAddr + 4] = (byte)(gbaPtr & 0xFF);
+            romData[baseAddr + 5] = (byte)((gbaPtr >> 8) & 0xFF);
+            romData[baseAddr + 6] = (byte)((gbaPtr >> 16) & 0xFF);
+            romData[baseAddr + 7] = (byte)((gbaPtr >> 24) & 0xFF);
+            // Terminator: next row's +4 is not a pointer (zero).
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(romData);
+
+            var rows = MapTileAnimation1Core.ScanEntries(rom, baseAddr);
+            Assert.Single(rows);
+            Assert.Equal(baseAddr, rows[0].Addr);
+            Assert.Equal((uint)wait, rows[0].Wait);
+            Assert.Equal((uint)length, rows[0].Length);
+            // The +4 pointer dereferences to gfxAddr (the exporter's --addr).
+            Assert.Equal(gfxAddr, rom.p32(rows[0].Addr + 4));
+        }
     }
 
     /// <summary>
