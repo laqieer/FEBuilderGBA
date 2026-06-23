@@ -40,7 +40,7 @@ namespace FEBuilderGBA
         /// </summary>
         PortraitPackage,
         /// <summary>
-        /// LZ77-decompressed 4bpp OBJ tile payload (#1360/#1371). The source body is the
+        /// LZ77-decompressed 4bpp OBJ tile payload (#1371). The source body is the
         /// DECOMPRESSED bytes — NOT a byte-pinned LZ77 stream (FEBuilder's packer is
         /// non-canonical; the build re-compresses). Requires a sidecar
         /// <c>&lt;name&gt;.objtiles.json</c> with <c>"format": "febuilder-objtiles-lz77"</c>
@@ -874,7 +874,7 @@ namespace FEBuilderGBA
         // ------------------------------------------------ ObjTiles (LZ77-decompressed 4bpp payload)
 
         /// <summary>
-        /// Validate a LZ77-decompressed 4bpp OBJ tile payload (#1360/#1371). The body is the DECOMPRESSED
+        /// Validate a LZ77-decompressed 4bpp OBJ tile payload (#1371). The body is the DECOMPRESSED
         /// bytes — NOT a byte-pinned LZ77 stream. The sidecar JSON is REQUIRED (it carries the
         /// format declaration and the length). Checks:
         /// <list type="bullet">

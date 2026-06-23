@@ -2074,6 +2074,48 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
 
+        [Fact]
+        public void ExportObjTiles_AddrInLastBytes_ReturnsNotData_NoThrow()
+        {
+            // Regression (#1371 Copilot review): an addr within the last 1-3 ROM bytes must
+            // surface as a clean NotData (the 4-byte LZ77 header is out of bounds), NOT a
+            // Faulted IndexOutOfRangeException from getCompressedSize reading input[offset+3].
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string outPath = Path.Combine(dir, "obj.objtiles");
+
+                // 0x3FE leaves only 2 bytes; header read of +3 would overrun.
+                var result = DecompAssetExportCore.ExportObjTiles(rom, 0x3FE, outPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPath));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void VerifyObjTilesAgainstRom_AddrInLastBytes_ReturnsNotData_NoThrow()
+        {
+            // Same boundary hazard as ExportObjTiles, on the verify path (#1371 Copilot review).
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                byte[] body = new byte[32];
+                string inPath = Path.Combine(dir, "obj.objtiles");
+                WriteObjTilesPlusSidecar(inPath, body);
+
+                var result = DecompAssetExportCore.VerifyObjTilesAgainstRom(rom, 0x3FE, inPath);
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         // ---- ImportObjTiles ----
 
         static void WriteObjTilesPlusSidecar(string path, byte[] body, string format = "febuilder-objtiles-lz77")

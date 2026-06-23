@@ -1374,12 +1374,20 @@ namespace FEBuilderGBA
                 if (!U.isSafetyOffset(objAddr, rom))
                     return Fail(DecompAssetStatus.NotData, $"Address 0x{objAddr:X} is outside the ROM safety range");
 
+                // The 4-byte LZ77 header is at objAddr..objAddr+3. getCompressedSize reads
+                // input[offset+3] but only guards length-offset < 3, so an objAddr within the
+                // last 1-3 ROM bytes would throw. Guard the FULL header in-bounds first so the
+                // boundary surfaces as a clean NotData, never a Faulted exception.
+                if ((long)objAddr + 4 > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 header at 0x{objAddr:X} extends beyond ROM (romSize={rom.Data.Length})");
+
                 uint compLen = LZ77.getCompressedSize(rom.Data, objAddr);
                 if (compLen == 0)
                     return Fail(DecompAssetStatus.NotData,
                         $"0x{objAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
 
-                if (objAddr + compLen > rom.Data.Length)
+                if ((long)objAddr + compLen > rom.Data.Length)
                     return Fail(DecompAssetStatus.NotData,
                         $"LZ77 stream at 0x{objAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
 
@@ -1517,12 +1525,18 @@ namespace FEBuilderGBA
                 if (!U.isSafetyOffset(objAddr, rom))
                     return Fail(DecompAssetStatus.NotData, $"Address 0x{objAddr:X} is outside the ROM safety range");
 
+                // Guard the FULL 4-byte LZ77 header in-bounds before getCompressedSize (which
+                // reads input[offset+3]) so a last-1-3-byte objAddr surfaces as NotData, not Faulted.
+                if ((long)objAddr + 4 > rom.Data.Length)
+                    return Fail(DecompAssetStatus.NotData,
+                        $"LZ77 header at 0x{objAddr:X} extends beyond ROM (romSize={rom.Data.Length})");
+
                 uint compLen = LZ77.getCompressedSize(rom.Data, objAddr);
                 if (compLen == 0)
                     return Fail(DecompAssetStatus.NotData,
                         $"0x{objAddr:X} is not a valid LZ77 stream (getCompressedSize returned 0)");
 
-                if (objAddr + compLen > rom.Data.Length)
+                if ((long)objAddr + compLen > rom.Data.Length)
                     return Fail(DecompAssetStatus.NotData,
                         $"LZ77 stream at 0x{objAddr:X} extends beyond ROM (compLen={compLen}, romSize={rom.Data.Length})");
 
