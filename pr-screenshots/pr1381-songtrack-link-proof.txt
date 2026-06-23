@@ -1,0 +1,26 @@
+PR #1381 — Song Track Editor "Search for new resources online" link fix
+
+PROOF 1 — the affected editor (screenshot):
+  pr-screenshots/pr1381-songtrack-link-editor.png
+  Avalonia Song Track Editor (FE8U), song list populated. The blue
+  "Search for new resources online" link is visible at the top-right of
+  the track header. Captured headlessly via:
+  FEBuilderGBA.Avalonia --rom roms/FE8U.gba --screenshot-all
+  (output Avalonia_SongTrackView_FE8U.png).
+
+PROOF 2 — the fork wiki target is now a real, populated page (was an
+empty placeholder before this PR):
+  $ curl -s -o /dev/null -w "%{http_code}" \
+      https://raw.githubusercontent.com/wiki/laqieer/FEBuilderGBA/MoreData.md
+  200      (was 404 before — empty "create page" placeholder)
+  Page: https://github.com/laqieer/FEBuilderGBA/wiki/MoreData
+  Content: community music (FE-Repo-Music, song7z), graphics (FE-Repo,
+  Ultimate Graphics Repository), spell-animation archive, learning
+  resources, + the original FEUniverse resource thread.
+
+PROOF 3 — handler now opens the browser, scoped unit tests pass:
+  FEBuilderGBA.Tests/Unit/AvaloniaSongTrackLinkTests.cs — 4/4 PASS
+    - opens github.com/laqieer/FEBuilderGBA/wiki/MoreData
+    - does NOT contain the dead upstream wiki URL
+    - uses Process.Start(... UseShellExecute = true)
+    - no ShowInfo no-op fallback
