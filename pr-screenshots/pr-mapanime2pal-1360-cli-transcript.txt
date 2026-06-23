@@ -1,0 +1,34 @@
+############################################################
+# #1360 --kind=mapanime2pal CLI round-trip proof (real FE8U.gba)
+# palette block @ 0x5524, count=16 (32 raw u16 LE bytes)
+############################################################
+
+$ --export-asset --kind=mapanime2pal --addr=0x5524 --count=16
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\tmp.HKQMeHR1FV\chapter.mapanime2pal
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\tmp.HKQMeHR1FV\chapter.mapanime2pal.json
+  exit=0
+
+--- sidecar JSON ---
+﻿{
+  "count": 16,
+  "srcAddr": "0x5524",
+  "format": "febuilder-mapanime2-pal-u16"
+}
+
+$ --import-asset --kind=mapanime2pal  (ROM-free identity copy)
+Imported 16-color map tile-animation-2 palette to raw blob (32 bytes)
+Wrote: C:\Users\zhiwenzhu\AppData\Local\Temp\tmp.HKQMeHR1FV\blob.bin
+  exit=0
+  blob byte-identical to body? YES
+
+$ --roundtrip-asset --kind=mapanime2pal  (structural identity)
+Round-trip OK (structure-exact map tile-animation-2 palette body)
+  exit=0
+
+$ --verify-asset --kind=mapanime2pal  (byte-exact ROM compare, clean)
+Verified 16-color map tile-animation-2 palette byte-identical to ROM
+  exit=0
+
+$ flip one byte @ offset 4, then --verify-asset (MUST fail, exit 2)
+Error: Palette mismatch at byte offset 4: ROM=0x10 file=0xFF
+  exit=2
