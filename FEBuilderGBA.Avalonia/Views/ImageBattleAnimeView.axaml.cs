@@ -356,6 +356,68 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.Deselect();
             LoadAndShowEntry(off);
         }
+
+        /// <summary>
+        /// Navigate by battle-anime ID (#1377). The editor's left list is now
+        /// CLASS-centric (rows are per-class SP-record setting pointers, NOT the
+        /// 32-byte ANIME-DATA-table slots), so a jump that only knows an anime id
+        /// (the Mant Animation editor's "Jump to Battle Anime") must land on a
+        /// CLASS that USES that anime — its SP-record row — rather than the
+        /// obsolete <c>animelist base + id*4</c> slot address (which is no longer
+        /// a row and would silently no-op).
+        /// <list type="number">
+        /// <item>Resolve the first class whose anime == <paramref name="animeId"/>
+        /// (<see cref="ClassFormCore.GetFirstClassSettingPointerByAnimeId"/>) and
+        /// select that class row.</item>
+        /// <item>If no class uses the anime id, the SP-record list cannot show it,
+        /// so directly load the 32-byte ANIME-DATA record for that id into the
+        /// detail/preview panels (deselecting the list) so the user still sees the
+        /// target animation.</item>
+        /// </list>
+        /// </summary>
+        public void NavigateToAnimeId(uint animeId)
+        {
+            if (!_listLoaded)
+                LoadList();
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Case 1: a class uses this anime — select that class's row.
+            uint settingOffset = ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, animeId);
+            if (settingOffset != U.NOT_FOUND && EntryList.SelectAddress(settingOffset))
+                return;
+
+            // Case 2: no class uses it — show the anime DATA record directly so
+            // the target animation is still visible (no SP-record row exists).
+            ShowAnimeDetailsOnly(animeId);
+        }
+
+        // Render the detail/preview panels for a bare anime id when no class row
+        // can host it (the #1377 Mant-Animation jump fallback). Mirrors the
+        // detail half of UpdateUI but without an SP record: the SP fields read 0
+        // (no class owns it) and the animation panel shows the resolved anime.
+        void ShowAnimeDetailsOnly(uint animeId)
+        {
+            StopAnimation();
+            EntryList.Deselect();
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.CurrentAddr = 0;
+                _vm.WeaponType = 0;
+                _vm.Special = 0;
+                _vm.AnimationNumber = animeId;
+                _vm.WeaponTypeName = "";
+                _vm.LoadAnimationDetails(animeId);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimeView.ShowAnimeDetailsOnly failed: " + ex.ToString());
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }

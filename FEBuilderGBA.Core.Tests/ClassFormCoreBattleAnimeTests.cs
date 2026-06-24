@@ -559,6 +559,43 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ================================================================
+        // GetFirstClassSettingPointerByAnimeId — Mant-Animation jump (#1377)
+        // ================================================================
+
+        [Fact]
+        public void GetFirstClassSettingPointerByAnimeId_FindsOwningClassRow()
+        {
+            // Each class i in MakeMultiClassRom uses anime id i. The first class
+            // whose anime == i must resolve to its own setting pointer (a row).
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            for (uint animeId = 1; animeId <= 5; animeId++)
+            {
+                uint settingOffset = ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, animeId);
+                Assert.NotEqual(U.NOT_FOUND, settingOffset);
+                // It must equal that class's setting pointer (a real list row).
+                Assert.Equal(ClassFormCore.GetBattleAnimeAddrWhereID(rom, (int)animeId), settingOffset);
+                // And the resolved class's anime id matches the requested one.
+                Assert.Equal(animeId, ClassFormCore.GetAnimeIDByAnimeSettingPointer(rom, settingOffset));
+            }
+        }
+
+        [Fact]
+        public void GetFirstClassSettingPointerByAnimeId_NoClassUsesId_ReturnsNotFound()
+        {
+            // anime id 0x999 is used by no class in the fixture.
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, 0x999));
+        }
+
+        [Fact]
+        public void GetFirstClassSettingPointerByAnimeId_ZeroId_NullRom_ReturnsNotFound_NoThrow()
+        {
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, 0));
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetFirstClassSettingPointerByAnimeId(null, 1));
+        }
+
+        // ================================================================
         // Stub RomInfo — drives version + the three table pointers.
         // ================================================================
 

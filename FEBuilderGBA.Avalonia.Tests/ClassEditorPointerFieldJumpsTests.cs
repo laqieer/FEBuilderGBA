@@ -401,6 +401,65 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
     }
 
     /// <summary>
+    /// #1377 (Copilot bot review): the Mant Animation editor's "Jump to Battle
+    /// Anime" knows only an anime id. With the class-centric list, the old
+    /// <c>animelist base + id*4</c> slot address no longer matches a row, so the
+    /// jump now routes through <c>ImageBattleAnimeView.NavigateToAnimeId</c>,
+    /// which selects the FIRST class row that USES that anime. This test takes a
+    /// real class's anime id and asserts NavigateToAnimeId lands on a class row
+    /// whose loaded anime matches.
+    /// </summary>
+    [AvaloniaFact]
+    public void NavigateToAnimeId_SelectsClassRowThatUsesTheAnime()
+    {
+        if (!_fixture.IsAvailable) return;
+
+        ROM rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        // Find a class that uses a non-zero anime id (so the jump has a target).
+        var rows = ClassFormCore.GetBattleAnimeSettingRows(rom!);
+        uint targetAnimeId = 0;
+        uint expectedSettingOffset = 0;
+        foreach (var (classId, settingOffset) in rows)
+        {
+            uint a = ClassFormCore.GetAnimeIDByClassID(rom!, classId);
+            if (a == 0) continue;
+            targetAnimeId = a;
+            expectedSettingOffset = ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom!, a);
+            break;
+        }
+        if (targetAnimeId == 0)
+        {
+            _output.WriteLine("No class with a non-zero anime id; skipping.");
+            return;
+        }
+        Assert.NotEqual(U.NOT_FOUND, expectedSettingOffset);
+
+        var view = new ImageBattleAnimeView();
+        view.Show();
+        try
+        {
+            view.NavigateToAnimeId(targetAnimeId);
+
+            var ctrl = view.FindControl<AddressListControl>("EntryList");
+            Assert.NotNull(ctrl);
+            Assert.NotNull(ctrl!.SelectedItem);
+            // Selected the first class row that uses this anime.
+            Assert.Equal(expectedSettingOffset, ctrl.SelectedItem!.addr);
+
+            var vm = view.DataViewModel as ImageBattleAnimeViewModel;
+            Assert.NotNull(vm);
+            // The loaded SP record resolves to the requested anime id.
+            Assert.Equal(targetAnimeId, vm!.AnimationNumber);
+        }
+        finally
+        {
+            view.Close();
+        }
+    }
+
+    /// <summary>
     /// Deterministic Battle Anime jump round-trip: pick the first entry from
     /// ImageBattleAnimeView's own EntryList (guaranteed to exist for whatever
     /// ROM is loaded), call NavigateTo with that exact offset, and assert the

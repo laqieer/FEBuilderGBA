@@ -404,6 +404,34 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// Find the battle-anime SETTING pointer of the FIRST class whose battle
+        /// anime resolves to <paramref name="animeId"/> (i.e.
+        /// <see cref="GetAnimeIDByClassID"/> == <paramref name="animeId"/>), among
+        /// the class-centric rows returned by
+        /// <see cref="GetBattleAnimeSettingRows"/>. Returns that class's setting
+        /// offset (a real left-list row in the Battle Animation Editor), or
+        /// <see cref="U.NOT_FOUND"/> when no listed class uses the anime id.
+        /// <para>
+        /// Used by the Mant Animation editor's "Jump to Battle Anime" (#1377):
+        /// the editor is now class-centric, so a jump-by-anime-id must land on a
+        /// class that USES that anime (its SP-record row), instead of the obsolete
+        /// 32-byte-table slot address (<c>animelist base + id*4</c>), which is no
+        /// longer a list row. Read-only; guarded — never throws.
+        /// </para>
+        /// </summary>
+        public static uint GetFirstClassSettingPointerByAnimeId(ROM rom, uint animeId)
+        {
+            if (rom == null || animeId == 0) return U.NOT_FOUND;
+            var rows = GetBattleAnimeSettingRows(rom);
+            foreach (var (classId, settingOffset) in rows)
+            {
+                if (GetAnimeIDByClassID(rom, classId) == animeId)
+                    return settingOffset;
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
         /// Class-table row count, mirroring <c>ClassForm.Init</c>'s read-max
         /// callback: cid 0 always counts, then scan while <c>u8(addr+4) != 0</c>,
         /// capped at 0xFF.
