@@ -344,6 +344,94 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// Enumerate every class's battle-anime SETTING pointer for the Battle
+        /// Animation Editor's class-centric left list (#1377). Returns
+        /// <c>(classId, settingOffset)</c> for each class whose setting pointer
+        /// (<c>p32(classAddr + 48)</c> FE6 / <c>p32(classAddr + 52)</c> FE7-8) is a
+        /// SAFE, readable ROM offset — i.e. the exact offset the editor's
+        /// <c>LoadEntry</c> reads its 4-byte SP record (WeaponType@+0 / Special@+1 /
+        /// AnimationNumber@+2) from. Classes whose setting pointer is null /
+        /// out-of-ROM / mid-header are SKIPPED so every returned row is loadable
+        /// (matching WF <c>CLASS_LISTBOX_SelectedIndexChanged</c>, which calls
+        /// <c>ClearSelect</c> rather than load when the pointer is unsafe).
+        /// <para>
+        /// This is the WinForms-faithful list source: the WF editor's per-class
+        /// SP-record view is driven by the CLASS listbox re-basing
+        /// <c>InputFormRef.ReInit(ClassForm.GetBattleAnimeAddrWhereID(cid))</c>,
+        /// NOT by the 32-byte <c>image_battle_animelist_pointer</c> ANIME table.
+        /// </para>
+        /// Read-only; guarded — never throws; returns an empty list on an
+        /// unresolvable ROM/table.
+        /// <para>
+        /// Two classes MAY share the same setting pointer (a shared SP-record
+        /// block). Both are returned as distinct rows (distinct classId labels);
+        /// address-based selection then highlights the FIRST such row, but the
+        /// loaded SP record is identical regardless, so the editor shows correct
+        /// data either way.
+        /// </para>
+        /// </summary>
+        public static System.Collections.Generic.List<(int classId, uint settingOffset)> GetBattleAnimeSettingRows(ROM rom)
+        {
+            var result = new System.Collections.Generic.List<(int classId, uint settingOffset)>();
+            if (rom == null || rom.RomInfo == null) return result;
+
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint datasize = rom.RomInfo.class_datasize;
+            if (datasize == 0) return result;
+            if (classPtr == 0 || (ulong)classPtr + 4 > (ulong)rom.Data.Length) return result;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
+
+            // FE6 stores the anime-setting pointer at +48; FE7/FE8 at +52.
+            uint settingOffsetInEntry = rom.RomInfo.version == 6 ? 48u : 52u;
+
+            int count = GetClassCount(rom, baseAddr, datasize);
+            uint addr = baseAddr;
+            for (int i = 0; i < count; i++, addr += datasize)
+            {
+                uint settingSlot = addr + settingOffsetInEntry;
+                if (!U.isSafetyOffset(settingSlot, rom)) break;
+                if ((ulong)settingSlot + 4 > (ulong)rom.Data.Length) break;
+                uint settingOffset = rom.p32(settingSlot);
+                // Only keep rows whose setting pointer is a full 4-byte readable
+                // SP record (the address LoadEntry will dereference). Skip null /
+                // out-of-ROM / header-region pointers so no row mis-loads.
+                if (!U.isSafetyOffset(settingOffset, rom)) continue;
+                if ((ulong)settingOffset + 4 > (ulong)rom.Data.Length) continue;
+                result.Add((i, settingOffset));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Find the battle-anime SETTING pointer of the FIRST class whose battle
+        /// anime resolves to <paramref name="animeId"/> (i.e.
+        /// <see cref="GetAnimeIDByClassID"/> == <paramref name="animeId"/>), among
+        /// the class-centric rows returned by
+        /// <see cref="GetBattleAnimeSettingRows"/>. Returns that class's setting
+        /// offset (a real left-list row in the Battle Animation Editor), or
+        /// <see cref="U.NOT_FOUND"/> when no listed class uses the anime id.
+        /// <para>
+        /// Used by the Mant Animation editor's "Jump to Battle Anime" (#1377):
+        /// the editor is now class-centric, so a jump-by-anime-id must land on a
+        /// class that USES that anime (its SP-record row), instead of the obsolete
+        /// 32-byte-table slot address (<c>animelist base + id*4</c>), which is no
+        /// longer a list row. Read-only; guarded — never throws.
+        /// </para>
+        /// </summary>
+        public static uint GetFirstClassSettingPointerByAnimeId(ROM rom, uint animeId)
+        {
+            if (rom == null || animeId == 0) return U.NOT_FOUND;
+            var rows = GetBattleAnimeSettingRows(rom);
+            foreach (var (classId, settingOffset) in rows)
+            {
+                if (GetAnimeIDByClassID(rom, classId) == animeId)
+                    return settingOffset;
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
         /// Class-table row count, mirroring <c>ClassForm.Init</c>'s read-max
         /// callback: cid 0 always counts, then scan while <c>u8(addr+4) != 0</c>,
         /// capped at 0xFF.

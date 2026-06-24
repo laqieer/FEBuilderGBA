@@ -2797,23 +2797,30 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build image battle anime list — 4-byte entries, stop at 0.</summary>
+        /// <summary>
+        /// Build the Battle Animation Editor's CLASS-centric left list (#1377):
+        /// one row per class, each row's address being that class's battle-anime
+        /// SETTING pointer (<c>p32(classAddr + 52)</c> FE7/8 / <c>+48</c> FE6) —
+        /// the exact 4-byte SP-record offset the editor's <c>LoadEntry</c>
+        /// dereferences. Mirrors WF <c>ImageBattleAnimeForm</c>, whose per-class
+        /// SP-record view is driven by the CLASS listbox re-basing
+        /// <c>InputFormRef.ReInit(GetBattleAnimeAddrWhereID(cid))</c> — NOT by the
+        /// 32-byte <c>image_battle_animelist_pointer</c> ANIME table. Must stay in
+        /// lockstep with <c>ImageBattleAnimeViewModel.LoadList</c>.
+        /// </summary>
         static List<AddrResult> BuildImageBattleAnimeList(ROM rom)
         {
-            uint pointer = rom.RomInfo.image_battle_animelist_pointer;
-            if (pointer == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(pointer);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            const uint blockSize = 4;
-            var result = new List<AddrResult>();
-            for (int i = 0; i < 512; i++)
+            var rows = FEBuilderGBA.Core.ClassFormCore.GetBattleAnimeSettingRows(rom);
+            var result = new List<AddrResult>(rows.Count);
+            foreach (var (classId, settingOffset) in rows)
             {
-                uint addr = baseAddr + (uint)(i * blockSize);
-                if (addr + blockSize > (uint)rom.Data.Length) break;
-                if (rom.u32(addr) == 0) break;
-
-                result.Add(new AddrResult(addr, $"0x{i:X2} Anim", (uint)i));
+                string className;
+                try { className = NameResolver.GetClassName((uint)classId); }
+                catch { className = ""; }
+                string label = string.IsNullOrEmpty(className)
+                    ? $"0x{classId:X2}"
+                    : $"0x{classId:X2} {className}";
+                result.Add(new AddrResult(settingOffset, label, (uint)classId));
             }
             return result;
         }

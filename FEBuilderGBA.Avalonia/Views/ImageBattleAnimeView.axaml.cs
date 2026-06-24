@@ -296,22 +296,22 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Navigate to <paramref name="address"/>. Two cases (#1377), mirroring
-        /// WinForms <c>ImageBattleAnimeForm.JumpToAnimeSettingPointer</c>:
+        /// Navigate to <paramref name="address"/>. The left list is now
+        /// CLASS-centric (#1377): every row's address is a class's battle-anime
+        /// SETTING pointer (<c>p32(classAddr + 52)</c> FE7/8 / <c>+48</c> FE6),
+        /// the exact offset <see cref="ImageBattleAnimeViewModel.LoadEntry"/>
+        /// reads its 4-byte SP record from. So the Class-Editor Jump (which
+        /// passes <c>U.toOffset(settingPtr)</c>) lands on a real row. Two cases,
+        /// mirroring WF <c>ImageBattleAnimeForm.JumpToAnimeSettingPointer</c>:
         /// <list type="number">
-        /// <item>The address is one of the global anime-list rows
-        /// (<c>image_battle_animelist</c> base + i*4) — select that row
-        /// (the existing, working path; e.g. a same-editor round-trip or
-        /// MantAnimation jump).</item>
-        /// <item>The address is a class battle-anime SETTING pointer
-        /// (P52 FE7/8 / P48 FE6 → a per-class SP-record region that is NOT a
-        /// list row). The Class Editor's Jump passes this. When a class genuinely
-        /// owns the pointer (<see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/>
-        /// resolves a class id), the setting pointer is a readable SP-record, so
-        /// deselect the list and DIRECT-LOAD it (showing that class's animation)
-        /// instead of silently falling back to entry 0. This mirrors WF
-        /// re-initialising N_AddressList at <c>toOffset(ptr)</c> for the owning
-        /// class.</item>
+        /// <item>The address matches a list row — SELECT it (keeps the list
+        /// selection and the detail panel in sync; OnSelected loads the SP
+        /// record). Covers both a same-editor round-trip and the class jump.</item>
+        /// <item>The address matches no row but a class genuinely owns it
+        /// (<see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/> resolves a
+        /// class id) — e.g. a class whose unsafe/edge setting pointer was skipped
+        /// from the list. Deselect and DIRECT-LOAD it as the safe fallback,
+        /// mirroring WF re-initialising at <c>toOffset(ptr)</c>.</item>
         /// </list>
         /// An address that is neither a list row nor any class's setting pointer
         /// is left untouched (no spurious direct-load of arbitrary ROM bytes).
@@ -320,23 +320,28 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Defensive: the list normally loads on Opened before Navigate calls
             // NavigateTo, but if this runs first (or on a freshly cached window
-            // whose list was cleared) an empty EntryList would make a real
-            // global-list row look like a miss and get direct-loaded as a raw
-            // SP record. Ensure the list is populated before deciding.
+            // whose list was cleared) an empty EntryList would make a real class
+            // row look like a miss and get direct-loaded. Ensure the list is
+            // populated before deciding.
             if (!_listLoaded)
                 LoadList();
 
-            // Case 1: the address IS one of the list rows — select it (working path).
+            // Case 1: the address IS one of the class rows — select it so the
+            // list highlight and the detail panel stay in sync after the jump.
+            // Row addresses are ROM OFFSETS; callers normally pass an offset
+            // (ClassEditorView/ClassFE6View pass U.toOffset(rawPtr)), but also try
+            // the normalized offset so a raw GBA pointer still selects its row.
             if (EntryList.SelectAddress(address))
                 return;
-
-            // Case 2: not a list row. Direct-load it only when a class genuinely
-            // owns this battle-anime setting pointer (the #1377 jump case). This
-            // both uses the reverse lookup to gate behavior and avoids loading an
-            // arbitrary unowned address as editor state.
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             uint off = U.toOffset(address);
+            if (off != address && EntryList.SelectAddress(off))
+                return;
+
+            // Case 2: not a row. Direct-load only when a class genuinely owns
+            // this battle-anime setting pointer (the row was skipped, e.g. an
+            // edge/unsafe pointer). Avoids loading an arbitrary unowned address.
             // Require a full 4-byte readable SP record (weapon/special/animeNo).
             if (!U.isSafetyOffset(off, rom)) return;
             if ((ulong)off + 4 > (ulong)rom.Data.Length) return;
@@ -346,10 +351,72 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ClassFormCore.GetIDWhereBattleAnimeAddr(rom, off) == U.NOT_FOUND)
                 return;
 
-            // A class owns this pointer — clear the (entry-0) selection that
-            // SetItemsWithIcons applied, then load the setting pointer directly.
+            // A class owns this pointer but it isn't a list row — clear the
+            // selection and load the setting pointer directly.
             EntryList.Deselect();
             LoadAndShowEntry(off);
+        }
+
+        /// <summary>
+        /// Navigate by battle-anime ID (#1377). The editor's left list is now
+        /// CLASS-centric (rows are per-class SP-record setting pointers, NOT the
+        /// 32-byte ANIME-DATA-table slots), so a jump that only knows an anime id
+        /// (the Mant Animation editor's "Jump to Battle Anime") must land on a
+        /// CLASS that USES that anime — its SP-record row — rather than the
+        /// obsolete <c>animelist base + id*4</c> slot address (which is no longer
+        /// a row and would silently no-op).
+        /// <list type="number">
+        /// <item>Resolve the first class whose anime == <paramref name="animeId"/>
+        /// (<see cref="ClassFormCore.GetFirstClassSettingPointerByAnimeId"/>) and
+        /// select that class row.</item>
+        /// <item>If no class uses the anime id, the SP-record list cannot show it,
+        /// so directly load the 32-byte ANIME-DATA record for that id into the
+        /// detail/preview panels (deselecting the list) so the user still sees the
+        /// target animation.</item>
+        /// </list>
+        /// </summary>
+        public void NavigateToAnimeId(uint animeId)
+        {
+            if (!_listLoaded)
+                LoadList();
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Case 1: a class uses this anime — select that class's row.
+            uint settingOffset = ClassFormCore.GetFirstClassSettingPointerByAnimeId(rom, animeId);
+            if (settingOffset != U.NOT_FOUND && EntryList.SelectAddress(settingOffset))
+                return;
+
+            // Case 2: no class uses it — show the anime DATA record directly so
+            // the target animation is still visible (no SP-record row exists).
+            ShowAnimeDetailsOnly(animeId);
+        }
+
+        // Render the detail/preview panels for a bare anime id when no class row
+        // can host it (the #1377 Mant-Animation jump fallback). Mirrors the
+        // detail half of UpdateUI but without an SP record: the SP fields read 0
+        // (no class owns it) and the animation panel shows the resolved anime.
+        void ShowAnimeDetailsOnly(uint animeId)
+        {
+            StopAnimation();
+            EntryList.Deselect();
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.CurrentAddr = 0;
+                _vm.WeaponType = 0;
+                _vm.Special = 0;
+                _vm.AnimationNumber = animeId;
+                _vm.WeaponTypeName = "";
+                _vm.LoadAnimationDetails(animeId);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimeView.ShowAnimeDetailsOnly failed: " + ex.ToString());
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;

@@ -91,26 +91,17 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!_vm.IsLoaded) return;
                 uint animeId = _vm.GetJumpBattleAnimeId();
+                if (animeId == 0) return;
 
-                // ImageBattleAnimeView.EntryList stores ROM offsets
-                // (baseAddr + id*4 where baseAddr = p32(image_battle_animelist_pointer)),
-                // so convert the animation id into that offset before
-                // navigating — NavigateTo == EntryList.SelectAddress matches on
-                // the slot offset, not the id.
-                ROM rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint listPtr = rom.RomInfo.image_battle_animelist_pointer;
-                if (listPtr == 0) return;
-                uint baseAddr = rom.p32(listPtr);
-                if (!U.isSafetyOffset(baseAddr, rom)) return;
-                uint slotAddr = baseAddr + animeId * 4;
-                // ImageBattleAnimeView reads a u32 at slotAddr; isSafetyOffset
-                // alone does not guarantee slotAddr+4 is in-bounds, so verify
-                // the full 4-byte read fits before navigating.
-                if (!U.isSafetyOffset(slotAddr, rom)) return;
-                if ((ulong)slotAddr + 4 > (ulong)rom.Data.Length) return;
-
-                WindowManager.Instance.Navigate<ImageBattleAnimeView>(slotAddr);
+                // The Battle Animation Editor's left list is now CLASS-centric
+                // (#1377): rows are per-class SP-record setting pointers, NOT the
+                // 32-byte ANIME-DATA-table slots (animelist base + id*4). So a
+                // jump that only knows an anime id must be routed through the
+                // editor's NavigateToAnimeId, which lands on a class that uses
+                // that anime (or shows the anime data directly when none does) —
+                // the old slot-address Navigate would never match a row.
+                var view = WindowManager.Instance.Open<ImageBattleAnimeView>();
+                view.NavigateToAnimeId(animeId);
             }
             catch (Exception ex)
             {
