@@ -89,24 +89,50 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (!_vm.IsLoaded) return;
-                uint animeId = _vm.GetJumpBattleAnimeId();
-                if (animeId == 0) return;
-
-                // The Battle Animation Editor's left list is now CLASS-centric
-                // (#1377): rows are per-class SP-record setting pointers, NOT the
-                // 32-byte ANIME-DATA-table slots (animelist base + id*4). So a
-                // jump that only knows an anime id must be routed through the
-                // editor's NavigateToAnimeId, which lands on a class that uses
-                // that anime (or shows the anime data directly when none does) —
-                // the old slot-address Navigate would never match a row.
-                var view = WindowManager.Instance.Open<ImageBattleAnimeView>();
-                view.NavigateToAnimeId(animeId);
+                OpenBattleAnimeJump();
             }
             catch (Exception ex)
             {
                 Log.Error("MantAnimationView.JumpToBattleAnime_Click failed: " + ex.ToString());
             }
+        }
+
+        /// <summary>
+        /// Open the Battle Animation editor on the anime the current Mant row
+        /// points to. Shared by the Jump button click handler and the #1408
+        /// regression test so the test exercises the REAL call site (not a
+        /// reconstructed chain).
+        ///
+        /// Passes the <b>1-based</b> anime id
+        /// (<see cref="MantAnimationViewModel.GetJumpBattleAnime1BasedId"/>), NOT
+        /// the WF zero-based <c>GetJumpBattleAnimeId()</c> — the class-centric
+        /// editor's <see cref="ImageBattleAnimeView.NavigateToAnimeId"/> expects
+        /// the 1-based id (it compares against the 1-based
+        /// <c>ClassFormCore.GetAnimeIDByClassID</c> and subtracts one internally
+        /// for the 32-byte table index). #1408 fixes the off-by-one introduced by
+        /// #1407 (zero-based value → first row no-ops, later rows show the
+        /// PREVIOUS anime).
+        /// </summary>
+        /// <returns>
+        /// The opened <see cref="ImageBattleAnimeView"/>, or <c>null</c> when
+        /// nothing is loaded / the selection has no valid (non-zero) anime id.
+        /// </returns>
+        internal ImageBattleAnimeView? OpenBattleAnimeJump()
+        {
+            if (!_vm.IsLoaded) return null;
+            uint animeId = _vm.GetJumpBattleAnime1BasedId();
+            if (animeId == 0) return null;
+
+            // The Battle Animation Editor's left list is now CLASS-centric
+            // (#1377): rows are per-class SP-record setting pointers, NOT the
+            // 32-byte ANIME-DATA-table slots (animelist base + id*4). So a
+            // jump that only knows an anime id must be routed through the
+            // editor's NavigateToAnimeId, which lands on a class that uses
+            // that anime (or shows the anime data directly when none does) —
+            // the old slot-address Navigate would never match a row.
+            var view = WindowManager.Instance.Open<ImageBattleAnimeView>();
+            view.NavigateToAnimeId(animeId);
+            return view;
         }
 
         async void ListExpand_Click(object? sender, RoutedEventArgs e)
