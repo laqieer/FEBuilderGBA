@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using FEBuilderGBA.Avalonia.Controls;
@@ -60,6 +61,11 @@ public class MantAnimationJumpTests : IClassFixture<RomFixture>
 
         var mantView = new MantAnimationView();
         mantView.Show();
+        // The MantAnimationView populates EntryList in its Opened handler
+        // (LoadList). In headless mode that handler is queued on the dispatcher,
+        // so pump the job queue before querying the list — otherwise the test
+        // could see an empty list and skip (timing-dependent).
+        Dispatcher.UIThread.RunJobs();
         try
         {
             var entryList = mantView.FindControl<AddressListControl>("EntryList");
@@ -113,6 +119,11 @@ public class MantAnimationJumpTests : IClassFixture<RomFixture>
             Assert.Equal(targetOneBasedId - 1u, mantVm.GetJumpBattleAnimeId());
 
             // Invoke the ACTUAL jump method the Jump button's click handler calls.
+            // NOTE: do NOT pump the dispatcher AFTER this — ImageBattleAnimeView's
+            // Opened handler re-runs LoadList() → SelectFirst(), which would
+            // clobber the class-row selection NavigateToAnimeId just set.
+            // NavigateToAnimeId self-loads the list (if (!_listLoaded) LoadList())
+            // and selects synchronously, so its result is already settled here.
             var battleAnimeView = mantView.OpenBattleAnimeJump();
             Assert.NotNull(battleAnimeView);
             try
@@ -156,6 +167,9 @@ public class MantAnimationJumpTests : IClassFixture<RomFixture>
 
         var mantView = new MantAnimationView();
         mantView.Show();
+        // Pump the dispatcher so the Opened handler (LoadList) runs before we
+        // query the list / first-row selection (headless determinism).
+        Dispatcher.UIThread.RunJobs();
         try
         {
             var entryList = mantView.FindControl<AddressListControl>("EntryList");
