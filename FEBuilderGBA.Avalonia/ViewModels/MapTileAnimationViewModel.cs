@@ -36,29 +36,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
             // map_tileanime1_pointer is the ANIMATION PLIST table base, so each
-            // 4-byte slot index IS the PLIST id. Resolve each row to a
-            // "ANIME1/ANIME2 MapName" label via the shared resolver (#952, #11)
-            // instead of a raw 0x… pointer. ANIME1 and ANIME2 both resolve under
-            // PlistType.ANIMATION (they share this table); GetPListNameSplited
-            // returns whichever map field equals the id. The lockstep golden
-            // builder ListParityHelper.BuildMapTileAnimationList calls the SAME
-            // resolver.
+            // 4-byte slot index IS the PLIST id. Each slot holds a u32 POINTER to
+            // the real 8-byte animation struct (interval W0@0, count W2@2,
+            // gfx-ptr D4@4); it is NOT the struct itself. So we DEREFERENCE every
+            // slot via MapChangeCore.PlistToOffsetAddr(...ANIMATION, i...) (#1403)
+            // — which returns p32(base + i*4) bounded by the version PLIST limit
+            // and null/safety-checked, returning U.NOT_FOUND for a broken/empty
+            // slot — and store that struct address as the row address. Without
+            // this, LoadMapTileAnimation/WriteMapTileAnimation would read/write
+            // the 8-byte struct AT the slot, showing garbage and overwriting two
+            // adjacent PLIST pointers on Write (table corruption). Mirrors
+            // MapTileAnimation1Core.BuildPlistList:137-138. The label still uses
+            // the slot index i as the PLIST id, resolved to an "ANIME1/ANIME2
+            // MapName" label via the shared resolver (#952, #11) instead of a raw
+            // 0x… pointer. The lockstep golden builder
+            // ListParityHelper.BuildMapTileAnimationList does the SAME dereference.
             var cache = MapPListResolverCore.BuildCache(rom);
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
             {
-                uint addr = (uint)(baseAddr + i * 4);
-                if (addr + 3 >= (uint)rom.Data.Length) break;
-
-                uint pointer = rom.u32(addr);
-                // Stop if we hit clearly invalid data
-                if (pointer == 0xFFFFFFFF) break;
+                // Dereference the PLIST slot to the actual struct address.
+                // PlistToOffsetAddr already bounds by the version PLIST limit and
+                // performs the ROM-aware null/safety check, returning U.NOT_FOUND
+                // for a broken/empty/out-of-range slot — skip those rows.
+                uint dataAddr = MapChangeCore.PlistToOffsetAddr(
+                    rom, MapChangeCore.PlistType.ANIMATION, i, out uint _);
+                if (dataAddr == U.NOT_FOUND) continue;
 
                 string label = MapPListResolverCore.ResolveLabel(
                     rom, MapChangeCore.PlistType.ANIMATION, i, cache);
                 string name = U.ToHexString(i) + " " + label;
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(dataAddr, name, i));
             }
             return result;
         }
