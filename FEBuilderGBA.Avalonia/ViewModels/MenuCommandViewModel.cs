@@ -101,12 +101,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void LoadMenuCommand(uint addr)
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return;
-            if (addr + 36 > (uint)rom.Data.Length) return;
-            // Defense-in-depth (#1404): never load a usability FUNCTION address as a
-            // 36-byte record — it is ROM code, not a MenuCommand. Clear any previously
-            // loaded record so a stale valid selection cannot remain writable.
-            if (IsUsabilityFunctionAddress(rom, addr))
+            // Defense-in-depth (#1404): on EVERY refusal path — null ROM, out-of-bounds,
+            // or a usability FUNCTION address (ROM code, not a 36-byte record) — clear
+            // any previously loaded record so a stale valid selection cannot remain
+            // writable (a later Write_Click must not target the old address).
+            if (rom == null
+                || addr + 36 > (uint)rom.Data.Length
+                || IsUsabilityFunctionAddress(rom, addr))
             {
                 CurrentAddr = 0;
                 CanWrite = false;

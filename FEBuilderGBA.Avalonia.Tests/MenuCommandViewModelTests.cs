@@ -179,6 +179,26 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void LoadMenuCommand_ValidThenOutOfBoundsAddress_ClearsStaleWritableState()
+        {
+            var rom = MakeMenuRom();
+            WithRom(rom, () =>
+            {
+                var vm = new MenuCommandViewModel();
+
+                // Load a real record first → CanWrite becomes true.
+                vm.LoadMenuCommand(MenuCmdBase);
+                Assert.True(vm.CanWrite);
+
+                // An out-of-bounds address is another refusal path: it too must clear
+                // stale writable state (#1404 second-review gap — clear on ALL refusals).
+                vm.LoadMenuCommand((uint)rom.Data.Length); // addr+36 > length
+                Assert.False(vm.CanWrite);
+                Assert.Equal(0u, vm.CurrentAddr);
+            });
+        }
+
+        [Fact]
         public void WriteMenuCommand_RefusesUsabilityAddress_ReturnsFalse_NoMutation()
         {
             var rom = MakeMenuRom();
