@@ -199,6 +199,94 @@ public class MapTileAnimationResolverParityTests : IClassFixture<RomFixture>
     }
 
     // -----------------------------------------------------------------
+    // #1403: the row address MUST be the DEREFERENCED struct address
+    // (p32(slot)), never the raw PLIST slot address (base + id*4). Storing
+    // the raw slot made Load show [ptr_i][ptr_{i+1}] garbage and made Write
+    // overwrite slot i and slot i+1's pointers — corrupting the PLIST table.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void MapTileAnimationView_RowAddr_IsDereferencedStruct_NotRawSlot()
+    {
+        if (!_rom.IsAvailable) return;
+        ROM rom = _rom.ROM!;
+
+        uint ptr = rom.RomInfo.map_tileanime1_pointer;
+        Assert.NotEqual(0u, ptr);
+        uint baseAddr = rom.p32(ptr);
+
+        var vm = new MapTileAnimationViewModel();
+        List<AddrResult> rows = vm.LoadMapTileAnimationList();
+        Assert.NotEmpty(rows);
+
+        bool anyDiffersFromSlot = false;
+        foreach (AddrResult r in rows)
+        {
+            uint id = r.tag;                       // the PLIST slot index
+            uint slotAddr = baseAddr + id * 4u;    // raw slot (the OLD buggy addr)
+            uint expectedStruct = rom.p32(slotAddr); // dereferenced struct addr
+
+            // The row address must be the dereferenced struct, not the slot.
+            Assert.Equal(expectedStruct, r.addr);
+
+            // For any real ROM the slot pointer != its own slot address, so
+            // the corrected addr must differ from the OLD raw-slot addr.
+            if (r.addr != slotAddr) anyDiffersFromSlot = true;
+        }
+
+        Assert.True(anyDiffersFromSlot,
+            "every row addr equalled its raw slot addr — dereference did not happen");
+    }
+
+    [Fact]
+    public void MapTileAnimationView_LoadWrite_RoundTrip_DoesNotCorruptPlistTable()
+    {
+        if (!_rom.IsAvailable) return;
+        ROM rom = _rom.ROM!;
+
+        uint ptr = rom.RomInfo.map_tileanime1_pointer;
+        uint baseAddr = rom.p32(ptr);
+
+        var vm = new MapTileAnimationViewModel();
+        List<AddrResult> rows = vm.LoadMapTileAnimationList();
+        Assert.NotEmpty(rows);
+
+        AddrResult first = rows[0];
+        uint id = first.tag;
+        uint slotAddr = baseAddr + id * 4u;
+        uint structAddr = first.addr;
+
+        // Snapshot the OLD corruption surface: slot i and slot i+1 (8 bytes at
+        // the PLIST table) — Copilot review: prove these are NOT touched on Write.
+        uint[] plistBefore = new uint[8];
+        for (uint k = 0; k < 8; k++) plistBefore[k] = rom.u8(slotAddr + k);
+
+        // Snapshot the struct bytes (W0@0, W2@2, D4@4) at the dereferenced addr.
+        uint[] structBefore = new uint[8];
+        for (uint k = 0; k < 8; k++) structBefore[k] = rom.u8(structAddr + k);
+
+        // Load -> write back the SAME values (a no-op edit). With the fix this
+        // writes the 8-byte struct at structAddr; with the bug it would have
+        // written at slotAddr and corrupted the PLIST pointers.
+        vm.LoadMapTileAnimation(structAddr);
+        Assert.True(vm.CanWrite);
+        vm.WriteMapTileAnimation();
+
+        // The struct bytes are byte-identical after the round-trip.
+        for (uint k = 0; k < 8; k++)
+            Assert.Equal(structBefore[k], rom.u8(structAddr + k));
+
+        // The PLIST table slots (the old corruption surface) are untouched —
+        // UNLESS the struct legitimately overlaps the slot (it must not for a
+        // real ROM, since structAddr was dereferenced FROM the slot pointer).
+        if (structAddr != slotAddr)
+        {
+            for (uint k = 0; k < 8; k++)
+                Assert.Equal(plistBefore[k], rom.u8(slotAddr + k));
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Smoke guard: list/filter builders must not emit raw labels.
     // -----------------------------------------------------------------
 

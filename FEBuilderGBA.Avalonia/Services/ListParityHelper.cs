@@ -2079,11 +2079,14 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Build map tile animation list matching MapTileAnimationViewModel.
-        /// Uses map_tileanime1_pointer — 4-byte pointer entries, stops at 0xFFFFFFFF.
-        /// Lockstep with MapTileAnimationViewModel.LoadMapTileAnimationList (#952,
-        /// #11): each slot index IS the ANIMATION PLIST id, resolved to an
-        /// "ANIME1/ANIME2 MapName" label via the shared resolver instead of a
-        /// raw 0x… pointer.</summary>
+        /// Uses map_tileanime1_pointer — a PLIST pointer table whose 4-byte slots
+        /// each hold a u32 POINTER to the real 8-byte animation struct. Lockstep
+        /// with MapTileAnimationViewModel.LoadMapTileAnimationList (#952, #11,
+        /// #1403): each slot index IS the ANIMATION PLIST id; the slot is
+        /// DEREFERENCED via MapChangeCore.PlistToOffsetAddr so the row address is
+        /// the struct address (not the raw slot — writing at the raw slot would
+        /// corrupt the pointer table). Resolved to an "ANIME1/ANIME2 MapName"
+        /// label via the shared resolver instead of a raw 0x… pointer.</summary>
         static List<AddrResult> BuildMapTileAnimationList(ROM rom)
         {
             uint ptr = rom.RomInfo.map_tileanime1_pointer;
@@ -2093,20 +2096,27 @@ namespace FEBuilderGBA.Avalonia.Services
 
             var cache = MapPListResolverCore.BuildCache(rom);
 
-            const uint blockSize = 4;
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
             {
-                uint addr = baseAddr + i * blockSize;
-                if (addr + 3 >= (uint)rom.Data.Length) break;
+                // Dereference the PLIST slot to the actual struct address.
+                // PlistToOffsetAddr bounds by the version PLIST limit and does the
+                // ROM-aware null/safety check, returning U.NOT_FOUND for a
+                // broken/empty/out-of-range slot — skip those rows.
+                uint dataAddr = MapChangeCore.PlistToOffsetAddr(
+                    rom, MapChangeCore.PlistType.ANIMATION, i, out uint _);
+                if (dataAddr == U.NOT_FOUND) continue;
 
-                uint pointer = rom.u32(addr);
-                if (pointer == 0xFFFFFFFF) break;
+                // Lockstep with the VM: require the full 8-byte struct in-bounds
+                // (PlistToOffsetAddr only safety-checks the struct START), so the
+                // two paths cannot silently diverge on a malformed/synthetic
+                // pointer table (#1403 review).
+                if (dataAddr + 8u > (uint)rom.Data.Length) continue;
 
                 string label = MapPListResolverCore.ResolveLabel(
                     rom, MapChangeCore.PlistType.ANIMATION, i, cache);
                 string name = U.ToHexString(i) + " " + label;
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(dataAddr, name, i));
             }
             return result;
         }
