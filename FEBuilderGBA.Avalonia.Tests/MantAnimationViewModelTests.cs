@@ -125,6 +125,52 @@ public class MantAnimationViewModelTests : IClassFixture<RomFixture>
         Assert.Equal(expected, vm.GetJumpBattleAnimeId());
     }
 
+    /// <summary>
+    /// #1408: the NEW 1-based helper returns <c>U.atoh(label)</c> verbatim — the
+    /// value the class-centric Battle Animation editor's <c>NavigateToAnimeId</c>
+    /// expects. For a non-zero label it must be exactly one MORE than the WF
+    /// zero-based <see cref="MantAnimationViewModel.GetJumpBattleAnimeId"/>.
+    /// </summary>
+    [Fact]
+    public void GetJumpBattleAnime1BasedId_IsLabel_AndOneMoreThanZeroBased()
+    {
+        if (Skip()) return;
+
+        var vm = new MantAnimationViewModel();
+        var list = vm.LoadList();
+        Assert.NotEmpty(list);
+
+        // Find a row whose label is a non-zero hex id (so the +1/-1 relationship
+        // is exercised; mant ids start at startadd which is >= 1 in practice but
+        // guard anyway).
+        AddrResult? nonZero = null;
+        foreach (var ar in list)
+        {
+            if (U.atoh(ar.name) != 0) { nonZero = ar; break; }
+        }
+        Assert.NotNull(nonZero);
+
+        vm.LoadEntry(nonZero!.addr);
+
+        uint label = U.atoh(nonZero.name);
+        // 1-based helper returns the bare label id (NOT off by one).
+        Assert.Equal(label, vm.GetJumpBattleAnime1BasedId());
+        // ...and is exactly one more than the WF zero-based value.
+        Assert.Equal(vm.GetJumpBattleAnimeId() + 1u, vm.GetJumpBattleAnime1BasedId());
+    }
+
+    /// <summary>
+    /// #1408: with nothing selected (no LoadEntry) the 1-based helper returns 0
+    /// so the view treats it as "no jump" — same guard as the zero-based one.
+    /// </summary>
+    [Fact]
+    public void GetJumpBattleAnime1BasedId_NoSelection_ReturnsZero()
+    {
+        var vm = new MantAnimationViewModel();
+        // No LoadEntry → _selectedName is "" → atoh("") == 0.
+        Assert.Equal(0u, vm.GetJumpBattleAnime1BasedId());
+    }
+
     [Fact]
     public void LoadList_NoRom_ReturnsEmpty()
     {

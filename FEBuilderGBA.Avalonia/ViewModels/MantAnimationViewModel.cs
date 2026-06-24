@@ -128,17 +128,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Battle-anime id to jump to for the current selection. Replicates the
-        /// WF Jump EXACTLY: <c>U.atoh(ar.name) - 1</c>. The <c>-1</c> quirk is
-        /// ported faithfully (NOT "fixed") — in WF the list id is
-        /// <c>index + startadd</c> and the BattleAnime jump subtracts one.
+        /// WF-parity zero-based jump value: <c>U.atoh(ar.name) - 1</c>. In
+        /// WinForms this is consumed by <c>ImageBattleAnimeForm.JumpToAnimeID</c>
+        /// as <c>N_AddressList.SelectedIndex</c> (row <c>i</c> is labelled
+        /// <c>ToHexString(i + 1)</c>, so the index is <c>atoh(label) - 1</c>).
         /// Returns 0 when nothing is selected or the id would underflow.
+        ///
+        /// <b>Do NOT</b> pass this to the Avalonia
+        /// <see cref="Views.ImageBattleAnimeView.NavigateToAnimeId"/>, which
+        /// expects the <b>1-based</b> anime id — use
+        /// <see cref="GetJumpBattleAnime1BasedId"/> for that (#1408). This method
+        /// is retained for WF-parity documentation / tests.
         /// </summary>
         public uint GetJumpBattleAnimeId()
         {
             uint id = U.atoh(_selectedName);
             if (id == 0) return 0;
             return id - 1;
+        }
+
+        /// <summary>
+        /// 1-based battle-anime id for the current selection — <c>U.atoh(label)</c>
+        /// verbatim (the Mant row label IS the 1-based anime id:
+        /// <c>index + startadd</c>). This is the value the class-centric Battle
+        /// Animation editor's <see cref="Views.ImageBattleAnimeView.NavigateToAnimeId"/>
+        /// expects: it compares against <c>ClassFormCore.GetAnimeIDByClassID</c>
+        /// (1-based) and <c>LoadAnimationDetails</c> subtracts one internally for
+        /// the 32-byte table index. Returns 0 when nothing is selected or the
+        /// label is not a hex id (caller treats 0 as "no jump"). #1408 — fixes the
+        /// off-by-one introduced when #1407 routed the Mant jump through the new
+        /// 1-based <c>NavigateToAnimeId</c> while still passing the zero-based
+        /// <see cref="GetJumpBattleAnimeId"/>.
+        /// </summary>
+        public uint GetJumpBattleAnime1BasedId()
+        {
+            return U.atoh(_selectedName);
         }
 
         public int GetListCount() => LoadList().Count;
