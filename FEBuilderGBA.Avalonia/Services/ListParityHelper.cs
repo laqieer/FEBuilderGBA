@@ -3294,7 +3294,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Build menu command list — dynamic list of 36-byte records from the
         /// menu definition table. The usability FUNCTION addresses (UsabilityAlways/Never)
         /// are intentionally NOT listed (ROM code, not records) — kept in lockstep with
-        /// <see cref="ViewModels.MenuCommandViewModel.LoadMenuCommandList"/> (#1404).</summary>
+        /// <see cref="MenuCommandViewModel.LoadMenuCommandList"/> (#1404).</summary>
         static List<AddrResult> BuildMenuCommandList(ROM rom)
         {
             var result = new List<AddrResult>();
