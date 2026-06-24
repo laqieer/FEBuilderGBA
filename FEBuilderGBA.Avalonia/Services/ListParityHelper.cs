@@ -2107,6 +2107,12 @@ namespace FEBuilderGBA.Avalonia.Services
                     rom, MapChangeCore.PlistType.ANIMATION, i, out uint _);
                 if (dataAddr == U.NOT_FOUND) continue;
 
+                // Lockstep with the VM: require the full 8-byte struct in-bounds
+                // (PlistToOffsetAddr only safety-checks the struct START), so the
+                // two paths cannot silently diverge on a malformed/synthetic
+                // pointer table (#1403 review).
+                if (dataAddr + 8u > (uint)rom.Data.Length) continue;
+
                 string label = MapPListResolverCore.ResolveLabel(
                     rom, MapChangeCore.PlistType.ANIMATION, i, cache);
                 string name = U.ToHexString(i) + " " + label;

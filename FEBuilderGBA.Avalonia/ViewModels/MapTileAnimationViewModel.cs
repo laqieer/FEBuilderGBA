@@ -64,6 +64,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom, MapChangeCore.PlistType.ANIMATION, i, out uint _);
                 if (dataAddr == U.NOT_FOUND) continue;
 
+                // PlistToOffsetAddr only guarantees the struct START is a safe
+                // offset, not that the full 8-byte struct (W0@0, W2@2, D4@4 — read
+                // up to dataAddr+7) fits in ROM. A malformed pointer table could
+                // dereference to within 8 bytes of EOF; skip those so the loader
+                // never reads out of bounds (and Write never corrupts past EOF).
+                if (dataAddr + 8u > (uint)rom.Data.Length) continue;
+
                 string label = MapPListResolverCore.ResolveLabel(
                     rom, MapChangeCore.PlistType.ANIMATION, i, cache);
                 string name = U.ToHexString(i) + " " + label;
@@ -77,7 +84,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
-            if (addr + 3 >= (uint)rom.Data.Length) return;
+            // The struct is 8 bytes (W0@0, W2@2, D4@4 — read up to addr+7), so
+            // require all 8 bytes in-bounds, not just the first 4 (#1403 review).
+            if (addr + 8u > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
