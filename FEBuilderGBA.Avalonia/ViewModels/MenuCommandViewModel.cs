@@ -35,31 +35,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CursorSelectAction { get => _cursorSelectAction; set => SetField(ref _cursorSelectAction, value); }
         public uint CancelAction { get => _cancelAction; set => SetField(ref _cancelAction, value); }
 
+        /// <summary>
+        /// True when <paramref name="addr"/> is one of the well-known MenuCommand
+        /// usability FUNCTION addresses (ARM Thumb code in the ROM, NOT a 36-byte
+        /// MenuCommand record). These must never appear as editable list rows nor
+        /// be written to — writing 36 bytes there would overwrite ROM code (#1404).
+        /// Surfaced read-only in the view (a port of WinForms MenuCommandForm.Explain12).
+        /// </summary>
+        public static bool IsUsabilityFunctionAddress(ROM rom, uint addr)
+        {
+            if (rom?.RomInfo == null) return false;
+            uint always = rom.RomInfo.MenuCommand_UsabilityAlways;
+            uint never = rom.RomInfo.MenuCommand_UsabilityNever;
+            if (always != 0 && addr == always) return true;
+            if (never != 0 && addr == never) return true;
+            return false;
+        }
+
         public List<AddrResult> LoadMenuCommandList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             // MenuCommand entries are accessed from MenuDefinition handler pointers.
-            // List the well-known MenuCommand function addresses first.
+            // The well-known usability FUNCTION addresses (UsabilityAlways/Never) are
+            // NOT 36-byte records and are deliberately NOT listed here (#1404) — they
+            // are shown read-only in the view instead.
             var result = new List<AddrResult>();
 
-            uint always = rom.RomInfo.MenuCommand_UsabilityAlways;
-            if (always != 0)
-                result.Add(new AddrResult(always, "0 UsabilityAlways", 0));
-
-            uint never = rom.RomInfo.MenuCommand_UsabilityNever;
-            if (never != 0)
-                result.Add(new AddrResult(never, "1 UsabilityNever", 1));
-
-            // Also enumerate entries from the primary menu definition table
+            // Enumerate entries from the primary menu definition table.
             uint ptr = rom.RomInfo.menu_definiton_pointer;
             if (ptr != 0)
             {
                 uint defBase = rom.p32(ptr);
                 if (U.isSafetyOffset(defBase))
                 {
-                    uint idx = 2;
+                    uint idx = 0;
                     for (uint i = 0; i < 0x100; i++)
                     {
                         uint defAddr = (uint)(defBase + i * 36);
@@ -92,6 +103,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             if (addr + 36 > (uint)rom.Data.Length) return;
+            // Defense-in-depth (#1404): never load a usability FUNCTION address as a
+            // 36-byte record — it is ROM code, not a MenuCommand. Clear any previously
+            // loaded record so a stale valid selection cannot remain writable.
+            if (IsUsabilityFunctionAddress(rom, addr))
+            {
+                CurrentAddr = 0;
+                CanWrite = false;
+                return;
+            }
 
             CurrentAddr = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
@@ -112,12 +132,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanWrite = true;
         }
 
-        public void WriteMenuCommand()
+        /// <summary>
+        /// Writes the current 36-byte MenuCommand record. Returns false (and writes
+        /// nothing) when there is no valid record loaded or the current address is a
+        /// usability FUNCTION address (#1404) — so the caller can avoid reporting a
+        /// false "data written" success.
+        /// </summary>
+        public bool WriteMenuCommand()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return;
+            if (rom == null || CurrentAddr == 0) return false;
             uint addr = CurrentAddr;
-            if (addr + 36 > (uint)rom.Data.Length) return;
+            if (addr + 36 > (uint)rom.Data.Length) return false;
+            // Defense-in-depth (#1404): refuse to write 36 bytes over a usability
+            // FUNCTION address — that would overwrite the always-show / hide ROM routines.
+            if (IsUsabilityFunctionAddress(rom, addr)) return false;
 
             // Write uses D8 (ColorAndIdDword) for offset 8-11, not individual B8/B9/B10/B11
             var values = new Dictionary<string, uint>
@@ -128,6 +157,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["D24"] = PerTurnCallback, ["D28"] = CursorSelectAction, ["D32"] = CancelAction,
             };
             EditorFormRef.WriteFields(rom, addr, values, _fields);
+            return true;
         }
 
         public int GetListCount() => LoadMenuCommandList().Count;

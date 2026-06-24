@@ -48,12 +48,43 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadMenuCommandList();
                 EntryList.SetItems(items);
+                UpdateUsabilityHint();
             }
             catch (Exception ex)
             {
                 Log.Error("MenuCommandView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        /// <summary>
+        /// Port of WinForms MenuCommandForm.Explain12 — shows the well-known usability
+        /// FUNCTION addresses (always-show / hide menu routines) as READ-ONLY hint text.
+        /// These addresses are ROM code, not 36-byte MenuCommand records, so they are
+        /// deliberately NOT list rows (#1404).
+        /// </summary>
+        void UpdateUsabilityHint()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) { UsabilityHintLabel.Text = ""; return; }
+
+            uint always = rom.RomInfo.MenuCommand_UsabilityAlways;
+            uint never = rom.RomInfo.MenuCommand_UsabilityNever;
+
+            // FE6 has no "hide" routine — show the always-only form (matches Explain12).
+            if (rom.RomInfo.version == 6 || never == 0)
+            {
+                UsabilityHintLabel.Text = R._(
+                    "よく使われる関数のメモ\r\n{0} 常にメニューの項目を表示します。",
+                    U.ToHexString8(U.toPointer(always + 1)));
+            }
+            else
+            {
+                UsabilityHintLabel.Text = R._(
+                    "よく使われる関数のメモ\r\n{0} 常にメニューの項目を表示します。\r\n{1} メニューを非表示にします。",
+                    U.ToHexString8(U.toPointer(always + 1)),
+                    U.ToHexString8(U.toPointer(never + 1)));
+            }
         }
 
         void OnSelected(uint addr)
@@ -106,7 +137,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PerTurnCallback = ParseHexText(PerTurnBox.Text);
                 _vm.CursorSelectAction = ParseHexText(CursorSelBox.Text);
                 _vm.CancelAction = ParseHexText(CancelBox.Text);
-                _vm.WriteMenuCommand();
+                if (!_vm.WriteMenuCommand())
+                {
+                    // Refused (no valid record / usability code address) — do not commit
+                    // or report a false success (#1404).
+                    _undoService.Rollback();
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Menu command data written.");

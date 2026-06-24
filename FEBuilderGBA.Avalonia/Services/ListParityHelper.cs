@@ -3291,18 +3291,13 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build menu command list — dynamic list from menu definitions + well-known addresses.</summary>
+        /// <summary>Build menu command list — dynamic list of 36-byte records from the
+        /// menu definition table. The usability FUNCTION addresses (UsabilityAlways/Never)
+        /// are intentionally NOT listed (ROM code, not records) — kept in lockstep with
+        /// <see cref="ViewModels.MenuCommandViewModel.LoadMenuCommandList"/> (#1404).</summary>
         static List<AddrResult> BuildMenuCommandList(ROM rom)
         {
             var result = new List<AddrResult>();
-
-            uint always = rom.RomInfo.MenuCommand_UsabilityAlways;
-            if (always != 0)
-                result.Add(new AddrResult(always, "0 UsabilityAlways", 0));
-
-            uint never = rom.RomInfo.MenuCommand_UsabilityNever;
-            if (never != 0)
-                result.Add(new AddrResult(never, "1 UsabilityNever", 1));
 
             uint ptr = rom.RomInfo.menu_definiton_pointer;
             if (ptr != 0)
@@ -3310,7 +3305,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint defBase = rom.p32(ptr);
                 if (U.isSafetyOffset(defBase))
                 {
-                    uint idx = 2;
+                    uint idx = 0;
                     for (uint i = 0; i < 0x100; i++)
                     {
                         uint defAddr = defBase + i * 36;
