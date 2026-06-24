@@ -17,10 +17,12 @@ namespace FEBuilderGBA.Avalonia.Tests
 {
     /// <summary>
     /// #1377 screenshot proof: the Class Editor's BattleAnime Jump passes a class
-    /// battle-anime SETTING pointer. After the fix, <c>ImageBattleAnimeView.NavigateTo</c>
-    /// resolves the owning class and DIRECT-LOADS that pointer, so the editor lands
-    /// on the class's real animation (a populated detail panel) instead of entry 0's
-    /// "No animation data found" message. Renders the real editor to a PNG via
+    /// battle-anime SETTING pointer. The editor's left list is CLASS-centric, so
+    /// that pointer IS one of the rows; <c>ImageBattleAnimeView.NavigateTo</c>
+    /// SELECTS the matching class row and loads it, so the editor lands on the
+    /// class's real animation (a populated detail panel) instead of entry 0's
+    /// "No animation data found" message — and clicking any list row stays on a
+    /// correct address. Renders the real editor to a PNG via
     /// <see cref="RenderTargetBitmap"/> (headless, no visible desktop required).
     /// </summary>
     public class ImageBattleAnimeJumpScreenshotTest : IClassFixture<RomFixture>

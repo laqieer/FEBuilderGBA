@@ -431,6 +431,134 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ================================================================
+        // GetBattleAnimeSettingRows — class-centric left-list source (#1377)
+        // ================================================================
+
+        /// <summary>
+        /// Build a synthetic ROM with <paramref name="classCount"/> valid classes
+        /// (0..classCount-1; row i marked valid by a non-zero +4 byte), each
+        /// class i's battle-anime setting slot (+52 FE8 / +48 FE6) pointing at a
+        /// distinct safe SP-record region <c>SP_BASE + i*16</c>. Class 0's setting
+        /// slot is left NULL so it is skipped (its pointer is unsafe) — exercising
+        /// the "skip unloadable rows" contract.
+        /// </summary>
+        static ROM MakeMultiClassRom(int version, int classCount)
+        {
+            const uint dataSize = 84;
+            const uint spBase = 0x4000; // per-class SP-record region base
+            var rom = new ROM();
+            byte[] data = new byte[0x1000000];
+            Array.Fill(data, (byte)0x00);
+            rom.LoadLow("synth.gba", data, "BE8E01");
+            SetRomInfo(rom, new StubRomInfo(version, classPointer: CLASS_PTR_SLOT,
+                classDataSize: dataSize, unitPalettePointer: UNITPAL_PTR_SLOT));
+
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(CLASS_BASE));
+            uint settingOffsetInEntry = version == 6 ? 48u : 52u;
+
+            for (int i = 1; i < classCount; i++)
+            {
+                uint classAddr = CLASS_BASE + (uint)i * dataSize;
+                // Mark the row valid (read-max rule: u8(addr+4) != 0).
+                U.write_u8(rom.Data, classAddr + 4, 1);
+                // Distinct safe setting pointer per class; store anime id = i at +2.
+                uint sp = spBase + (uint)i * 16;
+                U.write_u32(rom.Data, classAddr + settingOffsetInEntry, U.toPointer(sp));
+                U.write_u16(rom.Data, sp + 2, (ushort)i);
+            }
+            return rom;
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_NullRom_ReturnsEmpty_NoThrow()
+        {
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(null);
+            Assert.Empty(rows);
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_EachRowOffset_MatchesGetBattleAnimeAddrWhereID_FE8()
+        {
+            // The load-bearing contract: every row's settingOffset is EXACTLY the
+            // address the editor's LoadEntry dereferences, i.e. equals
+            // GetBattleAnimeAddrWhereID(rom, classId). This is what makes clicking
+            // a list row load the correct SP record (the #1377 fix).
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            Assert.NotEmpty(rows);
+            foreach (var (classId, settingOffset) in rows)
+            {
+                uint expected = ClassFormCore.GetBattleAnimeAddrWhereID(rom, classId);
+                Assert.NotEqual(U.NOT_FOUND, expected);
+                Assert.Equal(expected, settingOffset);
+            }
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_RowOwningClass_RoundTrips_ViaReverseLookup()
+        {
+            // A Class-Editor jump that passes a row's settingOffset must resolve
+            // the SAME class via GetIDWhereBattleAnimeAddr (the NavigateTo gate),
+            // proving the list row and the jump target are the same address space.
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            Assert.NotEmpty(rows);
+            foreach (var (classId, settingOffset) in rows)
+            {
+                uint cid = ClassFormCore.GetIDWhereBattleAnimeAddr(rom, settingOffset);
+                // GetIDWhereBattleAnimeAddr returns the FIRST class with that
+                // pointer; our pointers are distinct, so it must be this class.
+                Assert.Equal((uint)classId, cid);
+            }
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_SkipsClassesWithUnsafeSettingPointer()
+        {
+            // Class 0's setting slot is left NULL (toOffset(0)=0 < safety floor),
+            // so it must NOT appear as a row. Every returned row must be a safe,
+            // 4-byte-readable offset.
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            Assert.DoesNotContain(rows, r => r.classId == 0);
+            foreach (var (_, settingOffset) in rows)
+            {
+                Assert.True(U.isSafetyOffset(settingOffset, rom));
+                Assert.True((ulong)settingOffset + 4 <= (ulong)rom.Data.Length);
+            }
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_FE6_UsesPlus48()
+        {
+            // FE6 reads +48; the rows must resolve through the +48 slot. Plant
+            // nothing at +52 (MakeMultiClassRom writes only +48 for version 6) and
+            // assert the rows still resolve via GetBattleAnimeAddrWhereID(+48).
+            ROM rom = MakeMultiClassRom(6, classCount: 5);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            Assert.NotEmpty(rows);
+            foreach (var (classId, settingOffset) in rows)
+                Assert.Equal(ClassFormCore.GetBattleAnimeAddrWhereID(rom, classId), settingOffset);
+        }
+
+        [Fact]
+        public void GetBattleAnimeSettingRows_LoadEntryReadsSameAnimeId_AsClassJump()
+        {
+            // The editor's LoadEntry reads the anime id from settingOffset + 2.
+            // The Class-Editor jump shows GetAnimeIDByClassID(classId). For every
+            // row these must agree (no more "mid-record" misreads).
+            ROM rom = MakeMultiClassRom(8, classCount: 6);
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            Assert.NotEmpty(rows);
+            foreach (var (classId, settingOffset) in rows)
+            {
+                uint rowAnimeId = rom.u16(settingOffset + 2);
+                uint jumpAnimeId = ClassFormCore.GetAnimeIDByClassID(rom, classId);
+                Assert.Equal(jumpAnimeId, rowAnimeId);
+            }
+        }
+
+        // ================================================================
         // Stub RomInfo — drives version + the three table pointers.
         // ================================================================
 

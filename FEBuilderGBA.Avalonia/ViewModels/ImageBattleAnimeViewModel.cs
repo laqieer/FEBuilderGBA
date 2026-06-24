@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -87,26 +88,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Rendered image for the current animation frame.</summary>
         public IImage FrameImage { get => _frameImage; set => SetField(ref _frameImage, value); }
 
+        /// <summary>
+        /// Build the editor's left list. The editor edits a 4-byte per-class
+        /// battle-anime SP record (WeaponType/Special/AnimationNumber), so the
+        /// list is CLASS-centric — one row per class, each row's address being
+        /// that class's battle-anime SETTING pointer
+        /// (<see cref="ClassFormCore.GetBattleAnimeSettingRows"/> =
+        /// <c>p32(classAddr + 52)</c> FE7/8 / <c>+48</c> FE6). This mirrors WF
+        /// <c>ImageBattleAnimeForm</c>, whose per-class SP-record view is driven by
+        /// the CLASS listbox re-basing <c>InputFormRef.ReInit(GetBattleAnimeAddrWhereID(cid))</c>.
+        /// <para>
+        /// The previous implementation walked <c>image_battle_animelist_pointer</c>
+        /// at stride 4, but that pointer is the 32-byte ANIME-DATA table (see
+        /// <see cref="LoadAnimationTable"/> / <see cref="LoadAnimationDetails"/>,
+        /// stride 32). Stride-4 rows landed MID-record, so clicking a row read
+        /// anime-name ASCII as an SP record and "returned to incorrect addresses"
+        /// (#1377). Every row built here is the exact offset
+        /// <see cref="LoadEntry"/> dereferences, so selecting any row is correct.
+        /// </para>
+        /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint pointer = rom.RomInfo.image_battle_animelist_pointer;
-            if (pointer == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(pointer);
-            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
-
-            const uint blockSize = 4;
-            var result = new List<AddrResult>();
-            for (int i = 0; i < 512; i++)
+            var rows = ClassFormCore.GetBattleAnimeSettingRows(rom);
+            var result = new List<AddrResult>(rows.Count);
+            foreach (var (classId, settingOffset) in rows)
             {
-                uint addr = baseAddr + (uint)(i * blockSize);
-                if (addr + blockSize > (uint)rom.Data.Length) break;
-                if (rom.u32(addr) == 0) break;
-
-                result.Add(new AddrResult(addr, $"0x{i:X2} Anim", (uint)i));
+                string className;
+                try { className = NameResolver.GetClassName((uint)classId); }
+                catch { className = ""; }
+                string label = string.IsNullOrEmpty(className)
+                    ? $"0x{classId:X2}"
+                    : $"0x{classId:X2} {className}";
+                result.Add(new AddrResult(settingOffset, label, (uint)classId));
             }
             return result;
         }

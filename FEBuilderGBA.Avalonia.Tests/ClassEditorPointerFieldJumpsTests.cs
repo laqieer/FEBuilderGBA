@@ -221,34 +221,39 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
 
     /// <summary>
     /// #1377 regression: the Class Editor's BattleAnime Jump passes the class's
-    /// P52/P48 battle-anime SETTING pointer (a per-class SP-record region, NOT a
-    /// global anime-list row). Before the fix, <c>NavigateTo</c> just called
-    /// <c>EntryList.SelectAddress</c>, which never matched that pointer and left
-    /// entry 0 selected ("No animation data found"). After the fix,
-    /// <c>NavigateTo</c> resolves the owning class
-    /// (<see cref="ClassFormCore.GetIDWhereBattleAnimeAddr"/>) and DIRECT-LOADS
-    /// the setting pointer, so the editor shows that class's animation.
+    /// P52/P48 battle-anime SETTING pointer. The editor's left list is now
+    /// CLASS-centric — every row's address IS a class's setting pointer
+    /// (<see cref="ClassFormCore.GetBattleAnimeSettingRows"/>), the exact offset
+    /// the editor's <c>LoadEntry</c> dereferences. So the jump SELECTS the
+    /// matching class row (Case 1), keeping the list selection and detail panel
+    /// in sync, and <c>OnSelected</c> loads the correct SP record.
     ///
-    /// Asserts the VM's CurrentAddr == the class setting pointer and the resolved
-    /// AnimationNumber == the anime id stored at the setting pointer's +2 (the
-    /// same value WF would show), proving it did NOT fall back to entry 0.
+    /// Asserts: (1) the EntryList's selected item's addr == the class setting
+    /// pointer (it landed on the right row, not entry 0); (2) the VM's
+    /// CurrentAddr == that pointer; (3) the AnimationNumber == the anime id
+    /// stored at the setting pointer's +2 (the value WF would show). This is the
+    /// "click the list returns to incorrect addresses" residual-bug regression.
     /// </summary>
     [AvaloniaFact]
-    public void NavigateToBattleAnime_ClassSettingPointer_DirectLoadsCorrectAnimation()
+    public void NavigateToBattleAnime_ClassSettingPointer_SelectsClassRowAndLoadsAnimation()
     {
         if (!_fixture.IsAvailable) return;
-
-        // Find the first class whose battle-anime setting pointer is a valid,
-        // in-ROM, NON-global-list pointer (the #1377 case).
-        var classVm = new ClassEditorViewModel();
-        var items = classVm.LoadClassList();
-        if (items.Count == 0) return;
 
         ROM rom = CoreState.ROM;
         Assert.NotNull(rom);
 
-        // The global anime-list base (the rows the EntryList shows).
-        uint listBase = rom!.p32(rom.RomInfo.image_battle_animelist_pointer);
+        // The class-centric rows the editor's left list shows.
+        var rows = ClassFormCore.GetBattleAnimeSettingRows(rom!);
+        if (rows.Count == 0)
+        {
+            _output.WriteLine("No class battle-anime setting rows; skipping.");
+            return;
+        }
+
+        // Pick the first class whose setting pointer the Class Editor would pass.
+        var classVm = new ClassEditorViewModel();
+        var items = classVm.LoadClassList();
+        Assert.NotEmpty(items);
 
         uint settingOffset = 0;
         uint expectedAnimeNo = 0;
@@ -258,20 +263,15 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
             uint raw = classVm.BattleAnimePtr;
             if (!U.isPointer(raw)) continue;
             uint off = U.toOffset(raw);
-            if (!U.isSafetyOffset(off, rom)) continue;
-            if (off + 4 > (uint)rom.Data.Length) continue;
-            // We want a setting pointer that is NOT a global-list row so this
-            // exercises the direct-load fallback (not the SelectAddress path).
-            if (off == listBase) continue;
-            // Confirm a class genuinely owns this pointer (the reverse lookup).
-            if (ClassFormCore.GetIDWhereBattleAnimeAddr(rom, raw) == U.NOT_FOUND) continue;
+            // Must be one of the class-centric list rows (so SelectAddress hits).
+            if (!rows.Exists(r => r.settingOffset == off)) continue;
             settingOffset = off;
-            expectedAnimeNo = rom.u16(off + 2);
+            expectedAnimeNo = rom!.u16(off + 2);
             break;
         }
         if (settingOffset == 0)
         {
-            _output.WriteLine("No class with a non-list-row setting pointer found; skipping.");
+            _output.WriteLine("No class whose setting pointer is a list row; skipping.");
             return;
         }
 
@@ -283,23 +283,60 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
         {
             view.NavigateTo(settingOffset);
 
+            // The list selection landed on the matching class row.
+            var ctrl = view.FindControl<AddressListControl>("EntryList");
+            Assert.NotNull(ctrl);
+            Assert.NotNull(ctrl!.SelectedItem);
+            Assert.Equal(settingOffset, ctrl.SelectedItem!.addr);
+
+            // The VM loaded that class's SP record (NOT entry 0 / a mid-record).
             var vm = view.DataViewModel as ImageBattleAnimeViewModel;
             Assert.NotNull(vm);
-            // Direct-loaded the class setting pointer (NOT entry 0).
             Assert.Equal(settingOffset, vm!.CurrentAddr);
             Assert.NotEqual(0u, vm.CurrentAddr);
             Assert.Equal(expectedAnimeNo, vm.AnimationNumber);
-
-            // The EntryList must NOT have a stale entry-0 selection pinned to the
-            // wrong (list-base) address.
-            var ctrl = view.FindControl<AddressListControl>("EntryList");
-            Assert.NotNull(ctrl);
-            if (ctrl!.SelectedItem != null)
-                Assert.NotEqual(listBase, ctrl.SelectedItem!.addr);
         }
         finally
         {
             view.Close();
+        }
+    }
+
+    /// <summary>
+    /// #1377: every row in the Battle Animation Editor's CLASS-centric left list
+    /// must have an address that EQUALS the class's battle-anime setting pointer
+    /// (<see cref="ClassFormCore.GetBattleAnimeAddrWhereID"/>), so clicking any
+    /// row loads the exact SP record the editor reads/writes. This is the core of
+    /// the "click the list → incorrect addresses" fix: list stride/base now match
+    /// the record the loader dereferences.
+    /// </summary>
+    [AvaloniaFact]
+    public void BattleAnimeList_EveryRowAddr_IsClassSettingPointer()
+    {
+        if (!_fixture.IsAvailable) return;
+
+        ROM rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        var vm = new ImageBattleAnimeViewModel();
+        var list = vm.LoadList();
+        if (list.Count == 0)
+        {
+            _output.WriteLine("Empty battle-anime class list; skipping.");
+            return;
+        }
+
+        foreach (var row in list)
+        {
+            // tag is the class id; its setting pointer must equal the row addr.
+            uint expected = ClassFormCore.GetBattleAnimeAddrWhereID(rom!, (int)row.tag);
+            Assert.NotEqual(U.NOT_FOUND, expected);
+            Assert.Equal(expected, row.addr);
+
+            // And LoadEntry at that row reads the same anime id the class jump
+            // would show — proving no mid-record misread.
+            vm.LoadEntry(row.addr);
+            Assert.Equal(ClassFormCore.GetAnimeIDByClassID(rom!, (int)row.tag), vm.AnimationNumber);
         }
     }
 
@@ -309,11 +346,11 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
     /// ROM is loaded), call NavigateTo with that exact offset, and assert the
     /// selection matches.
     ///
-    /// Copilot bot review feedback: the existing
-    /// <see cref="NavigateToBattleAnime_SelectsMatchingEntry"/> can return
-    /// early if no class's anime pointer happens to align to a list slot for
+    /// Copilot bot review feedback: the data-dependent
+    /// <see cref="NavigateToBattleAnime_ClassSettingPointer_SelectsClassRowAndLoadsAnimation"/>
+    /// can return early if no class's anime pointer happens to be a list row for
     /// the loaded ROM, hiding real regressions. This test always exercises
-    /// the selection contract.
+    /// the selection contract with index 0 (which exists by construction).
     /// </summary>
     [AvaloniaFact]
     public void NavigateToBattleAnime_RoundTripsKnownGoodEntry()
