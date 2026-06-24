@@ -54,6 +54,13 @@
           <TextBox AutomationProperties.AutomationId="MenuCommand_Cancel_Input" Grid.Row="10" Grid.Column="1" Name="CancelBox" Width="200" Margin="0,2" />
         </Grid>
 
+        <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,12,0,0">
+          <TextBlock AutomationProperties.AutomationId="MenuCommand_UsabilityHint_Label"
+                     Name="UsabilityHintLabel" Foreground="Gray" FontSize="11"
+                     TextWrapping="Wrap"
+                     IsHitTestVisible="False" />
+        </Border>
+
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="MenuCommand_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
