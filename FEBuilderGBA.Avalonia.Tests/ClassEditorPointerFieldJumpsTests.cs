@@ -341,6 +341,66 @@ public class ClassEditorPointerFieldJumpsTests : IClassFixture<RomFixture>
     }
 
     /// <summary>
+    /// #1377 (Copilot guardrail #3): locks in the separation between the
+    /// class-centric SP-record list and the 32-byte ANIME-DATA table. An address
+    /// from the global animation table (<c>image_battle_animelist base + id*32</c>,
+    /// id ≥ 1) must NOT appear as a class-list row, and <c>NavigateTo</c> to it
+    /// must NOT direct-load it as a 4-byte SP record — unless a class genuinely
+    /// owns it (which a mid-table 32-byte slot does not). This prevents
+    /// reintroducing the original mixed-address-space bug.
+    /// </summary>
+    [AvaloniaFact]
+    public void BattleAnime_AnimeTableAddress_IsNotAClassRow_NorDirectLoaded()
+    {
+        if (!_fixture.IsAvailable) return;
+
+        ROM rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        uint listPtr = rom!.RomInfo.image_battle_animelist_pointer;
+        if (listPtr == 0) { _output.WriteLine("No anime-list pointer; skipping."); return; }
+        uint tableBase = rom.p32(listPtr);
+        if (!U.isSafetyOffset(tableBase, rom)) { _output.WriteLine("Unsafe table base; skipping."); return; }
+
+        // A mid-table 32-byte record address (id=1 => the SECOND anime record).
+        uint animeTableAddr = tableBase + 1u * 32u;
+
+        var vm = new ImageBattleAnimeViewModel();
+        var list = vm.LoadList();
+        // The 32-byte-table address is not a class-centric row...
+        Assert.DoesNotContain(list, r => r.addr == animeTableAddr);
+        // ...and no class owns it as a setting pointer (so NavigateTo won't load it).
+        Assert.Equal(U.NOT_FOUND, ClassFormCore.GetIDWhereBattleAnimeAddr(rom, animeTableAddr));
+
+        var view = new ImageBattleAnimeView();
+        view.Show();
+        try
+        {
+            // Establish a known good selection first (a real class row).
+            uint goodRow = list.Count > 0 ? list[0].addr : 0;
+            if (goodRow != 0)
+                view.NavigateTo(goodRow);
+
+            var before = view.FindControl<AddressListControl>("EntryList")!.SelectedItem;
+
+            // NavigateTo the anime-table address: no row matches, no class owns it,
+            // so the selection must be left untouched (no spurious direct-load).
+            view.NavigateTo(animeTableAddr);
+
+            var after = view.FindControl<AddressListControl>("EntryList")!.SelectedItem;
+            Assert.Equal(before?.addr, after?.addr);
+            var loadedVm = view.DataViewModel as ImageBattleAnimeViewModel;
+            Assert.NotNull(loadedVm);
+            // The VM was NOT repointed to the raw 32-byte-table address.
+            Assert.NotEqual(animeTableAddr, loadedVm!.CurrentAddr);
+        }
+        finally
+        {
+            view.Close();
+        }
+    }
+
+    /// <summary>
     /// Deterministic Battle Anime jump round-trip: pick the first entry from
     /// ImageBattleAnimeView's own EntryList (guaranteed to exist for whatever
     /// ROM is loaded), call NavigateTo with that exact offset, and assert the

@@ -362,6 +362,13 @@ namespace FEBuilderGBA.Core
         /// </para>
         /// Read-only; guarded — never throws; returns an empty list on an
         /// unresolvable ROM/table.
+        /// <para>
+        /// Two classes MAY share the same setting pointer (a shared SP-record
+        /// block). Both are returned as distinct rows (distinct classId labels);
+        /// address-based selection then highlights the FIRST such row, but the
+        /// loaded SP record is identical regardless, so the editor shows correct
+        /// data either way.
+        /// </para>
         /// </summary>
         public static System.Collections.Generic.List<(int classId, uint settingOffset)> GetBattleAnimeSettingRows(ROM rom)
         {
