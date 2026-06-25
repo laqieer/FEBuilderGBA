@@ -44,24 +44,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>The script type this editor operates on (Event, Procs, or AI).</summary>
         public EventScript.EventScriptType ScriptType { get; set; } = EventScript.EventScriptType.Event;
 
+        // ── event-kind state ───────────────────────────────────────────
+        // The active kind is what the CURRENTLY-LOADED script was scanned with; it drives
+        // WriteAll's terminator selection. Because EventScriptView is a CACHED singleton
+        // (WindowManager.Open<T> returns the same instance), the kind MUST NOT persist
+        // across openings or a world-map/top-level jump would leak its kind into a later
+        // normal-script open and append the wrong terminator (Copilot PR review #1510 —
+        // ROM-corruption risk). So the kind is applied ONE-SHOT: SetEventKind() stages a
+        // pending kind for the NEXT DisassembleAt only; DisassembleAt consumes it and then
+        // resets the pending kind to the chapter-event default. A manual Disassemble (user
+        // typing an address) therefore always uses the default unless a jump set a pending
+        // kind immediately beforehand.
+
+        bool _pendingWorldMap;
+        bool _pendingTopLevel;
+
         /// <summary>
-        /// True when this editor was opened on a WORLD-MAP event script (set by the
-        /// world-map event jump before navigating). Controls termination-scan rules and
-        /// which default terminator <see cref="EventScriptEditorCore"/> appends on write
-        /// — the WinForms editor detects this via <c>WorldMapEventPointerForm.isWorldMapEvent</c>;
-        /// the cross-platform VM carries it through navigation instead (Copilot PR review
-        /// finding #2). Defaults to false (the main-menu Event Script entry opens chapter
-        /// events).
+        /// The kind the CURRENTLY-LOADED script was scanned with (set by the last
+        /// <see cref="DisassembleAt"/>). Read by <see cref="WriteAll"/> for terminator
+        /// selection. Settable for tests; production code stages the kind via
+        /// <see cref="StageEventKind"/>.
         /// </summary>
         public bool IsWorldMapEvent { get; set; }
 
-        /// <summary>
-        /// True when this editor was opened on a CHAPTER TOP-LEVEL event pointer (set by
-        /// the EventCond jump). Selects the top-level terminator on write (WinForms
-        /// <c>EventCondForm.isTopLevelEvent</c>). Ignored when <see cref="IsWorldMapEvent"/>
-        /// is true (world-map terminator wins, mirroring WinForms).
-        /// </summary>
+        /// <summary>The top-level kind the currently-loaded script was scanned with
+        /// (see <see cref="IsWorldMapEvent"/>). Ignored when world-map wins.</summary>
         public bool IsTopLevelEvent { get; set; }
+
+        /// <summary>
+        /// Stage the event kind for the NEXT disassembly only (one-shot). A world-map /
+        /// top-level jump calls this immediately before <c>NavigateTo</c>; the very next
+        /// <see cref="DisassembleAt"/> applies it and then clears the pending kind so a
+        /// later reuse of this cached editor for a normal script defaults to chapter-event
+        /// semantics. (Copilot PR review #1510 — prevents stale-kind leak.)
+        /// </summary>
+        public void StageEventKind(bool isWorldMapEvent, bool isTopLevelEvent)
+        {
+            _pendingWorldMap = isWorldMapEvent;
+            _pendingTopLevel = isTopLevelEvent;
+        }
 
         /// <summary>True when there are unsaved structural edits (mirrors the WinForms
         /// "yellow write button" dirty flag).</summary>
@@ -193,9 +214,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
+            // Apply the ONE-SHOT staged kind (set by a jump just before navigation), then
+            // clear it so a later reuse of this cached editor defaults to chapter-event
+            // semantics — preventing a world-map/top-level kind from leaking into a normal
+            // open (Copilot PR review #1510).
+            IsWorldMapEvent = _pendingWorldMap;
+            IsTopLevelEvent = _pendingTopLevel;
+            _pendingWorldMap = false;
+            _pendingTopLevel = false;
+
             _editor = new EventScriptEditorCore(_es);
-            // Event kind is carried through navigation (IsWorldMapEvent / IsTopLevelEvent);
-            // the main-menu Event Script entry leaves both false (chapter events).
             _editor.BuildFromRom(rom, offset, IsWorldMapEvent);
 
             // Set CurrentAddr BEFORE RefreshDisplay — RefreshDisplay formats every command's

@@ -290,15 +290,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             byte[] normterm = _rom.RomInfo.Default_event_script_term_code;
             Assert.NotEqual(mapterm[0], normterm[0]); // meaningful only when they differ
 
-            var es = (EventScript)CoreState.EventScript;
-            // The single-command list (LOAD1) is serialized in place; with IsWorldMapEvent
-            // the engine appends mapterm. Drive the engine directly via the VM and read the
-            // terminator byte that follows the 4-byte LOAD1.
-            var vm = new EventScriptViewModel
-            {
-                ScriptType = EventScript.EventScriptType.Event,
-                IsWorldMapEvent = true,
-            };
+            // Stage the world-map kind (production path: the world-map jump calls
+            // StageEventKind just before NavigateTo). The single-command list (LOAD1) is
+            // serialized in place; with the world-map kind the engine appends mapterm.
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+            vm.StageEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
             // LOAD1 then ENDA so the scan terminates cleanly at 1 real command region;
             // we then delete the ENDA so the list has NO terminator and Write-All must
             // append the world-map one.
@@ -307,6 +303,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             vm.AddressText = $"0x{ScriptOffset:X06}";
             Assert.True(vm.TryParseAddress(out uint addr));
             vm.DisassembleAt(addr);
+            Assert.True(vm.IsWorldMapEvent); // staged kind applied on disassemble
             // Remove the ENDA terminator so the list has none.
             vm.SelectedCommandIndex = vm.CommandCount - 1;
             if (vm.Commands[vm.SelectedCommandIndex].Contains("ENDA"))
@@ -316,6 +313,34 @@ namespace FEBuilderGBA.Avalonia.Tests
             // After LOAD1 (4 bytes) the engine appended the world-map terminator.
             Assert.Equal(mapterm[0], _rom.Data[ScriptOffset + 4]);
             Assert.NotEqual(normterm[0], _rom.Data[ScriptOffset + 4]);
+        }
+
+        [Fact]
+        public void EventKind_IsOneShot_DoesNotLeakAcrossReusedEditor()
+        {
+            // EventScriptView is a cached singleton; a world-map jump that stages the
+            // world-map kind must NOT leak into a later normal-script disassembly on the
+            // SAME VM (Copilot PR review #1510 — ROM-corruption risk).
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+
+            // 1) World-map jump: stage + disassemble a world-map script.
+            Array.Copy(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 }, 0,
+                _rom.Data, (int)ScriptOffset, 8);
+            vm.StageEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            Assert.True(vm.TryParseAddress(out uint wmAddr));
+            vm.DisassembleAt(wmAddr);
+            Assert.True(vm.IsWorldMapEvent);   // staged kind applied
+
+            // 2) Reuse the SAME editor for a NORMAL script (no staging) — kind must revert.
+            uint normalOff = 0x2000;
+            Array.Copy(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 }, 0,
+                _rom.Data, (int)normalOff, 8);
+            vm.AddressText = $"0x{normalOff:X06}";
+            Assert.True(vm.TryParseAddress(out uint nAddr));
+            vm.DisassembleAt(nAddr);
+            Assert.False(vm.IsWorldMapEvent);  // NO leak — reverted to chapter default
+            Assert.False(vm.IsTopLevelEvent);
         }
 
         [Fact]

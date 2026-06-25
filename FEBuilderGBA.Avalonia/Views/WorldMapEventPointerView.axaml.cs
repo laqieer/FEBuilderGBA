@@ -275,12 +275,16 @@ namespace FEBuilderGBA.Avalonia.Views
         // ----------------------------------------------------------------
         void BeforeNewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<EventScriptView>();
+            // NewAlloc authors a NEW world-map event, so stage the world-map kind for the
+            // next disassembly the user performs in the editor (#1510).
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
         }
 
         void AfterNewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            WindowManager.Instance.Open<EventScriptView>();
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
         }
 
         // ----------------------------------------------------------------
