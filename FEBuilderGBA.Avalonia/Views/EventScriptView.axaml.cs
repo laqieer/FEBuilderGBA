@@ -17,6 +17,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             CommandsList.ItemsSource = _vm.Commands;
+            CatalogCombo.ItemsSource = _vm.AvailableCommands;
         }
 
         void Disassemble_Click(object? sender, RoutedEventArgs e)
@@ -41,31 +42,80 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void CommandsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
-            int index = CommandsList.SelectedIndex;
-            _vm.SelectedCommandIndex = index;
-
-            // Open popup editor for the selected command
-            if (index >= 0 && index < _vm.Commands.Count)
-            {
-                // Could open EventScriptPopupView here for detailed editing
-            }
+            _vm.SelectedCommandIndex = CommandsList.SelectedIndex;
         }
 
-        async void Category_Click(object? sender, RoutedEventArgs e)
+        // ── structural-edit handlers ───────────────────────────────────
+
+        void Insert_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.SelectedCommandCatalogIndex = CatalogCombo.SelectedIndex;
+            _vm.InsertSelectedCatalogCommand();
+            AfterEdit();
+        }
+
+        void InsertHex_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.InsertHexText = InsertHexBox.Text ?? "";
+            _vm.InsertHexCommand();
+            AfterEdit();
+        }
+
+        void Delete_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.DeleteSelected();
+            AfterEdit();
+        }
+
+        void MoveUp_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.MoveSelectedUp();
+            AfterEdit();
+        }
+
+        void MoveDown_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.MoveSelectedDown();
+            AfterEdit();
+        }
+
+        void ImportAppend_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ImportText = ImportBox.Text ?? "";
+            _vm.ImportFromText(clear: false);
+            AfterEdit();
+        }
+
+        void ImportReplace_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.ImportText = ImportBox.Text ?? "";
+            _vm.ImportFromText(clear: true);
+            AfterEdit();
+        }
+
+        void WriteAll_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var dialog = new EventScriptCategorySelectView();
-                var result = await dialog.ShowDialog<string?>(this);
-                if (!string.IsNullOrEmpty(result))
-                {
-                    StatusLabel.Text = $"Selected category: {result}";
-                }
+                _vm.WriteAll();
+                // The base address may have changed (relocation); reflect it.
+                AddressBox.Text = _vm.AddressText;
+                AfterEdit();
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptView.Category_Click failed: {0}", ex.Message);
+                Log.Error("EventScriptView.WriteAll failed: {0}", ex.Message);
+                StatusLabel.Text = $"Write failed: {ex.Message}";
             }
+        }
+
+        /// <summary>Sync the read-only text view + status + selection after an edit.</summary>
+        void AfterEdit()
+        {
+            ScriptTextBox.Text = _vm.DisassembledText;
+            StatusLabel.Text = _vm.StatusText;
+            if (_vm.SelectedCommandIndex >= 0 && _vm.SelectedCommandIndex < CommandsList.ItemCount)
+                CommandsList.SelectedIndex = _vm.SelectedCommandIndex;
         }
 
         /// <summary>Navigate to a specific address and disassemble.</summary>

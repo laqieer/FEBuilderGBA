@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptView"
-        Title="Event Script Editor" Width="1100" Height="750"
+        Title="Event Script Editor" Width="1180" Height="780"
         SizeToContent="WidthAndHeight">
   <DockPanel Margin="8">
     <TextBlock DockPanel.Dock="Top" Text="Event Script Editor" FontSize="18" FontWeight="Bold" Margin="8,4,8,8" />
@@ -13,9 +13,32 @@
       <TextBox AutomationProperties.AutomationId="EventScript_Address_Input" Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
                FontFamily="Consolas" FontSize="13" />
       <Button AutomationProperties.AutomationId="EventScript_Disassemble_Button" Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
-      <Button AutomationProperties.AutomationId="EventScript_Category_Button" Name="CategoryButton" Content="Select Category..." Click="Category_Click" />
       <TextBlock AutomationProperties.AutomationId="EventScript_Status_Label" Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" Margin="8,0,0,0" />
     </StackPanel>
+
+    <!-- Structural-editing toolbar -->
+    <Border DockPanel.Dock="Top" BorderBrush="#40808080" BorderThickness="1" CornerRadius="4" Margin="8,0,8,8" Padding="6">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Insert command:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventScript_Catalog_Combo" Name="CatalogCombo" Width="260" />
+          <Button AutomationProperties.AutomationId="EventScript_Insert_Button" Name="InsertButton" Content="Insert" Click="Insert_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <TextBox AutomationProperties.AutomationId="EventScript_InsertHex_Input" Name="InsertHexBox" Width="160" Watermark="hex e.g. 0100 4200" FontFamily="Consolas" />
+          <Button AutomationProperties.AutomationId="EventScript_InsertHex_Button" Name="InsertHexButton" Content="Insert (hex)" Click="InsertHex_Click" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button AutomationProperties.AutomationId="EventScript_Delete_Button" Name="DeleteButton" Content="Delete" Click="Delete_Click" />
+          <Button AutomationProperties.AutomationId="EventScript_MoveUp_Button" Name="MoveUpButton" Content="Move Up" Click="MoveUp_Click" />
+          <Button AutomationProperties.AutomationId="EventScript_MoveDown_Button" Name="MoveDownButton" Content="Move Down" Click="MoveDown_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <Button AutomationProperties.AutomationId="EventScript_ImportAppend_Button" Name="ImportAppendButton" Content="Import (append)" Click="ImportAppend_Click" />
+          <Button AutomationProperties.AutomationId="EventScript_ImportReplace_Button" Name="ImportReplaceButton" Content="Import (replace)" Click="ImportReplace_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <Button AutomationProperties.AutomationId="EventScript_WriteAll_Button" Name="WriteAllButton" Content="Write All" Background="#FFD27A" Click="WriteAll_Click" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
 
     <!-- Main content: split between command list and text display -->
     <Grid ColumnDefinitions="*,8,*" Margin="8,0,8,8">
@@ -28,13 +51,15 @@
 
       <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
 
-      <!-- Right: Full disassembled text -->
-      <DockPanel Grid.Column="2">
-        <TextBlock DockPanel.Dock="Top" Text="Disassembled Script" FontWeight="SemiBold" Margin="0,0,0,4" />
-        <TextBox AutomationProperties.AutomationId="EventScript_ScriptText_Input" Name="ScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
-                 FontFamily="Consolas" FontSize="12"
-                 TextWrapping="NoWrap" />
-      </DockPanel>
+      <!-- Right: import text + full disassembled text -->
+      <Grid Grid.Column="2" RowDefinitions="Auto,120,Auto,*">
+        <TextBlock Grid.Row="0" Text="Import text (one hex command per line)" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <TextBox Grid.Row="1" AutomationProperties.AutomationId="EventScript_Import_Input" Name="ImportBox" AcceptsReturn="True"
+                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Watermark="0100 4200&#x0a;0A000000" />
+        <TextBlock Grid.Row="2" Text="Disassembled Script" FontWeight="SemiBold" Margin="0,8,0,4" />
+        <TextBox Grid.Row="3" AutomationProperties.AutomationId="EventScript_ScriptText_Input" Name="ScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" />
+      </Grid>
     </Grid>
   </DockPanel>
 </Window>
