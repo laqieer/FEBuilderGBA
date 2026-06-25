@@ -368,7 +368,7 @@ namespace FEBuilderGBA.Avalonia.Services
             "SongInstrumentImportWaveView",
             "SongTrackImportMidiView",
             "SongTrackChangeTrackView", "SongTrackAllChangeTrackView",
-            "SongTrackImportSelectInstrumentView", "SongTrackImportWaveView",
+            "SongTrackImportSelectInstrumentView",
             "ToolTranslateROMView",
             "PatchManagerView",
             "MainSimpleMenuView", "MainSimpleMenuEventErrorView", "MainSimpleMenuImageSubView",

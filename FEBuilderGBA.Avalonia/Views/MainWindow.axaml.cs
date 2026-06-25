@@ -451,7 +451,6 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ChangeTrackButton != null) ChangeTrackButton.Content = R._("Change Track");
             if (AllChangeTrackButton != null) AllChangeTrackButton.Content = R._("All Change Track");
             if (SelectInstrumentButton != null) SelectInstrumentButton.Content = R._("Select Instrument");
-            if (ImportWaveButton != null) ImportWaveButton.Content = R._("Import Wave");
 
             // Unit/Class Specialized
             if (UnitFE6Button != null) UnitFE6Button.Content = R._("Unit (FE6)");
@@ -2498,7 +2497,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("SongTrackChangeTrackView", () => wm.Open<SongTrackChangeTrackView>()),
                 ("SongTrackAllChangeTrackView", () => wm.Open<SongTrackAllChangeTrackView>()),
                 ("SongTrackImportSelectInstrumentView", () => wm.Open<SongTrackImportSelectInstrumentView>()),
-                ("SongTrackImportWaveView", () => wm.Open<SongTrackImportWaveView>()),
 
                 // === ED/Credits + Item Variants (WU17) ===
                 ("EDFE6View", () => wm.Open<EDFE6View>()),
@@ -3598,7 +3596,6 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenSongTrackChangeTrack_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackChangeTrackView>();
         private void OpenSongTrackAllChangeTrack_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackAllChangeTrackView>();
         private void OpenSongTrackImportSelectInstrument_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackImportSelectInstrumentView>();
-        private void OpenSongTrackImportWave_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SongTrackImportWaveView>();
 
         // ===================== WU17: ED/Item Variants =====================
         private void OpenEDFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EDFE6View>();

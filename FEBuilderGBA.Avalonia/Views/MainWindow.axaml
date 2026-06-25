@@ -390,7 +390,6 @@
               <Button AutomationProperties.AutomationId="Main_ChangeTrack_Button" Name="ChangeTrackButton" Content="Change Track" Click="OpenSongTrackChangeTrack_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AllChangeTrack_Button" Name="AllChangeTrackButton" Content="All Change Track" Click="OpenSongTrackAllChangeTrack_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_SelectInstrument_Button" Name="SelectInstrumentButton" Content="Select Instrument" Click="OpenSongTrackImportSelectInstrument_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_ImportWave_Button" Name="ImportWaveButton" Content="Import Wave" Click="OpenSongTrackImportWave_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 

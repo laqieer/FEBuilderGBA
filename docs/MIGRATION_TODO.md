@@ -161,7 +161,7 @@ ArenaClassViewer, ArenaEnemyWeaponViewer, BattleBGViewer, BattleTerrainViewer, B
 | SongTrackAllChangeTrackForm | SongTrackAllChangeTrackView | DONE |
 | SongTrackImportMidiForm | SongTrackImportMidiView | DONE |
 | SongTrackImportSelectInstrumentForm | SongTrackImportSelectInstrumentView | DONE |
-| SongTrackImportWaveForm | SongTrackImportWaveView | DONE |
+| SongTrackImportWaveForm | (sub-dialog of SongTrackView — `SongTrackWaveImportCore.ImportWaveAsSong`) | DONE (no standalone view; #1447) |
 | SongExchangeForm | SongExchangeView | DONE |
 | SoundRoomCGForm | SoundRoomCGView | DONE |
 | SoundRoomFE6Form | SoundRoomFE6View | DONE |
