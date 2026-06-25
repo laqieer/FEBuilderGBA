@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventBattleDataFE7View.LoadList failed: {0}", ex.Message);
+                Log.Error("EventBattleDataFE7View.LoadList failed: " + ex.ToString());
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventBattleDataFE7View.OnSelected failed: {0}", ex.Message);
+                Log.Error("EventBattleDataFE7View.OnSelected failed: " + ex.ToString());
             }
         }
 
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventBattleDataFE7View.OnWrite failed: {0}", ex.Message);
+                Log.Error("EventBattleDataFE7View.OnWrite failed: " + ex.ToString());
             }
         }
 
