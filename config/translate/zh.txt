@@ -26104,3 +26104,9 @@ FE-Repo-音乐浏览器
 
 :New Split Menu
 新建分支菜单
+
+:Loaded Address:
+已加载地址:
+
+:AoE mask grid (W×H). The highlighted cell is the center / detonation point. Set attacked tiles to 1 (or any non-zero), others to 0.
+效果范围掩码 (宽×高)。高亮单元格为中心 / 引爆点。将受攻击的格子设为 1 (或任意非零值)，其余设为 0。
