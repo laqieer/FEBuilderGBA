@@ -61,7 +61,21 @@ namespace FEBuilderGBA
         public static bool CanSplit(ROM rom)
         {
             if (rom == null || rom.RomInfo == null) return false;
-            return !MapChangeCore.IsPlistSplit(rom);
+            try
+            {
+                // MapChangeCore.IsPlistSplit issues several rom.p32 reads on the
+                // map_*_pointer metadata slots. On a truncated/corrupt ROM a slot
+                // in the last 1-3 bytes could throw. CanSplit is queried from the
+                // editor's Opened/RefreshSplitPanel path OUTSIDE a try/catch, so
+                // any failure to determine split-state must degrade to "cannot
+                // split" rather than crash the editor window (#1432 Copilot
+                // re-review).
+                return !MapChangeCore.IsPlistSplit(rom);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -123,11 +137,14 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            if (MapChangeCore.IsPlistSplit(rom))
+            // Refuse when already split OR when the split-state cannot be
+            // determined (corrupt/near-EOF ROM). CanSplit is exception-safe and
+            // returns false in both cases — WF never reaches PListSplitsExpands in
+            // those states (the panel is hidden), so refusing without mutating is
+            // the correct, crash-free behaviour (#1432 Copilot re-review).
+            if (!CanSplit(rom))
             {
-                // Already split — WF never reaches PListSplitsExpands in this
-                // state (the panel is hidden). Refuse without mutating.
-                error = "PLIST tables are already split.";
+                error = "PLIST tables are already split, or the split state could not be determined for this ROM.";
                 return false;
             }
 

@@ -48,6 +48,28 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(MapPlistSplitCore.CanSplit(null));
         }
 
+        [Fact]
+        public void CanSplit_TinyTruncatedRom_DoesNotThrow_ReturnsFalse()
+        {
+            // A truncated ROM whose map_*_pointer metadata slots land within the
+            // last few bytes makes MapChangeCore.IsPlistSplit's rom.p32 reads run
+            // past EOF and throw. CanSplit must degrade to false (cannot split)
+            // rather than throw, because the editor queries it outside a try/catch
+            // (#1432 Copilot re-review). Build a ROM that is large enough to be
+            // detected as FE8U but then shrink it so the metadata pointers sit
+            // beyond the new end.
+            var rom = MakeVanillaRom();
+            // Shrink so every map_*_pointer slot (all well past 0x100000) is now
+            // past EOF. The contract CanSplit guarantees is that ANY failure to
+            // query split-state degrades gracefully WITHOUT throwing (the editor
+            // calls it outside a try/catch). We assert no-throw — the boolean
+            // result is unspecified for a corrupt ROM, only that it never escapes.
+            rom.write_resize_data(0x100u);
+
+            var ex = Record.Exception(() => MapPlistSplitCore.CanSplit(rom));
+            Assert.Null(ex); // never throws — degrades gracefully
+        }
+
         // ----------------------------------------------------------------
         // Split — happy path + WF invariants.
         // ----------------------------------------------------------------
