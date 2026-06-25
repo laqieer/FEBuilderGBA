@@ -12,7 +12,8 @@
         <TextBlock Grid.Column="0" Text="Source file:" VerticalAlignment="Center" />
         <TextBlock AutomationProperties.AutomationId="SongInstrumentImportWave_SourceFile_Label"
                    Grid.Column="1" Text="{Binding SourceFileName}" VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
+                   TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding SourceFileName}" />
       </Grid>
 
       <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="10">
