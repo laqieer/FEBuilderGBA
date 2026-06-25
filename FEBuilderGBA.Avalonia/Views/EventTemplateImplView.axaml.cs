@@ -11,12 +11,12 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly EventTemplateImplViewModel _vm = new();
 
         public string ViewTitle => "Event Template Implementation";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded => true;
 
         public EventTemplateImplView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+            DataContext = _vm;
             Opened += (_, _) => LoadList();
         }
 
@@ -24,34 +24,36 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                _vm.LoadList();
             }
             catch (Exception ex)
             {
-                Log.Error("EventTemplateImplView.LoadList failed: {0}", ex.Message);
+                Log.Error("EventTemplateImplView.LoadList failed: " + ex.Message);
             }
         }
 
-        void OnSelected(uint addr)
+        async void CopyHex_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                if (!_vm.HasGenerated)
+                {
+                    return;
+                }
+                var clipboard = Clipboard;
+                if (clipboard != null)
+                {
+                    await clipboard.SetTextAsync(_vm.GeneratedHex);
+                    _vm.Status = R._("Copied generated hex to clipboard.");
+                }
             }
             catch (Exception ex)
             {
-                Log.Error("EventTemplateImplView.OnSelected failed: {0}", ex.Message);
+                Log.Error("EventTemplateImplView.CopyHex failed: " + ex.Message);
             }
         }
 
-        void UpdateUI()
-        {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-        }
-
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        public void NavigateTo(uint address) { }
+        public void SelectFirstItem() { }
     }
 }
