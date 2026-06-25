@@ -19,8 +19,23 @@
           <TextBox AutomationProperties.AutomationId="SoundFootStepsViewer_DataPointer_Input" Grid.Row="1" Grid.Column="1" Name="DataPointerBox" Width="120" VerticalAlignment="Center" />
         </Grid>
 
+        <!-- "Switch2 not present" notice (mirrors WinForms ERROR_NOT_FOUND).
+             Shown when the per-class footstep Switch2 jump-table is absent;
+             both Write and List Expansion are hidden in that state. -->
+        <TextBlock AutomationProperties.AutomationId="SoundFootStepsViewer_NotFound_Label"
+                   Name="NotFoundLabel" Foreground="Red" IsVisible="False"
+                   TextWrapping="Wrap" Margin="0,8,0,0"
+                   Text="Footstep-sound Switch2 table not found in this ROM. Editing is unavailable." />
+
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="SoundFootStepsViewer_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="SoundFootStepsViewer_Write_Button"
+                  Name="WriteButton" Content="Write" Click="Write_Click" />
+          <!-- List Expansion (#1449): grow the per-class footstep table to cover
+               all classes + apply the FE8 PlaySoundStepByClass hardcode fix.
+               Mirrors WinForms SwitchListExpandsButton. -->
+          <Button AutomationProperties.AutomationId="SoundFootStepsViewer_SwitchListExpands_Button"
+                  Name="SwitchListExpandsButton" Content="List Expansion"
+                  Click="SwitchListExpands_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
