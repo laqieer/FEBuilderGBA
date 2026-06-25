@@ -28,18 +28,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public List<AddrResult> LoadList()
         {
+            // Context-dependent sub-editor (#1414): reachable in WinForms ONLY via the
+            // AIScript per-parameter POINTER_AICALLTALK dispatch, which supplies the real
+            // script pointer (allocate-on-null + isSafetyOffset guard). Standalone (no
+            // parent pointer), we MUST NOT guess a write target by scanning AI scripts —
+            // that silently corrupts ROM. Present a single placeholder entry at addr 0 so
+            // Write() is a guarded no-op (CurrentAddr == 0). A real address still arrives
+            // via NavigateTo()/LoadEntry() from the parent.
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            // Find first valid 4-byte AI CALLTALK sub-data from AI scripts
-            uint addr = AISubEditorHelper.FindFirstValidAISubData(rom, 4);
-            if (addr != 0)
-            {
-                LoadEntry(addr);
-                return new List<AddrResult> { new AddrResult(addr, "AI ASM Call Talk", 0) };
-            }
-
-            return new List<AddrResult>();
+            return new List<AddrResult> { new AddrResult(0, "AI ASM Call Talk", 0) };
         }
 
         public void LoadEntry(uint addr)
