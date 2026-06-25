@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventFunctionPointerFE7View.OnWrite failed: {0}", ex.Message);
+                Log.Error("EventFunctionPointerFE7View.OnWrite failed: " + ex.ToString());
             }
         }
 
