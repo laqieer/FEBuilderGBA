@@ -100,19 +100,23 @@ namespace FEBuilderGBA.Avalonia.Tests
             ROM rom = CoreState.ROM!;
             var vm = new MapPointerViewModel();
             List<AddrResult> rows = vm.LoadMapPointerList(0);
+            Assert.NotEmpty(rows);
 
-            // Find a writable non-NULL row (slot id > 0).
+            // Find a writable non-NULL row (slot id > 0). Assert one exists so a
+            // regression that collapses the list to only slot 0 (or mistags
+            // rows) fails LOUDLY instead of silently passing (Copilot PR #1478).
             AddrResult? target = null;
             foreach (AddrResult r in rows)
             {
                 if (r.tag != 0) { target = r; break; }
             }
-            if (target == null) return; // pathological ROM with only the NULL slot
+            Assert.NotNull(target); // the MAP list must have a non-NULL slot
+            AddrResult writable = target!;
 
-            uint before = rom.u32(target.addr);
+            uint before = rom.u32(writable.addr);
             try
             {
-                vm.LoadMapPointer(target.addr);
+                vm.LoadMapPointer(writable.addr);
                 Assert.NotEqual(0u, vm.SelectedId);
 
                 uint newValue = before ^ 0x4u; // any different, harmless delta
@@ -120,12 +124,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                 string? error = vm.WriteMapPointer();
 
                 Assert.Null(error); // allowed
-                Assert.Equal(newValue, rom.u32(target.addr));
+                Assert.Equal(newValue, rom.u32(writable.addr));
             }
             finally
             {
                 // Restore byte-identical for the shared fixture.
-                rom.write_u32(target.addr, before);
+                rom.write_u32(writable.addr, before);
             }
         }
 

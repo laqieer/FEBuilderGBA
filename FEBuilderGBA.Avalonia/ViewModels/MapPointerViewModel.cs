@@ -97,6 +97,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public List<AddrResult> LoadMapPointerList(int typeIndex = 0)
         {
+            // Reset the remembered table base FIRST so an early return below
+            // (no ROM, ptr==0, unsafe base) can't leave a STALE base from a
+            // previous load — which would make LoadMapPointer derive a wrong
+            // SelectedId and weaken the slot-0 write-protection guard
+            // (Copilot PR #1478 review thread). 0 = "unknown" → derivation
+            // fails safe to id 0 (reject).
+            _listBaseAddr = 0;
+
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
