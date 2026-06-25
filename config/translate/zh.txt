@@ -26145,3 +26145,8 @@ PLIST 表已分割。
 
 :Attacker / Side (B2, decimal input; reference hex values): 0x00=Attacker starts, 0x01=Attacker starts (counter next), 0x08=Counter starts, 0x09=Counter starts (counter next), 0x0A=Counter starts 2, 0x80=Battle end
 攻击方 (B2，十进制输入; 参考十六进制值): 0x00=攻击方先攻, 0x01=攻击方先攻(下次反击), 0x08=反击方先攻, 0x09=反击方先攻(下次反击), 0x0A=反击方先攻2, 0x80=战斗结束
+:Chapter/Map ID:
+章节/地图ID:
+
+:Edit Battle Dialogue (FE7)
+编辑战斗对话 (FE7)

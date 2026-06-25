@@ -357,6 +357,157 @@ public class EventFE7SecondaryTableParityTests
     }
 
     [Fact]
+    public void BattleTalk_Main_LoadEntry_DecodesEventPointerAt0x08()
+    {
+        // #1437 plan review: offset 0x08 in the 16-byte MAIN schema is a P
+        // (pointer) field — LoadEntry must p32-DECODE it (strip 0x08000000), not
+        // read a raw u32. Plant a real GBA pointer and assert the decoded offset.
+        var rom = MakeSyntheticFE7J();
+        var prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            // Overwrite row 0's event-pointer slot with a real GBA pointer.
+            WriteU32(rom.Data, BtMainBase + 0 * 16 + 8, 0x08D88DBCu);
+
+            var vm = new EventBattleTalkFE7ViewModel();
+            vm.LoadList(EventBattleTalkFE7ViewModel.BattleTalkTable.Main);
+            vm.LoadEntry(BtMainBase);
+
+            // Decoded (0x08000000 stripped), NOT the raw 0x08D88DBC.
+            Assert.Equal(0x00D88DBCu, vm.EventPointer);
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
+    [Fact]
+    public void BattleTalk_Main_Write_RoundTrips16ByteSchema_WithPointerEncoding()
+    {
+        // #1437: round-trip the MAIN 16-byte schema. The event pointer (offset
+        // 0x08) must be POINTER-ENCODED on write (0x08000000 re-added), the flag
+        // lives at 0x0C (u16), and the trailing bytes at 0x0E/0x0F. The next
+        // 16-byte row must stay untouched (stride correctness).
+        var rom = MakeSyntheticFE7J();
+        var prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new EventBattleTalkFE7ViewModel();
+            vm.LoadList(EventBattleTalkFE7ViewModel.BattleTalkTable.Main);
+            vm.LoadEntry(BtMainBase);
+
+            vm.AttackerUnit = 0x8E;
+            vm.DefenderUnit = 0x03;
+            vm.Unknown02 = 0x45;
+            vm.Unknown03 = 0x11;
+            vm.Text = 0x08E5;
+            vm.Unknown06 = 0x22;
+            vm.Unknown07 = 0x33;
+            vm.EventPointer = 0x00D88DBCu; // decoded offset; Write must re-encode
+            vm.AchievementFlag = 0x0006;
+            vm.Unknown0E = 0xAA;
+            vm.Unknown0F = 0xBB;
+            vm.Write();
+
+            Assert.Equal(0x8Eu, rom.u8(BtMainBase + 0));
+            Assert.Equal(0x03u, rom.u8(BtMainBase + 1));
+            Assert.Equal(0x45u, rom.u8(BtMainBase + 2));
+            Assert.Equal(0x11u, rom.u8(BtMainBase + 3));
+            Assert.Equal(0x08E5u, rom.u16(BtMainBase + 4));
+            Assert.Equal(0x22u, rom.u8(BtMainBase + 6));
+            Assert.Equal(0x33u, rom.u8(BtMainBase + 7));
+            // Pointer-ENCODED on the raw bytes (0x08000000 re-added).
+            Assert.Equal(0x08D88DBCu, rom.u32(BtMainBase + 8));
+            Assert.Equal(0x0006u, rom.u16(BtMainBase + 12)); // flag at 0x0C, not 0x08
+            Assert.Equal(0xAAu, rom.u8(BtMainBase + 14));
+            Assert.Equal(0xBBu, rom.u8(BtMainBase + 15));
+
+            // Re-loading must decode the pointer back to the offset.
+            var vm2 = new EventBattleTalkFE7ViewModel();
+            vm2.LoadList(EventBattleTalkFE7ViewModel.BattleTalkTable.Main);
+            vm2.LoadEntry(BtMainBase);
+            Assert.Equal(0x00D88DBCu, vm2.EventPointer);
+
+            // Next 16-byte row untouched (the second planted row's attacker byte).
+            Assert.Equal(0x8Eu, rom.u8(BtMainBase + 16 + 0));
+            Assert.Equal(0x1Du, rom.u8(BtMainBase + 16 + 1));
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
+    [Fact]
+    public void BattleTalkView_HasFullInputSurfaceAndWriteButton()
+    {
+        // #1437: the FE7 Battle Dialogue editor must expose real input fields +
+        // a Write button (previously display-only — Table/Address labels only).
+        string axaml = ReadAxaml("EventBattleTalkFE7View.axaml");
+        foreach (string id in new[]
+                 {
+                     "EventBattleTalkFE7_AttackerUnit_Input",
+                     "EventBattleTalkFE7_DefenderUnit_Input",
+                     "EventBattleTalkFE7_Unknown02_Input",
+                     "EventBattleTalkFE7_Unknown03_Input",
+                     "EventBattleTalkFE7_Text_Input",
+                     "EventBattleTalkFE7_Unknown06_Input",
+                     "EventBattleTalkFE7_Unknown07_Input",
+                     "EventBattleTalkFE7_EventPointer_Input",
+                     "EventBattleTalkFE7_AchievementFlag_Input",
+                     "EventBattleTalkFE7_Unknown0E_Input",
+                     "EventBattleTalkFE7_Unknown0F_Input",
+                     "EventBattleTalkFE7_Write_Button",
+                 })
+            Assert.Contains("AutomationId=\"" + id + "\"", axaml);
+
+        // The Write button must route through the VM under an UndoService scope.
+        string cs = ReadAxaml("EventBattleTalkFE7View.axaml.cs");
+        Assert.Contains("UndoService", cs);
+        Assert.Contains("_undoService.Begin", cs);
+        Assert.Contains("_undoService.Commit", cs);
+        Assert.Contains("_undoService.Rollback", cs);
+        Assert.Contains("_vm.Write()", cs);
+    }
+
+    [Fact]
+    public void BattleTalkView_TrailingUnknownAndDefenderLabels_RelabelPerActiveTable()
+    {
+        // #1437 plan review: offset 0x01 is the Defender Unit in the 16-byte MAIN
+        // schema but a chapter/map id in the 12-byte SECONDARY schema (WinForms
+        // N1_J_1_MAP); the trailing bytes sit at 0x0E/0x0F (MAIN) vs 0x0A/0x0B
+        // (SECONDARY). All three labels must be named + relabeled per table via R._().
+        string axaml = ReadAxaml("EventBattleTalkFE7View.axaml");
+        Assert.Contains("Name=\"DefenderOrMapLabel\"", axaml);
+        Assert.Contains("Name=\"UnknownTrailing0Label\"", axaml);
+        Assert.Contains("Name=\"UnknownTrailing1Label\"", axaml);
+
+        string cs = ReadAxaml("EventBattleTalkFE7View.axaml.cs");
+        Assert.Contains("DefenderOrMapLabel.Text = R._(secondary ? \"Chapter/Map ID:\" : \"Defender Unit:\")", cs);
+        Assert.Contains("UnknownTrailing0Label.Text = R._(secondary ? \"Unknown (0x0A):\" : \"Unknown (0x0E):\")", cs);
+        Assert.Contains("UnknownTrailing1Label.Text = R._(secondary ? \"Unknown (0x0B):\" : \"Unknown (0x0F):\")", cs);
+        // Secondary schema has no event pointer — the input must be disabled there.
+        Assert.Contains("EventPointerBox.IsEnabled = !secondary", cs);
+    }
+
+    [Fact]
+    public void BattleTalkView_RelabelStrings_HaveJaAndZhTranslations()
+    {
+        // The relabel + undo-scope strings the view toggles between must already
+        // have ja AND zh entries so the L10n gate stays green (#958 review).
+        string repoRoot = RepoRoot();
+        foreach (string lang in new[] { "ja", "zh" })
+        {
+            string txt = "\n" + File.ReadAllText(Path.Combine(repoRoot, "config", "translate", lang + ".txt")).Replace("\r\n", "\n");
+            foreach (string key in new[]
+                     {
+                         "Defender Unit:", "Chapter/Map ID:",
+                         "Unknown (0x0E):", "Unknown (0x0F):",
+                         "Unknown (0x0A):", "Unknown (0x0B):",
+                         "Edit Battle Dialogue (FE7)",
+                     })
+                Assert.Contains("\n:" + key + "\n", txt);
+        }
+    }
+
+    [Fact]
     public void BattleTalk_Secondary_GoldenBuilder_Lockstep()
     {
         var rom = MakeSyntheticFE7J();

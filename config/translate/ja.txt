@@ -12301,3 +12301,8 @@ PLISTテーブルを分割しました。
 
 :Attacker / Side (B2, decimal input; reference hex values): 0x00=Attacker starts, 0x01=Attacker starts (counter next), 0x08=Counter starts, 0x09=Counter starts (counter next), 0x0A=Counter starts 2, 0x80=Battle end
 攻撃側 (B2、10進数で入力; 参考の16進値): 0x00=攻撃側から攻撃開始, 0x01=攻撃側から攻撃開始(次は相手), 0x08=反撃側から攻撃開始, 0x09=反撃側から攻撃開始(次は相手), 0x0A=反撃側から攻撃開始2, 0x80=戦闘終端
+:Chapter/Map ID:
+章/マップID:
+
+:Edit Battle Dialogue (FE7)
+戦闘会話の編集 (FE7)
