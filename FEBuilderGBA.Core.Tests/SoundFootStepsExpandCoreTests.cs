@@ -47,10 +47,13 @@ public class SoundFootStepsExpandCoreTests
     }
 
     [Fact]
-    public void IsEnabled_VanillaFe8_ReturnsFalse()
+    public void IsEnabled_NoSwitch2Signature_ReturnsFalse()
     {
+        // Zero-initialized synthetic ROM (NOT a real FE8 image) — the SUB/CMP
+        // opcodes at the switch2 address are 0x00, outside the valid ranges, so
+        // IsEnabled must report the editor is unavailable.
         var rom = new ROM();
-        rom.LoadLow("vanilla.gba", new byte[0x1100000], FE8U_CODE);
+        rom.LoadLow("no-switch2.gba", new byte[0x1100000], FE8U_CODE);
         Assert.False(SoundFootStepsExpandCore.IsEnabled(rom));
     }
 

@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundFootStepsViewerView.LoadList failed: {0}", ex.Message);
+                Log.Error($"SoundFootStepsViewerView.LoadList failed: {ex}");
             }
             finally
             {
@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundFootStepsViewerView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"SoundFootStepsViewerView.OnSelected failed: {ex}");
             }
             finally
             {
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SoundFootStepsViewerView.Write_Click failed: {0}", ex.Message);
+                Log.Error($"SoundFootStepsViewerView.Write_Click failed: {ex}");
             }
         }
 
@@ -162,20 +162,32 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return result;
 
-            string filename = U.ConfigDataFilename("sound_foot_steps_", rom);
-            if (!File.Exists(filename)) return result;
-
-            foreach (string raw in File.ReadAllLines(filename))
+            // File I/O can throw (missing/locked file, permission/IO error). Keep
+            // it inside this helper's own try/catch and return an empty list so the
+            // caller's empty-combo guard shows the friendly error instead of the
+            // exception crashing the UI event. (#1449 review.)
+            try
             {
-                string line = raw;
-                if (U.IsComment(line) || U.OtherLangLine(line)) continue;
-                line = U.ClipComment(line).Trim();
-                if (line.Length == 0) continue;
-                // Each line is `0xHEX[=Name]` — keep the leading hex token.
-                int eq = line.IndexOf('=');
-                string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
-                if (hexToken.Length == 0) continue;
-                result.Add(hexToken);
+                string filename = U.ConfigDataFilename("sound_foot_steps_", rom);
+                if (!File.Exists(filename)) return result;
+
+                foreach (string raw in File.ReadAllLines(filename))
+                {
+                    string line = raw;
+                    if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                    line = U.ClipComment(line).Trim();
+                    if (line.Length == 0) continue;
+                    // Each line is `0xHEX[=Name]` — keep the leading hex token.
+                    int eq = line.IndexOf('=');
+                    string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
+                    if (hexToken.Length == 0) continue;
+                    result.Add(hexToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"SoundFootStepsViewerView.LoadDefaultPointerCombo failed: {ex}");
+                return new List<string>();
             }
             return result;
         }

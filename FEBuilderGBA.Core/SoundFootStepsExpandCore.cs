@@ -120,6 +120,15 @@ namespace FEBuilderGBA
                 ? FE8_HARDCODE_FIX_ADDR_MULTIBYTE
                 : FE8_HARDCODE_FIX_ADDR_SINGLEBYTE;
 
+            // Bounds-guard the fixed FE8 patch offset before writing: on a
+            // truncated/corrupt ROM `write_range` (via U.check_safety) would
+            // throw IndexOutOfRangeException. Fail gracefully like the other
+            // Core expansion helpers instead of crashing. (#1449 review.)
+            if (!U.isSafetyOffset(addr + (uint)(FE8_HARDCODE_FIX_BYTES.Length - 1), rom))
+            {
+                return;
+            }
+
             rom.write_range(addr, FE8_HARDCODE_FIX_BYTES, undodata);
         }
     }
