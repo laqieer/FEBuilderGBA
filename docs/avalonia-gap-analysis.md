@@ -114,7 +114,7 @@ The follow-up fix pass for issues `#48`-`#51` removed several false-negative val
 | UnitFE6Form / (via UnitEditorVM) | 50% | ~~Checkboxes~~ **FIXED** |
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
 | ExtraUnitFE8UForm / ExtraUnitFE8UVM | 35% | Proper List, Address Tracking |
-| UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, Rework Patch, Action Names |
+| UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, ~~Rework Patch~~ **FIXED** (#1415 — UnitActionPointerCore: relocated base via ApplyAction.bin, 0-based ids, `& 0x0FFFFFFF` masking), Action Names |
 | UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | **40%** | ~~List stub~~ **FIXED** — BuildList with weapon/anim display. Missing: SP Names, Preview |
 | UnitIncreaseHeightForm / UnitIncreaseHeightVM | 25% | Write, Proper List, Switch2, Height Options |
 | UnitPaletteForm / UnitPaletteVM | **40%** | ~~List stub~~ **FIXED** — list from unit_palette_color_pointer with unit names. Missing: Dual Tables, Preview |
@@ -426,7 +426,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | StatusUnitsMenu | 50% | OwnerDraw, text decode |
 | MenuCommand | 45% | Filter combo, color combo |
 | MenuDefinition | 45% | Menu preview, multi-pointer |
-| MenuExtendSplitMenu | **55%** | ~~No list enumeration~~ **FIXED** — list from menu_definiton_split_pointer |
+| MenuExtendSplitMenu | **90%** | ~~Wrong 40-byte/inline-u32 data model (silent ROM corruption)~~ **FIXED #1413/#1430** — 36-byte header + dereferenced 36-byte-stride command array (text-ids at `p32(+8)+36*n+4`); Write preserves +8 + handler pointers; GetDataLength 5/8 + NewAlloc |
 | **AOERANGE** | **30%** | **Visual grid editor (core feature) missing** |
 | MonsterItem | **40%** | ~~Generic list~~ **FIXED** — item names in list. Missing: three sub-lists (N1, N2) |
 | MonsterProbability | 50% | Probability sum display |

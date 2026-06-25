@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MenuExtendSplitMenuView.LoadList failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.LoadList failed: " + ex);
             }
         }
 
@@ -44,13 +44,14 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MenuExtendSplitMenuView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.OnSelected failed: " + ex);
             }
         }
 
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            CommandPtrLabel.Text = $"0x{_vm.CommandPtr:X08}";
             PosXBox.Value = _vm.PosX;
             PosYBox.Value = _vm.PosY;
             WidthBox.Value = _vm.Width;
@@ -63,6 +64,12 @@ namespace FEBuilderGBA.Avalonia.Views
             Str5Box.Value = _vm.String5;
             Str6Box.Value = _vm.String6;
             Str7Box.Value = _vm.String7;
+
+            // Commands 5..7 only exist on an 8-command menu.
+            bool showExtra = _vm.StringCount >= 8;
+            Str5Label.IsVisible = Str5Box.IsVisible = showExtra;
+            Str6Label.IsVisible = Str6Box.IsVisible = showExtra;
+            Str7Label.IsVisible = Str7Box.IsVisible = showExtra;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -84,15 +91,53 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Split Menu");
             try
             {
-                _vm.Write();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services?.ShowInfo("Split menu data written.");
+                if (_vm.Write())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo("Split menu data written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(
+                        "No data was written: the header or command-array pointer is unsafe, the command array does not fit in ROM, or the EventMenuCommand patch is not installed (FE8 only).");
+                }
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MenuExtendSplitMenuView.Write failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.Write failed: " + ex);
+            }
+        }
+
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("New Split Menu");
+            try
+            {
+                uint addr = _vm.NewAlloc();
+                if (addr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(
+                        "Could not create a new split menu: no free space, or the EventMenuCommand patch is not installed (FE8 only).");
+                    return;
+                }
+                _undoService.Commit();
+
+                // The new header is a STANDALONE free-space allocation — it is
+                // NOT part of the contiguous menu_definiton_split_pointer run,
+                // so it won't appear in the master list (SelectAddress would
+                // no-op). Load it directly into the editor instead.
+                _vm.LoadEntry(addr);
+                UpdateUI();
+                CoreState.Services?.ShowInfo($"New split menu allocated at 0x{addr:X08}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MenuExtendSplitMenuView.NewAlloc failed: " + ex);
             }
         }
 
