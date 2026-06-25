@@ -31,7 +31,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnime2View.LoadList failed: {0}", ex.Message);
+                // Log.Error joins its params with spaces (no composite format) —
+                // interpolate so the message isn't logged as a literal "{0}".
+                Log.Error($"ImageTSAAnime2View.LoadList failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -43,10 +45,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                LoadImage();
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnime2View.OnSelected failed: {0}", ex.Message);
+                Log.Error($"ImageTSAAnime2View.OnSelected failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -59,6 +62,12 @@ namespace FEBuilderGBA.Avalonia.Views
             Unknown4Box.Value = _vm.Unknown4;
             Unknown6Box.Value = _vm.Unknown6;
             TSAHeaderPointerBox.Text = $"0x{_vm.TSAHeaderPointer:X08}";
+        }
+
+        void LoadImage()
+        {
+            try { ImageDisplay.SetImage(_vm.TryLoadImage()); }
+            catch { ImageDisplay.SetImage(null); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -74,8 +83,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // A manual Write can change the TSA pointer; refresh the preview
+                // so it doesn't show stale data until the entry is reselected.
+                LoadImage();
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageTSAAnime2View.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"ImageTSAAnime2View.Write: {ex}"); }
         }
 
         static uint ParseHexText(string? text)
@@ -89,34 +101,77 @@ namespace FEBuilderGBA.Avalonia.Views
             return 0;
         }
 
+        // WinForms ImageTSAAnime2Form renders the entry's TSA at a 32-tile
+        // (256px) stride, with the IMAGE/PALETTE/TSA stored as a coupled trio off
+        // the shared header. Imported PNGs are loaded at 256x160; a 240-wide PNG
+        // is accepted and right-padded to 256 (the WF v1 form auto-inserts the
+        // 2-tile right margin the same way).
+        const int IMPORT_WIDTH = 256;
+        const int IMPORT_HEIGHT = 160;
+
         async void ImportPng_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 240, 160, 16);
+                // Accept either 256x160 (native) or 240x160 (right-padded to 256).
+                var loadResult = await ImageImportService.LoadAndQuantize(this, IMPORT_WIDTH, IMPORT_HEIGHT, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
+                if (loadResult.Height != IMPORT_HEIGHT ||
+                    (loadResult.Width != IMPORT_WIDTH && loadResult.Width != 240))
+                {
+                    CoreState.Services.ShowError(
+                        $"Image must be {IMPORT_WIDTH}x{IMPORT_HEIGHT} or 240x{IMPORT_HEIGHT} pixels (got {loadResult.Width}x{loadResult.Height})");
+                    return;
+                }
 
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
+                if (!_vm.IsLoaded || _vm.CurrentAddr < ImageTSAAnime2ViewModel.HEADER_SIZE)
+                {
+                    CoreState.Services.ShowError("Select a TSA Animation v2 entry first.");
+                    return;
+                }
+
+                uint addr = _vm.CurrentAddr;
+                uint headerBase = _vm.HeaderBase;
+                // Range-check the header + first entry (image/palette slots live in
+                // the header; the TSA slot lives in the first 12-byte entry).
+                if (!U.isSafetyOffset(headerBase, rom) ||
+                    headerBase + ImageTSAAnime2ViewModel.HEADER_SIZE + 12 > (uint)rom.Data.Length)
+                {
+                    CoreState.Services.ShowError("Entry address is out of range.");
+                    return;
+                }
+
+                // Right-pad a 240-wide source to the 256px (32-tile) header stride.
+                byte[] indexed = ImageTSAAnime2ViewModel.PadIndexedWidth(
+                    loadResult.IndexedPixels, loadResult.Width, IMPORT_HEIGHT, IMPORT_WIDTH);
 
                 _undoService.Begin("Import TSA Animation v2 Image");
                 try
                 {
-                    uint addr = _vm.CurrentAddr;
-                    // TSA Animation v2 only has TSA header pointer at offset 8.
-                    // Write compressed TSA data to ROM and update the pointer.
-                    var tsaResult = ImageImportCore.EncodeTSA(loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
-                    if (tsaResult == null) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to encode TSA data"); return; }
-
-                    uint tsaAddr = ImageImportCore.WriteCompressedToROM(rom, tsaResult.TSAData, addr + 8);
-                    if (tsaAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write TSA data (no free space)"); return; }
+                    // Coupled trio (mirrors WinForms ImageTSAAnime2Form layout):
+                    //   image  (LZ77)            @ headerBase + 16
+                    //   palette(raw 0x20)        @ headerBase + 4
+                    //   TSA    (raw header-wrap)  @ addr + 8 (entry-0 TSA slot)
+                    var importResult = ImageImportCore.Import3PointerHeaderTSA(
+                        rom, indexed, loadResult.GBAPalette,
+                        IMPORT_WIDTH, IMPORT_HEIGHT,
+                        _vm.ImagePointerAddr, _vm.TSAPointerAddr, _vm.PalettePointerAddr);
+                    if (!importResult.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError(importResult.Error);
+                        return;
+                    }
 
                     _undoService.Commit();
                     _vm.LoadEntry(addr);
                     UpdateUI();
+                    LoadImage();
                     _vm.MarkClean();
-                    CoreState.Services.ShowInfo("TSA data imported successfully.");
+                    CoreState.Services.ShowInfo("Image imported successfully.");
                 }
                 catch (Exception ex) { _undoService.Rollback(); CoreState.Services.ShowError($"Import failed: {ex.Message}"); }
             }

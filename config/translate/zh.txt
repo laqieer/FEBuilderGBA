@@ -20276,6 +20276,9 @@ JASC-PAL (Aseprite/GIMP)
 :Preview (Frame 0):
 预览 (第0帧):
 
+:Preview (image + palette + entry-0 TSA)
+预览 (图像 + 调色板 + 条目0的TSA)
+
 :Click to open Item Editor
 点击打开物品编辑器
 

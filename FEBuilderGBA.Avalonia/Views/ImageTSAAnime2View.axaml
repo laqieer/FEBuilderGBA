@@ -36,6 +36,9 @@
           <Button AutomationProperties.AutomationId="ImageTSAAnime2_Write_Button" Grid.Row="4" Grid.Column="0" Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
           <Button AutomationProperties.AutomationId="ImageTSAAnime2_ImportPng_Button" Grid.Row="4" Grid.Column="1" Content="Import PNG" Click="ImportPng_Click" Margin="0,8,0,0" />
         </Grid>
+
+        <TextBlock Text="Preview (image + palette + entry-0 TSA)" Margin="0,8,0,0" />
+        <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAAnime2_Image_Image" Name="ImageDisplay" Margin="0,4,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
