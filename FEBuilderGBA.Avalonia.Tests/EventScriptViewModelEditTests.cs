@@ -95,6 +95,17 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void Disassemble_FirstCommandUsesRequestedAddress_NotStale()
+        {
+            // RefreshDisplay formats each offset from CurrentAddr; CurrentAddr must be set
+            // BEFORE the first render or offsets show a stale/zero base (#1510 review #1).
+            var vm = MakeVmDisassembled(LoadEnda());
+            Assert.NotEmpty(vm.Commands);
+            // The first command's display line must start with the requested base offset.
+            Assert.StartsWith($"0x{ScriptOffset:X06}:", vm.Commands[0]);
+        }
+
+        [Fact]
         public void InsertHexCommand_AddsToList()
         {
             var vm = MakeVmDisassembled(LoadEnda());

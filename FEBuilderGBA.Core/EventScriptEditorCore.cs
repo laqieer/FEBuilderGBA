@@ -308,9 +308,12 @@ namespace FEBuilderGBA
         /// <summary>
         /// Import event commands from a multi-line hex text blob (ports WinForms
         /// <c>TextToEvent</c>). Each line with ≥4 bytes is disassembled and inserted.
-        /// <paramref name="insertPoint"/> ≤ -1 appends to the end; otherwise commands
-        /// are inserted after that index. When <paramref name="clear"/> is true the list
-        /// is cleared first. Returns the number of commands imported. PURE.
+        /// <paramref name="insertPoint"/> ≤ -1 appends to the end (preserving file order);
+        /// otherwise each command is inserted AT <paramref name="insertPoint"/> (the same
+        /// index each line), so a multi-line block ends up REVERSED relative to file order —
+        /// this faithfully reproduces the WinForms <c>TextToEvent</c> behaviour. When
+        /// <paramref name="clear"/> is true the list is cleared first. Returns the number of
+        /// commands imported. PURE.
         /// </summary>
         public int ImportFromText(string text, int insertPoint = -1, bool clear = false)
         {

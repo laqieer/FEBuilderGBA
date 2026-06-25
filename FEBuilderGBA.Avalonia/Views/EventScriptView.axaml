@@ -55,7 +55,7 @@
       <Grid Grid.Column="2" RowDefinitions="Auto,120,Auto,*">
         <TextBlock Grid.Row="0" Text="Import text (one hex command per line)" FontWeight="SemiBold" Margin="0,0,0,4" />
         <TextBox Grid.Row="1" AutomationProperties.AutomationId="EventScript_Import_Input" Name="ImportBox" AcceptsReturn="True"
-                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Watermark="0100 4200&#x0a;0A000000" />
+                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Watermark="01004200&#x0a;0A000000" />
         <TextBlock Grid.Row="2" Text="Disassembled Script" FontWeight="SemiBold" Margin="0,8,0,4" />
         <TextBox Grid.Row="3" AutomationProperties.AutomationId="EventScript_ScriptText_Input" Name="ScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
                  FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" />

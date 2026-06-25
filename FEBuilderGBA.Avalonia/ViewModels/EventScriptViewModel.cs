@@ -198,10 +198,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // the main-menu Event Script entry leaves both false (chapter events).
             _editor.BuildFromRom(rom, offset, IsWorldMapEvent);
 
+            // Set CurrentAddr BEFORE RefreshDisplay — RefreshDisplay formats every command's
+            // offset column from CurrentAddr, so a stale value would render wrong offsets on
+            // the very first disassembly / on re-navigation (Copilot PR review #1510 finding #1).
+            CurrentAddr = address;
+
             BuildCommandCatalog();
             RefreshDisplay();
 
-            CurrentAddr = address;
             IsDirty = false;
             StatusText = $"Disassembled {_editor.Count} command(s) at 0x{offset:X06}";
         }
