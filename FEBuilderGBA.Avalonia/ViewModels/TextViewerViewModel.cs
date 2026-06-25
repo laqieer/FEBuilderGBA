@@ -49,6 +49,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Whether a text-slot pointer value points into IW-RAM / EW-RAM
+        /// (raw 0x02/0x03 or the unHuffman-patched 0x82/0x83 forms). Faithful
+        /// port of WinForms <c>TextForm.Is_RAMPointerArea(uint addr)</c>
+        /// (TextForm.cs:335-342). Such slots hold runtime-RAM text installed by
+        /// patches; WinForms <c>WriteText</c> REFUSES to write to them
+        /// (TextForm.cs:466-470 → <c>U.NOT_FOUND</c>) rather than silently
+        /// repointing the slot to fresh ROM text. <see cref="WriteText"/> uses
+        /// this to abort with no mutation (#1425).
+        /// </summary>
+        internal static bool Is_RAMPointerArea(uint addr)
+        {
+            return U.is_03RAMPointer(addr)
+                || FETextEncode.IsUnHuffmanPatch_IW_RAMPointer(addr)
+                || U.is_02RAMPointer(addr)
+                || FETextEncode.IsUnHuffmanPatch_EW_RAMPointer(addr);
+        }
+
+        /// <summary>
         /// Check whether a text pointer value is valid: standard ROM pointer,
         /// UnHuffman-patched pointer, or RAM pointer (IW-RAM / EW-RAM).
         /// Mirrors WinForms TextForm logic.
@@ -410,6 +428,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (CoreState.FETextEncoder == null)
                 throw new InvalidOperationException("Text encoder not initialized.");
 
+            // Resolve the write slot up-front so the RAM-pointer guard below runs
+            // BEFORE encoding, exactly like WF TextForm.WriteText (range check →
+            // Is_RAMPointerArea → Encode; TextForm.cs:460-473).
+            uint textBase = ResolveTextTableBase();
+            if (textBase == 0)
+                throw new InvalidOperationException("Invalid text pointer table.");
+
+            uint writePointer = textBase + (id * 4);
+            if (writePointer + 4 > (uint)rom.Data.Length || !U.isSafetyOffset(writePointer, rom))
+                throw new InvalidOperationException($"Text ID 0x{id:X} out of range.");
+
+            // #1425 — WF TextForm.WriteText RAM-pointer write guard
+            // (TextForm.cs:466-470). If the CURRENT slot pointer points into
+            // IW/EW-RAM (runtime-RAM text installed by patches), REFUSE the write
+            // exactly like WF returning U.NOT_FOUND — do NOT silently repoint it to
+            // fresh ROM text. This must run BEFORE encoding / the AntiHuffman prompt
+            // path and before any ROM mutation, so a RAM slot is refused without
+            // ever invoking the bad-char popup or touching the ROM (byte-identical).
+            // The View catches EncodeAbortedException, rolls back the undo scope, and
+            // shows the message — the WF-faithful no-mutation abort path.
+            if (Is_RAMPointerArea(rom.u32(writePointer)))
+                throw new EncodeAbortedException(
+                    R._("RAMエリアのため、書き込めません.\r\nTextID:{0}", U.To0xHexString(id)));
+
             // Convert FEditor display format back to internal escape codes
             string escaped = ConvertFEditorToEscape(text);
 
@@ -445,14 +487,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 CoreState.FETextEncoder.UnHuffmanEncode(escaped, out encoded);
                 useUnHuffman = true;
             }
-
-            uint textBase = ResolveTextTableBase();
-            if (textBase == 0)
-                throw new InvalidOperationException("Invalid text pointer table.");
-
-            uint writePointer = textBase + (id * 4);
-            if (writePointer + 4 > (uint)rom.Data.Length || !U.isSafetyOffset(writePointer, rom))
-                throw new InvalidOperationException($"Text ID 0x{id:X} out of range.");
 
             if (encoded == null || encoded.Length == 0)
             {
