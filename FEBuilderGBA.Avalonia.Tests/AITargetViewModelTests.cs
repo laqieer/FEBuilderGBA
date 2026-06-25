@@ -67,12 +67,12 @@ public class AITargetViewModelTests : IClassFixture<RomFixture>
         List<AddrResult> list = vm.LoadList();
 
         Assert.Equal(8, list.Count);
-        for (uint i = 0; i < list.Count; i++)
+        for (int i = 0; i < list.Count; i++)
         {
-            Assert.Equal(i, list[(int)i].tag);
+            Assert.Equal((uint)i, list[i].tag);
             if (i > 0)
             {
-                Assert.Equal(list[(int)(i - 1)].addr + blockSize, list[(int)i].addr);
+                Assert.Equal(list[i - 1].addr + blockSize, list[i].addr);
             }
         }
         // Last profile begins at base + 7*20 — no phantom rows beyond profile 7.
