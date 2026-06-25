@@ -100,16 +100,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var et = _templates[_selectedIndex];
             Filename = et.Filename;
 
-            if (et.RequiresContext)
-            {
-                Status = R._("This template requires the event editor context (map/label) and is not available here.");
-                return;
-            }
-
             byte[] bin;
+            EventTemplateCore.GenerateResult result;
             try
             {
-                bin = EventTemplateCore.GenerateBrowserTemplate(rom, et);
+                result = EventTemplateCore.TryGenerateBrowserTemplate(rom, et, out bin);
             }
             catch (Exception ex)
             {
@@ -117,9 +112,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Status = R._("Generation failed.");
                 return;
             }
+            if (result == EventTemplateCore.GenerateResult.RequiresEditorContext)
+            {
+                Status = R._("This template requires the event editor context (map/label) and is not available here.");
+                return;
+            }
+            if (result == EventTemplateCore.GenerateResult.ConfigNotFound)
+            {
+                Status = R._("Template config file not found.");
+                return;
+            }
             if (bin == null || bin.Length == 0)
             {
-                Status = R._("This template requires the event editor context and is not available here.");
+                Status = R._("Template config file not found.");
                 return;
             }
 

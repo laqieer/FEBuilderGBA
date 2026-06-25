@@ -361,6 +361,79 @@ namespace FEBuilderGBA
             return GenerateFromConfigType(rom, btn.ConfigType, btn.Term);
         }
 
+        /// <summary>
+        /// Why a button/template could not be generated — lets callers show an
+        /// accurate status (a missing config file is a different failure than a
+        /// placeholder template that needs the event-editor context).
+        /// </summary>
+        public enum GenerateResult
+        {
+            Ok,
+            NoRom,
+            ConfigNotFound,
+            RequiresEditorContext,
+        }
+
+        /// <summary>
+        /// Generate one numbered-template button, returning a precise reason on
+        /// failure. <paramref name="bytes"/> is non-null only when result is Ok.
+        /// </summary>
+        public static GenerateResult TryGenerateButton(ROM rom, TemplateButton btn, out byte[] bytes)
+        {
+            bytes = null;
+            if (rom?.RomInfo == null)
+            {
+                return GenerateResult.NoRom;
+            }
+            if (btn == null)
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+            if (btn.IsBlank)
+            {
+                bytes = GetToplevelBlank(rom);
+                return GenerateResult.Ok;
+            }
+            string fullfilename = U.ConfigDataFilename(btn.ConfigType, rom);
+            if (!File.Exists(fullfilename))
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+            if (RequiresEditorContext(rom, fullfilename))
+            {
+                return GenerateResult.RequiresEditorContext;
+            }
+            bytes = ConverteventTextToBin(rom, fullfilename, btn.Term);
+            return GenerateResult.Ok;
+        }
+
+        /// <summary>
+        /// Generate a browser template, returning a precise reason on failure.
+        /// </summary>
+        public static GenerateResult TryGenerateBrowserTemplate(ROM rom, BrowserTemplate et, out byte[] bytes)
+        {
+            bytes = null;
+            if (rom?.RomInfo == null)
+            {
+                return GenerateResult.NoRom;
+            }
+            if (et == null || string.IsNullOrEmpty(et.Filename))
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+            string full = Path.Combine(CoreState.BaseDirectory, "config", "data", et.Filename);
+            if (!File.Exists(full))
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+            if (RequiresEditorContext(rom, full))
+            {
+                return GenerateResult.RequiresEditorContext;
+            }
+            bytes = ConverteventTextToBin(rom, full, TermCode.NoTerm);
+            return GenerateResult.Ok;
+        }
+
         // --------------------------------------------------------------------
         // "Templates" browser (ports EventTemplateImpl.LoadTemplate / GetCodes)
         // --------------------------------------------------------------------

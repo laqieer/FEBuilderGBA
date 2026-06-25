@@ -53,7 +53,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 return R._("BLANK");
             }
-            return btn.Key;
+            // Route the internal key through R._ so a translation can localize it
+            // (falls back to the key verbatim when no translation exists).
+            return R._(btn.Key);
         }
 
         void OnTemplateButtonClick(object? sender, RoutedEventArgs e)

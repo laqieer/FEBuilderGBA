@@ -47,11 +47,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Status = "";
 
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null)
-            {
-                Status = R._("No ROM loaded.");
-                return false;
-            }
             if (btn == null)
             {
                 Status = R._("No template selected.");
@@ -59,9 +54,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             byte[] bin;
+            EventTemplateCore.GenerateResult result;
             try
             {
-                bin = EventTemplateCore.GenerateButton(rom, btn);
+                result = EventTemplateCore.TryGenerateButton(rom, btn, out bin);
             }
             catch (Exception ex)
             {
@@ -70,9 +66,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
 
-            if (bin == null || bin.Length == 0)
+            if (result == EventTemplateCore.GenerateResult.NoRom)
+            {
+                Status = R._("No ROM loaded.");
+                return false;
+            }
+            if (result == EventTemplateCore.GenerateResult.ConfigNotFound)
+            {
+                Status = R._("Template config file not found.");
+                return false;
+            }
+            if (result == EventTemplateCore.GenerateResult.RequiresEditorContext)
             {
                 Status = R._("This template requires the event editor context and is not available here.");
+                return false;
+            }
+            if (bin == null || bin.Length == 0)
+            {
+                Status = R._("Template config file not found.");
                 return false;
             }
 

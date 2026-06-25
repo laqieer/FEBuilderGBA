@@ -12283,3 +12283,6 @@ PLIST分割
 
 :PLIST tables split.
 PLISTテーブルを分割しました。
+
+:Template config file not found.
+テンプレート設定ファイルが見つかりません。

@@ -203,6 +203,55 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(EventTemplateCore.GetToplevelBlank(null));
         }
 
+        // ---- TryGenerateButton — accurate failure reasons --------------------
+
+        [Fact]
+        public void TryGenerateButton_NoRom_ReturnsNoRom()
+        {
+            var btn = EventTemplateCore.GetTemplateButtons(1)[0];
+            var r = EventTemplateCore.TryGenerateButton(null, btn, out byte[] bytes);
+            Assert.Equal(EventTemplateCore.GenerateResult.NoRom, r);
+            Assert.Null(bytes);
+        }
+
+        [Fact]
+        public void TryGenerateButton_Blank_ReturnsOk()
+        {
+            ROM rom = MakeFE8U();
+            var btn = EventTemplateCore.GetTemplateButtons(1)[0]; // BLANK
+            var r = EventTemplateCore.TryGenerateButton(rom, btn, out byte[] bytes);
+            Assert.Equal(EventTemplateCore.GenerateResult.Ok, r);
+            Assert.NotNull(bytes);
+            Assert.True(bytes.Length >= 4);
+        }
+
+        [Fact]
+        public void TryGenerateButton_MissingConfig_ReturnsConfigNotFound_NotContext()
+        {
+            // Point BaseDirectory at an empty temp dir so the config can't resolve;
+            // the result must be ConfigNotFound, NOT the misleading editor-context
+            // status (the regression Copilot flagged).
+            string prevBase = CoreState.BaseDirectory;
+            string tmpDir = Path.Combine(Path.GetTempPath(), "evt-nocfg-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tmpDir);
+            try
+            {
+                CoreState.BaseDirectory = tmpDir;
+                ROM rom = MakeFE8U();
+                var btn = new EventTemplateCore.TemplateButton(
+                    "VILLAGE_TALK", "template_event_VILLAGE_TALK_",
+                    EventTemplateCore.TermCode.DefaultTermCode, false);
+                var r = EventTemplateCore.TryGenerateButton(rom, btn, out byte[] bytes);
+                Assert.Equal(EventTemplateCore.GenerateResult.ConfigNotFound, r);
+                Assert.Null(bytes);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                try { Directory.Delete(tmpDir, true); } catch { }
+            }
+        }
+
         // ---- Template 1-6 button parity (against WinForms button bodies) --
 
         [Theory]
