@@ -218,9 +218,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return "No ROM is loaded.";
-            if (!MapPlistSplitCore.CanSplit(rom))
-                return "PLIST tables are already split.";
 
+            // Call Split() directly — it already validates split-state (and the
+            // can't-determine / already-split cases) and returns a precise error.
+            // We do NOT pre-gate on CanSplit here: that would duplicate the check
+            // and surface a less accurate message (#1432 Copilot re-review).
             bool ok = MapPlistSplitCore.Split(rom, out string error);
             if (!ok)
                 return string.IsNullOrEmpty(error) ? "PLIST split failed." : error;
