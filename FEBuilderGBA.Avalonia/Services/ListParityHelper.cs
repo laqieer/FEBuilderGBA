@@ -3349,7 +3349,12 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build menu extend split menu list — 40-byte entries, stop when style==0 for i>0.</summary>
+        /// <summary>Build menu extend split menu list — canonical 36-byte
+        /// menu-definition geometry, stop when <c>+8</c> (the command-array
+        /// pointer) is no longer a pointer. Mirrors WinForms
+        /// <c>MenuDefinitionForm.Init</c> over the split pointer and
+        /// <see cref="MenuExtendSplitMenuViewModel.LoadList"/> (#1413). The old
+        /// 40-byte / 32-entry walk fabricated rows and is removed.</summary>
         static List<AddrResult> BuildMenuExtendSplitMenuList(ROM rom)
         {
             uint ptr = rom.RomInfo.menu_definiton_split_pointer;
@@ -3357,14 +3362,14 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            const uint blockSize = 40;
+            const uint blockSize = 36;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 32; i++)
+            for (uint i = 0; i < 0x100; i++)
             {
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                uint style = rom.u32(addr + 4);
-                if (style == 0 && i > 0) break;
+                // Stop when the +8 command-array pointer is no longer a pointer.
+                if (!U.isPointer(rom.u32(addr + 8))) break;
 
                 result.Add(new AddrResult(addr, $"0x{i:X02} Split Menu {i}", i));
             }

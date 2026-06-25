@@ -51,6 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            CommandPtrLabel.Text = $"0x{_vm.CommandPtr:X08}";
             PosXBox.Value = _vm.PosX;
             PosYBox.Value = _vm.PosY;
             WidthBox.Value = _vm.Width;
@@ -63,6 +64,12 @@ namespace FEBuilderGBA.Avalonia.Views
             Str5Box.Value = _vm.String5;
             Str6Box.Value = _vm.String6;
             Str7Box.Value = _vm.String7;
+
+            // Commands 5..7 only exist on an 8-command menu.
+            bool showExtra = _vm.StringCount >= 8;
+            Str5Label.IsVisible = Str5Box.IsVisible = showExtra;
+            Str6Label.IsVisible = Str6Box.IsVisible = showExtra;
+            Str7Label.IsVisible = Str7Box.IsVisible = showExtra;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -84,10 +91,18 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Split Menu");
             try
             {
-                _vm.Write();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services?.ShowInfo("Split menu data written.");
+                if (_vm.Write())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo("Split menu data written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(
+                        "The split-menu command area is not allocated, or the EventMenuCommand patch is not installed. No data was written.");
+                }
             }
             catch (Exception ex)
             {
