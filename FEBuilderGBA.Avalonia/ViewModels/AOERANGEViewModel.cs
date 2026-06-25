@@ -170,13 +170,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Status = "ROM not loaded.";
                 return false;
             }
-            // Refuse only when there is nothing safe to write to: no loaded record
-            // AND no parent pointer slot. A parent slot (e.g. a NULL AOERANGE pointer
-            // reached from a patch jump) makes CurrentAddr == 0 a valid FRESH APPEND —
-            // AoeRangeCore.WriteAoeRange creates the record and repoints the slot.
-            if (CurrentAddr == 0 && ParentPointerSlot == 0)
+            // Refuse unless we have a valid target. A successful load (IsLoaded)
+            // gives a real CurrentAddr to write to. A parent pointer slot (e.g. a
+            // NULL AOERANGE pointer reached from a patch jump) authorises a FRESH
+            // APPEND / repair even with no record loaded — AoeRangeCore creates the
+            // record and repoints the slot. Without EITHER, refuse: writing against
+            // a failed-load CurrentAddr (set to the attempted, possibly invalid
+            // offset) could edit ROM at a bad address.
+            if (!IsLoaded && ParentPointerSlot == 0)
             {
-                Status = "No AOE record loaded. Enter an address and Reload first.";
+                Status = "No valid AOE record loaded. Enter a valid address and Reload first.";
                 return false;
             }
 

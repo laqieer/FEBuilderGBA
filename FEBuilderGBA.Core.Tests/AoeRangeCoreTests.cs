@@ -380,6 +380,58 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WriteAoeRange_MalformedHeaderRunningPastEof_DoesNotZeroFillRomTail()
+        {
+            // An existing header at the very end claims a record longer than the ROM.
+            // The in-place path must NOT treat the tail as reusable surplus (which
+            // would zero-fill the rest of the ROM). With no reference + no slot the
+            // move is refused, leaving the ROM byte-identical.
+            var rom = MakeRom(0x2000);
+            CoreState.ROM = rom;
+            uint addr = 0x1FF0;            // near EOF.
+            rom.Data[addr + 0] = 0xFF;     // oldW * oldH huge → 4 + w*h runs past EOF.
+            rom.Data[addr + 1] = 0xFF;
+            // Put a recognizable non-zero pattern AFTER addr so we can detect a wrongful wipe.
+            for (uint i = addr + 4; i < rom.Data.Length; i++) rom.Data[i] = 0x5A;
+            byte[] snapshot = (byte[])rom.Data.Clone();
+
+            AoeRangeCore.WriteResult r;
+            using (ROM.BeginUndoScope(NewUndo(rom)))
+            {
+                r = AoeRangeCore.WriteAoeRange(rom, 0, addr, 2, 2, 0, 0, new byte[] { 1, 1, 1, 1 });
+            }
+            // Refused (no slot, no reference) and absolutely no mutation — the tail
+            // pattern survives (the malformed extent was NOT treated as surplus).
+            Assert.Equal(AoeRangeCore.WriteStatus.Refused, r.Status);
+            Assert.Equal(snapshot, rom.Data);
+        }
+
+        [Fact]
+        public void WriteAoeRange_GrowOnFullRom_NoReference_RefusesWithoutResize()
+        {
+            // A grow that would be orphaned must refuse BEFORE allocating, so the ROM
+            // is never resized (the resize is not ambient-undo-tracked). Fill the ROM
+            // so the only way to place data would be a resize.
+            var rom = MakeRom(0x2000);
+            CoreState.ROM = rom;
+            for (int i = 0; i < rom.Data.Length; i++) rom.Data[i] = 0x42; // no 0x00/0xFF run.
+            uint addr = 0x1000;
+            rom.Data[addr + 0] = 2; rom.Data[addr + 1] = 2; // small old record.
+            rom.Data[addr + 2] = 0; rom.Data[addr + 3] = 0;
+            int lenBefore = rom.Data.Length;
+
+            AoeRangeCore.WriteResult r;
+            using (ROM.BeginUndoScope(NewUndo(rom)))
+            {
+                // Grow to 8×8 (68 bytes) with NO parent slot and NO reference → must
+                // refuse early, never resizing the ROM.
+                r = AoeRangeCore.WriteAoeRange(rom, 0, addr, 8, 8, 0, 0, new byte[64]);
+            }
+            Assert.Equal(AoeRangeCore.WriteStatus.Refused, r.Status);
+            Assert.Equal(lenBefore, rom.Data.Length); // ROM size unchanged.
+        }
+
+        [Fact]
         public void WriteAoeRange_OversizedDimensions_Refused()
         {
             var rom = MakeRom();

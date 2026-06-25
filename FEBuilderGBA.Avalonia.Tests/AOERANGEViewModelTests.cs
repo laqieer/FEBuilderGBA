@@ -310,6 +310,33 @@ public class AOERANGEViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Write_AfterFailedLoad_NoParentSlot_RefusesNoMutation()
+    {
+        // LoadEntry on an unsafe address fails (IsLoaded=false) but sets CurrentAddr
+        // to the attempted offset. Write must still refuse (no parent slot), so a
+        // failed-load address can't be written to (Copilot review #3).
+        var rom = MakeRom(0x100);
+        CoreState.ROM = rom;
+        CoreState.Undo = new Undo();
+        uint addr = 0xF8; // header runs past EOF → ReadAoeRange returns null.
+        rom.Data[addr] = 0xFF; rom.Data[addr + 1] = 0xFF;
+        byte[] snap = (byte[])rom.Data.Clone();
+
+        var vm = new AOERANGEViewModel();
+        vm.LoadEntry(addr);
+        Assert.False(vm.IsLoaded);
+        Assert.Equal(addr, vm.CurrentAddr); // CurrentAddr set despite failed load.
+
+        var undoService = new UndoService();
+        undoService.Begin("Edit AOE Range");
+        bool changed = vm.Write();
+        if (changed) undoService.Commit(); else undoService.Rollback();
+
+        Assert.False(changed);
+        Assert.Equal(snap, rom.Data);
+    }
+
+    [Fact]
     public void ListParity_AOERANGE_IsNoListEditor_NotContextDependent()
     {
         Assert.True(ListParityHelper.IsNoListEditor("AOERANGEView"));

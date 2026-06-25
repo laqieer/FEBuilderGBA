@@ -259,8 +259,8 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            // Compute the OLD region length (4 + oldW*oldH), clamped to the ROM —
-            // ports get_data_pos_callback + the WriteBinaryData clamping rules.
+            // Compute the OLD region length (4 + oldW*oldH) — ports
+            // get_data_pos_callback + the WriteBinaryData clamping rules.
             uint originalSize = 0;
             if (U.isSafetyOffset(writeAddr + 1, rom))
             {
@@ -270,11 +270,15 @@ namespace FEBuilderGBA
             }
             if (originalSize >= 0x00200000)
             {
-                originalSize = 0; // WF: too long => no reusable region.
+                originalSize = 0; // too long => no reusable region.
             }
             else if ((long)writeAddr + originalSize > rom.Data.Length)
             {
-                originalSize = (uint)rom.Data.Length - writeAddr;
+                // The existing header claims a record that runs PAST EOF — it is
+                // malformed. Do NOT treat the ROM tail as reusable "surplus" (that
+                // would let the in-place path zero-fill the rest of the ROM). Force
+                // the safer move/append path by declaring no reusable region.
+                originalSize = 0;
             }
 
             // --- In-place write (new fits the old region) ---------------------
@@ -308,6 +312,19 @@ namespace FEBuilderGBA
             if (!ReferenceEquals(CoreState.ROM, rom))
             {
                 result.Message = "Refused: the AOE record must move, which requires the active ROM.";
+                return result;
+            }
+
+            // EARLY orphan guard — refuse BEFORE any allocation when the move would
+            // leave the data unreachable. Without this, RecycleAddress.WriteAmbient
+            // could grow the ROM (a resize that is NOT ambient-undo-tracked) and a
+            // later refusal would leave that size change behind. A move is reachable
+            // only if there is an explicit parent slot OR at least one discoverable
+            // reference to the old data.
+            bool slotUsable = slot != 0 && U.isSafetyOffset(slot + 3, rom);
+            if (!slotUsable && !HasAnyReference(rom, oldAddr))
+            {
+                result.Message = "Refused: no reference to the old AOE data was found, so the moved data would be orphaned.";
                 return result;
             }
 
@@ -351,14 +368,12 @@ namespace FEBuilderGBA
                 repointedExplicitSlot = true;
             }
 
-            // Orphan guard: if nothing now points at the new data, REFUSE. We must
-            // roll back the append we just made — the caller's ambient UndoService
-            // scope owns rollback, so signal the refusal and let it roll back. To
-            // avoid leaving a half-written ROM here we zero the bytes we wrote.
+            // Defensive net: the EARLY orphan guard above already refuses an
+            // unreachable move before allocation, so this should be unreachable. If
+            // a race somehow leaves the new data unreferenced, zero the bytes we
+            // wrote (ambient-recorded) so a caller that commits does not leak it.
             if (repointed == 0 && !repointedExplicitSlot)
             {
-                // Undo our own append in-place (ambient-recorded) so a caller that
-                // commits (rather than rolls back) does not leak the orphan blob.
                 rom.write_range(newAddr, new byte[bin.Length]);
                 result.Message = "Refused: no reference to the old AOE data was found, so the moved data would be orphaned.";
                 return result;
@@ -377,6 +392,35 @@ namespace FEBuilderGBA
             result.Address = newAddr;
             result.RepointedSlots = repointed;
             return result;
+        }
+
+        /// <summary>
+        /// READ-ONLY: true when at least one safe, repointable reference to
+        /// <paramref name="oldAddr"/> exists (raw 32-bit pointer OR ARM LDR
+        /// literal-pool load), using the same scanners as
+        /// <see cref="DataExpansionCore.RepointAllReferences"/>. A danger-zone /
+        /// out-of-ROM slot is NOT counted (it would be skipped on repoint). Never
+        /// mutates, never throws. Returns false for <c>oldAddr == 0</c> (a fresh
+        /// append has no old data to reference).
+        /// </summary>
+        static bool HasAnyReference(ROM rom, uint oldAddr)
+        {
+            if (rom == null || oldAddr == 0) return false;
+            uint oldOffset = U.toOffset(oldAddr);
+            if (!U.isSafetyOffset(oldOffset, rom)) return false;
+
+            uint oldPtr = U.toPointer(oldAddr);
+            foreach (uint slot in U.GrepPointerAll(rom.Data, oldPtr))
+            {
+                if (U.isSafetyOffset(slot, rom) && slot + 4 <= (uint)rom.Data.Length)
+                    return true;
+            }
+            foreach (uint slot in U.GrepPointerAllOnLDR(rom.Data, oldPtr))
+            {
+                if (U.isSafetyOffset(slot, rom) && slot + 4 <= (uint)rom.Data.Length)
+                    return true;
+            }
+            return false;
         }
     }
 }
