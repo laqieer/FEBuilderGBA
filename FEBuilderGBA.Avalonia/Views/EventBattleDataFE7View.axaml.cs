@@ -39,12 +39,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
             }
             catch (Exception ex)
             {
                 Log.Error("EventBattleDataFE7View.OnSelected failed: " + ex.ToString());
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
@@ -68,6 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Damage = (uint)(DamageUpDown.Value ?? 0);
                 _vm.Write();
                 _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {

@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -136,12 +135,9 @@ public class EventBattleDataFE7ViewModelTests : IClassFixture<RomFixture>, IDisp
 
         var view = new EventBattleDataFE7View();
 
-        // Reach the private VM and load the synthetic entry (drives the same path
-        // OnSelected would, without needing the window Opened event).
-        var vmField = typeof(EventBattleDataFE7View).GetField(
-            "_vm", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(vmField);
-        var vm = (EventBattleDataFE7ViewModel)vmField!.GetValue(view)!;
+        // Load the synthetic entry via the view's real VM (exposed as DataViewModel),
+        // driving the same path OnSelected would, without needing the window Opened event.
+        var vm = Assert.IsType<EventBattleDataFE7ViewModel>(view.DataViewModel);
         vm.LoadEntry(EntryAddr);
         Assert.True(vm.IsLoaded);
 
