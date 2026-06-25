@@ -291,30 +291,25 @@ namespace FEBuilderGBA.Avalonia.Views
         void JumpToOpening_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(OpeningEventBox.Value ?? 0);
-            OpenWorldMapEventScript(addr);
+            // World-map event — flag the editor BEFORE NavigateTo runs the disassemble so
+            // the termination scan + Write-All terminator use the world-map rules (#1510
+            // review finding #2). Open + NavigateTo manually rather than one-shot Navigate<T>.
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            view.NavigateTo(addr);
         }
 
         void JumpToEnding1_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(Ending1EventBox.Value ?? 0);
-            OpenWorldMapEventScript(addr);
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            view.NavigateTo(addr);
         }
 
         void JumpToEnding2_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(Ending2EventBox.Value ?? 0);
-            OpenWorldMapEventScript(addr);
-        }
-
-        /// <summary>
-        /// Open the Event Script editor on a WORLD-MAP event pointer, flagging the
-        /// editor so the termination scan + Write-All terminator use the world-map
-        /// rules (#1510 review finding #2). The kind must be set before NavigateTo
-        /// runs the disassemble, so we Open then NavigateTo manually rather than the
-        /// one-shot Navigate&lt;T&gt;.
-        /// </summary>
-        static void OpenWorldMapEventScript(uint addr)
-        {
             var view = WindowManager.Instance.Open<EventScriptView>();
             view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
             view.NavigateTo(addr);
