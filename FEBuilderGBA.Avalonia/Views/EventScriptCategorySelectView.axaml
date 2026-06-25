@@ -1,17 +1,57 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptCategorySelectView"
-        Title="Event Script Category Select" Width="1712" Height="970"
-        WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        Title="Event Script Category Select" Width="1000" Height="700"
+        WindowStartupLocation="CenterOwner">
   <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Select Event Script Category" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+    <TextBlock DockPanel.Dock="Top" Text="Select Event Script Command" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <!-- Filter + show-low-commands bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+      <TextBlock Text="Filter:" VerticalAlignment="Center" />
+      <TextBox AutomationProperties.AutomationId="EventScriptCategorySelect_Filter_Input" Name="FilterBox"
+               Width="300" Watermark="search command / hint" />
+      <CheckBox AutomationProperties.AutomationId="EventScriptCategorySelect_ShowLow_Check" Name="ShowLowCheck"
+                Content="Show low commands" VerticalAlignment="Center" />
+    </StackPanel>
+
+    <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
       <Button AutomationProperties.AutomationId="EventScriptCategorySelect_OK_Button" Content="OK" Width="80" Click="OK_Click" />
       <Button AutomationProperties.AutomationId="EventScriptCategorySelect_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
     </StackPanel>
-    <ListBox AutomationProperties.AutomationId="EventScriptCategorySelect_Category_List" Name="CategoryList" />
+
+    <!-- Main content: categories | scripts | info -->
+    <Grid ColumnDefinitions="260,8,*,8,300">
+      <!-- Left: category list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Category" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox AutomationProperties.AutomationId="EventScriptCategorySelect_Category_List" Name="CategoryList"
+                 SelectionMode="Single" SelectionChanged="CategoryList_SelectionChanged" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
+
+      <!-- Middle: filtered script list -->
+      <DockPanel Grid.Column="2">
+        <TextBlock DockPanel.Dock="Top" Text="Commands" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox AutomationProperties.AutomationId="EventScriptCategorySelect_Script_List" Name="ScriptList"
+                 FontFamily="Consolas" FontSize="12" SelectionMode="Single"
+                 SelectionChanged="ScriptList_SelectionChanged" DoubleTapped="ScriptList_DoubleTapped" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="3" Width="8" ResizeDirection="Columns" />
+
+      <!-- Right: info panel -->
+      <DockPanel Grid.Column="4">
+        <TextBlock DockPanel.Dock="Top" Text="Information" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <Border Background="{DynamicResource ScriptCategoryOverlayBrush}" CornerRadius="4" Padding="8">
+          <ScrollViewer>
+            <TextBlock AutomationProperties.AutomationId="EventScriptCategorySelect_Info_Label" Name="InfoLabel"
+                       FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Text="(select a command)" />
+          </ScrollViewer>
+        </Border>
+      </DockPanel>
+    </Grid>
   </DockPanel>
-  </ScrollViewer>
 </Window>

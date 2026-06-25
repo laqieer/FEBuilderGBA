@@ -187,7 +187,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 86 | EventScriptMainView | EventScriptMainViewModel | Nested sub-view for event scripts |
 | 87 | EventScriptInnerView | EventScriptInnerViewModel | Inner script command editor |
 | 88 | EventScriptTemplateView | EventScriptTemplateViewModel | Event script template selector |
-| 89 | EventScriptCategorySelectView | EventScriptCategorySelectViewModel | Event script category picker |
+| 89 | EventScriptCategorySelectView | EventScriptCategorySelectViewModel | Event script category picker (real categories + command list + returns a chosen `EventScript.Script`; #1443) |
 | 90 | EventScriptPopupView | EventScriptPopupViewModel | Event script popup editor |
 | 91 | EventCondView | EventCondViewModel | Event condition editor |
 | 92 | EventCondMainView | EventCondMainViewModel | Nested sub-view for conditions |
