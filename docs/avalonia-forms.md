@@ -241,7 +241,7 @@ Editors for enemy AI behavior scripts.
 | 133 | AITargetView | AITargetViewModel | AI target selection |
 | 134 | AITilesView | AITilesViewModel | AI tile evaluation — **context-dependent sub-editor** (#1414) |
 | 135 | AIUnitsView | AIUnitsViewModel | AI unit evaluation — **context-dependent sub-editor** (#1414) |
-| 136 | AOERANGEView | AOERANGEViewModel | Area of effect range editor |
+| 136 | AOERANGEView | AOERANGEViewModel | Area of effect range editor — **functional** (#1431): manual address + Reload, dynamic w×h AoE grid with center highlight, real repoint-on-write (`AoeRangeCore`) |
 
 ## 7. Procs Script Editors
 
