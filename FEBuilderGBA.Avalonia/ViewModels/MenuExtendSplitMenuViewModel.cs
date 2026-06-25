@@ -130,8 +130,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint a = menuaddr + (CommandStride * (uint)n) + 4;
                 if (!U.isSafetyOffset(a + 2, rom))
                 {
-                    count = n;
-                    StringCount = count == 0 ? 5 : count;
+                    // An out-of-bounds slot means the 8-command read can't
+                    // complete; fall back to the 5-command view (StringCount
+                    // stays one of the two documented values {5, 8}).
+                    StringCount = 5;
                     break;
                 }
                 slots[n] = rom.u16(a);
@@ -166,23 +168,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint prFindEventMenuDrawCommand = FindEventMenuDrawCommand(rom);
             if (prEventMenuCommandEffect == U.NOT_FOUND) return false; // patch not installed
 
+            uint[] texts = GetDataLength(rom, menuaddr) == 8
+                ? new[] { String0, String1, String2, String3, String4, String5, String6, String7 }
+                : new[] { String0, String1, String2, String3, String4 };
+
+            // VALIDATE-ALL-BEFORE-MUTATE: every command slot must be in-bounds
+            // for all 21 written bytes BEFORE we touch any ROM byte (including
+            // the header). A command pointer can pass isSafetyOffset(menuaddr)
+            // yet sit too close to EOF for all 5/8 rows — refusing here keeps
+            // a rejected Write byte-for-byte no-mutation.
+            for (uint i = 0; i < texts.Length; i++)
+            {
+                uint a = menuaddr + (CommandStride * i);
+                if (!U.isSafetyOffset(a + 21, rom)) return false;
+            }
+
             // Header scalar fields only — never +8 / handler pointers.
             var header = new Dictionary<string, uint>
             {
                 ["B0"] = PosX, ["B1"] = PosY, ["B2"] = Width, ["D4"] = Style,
             };
             EditorFormRef.WriteFields(rom, addr, header, _headerFields);
-
-            uint[] texts = GetDataLength(rom, menuaddr) == 8
-                ? new[] { String0, String1, String2, String3, String4, String5, String6, String7 }
-                : new[] { String0, String1, String2, String3, String4 };
-
-            // Validate every command slot is in-bounds BEFORE mutating any of them.
-            for (uint i = 0; i < texts.Length; i++)
-            {
-                uint a = menuaddr + (CommandStride * i);
-                if (!U.isSafetyOffset(a + 21, rom)) return false;
-            }
 
             for (uint i = 0; i < texts.Length; i++)
             {
@@ -212,10 +218,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Allocate a brand-new split menu if <paramref name="srcValue"/> is 0 or
-        /// NOT_FOUND, returning the GBA pointer to write into the event arg.
-        /// Port of WinForms <c>AllocIfNeed</c>/<c>NewAlloc</c> (#1430).
-        /// Caller decides whether to allocate; this is invoked from the View.
+        /// Allocate a brand-new split menu (36-byte header + 9 command slots +
+        /// 0xFFFFFFFF terminator = <c>36 + 36*9 + 4</c> bytes) in free space,
+        /// returning the ROM offset of the new header (or <see cref="U.NOT_FOUND"/>
+        /// if no free space or the EventMenuCommand patch is not installed).
+        /// Faithful port of WinForms <c>MenuExtendSplitMenuForm.NewAlloc</c>
+        /// (#1430). Mutates the ROM under the ambient undo scope; the caller
+        /// (AllocIfNeed in the View) decides when to invoke it and writes the
+        /// resulting pointer back.
         /// </summary>
         public uint NewAlloc()
         {
@@ -233,6 +243,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // only scans 0xFF runs, which an all-zero region would miss.
             uint addr = rom.FindFreeSpace(0x100, allocSize);
             if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+
+            // ZERO-FILL the whole allocated range first (WinForms writes a
+            // zeroed `new byte[allocSize]` via AppendBinaryData). Without this,
+            // a 0xFF-filled free region would leave the header handler slots
+            // (+12..+32) and unused command bytes as 0xFFFFFFFF — invalid
+            // handler pointers. The field writes below then overwrite.
+            rom.write_range(addr, new byte[allocSize]);
 
             rom.write_u8(addr + 0, 6);   // x
             rom.write_u8(addr + 1, 8);   // y

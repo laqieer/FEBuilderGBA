@@ -111,6 +111,33 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("New Split Menu");
+            try
+            {
+                uint addr = _vm.NewAlloc();
+                if (addr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(
+                        "Could not create a new split menu: no free space, or the EventMenuCommand patch is not installed (FE8 only).");
+                    return;
+                }
+                _undoService.Commit();
+
+                // Reload the master list and jump to the newly allocated menu.
+                LoadList();
+                EntryList.SelectAddress(addr);
+                CoreState.Services?.ShowInfo($"New split menu allocated at 0x{addr:X08}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MenuExtendSplitMenuView.NewAlloc failed: {0}", ex.Message);
+            }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

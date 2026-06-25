@@ -369,6 +369,75 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void NewAlloc_OnFFFreeSpace_LeavesNoFFHandlerPointers()
+        {
+            // Free region is 0xFF-filled (real ROM free space). Without a
+            // zero-fill, header handler slots (+12..+32) and unused command
+            // bytes would stay 0xFFFFFFFF — invalid pointers. The fix zero-
+            // fills the whole allocation first.
+            byte[] data = BuildSplitRomBytes(eightCommands: false);
+            // Make the ENTIRE ROM non-free (0x01) so FindFreeSpace can ONLY
+            // pick the 0xFF run we carve — guaranteeing the 0xFF code path.
+            for (int i = 0x200; i < data.Length; i++) if (data[i] == 0x00) data[i] = 0x01;
+            const int ffStart = 0x300000;
+            for (int i = ffStart; i < ffStart + 0x800; i++) data[i] = 0xFF;
+            // Re-plant the EventMenuCommandEffect signature (the 0x01 fill above
+            // would have clobbered its embedded 0x00 bytes).
+            Array.Copy(EffectSigFE8U, 0, data, (int)EffectSigLoc, EffectSigFE8U.Length);
+            var rom = new ROM();
+            rom.LoadLow("test.gba", data, "BE8E01");
+            WithRom(rom, () =>
+            {
+                var vm = new MenuExtendSplitMenuViewModel();
+                uint addr;
+                using (Scope()) { addr = vm.NewAlloc(); }
+                Assert.NotEqual(U.NOT_FOUND, addr);
+
+                // Header handler slots must be zero (NOT 0xFFFFFFFF).
+                Assert.Equal(0u, rom.u32(addr + 12));
+                Assert.Equal(0u, rom.u32(addr + 16));
+                Assert.Equal(0u, rom.u32(addr + 20));
+                Assert.Equal(0u, rom.u32(addr + 24));
+                Assert.Equal(0u, rom.u32(addr + 28));
+                Assert.Equal(0u, rom.u32(addr + 32));
+                // Unused command slot 8 must be zeroed too (not 0xFF).
+                Assert.Equal(0u, rom.u32(addr + 36 + 36 * 8 + 12));
+                // Terminator intact.
+                Assert.Equal(0xFFFFFFFFu, rom.u32(addr + 36 + 36 * 9));
+            });
+        }
+
+        [Fact]
+        public void Write_CommandArrayTooCloseToEof_NoMutation_NotEvenHeader()
+        {
+            // menuaddr passes isSafetyOffset(menuaddr) but is too close to EOF
+            // for all 5 command rows. Write must refuse WITHOUT mutating the
+            // header (validate-all-before-mutate).
+            byte[] data = BuildSplitRomBytes(eightCommands: false);
+            var rom = new ROM();
+            rom.LoadLow("test.gba", data, "BE8E01");
+            WithRom(rom, () =>
+            {
+                // Repoint header +8 to 40 bytes before EOF: the base is a safe
+                // offset, but base+36*4+21 overruns.
+                uint nearEof = (uint)rom.Data.Length - 40;
+                using (Scope()) { rom.write_p32(HeaderBase + 8, nearEof); }
+
+                var vm = new MenuExtendSplitMenuViewModel();
+                vm.CurrentAddr = HeaderBase;
+                vm.PosX = 99; vm.String0 = 0x777; // would-be header + text changes
+
+                byte[] headerBefore = rom.getBinaryData(HeaderBase, 36);
+                bool wrote;
+                using (Scope()) { wrote = vm.Write(); }
+
+                Assert.False(wrote);
+                // The header must be byte-for-byte unchanged (no partial mutation).
+                Assert.Equal(headerBefore, rom.getBinaryData(HeaderBase, 36));
+            });
+        }
+
+        [Fact]
         public void Write_UnsafeMenuRegion_NoMutation()
         {
             var rom = MakeSplitRom();
