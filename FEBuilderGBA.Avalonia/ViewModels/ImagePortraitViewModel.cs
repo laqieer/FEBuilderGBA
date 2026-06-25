@@ -302,10 +302,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>
+        /// #1411 — the size in bytes of one portrait entry this generic editor reads/writes.
+        /// Exposed so tests can assert the guard invariant against the real stride.
+        /// </summary>
+        public static uint EntrySize => SIZE;
+
+        /// <summary>
+        /// #1411 — pure guard predicate. The generic editor assumes a 28-byte portrait
+        /// entry (FE7/FE8). It is supported ONLY when the ROM's portrait stride equals
+        /// <see cref="SIZE"/> exactly. ANY other value — FE6's 16, a patched stride, or
+        /// an unknown/zero stride — is UNSUPPORTED, so the editor never reads/writes 28
+        /// bytes into a differently-sized (or invalid) table. (Copilot PR-review #1
+        /// closed the prior <c>stride == 0</c> hole, which let a write proceed on an
+        /// unknown layout.) The dedicated <c>ImagePortraitFE6ViewModel</c> (SIZE=16) is
+        /// FE6's editor.
+        /// </summary>
+        public static bool IsUnsupportedPortraitStride(uint portraitDataSize)
+            => portraitDataSize != SIZE;
+
+        bool IsUnsupportedPortraitStride(ROM rom)
+            => IsUnsupportedPortraitStride(rom?.RomInfo?.portrait_datasize ?? 0);
+
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — only the 28-byte FE7/FE8 layout is supported
             if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
@@ -348,6 +371,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
+            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — never write 28 bytes into a 16-byte FE6 entry
             if (CurrentAddr + SIZE > (uint)rom.Data.Length) return;
             if (undoService == null) { Write(); return; }
 
