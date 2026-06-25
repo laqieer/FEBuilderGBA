@@ -92,7 +92,9 @@ namespace FEBuilderGBA
             // 1) The primary write target.
             yield return primary;
 
-            // 2) Every alias that points back to this symbol (mirror WriteAliasScriptEditSetTables).
+            // 2) Every alias arg (non-FIXED, Alias != NOT_FOUND) that shares the primary's
+            //    Symbol. Matched by Symbol (NOT by Alias == primaryArgIndex), faithfully
+            //    mirroring WriteAliasScriptEditSetTables, which also matches on Symbol.
             for (int i = 0; i < args.Length; i++)
             {
                 EventScript.Arg a = args[i];

@@ -208,6 +208,32 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ----------------------------------------------------------------
+        // 4b. A duplicated SourceArgIndex (two rows -> same primary) is rejected
+        //     even though the count check still passes — guards a 1:1 mapping.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteCommand_DuplicateSourceArgIndex_RefusedNoMutation()
+        {
+            var script = AliasScript(); // two primaries (X, Y)
+            var bytes = new byte[script.Size];
+            bytes[2] = 0x01; bytes[3] = 0x02; bytes[10] = 0x01; bytes[11] = 0x02;
+            var vm = MakeVmWith(script, bytes);
+            vm.SelectedCommandIndex = 0;
+            Assert.Equal(2, vm.CommandArgs.Count);
+
+            // Corrupt the mapping: point BOTH rows at the same primary index.
+            int dup = vm.CommandArgs[0].SourceArgIndex;
+            vm.CommandArgs[1].SourceArgIndex = dup;
+            vm.CommandArgs[0].Value = 0x33;
+
+            byte[] before = U.getBinaryData(_rom.Data, CmdOffset, script.Size);
+            Assert.False(vm.WriteCommand()); // count matches (2==2) but not 1:1 -> refused
+            byte[] after = U.getBinaryData(_rom.Data, CmdOffset, script.Size);
+            Assert.Equal(before, after); // no partial mutation
+        }
+
+        // ----------------------------------------------------------------
         // 5. The alias write is undoable (class-C undo coverage preserved).
         // ----------------------------------------------------------------
 

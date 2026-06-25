@@ -518,10 +518,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
 
-            // Each row must still map to a current editable (primary) arg.
+            // Each row must map to a current editable (primary) arg, and the rows must form a
+            // 1:1 mapping onto the editable set — no two rows may share a SourceArgIndex (which
+            // would silently skip writing another primary while the count check still passes).
+            var seen = new HashSet<int>();
             foreach (var entry in CommandArgs)
             {
-                if (!editableIndices.Contains(entry.SourceArgIndex))
+                if (!editableIndices.Contains(entry.SourceArgIndex) || !seen.Add(entry.SourceArgIndex))
                 {
                     StatusText = "Error: Argument mapping is stale; reselect the command.";
                     return false;
