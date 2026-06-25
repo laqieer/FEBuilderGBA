@@ -12,11 +12,14 @@
       <!-- Manual address input + Reload (WinForms ReadStartAddress + ReloadListButton).
            The editor is a sub-editor with no enumerable list; you load a record by
            its address (or arrive here from a parent jump that supplies one). -->
+      <!-- Avalonia's NumericUpDown FormatString throws FormatException on hex ("X*")
+           specifiers over its decimal value (see EventMapChangeView), so the address
+           box is decimal; the AddrLabel below echoes the loaded address in hex. -->
       <Grid ColumnDefinitions="160,140,Auto" RowDefinitions="Auto">
-        <TextBlock Grid.Column="0" Text="Address (hex):" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="AOERANGE_ReadStart_Input"
                        Grid.Column="1" Name="ReadStartBox"
-                       FormatString="X8" Minimum="0" Maximum="4294967295" Margin="0,2" />
+                       FormatString="0" Minimum="0" Maximum="33554432" Margin="0,2" />
         <Button AutomationProperties.AutomationId="AOERANGE_Reload_Button"
                 Grid.Column="2" Name="ReloadButton" Content="Reload" Margin="8,2,0,2" />
       </Grid>
@@ -56,7 +59,7 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:AoeCell">
               <Border Background="{Binding CellBackground}" Padding="1" Margin="1">
-                <NumericUpDown Width="64" FormatString="X2"
+                <NumericUpDown Width="64" FormatString="0"
                                Minimum="0" Maximum="255"
                                Value="{Binding Value, Mode=TwoWay}" />
               </Border>
