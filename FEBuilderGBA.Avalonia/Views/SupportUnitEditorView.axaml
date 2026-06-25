@@ -116,7 +116,14 @@
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Separator2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="5" Name="Separator2Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 
-        <Button AutomationProperties.AutomationId="SupportUnitEditor_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
+        <!-- #1455: reciprocal-support mirroring toggle (WinForms AutoCollectCheckbox, default on) -->
+        <CheckBox AutomationProperties.AutomationId="SupportUnitEditor_AutoCollect_CheckBox"
+                  Name="AutoCollectCheckBox"
+                  IsChecked="True"
+                  Content="Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)"
+                  Margin="0,12,0,0" />
+
+        <Button AutomationProperties.AutomationId="SupportUnitEditor_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

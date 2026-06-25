@@ -31,6 +31,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _canWrite;
+        // #1455: when on, Write mirrors this row's per-partner init/growth edits
+        // into each partner's reciprocal support slot and recomputes B21.
+        // Default ON, matching WinForms SupportUnitForm.AutoCollectCheckbox.
+        bool _autoCollect = true;
 
         // Partner unit IDs (7 slots)
         uint _partner1, _partner2, _partner3, _partner4, _partner5, _partner6, _partner7;
@@ -50,6 +54,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        /// <summary>
+        /// #1455 — when true, <see cref="WriteSupportUnit"/> mirrors this row's
+        /// per-partner initial value / growth rate into each partner's reciprocal
+        /// support slot and recomputes the partner count (B21), matching WinForms
+        /// <c>SupportUnitForm.AutoCollect</c>. Default true (WinForms default).
+        /// </summary>
+        public bool AutoCollect { get => _autoCollect; set => SetField(ref _autoCollect, value); }
 
         public uint SourceUnitId1Based { get => _sourceUnitId1Based; set => SetField(ref _sourceUnitId1Based, value); }
         public string SourceUnitName { get => _sourceUnitName; set => SetField(ref _sourceUnitName, value); }
@@ -251,6 +263,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint a = CurrentAddr;
             if (a + BLOCK_SIZE > (uint)rom.Data.Length) return;
 
+            var partners = new[] { Partner1, Partner2, Partner3, Partner4, Partner5, Partner6, Partner7 };
+
+            // #1455: AutoCollect mirrors WinForms SupportUnitForm.AutoCollect —
+            // recompute B21 (partner count) from the non-zero partner slots BEFORE
+            // writing the struct, so the recomputed value is what lands in the row
+            // (matching the WinForms ordering where AutoCollect sets B21.Value first).
+            if (AutoCollect)
+            {
+                PartnerCount = SupportUnitAutoCollectCore.RecomputePartnerCount(partners);
+            }
+
             var values = new Dictionary<string, uint>
             {
                 ["B0"] = Partner1, ["B1"] = Partner2, ["B2"] = Partner3,
@@ -265,6 +288,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B21"] = PartnerCount, ["B22"] = Separator1, ["B23"] = Separator2,
             };
             EditorFormRef.WriteFields(rom, a, values, _fields);
+
+            // #1455: after the selected row is written, mirror each per-partner
+            // init/growth edit into the partner's reciprocal support slot. Runs
+            // inside the View's ambient undo scope so it shares one undo record.
+            if (AutoCollect)
+            {
+                var inits = new[] { InitialValue1, InitialValue2, InitialValue3, InitialValue4, InitialValue5, InitialValue6, InitialValue7 };
+                var growths = new[] { GrowthRate1, GrowthRate2, GrowthRate3, GrowthRate4, GrowthRate5, GrowthRate6, GrowthRate7 };
+                SupportUnitAutoCollectCore.AutoCollect(rom, a, partners, inits, growths);
+            }
         }
 
         public int GetListCount() => LoadSupportUnitList().Count;
