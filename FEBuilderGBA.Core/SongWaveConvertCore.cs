@@ -372,6 +372,12 @@ namespace FEBuilderGBA.Core
             long sum_mum = 0;
             int max = Math.Min(sourceData.Length, decompressData.Length);
 
+            // No PCM body to compare (both WAVs shorter than the 0x44 header
+            // start, or no overlap past it): return 0, NOT the 100 "exact match"
+            // value (Copilot review #1537 — the empty loop would leave sum_mum==0
+            // and misreport a truncated/invalid WAV as a perfect match).
+            if (max <= 0x44) return 0;
+
             for (int i = 0x44; i < max; i++)
             {
                 sum_son += ((long)decompressData[i]) * ((long)decompressData[i]);

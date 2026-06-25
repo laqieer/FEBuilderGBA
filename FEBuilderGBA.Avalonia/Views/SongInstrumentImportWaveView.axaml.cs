@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentImportWaveView.PromptForSourceAsync failed: {0}", ex.Message);
+                Log.Error("SongInstrumentImportWaveView.PromptForSourceAsync failed: " + ex.ToString());
                 _vm.PreviewText = R._("Wave import failed: {0}", ex.Message);
             }
         }
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentImportWaveView.Preview_Click failed: {0}", ex.Message);
+                Log.Error("SongInstrumentImportWaveView.Preview_Click failed: " + ex.ToString());
                 _vm.PreviewText = R._("Wave conversion failed: {0}", ex.Message);
             }
         }
@@ -108,7 +108,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentImportWaveView.Ok_Click failed: {0}", ex.Message);
+                Log.Error("SongInstrumentImportWaveView.Ok_Click failed: " + ex.ToString());
                 _vm.PreviewText = R._("Wave conversion failed: {0}", ex.Message);
             }
         }

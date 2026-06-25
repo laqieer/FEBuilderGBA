@@ -152,6 +152,20 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(new byte[10], null));
         }
 
+        [Fact]
+        public void CalculateSNR_ShortInputReturnsZeroNot100()
+        {
+            // Both shorter than the 0x44 PCM-body start: there is NO data to
+            // compare, so SNR must be 0 (Copilot review #1537) — NOT the 100
+            // "exact match" value the empty loop would otherwise produce.
+            byte[] a = new byte[0x40];
+            byte[] b = new byte[0x40];
+            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(a, b));
+
+            // Exactly at the boundary (max == 0x44, loop body never runs) => 0.
+            Assert.Equal(0.0, SongWaveConvertCore.CalculateSNR(new byte[0x44], new byte[0x44]));
+        }
+
         // ---- LoadWavS ---------------------------------------------------------
 
         [Fact]
