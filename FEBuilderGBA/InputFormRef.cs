@@ -8249,52 +8249,13 @@ namespace FEBuilderGBA
 
         public static string GetUNIT_COLOR(uint num)
         {
-            if (num == 0)
-            {
-                return R._("変更せずに元の色で描画する");
-            }
-            string ret = "";
-
-            string color;
-            color = GetUNIT_COLORSub(num & 0xF);
-            if (color != "")
-            {
-                ret += R._("自軍を{0}に", color);
-            }
-            color = GetUNIT_COLORSub((num>>4) & 0xF);
-            if (color != "")
-            {
-                if (ret != "") ret += ",";
-                ret += R._("敵軍を{0}に", color);
-            }
-            color = GetUNIT_COLORSub((num >> 8) & 0xF);
-            if (color != "")
-            {
-                if (ret != "") ret += ",";
-                ret += R._("友軍を{0}に", color);
-            }
-            color = GetUNIT_COLORSub((num >> 12) & 0xF);
-            if (color != "")
-            {
-                if (ret != "") ret += ",";
-                ret += R._("第4軍を{0}に", color);
-            }
-            return ret;
+            // Single source of truth lives in Core (EventUnitColorCore) so the
+            // Avalonia event editor shares the exact same friendly label (#1444).
+            return EventUnitColorCore.GetUNIT_COLOR(num);
         }
         static string GetUNIT_COLORSub(uint num)
         {
-            switch (num)
-            {
-                case 0x01:
-                    return R._("青");
-                case 0x02:
-                    return R._("赤");
-                case 0x03:
-                    return R._("緑");
-                case 0x04:
-                    return R._("セピア");
-            }
-            return "";
+            return EventUnitColorCore.GetUNIT_COLORSub(num);
         }
         public static string GetEARTHQUAKE(uint num)
         {

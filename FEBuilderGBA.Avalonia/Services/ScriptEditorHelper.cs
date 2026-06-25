@@ -18,7 +18,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Create a control group for a single command argument.
         /// </summary>
-        public static Border CreateArgControl(CommandArgEntry arg, int index, EventHandler<RoutedEventArgs>? jumpClickHandler)
+        /// <param name="pickClickHandler">
+        /// Optional click handler for type-specific "Pick…" buttons (e.g. the
+        /// <c>UNIT_COLOR</c> 4-slot colour picker, #1444). The button's Tag is the
+        /// argument index so the handler can seed the picker and write the result
+        /// back into the matching hex box.
+        /// </param>
+        public static Border CreateArgControl(CommandArgEntry arg, int index, EventHandler<RoutedEventArgs>? jumpClickHandler, EventHandler<RoutedEventArgs>? pickClickHandler = null)
         {
             var border = new Border
             {
@@ -158,6 +164,23 @@ namespace FEBuilderGBA.Avalonia.Views
                         Foreground = new SolidColorBrush(Colors.Gray),
                         VerticalAlignment = VerticalAlignment.Center,
                     });
+
+                    // UNIT_COLOR: surface the 4-slot colour picker (#1444). The
+                    // picker writes its packed result back into the hex box above,
+                    // which SyncControlsToViewModel then reads on Write — mirroring
+                    // the WinForms EventScriptInnerControl → EventUnitColorForm path.
+                    if (arg.ArgType == EventScript.ArgType.UNIT_COLOR && pickClickHandler != null)
+                    {
+                        var pickBtn = new Button
+                        {
+                            Content = "Pick…",
+                            FontSize = 11,
+                            Padding = new Thickness(8, 2),
+                            Tag = index,
+                        };
+                        pickBtn.Click += pickClickHandler;
+                        valuePanel.Children.Add(pickBtn);
+                    }
                 }
 
                 stack.Children.Add(valuePanel);

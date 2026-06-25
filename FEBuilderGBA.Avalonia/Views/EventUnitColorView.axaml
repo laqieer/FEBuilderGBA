@@ -1,21 +1,60 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventUnitColorView"
-        Title="Unit Color Assignment" Width="708" Height="356"
+        Title="Unit Color" Width="520" Height="320"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventUnitColor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+  <DockPanel Margin="10,9,10,10">
+    <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE + ApplyButton) -->
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40">
+        <TextBlock AutomationProperties.AutomationId="EventUnitColor_Message_Label" Name="MESSAGE"
+                   Text="Please specify the color you want to change."
+                   HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
+      </Border>
+      <Button AutomationProperties.AutomationId="EventUnitColor_Apply_Button" Grid.Column="1"
+              Name="ApplyButton" Content="Apply" Width="150" Height="40"
+              Margin="8,0,0,0" Click="Apply_Click" />
+    </Grid>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Unit Color Assignment" FontSize="18" FontWeight="Bold" />
+    <!-- Live friendly-label preview of the packed value -->
+    <Border DockPanel.Dock="Bottom" BorderBrush="Gray" BorderThickness="1" Padding="7,6" Margin="0,6,0,0">
+      <TextBlock AutomationProperties.AutomationId="EventUnitColor_Friendly_Label" Name="FriendlyLabel"
+                 Text="{Binding FriendlyText}" TextWrapping="Wrap"
+                 Foreground="#508CC8" FontSize="12" />
+    </Border>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitColor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+    <!-- Main panel: four slot combos (Player / Enemy / NPC / Fourth) -->
+    <Border BorderBrush="Gray" BorderThickness="1" Padding="7,10,7,10">
+      <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="120,*">
+          <TextBlock Grid.Column="0" Text="Player" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventUnitColor_Player_Combo" Grid.Column="1"
+                    Name="PlayerComboBox" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding SlotItems}" SelectedIndex="{Binding PlayerIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*">
+          <TextBlock Grid.Column="0" Text="Enemy" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventUnitColor_Enemy_Combo" Grid.Column="1"
+                    Name="EnemyComboBox" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding SlotItems}" SelectedIndex="{Binding EnemyIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*">
+          <TextBlock Grid.Column="0" Text="NPC" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventUnitColor_NPC_Combo" Grid.Column="1"
+                    Name="NPCComboBox" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding SlotItems}" SelectedIndex="{Binding NpcIndex}" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*">
+          <TextBlock Grid.Column="0" Text="Fourth" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventUnitColor_Fourth_Combo" Grid.Column="1"
+                    Name="FourthComboBox" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding SlotItems}" SelectedIndex="{Binding FourthIndex}" />
         </Grid>
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    </Border>
+  </DockPanel>
+  </ScrollViewer>
 </Window>

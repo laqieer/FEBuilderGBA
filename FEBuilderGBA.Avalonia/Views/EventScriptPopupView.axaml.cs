@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             for (int i = 0; i < _vm.CommandArgs.Count; i++)
             {
                 var arg = _vm.CommandArgs[i];
-                var panel = ScriptEditorHelper.CreateArgControl(arg, i, JumpPointer_Click);
+                var panel = ScriptEditorHelper.CreateArgControl(arg, i, JumpPointer_Click, UnitColorPick_Click);
                 ArgsPanel.Children.Add(panel);
 
                 if (arg.IsEditable)
@@ -173,6 +173,73 @@ namespace FEBuilderGBA.Avalonia.Views
                     StatusLabel.Text = "Invalid or null pointer.";
                 }
             }
+        }
+
+        /// <summary>
+        /// Open the 4-slot UNIT_COLOR picker (#1444) seeded with the argument's
+        /// current value; on Apply, write the packed result back into the hex box
+        /// for that argument so the existing Write path persists it (mirrors
+        /// WinForms EventScriptInnerControl → EventUnitColorForm.JumpTo).
+        /// </summary>
+        async void UnitColorPick_Click(object? sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not int argIndex)
+                return;
+            if (argIndex < 0 || argIndex >= _vm.CommandArgs.Count)
+                return;
+
+            // Prefer the live hex-box text (honours an in-flight edit) over the VM value.
+            uint current = _vm.CommandArgs[argIndex].Value;
+            var hexBox = FindArgHexBox(argIndex);
+            if (hexBox != null && TryParseHex(hexBox.Text, out uint typed))
+                current = typed;
+
+            try
+            {
+                var picker = new EventUnitColorView();
+                picker.NavigateTo(current);
+                uint? result = await picker.ShowDialog<uint?>(this);
+                if (result.HasValue)
+                {
+                    _vm.CommandArgs[argIndex].Value = result.Value;
+                    if (hexBox != null)
+                        hexBox.Text = $"0x{result.Value:X04}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventScriptPopupView.UnitColorPick failed: ", ex.Message);
+            }
+        }
+
+        /// <summary>Locate the hex TextBox created for argument <paramref name="argIndex"/>.</summary>
+        TextBox? FindArgHexBox(int argIndex)
+        {
+            if (argIndex < 0 || argIndex >= ArgsPanel.Children.Count)
+                return null;
+            if (ArgsPanel.Children[argIndex] is not Border border || border.Child is not StackPanel stack)
+                return null;
+            foreach (var child in stack.Children)
+            {
+                if (child is StackPanel valuePanel)
+                {
+                    foreach (var ctrl in valuePanel.Children)
+                    {
+                        if (ctrl is TextBox tb && tb.Tag is string tag && tag.StartsWith("hex_"))
+                            return tb;
+                    }
+                }
+            }
+            return null;
+        }
+
+        static bool TryParseHex(string? text, out uint value)
+        {
+            value = 0;
+            string txt = (text ?? "").Trim();
+            if (txt.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                txt = txt.Substring(2);
+            return uint.TryParse(txt, System.Globalization.NumberStyles.HexNumber, null, out value);
         }
     }
 }
