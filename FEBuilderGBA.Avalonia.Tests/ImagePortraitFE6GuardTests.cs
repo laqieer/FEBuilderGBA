@@ -193,6 +193,18 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint entry0 = baseAddr;            // portrait #0 (non-last)
             uint nextEntry = baseAddr + stride; // portrait #1 — must NOT be touched
 
+            // Copilot review (inline): isSafetyOffset only validates the START address.
+            // Explicitly assert the entire region we read/compare (entry0 + the next
+            // entry, i.e. baseAddr .. baseAddr + 2*stride) is in-bounds, so a malformed
+            // test ROM fails with a clear message instead of an out-of-range read. A
+            // generic 28-byte Write would also reach baseAddr + 28, so cover that too.
+            uint readExtent = 2u * stride;            // entry0 + nextEntry
+            uint writeExtent = ImagePortraitViewModel.EntrySize; // a bad 28-byte write reaches here
+            uint maxExtent = System.Math.Max(readExtent, writeExtent);
+            Assert.True(
+                (ulong)baseAddr + maxExtent <= (ulong)rom.Data.Length,
+                $"FE6 portrait region [0x{baseAddr:X}, 0x{baseAddr + maxExtent:X}) must be within ROM (len 0x{rom.Data.Length:X})");
+
             // Snapshot the next entry's 16 bytes.
             byte[] before = rom.getBinaryData(nextEntry, (int)stride);
 
