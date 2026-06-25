@@ -21,6 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             TextIdUpDown.ValueChanged += OnTextIdChanged;
             WriteButton.Click += OnWrite;
+            NewBlockButton.Click += OnNewBlock;
             Opened += (_, _) => LoadList();
         }
 
@@ -85,7 +86,60 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        // #1442 — "New Block" allocates a fresh 14×4=56-byte talk-group block in ROM
+        // free space and repoints the editor onto it (parity with WinForms NewAlloc).
+        // The append is undo-tracked via the UndoService scope (#1428 pattern).
+        void OnNewBlock(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin(R._("New Block Talk Group (FE7)"));
+            try
+            {
+                uint addr = _vm.NewAlloc();
+                if (addr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    Log.Error("EventTalkGroupFE7View.OnNewBlock: allocation failed (no free space)");
+                    return;
+                }
+                _undoService.Commit();
+
+                // Reload the list onto the new block and select its first entry.
+                LoadList();
+                EntryList.SelectFirst();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventTalkGroupFE7View.OnNewBlock failed: " + ex.ToString());
+            }
+        }
+
+        // #1442 — Repoint onto an arbitrary block base (parity with WinForms
+        // JumpToAddr → ReInit) so the editor can be driven from a POINTER_TALKGROUP
+        // arg. If the target address is not inside the currently loaded block,
+        // repoint the VM to that block's base and reload before selecting.
+        public void NavigateTo(uint address)
+        {
+            if (address == 0 || address == U.NOT_FOUND)
+            {
+                EntryList.SelectAddress(address);
+                return;
+            }
+
+            uint offset = U.toOffset(address);
+            if (!EntryList.SelectAddress(offset))
+            {
+                // Out-of-range: treat the navigated address as the block base and
+                // repoint the list onto it.
+                _vm.SetBaseAddr(offset);
+                LoadList();
+                if (!EntryList.SelectAddress(offset))
+                {
+                    EntryList.SelectFirst();
+                }
+            }
+        }
+
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }
