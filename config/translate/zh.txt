@@ -17525,6 +17525,9 @@ Mant动画
 :Map Pointer Editor
 地图指针编辑器
 
+:PLIST=0 is the reserved NULL entry and must stay 0. Writing here would corrupt the map-data NULL sentinel, so the write is rejected.
+PLIST=0 是保留的 NULL 项，必须始终为 0。在此写入会破坏地图数据的 NULL 哨兵，因此写入被拒绝。
+
 :Map Pointer:
 地图指针:
 

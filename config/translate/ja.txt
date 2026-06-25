@@ -2624,6 +2624,9 @@ Manually configure from オプション screen
 :Map Pointer Editor
 マップポインタ エディタ
 
+:PLIST=0 is the reserved NULL entry and must stay 0. Writing here would corrupt the map-data NULL sentinel, so the write is rejected.
+PLIST=0は予約されたNULLエントリであり、常に0である必要があります。ここへ書き込むとマップデータのNULL番兵が壊れるため、書き込みは拒否されます。
+
 :Map Pointer:
 マップポインタ:
 
