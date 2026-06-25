@@ -49,6 +49,42 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// Label for an FE7 custom-battle-anime pointer-table index (#1412). Port of WinForms
+        /// <c>UnitFE7Form.GetNameWhereCustomBattleAnime</c>: scan the unit table and return the name of
+        /// the unit whose lower-class custom-anime id (u8 @ +37) or upper-class id (u8 @ +38) equals
+        /// <paramref name="customBattleId"/>, plus a lower/upper marker. Returns "" when nothing matches
+        /// (FE6/FE8 / id 0 / no owner). Cross-platform, guards every read, never throws.
+        /// </summary>
+        public static string GetCustomBattleAnimeName(ROM rom, uint customBattleId)
+        {
+            if (customBattleId == 0) return string.Empty;
+            if (rom?.RomInfo == null || rom.RomInfo.version != 7) return string.Empty;
+
+            // unit_pointer is a POINTER FIELD — dereference it to the table base (matches
+            // WinForms InputFormRef.Init: BaseAddress = p32(BasePointer)). Reading unit_pointer
+            // directly as the base reads unrelated ROM bytes.
+            uint baseAddr = DerefPointer(rom, rom.RomInfo.unit_pointer);
+            uint dataSize = rom.RomInfo.unit_datasize;
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (baseAddr == 0 || dataSize == 0) return string.Empty;
+
+            // Iterate the fixed FE7 unit count (unit_maxcount), NOT an id-0 terminator — the
+            // WinForms unit IFR enumerates a bounded DataCount, not a NUL-terminated run.
+            uint limit = maxCount > 0 ? maxCount : 0x100;
+            uint cursor = baseAddr;
+            for (uint i = 0; i < limit; i++, cursor += dataSize)
+            {
+                if (cursor + dataSize > (uint)rom.Data.Length) break;
+
+                if (customBattleId == rom.u8(cursor + 37))
+                    return GetTextById(rom.u16(cursor)) + " " + R._("下級職");
+                if (customBattleId == rom.u8(cursor + 38))
+                    return GetTextById(rom.u16(cursor)) + " " + R._("上級職");
+            }
+            return string.Empty;
+        }
+
         /// <summary>Get the name of a unit by 0-based table index.</summary>
         /// <remarks>
         /// Reads at <c>unitBase + id * dataSize</c>. Use this when iterating

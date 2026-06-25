@@ -26057,3 +26057,12 @@ FE-Repo-音乐浏览器
 
 :Import a 16x16 skill icon from the FE-Repo Skill Icons folder.
 从 FE-Repo 技能图标文件夹导入 16x16 技能图标。
+
+:Class (pointer table)
+职业 (指针表)
+
+:Weapon Animations
+武器动画
+
+:Special:
+特殊:

@@ -12216,3 +12216,9 @@ FE-Repoの立ち絵リポジトリフォルダからインポート
 
 :Import a 16x16 skill icon from the FE-Repo Skill Icons folder.
 FE-Repoのスキルアイコンフォルダから16x16のスキルアイコンをインポート。
+
+:Class (pointer table)
+クラス (ポインタテーブル)
+
+:Weapon Animations
+武器アニメ
