@@ -86,8 +86,18 @@ namespace FEBuilderGBA.Avalonia.Views
             // Reveal/hide the editor surface.
             if (FieldsPanel != null) FieldsPanel.IsVisible = functional;
             if (WriteButton != null) WriteButton.IsVisible = functional;
-            // The "no patch" warning is only honest when no FE8N patch is present.
-            if (WarningBorder != null) WarningBorder.IsVisible = !hasPatch;
+
+            // Status border: shown unless the editor is fully functional, so the
+            // window is NEVER blank/inert.
+            //  - no FE8N patch          -> "install a skill patch" message
+            //  - patch but no unit addr -> "open from the Unit Editor" message
+            if (WarningBorder != null) WarningBorder.IsVisible = !functional;
+            if (StatusText != null)
+            {
+                StatusText.Text = hasPatch
+                    ? R._("No unit is selected.\nOpen this editor from the Unit Editor's \"Edit Skills\" button to assign a unit's scroll/mastery skills.")
+                    : R._("Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System");
+            }
 
             if (!functional) return;
 
@@ -137,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitFE8NView.Write failed: {0}", ex.Message);
+                Log.Error("SkillAssignmentUnitFE8NView.Write failed: " + ex);
             }
         }
 

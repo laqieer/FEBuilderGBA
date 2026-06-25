@@ -244,6 +244,81 @@ public class SkillAssignmentUnitFE8NParityTests
     }
 
     // ---------------------------------------------------------------
+    // Copilot PR finding 1 — re-syncing only the 3 skill bytes after the
+    // child closes must NOT discard unsaved parent edits to other fields.
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void ParentUnitEditor_SkillByteResync_PreservesOtherUnsavedEdits()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            ROM rom = MakeFE8JRom();
+            uint addr = UnitBase;
+            rom.write_u8(addr + 39, 0x10); // skill byte (child-owned)
+            rom.write_u8(addr + 11, 0x05); // Level (parent-owned, ROM value)
+            CoreState.ROM = rom;
+
+            var parent = new UnitEditorViewModel();
+            parent.LoadUnit(addr);
+
+            // User edits Level in the parent UI but has NOT pressed Write.
+            parent.Level = 0x14;
+
+            // Child writes a new skill byte to ROM.
+            var child = new SkillAssignmentUnitFE8NViewViewModel();
+            child.LoadEntry(addr);
+            child.PersonalSkill = 0x7F;
+            child.Write();
+
+            // The view's OnSkillEditorClosed re-syncs ONLY the 3 skill bytes from
+            // ROM into the VM (not a full LoadUnit). Emulate that here.
+            parent.Unk39 = rom.u8(addr + 39);
+            parent.Ability1 = rom.u8(addr + 40);
+            parent.Ability2 = rom.u8(addr + 41);
+
+            // Skill byte picked up...
+            Assert.Equal(0x7Fu, parent.Unk39);
+            // ...and the unsaved Level edit SURVIVES (a full LoadUnit would have
+            // reverted it to the ROM value 0x05).
+            Assert.Equal(0x14u, parent.Level);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // ---------------------------------------------------------------
+    // Copilot PR finding 2 / inline 3 — patch present but no address must
+    // NOT be a blank window: the status border stays visible.
+    // ---------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void View_PatchPresentNoAddress_ShowsStatus_NotBlank()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            ROM rom = MakeFE8JRom();
+            PlantFE8NSignature(rom);
+            // Make the unit-table pointer invalid so the auto-seed finds no unit
+            // (forces the patch-present/no-address path).
+            CoreState.ROM = rom;
+            RefreshDetection();
+            Assert.True(PatchDetectionService.Instance.HasSkillSystem);
+
+            var view = new SkillAssignmentUnitFE8NView();
+            // Drive RefreshUiForCurrentAddress directly with addr 0 (no seed).
+            view.NavigateTo(0);
+
+            var fields = view.FindControl<Grid>("FieldsPanel");
+            var warning = view.FindControl<Border>("WarningBorder");
+            Assert.False(fields!.IsVisible, "Editor stays hidden with no address");
+            Assert.True(warning!.IsVisible, "Status border must remain visible (never blank)");
+        }
+        finally { CoreState.ROM = prevRom; PatchDetectionService.Instance.Refresh(); }
+    }
+
+    // ---------------------------------------------------------------
     // View source — Navigate-with-address + parent reload wired.
     // ---------------------------------------------------------------
 

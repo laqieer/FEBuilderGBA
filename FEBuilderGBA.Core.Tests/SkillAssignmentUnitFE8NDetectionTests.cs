@@ -27,6 +27,10 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = _savedRom;
             PatchDetection.ClearAllCaches();
             MagicSplitUtil.ClearCache();
+            // Reset the PatchDetectionService singleton so a patched scan result
+            // can't leak into order-dependent siblings (e.g.
+            // PatchDetectionServiceDefaultTests assert default values).
+            PatchDetectionService.Instance.Refresh();
         }
 
         // ---- FE8J ROM helper (multibyte; game code BE8J01) ----
