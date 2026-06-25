@@ -20841,3 +20841,8 @@ PLIST tables split.
 
 :Template config file not found.
 Template config file not found.
+:Chapter/Map ID:
+Chapter/Map ID:
+
+:Edit Battle Dialogue (FE7)
+Edit Battle Dialogue (FE7)
