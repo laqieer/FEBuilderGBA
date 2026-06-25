@@ -26204,3 +26204,11 @@ Boss对话 (16字节)
 
 :Please specify the color you want to change.
 请指定您要更改的颜色。
+:Select Event Script Command
+选择事件脚本命令
+:Show low commands
+显示低级命令
+:Information
+信息
+:search command / hint
+搜索命令 / 提示
