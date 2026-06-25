@@ -20711,6 +20711,8 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :Write
 写入
+:New Block
+新建块
 
 :Open Source Folder
 打开源文件夹
@@ -26193,5 +26195,15 @@ Boss对话 (16字节)
 
 :Primary
 主表
+
+:NPC
+友军
+
+:Fourth
+4部队
+
+:Please specify the color you want to change.
+请指定您要更改的颜色。
+
 :The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
 上述地址处的以NUL结尾的字符串。编辑后点击Write将对字符串 + 末尾的 0x00 进行编码；若不再适合原位置，则重定位到空闲区域并重新指向每一个引用（以及源指针）。

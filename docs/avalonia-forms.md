@@ -195,7 +195,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 94 | EventUnitFE6View | EventUnitFE6ViewModel | Event unit placement (FE6) |
 | 95 | EventUnitFE7View | EventUnitFE7ViewModel | Event unit placement (FE7) |
 | 96 | EventUnitSimView | EventUnitSimViewModel | Simplified event unit editor |
-| 97 | EventUnitColorView | EventUnitColorViewModel | Event unit color/team editor |
+| 97 | EventUnitColorView | EventUnitColorViewModel | Event UNIT_COLOR 4-slot colour picker (Player/Enemy/NPC/Fourth; packs `a\|b<<4\|c<<8\|d<<12`); surfaced from the event editor's UNIT_COLOR "Pick..." button (#1444) |
 | 98 | EventUnitItemDropView | EventUnitItemDropViewModel | Event unit item drop editor |
 | 99 | EventUnitNewAllocView | EventUnitNewAllocViewModel | Event unit New Allocation modal count-picker (NumericUpDown Min=1/Max=50/Value=1 + OK/Cancel; returns the count via `ShowDialog<uint?>`) — #776 |
 | 100 | EventBattleTalkView | EventBattleTalkViewModel | Battle conversation editor |
@@ -214,7 +214,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 113 | EventAssemblerView | EventAssemblerViewModel | Event assembler integration |
 | 114 | EventFinalSerifFE7View | EventFinalSerifFE7ViewModel | Final chapter serif (FE7) |
 | 115 | EventMoveDataFE7View | EventMoveDataFE7ViewModel | Unit move data events (FE7) |
-| 116 | EventTalkGroupFE7View | EventTalkGroupFE7ViewModel | Talk group events (FE7) |
+| 116 | EventTalkGroupFE7View | EventTalkGroupFE7ViewModel | Talk group events (FE7) — 14-entry stride-4 list + repoint + NewAlloc (#1442) |
 | 117 | EventTemplate1View | EventTemplate1ViewModel | Event template 1 |
 | 118 | EventTemplate2View | EventTemplate2ViewModel | Event template 2 |
 | 119 | EventTemplate3View | EventTemplate3ViewModel | Event template 3 |

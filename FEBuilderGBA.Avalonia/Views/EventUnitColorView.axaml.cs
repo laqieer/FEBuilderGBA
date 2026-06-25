@@ -6,52 +6,64 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// 4-slot colour-override picker for the event-script <c>UNIT_COLOR</c>
+    /// argument (#1444). Ports WinForms <c>EventUnitColorForm</c>. Reachable
+    /// both standalone (main menu) and as a result-returning dialog launched
+    /// from the Avalonia event-script editor (mirrors
+    /// <c>EventScriptInnerControl</c> → <c>EventUnitColorForm.JumpTo</c> →
+    /// <c>ApplyButton.Tag</c>): when launched for a UNIT_COLOR argument the
+    /// dialog is seeded with the current value and, on Apply, closes returning
+    /// the packed <see cref="uint"/>.
+    /// </summary>
     public partial class EventUnitColorView : TranslatedWindow, IEditorView
     {
         readonly EventUnitColorViewModel _vm = new();
 
-        public string ViewTitle => "Unit Color Assignment";
+        public string ViewTitle => "Unit Color";
         public bool IsLoaded => _vm.IsLoaded;
 
         public EventUnitColorView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            DataContext = _vm;
+            _vm.IsLoading = true;
+            _vm.Initialize();
+            _vm.IsLoading = false;
+            _vm.MarkClean();
         }
 
-        void LoadList()
+        void Apply_Click(object? sender, RoutedEventArgs e)
+        {
+            // Return the packed value to a ShowDialog<uint?> caller; harmless
+            // (ignored result) for a standalone main-menu open. Box as the exact
+            // uint? the caller awaits — a boxed plain uint cannot be unboxed to
+            // uint? and would surface as null.
+            Close((uint?)_vm.Result);
+        }
+
+        /// <summary>
+        /// Seed the picker from a packed UNIT_COLOR value (the event editor
+        /// supplies the argument's current value before ShowDialog).
+        /// </summary>
+        public void NavigateTo(uint address)
         {
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                _vm.IsLoading = true;
+                _vm.Seed(address);
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitColorView.LoadList failed: {0}", ex.Message);
+                Log.Error("EventUnitColorView.NavigateTo failed: ", ex.ToString());
             }
-        }
-
-        void OnSelected(uint addr)
-        {
-            try
+            finally
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
-            }
-            catch (Exception ex)
-            {
-                Log.Error("EventUnitColorView.OnSelected failed: {0}", ex.Message);
+                _vm.IsLoading = false;
+                _vm.MarkClean();
             }
         }
 
-        void UpdateUI()
-        {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-        }
-
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        public void SelectFirstItem() { /* no list — value picker */ }
     }
 }

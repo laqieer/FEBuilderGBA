@@ -150,6 +150,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         // Portrait values are portrait IDs (0-based) — resolve the owner's
                         // name via the portrait reverse-lookup (#656).
                         return NameResolver.GetPortraitName(value);
+                    case EventScript.ArgType.UNIT_COLOR:
+                        // Packed 4-slot colour override — show a friendly summary
+                        // ("Player→Blue, Enemy→Red…") via the shared Core helper (#1444).
+                        return EventUnitColorCore.GetUNIT_COLOR(value);
                     default:
                         return "";
                 }

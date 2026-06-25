@@ -25,7 +25,10 @@
           </StackPanel>
         </Grid>
 
-        <Button AutomationProperties.AutomationId="EventTalkGroupFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8">
+          <Button AutomationProperties.AutomationId="EventTalkGroupFE7_Write_Button" Name="WriteButton" Content="Write" />
+          <Button AutomationProperties.AutomationId="EventTalkGroupFE7_NewBlock_Button" Name="NewBlockButton" Content="New Block" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

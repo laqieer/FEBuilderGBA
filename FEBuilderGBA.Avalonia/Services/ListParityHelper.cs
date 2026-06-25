@@ -393,6 +393,11 @@ namespace FEBuilderGBA.Avalonia.Services
             // ReadStartAddress + Reload). No-list, address-driven — like the System
             // image viewers above.
             "AOERANGEView",
+            // #1444 — Unit Color picker: a real self-contained 4-slot colour
+            // value picker (no ROM-table list; WinForms EventUnitColorForm is a
+            // transient UNIT_COLOR argument picker). Surfaced both standalone and
+            // from the event-script editor's UNIT_COLOR "Pick…" button.
+            "EventUnitColorView",
         };
 
         /// <summary>
@@ -412,7 +417,10 @@ namespace FEBuilderGBA.Avalonia.Services
             // Class/unit sub-editors (need base address from parent)
             "SomeClassListView", "UnitsShortTextView",
             // Event sub-editors (need parent event context)
-            "EventUnitColorView", "EventUnitItemDropView", "EventUnitNewAllocView",
+            // #1444 — EventUnitColorView promoted to NoListEditors (now a real
+            // self-contained 4-slot colour picker invoked from the event editor,
+            // no longer a parent-context-dependent placeholder).
+            "EventUnitItemDropView", "EventUnitNewAllocView",
             // #1431 — AOERANGEView moved to NoListEditors (now a real address-driven
             // editor, no longer a stub that depends on parent context).
             // System image viewers (single-entry, address-driven)
