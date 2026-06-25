@@ -250,15 +250,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null)
                 return "No ROM loaded.";
 
-            var result = PatchMetadataCore.UninstallPatch(rom, _selectedPatch.PatchFilePath);
+            Undo? undo = CoreState.Undo;
+            Undo.UndoData? undoData = null;
+            if (undo != null)
+                undoData = undo.NewUndoData("PatchUninstall", _selectedPatch.Name);
+
+            var result = PatchMetadataCore.UninstallPatch(rom, _selectedPatch.PatchFilePath, undoData);
 
             if (result.Success)
             {
+                if (undo != null && undoData != null)
+                    undo.Push(undoData);
+
                 RefreshSelectedPatchStatus();
                 StatusMessage = result.Message;
             }
             else
             {
+                // Rollback any partial restore on failure.
+                if (undo != null && undoData != null)
+                    undo.Rollback(undoData);
                 StatusMessage = "Uninstall failed: " + result.Message;
             }
 

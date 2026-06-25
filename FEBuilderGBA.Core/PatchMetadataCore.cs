@@ -640,6 +640,19 @@ namespace FEBuilderGBA
         /// The backup file is created during patch installation.
         /// </summary>
         public static PatchApplyResult UninstallPatch(ROM rom, string patchFilePath)
+            => UninstallPatch(rom, patchFilePath, null);
+
+        /// <summary>
+        /// Uninstall a patch by restoring original ROM bytes from a backup file.
+        /// The backup file is created during patch installation.
+        /// When <paramref name="undoData"/> is supplied, every restored ROM region is
+        /// recorded into it (via the recording <c>write_range</c> overload) BEFORE the
+        /// write so the caller can <c>Push</c> on success or <c>Rollback</c> to byte-
+        /// identity on failure — even a partial restore (the records written before a
+        /// later record fails validation) is captured. The deleted backup file itself is
+        /// NOT undo-restored (re-installing the patch regenerates it).
+        /// </summary>
+        public static PatchApplyResult UninstallPatch(ROM rom, string patchFilePath, Undo.UndoData? undoData)
         {
             if (rom == null) return PatchApplyResult.Fail("No ROM loaded.");
             if (!File.Exists(patchFilePath)) return PatchApplyResult.Fail("Patch file not found.");
@@ -670,7 +683,10 @@ namespace FEBuilderGBA
                             $"Backup record at 0x{address:X} ({data.Length} bytes) exceeds ROM size. " +
                             "The ROM may have been modified since the patch was installed.");
                     }
-                    rom.write_range(address, data);
+                    if (undoData != null)
+                        rom.write_range(address, data, undoData);
+                    else
+                        rom.write_range(address, data);
                     totalBytes += data.Length;
                 }
 

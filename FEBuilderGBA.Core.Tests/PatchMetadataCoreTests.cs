@@ -1033,6 +1033,191 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ===== Undo-recording uninstall tests (#1429) =====
+
+        // Test A: the recording overload records every restored region into the
+        // supplied UndoData (before each write captures the PATCHED bytes), and a
+        // subsequent Rollback restores the ROM byte-for-byte to its PATCHED state.
+        [Fact]
+        public void UninstallPatch_WithUndoData_RecordsAndRollbackRestoresPatchedBytes()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchUninstallUndo_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // ROM with known ORIGINAL data at 0x200.
+                byte[] romData = new byte[0x1000];
+                romData[0x200] = 0x11; romData[0x201] = 0x22; romData[0x202] = 0x33; romData[0x203] = 0x44;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+                CoreState.ROM = rom; // UndoData/UndoPostion read CoreState.ROM.
+
+                byte[] binData = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD };
+                File.WriteAllBytes(Path.Combine(tempDir, "test.bin"), binData);
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=BIN",
+                    "BIN:0x200=test.bin",
+                    "PATCHED_IF:0x200=0xAA 0xBB 0xCC 0xDD",
+                });
+
+                // Install -> creates the backup + patches the ROM.
+                var installResult = PatchMetadataCore.ApplyPatch(rom, patchFile);
+                Assert.True(installResult.Success);
+                Assert.True(PatchMetadataCore.HasBackup(patchFile));
+
+                // Capture the PATCHED ROM bytes (what undo should restore us TO).
+                byte[] patchedSnapshot = (byte[])rom.Data.Clone();
+                Assert.Equal(0xAAu, rom.u8(0x200));
+
+                var undo = new Undo();
+                var undoData = undo.NewUndoData("PatchUninstall", "Test");
+
+                var result = PatchMetadataCore.UninstallPatch(rom, patchFile, undoData);
+                Assert.True(result.Success);
+
+                // The restore region was recorded into undoData.
+                Assert.NotEmpty(undoData.list);
+                Assert.Contains(undoData.list, p => p.addr == 0x200);
+                // The recorded bytes are the PATCHED bytes (snapshot before the restore write).
+                var rec = undoData.list.First(p => p.addr == 0x200);
+                Assert.Equal(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD }, rec.data);
+
+                // ROM is now restored to ORIGINAL.
+                Assert.Equal(0x11u, rom.u8(0x200));
+                Assert.Equal(0x44u, rom.u8(0x203));
+
+                // Rolling the recorded record forward re-applies the PATCHED bytes:
+                // ROM becomes byte-identical to the captured patched snapshot.
+                undo.Push(undoData);
+                undo.RunUndo();
+                Assert.Equal(patchedSnapshot, rom.Data);
+            }
+            finally
+            {
+                CoreState.ROM = null;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        // Test B: a 2-record backup where record1 is valid and record2 EXCEEDS the
+        // ROM size. Uninstall fails (message mentions "exceeds ROM size"), but
+        // record1's restore was already written AND recorded into undoData so a
+        // Rollback restores byte-identity to the pre-uninstall (patched) state. The
+        // backup file is NOT deleted on failure.
+        [Fact]
+        public void UninstallPatch_PartialFailure_RecordsRestoredRegionAndKeepsBackup()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchUninstallPartial_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                // PATCHED ROM (small): 0x10 bytes. record1 restores 0x00..0x01;
+                // record2 names addr 0x100 (way beyond the 0x10-byte ROM) -> fails.
+                byte[] romData = new byte[0x10];
+                romData[0x00] = 0xAA; romData[0x01] = 0xBB; // current (patched) bytes
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+                CoreState.ROM = rom;
+
+                byte[] patchedSnapshot = (byte[])rom.Data.Clone();
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllText(patchFile, "TYPE=BIN");
+
+                // Hand-craft a 2-record backup file (format: 0xADDRESS:LENGTH:HH HH ...).
+                // record1 -> restore 0x00 to ORIGINAL bytes 11 22 (valid).
+                // record2 -> addr 0x100, 2 bytes -> exceeds 0x10-byte ROM (fails validation).
+                string backupPath = PatchMetadataCore.GetBackupFilePath(patchFile);
+                File.WriteAllLines(backupPath, new[]
+                {
+                    "0x0:2:11 22",
+                    "0x100:2:33 44",
+                });
+
+                var undo = new Undo();
+                var undoData = undo.NewUndoData("PatchUninstall", "Partial");
+
+                var result = PatchMetadataCore.UninstallPatch(rom, patchFile, undoData);
+
+                // Fails on the over-size record2.
+                Assert.False(result.Success);
+                Assert.Contains("exceeds ROM size", result.Message);
+
+                // record1 WAS written (ROM partly mutated) ...
+                Assert.Equal(0x11u, rom.u8(0x0));
+                Assert.Equal(0x22u, rom.u8(0x1));
+                // ... and recorded into undoData (capturing the patched bytes 0xAA 0xBB).
+                Assert.NotEmpty(undoData.list);
+                Assert.Contains(undoData.list, p => p.addr == 0x0);
+                var rec = undoData.list.First(p => p.addr == 0x0);
+                Assert.Equal(new byte[] { 0xAA, 0xBB }, rec.data);
+
+                // Backup file is NOT deleted on failure.
+                Assert.True(File.Exists(backupPath));
+
+                // Rolling the recorded partial mutation forward restores byte-identity
+                // to the pre-uninstall (patched) state.
+                undo.Push(undoData);
+                undo.RunUndo();
+                Assert.Equal(patchedSnapshot, rom.Data);
+            }
+            finally
+            {
+                CoreState.ROM = null;
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        // Test C: the parameterless overload still succeeds, restores bytes, and does
+        // not throw (back-compat) — it delegates to the undoData=null path.
+        [Fact]
+        public void UninstallPatch_ParameterlessOverload_StillRestoresBytes()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchUninstallNoUndo_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                byte[] romData = new byte[0x1000];
+                romData[0x200] = 0x11; romData[0x201] = 0x22; romData[0x202] = 0x33; romData[0x203] = 0x44;
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                byte[] binData = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD };
+                File.WriteAllBytes(Path.Combine(tempDir, "test.bin"), binData);
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=BIN",
+                    "BIN:0x200=test.bin",
+                    "PATCHED_IF:0x200=0xAA 0xBB 0xCC 0xDD",
+                });
+
+                Assert.True(PatchMetadataCore.ApplyPatch(rom, patchFile).Success);
+                Assert.Equal(0xAAu, rom.u8(0x200));
+
+                var result = PatchMetadataCore.UninstallPatch(rom, patchFile);
+                Assert.True(result.Success);
+                Assert.Contains("restored", result.Message);
+
+                // Original bytes restored.
+                Assert.Equal(0x11u, rom.u8(0x200));
+                Assert.Equal(0x22u, rom.u8(0x201));
+                Assert.Equal(0x33u, rom.u8(0x202));
+                Assert.Equal(0x44u, rom.u8(0x203));
+
+                // Backup deleted on success.
+                Assert.False(PatchMetadataCore.HasBackup(patchFile));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
         [Fact]
         public void ParsePatchFile_NoDeps_ZeroCounts()
         {
