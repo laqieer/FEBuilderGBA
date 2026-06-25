@@ -23,7 +23,7 @@
     <Border DockPanel.Dock="Bottom" BorderBrush="Gray" BorderThickness="1" Padding="7,6" Margin="0,6,0,0">
       <TextBlock AutomationProperties.AutomationId="EventUnitColor_Friendly_Label" Name="FriendlyLabel"
                  Text="{Binding FriendlyText}" TextWrapping="Wrap"
-                 Foreground="#508CC8" FontSize="12" />
+                 Foreground="{DynamicResource SectionHeadingBrush}" FontSize="12" />
     </Border>
 
     <!-- Main panel: four slot combos (Player / Enemy / NPC / Fourth) -->
