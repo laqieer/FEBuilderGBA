@@ -275,6 +275,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // ----------------------------------------------------------------
         void BeforeNewAlloc_Click(object? sender, RoutedEventArgs e)
         {
+            // NewAlloc just OPENS the editor (no immediate navigate/disassemble), so it must
+            // NOT stage an event kind — a staged-but-not-consumed kind would leak into a
+            // later manual disassemble of a normal script (#1510). The user picks an address
+            // and disassembles manually, which uses the chapter-event default.
             WindowManager.Instance.Open<EventScriptView>();
         }
 
@@ -291,19 +295,28 @@ namespace FEBuilderGBA.Avalonia.Views
         void JumpToOpening_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(OpeningEventBox.Value ?? 0);
-            WindowManager.Instance.Navigate<EventScriptView>(addr);
+            // World-map event — flag the editor BEFORE NavigateTo runs the disassemble so
+            // the termination scan + Write-All terminator use the world-map rules (#1510
+            // review finding #2). Open + NavigateTo manually rather than one-shot Navigate<T>.
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            view.NavigateTo(addr);
         }
 
         void JumpToEnding1_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(Ending1EventBox.Value ?? 0);
-            WindowManager.Instance.Navigate<EventScriptView>(addr);
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            view.NavigateTo(addr);
         }
 
         void JumpToEnding2_Click(object? sender, RoutedEventArgs e)
         {
             uint addr = (uint)(Ending2EventBox.Value ?? 0);
-            WindowManager.Instance.Navigate<EventScriptView>(addr);
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            view.NavigateTo(addr);
         }
 
         void JumpToWorldMapPath_Click(object? sender, RoutedEventArgs e)
