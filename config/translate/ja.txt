@@ -12216,3 +12216,30 @@ FE-Repoの立ち絵リポジトリフォルダからインポート
 
 :Import a 16x16 skill icon from the FE-Repo Skill Icons folder.
 FE-Repoのスキルアイコンフォルダから16x16のスキルアイコンをインポート。
+
+:Command Array:
+コマンド配列:
+
+:Text ID 0:
+テキストID 0:
+
+:Text ID 1:
+テキストID 1:
+
+:Text ID 2:
+テキストID 2:
+
+:Text ID 3:
+テキストID 3:
+
+:Text ID 4:
+テキストID 4:
+
+:Text ID 5:
+テキストID 5:
+
+:Text ID 6:
+テキストID 6:
+
+:Text ID 7:
+テキストID 7:
