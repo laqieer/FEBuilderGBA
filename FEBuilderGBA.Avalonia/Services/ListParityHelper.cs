@@ -438,7 +438,6 @@ namespace FEBuilderGBA.Avalonia.Services
             "SkillAssignmentUnitFE8NView",
             "SkillConfigFE8NSkillView", "SkillConfigFE8NVer2SkillView",
             "SkillConfigFE8NVer3SkillView", "SkillConfigFE8UCSkillSys09xView",
-            "SkillSystemsEffectivenessReworkClassTypeView",
             // FE8 SkillSystems spell-menu (Gaiden-style spell list) — patch-dependent;
             // empty on vanilla FE8U until the FE8SpellMenu patch is installed (#1167).
             "FE8SpellMenuExtendsView",

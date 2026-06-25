@@ -255,7 +255,6 @@ namespace FEBuilderGBA
                 ("SkillConfigFE8NVer2SkillView", () => new SkillConfigFE8NVer2SkillForm()),
                 ("SkillConfigFE8NVer3SkillView", () => new SkillConfigFE8NVer3SkillForm()),
                 ("SkillConfigFE8UCSkillSys09xView", () => new SkillConfigCSkillSystem09xForm()),
-                ("SkillSystemsEffectivenessReworkClassTypeView", () => new SkillSystemsEffectivenessReworkClassTypeForm()),
 
                 // Song/Audio Dialogs
                 ("ToolBGMMuteDialogView", () => new ToolBGMMuteDialogForm()),
