@@ -144,22 +144,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                // Get world map event address from the stageclear pointer table
-                uint wmapEventPtr = rom.RomInfo.worldmap_event_on_stageclear_pointer;
-                if (wmapEventPtr == 0)
-                {
-                    _vm.StatusText = "World map events not available for this ROM version.";
-                    return;
-                }
-
-                uint tableBase = rom.p32(wmapEventPtr);
-                if (!U.isSafetyOffset(tableBase))
-                {
-                    _vm.StatusText = "World map event table not found.";
-                    return;
-                }
-
-                uint addr = rom.p32(tableBase + (uint)(mapIndex * 4));
+                // Resolve the world map event address, branching by ROM version.
+                // FE8 indexes the stageclear pointer table directly; FE7 reads the
+                // per-map world-map PLIST byte and indexes the stageselect table;
+                // FE6 resolves the FE6-only WORLDMAP PLIST. (issue #1420 — the old
+                // code only read the FE8 stageclear pointer, which is 0x0 on FE6/FE7.)
+                uint addr = WorldMapEventResolverCore.GetEventByMapID(rom, (uint)mapIndex, isSelect: false);
                 if (!U.isSafetyOffset(addr) || addr == U.NOT_FOUND)
                 {
                     _vm.StatusText = "No world map event found for this map.";
@@ -207,22 +197,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                // FE8 uses stageselect pointer for the second world map event table
-                uint wmapSelectPtr = rom.RomInfo.worldmap_event_on_stageselect_pointer;
-                if (wmapSelectPtr == 0)
-                {
-                    _vm.StatusText = "World map events (selected) not available.";
-                    return;
-                }
-
-                uint tableBase = rom.p32(wmapSelectPtr);
-                if (!U.isSafetyOffset(tableBase))
-                {
-                    _vm.StatusText = "World map event select table not found.";
-                    return;
-                }
-
-                uint addr = rom.p32(tableBase + (uint)(mapIndex * 4));
+                // FE8 uses the stageselect pointer for the second (selected) world
+                // map event table. The resolver reads the per-map world-map PLIST
+                // byte and indexes the stageselect table (matching the WinForms
+                // WorldMapEventPointerForm.GetEventByMapID(mapid, isBefore:true)).
+                uint addr = WorldMapEventResolverCore.GetEventByMapID(rom, (uint)mapIndex, isSelect: true);
                 if (!U.isSafetyOffset(addr) || addr == U.NOT_FOUND)
                 {
                     _vm.StatusText = "No selected world map event found.";
