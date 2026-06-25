@@ -1,21 +1,48 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.CStringView"
-        Title="C-String Editor" Width="387" Height="206"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="CString_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        x:DataType="vm:CStringViewModel"
+        Title="C-String Editor" Width="520" Height="320"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="4">
+    <StackPanel Spacing="8" Margin="8">
+      <TextBlock Text="C-String Editor" FontSize="18" FontWeight="Bold" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="C-String Editor" FontSize="18" FontWeight="Bold" />
+      <!-- Manual address input + Reload. The editor is a pointer-bound sub-editor
+           with no enumerable list; you load a C-string by its address (or arrive
+           here from a CSTRING/TEXT field jump that supplies one). -->
+      <!-- Avalonia's NumericUpDown FormatString throws FormatException on hex
+           ("X*") specifiers over its decimal value, so the address box is decimal;
+           the AddrLabel below echoes the loaded address in hex. -->
+      <Grid ColumnDefinitions="160,160,Auto" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="CString_ReadStart_Input"
+                       Grid.Column="1" Name="ReadStartBox"
+                       FormatString="0" Minimum="0" Maximum="33554432" Margin="0,2" />
+        <Button AutomationProperties.AutomationId="CString_Reload_Button"
+                Grid.Column="2" Name="ReloadButton" Content="Reload" Margin="8,2,0,2" />
+      </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="CString_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="Loaded Address:" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="CString_Addr_Label" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      </Grid>
+
+      <TextBlock Text="The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed."
+                 TextWrapping="Wrap" Foreground="Gray" Margin="0,4,0,0" />
+
+      <TextBox AutomationProperties.AutomationId="CString_Text_Input"
+               Name="StringBox"
+               AcceptsReturn="True" TextWrapping="Wrap"
+               MinHeight="80" MaxHeight="160"
+               Text="{Binding Text, Mode=TwoWay}" />
+
+      <TextBlock AutomationProperties.AutomationId="CString_Status_Label"
+                 Name="StatusLabel" Text="{Binding Status}" Foreground="DarkSlateGray"
+                 TextWrapping="Wrap" Margin="0,4" />
+
+      <Button AutomationProperties.AutomationId="CString_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
