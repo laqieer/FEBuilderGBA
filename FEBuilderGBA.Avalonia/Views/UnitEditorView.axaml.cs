@@ -727,7 +727,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     case PatchDetectionService.SkillSystemType.FE8N_Ver3:
                     case PatchDetectionService.SkillSystemType.Yugudora:
                     case PatchDetectionService.SkillSystemType.Midori:
-                        WindowManager.Instance.Open<SkillAssignmentUnitFE8NView>();
+                        // #1452: the FE8N view edits the OPEN unit's skill bytes
+                        // (B39/B40/B41) directly, so pass the current unit address
+                        // via Navigate (Open<T>() alone never loads an address →
+                        // the view stays inert with a false "no patch" warning).
+                        var fe8nView = WindowManager.Instance.Navigate<SkillAssignmentUnitFE8NView>(_vm.CurrentAddr);
+                        // The FE8N view writes B39/B40/B41 directly to ROM, but the
+                        // parent Unit Editor still holds a stale copy of those bytes
+                        // (Unk39 + ability bytes 0x28/0x29). Re-sync the parent when
+                        // the child closes so a later parent Write doesn't clobber
+                        // the skill edit.
+                        if (fe8nView != null)
+                        {
+                            fe8nView.Closed -= OnSkillEditorClosed;
+                            fe8nView.Closed += OnSkillEditorClosed;
+                        }
                         break;
                     default:
                         break;
@@ -735,7 +749,44 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EditSkills_Click failed: {0}", ex.Message);
+                Log.Error("EditSkills_Click failed: " + ex);
+            }
+        }
+
+        // #1452: re-sync the parent Unit Editor's in-memory skill bytes after the
+        // FE8N skill editor closes, so the next parent Write preserves the edit.
+        // Refresh ONLY the three bytes the child editor owns (Unk39 @0x27,
+        // Ability1 @0x28, Ability2 @0x29) from ROM — a full LoadUnit/UpdateUI
+        // would discard any UNSAVED parent edits (Level/Name/Class/...) made
+        // before opening the skill editor.
+        void OnSkillEditorClosed(object? sender, EventArgs e)
+        {
+            if (sender is global::Avalonia.Controls.Window w)
+                w.Closed -= OnSkillEditorClosed;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null || _vm.CurrentAddr == 0) return;
+                uint addr = _vm.CurrentAddr;
+                if (addr + 42 > (uint)rom.Data.Length) return;
+
+                bool prev = _vm.IsLoading;
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.Unk39 = rom.u8(addr + 39);
+                    _vm.Ability1 = rom.u8(addr + 40);
+                    _vm.Ability2 = rom.u8(addr + 41);
+                    // Push just those three controls (mirrors UpdateUI's skill rows).
+                    Unk39Box.Value = _vm.Unk39;
+                    Ability1Flags.Value = (byte)_vm.Ability1;
+                    Ability2Flags.Value = (byte)_vm.Ability2;
+                }
+                finally { _vm.IsLoading = prev; }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OnSkillEditorClosed reload failed: " + ex);
             }
         }
 
