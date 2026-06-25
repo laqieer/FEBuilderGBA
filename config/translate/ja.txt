@@ -12377,6 +12377,31 @@ LOWコマンドを表示
 :Select a command from the list first.
 最初にリストからコマンドを選択してください。
 
+:Channel:
+チャンネル:
+
+:Compress with DPCM
+DPCMで圧縮
+
+:Conversion (sox resample / normalize)
+変換 (soxでリサンプル / 正規化)
+
+:Lookahead:
+先読み:
+
+:Sample rate (Hz):
+サンプリングレート (Hz):
+
+:Strip silence:
+無音の除去:
+
+:Volume (%):
+音量 (%):
+
+
+:DPCM圧縮
+DPCM圧縮
+
 :The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
 上記アドレスにあるNUL終端文字列です。編集して書き込むと、文字列 + 末尾の 0x00 をエンコードします。その場に収まらなくなった場合は空き領域へ再配置し、すべての参照 (および参照元ポインタ) を張り替えます。
 
