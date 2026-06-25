@@ -61,17 +61,21 @@ namespace FEBuilderGBA
             if (customBattleId == 0) return string.Empty;
             if (rom?.RomInfo == null || rom.RomInfo.version != 7) return string.Empty;
 
-            uint unitPtr = rom.RomInfo.unit_pointer;
+            // unit_pointer is a POINTER FIELD — dereference it to the table base (matches
+            // WinForms InputFormRef.Init: BaseAddress = p32(BasePointer)). Reading unit_pointer
+            // directly as the base reads unrelated ROM bytes.
+            uint baseAddr = DerefPointer(rom, rom.RomInfo.unit_pointer);
             uint dataSize = rom.RomInfo.unit_datasize;
-            if (unitPtr == 0 || dataSize == 0) return string.Empty;
-            if (!U.isSafetyOffset(unitPtr, rom)) return string.Empty;
+            uint maxCount = rom.RomInfo.unit_maxcount;
+            if (baseAddr == 0 || dataSize == 0) return string.Empty;
 
-            uint cursor = unitPtr;
-            for (int i = 0; i < 0x1000; i++, cursor += dataSize)
+            // Iterate the fixed FE7 unit count (unit_maxcount), NOT an id-0 terminator — the
+            // WinForms unit IFR enumerates a bounded DataCount, not a NUL-terminated run.
+            uint limit = maxCount > 0 ? maxCount : 0x100;
+            uint cursor = baseAddr;
+            for (uint i = 0; i < limit; i++, cursor += dataSize)
             {
                 if (cursor + dataSize > (uint)rom.Data.Length) break;
-                // WinForms iterates InputFormRef.DataCount; the id-0 unit ends the table.
-                if (rom.u16(cursor) == 0) break;
 
                 if (customBattleId == rom.u8(cursor + 37))
                     return GetTextById(rom.u16(cursor)) + " " + R._("下級職");

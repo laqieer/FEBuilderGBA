@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -55,13 +56,23 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _classList = _vm.LoadPointerTable();
                 ClassList.SetItems(_classList);
-                StatusLabel.Text = $"{_classList.Count} class(es) with custom battle animations.";
+                SetStatus($"{_classList.Count} class(es) with custom battle animations.", success: false);
             }
             catch (Exception ex)
             {
-                Log.Error("UnitCustomBattleAnimeView.LoadClassList failed: {0}", ex.Message);
-                StatusLabel.Text = $"Failed to load: {ex.Message}";
+                Log.Error("UnitCustomBattleAnimeView.LoadClassList failed: " + ex.ToString());
+                SetStatus($"Failed to load: {ex.Message}", success: false, error: true);
             }
+        }
+
+        /// <summary>Set the status text with a colour appropriate to the message kind so a
+        /// failure never renders in the success colour (Copilot PR #1470 review).</summary>
+        void SetStatus(string text, bool success, bool error = false)
+        {
+            StatusLabel.Text = text;
+            StatusLabel.Foreground = error
+                ? Brushes.IndianRed
+                : (success ? Brushes.DarkGreen : Brushes.Gray);
         }
 
         void OnClassSelected(uint slotAddr)
@@ -94,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitCustomBattleAnimeView.OnClassSelected failed: {0}", ex.Message);
+                Log.Error("UnitCustomBattleAnimeView.OnClassSelected failed: " + ex.ToString());
             }
         }
 
@@ -125,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitCustomBattleAnimeView.OnEntrySelected failed: {0}", ex.Message);
+                Log.Error("UnitCustomBattleAnimeView.OnEntrySelected failed: " + ex.ToString());
             }
         }
 
@@ -141,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded)
             {
-                StatusLabel.Text = "Select a weapon animation record first.";
+                SetStatus("Select a weapon animation record first.", success: false);
                 return;
             }
 
@@ -155,14 +166,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteEntry();
                 _undoService.Commit();
                 _vm.MarkClean();
-                StatusLabel.Text = "Custom battle animation data written.";
+                SetStatus("Custom battle animation data written.", success: true);
                 CoreState.Services?.ShowInfo("Custom battle animation data written.");
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
-                StatusLabel.Text = $"Write failed: {ex.Message}";
+                Log.Error("UnitCustomBattleAnimeView.Write failed: " + ex.ToString());
+                SetStatus($"Write failed: {ex.Message}", success: false, error: true);
             }
         }
 

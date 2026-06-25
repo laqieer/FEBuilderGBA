@@ -52,7 +52,7 @@
         </StackPanel>
 
         <TextBlock AutomationProperties.AutomationId="UnitCustomBattleAnime_Status_Label"
-                   Name="StatusLabel" Margin="0,12,0,0" Foreground="DarkGreen" />
+                   Name="StatusLabel" Margin="0,12,0,0" Foreground="Gray" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

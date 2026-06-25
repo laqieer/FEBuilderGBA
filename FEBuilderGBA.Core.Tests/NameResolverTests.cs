@@ -6,6 +6,80 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class NameResolverTests
     {
+        // ============================================================
+        // GetCustomBattleAnimeName — #1412 FE7 custom-battle-anime label
+        // ============================================================
+
+        static void W32(byte[] d, uint o, uint v)
+        {
+            d[o + 0] = (byte)(v & 0xFF); d[o + 1] = (byte)((v >> 8) & 0xFF);
+            d[o + 2] = (byte)((v >> 16) & 0xFF); d[o + 3] = (byte)((v >> 24) & 0xFF);
+        }
+        static void W16(byte[] d, uint o, ushort v) { d[o + 0] = (byte)(v & 0xFF); d[o + 1] = (byte)((v >> 8) & 0xFF); }
+
+        [Fact]
+        public void GetCustomBattleAnimeName_FE7_DerefsUnitPointer_ReturnsLowerUpperLabel()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("synth.gba", new byte[0x1000000], "AE7J01");
+                CoreState.ROM = rom;
+                NameResolver.ClearCache();
+                var d = rom.Data;
+                var info = rom.RomInfo;
+
+                // unit_pointer is a POINTER FIELD — plant a pointer to a unit table base, and put
+                // GARBAGE at the pointer slot region so the OLD (no-deref) code would read nonsense.
+                const uint unitBase = 0x300000;
+                W32(d, info.unit_pointer, 0x08000000u | unitBase);
+
+                uint ds = info.unit_datasize; // 52 for FE7
+                // Unit 0: text id 1, lower-class custom-anime id (+37) = 0x05.
+                W16(d, unitBase + 0 * ds, 0x0001);
+                d[unitBase + 0 * ds + 37] = 0x05;
+                d[unitBase + 0 * ds + 38] = 0x00;
+                // Unit 1: text id 2, upper-class custom-anime id (+38) = 0x06.
+                W16(d, unitBase + 1 * ds, 0x0002);
+                d[unitBase + 1 * ds + 37] = 0x00;
+                d[unitBase + 1 * ds + 38] = 0x06;
+
+                // id 0x05 → unit 0's lower-class label (text 1 + 下級職 marker).
+                string lower = NameResolver.GetCustomBattleAnimeName(rom, 0x05);
+                Assert.Contains(R._("下級職"), lower);
+                Assert.Equal(NameResolver.GetTextById(1) + " " + R._("下級職"), lower);
+
+                // id 0x06 → unit 1's upper-class label (text 2 + 上級職 marker).
+                string upper = NameResolver.GetCustomBattleAnimeName(rom, 0x06);
+                Assert.Contains(R._("上級職"), upper);
+                Assert.Equal(NameResolver.GetTextById(2) + " " + R._("上級職"), upper);
+
+                // No owner → empty (not garbage from the pointer-slot region the old bug read).
+                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(rom, 0x77));
+                // id 0 → empty.
+                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(rom, 0));
+            }
+            finally { CoreState.ROM = saved; NameResolver.ClearCache(); }
+        }
+
+        [Fact]
+        public void GetCustomBattleAnimeName_NonFE7_ReturnsEmpty()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("fe8.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+                NameResolver.ClearCache();
+                // version != 7 → empty, no throw (FE6/FE8 short-circuit).
+                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(rom, 0x05));
+                Assert.Equal("", NameResolver.GetCustomBattleAnimeName(null, 0x05));
+            }
+            finally { CoreState.ROM = saved; NameResolver.ClearCache(); }
+        }
+
         [Fact]
         public void GetTextById_ZeroReturnsEmpty()
         {
