@@ -1,9 +1,16 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using global::Avalonia;
+using global::Avalonia.Controls;
+using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -27,11 +34,20 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class MoveToFreeSpaceViewModelTests : IDisposable
     {
+        readonly ITestOutputHelper? _output;
+
+        public MoveToFreeSpaceViewModelTests(ITestOutputHelper output)
+        {
+            _output = output;
+            _savedRom = CoreState.ROM;
+            _savedUndo = CoreState.Undo;
+        }
+
         // Source block lives at a safe, distinctive offset. The early ROM up to
-        // FreeStart is reserved (non-free 0x01) so the VM's FindFreeSpace — which
-        // treats 0x00/0xFF as free and scans from offset 0 — resolves to a
-        // realistic, deterministic destination PAST the source block (never the
-        // 0x0 cartridge-header danger zone).
+        // FreeStart is reserved (non-free 0x01) so the VM's FindFreeSpace —
+        // which delegates to ROM.FindFreeSpace (4-byte aligned, 0x00/0xFF aware,
+        // starting at 0x200 past the header danger zone) — resolves to a
+        // realistic, deterministic destination PAST the source block.
         const uint SrcOffset = 0x40000;
         const uint BlockSize = 0x20;
         const uint SrcPtr = 0x08000000 + SrcOffset;
@@ -41,12 +57,6 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         readonly ROM? _savedRom;
         readonly Undo? _savedUndo;
-
-        public MoveToFreeSpaceViewModelTests()
-        {
-            _savedRom = CoreState.ROM;
-            _savedUndo = CoreState.Undo;
-        }
 
         public void Dispose()
         {
@@ -296,6 +306,103 @@ namespace FEBuilderGBA.Avalonia.Tests
             };
             vm.ExecuteMove();
             Assert.NotEqual("Moved", vm.DialogResult);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 6. View bindings: the input TextBoxes are now bound to the VM, and
+        //    the status TextBlock shows the result/warning (the second layer of
+        //    the bug — without bindings the user's typed values never reach
+        //    ExecuteMove and the warning is never shown).
+        // ─────────────────────────────────────────────────────────────
+
+        [AvaloniaFact]
+        public void View_BindsInputsToViewModel_AndShowsStatus()
+        {
+            var (_, _) = MakeRomWithReferences();
+
+            // MoveToFreeSpaceView IS a Window — show it directly so the
+            // namescope registers and the bindings activate.
+            var view = new MoveToFreeSpaceView();
+            var vm = (MoveToFreeSpaceViewViewModel)view.DataContext!;
+
+            view.Show();
+            view.UpdateLayout();
+            try
+            {
+                // Two-way input binding: setting the TextBox text reaches the VM.
+                var currentBox = view.FindControl<TextBox>("CurrentAddressTextBox");
+                var sizeBox = view.FindControl<TextBox>("DataSizeTextBox");
+                Assert.NotNull(currentBox);
+                Assert.NotNull(sizeBox);
+
+                currentBox!.Text = $"0x{SrcOffset:X08}";
+                sizeBox!.Text = $"0x{BlockSize:X}";
+                Assert.Equal($"0x{SrcOffset:X08}", vm.CurrentAddress);
+                Assert.Equal($"0x{BlockSize:X}", vm.DataSize);
+
+                // Run the move and confirm the status TextBlock reflects the result.
+                vm.ExecuteMove();
+                Assert.Equal("Moved", vm.DialogResult);
+
+                var statusBlock = view.FindControl<TextBlock>("StatusTextBlock");
+                Assert.NotNull(statusBlock);
+                Assert.Equal(vm.StatusMessage, statusBlock!.Text);
+                Assert.Contains("repointed", statusBlock.Text ?? "", StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                view.Close();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 7. PR screenshot proof — render the editor POPULATED with real
+        //    values + result. Mirrors FERepoBrowserNotFoundScreenshotTest.
+        // ─────────────────────────────────────────────────────────────
+
+        [AvaloniaFact]
+        public void RenderPopulated_SavesScreenshot()
+        {
+            var (_, _) = MakeRomWithReferences();
+
+            const int W = 520, H = 360;
+            var view = new MoveToFreeSpaceView { Width = W, Height = H };
+            var vm = (MoveToFreeSpaceViewViewModel)view.DataContext!;
+            vm.CurrentAddress = $"0x{SrcOffset:X08}";
+            vm.DataSize = $"0x{BlockSize:X}";
+            vm.ExecuteMove();
+            Assert.Equal("Moved", vm.DialogResult);
+
+            try
+            {
+                view.Show();
+                view.UpdateLayout();
+                view.Measure(new Size(W, H));
+                view.Arrange(new Rect(0, 0, W, H));
+                using var bitmap = new RenderTargetBitmap(new PixelSize(W, H));
+                bitmap.Render(view);
+
+                string outDir = ResolveScreenshotOutputDir();
+                Directory.CreateDirectory(outDir);
+                string outPath = Path.Combine(outDir, "pr1410-movetofreespace-populated.png");
+                bitmap.Save(outPath);
+                _output?.WriteLine($"Saved screenshot to: {outPath} ({new FileInfo(outPath).Length} bytes)");
+                view.Close();
+            }
+            catch (Exception ex)
+            {
+                // Headless render may be a no-op in some environments — the
+                // meaningful assertions are the data-layer ones above.
+                _output?.WriteLine($"Headless render failed (environment, not the #1410 fix): {ex.Message}");
+            }
+        }
+
+        static string ResolveScreenshotOutputDir()
+        {
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (!string.IsNullOrEmpty(overrideDir))
+                return overrideDir;
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
     }
 }

@@ -15,12 +15,15 @@
         <TextBlock Text="This tool relocates data to free ROM space." TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,8" />
         <Grid RowDefinitions="Auto,8,Auto,8,Auto" ColumnDefinitions="Auto,8,*">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Current Address:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_CurrentAddressText_Input" Grid.Row="0" Grid.Column="2" Name="CurrentAddressTextBox" Watermark="e.g. 0x08000000" />
+          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_CurrentAddressText_Input" Grid.Row="0" Grid.Column="2" Name="CurrentAddressTextBox" Watermark="e.g. 0x08000000" Text="{Binding CurrentAddress, Mode=TwoWay}" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Free Space Address:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_FreeSpaceAddressText_Input" Grid.Row="2" Grid.Column="2" Name="FreeSpaceAddressTextBox" Watermark="e.g. 0x08F00000" />
+          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_FreeSpaceAddressText_Input" Grid.Row="2" Grid.Column="2" Name="FreeSpaceAddressTextBox" Watermark="e.g. 0x08F00000" IsReadOnly="True" Text="{Binding FreeSpaceAddress}" />
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Data Size:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_DataSizeText_Input" Grid.Row="4" Grid.Column="2" Name="DataSizeTextBox" Watermark="e.g. 0x100" />
+          <TextBox AutomationProperties.AutomationId="MoveToFreeSpace_DataSizeText_Input" Grid.Row="4" Grid.Column="2" Name="DataSizeTextBox" Watermark="e.g. 0x100" Text="{Binding DataSize, Mode=TwoWay}" />
         </Grid>
+        <TextBlock AutomationProperties.AutomationId="MoveToFreeSpace_Status_Text"
+                   Name="StatusTextBlock"
+                   Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </DockPanel>

@@ -31,28 +31,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Scan the ROM for a contiguous block of free space (0xFF or 0x00 bytes).
+        /// Smallest free-space search start. Skips the 0x0–0x1FF cartridge-header
+        /// danger zone (matches <see cref="U.isSafetyOffset(uint, ROM)"/>'s 0x200
+        /// floor and WinForms' allocation behavior).
+        /// </summary>
+        const uint FreeSpaceSearchStart = 0x200;
+
+        /// <summary>
+        /// Scan the ROM for a contiguous block of free space (0x00 or 0xFF bytes).
         /// Returns the start address of the block, or null if not found.
+        ///
+        /// <para>Delegates to <see cref="ROM.FindFreeSpace(uint, uint)"/> so the
+        /// result is 4-byte aligned (<c>U.Padding4</c>) and starts past the header
+        /// danger zone — critical now that <see cref="ExecuteMove"/> repoints
+        /// pointers to this destination (a misaligned/unsafe offset would write
+        /// misaligned pointers). Mirrors WinForms <c>MoveToFreeSapceForm</c>, which
+        /// allocates via <c>ROM.FindFreeSpace</c>.</para>
         /// </summary>
         public uint? FindFreeSpace(uint requestedSize, byte fillByte = 0xFF)
         {
             var rom = CoreState.ROM;
             if (rom == null || requestedSize == 0) return null;
-            uint consecutive = 0;
-            for (uint i = 0; i < (uint)rom.Data.Length; i++)
-            {
-                if (rom.u8(i) == fillByte || rom.u8(i) == 0x00)
-                {
-                    consecutive++;
-                    if (consecutive >= requestedSize)
-                        return i - requestedSize + 1;
-                }
-                else
-                {
-                    consecutive = 0;
-                }
-            }
-            return null;
+            uint addr = rom.FindFreeSpace(FreeSpaceSearchStart, requestedSize);
+            if (addr == U.NOT_FOUND) return null;
+            return addr;
         }
 
         /// <summary>Parse a hex string (with optional 0x prefix) into a uint.</summary>
@@ -106,8 +108,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Copy data from source to destination
             if (srcAddr + size <= (uint)rom.Data.Length && dst + size <= (uint)rom.Data.Length)
             {
-                for (uint i = 0; i < size; i++)
-                    rom.write_u8(dst + i, rom.u8(srcAddr + i));
+                // Single range read + range write: records ONE undo position for
+                // the whole block (not one per byte) under the ambient scope,
+                // matching how Core table-move code records undo ranges.
+                byte[] block = rom.getBinaryData(srcAddr, size);
+                rom.write_range(dst, block);
 
                 // Repoint every reference to the moved block BEFORE the
                 // destructive source clear. Mirrors WinForms
@@ -144,8 +149,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
 
                 // References were repointed — now it is safe to clear the source.
-                for (uint i = 0; i < size; i++)
-                    rom.write_u8(srcAddr + i, 0xFF);
+                // write_fill records ONE undo range (not one position per byte).
+                rom.write_fill(srcAddr, size, 0xFF);
 
                 // Relocate per-row lint/comment cache keys so they follow the
                 // moved block. Mirrors WF MoveToFreeSapceForm.RepointEtcData.
