@@ -351,10 +351,17 @@ public class SoundRoomListExpandTests
             InvokeVoid(view, "LoadList");
             Assert.Equal(12, entryList!.ItemCount);
 
+            // Select a NON-first row (index 5) so a fall-back-to-row-0 reselect
+            // would be detectable. Capture its TAG (row index) — the stable id
+            // that survives table relocation — NOT its addr.
+            Assert.True(entryList.SelectByTag(5u));
+            uint selectedTag = entryList.SelectedItem?.tag ?? 0;
+            uint preAddr = entryList.SelectedItem?.addr ?? 0;
+            Assert.Equal(5u, selectedTag);
+
             // Run the post-prompt portion of ListExpand_Click (the dialog itself is
             // covered by NumberInputDialog's own tests; here we exercise the VM
             // expand + control reload the handler performs once the user confirms).
-            uint selectedAddr = entryList.SelectedItem?.addr ?? 0;
             var vm = GetVm(view);
             CoreState.Undo = new Undo();
             var undodata = CoreState.Undo.NewUndoData("view expand");
@@ -366,8 +373,19 @@ public class SoundRoomListExpandTests
             CoreState.Undo.Push(undodata);
             Assert.Equal("", err);
 
-            entryList.SetItemsPreserveSelection(vm.LoadSoundRoomList(), selectedAddr);
+            // Reload + re-select by tag (the relocation changed every addr, so an
+            // addr-based reselect would silently fall back to row 0).
+            var items = vm.LoadSoundRoomList();
+            entryList.SetItems(items);
+            entryList.SelectByTag(selectedTag);
             Assert.Equal(16, entryList.ItemCount);
+
+            // Selection is genuinely PRESERVED at the same logical row (tag 5),
+            // and at a DIFFERENT (relocated) address than before — proving the
+            // tag-based reselect works where an addr-based one would not.
+            Assert.NotNull(entryList.SelectedItem);
+            Assert.Equal(5u, entryList.SelectedItem!.tag);
+            Assert.NotEqual(preAddr, entryList.SelectedItem!.addr);
         }
         finally
         {

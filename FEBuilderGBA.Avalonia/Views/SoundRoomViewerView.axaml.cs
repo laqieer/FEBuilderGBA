@@ -96,7 +96,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                uint selectedAddr = EntryList.SelectedItem?.addr ?? 0;
+                // Capture the selected row's TAG (its 0-based index), NOT its
+                // addr: ExpandList relocates the table to a new base, so every
+                // row's addr changes. The tag (row index) is stable across the
+                // relocation, so SelectByTag after reload re-selects the same
+                // logical row (Copilot review on PR #1540).
+                var selectedItem = EntryList.SelectedItem;
+                bool hadSelection = selectedItem != null;
+                uint selectedTag = selectedItem?.tag ?? 0;
 
                 _undoService.Begin("Expand Sound Room List");
                 try
@@ -111,12 +118,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     _undoService.Commit();
                     _vm.MarkClean();
 
-                    // Reload, preserving the previous selection when possible.
+                    // Reload, preserving the previous selection by TAG (row index)
+                    // since the table relocated and addresses changed. SetItems
+                    // selects row 0 by default; re-select the original row by tag
+                    // when there was a prior selection (falls back to row 0 if the
+                    // tag no longer exists, which can't happen on a grow-only expand).
                     _vm.IsLoading = true;
                     try
                     {
                         var items = _vm.LoadSoundRoomList();
-                        EntryList.SetItemsPreserveSelection(items, selectedAddr);
+                        EntryList.SetItems(items);
+                        if (hadSelection)
+                            EntryList.SelectByTag(selectedTag);
                     }
                     finally
                     {
