@@ -4,12 +4,34 @@
         x:Class="FEBuilderGBA.Avalonia.Views.UnitCustomBattleAnimeView"
         Title="Custom Battle Animation" Width="1314" Height="521"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="UnitCustomBattleAnime_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!--
+    #1412: TWO-level pointer-table navigation mirroring WinForms UnitCustomBattleAnimeForm.
+      - Column 0: ClassList — the FE7 pointer TABLE (one u32 pointer per class)
+      - Column 1: EntryList — the inner weapon-anime records (4 bytes: B0/B1/W2) of the
+                  selected class, reached by a SECOND p32 dereference
+      - Column 2: Editor pane — per-record edit (writes ONLY inner records, never a table slot)
+  -->
+  <Grid ColumnDefinitions="280,250,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Column 0: pointer table (one entry per class) -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Class (pointer table)" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="UnitCustomBattleAnime_Class_List"
+                                   Name="ClassList" />
+    </DockPanel>
+
+    <!-- Column 1: inner weapon-anime records for the selected class -->
+    <DockPanel Grid.Column="1" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="Weapon Animations" FontWeight="Bold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="UnitCustomBattleAnime_Entry_List"
+                                   Name="EntryList" />
+    </DockPanel>
+
+    <ScrollViewer Grid.Column="2" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Custom Battle Animation" FontSize="18" FontWeight="Bold" />
+        <TextBlock AutomationProperties.AutomationId="UnitCustomBattleAnime_ClassName_Label"
+                   Name="ClassNameLabel" FontStyle="Italic" Foreground="Gray" />
 
         <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
@@ -28,6 +50,9 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
           <Button AutomationProperties.AutomationId="UnitCustomBattleAnime_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
+
+        <TextBlock AutomationProperties.AutomationId="UnitCustomBattleAnime_Status_Label"
+                   Name="StatusLabel" Margin="0,12,0,0" Foreground="DarkGreen" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
