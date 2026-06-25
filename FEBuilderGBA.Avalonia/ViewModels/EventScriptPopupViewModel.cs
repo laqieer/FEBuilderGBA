@@ -540,10 +540,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                     // Write the edited primary value to the primary arg AND to every alias arg
                     // sharing its Symbol (mirror WinForms WriteAliasScriptEditSetTables) so alias
-                    // byte-positions can never retain a stale value (#1422).
+                    // byte-positions can never retain a stale value (#1422). All writes stay
+                    // inside this UndoService scope.
                     foreach (var target in EventScriptAliasCore.EnumerateAliasWriteTargets(code, entry.SourceArgIndex))
                     {
-                        WriteArgValue(rom, cmdOffset, target, val);
+                        uint writeAddr = cmdOffset + (uint)target.Position;
+                        switch (target.Size)
+                        {
+                            case 1:
+                                rom.write_u8(writeAddr, val & 0xFF);
+                                break;
+                            case 2:
+                                rom.write_u16(writeAddr, val & 0xFFFF);
+                                break;
+                            case 3:
+                                // Write 3 bytes manually (no ROM.write_u24)
+                                rom.write_u8(writeAddr, val & 0xFF);
+                                rom.write_u8(writeAddr + 1, (val >> 8) & 0xFF);
+                                rom.write_u8(writeAddr + 2, (val >> 16) & 0xFF);
+                                break;
+                            default: // 4 bytes
+                                // Pointer args stored in GBA pointer form (mirror WinForms
+                                // WriteOneScriptEditSetTables); raw u32 otherwise.
+                                if (EventScript.IsPointerArgs(target.Type))
+                                    rom.write_p32(writeAddr, val);
+                                else
+                                    rom.write_u32(writeAddr, val);
+                                break;
+                        }
                     }
                 }
 
@@ -571,37 +595,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 undoService.Rollback();
                 StatusText = $"Error writing command: {ex.Message}";
                 return false;
-            }
-        }
-
-        /// <summary>
-        /// Serialize <paramref name="val"/> into the ROM at the command base + arg position,
-        /// mirroring WinForms <c>WriteOneScriptEditSetTables</c>: size-based, with pointer args
-        /// stored via <c>write_p32</c> (GBA pointer form) (#1422).
-        /// </summary>
-        static void WriteArgValue(ROM rom, uint cmdOffset, EventScript.Arg arg, uint val)
-        {
-            uint writeAddr = cmdOffset + (uint)arg.Position;
-            switch (arg.Size)
-            {
-                case 1:
-                    rom.write_u8(writeAddr, val & 0xFF);
-                    break;
-                case 2:
-                    rom.write_u16(writeAddr, val & 0xFFFF);
-                    break;
-                case 3:
-                    // Write 3 bytes manually (no ROM.write_u24)
-                    rom.write_u8(writeAddr, val & 0xFF);
-                    rom.write_u8(writeAddr + 1, (val >> 8) & 0xFF);
-                    rom.write_u8(writeAddr + 2, (val >> 16) & 0xFF);
-                    break;
-                default: // 4 bytes
-                    if (EventScript.IsPointerArgs(arg.Type))
-                        rom.write_p32(writeAddr, val); // pointer args stored in GBA pointer form
-                    else
-                        rom.write_u32(writeAddr, val);
-                    break;
             }
         }
 
