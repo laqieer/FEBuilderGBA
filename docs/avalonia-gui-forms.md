@@ -4,9 +4,9 @@ This document lists all GUI forms (views) in `FEBuilderGBA.Avalonia` that are
 accessible from `MainWindow` and tracks their E2E test coverage and visual
 alignment status against the WinForms GUI.
 
-**Total forms:** 325
-**E2E Covered:** 325 / 325
-**Field Aligned:** 325 / 325 (verified via AvaloniaFieldCompletenessTests — 0 gaps across 80 ROM-field forms)
+**Total forms:** 324
+**E2E Covered:** 324 / 324
+**Field Aligned:** 324 / 324 (verified via AvaloniaFieldCompletenessTests — 0 gaps across 80 ROM-field forms)
 
 E2E coverage is provided by `AvaloniaAllEditorsSmokeTests` which uses the
 `--smoke-test-all` flag to open and close every editor listed below.
@@ -412,30 +412,29 @@ Standalone usage docs for specific editors that need extra explanation:
 | 296 | SongTrackAllChangeTrackView | E2E COVERED | - | ALIGNED |
 | 297 | SongTrackChangeTrackView | E2E COVERED | - | ALIGNED |
 | 298 | SongTrackImportSelectInstrumentView | E2E COVERED | - | ALIGNED |
-| 299 | SongTrackImportWaveView | E2E COVERED | - | ALIGNED |
-| 300 | ToolInitWizardView | E2E COVERED | - | ALIGNED |
-| 301 | ToolUndoPopupDialogView | E2E COVERED | YES | ALIGNED |
-| 302 | ToolUpdateDialogView | E2E COVERED | - | ALIGNED |
-| 303 | VersionView | E2E COVERED | - | ALIGNED |
-| 304 | WelcomeView | E2E COVERED | YES | ALIGNED |
-| 305 | ToolAllWorkSupportView | E2E COVERED | - | ALIGNED |
-| 306 | ToolProblemReportView | E2E COVERED | - | ALIGNED |
-| 307 | WorldMapPathMoveEditorView | E2E COVERED | - | ALIGNED |
-| 308 | MantAnimationView | E2E COVERED | - | ALIGNED |
-| 309 | RAMRewriteToolView | E2E COVERED | - | ALIGNED |
-| 310 | MainSimpleMenuView | E2E COVERED | - | ALIGNED |
-| 311 | MainSimpleMenuEventErrorView | E2E COVERED | - | ALIGNED |
-| 312 | MainSimpleMenuImageSubView | E2E COVERED | - | ALIGNED |
-| 313 | ToolEmulatorSetupMessageView | E2E COVERED | - | ALIGNED |
-| 314 | ToolThreeMargeCloseAlertView | E2E COVERED | - | ALIGNED |
-| 315 | ToolClickWriteFloatControlPanelButtonView | E2E COVERED | - | ALIGNED |
-| 316 | ToolWorkSupport_UpdateQuestionDialogView | E2E COVERED | - | ALIGNED |
-| 317 | MainSimpleMenuEventErrorIgnoreErrorView | E2E COVERED | - | ALIGNED |
-| 318 | ToolProblemReportSearchBackupView | E2E COVERED | - | ALIGNED |
-| 319 | ToolProblemReportSearchSavView | E2E COVERED | - | ALIGNED |
-| 320 | ToolWorkSupportView | E2E COVERED | - | ALIGNED |
-| 321 | ToolWorkSupport_SelectUPSView | E2E COVERED | - | ALIGNED |
-| 322 | ToolDiffDebugSelectView | E2E COVERED | - | ALIGNED |
-| 323 | SMEPromoListView | E2E COVERED | - | ALIGNED |
-| 324 | ToolRunHintMessageView | E2E COVERED | - | ALIGNED |
-| 325 | ImageChapterTitleFE7View | E2E COVERED | YES | ALIGNED |
+| 299 | ToolInitWizardView | E2E COVERED | - | ALIGNED |
+| 300 | ToolUndoPopupDialogView | E2E COVERED | YES | ALIGNED |
+| 301 | ToolUpdateDialogView | E2E COVERED | - | ALIGNED |
+| 302 | VersionView | E2E COVERED | - | ALIGNED |
+| 303 | WelcomeView | E2E COVERED | YES | ALIGNED |
+| 304 | ToolAllWorkSupportView | E2E COVERED | - | ALIGNED |
+| 305 | ToolProblemReportView | E2E COVERED | - | ALIGNED |
+| 306 | WorldMapPathMoveEditorView | E2E COVERED | - | ALIGNED |
+| 307 | MantAnimationView | E2E COVERED | - | ALIGNED |
+| 308 | RAMRewriteToolView | E2E COVERED | - | ALIGNED |
+| 309 | MainSimpleMenuView | E2E COVERED | - | ALIGNED |
+| 310 | MainSimpleMenuEventErrorView | E2E COVERED | - | ALIGNED |
+| 311 | MainSimpleMenuImageSubView | E2E COVERED | - | ALIGNED |
+| 312 | ToolEmulatorSetupMessageView | E2E COVERED | - | ALIGNED |
+| 313 | ToolThreeMargeCloseAlertView | E2E COVERED | - | ALIGNED |
+| 314 | ToolClickWriteFloatControlPanelButtonView | E2E COVERED | - | ALIGNED |
+| 315 | ToolWorkSupport_UpdateQuestionDialogView | E2E COVERED | - | ALIGNED |
+| 316 | MainSimpleMenuEventErrorIgnoreErrorView | E2E COVERED | - | ALIGNED |
+| 317 | ToolProblemReportSearchBackupView | E2E COVERED | - | ALIGNED |
+| 318 | ToolProblemReportSearchSavView | E2E COVERED | - | ALIGNED |
+| 319 | ToolWorkSupportView | E2E COVERED | - | ALIGNED |
+| 320 | ToolWorkSupport_SelectUPSView | E2E COVERED | - | ALIGNED |
+| 321 | ToolDiffDebugSelectView | E2E COVERED | - | ALIGNED |
+| 322 | SMEPromoListView | E2E COVERED | - | ALIGNED |
+| 323 | ToolRunHintMessageView | E2E COVERED | - | ALIGNED |
+| 324 | ImageChapterTitleFE7View | E2E COVERED | YES | ALIGNED |

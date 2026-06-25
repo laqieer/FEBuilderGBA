@@ -1,8 +1,9 @@
 namespace FEBuilderGBA.Tests.Unit
 {
     /// <summary>
-    /// Verifies that all 325 Avalonia editor views opened from MainWindow
+    /// Verifies that all 324 Avalonia editor views opened from MainWindow
     /// are listed in the --smoke-test-all code path and in the documentation.
+    /// (Was 325 before #1447 removed the dead standalone SongTrackImportWaveView.)
     /// </summary>
     public class AvaloniaAllEditorsCoverageTests
     {
@@ -81,10 +82,11 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// Verify the doc lists exactly 325 editor views.
+        /// Verify the doc lists exactly 324 editor views.
+        /// (Was 325 before #1447 removed the dead standalone SongTrackImportWaveView.)
         /// </summary>
         [Fact]
-        public void Documentation_Lists325Editors()
+        public void Documentation_Lists324Editors()
         {
             var docPath = Path.Combine(SolutionDir, "docs", "avalonia-gui-forms.md");
             var docContent = File.ReadAllText(docPath);
@@ -94,14 +96,15 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\|\s*\d+\s*\|\s*\w+View\s*\|");
             int count = viewPattern.Matches(docContent).Count;
 
-            Assert.Equal(325, count);
+            Assert.Equal(324, count);
         }
 
         /// <summary>
-        /// Verify GetAllEditorFactories has exactly 325 entries.
+        /// Verify GetAllEditorFactories has exactly 324 entries.
+        /// (Was 325 before #1447 removed the dead standalone SongTrackImportWaveView.)
         /// </summary>
         [Fact]
-        public void SmokeTestFactories_Has325Entries()
+        public void SmokeTestFactories_Has324Entries()
         {
             var mainWindowSrc = File.ReadAllText(
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
@@ -110,7 +113,7 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
             int count = factoryPattern.Matches(mainWindowSrc).Count;
 
-            Assert.Equal(325, count);
+            Assert.Equal(324, count);
         }
     }
 }
