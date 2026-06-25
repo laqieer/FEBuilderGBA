@@ -81,43 +81,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // WinForms N2 rule: i==0 ? true : isPointer(u32(addr)).
                 if (i != 0 && !U.isPointer(rom.u32(slot))) break;
 
-                string label = GetCustomBattleAnimeLabel(rom, (uint)i);
+                // WinForms label: the unit name + lower/upper-class marker for this class index
+                // (UnitFE7Form.GetNameWhereCustomBattleAnime, ported into NameResolver — keeps the
+                // unit-table scan out of this VM so the per-record raw report stays the source of truth).
+                string label = NameResolver.GetCustomBattleAnimeName(rom, (uint)i);
                 string name = label.Length == 0 ? $"0x{i:X2}" : $"0x{i:X2} {label}";
                 result.Add(new AddrResult(slot, name, (uint)i));
             }
             return result;
-        }
-
-        /// <summary>
-        /// Port of WinForms <c>UnitFE7Form.GetNameWhereCustomBattleAnime</c>: scan the FE7 unit table
-        /// and label the pointer-table index <paramref name="customBattleId"/> with the name of the
-        /// unit whose lower-class (u8 @ +37) or upper-class (u8 @ +38) custom-anime id matches, plus a
-        /// lower/upper marker. Returns "" when nothing matches (FE6/FE8 / id 0 / no owner). Cross-platform,
-        /// guards every read, never throws — non-FE7 ROMs short-circuit.
-        /// </summary>
-        static string GetCustomBattleAnimeLabel(ROM rom, uint customBattleId)
-        {
-            if (customBattleId == 0) return string.Empty;
-            if (rom?.RomInfo == null || rom.RomInfo.version != 7) return string.Empty;
-
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            if (unitPtr == 0 || dataSize == 0) return string.Empty;
-            if (!U.isSafetyOffset(unitPtr, rom)) return string.Empty;
-
-            uint addr = unitPtr;
-            for (int i = 0; i < 0x1000; i++, addr += dataSize)
-            {
-                if (addr + dataSize > (uint)rom.Data.Length) break;
-                // WinForms terminates on InputFormRef.DataCount (id 0 unit ends the table).
-                if (rom.u16(addr) == 0) break;
-
-                if (customBattleId == rom.u8(addr + 37))
-                    return NameResolver.GetTextById(rom.u16(addr)) + " " + R._("下級職");
-                if (customBattleId == rom.u8(addr + 38))
-                    return NameResolver.GetTextById(rom.u16(addr)) + " " + R._("上級職");
-            }
-            return string.Empty;
         }
 
         // ===================================================================
