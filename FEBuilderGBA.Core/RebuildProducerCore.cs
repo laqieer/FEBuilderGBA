@@ -4285,34 +4285,11 @@ namespace FEBuilderGBA
 
             bool isRework = PatchDetection.SearchUnitActionReworkPatch(rom);
 
-            // UnitActionPointerForm.Init IsDataExists (block 4), gated on isRework — verbatim.
+            // UnitActionPointerForm.Init IsDataExists (block 4), gated on isRework. Shared with the
+            // Avalonia editor + ListParityHelper via UnitActionPointerCore so the rework predicate
+            // (accept 0, reject NOT_FOUND, mask & 0x0FFFFFFF) has a single source of truth (#1415).
             Func<int, uint, bool> isDataExists = (i, addr) =>
-            {
-                uint a = rom.u32(addr);
-                if (isRework == false)
-                {//not reworked
-                    if (U.isSafetyPointer(a, rom))
-                    {
-                        return true;
-                    }
-                }
-                else
-                {//reworked
-                    if (a == U.NOT_FOUND)
-                    {
-                        return false;
-                    }
-                    if (a == 0)
-                    {
-                        return true;
-                    }
-                    if (U.isSafetyPointer(a & 0x0FFFFFFF, rom))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            };
+                UnitActionPointerCore.IsDataExists(rom, addr, isRework);
 
             // WF: ReInitPointer(SearchActionPointer()) -> BasePointer = toOffset(slot),
             // BaseAddress = p32(slot). EmitAsmPointerTable performs exactly that resolution from the SLOT

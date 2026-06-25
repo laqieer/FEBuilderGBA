@@ -9,7 +9,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Unit Action Pointer editor — table of function pointers for unit actions.
     /// WinForms: UnitActionPointerForm.cs
     /// Struct layout: P0 = function pointer (GBA pointer, 4 bytes) = 4 bytes total.
-    /// The base address comes from RomInfo.unitaction_function_pointer (p32 dereference).
+    /// The base address, entry validity and action-id origin are resolved through
+    /// <see cref="UnitActionPointerCore"/> so the editor honors the UnitActionRework
+    /// patch (relocated table base, 0-based ids, <c>&amp; 0x0FFFFFFF</c> masking) exactly
+    /// like WinForms <c>UnitActionPointerForm.SearchActionPointer</c>/<c>Init</c> (#1415).
     /// </summary>
     public class UnitActionPointerViewModel : ViewModelBase, IDataVerifiable
     {
@@ -28,24 +31,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
 
-        /// <summary>1-based action id of the selected entry (WinForms: non-rework ids start at 1).</summary>
+        /// <summary>Action id of the selected entry. Non-rework ids start at 1; UnitActionRework ids are 0-based.</summary>
         public uint ActionId { get => _actionId; set => SetField(ref _actionId, value); }
 
         /// <summary>Human-readable action name from the <c>unitaction_</c> resource (empty if none).</summary>
         public string ActionName { get => _actionName; set => SetField(ref _actionName, value); }
 
         /// <summary>
-        /// Resolve the base address of the unit action pointer table.
-        /// On vanilla ROMs: p32(RomInfo.unitaction_function_pointer).
+        /// Resolve the base address of the unit action pointer table, honoring the
+        /// UnitActionRework patch (relocated base) via <see cref="UnitActionPointerCore"/>.
         /// Returns 0 if the pointer is invalid.
         /// </summary>
-        static uint ResolveBaseAddress(ROM rom)
-        {
-            uint pointer = rom.RomInfo.unitaction_function_pointer;
-            if (pointer == 0) return 0;
-            uint baseAddr = rom.p32(pointer);
-            return U.isSafetyOffset(baseAddr) ? baseAddr : 0;
-        }
+        static uint ResolveBaseAddress(ROM rom) => UnitActionPointerCore.ResolveBaseAddress(rom);
 
         public List<AddrResult> LoadList()
         {
@@ -55,18 +52,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = ResolveBaseAddress(rom);
             if (baseAddr == 0) return new List<AddrResult>();
 
+            bool isRework = UnitActionPointerCore.IsRework(rom);
             var actionNames = LoadActionNames();
 
             return EditorFormRef.BuildListWithCount(rom, baseAddr, EntrySize,
+                (i, addr) => UnitActionPointerCore.IsDataExists(rom, addr, isRework),
                 (i, addr) =>
                 {
-                    uint a = rom.u32(addr);
-                    return U.isSafetyPointer(a);
-                },
-                (i, addr) =>
-                {
-                    // WinForms starts at id=1 for non-reworked; we use 0-based index here.
-                    uint id = (uint)(i + 1);
+                    // Non-rework ids start at 1; rework ids are 0-based (mirrors WinForms Init).
+                    uint id = UnitActionPointerCore.ResolveActionId(i, isRework);
                     return MakeLabel(id, actionNames);
                 });
         }
@@ -80,10 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             P0 = values["P0"];
 
-            // Recover the 1-based action id from the offset within the table and resolve its name.
+            // Recover the action id from the offset within the table (rework-aware origin) and resolve its name.
+            bool isRework = UnitActionPointerCore.IsRework(rom);
             uint baseAddr = ResolveBaseAddress(rom);
-            ActionId = (baseAddr != 0 && addr >= baseAddr) ? (addr - baseAddr) / EntrySize + 1 : 0;
-            ActionName = ActionId != 0 ? ResolveActionName(ActionId, LoadActionNames()) : "";
+            ActionId = UnitActionPointerCore.ResolveActionIdFromAddr(addr, baseAddr, isRework);
+            // Non-rework id 0 signals "below base / out of range"; rework id 0 is the valid first entry.
+            bool hasName = isRework || ActionId != 0;
+            ActionName = hasName ? ResolveActionName(ActionId, LoadActionNames()) : "";
 
             IsLoaded = true;
         }
@@ -124,8 +121,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom?.RomInfo == null) return 0;
             uint baseAddr = ResolveBaseAddress(rom);
             if (baseAddr == 0) return 0;
+            bool isRework = UnitActionPointerCore.IsRework(rom);
             return EditorFormRef.CountEntries(rom, baseAddr, EntrySize,
-                (i, addr) => U.isSafetyPointer(rom.u32(addr)));
+                (i, addr) => UnitActionPointerCore.IsDataExists(rom, addr, isRework));
         }
 
         public Dictionary<string, string> GetDataReport()
