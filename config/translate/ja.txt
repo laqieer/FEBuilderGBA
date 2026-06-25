@@ -12376,6 +12376,8 @@ LOWコマンドを表示
 コマンド / ヒントを検索
 :Select a command from the list first.
 最初にリストからコマンドを選択してください。
+:Footstep-sound Switch2 table not found in this ROM. Editing is unavailable.
+このROMには足音のSwitch2テーブルがありません。編集できません。
 
 :Channel:
 チャンネル:
