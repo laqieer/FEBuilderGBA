@@ -26195,3 +26195,12 @@ Boss对话 (16字节)
 
 :Primary
 主表
+
+:NPC
+友军
+
+:Fourth
+4部队
+
+:Please specify the color you want to change.
+请指定您要更改的颜色。
