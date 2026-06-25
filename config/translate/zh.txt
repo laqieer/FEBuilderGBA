@@ -26104,9 +26104,20 @@ FE-Repo-音乐浏览器
 
 :New Split Menu
 新建分支菜单
-
 :Loaded Address:
 已加载地址:
 
 :AoE mask grid (W×H). The highlighted cell is the center / detonation point. Set attacked tiles to 1 (or any non-zero), others to 0.
 效果范围掩码 (宽×高)。高亮单元格为中心 / 引爆点。将受攻击的格子设为 1 (或任意非零值)，其余设为 0。
+
+:PLIST Split\r\nPLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).\r\n(This is a destructive operation — be sure to back up your ROM first.)
+PLIST 分割\r\nPLIST 表把多种用途打包进同一个共享数组，因此按用途拆分它们可以增加可用的 PLIST 槽位数量（每张表会扩展到 256 项 / 0xFF）。\r\n（这是破坏性操作 — 请务必先备份你的 ROM。）
+
+:Split the PLIST tables?\r\nThis is a destructive operation — be sure to back up your ROM first.
+要分割 PLIST 表吗？\r\n这是破坏性操作 — 请务必先备份你的 ROM。
+
+:PLIST Split
+PLIST 分割
+
+:PLIST tables split.
+PLIST 表已分割。
