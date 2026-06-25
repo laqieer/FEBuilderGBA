@@ -844,6 +844,12 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // systemhover_gradation_palette_pointer is NOT in Core ROMFEINFO — WinForms-only
             "ImageSystemHoverColorForm",
+            // #1453: SkillSystemsEffectivenessReworkClassTypeForm is NOT a standalone
+            // editor — it is a CLASSTYPE bitmask picker popup invoked from the Class
+            // editor (InputFormRef.cs CLASSTYPE link, U.NOT_FOUND), so it has no
+            // standalone Avalonia view by design. The functional standalone editor is
+            // ItemEffectivenessSkillSystemsReworkForm/ItemEffectivenessSkillSystemsReworkView.
+            "SkillSystemsEffectivenessReworkClassTypeForm",
         };
 
         /// <summary>
