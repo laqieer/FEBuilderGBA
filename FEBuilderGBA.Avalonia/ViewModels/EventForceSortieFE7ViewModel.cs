@@ -72,6 +72,71 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        /// <summary>
+        /// Build the inner unit-list pointed to by the outer entry's D0
+        /// pointer (<see cref="UnitListPointer"/>). Faithful port of the
+        /// WinForms <c>EventForceSortieFE7Form.N_Init</c> list: dereference D0
+        /// (<c>u32 -&gt; toOffset</c>), then walk 4-byte sub-entries terminated
+        /// when <c>u8(addr) == 0x00</c> OR <c>u8(addr+3) == 0xD1</c>.
+        /// <para>
+        /// Each 4-byte read is bounded by an explicit <c>addr + 4 &lt;= Data.Length</c>
+        /// guard so a malformed pointer near EOF cannot over-read the
+        /// terminator byte at <c>addr+3</c> (Copilot CLI plan-review #1).
+        /// </para>
+        /// Returns an empty list (no rows) when D0 is not a valid pointer.
+        /// </summary>
+        public List<AddrResult> LoadSubList()
+        {
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom == null) return result;
+
+            uint ptr = UnitListPointer;
+            if (!U.isPointer(ptr)) return result;
+            uint addr = U.toOffset(ptr);
+            if (!U.isSafetyOffset(addr, rom)) return result;
+
+            const uint blockSize = 4;
+            // Hard cap so a corrupt list without a terminator cannot loop the
+            // whole ROM; WF relies on InputFormRef's DataCount scan but a
+            // generous bound keeps us safe and matches other Avalonia walks.
+            for (int i = 0; i < 1024; i++, addr += blockSize)
+            {
+                // Bound the full 4-byte sub-entry before reading either the
+                // id byte or the terminator byte at +3.
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                uint id = rom.u8(addr);
+                uint term = rom.u8(addr + 3);
+                // WF predicate: continue while (id != 0x00 && term != 0xD1).
+                if (id == 0x00 || term == 0xD1) break;
+
+                // WF label: U.ToHexString(uid) + " " + UnitForm.GetUnitName(uid).
+                // UnitForm.GetUnitName is the Core NameResolver.GetUnitName alias
+                // (0-based table index), so the raw u8 maps directly.
+                string unitName = NameResolver.GetUnitName(id);
+                result.Add(new AddrResult(addr, U.ToHexString(id) + " " + unitName, id));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Clear the selected sub-entry. After this call <see cref="SubAddr"/>
+        /// is 0 (so <see cref="WriteSubEntry"/> no-ops via its guard) and the
+        /// Unit ID / Unknown fields read 0. Called when the outer entry's D0
+        /// pointer is invalid or the inner list is empty so a stale sub-entry
+        /// from a previous outer selection cannot be written (Copilot CLI
+        /// plan-review #2).
+        /// </summary>
+        public void ResetSubEntry()
+        {
+            SubAddr = 0;
+            UnitId = 0;
+            Unknown1 = 0;
+            Unknown2 = 0;
+            Unknown3 = 0;
+        }
+
         public void LoadSubEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
