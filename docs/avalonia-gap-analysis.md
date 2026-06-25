@@ -426,7 +426,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | StatusUnitsMenu | 50% | OwnerDraw, text decode |
 | MenuCommand | 45% | Filter combo, color combo |
 | MenuDefinition | 45% | Menu preview, multi-pointer |
-| MenuExtendSplitMenu | **55%** | ~~No list enumeration~~ **FIXED** — list from menu_definiton_split_pointer |
+| MenuExtendSplitMenu | **90%** | ~~Wrong 40-byte/inline-u32 data model (silent ROM corruption)~~ **FIXED #1413/#1430** — 36-byte header + dereferenced 36-byte-stride command array (text-ids at `p32(+8)+36*n+4`); Write preserves +8 + handler pointers; GetDataLength 5/8 + NewAlloc |
 | **AOERANGE** | **30%** | **Visual grid editor (core feature) missing** |
 | MonsterItem | **40%** | ~~Generic list~~ **FIXED** — item names in list. Missing: three sub-lists (N1, N2) |
 | MonsterProbability | 50% | Probability sum display |
