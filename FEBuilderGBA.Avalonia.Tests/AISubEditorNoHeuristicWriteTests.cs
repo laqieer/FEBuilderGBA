@@ -196,16 +196,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                 byte[] after = rom.Data;
 
                 // Every byte OUTSIDE [target, target+4) is untouched.
+                int targetLo = (int)target;
                 for (int i = 0; i < before.Length; i++)
                 {
-                    if (i >= target && i < target + 4) continue;
+                    if (i >= targetLo && i < targetLo + 4) continue;
                     Assert.True(before[i] == after[i],
                         $"{name}: Write() mutated a byte outside the supplied target at 0x{i:X}.");
                 }
                 // At least one targeted byte changed to the sentinel (proves the
                 // write still works when a real address is supplied).
                 bool changedInRange = false;
-                for (uint i = target; i < target + 4; i++)
+                int targetStart = (int)target;
+                for (int i = targetStart; i < targetStart + 4; i++)
                     if (before[i] != after[i]) { changedInRange = true; break; }
                 Assert.True(changedInRange,
                     $"{name}: Write() with a real parent pointer must persist into the supplied target.");
