@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.Initialize failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.Initialize failed: {ex}");
             }
             finally { _vm.IsLoaded = true; }
         }
@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadUnitList failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadUnitList failed: {ex}");
             }
         }
 
@@ -149,11 +149,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 // shared-pointer warning for units outside the loaded subset.
                 uint shareScanCount = CoreState.ROM?.RomInfo?.unit_maxcount ?? (uint)_unitItems.Count;
                 if (shareScanCount < (uint)_unitItems.Count) shareScanCount = (uint)_unitItems.Count;
-                UpdateIndependencePanels(ar.tag, shareScanCount);
+                UpdateIndependencePanels(shareScanCount);
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnUnitSelected failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnUnitSelected failed: {ex}");
             }
         }
 
@@ -177,11 +177,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadN1Sublist failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadN1Sublist failed: {ex}");
             }
         }
 
-        void UpdateIndependencePanels(uint unitid, uint unitCount)
+        void UpdateIndependencePanels(uint unitCount)
         {
             try
             {
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Selected failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Selected failed: {ex}");
             }
         }
 
@@ -295,7 +295,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnWrite failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnWrite failed: {ex}");
             }
         }
 
@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Write failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Write failed: {ex}");
             }
         }
 
@@ -347,7 +347,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnIndependence failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnIndependence failed: {ex}");
             }
         }
 
@@ -375,7 +375,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Expand failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Expand failed: {ex}");
             }
         }
 
@@ -402,7 +402,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitCSkillSysView.OnLearnInfo failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnLearnInfo failed: {ex}");
             }
         }
 

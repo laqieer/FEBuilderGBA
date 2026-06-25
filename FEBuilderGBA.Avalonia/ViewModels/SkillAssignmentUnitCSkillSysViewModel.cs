@@ -428,8 +428,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint newRow = newBase + i * N1_BLOCK_SIZE;
                 rom.write_u16(newRow, rom.u16(oldRow));
             }
-            // Fill new slots with default 0x0101 (Lv1, Skill1) — skill==0 reads
-            // as a terminator (WF default_skill_lv).
+            // Fill new slots with default 0x0101 (Lv1, Skill1). The terminator is
+            // the WHOLE u16 == 0x0000 (level AND skill both 0), so leaving a fresh
+            // slot at 0x0000 would prematurely end the list; seed a non-zero value
+            // (WF default_skill_lv) instead.
             for (uint i = oldCount; i < newCount; i++)
             {
                 uint newRow = newBase + i * N1_BLOCK_SIZE;
