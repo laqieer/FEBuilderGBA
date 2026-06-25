@@ -1,5 +1,6 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -14,19 +15,86 @@ namespace FEBuilderGBA.Avalonia.Views
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
+        // R._() runs the runtime translation (TranslatedWindow's pass only covers
+        // AXAML literals, not strings assigned later in code-behind) — Copilot PR
+        // review #1525.
+        static string Placeholder => R._("(select a command)");
+
         public EventScriptCategorySelectView()
         {
             InitializeComponent();
             _vm.Load();
+
             CategoryList.ItemsSource = _vm.Categories;
+            ScriptList.ItemsSource = _vm.ScriptNames;
+            InfoLabel.Text = Placeholder;
+
+            FilterBox.Text = _vm.FilterText;
+            FilterBox.TextChanged += FilterBox_TextChanged;
+            ShowLowCheck.IsChecked = _vm.ShowLowCommand;
+            ShowLowCheck.IsCheckedChanged += ShowLowCheck_Changed;
+
             if (_vm.Categories.Count > 0)
                 CategoryList.SelectedIndex = 0;
         }
 
-        void OK_Click(object? sender, RoutedEventArgs e)
+        void CategoryList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             _vm.SelectedCategory = CategoryList.SelectedItem as string ?? "";
-            Close(_vm.SelectedCategory);
+            RebindScriptList();
+        }
+
+        void FilterBox_TextChanged(object? sender, TextChangedEventArgs e)
+        {
+            _vm.FilterText = FilterBox.Text ?? "";
+            RebindScriptList();
+        }
+
+        void ShowLowCheck_Changed(object? sender, RoutedEventArgs e)
+        {
+            _vm.ShowLowCommand = ShowLowCheck.IsChecked == true;
+            RebindScriptList();
+        }
+
+        // The VM rebuilds ScriptNames into a fresh list on each filter change
+        // (and resets its own selection/info); rebind the ItemsSource and reset
+        // the info panel so the view stays in sync.
+        void RebindScriptList()
+        {
+            ScriptList.ItemsSource = _vm.ScriptNames;
+            ScriptList.SelectedIndex = -1;
+            _vm.SelectedScriptIndex = -1;
+            InfoLabel.Text = Placeholder;
+        }
+
+        void ScriptList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            _vm.SelectedScriptIndex = ScriptList.SelectedIndex;
+            InfoLabel.Text = string.IsNullOrEmpty(_vm.InfoText) ? Placeholder : _vm.InfoText;
+        }
+
+        void ScriptList_DoubleTapped(object? sender, TappedEventArgs e)
+        {
+            ConfirmAndClose();
+        }
+
+        void OK_Click(object? sender, RoutedEventArgs e)
+        {
+            ConfirmAndClose();
+        }
+
+        void ConfirmAndClose()
+        {
+            if (_vm.ConfirmSelection())
+            {
+                Close(_vm.SelectedScript);
+            }
+            else
+            {
+                // No valid command selected — surface an inline hint and stay open
+                // so OK doesn't look broken (parity with ScriptCommandPickerView).
+                InfoLabel.Text = R._("Select a command from the list first.");
+            }
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
