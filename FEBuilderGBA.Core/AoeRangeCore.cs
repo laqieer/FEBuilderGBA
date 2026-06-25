@@ -143,9 +143,14 @@ namespace FEBuilderGBA
         /// </summary>
         /// <param name="cells">Exactly <c>w*h</c> grid bytes (row-major). A
         /// <c>null</c> or short array is zero-padded; extra cells are ignored.</param>
+        /// <remarks>Never throws: <paramref name="w"/>/<paramref name="h"/> are
+        /// clamped to the 0..255 the on-ROM <c>u8</c> header can hold, so the cell
+        /// count can never exceed 255*255 (no overflow / OOM on absurd inputs).</remarks>
         public static byte[] BuildBinary(uint w, uint h, uint cx, uint cy, byte[] cells)
         {
-            long count = (long)w * h;
+            w &= 0xFF;
+            h &= 0xFF;
+            int count = (int)(w * h); // <= 255*255 = 65025; fits int, never overflows.
             byte[] bin = new byte[4 + count];
             U.write_u8(bin, 0, w & 0xFF);
             U.write_u8(bin, 1, h & 0xFF);
@@ -154,8 +159,8 @@ namespace FEBuilderGBA
 
             if (cells != null)
             {
-                long n = Math.Min(count, cells.Length);
-                for (long i = 0; i < n; i++)
+                int n = Math.Min(count, cells.Length);
+                for (int i = 0; i < n; i++)
                 {
                     bin[4 + i] = cells[i];
                 }

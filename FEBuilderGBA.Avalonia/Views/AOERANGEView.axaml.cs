@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AOERANGEView.LoadAddress failed: {0}", ex.Message);
+                Log.Error($"AOERANGEView.LoadAddress failed: {ex}");
             }
             finally
             {
@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AOERANGEView.Write failed: {0}", ex.Message);
+                Log.Error($"AOERANGEView.Write failed: {ex}");
             }
         }
 
@@ -166,11 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Navigate to a record at <paramref name="address"/> (the standalone /
         /// manual path; no parent pointer slot to repoint on a move).
         /// </summary>
-        public void NavigateTo(uint address)
-        {
-            _vm.ParentPointerSlot = 0;
-            LoadAddress(address);
-        }
+        public void NavigateTo(uint address) => NavigateFromParent(address, 0);
 
         /// <summary>
         /// Navigate to a record from a PARENT editor, supplying the ROM offset of the
@@ -179,8 +175,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         public void NavigateFromParent(uint address, uint parentPointerSlot)
         {
+            // Set the parent slot WITHIN the load's IsLoading window so its
+            // assignment does not mark the freshly-loaded VM dirty (LoadAddress
+            // ends with MarkClean()). ParentPointerSlot is metadata, not user input.
+            _vm.IsLoading = true;
+            try { _vm.ParentPointerSlot = parentPointerSlot; }
+            finally { _vm.IsLoading = false; }
             LoadAddress(address);
-            _vm.ParentPointerSlot = parentPointerSlot;
         }
 
         public void SelectFirstItem() { /* no list — manual address entry */ }
