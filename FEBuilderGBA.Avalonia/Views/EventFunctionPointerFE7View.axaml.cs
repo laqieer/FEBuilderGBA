@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class EventFunctionPointerFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventFunctionPointerFE7ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Event Function Pointer (FE7)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -56,14 +57,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            if (!_vm.IsLoaded) return;
+
+            _undoService.Begin(R._("Edit Event Function Pointer"));
             try
             {
                 _vm.EventCommandFunctionPointer = (uint)(FuncPointerUpDown.Value ?? 0);
                 _vm.Unknown4 = (uint)(Unknown4UpDown.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
+                _undoService.Rollback();
                 Log.Error("EventFunctionPointerFE7View.OnWrite failed: {0}", ex.Message);
             }
         }
