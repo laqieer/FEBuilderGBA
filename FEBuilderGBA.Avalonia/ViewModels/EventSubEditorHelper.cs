@@ -207,10 +207,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     directionCount++;
                 }
-                else if (code == 9 || code == 0xA || code == 0xC)
+                else if (EventMoveDataFE7Core.IsEnableData(code))
                 {
-                    // Special codes with an extra parameter byte
-                    i++; // skip the parameter byte
+                    // Valid non-direction command (9=Highlight, 0xA=Collision mark, 0xC=Speed change).
+                    // Only 9/0xC carry an extra parameter byte (stride 2); 0xA is single-byte.
+                    // Use the Core stride logic as the single source of truth.
+                    if (EventMoveDataFE7Core.IsAppnedData(code))
+                        i++; // skip the parameter byte
                 }
                 else
                 {
