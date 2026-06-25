@@ -4261,6 +4261,9 @@ TSVファイルからユニットをインポート
 :Preview (Frame 0):
 プレビュー (フレーム0):
 
+:Preview (image + palette + entry-0 TSA)
+プレビュー (画像 + パレット + エントリ0のTSA)
+
 :Click to open Item Editor
 クリックでアイテムエディタを開く
 
