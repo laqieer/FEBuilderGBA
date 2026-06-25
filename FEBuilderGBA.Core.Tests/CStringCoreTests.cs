@@ -52,13 +52,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ReadCString_UnsafePointer_ReturnsEmpty()
+        public void ReadCString_UnsafeAddress_ReturnsEmpty()
         {
             var rom = MakeRom();
-            // A raw offset / null pointer is NOT a safety pointer => "" (matches
+            // Null (0) and a genuinely unsafe offset (< 0x200 danger zone) are
+            // neither a safety pointer NOR a safety offset => "" (matches
             // CStringForm.Init's early return).
             Assert.Equal(string.Empty, CStringCore.ReadCString(rom, 0));
-            Assert.Equal(string.Empty, CStringCore.ReadCString(rom, 0x1000));
+            Assert.Equal(string.Empty, CStringCore.ReadCString(rom, 0x10));
+        }
+
+        [Fact]
+        public void ReadCString_AcceptsRawOffset()
+        {
+            // The Avalonia manual-address box supplies a raw OFFSET (e.g. 0x1000);
+            // ReadCString must promote it to its GBA pointer form and decode, NOT
+            // treat it as a text ID and return empty (Copilot finding #1).
+            var rom = MakeRom();
+            CoreState.ROM = rom;
+            uint addr = 0x1000;
+            WriteAscii(rom, addr, "Offset Path");
+
+            Assert.Equal("Offset Path", CStringCore.ReadCString(rom, addr));            // raw offset
+            Assert.Equal("Offset Path", CStringCore.ReadCString(rom, addr + 0x08000000)); // GBA pointer
         }
 
         [Fact]
@@ -333,6 +349,28 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(CStringCore.WriteStatus.Moved, r.Status);
             Assert.Equal(r.Address, rom.p32(slot));
             Assert.Equal("Brand new", CStringCore.ReadCString(rom, r.Address + 0x08000000));
+        }
+
+        [Fact]
+        public void WriteCString_Grow_DangerZoneSlot_NotUsable_RefusedNoMutation()
+        {
+            // A danger-zone slot (< 0x200) is NOT usable. With no discoverable
+            // reference either, the grow is refused — and the invalid slot is never
+            // fed to p32/write_p32 (Copilot findings #2/#3).
+            var rom = MakeRom();
+            CoreState.ROM = rom;
+            uint badSlot = 0x100; // < 0x200 — danger zone, not a safety offset.
+            uint oldAddr = 0x1000;
+            WriteAscii(rom, oldAddr, "Hi"); // no references anywhere.
+            byte[] snap = (byte[])rom.Data.Clone();
+
+            CStringCore.WriteResult r;
+            using (ROM.BeginUndoScope(NewUndo(rom)))
+            {
+                r = CStringCore.WriteCString(rom, badSlot, oldAddr, "Way too long to fit in place here");
+            }
+            Assert.Equal(CStringCore.WriteStatus.Refused, r.Status);
+            Assert.Equal(snap, rom.Data); // no mutation, no header corruption.
         }
 
         [Fact]

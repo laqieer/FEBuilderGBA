@@ -89,6 +89,25 @@ public class CStringViewModelTests : IDisposable
     }
 
     [Fact]
+    public void LoadEntry_RawOffset_FromManualAddressBox_DecodesString()
+    {
+        // The manual address box supplies a raw OFFSET (e.g. 0x1000), not a GBA
+        // pointer. Reloading must decode the actual string, NOT show empty
+        // (Copilot finding #1 — otherwise Write could blank the existing string).
+        var rom = MakeRom();
+        CoreState.ROM = rom;
+        uint addr = 0x1000;
+        WriteAscii(rom, addr, "Manual Path");
+
+        var vm = new CStringViewModel();
+        vm.LoadEntry(addr); // raw offset, as the manual box / Reload supplies.
+
+        Assert.True(vm.IsLoaded);
+        Assert.Equal(addr, vm.CurrentAddr);
+        Assert.Equal("Manual Path", vm.Text);
+    }
+
+    [Fact]
     public void LoadEntry_Unsafe_ClearsAndReportsStatus()
     {
         var rom = MakeRom();

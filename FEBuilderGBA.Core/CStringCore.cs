@@ -63,14 +63,32 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Decode the C-string at <paramref name="pointer"/> (GBA pointer OR raw
-        /// offset). Returns <c>""</c> for an unsafe pointer (matches
-        /// <c>CStringForm.Init</c>'s early return). Faithfully ports
-        /// <c>TextForm.Direct(pointer)</c>. READ-ONLY, never throws.
+        /// offset — the Avalonia manual-address box supplies a decimal OFFSET, the
+        /// WinForms pointer field supplies a GBA pointer). A raw safety offset is
+        /// normalized to a GBA pointer before decoding so both call paths work.
+        /// Returns <c>""</c> for an address that is neither a safety pointer nor a
+        /// safety offset (matches <c>CStringForm.Init</c>'s early return). Faithfully
+        /// ports <c>TextForm.Direct(pointer)</c>. READ-ONLY, never throws.
         /// </summary>
         public static string ReadCString(ROM rom, uint pointer)
         {
             if (rom == null) return string.Empty;
-            if (!U.isSafetyPointer(pointer, rom)) return string.Empty;
+
+            // Accept a raw OFFSET too: FETextDecode.Decode treats small values as
+            // text IDs, so a manual offset like 0x1000 must be promoted to its GBA
+            // pointer form (0x08001000) to take the CString branch.
+            if (!U.isSafetyPointer(pointer, rom))
+            {
+                uint offset = U.toOffset(pointer);
+                if (U.isSafetyOffset(offset, rom))
+                {
+                    pointer = U.toPointer(offset);
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
 
             try
             {
@@ -241,8 +259,12 @@ namespace FEBuilderGBA
             // leave the data unreachable. RecycleAddress.WriteAmbient can grow the
             // ROM (a resize that is NOT ambient-undo-tracked); refusing here keeps a
             // doomed move from leaving that growth behind. A move is reachable only
-            // if there is an explicit parent slot OR a discoverable reference.
-            bool slotUsable = slot != 0 && U.isSafetyOffset(slot + 3, rom);
+            // if there is a USABLE explicit parent slot OR a discoverable reference.
+            // slotUsable validates the WHOLE 4-byte slot (start AND last byte) so a
+            // danger-zone / near-EOF slot can never reach the p32/write_p32 below.
+            bool slotUsable = slot != 0
+                && U.isSafetyOffset(slot, rom)
+                && U.isSafetyOffset(slot + 3, rom);
             if (!slotUsable && !HasAnyReference(rom, oldAddr))
             {
                 result.Status = WriteStatus.Refused;
@@ -272,10 +294,12 @@ namespace FEBuilderGBA
                 repointed = DataExpansionCore.RepointAllReferences(rom, oldAddr, newAddr, null);
             }
 
-            // Also repoint the explicit parent slot (if any) when the rescan did
-            // not already cover it (a slot inside ASM the scanner skips, or a fresh
-            // append with no old data to scan).
-            if (slot != 0)
+            // Also repoint the explicit parent slot when it is USABLE and the rescan
+            // did not already cover it (a slot inside ASM the scanner skips, or a
+            // fresh append with no old data to scan). Gated on slotUsable (NOT bare
+            // slot != 0) so an invalid/danger-zone slot can never make p32/write_p32
+            // read or write out of bounds or corrupt the ROM header.
+            if (slotUsable)
             {
                 uint cur = rom.p32(slot);
                 if (cur != newAddr)
