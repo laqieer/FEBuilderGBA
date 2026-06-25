@@ -21,9 +21,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         // Main (16-byte) schema — matches WinForms EventBattleTalkFE7Form.Init.
-        // [B0 atk][B1 def][B2][B3][W4 text][B6][B7][D8 event ptr][W12 flag][B14][B15]
+        // [B0 atk][B1 def][B2][B3][W4 text][B6][B7][P8 event ptr][W12 flag][B14][B15]
+        // Offset 0x08 is a P (pointer) field, matching the WinForms Designer control
+        // named "P8" (Hexadecimal NumericUpDown) + "L_8_EVENT" event-address box: it
+        // must read via rom.p32 (strip 0x08000000) and write via rom.write_p32
+        // (re-add 0x08000000), NOT a raw u32 — otherwise a nonzero event pointer
+        // round-trips as a bare offset (#1437 plan review).
         static readonly List<EditorFormRef.FieldDef> _fieldsMain =
-            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "B6", "B7", "D8", "W12", "B14", "B15" });
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "B6", "B7", "P8", "W12", "B14", "B15" });
 
         // Secondary (12-byte) schema — matches WinForms EventBattleTalkFE7Form
         // N1_Init designer controls (N1_B0/B1/B2/B3, N1_W4 text, N1_B6/B7,
@@ -187,7 +192,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Text = v["W4"];
                 Unknown06 = v["B6"];
                 Unknown07 = v["B7"];
-                EventPointer = v["D8"];
+                EventPointer = v["P8"]; // p32-decoded offset (0x08000000 stripped)
                 AchievementFlag = v["W12"];
                 Unknown0E = v["B14"];
                 Unknown0F = v["B15"];
@@ -219,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ["B0"] = AttackerUnit, ["B1"] = DefenderUnit,
                     ["B2"] = Unknown02, ["B3"] = Unknown03,
                     ["W4"] = Text, ["B6"] = Unknown06, ["B7"] = Unknown07,
-                    ["D8"] = EventPointer, ["W12"] = AchievementFlag,
+                    ["P8"] = EventPointer, ["W12"] = AchievementFlag,
                     ["B14"] = Unknown0E, ["B15"] = Unknown0F,
                 };
                 EditorFormRef.WriteFields(rom, a, values, _fieldsMain);

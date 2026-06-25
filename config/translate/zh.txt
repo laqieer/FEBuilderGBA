@@ -26156,3 +26156,28 @@ PLIST 表已分割。
 
 :Template config file not found.
 找不到模板配置文件。
+
+:Attack Type (W0):
+攻击方法 (W0):
+
+:Attacker / Side (B2):
+攻击方 (B2):
+
+:Damage (B3):
+伤害 (B3):
+
+:Attack Type (W0, decimal input; reference hex values): 0x0000=Attack, 0x0001=Critical, 0x0002=Miss, 0x0040=Poison, 0x0080=Devil Axe, 0x0100=HP Restoring, 0x0200=HP Halving, 0x0800=Instant kill
+攻击方法 (W0，十进制输入; 参考十六进制值): 0x0000=攻击, 0x0001=必杀, 0x0002=未命中, 0x0040=中毒, 0x0080=魔斧, 0x0100=回复HP, 0x0200=减半HP, 0x0800=秒杀
+
+:Attacker / Side (B2, decimal input; reference hex values): 0x00=Attacker starts, 0x01=Attacker starts (counter next), 0x08=Counter starts, 0x09=Counter starts (counter next), 0x0A=Counter starts 2, 0x80=Battle end
+攻击方 (B2，十进制输入; 参考十六进制值): 0x00=攻击方先攻, 0x01=攻击方先攻(下次反击), 0x08=反击方先攻, 0x09=反击方先攻(下次反击), 0x0A=反击方先攻2, 0x80=战斗结束
+:Chapter/Map ID:
+章节/地图ID:
+
+:Edit Battle Dialogue (FE7)
+编辑战斗对话 (FE7)
+
+:Time / Speed:
+时间 / 速度:
+:Time / Speed is the extra parameter byte (offset+1) for Highlight (09) and Speed change (0C) commands only.
+时间 / 速度 是仅用于 Highlight (09) 和 Speed change (0C) 命令的额外参数字节 (offset+1)。

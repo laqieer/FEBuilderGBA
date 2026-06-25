@@ -11,10 +11,29 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Data (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="EventBattleDataFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack Type (W0):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleDataFE7_AttackTypeUpDown_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="AttackTypeUpDown" Minimum="0" Maximum="65535"
+                         Margin="0,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Attacker / Side (B2):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleDataFE7_AttackerUpDown_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AttackerUpDown" Minimum="0" Maximum="255"
+                         Margin="0,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Damage (B3):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleDataFE7_DamageUpDown_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DamageUpDown" Minimum="0" Maximum="255"
+                         Margin="0,4" />
         </Grid>
+
+        <TextBlock Text="Attack Type (W0, decimal input; reference hex values): 0x0000=Attack, 0x0001=Critical, 0x0002=Miss, 0x0040=Poison, 0x0080=Devil Axe, 0x0100=HP Restoring, 0x0200=HP Halving, 0x0800=Instant kill"
+                   FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4" />
+        <TextBlock Text="Attacker / Side (B2, decimal input; reference hex values): 0x00=Attacker starts, 0x01=Attacker starts (counter next), 0x08=Counter starts, 0x09=Counter starts (counter next), 0x0A=Counter starts 2, 0x80=Battle end"
+                   FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4" />
+
+        <Button AutomationProperties.AutomationId="EventBattleDataFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

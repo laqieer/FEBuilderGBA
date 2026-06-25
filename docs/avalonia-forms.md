@@ -201,8 +201,8 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 100 | EventBattleTalkView | EventBattleTalkViewModel | Battle conversation editor |
 | 101 | EventBattleTalkMainView | EventBattleTalkMainViewModel | Nested sub-view for battle talk |
 | 102 | EventBattleTalkFE6View | EventBattleTalkFE6ViewModel | Battle conversation (FE6) |
-| 103 | EventBattleTalkFE7View | EventBattleTalkFE7ViewModel | Battle conversation (FE7) |
-| 104 | EventBattleDataFE7View | EventBattleDataFE7ViewModel | Battle data editor (FE7) |
+| 103 | EventBattleTalkFE7View | EventBattleTalkFE7ViewModel | Battle conversation (FE7) — full editor: per-schema input fields (attacker/defender, text, event pointer, achievement flag) + undo-tracked Write; Main 16-byte / Secondary 12-byte tables (#1437) |
+| 104 | EventBattleDataFE7View | EventBattleDataFE7ViewModel | Battle data editor (FE7) — editable AttackType/Attacker/Damage + undo-tracked Write (#1436) |
 | 105 | EventHaikuView | EventHaikuViewModel | Haiku/death quote editor |
 | 106 | EventHaikuFE6View | EventHaikuFE6ViewModel | Death quotes (FE6) |
 | 107 | EventHaikuFE7View | EventHaikuFE7ViewModel | Death quotes (FE7) |

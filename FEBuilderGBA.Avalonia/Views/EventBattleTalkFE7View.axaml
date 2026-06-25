@@ -27,12 +27,70 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Dialogue (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Table:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_Table_Label" Grid.Row="0" Grid.Column="1" Name="TableLabel" VerticalAlignment="Center" Foreground="Gray" />
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_Addr_Label" Grid.Row="1" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Header: current table + record address (mirrors the WinForms
+             N1_FilterComboBox selection + the per-list Address readout). -->
+        <Grid ColumnDefinitions="180,140,*" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Table:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_Table_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="TableLabel" VerticalAlignment="Center" Foreground="Gray" Margin="0,4" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_Addr_Label" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
         </Grid>
+
+        <Grid ColumnDefinitions="180,140,*"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <!-- Attacker Unit (offset +0, 1-based id) — unit-name preview. -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Attacker Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_AttackerUnit_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_AttackerName_Label" Grid.Row="0" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="Gray" Margin="8,4" />
+
+          <!-- Offset +1 — Defender Unit in the 16-byte MAIN schema, but the
+               chapter/map id in the 12-byte SECONDARY schema (WinForms
+               N1_J_1_MAP / N1_L_1_MAP_ANYFF). The code-behind relabels this row
+               and swaps the inline preview (unit name vs FE7 ANYFF chapter name)
+               per active table. -->
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_DefenderOrMap_Label" Grid.Row="1" Grid.Column="0" Name="DefenderOrMapLabel" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_DefenderUnit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_DefenderName_Label" Grid.Row="1" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="Gray" Margin="8,4" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown02_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown02Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown03_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown03Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <!-- Text (offset +4, u16) — inline text preview (both schemas). -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Text_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_TextPreview_Label" Grid.Row="4" Grid.Column="2" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="Gray" Margin="8,4" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown (0x06):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown06_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown06Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown07_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="Unknown07Box" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <!-- Event Pointer (offset +8, u32 pointer) — MAIN schema only; disabled
+               in the 12-byte SECONDARY schema (no event pointer slot). -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_EventPointer_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Name="EventPointerBox" Minimum="0" Maximum="4294967295" HorizontalAlignment="Left" Width="200" Margin="0,4" />
+
+          <!-- Achievement Flag — offset 0x0C (u16) in MAIN, 0x08 (u16) in SECONDARY. -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_AchievementFlag_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,4" />
+
+          <!-- The two trailing bytes are at 0x0E/0x0F in the 16-byte MAIN schema
+               but 0x0A/0x0B in the 12-byte SECONDARY schema; UpdateUI() relabels
+               them per active table (routed through R._() for ja/zh; #958). -->
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_UnknownTrailing0_Label" Grid.Row="9" Grid.Column="0" Name="UnknownTrailing0Label" Text="Unknown (0x0E):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown0E_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="Unknown0EBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE7_UnknownTrailing1_Label" Grid.Row="10" Grid.Column="0" Name="UnknownTrailing1Label" Text="Unknown (0x0F):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE7_Unknown0F_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Unknown0FBox" Minimum="0" Maximum="255" Margin="0,4" />
+        </Grid>
+
+        <TextBlock Text="A mid-battle conversation triggered when the attacker and defender units fight." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+
+        <Button AutomationProperties.AutomationId="EventBattleTalkFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
