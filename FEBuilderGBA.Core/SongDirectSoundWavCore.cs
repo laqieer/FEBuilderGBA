@@ -402,7 +402,47 @@ namespace FEBuilderGBA.Core
                 // error already set by WavToByte
                 return U.NOT_FOUND;
             }
+            return AppendSampleAndRepoint(rom, wavePointerSlotOffset, sample, out error);
+        }
 
+        /// <summary>
+        /// Import READY GBA DirectSound sample bytes (already a header + 8-bit PCM
+        /// or a DPCM block stream — e.g. the output of the #1448 conversion dialog's
+        /// sox/DPCM pipeline) as a NEW sample: the bytes are appended at ROM end and
+        /// the +4 P4 wave-pointer slot is repointed. Unlike <see cref="ImportWave"/>
+        /// this does NOT run <see cref="WavToByte"/> — the caller has already encoded
+        /// the sample (so a DPCM sample survives intact). ROM-MUTATING; records into
+        /// the caller's ambient undo scope.
+        /// <para>Returns the GBA pointer of the append offset on success, or
+        /// <see cref="U.NOT_FOUND"/> on failure with the ROM restored byte-identical.
+        /// Never throws.</para>
+        /// </summary>
+        public static uint ImportSampleBytes(ROM rom, uint wavePointerSlotOffset, byte[] sampleBytes, out string error)
+        {
+            error = null;
+            if (rom == null)
+            {
+                error = R._("ROM is not loaded.");
+                return U.NOT_FOUND;
+            }
+            if (sampleBytes == null || sampleBytes.Length < 16)
+            {
+                error = R._("The wave sample data is empty or too small.");
+                return U.NOT_FOUND;
+            }
+            return AppendSampleAndRepoint(rom, wavePointerSlotOffset, sampleBytes, out error);
+        }
+
+        /// <summary>
+        /// Append <paramref name="sample"/> (ready GBA-sample bytes) at ROM end and
+        /// repoint the +4 P4 slot. Shared by <see cref="ImportWave"/> and
+        /// <see cref="ImportSampleBytes"/>: word-aligns the append, validates the
+        /// slot, and on ANY fault restores the ROM byte-identical (the #885/#923
+        /// snapshot pattern). Records into the caller's ambient undo scope.
+        /// </summary>
+        static uint AppendSampleAndRepoint(ROM rom, uint wavePointerSlotOffset, byte[] sample, out string error)
+        {
+            error = null;
             // The +4 pointer slot must be in-bounds for the write_p32.
             if ((long)wavePointerSlotOffset + 4 > rom.Data.Length)
             {
