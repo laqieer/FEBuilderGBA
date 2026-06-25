@@ -749,7 +749,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EditSkills_Click failed: {0}", ex.Message);
+                Log.Error("EditSkills_Click failed: " + ex);
             }
         }
 
