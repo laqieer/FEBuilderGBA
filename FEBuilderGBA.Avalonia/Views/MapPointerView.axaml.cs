@@ -59,6 +59,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadMapPointer(addr);
+                // Authoritatively carry the selected row's PLIST slot id (the
+                // list builds rows as new AddrResult(addr, name, i), so tag ==
+                // the slot id). This drives the slot-0 write-protection guard
+                // and mirrors WinForms reading the selected list row (#1416).
+                _vm.SelectedId = EntryList.SelectedItem?.tag ?? _vm.SelectedId;
                 UpdateUI();
             }
             catch (Exception ex)
@@ -81,7 +86,16 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.MapDataPointer = ParseHexText(MapDataPointerBox.Text);
-                _vm.WriteMapPointer();
+                string? error = _vm.WriteMapPointer();
+                if (error != null)
+                {
+                    // WF parity: slot 0 (reserved NULL) write was rejected — no
+                    // ROM mutation occurred, so discard the (empty) undo scope
+                    // and surface the stop error (#1416).
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(error);
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Map Pointer data written.");
