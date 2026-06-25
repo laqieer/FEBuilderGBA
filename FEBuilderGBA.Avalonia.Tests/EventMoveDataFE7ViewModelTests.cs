@@ -90,6 +90,29 @@ public class EventMoveDataFE7ViewModelTests : IClassFixture<RomFixture>, IDispos
         Assert.Equal(BlockAddr + 5, list[3].addr); // Down
     }
 
+    [Fact]
+    public void GetListCount_ReflectsAllCommands_NotJustFirst()
+    {
+        // Regression for Copilot PR-review finding #1: --data-verify-full uses
+        // GetListCount() as its loop bound, so a multi-command block reporting
+        // only 1 would leave commands 2..N unverified.
+        MakeSyntheticRom();
+
+        var vm = new EventMoveDataFE7ViewModel();
+        var list = vm.LoadListFrom(BlockAddr);
+
+        Assert.Equal(4, list.Count);
+        Assert.Equal(4, vm.GetListCount()); // NOT 1
+    }
+
+    [Fact]
+    public void GetListCount_Zero_WhenNothingLoaded()
+    {
+        MakeSyntheticRom();
+        var vm = new EventMoveDataFE7ViewModel();
+        Assert.Equal(0, vm.GetListCount());
+    }
+
     // ====================================================================
     // ViewModel: read / write round-trip incl. B1/time for type 0xC.
     // ====================================================================

@@ -48,9 +48,21 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(0x09, true)]   // Highlight — has time byte
         [InlineData(0x0A, false)]  // Collision mark — single byte (NOT appended)
         [InlineData(0x0C, true)]   // Speed change — has time byte
-        public void IsAppnedData_MatchesWinForms(uint data, bool expected)
+        public void IsAppendedData_MatchesWinForms(uint data, bool expected)
         {
-            Assert.Equal(expected, EventMoveDataFE7Core.IsAppnedData(data));
+            Assert.Equal(expected, EventMoveDataFE7Core.IsAppendedData(data));
+        }
+
+        [Theory]
+        [InlineData(0x00)]
+        [InlineData(0x09)]
+        [InlineData(0x0A)]
+        [InlineData(0x0C)]
+        public void IsAppnedData_IsAliasOf_IsAppendedData(uint data)
+        {
+            // The WinForms-parity typo alias must agree with the corrected name.
+            Assert.Equal(EventMoveDataFE7Core.IsAppendedData(data),
+                         EventMoveDataFE7Core.IsAppnedData(data));
         }
 
         [Theory]

@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _moveDirection;
         uint _time;
+        int _listCount;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -33,27 +34,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// parameter byte at offset+1 (types 9 and 0xC), mirroring WinForms
         /// <c>IsAppnedData</c>. Drives Time-field visibility (WinForms <c>X_TIME</c>).
         /// </summary>
-        public bool HasTimeField => EventMoveDataFE7Core.IsAppnedData(MoveDirection);
+        public bool HasTimeField => EventMoveDataFE7Core.IsAppendedData(MoveDirection);
 
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
+            if (rom?.RomInfo == null)
+            {
+                _listCount = 0;
+                return new List<AddrResult>();
+            }
 
             // Find the first valid move data block from event scripts, then walk
             // every command in the variable-length sequence (each is its own row).
             uint addr = EventSubEditorHelper.FindFirstMoveDataAddr(rom);
-            if (addr != 0)
-            {
-                var list = EventMoveDataFE7Core.WalkCommands(rom, addr);
-                if (list.Count > 0)
-                {
-                    LoadEntry(list[0].addr);
-                    return list;
-                }
-            }
+            return LoadListFrom(addr);
+        }
 
-            return new List<AddrResult>();
+        /// <summary>
+        /// Walk the move-data block at <paramref name="baseAddr"/> into one list
+        /// row per command and load the first. Caches the command count so
+        /// <see cref="GetListCount"/> (and thus <c>--data-verify-full</c>) covers
+        /// every command. Returns an empty list (count 0) for a 0 / invalid base.
+        /// </summary>
+        public List<AddrResult> LoadListFrom(uint baseAddr)
+        {
+            _listCount = 0;
+            ROM rom = CoreState.ROM;
+            if (rom == null || baseAddr == 0) return new List<AddrResult>();
+
+            var list = EventMoveDataFE7Core.WalkCommands(rom, baseAddr);
+            if (list.Count > 0)
+            {
+                _listCount = list.Count;
+                LoadEntry(list[0].addr);
+            }
+            return list;
         }
 
         public void LoadEntry(uint addr)
@@ -95,7 +111,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom.write_u8(CurrentAddr + 1, Time);
         }
 
-        public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
+        /// <summary>
+        /// Number of move commands in the loaded block — one per list row, so
+        /// <c>--data-verify-full</c> (which uses this as its loop bound) walks
+        /// every command, not just the first. Falls back to 1 for a single
+        /// loaded entry that did not go through <see cref="LoadList"/>.
+        /// </summary>
+        public int GetListCount()
+        {
+            if (_listCount > 0) return _listCount;
+            return IsLoaded && CurrentAddr != 0 ? 1 : 0;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

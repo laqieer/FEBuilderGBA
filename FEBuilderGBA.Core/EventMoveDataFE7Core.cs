@@ -31,14 +31,21 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// WinForms <c>IsAppnedData</c>: only types 9 (Highlight) and 0xC
-        /// (Speed change) carry an extra parameter byte (B1/time) at offset+1.
-        /// NOTE: 0xA is a single-byte command — it does NOT carry a parameter.
+        /// Whether the command type carries an extra parameter byte (B1/time) at
+        /// offset+1: only types 9 (Highlight) and 0xC (Speed change). 0xA is a
+        /// single-byte command and does NOT carry a parameter.
         /// </summary>
-        public static bool IsAppnedData(uint data)
+        public static bool IsAppendedData(uint data)
         {
             return data == 9 || data == 0xC;
         }
+
+        /// <summary>
+        /// Back-compat / WinForms-parity alias for <see cref="IsAppendedData"/>
+        /// (the WinForms method is spelled <c>IsAppnedData</c>). New code should
+        /// prefer the correctly-spelled <see cref="IsAppendedData"/>.
+        /// </summary>
+        public static bool IsAppnedData(uint data) => IsAppendedData(data);
 
         /// <summary>
         /// Stride (in bytes) for a command of the given type: 2 for appended
@@ -46,7 +53,7 @@ namespace FEBuilderGBA
         /// </summary>
         public static uint Stride(uint type)
         {
-            return IsAppnedData(type) ? 2u : 1u;
+            return IsAppendedData(type) ? 2u : 1u;
         }
 
         /// <summary>

@@ -212,7 +212,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     // Valid non-direction command (9=Highlight, 0xA=Collision mark, 0xC=Speed change).
                     // Only 9/0xC carry an extra parameter byte (stride 2); 0xA is single-byte.
                     // Use the Core stride logic as the single source of truth.
-                    if (EventMoveDataFE7Core.IsAppnedData(code))
+                    if (EventMoveDataFE7Core.IsAppendedData(code))
                         i++; // skip the parameter byte
                 }
                 else
