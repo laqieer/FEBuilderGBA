@@ -275,44 +275,58 @@ namespace FEBuilderGBA
             SaveFailed,
         }
 
+        /// <summary>One UPS applied in memory, not yet written.</summary>
+        public sealed class StagedApply
+        {
+            public string UpsPath = "";
+            public string SaveGbaPath = "";
+            public byte[] Bytes = Array.Empty<byte>();
+        }
+
+        /// <summary>
+        /// Result of <see cref="PrepareApply"/> — the in-memory apply pass. NO files
+        /// written yet. The host inspects <see cref="Warnings"/> and decides whether to
+        /// <see cref="CommitApply"/> (WF prompts before continuing on CRC warnings).
+        /// </summary>
+        public sealed class PrepareResult
+        {
+            public ApplyStatus Status;
+            public string Error = "";
+            public List<StagedApply> Staged = new List<StagedApply>();
+            /// <summary>
+            /// Non-fatal warnings (typically <c>UPSUtilCore.ApplyUPS</c> patch/result
+            /// CRC mismatches — bytes still produced). The host should PROMPT before
+            /// committing when this is non-empty.
+            /// </summary>
+            public List<string> Warnings = new List<string>();
+            public static PrepareResult Fail(ApplyStatus s, string err = "")
+                => new PrepareResult { Status = s, Error = err };
+        }
+
         public sealed class ApplyResult
         {
             public ApplyStatus Status;
             public string Error = "";
             /// <summary>Patched <c>.gba</c> files written (one per staged UPS).</summary>
             public List<string> SavedRoms = new List<string>();
-            /// <summary>
-            /// Non-fatal warnings collected during apply — typically <c>UPSUtilCore.ApplyUPS</c>
-            /// patch/result CRC mismatches (the patch still produced bytes). Empty on a clean run.
-            /// The host can surface these to the user (WF asks whether to continue).
-            /// </summary>
+            /// <summary>Carried over from the prepare pass (informational).</summary>
             public List<string> Warnings = new List<string>();
             public static ApplyResult Fail(ApplyStatus s, string err = "")
                 => new ApplyResult { Status = s, Error = err };
         }
 
         /// <summary>
-        /// Apply every UPS in <paramref name="upsFiles"/> to the vanilla ROM at
-        /// <paramref name="originalRomFilename"/> and save the patched <c>.gba</c>
-        /// beside each UPS. Ports WF <c>DownloadAndExtract</c> lines 579-598.
-        ///
-        /// <para><b>Validate-ALL-before-write</b> (Copilot review finding #3): every
-        /// UPS is applied in memory first; only if ALL succeed are the <c>.gba</c>
-        /// files written, so a late failure can never leave partial outputs. CRC
-        /// warnings (patched bytes produced despite a CRC mismatch) are collected in
-        /// <see cref="ApplyResult.Warnings"/> rather than silently flattened.</para>
-        ///
-        /// <para>The ROM load/apply is injected as <paramref name="applyOne"/> so Core
-        /// has no dependency on a concrete loader: it receives the original bytes + the
-        /// UPS path and returns the patched ROM bytes, a hard error (aborts), and an
-        /// optional non-fatal warning.</para>
+        /// PHASE 1 (Copilot review #2/#3): apply EVERY UPS to the vanilla ROM
+        /// <em>in memory only</em> — NOTHING is written. A hard error aborts the whole
+        /// batch; CRC warnings are collected so the host can PROMPT before committing
+        /// (WF asks the user whether to continue). Ports WF <c>DownloadAndExtract</c>
+        /// lines 579-598 (load+apply half).
         /// </summary>
         /// <param name="applyOne">
         /// <c>(originalBytes, upsPath) =&gt; (bytes, error, warning)</c>. A non-empty
-        /// <c>error</c> (or null <c>bytes</c>) aborts the whole batch BEFORE any write;
-        /// a non-empty <c>warning</c> is collected but does not abort.
+        /// <c>error</c> (or null <c>bytes</c>) aborts; a non-empty <c>warning</c> is collected.
         /// </param>
-        public static ApplyResult ApplyUpsAgainstOriginal(
+        public static PrepareResult PrepareApply(
             IReadOnlyList<string> upsFiles,
             string originalRomFilename,
             Func<byte[], string, (byte[]? bytes, string error, string warning)> applyOne)
@@ -321,11 +335,11 @@ namespace FEBuilderGBA
             {
                 if (upsFiles == null || upsFiles.Count == 0)
                 {
-                    return ApplyResult.Fail(ApplyStatus.ApplyFailed, "No UPS files.");
+                    return PrepareResult.Fail(ApplyStatus.ApplyFailed, "No UPS files.");
                 }
                 if (string.IsNullOrEmpty(originalRomFilename) || !File.Exists(originalRomFilename))
                 {
-                    return ApplyResult.Fail(ApplyStatus.NoOriginal);
+                    return PrepareResult.Fail(ApplyStatus.NoOriginal);
                 }
 
                 byte[] original;
@@ -335,15 +349,14 @@ namespace FEBuilderGBA
                 }
                 catch (Exception e)
                 {
-                    return ApplyResult.Fail(ApplyStatus.OriginalUnreadable, e.Message);
+                    return PrepareResult.Fail(ApplyStatus.OriginalUnreadable, e.Message);
                 }
                 if (original.Length == 0)
                 {
-                    return ApplyResult.Fail(ApplyStatus.OriginalUnreadable);
+                    return PrepareResult.Fail(ApplyStatus.OriginalUnreadable);
                 }
 
-                // ---- pass 1: apply ALL in memory (abort before any write) ----
-                var staged = new List<(string savegba, byte[] bytes)>();
+                var staged = new List<StagedApply>();
                 var warnings = new List<string>();
                 foreach (string ups in upsFiles)
                 {
@@ -352,37 +365,119 @@ namespace FEBuilderGBA
                         : (null, "no applier", "");
                     if (bytes == null || !string.IsNullOrEmpty(err))
                     {
-                        return ApplyResult.Fail(ApplyStatus.ApplyFailed,
+                        return PrepareResult.Fail(ApplyStatus.ApplyFailed,
                             string.IsNullOrEmpty(err) ? ("Apply produced no bytes: " + ups) : err);
                     }
                     if (!string.IsNullOrEmpty(warn))
                     {
                         warnings.Add(ups + ": " + warn);
                     }
-                    staged.Add((U.ChangeExtFilename(ups, ".gba"), bytes));
+                    staged.Add(new StagedApply
+                    {
+                        UpsPath = ups,
+                        SaveGbaPath = U.ChangeExtFilename(ups, ".gba"),
+                        Bytes = bytes,
+                    });
                 }
 
-                // ---- pass 2: write ALL (only reached when every apply succeeded) ----
-                var saved = new List<string>();
-                foreach ((string savegba, byte[] bytes) in staged)
-                {
-                    try
-                    {
-                        File.WriteAllBytes(savegba, bytes);
-                    }
-                    catch (Exception e)
-                    {
-                        return ApplyResult.Fail(ApplyStatus.SaveFailed, e.Message);
-                    }
-                    saved.Add(savegba);
-                }
-
-                return new ApplyResult { Status = ApplyStatus.Ok, SavedRoms = saved, Warnings = warnings };
+                return new PrepareResult { Status = ApplyStatus.Ok, Staged = staged, Warnings = warnings };
             }
             catch (Exception e)
             {
-                return ApplyResult.Fail(ApplyStatus.ApplyFailed, e.Message);
+                return PrepareResult.Fail(ApplyStatus.ApplyFailed, e.Message);
             }
+        }
+
+        /// <summary>
+        /// PHASE 2 (Copilot review #3): write the pre-staged patched ROMs
+        /// <em>atomically</em>. Each <c>.gba</c> is written to a temp file then moved
+        /// into place; if ANY write fails, every file already moved is rolled back
+        /// (deleted / restored from a backup of a pre-existing target) so the workflow
+        /// never leaves a partial set of outputs. Only call after the host has accepted
+        /// any <see cref="PrepareResult.Warnings"/>.
+        /// </summary>
+        public static ApplyResult CommitApply(PrepareResult prepared)
+        {
+            if (prepared == null || prepared.Status != ApplyStatus.Ok)
+            {
+                return ApplyResult.Fail(ApplyStatus.ApplyFailed,
+                    prepared?.Error ?? "nothing prepared");
+            }
+
+            var written = new List<string>();          // targets we moved into place
+            var backups = new List<(string target, string backup)>(); // pre-existing targets we displaced
+            try
+            {
+                foreach (StagedApply s in prepared.Staged)
+                {
+                    string target = s.SaveGbaPath;
+                    string tmp = target + ".tmp_" + Guid.NewGuid().ToString("N");
+                    File.WriteAllBytes(tmp, s.Bytes);
+
+                    // If the target already exists, back it up so we can restore on rollback.
+                    if (File.Exists(target))
+                    {
+                        string backup = target + ".bak_" + Guid.NewGuid().ToString("N");
+                        File.Move(target, backup);
+                        backups.Add((target, backup));
+                    }
+                    File.Move(tmp, target);
+                    written.Add(target);
+                }
+
+                // Success: drop the backups of displaced originals.
+                foreach ((string _, string backup) in backups)
+                {
+                    try { if (File.Exists(backup)) File.Delete(backup); } catch { }
+                }
+
+                return new ApplyResult
+                {
+                    Status = ApplyStatus.Ok,
+                    SavedRoms = written,
+                    Warnings = prepared.Warnings,
+                };
+            }
+            catch (Exception e)
+            {
+                // ---- rollback: delete what we wrote, restore displaced originals ----
+                foreach (string t in written)
+                {
+                    try { if (File.Exists(t)) File.Delete(t); } catch { }
+                }
+                foreach ((string target, string backup) in backups)
+                {
+                    try
+                    {
+                        if (File.Exists(backup))
+                        {
+                            if (File.Exists(target)) File.Delete(target);
+                            File.Move(backup, target);
+                        }
+                    }
+                    catch { }
+                }
+                return ApplyResult.Fail(ApplyStatus.SaveFailed, e.Message);
+            }
+        }
+
+        /// <summary>
+        /// Convenience one-shot: <see cref="PrepareApply"/> then immediately
+        /// <see cref="CommitApply"/> (no warning prompt). Hosts that need to prompt on
+        /// CRC warnings should call the two phases directly. Kept for tests / non-
+        /// interactive callers.
+        /// </summary>
+        public static ApplyResult ApplyUpsAgainstOriginal(
+            IReadOnlyList<string> upsFiles,
+            string originalRomFilename,
+            Func<byte[], string, (byte[]? bytes, string error, string warning)> applyOne)
+        {
+            PrepareResult p = PrepareApply(upsFiles, originalRomFilename, applyOne);
+            if (p.Status != ApplyStatus.Ok)
+            {
+                return ApplyResult.Fail(p.Status, p.Error);
+            }
+            return CommitApply(p);
         }
 
         // ---- private directory/temp helpers (ported from WF U.cs) ---------------

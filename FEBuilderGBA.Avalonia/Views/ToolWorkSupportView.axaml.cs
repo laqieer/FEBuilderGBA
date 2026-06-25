@@ -139,24 +139,40 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            // ---- apply each staged UPS against the original (validate-all-before-write) ----
+            // ---- PHASE 1: apply each staged UPS in memory (NO write yet) ----
             _vm.AutoFeedbackStatus = R._("Applying UPS patch...");
-            WorkSupportUpdateDownloadCore.ApplyResult apply = await Task.Run(() =>
-                _vm.ApplyUps(stage.UpsFiles, original, ApplyOneUps));
-            if (apply.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
+            WorkSupportUpdateDownloadCore.PrepareResult prepared = await Task.Run(() =>
+                _vm.PrepareUps(stage.UpsFiles, original, ApplyOneUps));
+            if (prepared.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
             {
                 _vm.AutoFeedbackStatus = string.Format(
-                    R._("Failed to apply UPS patch ({0}). {1}"), apply.Status, apply.Error);
+                    R._("Failed to apply UPS patch ({0}). {1}"), prepared.Status, prepared.Error);
                 return;
             }
 
-            // ---- surface non-fatal CRC warnings (WF parity finding #3) ----
-            if (apply.Warnings.Count > 0)
+            // ---- PROMPT on non-fatal CRC warnings BEFORE writing (WF parity #2/#3) ----
+            if (prepared.Warnings.Count > 0)
             {
-                await MessageBoxWindow.Show(this,
-                    R._("The update was applied, but with warnings:") + "\r\n" +
-                    string.Join("\r\n", apply.Warnings),
-                    R._("Work Support"), MessageBoxMode.Ok);
+                var cont = await MessageBoxWindow.Show(this,
+                    R._("The UPS patch produced CRC warnings:") + "\r\n" +
+                    string.Join("\r\n", prepared.Warnings) + "\r\n\r\n" +
+                    R._("Save the patched ROM anyway?"),
+                    R._("Work Support"), MessageBoxMode.YesNo);
+                if (cont != MessageBoxResult.Yes)
+                {
+                    _vm.AutoFeedbackStatus = R._("Update cancelled (CRC warning declined). No ROM written.");
+                    return;
+                }
+            }
+
+            // ---- PHASE 2: atomically write the patched ROMs (rollback on failure) ----
+            WorkSupportUpdateDownloadCore.ApplyResult apply = await Task.Run(() =>
+                _vm.CommitUps(prepared));
+            if (apply.Status != WorkSupportUpdateDownloadCore.ApplyStatus.Ok)
+            {
+                _vm.AutoFeedbackStatus = string.Format(
+                    R._("Failed to save patched ROM ({0}). {1}"), apply.Status, apply.Error);
+                return;
             }
 
             // ---- reopen the patched ROM in the main window ----

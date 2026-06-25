@@ -66,13 +66,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     return;
                 }
-                // Search the UPS directory first, then the loaded ROM's directory
-                // (lastROMFilename) — mirrors WF FindOrignalROMByCRC32's multi-dir
-                // search (Copilot review finding #4). Emulator dir is Windows-only
-                // and not meaningfully available cross-platform, so it is left empty.
+                // Pass the FULL set of Core search dirs (Copilot review finding #4),
+                // mirroring WF FindOrignalROMByCRC32's multi-dir search:
+                //   currentDir       = the staged UPS directory
+                //   romBaseDirectory = the app base directory (CoreState.BaseDirectory)
+                //   lastROMFilename  = the loaded ROM (its directory is also scanned)
+                //   emulatorDirectory= Windows-only; not meaningfully available cross-platform.
                 string dir = System.IO.Path.GetDirectoryName(UpsFilename) ?? "";
                 string lastRom = CoreState.ROM?.Filename ?? "";
-                string found = ToolTranslateROMCore.FindOrignalROMByCRC32(dir, srcCrc32, "", lastRom, "") ?? "";
+                string baseDir = CoreState.BaseDirectory ?? "";
+                string found = ToolTranslateROMCore.FindOrignalROMByCRC32(dir, srcCrc32, baseDir, lastRom, "") ?? "";
                 if (!string.IsNullOrEmpty(found))
                 {
                     OriginalFilename = found;

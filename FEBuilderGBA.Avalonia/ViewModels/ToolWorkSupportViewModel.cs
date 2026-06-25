@@ -164,9 +164,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Apply staged UPS files to a user-selected vanilla ROM and write the
-        /// patched <c>.gba</c>s. Mirrors WF <c>DownloadAndExtract</c> (UPS-apply half).
+        /// PHASE 1: apply staged UPS files to a user-selected vanilla ROM in memory
+        /// (NO write). The caller inspects <c>PrepareResult.Warnings</c> and decides
+        /// whether to <see cref="CommitUps"/>. Mirrors WF prompting before continuing
+        /// on CRC mismatches.
         /// </summary>
+        public WorkSupportUpdateDownloadCore.PrepareResult PrepareUps(
+            IReadOnlyList<string> upsFiles,
+            string originalRomFilename,
+            Func<byte[], string, (byte[]? bytes, string error, string warning)> applyOne)
+        {
+            return WorkSupportUpdateDownloadCore.PrepareApply(
+                upsFiles, originalRomFilename, applyOne);
+        }
+
+        /// <summary>PHASE 2: atomically write the pre-staged patched ROMs (with rollback).</summary>
+        public WorkSupportUpdateDownloadCore.ApplyResult CommitUps(
+            WorkSupportUpdateDownloadCore.PrepareResult prepared)
+        {
+            return WorkSupportUpdateDownloadCore.CommitApply(prepared);
+        }
+
+        /// <summary>One-shot apply+commit (no warning prompt) — kept for non-interactive callers/tests.</summary>
         public WorkSupportUpdateDownloadCore.ApplyResult ApplyUps(
             IReadOnlyList<string> upsFiles,
             string originalRomFilename,

@@ -313,5 +313,117 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("CRC mismatch", r.Warnings[0]);
             Assert.True(File.Exists(r.SavedRoms[0]));
         }
+
+        // ---- two-phase PrepareApply / CommitApply (Copilot review #2/#3) ----
+
+        [Fact]
+        public void PrepareApply_WithWarning_WritesNothing_UntilCommit()
+        {
+            // The whole point: warnings are surfaced BEFORE any .gba is written, so the
+            // host can prompt and decline. PrepareApply must not touch the filesystem.
+            byte[] original = new byte[16];
+            string origPath = Path.Combine(_root, "p1_vanilla.gba");
+            File.WriteAllBytes(origPath, original);
+            string ups = Path.Combine(_root, "p1_patch.ups");
+            File.WriteAllText(ups, "x");
+
+            var prep = WorkSupportUpdateDownloadCore.PrepareApply(
+                new List<string> { ups }, origPath,
+                applyOne: (orig, u) => (new byte[16], "", "CRC mismatch"));
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.Ok, prep.Status);
+            Assert.Single(prep.Warnings);
+            Assert.Single(prep.Staged);
+            // DECLINE: never call CommitApply -> NO .gba on disk.
+            Assert.False(File.Exists(Path.ChangeExtension(ups, ".gba")));
+
+            // ACCEPT: commit now writes it.
+            var apply = WorkSupportUpdateDownloadCore.CommitApply(prep);
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.Ok, apply.Status);
+            Assert.True(File.Exists(Path.ChangeExtension(ups, ".gba")));
+            Assert.Single(apply.Warnings);
+        }
+
+        [Fact]
+        public void PrepareApply_HardError_WritesNothing()
+        {
+            byte[] original = new byte[16];
+            string origPath = Path.Combine(_root, "p2.gba");
+            File.WriteAllBytes(origPath, original);
+            string ups1 = Path.Combine(_root, "p2a.ups");
+            string ups2 = Path.Combine(_root, "p2b.ups");
+            File.WriteAllText(ups1, "x");
+            File.WriteAllText(ups2, "x");
+
+            var prep = WorkSupportUpdateDownloadCore.PrepareApply(
+                new List<string> { ups1, ups2 }, origPath,
+                applyOne: (orig, u) => u.EndsWith("p2a.ups") ? (new byte[16], "", "") : (null, "boom", ""));
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.ApplyFailed, prep.Status);
+            Assert.False(File.Exists(Path.ChangeExtension(ups1, ".gba")));
+            Assert.False(File.Exists(Path.ChangeExtension(ups2, ".gba")));
+        }
+
+        [Fact]
+        public void CommitApply_SaveFailureOnSecond_RollsBackFirst()
+        {
+            // Make the SECOND target unwritable by pre-creating it as a DIRECTORY, so
+            // File.Move-into-place throws. The first .gba (already written) must be
+            // rolled back -> no partial output.
+            byte[] original = new byte[16];
+            string origPath = Path.Combine(_root, "r1.gba");
+            File.WriteAllBytes(origPath, original);
+
+            string ups1 = Path.Combine(_root, "r1a.ups");
+            string ups2 = Path.Combine(_root, "r1b.ups");
+            File.WriteAllText(ups1, "x");
+            File.WriteAllText(ups2, "x");
+
+            string target1 = Path.ChangeExtension(ups1, ".gba");
+            string target2 = Path.ChangeExtension(ups2, ".gba");
+            // Block target2 with a directory of the same name.
+            Directory.CreateDirectory(target2);
+
+            var prep = WorkSupportUpdateDownloadCore.PrepareApply(
+                new List<string> { ups1, ups2 }, origPath,
+                applyOne: (orig, u) => (new byte[16], "", ""));
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.Ok, prep.Status);
+
+            var apply = WorkSupportUpdateDownloadCore.CommitApply(prep);
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.SaveFailed, apply.Status);
+            // ROLLBACK: the first target must NOT remain as a written file.
+            Assert.False(File.Exists(target1), "first .gba must be rolled back on a later save failure");
+        }
+
+        [Fact]
+        public void CommitApply_RestoresDisplacedOriginalOnFailure()
+        {
+            // target1 pre-exists with sentinel bytes; target2 is blocked (directory).
+            // After the failed commit, target1's ORIGINAL content must be restored.
+            byte[] original = new byte[16];
+            string origPath = Path.Combine(_root, "r2.gba");
+            File.WriteAllBytes(origPath, original);
+
+            string ups1 = Path.Combine(_root, "r2a.ups");
+            string ups2 = Path.Combine(_root, "r2b.ups");
+            File.WriteAllText(ups1, "x");
+            File.WriteAllText(ups2, "x");
+
+            string target1 = Path.ChangeExtension(ups1, ".gba");
+            string target2 = Path.ChangeExtension(ups2, ".gba");
+            byte[] sentinel = new byte[] { 1, 2, 3, 4, 5 };
+            File.WriteAllBytes(target1, sentinel);    // pre-existing target1
+            Directory.CreateDirectory(target2);        // block target2
+
+            var prep = WorkSupportUpdateDownloadCore.PrepareApply(
+                new List<string> { ups1, ups2 }, origPath,
+                applyOne: (orig, u) => (new byte[16], "", ""));
+            var apply = WorkSupportUpdateDownloadCore.CommitApply(prep);
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.SaveFailed, apply.Status);
+            Assert.True(File.Exists(target1));
+            Assert.Equal(sentinel, File.ReadAllBytes(target1)); // original restored
+        }
     }
 }
