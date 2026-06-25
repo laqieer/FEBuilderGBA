@@ -19,7 +19,7 @@
           <NumericUpDown AutomationProperties.AutomationId="EventMoveDataFE7_MoveDirectionUpDown_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="MoveDirectionUpDown" Minimum="0" Maximum="255"
                          Margin="0,4" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Time / Speed:" VerticalAlignment="Center" Margin="0,4" Name="TimeLabel" IsVisible="False" />
+          <TextBlock AutomationProperties.AutomationId="EventMoveDataFE7_Time_Label" Grid.Row="2" Grid.Column="0" Text="Time / Speed:" VerticalAlignment="Center" Margin="0,4" Name="TimeLabel" IsVisible="False" />
           <NumericUpDown AutomationProperties.AutomationId="EventMoveDataFE7_TimeUpDown_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="TimeUpDown" Minimum="0" Maximum="255"
                          Margin="0,4" IsVisible="False" />
         </Grid>
