@@ -107,6 +107,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return baseAddr;
         }
 
+        /// <summary>
+        /// Clear the loaded-entry state. Called when the active table changes so a
+        /// stale row from the previous table can't be written under the new schema
+        /// (e.g. switching to an empty/missing secondary table must not leave the
+        /// Write button able to commit the old main-table row).
+        /// </summary>
+        public void ClearEntry()
+        {
+            IsLoaded = false;
+            CurrentAddr = 0;
+            AttackerUnit = 0;
+            DefenderUnit = 0;
+            Unknown02 = 0;
+            Unknown03 = 0;
+            Text = 0;
+            Unknown06 = 0;
+            Unknown07 = 0;
+            AchievementFlag = 0;
+            Unknown0A = 0;
+            Unknown0B = 0;
+            EventPointer = 0;
+        }
+
         public List<AddrResult> LoadList() => LoadList(_table);
 
         public List<AddrResult> LoadList(BattleTalkTable table)

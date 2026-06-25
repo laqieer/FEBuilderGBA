@@ -277,6 +277,34 @@ public class EventBattleTalkFE6ViewModelTests
     }
 
     [Fact]
+    public void ClearEntry_ResetsLoadedState()
+    {
+        // Guardrail (Copilot PR review): switching to an empty/missing table must
+        // not leave a writable stale selection behind. ClearEntry zeroes the
+        // loaded-entry state so the Write button (gated on IsLoaded) cannot commit
+        // the previous table's row under the new schema.
+        RomTestHelper.WithRom("FE6", () =>
+        {
+            var vm = new EventBattleTalkFE6ViewModel();
+            var list = vm.LoadList(EventBattleTalkFE6ViewModel.BattleTalkTable.Secondary);
+            Assert.NotEmpty(list);
+            vm.LoadEntry(list[0].addr);
+            Assert.True(vm.IsLoaded);
+            Assert.NotEqual(0u, vm.CurrentAddr);
+
+            vm.ClearEntry();
+
+            Assert.False(vm.IsLoaded);
+            Assert.Equal(0u, vm.CurrentAddr);
+            Assert.Equal(0u, vm.AttackerUnit);
+            Assert.Equal(0u, vm.DefenderUnit);
+            Assert.Equal(0u, vm.Text);
+            Assert.Equal(0u, vm.AchievementFlag);
+            Assert.Equal(0u, vm.EventPointer);
+        });
+    }
+
+    [Fact]
     public void Reports_IncludeEventPointer_OnlyForSecondary()
     {
         RomTestHelper.WithRom("FE6", () =>

@@ -39,7 +39,7 @@
           <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
           <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerName_Label" Grid.Row="2" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" Name="DefenderLabel" />
           <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderUnit_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
           <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderName_Label" Grid.Row="3" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 

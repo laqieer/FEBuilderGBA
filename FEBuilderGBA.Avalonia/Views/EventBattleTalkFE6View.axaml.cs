@@ -21,9 +21,11 @@ namespace FEBuilderGBA.Avalonia.Views
             TableFilter.SelectionChanged += TableFilter_SelectionChanged;
             WriteButton.Click += OnWrite;
 
-            // Live name/text previews while editing.
+            // Live name/text previews while editing. The second field is a unit
+            // only on the main table (it is a chapter id on the secondary table),
+            // so its name preview is suppressed in secondary mode.
             AttackerUnitBox.ValueChanged += (_, _) => AttackerNameLabel.Text = UnitName(AttackerUnitBox);
-            DefenderUnitBox.ValueChanged += (_, _) => DefenderNameLabel.Text = UnitName(DefenderUnitBox);
+            DefenderUnitBox.ValueChanged += (_, _) => DefenderNameLabel.Text = _vm.IsSecondaryTable ? "" : UnitName(DefenderUnitBox);
             TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);
 
             Opened += (_, _) => LoadList();
@@ -44,9 +46,15 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.IsLoading = true;
+                // Clear any loaded row from the previously-selected table BEFORE
+                // repopulating, so an empty/missing target table can't leave a
+                // writable stale selection behind (the Write button is gated on
+                // _vm.IsLoaded). The subsequent row selection re-loads a real row.
+                _vm.ClearEntry();
                 var items = _vm.LoadList(SelectedTable);
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
                 ApplyTableVisibility();
+                UpdateUI();
             }
             catch (Exception ex)
             {
@@ -59,13 +67,22 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // The event-pointer field (offset +0x0C) exists only in the secondary
-        // 16-byte boss-conversation table; hide it when browsing the main table.
+        // Adjust the editor chrome for the active table:
+        // - The event-pointer field (offset +0x0C) exists only in the secondary
+        //   16-byte boss-conversation table; hide it on the main table.
+        // - In the secondary table WinForms labels B1 as 章ID (chapter/map id),
+        //   not a defender unit (EventBattleTalkFE6Form.Designer N_J_1_MAP), so
+        //   relabel the second field and hide its unit-name preview there.
         void ApplyTableVisibility()
         {
             bool secondary = _vm.IsSecondaryTable;
             EventPointerLabel.IsVisible = secondary;
             EventPointerBox.IsVisible = secondary;
+
+            DefenderLabel.Text = R._(secondary ? "Chapter/Map ID:" : "Defender Unit:");
+            // The second field is a unit only on the main table; on the secondary
+            // table it is a chapter id, so suppress the misleading unit-name preview.
+            DefenderNameLabel.IsVisible = !secondary;
         }
 
         void OnSelected(uint addr)
@@ -107,7 +124,9 @@ namespace FEBuilderGBA.Avalonia.Views
             EventPointerBox.Value = _vm.EventPointer;
 
             AttackerNameLabel.Text = UnitName(AttackerUnitBox);
-            DefenderNameLabel.Text = UnitName(DefenderUnitBox);
+            // On the secondary table the second field is a chapter id (not a unit),
+            // so don't render a unit-name preview for it.
+            DefenderNameLabel.Text = _vm.IsSecondaryTable ? "" : UnitName(DefenderUnitBox);
             TextPreviewLabel.Text = TextPreview(TextIdBox);
         }
 

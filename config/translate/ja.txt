@@ -12311,3 +12311,12 @@ PLISTテーブルを分割しました。
 時間 / 速度:
 :Time / Speed is the extra parameter byte (offset+1) for Highlight (09) and Speed change (0C) commands only.
 Time / Speed は Highlight (09) と Speed change (0C) コマンドのみの追加パラメータバイト (offset+1) です。
+
+:Main (12-byte)
+メイン (12バイト)
+
+:Boss conversation (16-byte)
+ボス会話 (16バイト)
+
+:A mid-battle conversation triggered when the attacker and defender units fight. The boss-conversation table holds FE6's generic boss lines (a single triggering unit plus an event pointer).
+攻撃ユニットと防御ユニットが戦闘したときに発生する戦闘中の会話です。ボス会話テーブルにはFE6の汎用ボス台詞 (トリガーとなるユニット1体とイベントポインタ) が格納されます。

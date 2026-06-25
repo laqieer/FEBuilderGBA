@@ -84,6 +84,16 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(epLabel!.IsVisible, "Event Pointer label must be visible in secondary mode");
                 Assert.True(epBox!.IsVisible, "Event Pointer box must be visible in secondary mode");
 
+                // In secondary mode the second field is a chapter id (章ID), not a
+                // defender unit (Copilot PR review): the label is relabeled and its
+                // unit-name preview is suppressed.
+                var defLabel = view.FindControl<TextBlock>("DefenderLabel");
+                var defNameLabel = view.FindControl<TextBlock>("DefenderNameLabel");
+                Assert.NotNull(defLabel);
+                Assert.NotNull(defNameLabel);
+                Assert.Contains("Chapter", defLabel!.Text ?? "");
+                Assert.False(defNameLabel!.IsVisible, "Defender unit-name preview must be hidden in secondary mode");
+
                 // Select the first secondary row so the editor panel is populated.
                 entryList.SelectFirst();
                 view.Measure(new Size(W, H));
