@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class EventTalkGroupFE7View : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly EventTalkGroupFE7ViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Talk Group (FE7)";
         public bool IsLoaded => _vm.IsLoaded;
@@ -67,14 +68,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            if (!_vm.IsLoaded) return;
+
+            _undoService.Begin(R._("Edit Talk Group (FE7)"));
             try
             {
                 _vm.TextId = (uint)(TextIdUpDown.Value ?? 0);
                 _vm.Write();
+                _undoService.Commit();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
-                Log.Error("EventTalkGroupFE7View.OnWrite failed: {0}", ex.Message);
+                _undoService.Rollback();
+                Log.Error("EventTalkGroupFE7View.OnWrite failed: " + ex.ToString());
             }
         }
 
