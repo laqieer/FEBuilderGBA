@@ -590,6 +590,30 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(templateBytesBefore, templateCode.ByteData);
         }
 
+        [Fact]
+        public void SetCodes_And_InsertRange_SkipNulls_NoThrow()
+        {
+            var es = StdEs();
+            var ed = new EventScriptEditorCore(es);
+
+            // A list containing nulls must not be stored (would NRE in JisageReorder).
+            ed.SetCodes(new EventScript.OneCode[]
+            {
+                Code(es, 0x01, 0x00, 0x01, 0x00),
+                null,
+                Code(es, 0x0A, 0x00, 0x00, 0x00),
+            });
+            Assert.Equal(2, ed.Count);
+
+            int lastSel = ed.InsertRange(0, new List<EventScript.OneCode>
+            {
+                null,
+                Code(es, 0x02, 0x00, 0x02, 0x00),
+            });
+            Assert.Equal(3, ed.Count);          // only the non-null was inserted
+            Assert.Equal(0, lastSel);            // 1 inserted → insertedPoint + 0
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]

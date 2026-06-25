@@ -143,7 +143,11 @@ namespace FEBuilderGBA
             {
                 foreach (var c in codes)
                 {
-                    _codes.Add(c == null ? null : EventScript.CloneCode(c));
+                    // Skip null entries — every downstream path (JisageReorder, IsTermAt,
+                    // Serialize, RefreshDisplay) assumes non-null OneCodes (Copilot PR
+                    // review #1510). A null would NRE later, so never store one.
+                    if (c == null) continue;
+                    _codes.Add(EventScript.CloneCode(c));
                 }
             }
             EventScriptUtil.JisageReorder(_codes);
@@ -208,11 +212,18 @@ namespace FEBuilderGBA
             if (insertedPoint < 0) insertedPoint = 0;
             if (insertedPoint > _codes.Count) insertedPoint = _codes.Count;
 
+            // Clone non-null entries only — a null OneCode would NRE in JisageReorder /
+            // Serialize (Copilot PR review #1510). Base the returned selection index on the
+            // number of items ACTUALLY inserted, not the raw input count.
             var clones = new List<EventScript.OneCode>(codes.Count);
-            foreach (var c in codes) clones.Add(c == null ? null : EventScript.CloneCode(c));
+            foreach (var c in codes)
+            {
+                if (c == null) continue;
+                clones.Add(EventScript.CloneCode(c));
+            }
             _codes.InsertRange(insertedPoint, clones);
             EventScriptUtil.JisageReorder(_codes);
-            return insertedPoint + Math.Max(0, codes.Count - 1);
+            return insertedPoint + Math.Max(0, clones.Count - 1);
         }
 
         /// <summary>Delete the code at <paramref name="index"/>. Returns the new
@@ -351,6 +362,10 @@ namespace FEBuilderGBA
                 byte[] bin = LineToEventByte(line);
                 if (bin.Length < 4) continue; // broken or different code
                 EventScript.OneCode code = _es.DisAseemble(bin, 0);
+                // Guard against an invalid decode — a null code (or null Script/ByteData)
+                // would NRE later in JisageReorder / Serialize / RefreshDisplay. Skip it and
+                // do NOT count it as imported (Copilot PR review #1510).
+                if (code == null || code.Script == null || code.ByteData == null) continue;
                 if (insertPoint <= -1)
                 {
                     _codes.Add(code);

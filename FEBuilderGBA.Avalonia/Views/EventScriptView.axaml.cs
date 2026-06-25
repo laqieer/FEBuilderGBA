@@ -104,9 +104,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                // Log.Error joins its params with spaces (no composite formatting), so
-                // build the message string ourselves (Copilot PR review inline #3).
-                Log.Error("EventScriptView.WriteAll failed: " + ex.Message);
+                // Log.Error joins its params with spaces (no composite formatting), so build
+                // the message ourselves; log the FULL exception (stack + inner) for
+                // diagnosis, not just ex.Message (Copilot PR review #1510). The status line
+                // keeps the short message for the user.
+                Log.Error("EventScriptView.WriteAll failed: " + ex.ToString());
                 StatusLabel.Text = $"Write failed: {ex.Message}";
             }
         }
