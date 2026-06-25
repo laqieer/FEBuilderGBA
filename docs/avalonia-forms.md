@@ -343,7 +343,7 @@ Editors for game text, fonts, translation, and text utilities.
 | 200 | TextViewerView | TextViewerViewModel | Main text viewer/editor |
 | 201 | TextMainView | TextMainViewModel | Nested sub-view for text |
 | 202 | OtherTextView | OtherTextViewModel | Other text data editor |
-| 203 | CStringView | CStringViewModel | C-style string editor |
+| 203 | CStringView | CStringViewModel | C-style string editor — **functional** (#1445): manual address + Reload, editable string TextBox, real read (`TextForm.Direct` decode) + repoint-on-write (`CStringCore`, encode + NUL, in-place else relocate) |
 | 204 | FontEditorView | FontEditorViewModel | Font tile editor |
 | 205 | FontZHView | FontZHViewModel | Chinese font editor (per-glyph + bulk export/import + .ttf auto-generate) |
 | 206 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
