@@ -1675,7 +1675,9 @@ namespace FEBuilderGBA.Avalonia.Services
             uint ptr = rom.RomInfo.summons_demon_king_pointer;
             if (ptr == 0) return new List<AddrResult>();
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            // Bounds-check against THIS rom (the builder's parameter), not ambient
+            // CoreState.ROM, so the guard is consistent if called with a non-ambient ROM.
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             // Match the WinForms / Core canon (SummonsDemonKingForm.cs:36-42,
             // StructExportCore.cs:975-978) and SummonsDemonKingViewerViewModel:
@@ -1683,7 +1685,7 @@ namespace FEBuilderGBA.Avalonia.Services
             // EMPTY list; count==0 yields exactly 1 row via the i<=maxCount loop
             // (NOT 21 fabricated rows from the old `maxCount = 20` — issue #1424).
             uint countAddr = rom.RomInfo.summons_demon_king_count_address;
-            if (countAddr == 0 || !U.isSafetyOffset(countAddr)) return new List<AddrResult>();
+            if (countAddr == 0 || !U.isSafetyOffset(countAddr, rom)) return new List<AddrResult>();
             uint maxCount = rom.u8(countAddr);
             if (maxCount >= 100) return new List<AddrResult>();
 

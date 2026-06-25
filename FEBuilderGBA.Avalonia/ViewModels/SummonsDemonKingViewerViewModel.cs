@@ -57,7 +57,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            // Bounds-check against THIS rom (not ambient CoreState.ROM) so the
+            // guard matches the instance we actually read from.
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             // Match the WinForms / Core canon (SummonsDemonKingForm.cs:36-42,
             // StructExportCore.cs:975-978): a missing count source or a corrupt
@@ -65,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // so the i<=maxCount loop yields exactly 1 row (NOT 21 fabricated rows
             // from the old `maxCount = 20` special case — issue #1424).
             uint countAddr = rom.RomInfo.summons_demon_king_count_address;
-            if (countAddr == 0 || !U.isSafetyOffset(countAddr)) return new List<AddrResult>();
+            if (countAddr == 0 || !U.isSafetyOffset(countAddr, rom)) return new List<AddrResult>();
             uint maxCount = rom.u8(countAddr);
             if (maxCount >= 100) return new List<AddrResult>();
 

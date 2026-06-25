@@ -178,7 +178,11 @@ public class SummonsDemonKingCountParityTests : IDisposable
         }
 
         var rom = new ROM();
-        rom.LoadLow("synth-fe8u-1424.gba", bytes, "BE8E01");
+        // Assert recognition so a future detection-logic change fails here
+        // immediately rather than returning an uninitialized ROM that shifts
+        // failures into the assertions below.
+        bool recognized = rom.LoadLow("synth-fe8u-1424.gba", bytes, "BE8E01");
+        Assert.True(recognized, "Synthetic FE8U ROM must be recognized by LoadLow");
         return rom;
     }
 
