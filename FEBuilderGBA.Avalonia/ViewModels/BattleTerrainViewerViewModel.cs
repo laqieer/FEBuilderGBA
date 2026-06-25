@@ -137,7 +137,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Try to load battle terrain image.
-        /// Image and palette are LZ77-compressed.
+        /// The image at +12 is LZ77-compressed; the palette at +16 is RAW
+        /// (0x20 bytes, NOT compressed).
         /// Returns null on failure.
         /// </summary>
         public IImage TryLoadImage()
@@ -172,6 +173,66 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return CoreState.ImageService.Decode4bppTiles(tileData, 0, tilesX * 8, tilesY * 8, palette);
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// Read the BattleTerrain palette at offset +16 as RAW GBA bytes.
+        /// The BattleTerrain palette is stored RAW (0x20 bytes = 16 colors),
+        /// NOT LZ77-compressed — matching WinForms <c>ImageBattleTerrainForm.Draw</c>
+        /// (reads palette straight from <c>ROM.Data</c>) and
+        /// <c>MakeAllDataLength</c> (registers +16 as <c>DataTypeEnum.PAL</c>,
+        /// size 0x20). Returns null on a non-pointer or out-of-range palette.
+        /// </summary>
+        public byte[] ExportPaletteBytes()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return null;
+            uint palPtr = PalettePointer;
+            if (!U.isPointer(palPtr)) return null;
+            uint palAddr = U.toOffset(palPtr);
+            // rom-aware safety check — never dereference the ambient CoreState.ROM
+            // when we already hold a ROM instance (#993 ImageUtilCore guidance).
+            if (!U.isSafetyOffset(palAddr, rom)) return null;
+            // RAW read (not LZ77) — 16 colors * 2 bytes = 0x20 bytes.
+            return ImageUtilCore.GetPalette(rom, palAddr, 16);
+        }
+
+        /// <summary>BattleTerrain palette is a single 16-color bank = 0x20 raw bytes.</summary>
+        public const int PaletteRawSize = 0x20;
+
+        /// <summary>
+        /// Write a 16-color (0x20-byte) GBA palette to ROM free space as RAW
+        /// bytes and repoint +16. The BattleTerrain palette is stored RAW (NOT
+        /// LZ77) — matching WinForms <c>ImageBattleTerrainForm.ImportButton_Click</c>
+        /// which writes the palette with <c>LZ77=false</c> and registers +16 as
+        /// <c>DataTypeEnum.PAL</c> size 0x20. Oversized input (e.g. a 256-color
+        /// .act, or a multi-bank raw palette) is sliced to the FIRST 16 colors
+        /// so the written region is always exactly 0x20 bytes. Callers wrap this
+        /// in an undo scope. Returns true on success; on failure no repoint
+        /// occurs and <paramref name="error"/> describes the problem.
+        /// </summary>
+        public bool ImportPaletteBytes(byte[] palData, out string error)
+        {
+            error = "";
+            ROM rom = CoreState.ROM;
+            if (rom == null) { error = "No ROM loaded"; return false; }
+            if (palData == null || palData.Length < PaletteRawSize) { error = "Palette too small (need >= 32 bytes)"; return false; }
+            uint addr = CurrentAddr;
+            if (addr == 0) { error = "No entry selected"; return false; }
+            // Slice to exactly the first 16 colors (0x20 bytes). BattleTerrain
+            // +16 only consumes one 16-color bank; never write a larger blob.
+            byte[] raw = palData;
+            if (raw.Length != PaletteRawSize)
+            {
+                raw = new byte[PaletteRawSize];
+                Array.Copy(palData, 0, raw, 0, PaletteRawSize);
+            }
+            // RAW write (not LZ77) + repoint +16.
+            uint palAddr = ImageImportCore.WritePaletteToROM(rom, raw, addr + 16);
+            if (palAddr == U.NOT_FOUND) { error = "Failed to write palette"; return false; }
+            // Refresh the in-VM pointer mirror so the preview reads the new region.
+            LoadBattleTerrain(addr);
+            return true;
         }
 
         public int GetListCount() => LoadBattleTerrainList().Count;

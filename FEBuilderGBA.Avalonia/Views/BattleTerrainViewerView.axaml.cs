@@ -147,11 +147,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
-                uint palPtr = _vm.PalettePointer;
-                if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
-                uint palAddr = U.toOffset(palPtr);
-                // BattleTerrain palette is LZ77-compressed
-                byte[] pal = LZ77.decompress(rom.Data, palAddr);
+                if (!U.isPointer(_vm.PalettePointer)) { CoreState.Services.ShowError("No palette pointer"); return; }
+                // BattleTerrain palette is stored RAW (0x20 bytes), NOT LZ77.
+                byte[] pal = _vm.ExportPaletteBytes();
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "battle_terrain_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
@@ -173,13 +171,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
-                uint addr = _vm.CurrentAddr;
                 _undoService.Begin("Import Battle Terrain Palette");
-                // BattleTerrain palette is LZ77-compressed at offset +16
-                uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 16);
-                if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
+                // BattleTerrain palette is stored RAW at offset +16 (NOT LZ77).
+                if (!_vm.ImportPaletteBytes(palData, out string palErr))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(palErr.Length > 0 ? palErr : "Failed to write palette");
+                    return;
+                }
                 _undoService.Commit();
-                _vm.LoadBattleTerrain(addr);
                 UpdateUI();
                 LoadImage();
                 _vm.MarkClean();
