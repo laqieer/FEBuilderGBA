@@ -61,12 +61,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex) { Log.Error($"TextCharCodeView: FETextEncode rebuild failed: {ex}"); }
 
                 _undoService.Commit();
-                _vm.MarkClean();
 
                 // _vm.Write() refreshed the list label + CharacterDisplay; push the new
-                // values back into the editor controls.
+                // values back into the editor controls. UpdateFontPreview() sets
+                // _vm.ItemFontWidth/SerifFontWidth via SetField (which re-marks the VM
+                // dirty), so refresh the UI BEFORE MarkClean() — otherwise the editor
+                // would show unsaved changes immediately after a successful Write.
                 UpdateUI();
                 UpdateFontPreview();
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {

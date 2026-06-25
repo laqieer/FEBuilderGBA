@@ -110,13 +110,12 @@ public class TextCharCodeWriteTests : IClassFixture<RomFixture>
         Assert.NotNull(termBox);
         Assert.NotNull(write);
 
-        // Select the first entry so CurrentAddr is populated.
+        // Select the first entry so CurrentAddr is populated. This is ROM-backed
+        // (guarded by Skip() above), so assert — don't silently return — to avoid
+        // turning a real regression (failed load / unselected entry) into a false pass.
         list!.SelectedIndex = 0;
-        if (view.DataViewModel is not TextCharCodeViewModel vm || vm.CurrentAddr == 0)
-        {
-            _output.WriteLine("No entry selected — skipping.");
-            return;
-        }
+        var vm = Assert.IsType<TextCharCodeViewModel>(view.DataViewModel);
+        Assert.NotEqual(0u, vm.CurrentAddr);
 
         uint addr = vm.CurrentAddr;
         uint origCode = CoreState.ROM.u16(addr + 0);
@@ -130,6 +129,12 @@ public class TextCharCodeWriteTests : IClassFixture<RomFixture>
 
             Assert.Equal(0x4321u, CoreState.ROM.u16(addr + 0));
             Assert.Equal(0xBEEFu, CoreState.ROM.u16(addr + 2));
+
+            // After a successful Write the editor must be clean — UpdateFontPreview()
+            // re-marks the VM dirty (it sets ItemFontWidth/SerifFontWidth), so the
+            // handler must run it BEFORE MarkClean(). A dirty VM here means the editor
+            // would wrongly show unsaved changes right after saving.
+            Assert.False(vm.IsDirty, "VM must be clean after a successful Write");
         }
         finally
         {
