@@ -463,6 +463,36 @@ public class SkillAssignmentUnitCSkillSysParityTests
         } finally { CoreState.ROM = prevRom; }
     }
 
+    // Copilot re-review #3: Expand must use the REAL (uncapped) row count, not
+    // the UI read-count-capped loaded subset, or it silently no-ops.
+    [Fact] public void ViewModel_CountN1Rows_IsUncappedByN1ReadCount() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            // Plant the fixed level-up table pointer -> a per-unit pointer table.
+            uint levelUpBase = 0x00880000u;
+            uint slot = SkillAssignmentUnitCSkillSysViewModel.gpCharLevelUpSkillTable;
+            BitConverter.GetBytes(levelUpBase | 0x08000000u).CopyTo(bytes, (int)slot);
+            // Unit 2's slot -> a rows table with 7 valid entries + 0x0000 terminator.
+            uint rowsBase = 0x00890000u;
+            BitConverter.GetBytes(rowsBase | 0x08000000u).CopyTo(bytes, (int)(levelUpBase + 2 * 4));
+            for (int i = 0; i < 7; i++) {
+                bytes[(int)rowsBase + i * 2] = (byte)(1 + i);
+                bytes[(int)rowsBase + i * 2 + 1] = (byte)(0x10 + i);
+            }
+            bytes[(int)rowsBase + 7 * 2] = 0x00; bytes[(int)rowsBase + 7 * 2 + 1] = 0x00;
+
+            var vm = new SkillAssignmentUnitCSkillSysViewModel();
+            vm.SelectedUnitIndex = 2;
+            vm.N1ReadCount = 3; // UI cap shorter than the real list
+            // The capped LoadN1List sees only 3, but CountN1Rows walks all 7.
+            Assert.Equal(3, vm.LoadN1List(rowsBase).Count);
+            Assert.Equal(7u, vm.CountN1Rows());
+        } finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact] public void ViewModel_RefreshPatchState_NullRom_NotActive() {
         var prevRom = CoreState.ROM;
         try {

@@ -286,6 +286,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
                 UpdateSkillPreview(_vm.UnitSkill);
+                // The level-up pointer may have changed: reload the N1 sub-list /
+                // zero-pointer panel from the (normalized) pointer so the display
+                // isn't stale until the unit is reselected.
+                N1LevelUpAddrBox.Value = _vm.XLevelUpAddr;
+                LoadN1Sublist(_vm.LevelUpAddr);
             }
             catch (Exception ex)
             {
@@ -305,6 +310,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteN1Entry();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // The N1 row label is derived from the ROM {level, skill} bytes,
+                // so refresh the just-edited row's label + the right-side preview
+                // in place (otherwise the list looks like the write didn't apply
+                // until the user reloads/reselects).
+                int sel = N1ListBox.SelectedIndex;
+                if (sel >= 0 && sel < _n1Items.Count)
+                {
+                    string newLabel = U.ToHexString(_vm.N1Skill & 0xFF) + " (Lv" + (_vm.N1Level & 0xFF) + ")";
+                    _n1Items[sel] = new AddrResult(_n1Items[sel].addr, newLabel, _n1Items[sel].tag);
+                    _n1DisplayItems[sel] = newLabel;
+                }
+                UpdateSkillPreviewN1(_vm.N1Skill);
             }
             catch (Exception ex)
             {
@@ -336,7 +353,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnN1Expand(object? sender, RoutedEventArgs e)
         {
-            uint newCount = (uint)(_n1Items.Count + 1);
+            // Grow by one beyond the REAL (uncapped) row count, not the loaded
+            // subset: a user N1 read-count cap can make _n1Items.Count smaller
+            // than the on-ROM list, which would make ExpandN1List a silent no-op
+            // (newCount <= oldCount) even though the user clicked Expand.
+            uint realCount = _vm.CountN1Rows();
+            uint baseCount = Math.Max(realCount, (uint)_n1Items.Count);
+            uint newCount = baseCount + 1;
             _undoService.Begin("Skill Assignment Unit CSkillSys Expand Level-up List");
             try
             {

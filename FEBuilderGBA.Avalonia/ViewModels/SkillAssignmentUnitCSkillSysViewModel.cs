@@ -310,6 +310,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             N1Skill = values["B1"];
         }
 
+        /// <summary>
+        /// Count the REAL (uncapped) number of N1 level-up rows for the selected
+        /// unit, walking to the 0x0000/0xFFFF terminator independent of the UI
+        /// read-count cap. Used by the Expand handler so growing a list that is
+        /// longer than the current read cap is not a silent no-op.
+        /// </summary>
+        public uint CountN1Rows()
+        {
+            ROM? rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint levelUpTablePtr = rom.p32(gpCharLevelUpSkillTable);
+            if (!U.isSafetyOffset(levelUpTablePtr, rom)) return 0;
+            uint slotAddr = levelUpTablePtr + SelectedUnitIndex * 4;
+            if (slotAddr + 4 > (uint)rom.Data.Length) return 0;
+            uint ptr = rom.p32(slotAddr);
+            if (!U.isSafetyOffset(ptr, rom)) return 0;
+            uint count = 0;
+            for (uint i = 0; i < MAX_N1_COUNT; i++)
+            {
+                uint rowAddr = ptr + i * N1_BLOCK_SIZE;
+                if (rowAddr + N1_BLOCK_SIZE > (uint)rom.Data.Length) break;
+                uint row = rom.u16(rowAddr);
+                if (row == 0xFFFF || row == 0x0000) break;
+                count++;
+            }
+            return count;
+        }
+
         // -----------------------------------------------------------------
         // Write methods - canonical names tracked by UndoCoverageScanner.
         // -----------------------------------------------------------------
