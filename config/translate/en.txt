@@ -20820,6 +20820,12 @@ Select a shop first.
 :Nothing to remove (shop is empty).
 Nothing to remove (shop is empty).
 
+
+:File:
+File:
+
+:Copy generated hex
+Copy generated hex
 :PLIST Split\r\nPLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).\r\n(This is a destructive operation — be sure to back up your ROM first.)
 PLIST Split\r\nPLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).\r\n(This is a destructive operation — be sure to back up your ROM first.)
 
@@ -20832,3 +20838,6 @@ PLIST Split
 :PLIST tables split.
 PLIST tables split.
 
+
+:Template config file not found.
+Template config file not found.

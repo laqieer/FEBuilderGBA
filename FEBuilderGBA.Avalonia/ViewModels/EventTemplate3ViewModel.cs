@@ -1,33 +1,11 @@
-using System;
-using System.Collections.Generic;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class EventTemplate3ViewModel : ViewModelBase
+    // Event Template 3 (BLANK / TalkEvent / reinforcement variants / GAMEOVER).
+    // Real generator wired to EventTemplateCore. (#1434)
+    // Note: the Template-3 counter-reinforcement parent-form side effect
+    // (B8=1 / B9=255) is deferred — it requires the event editor host context.
+    public class EventTemplate3ViewModel : EventTemplateViewModelBase
     {
-        uint _currentAddr;
-        bool _isLoaded;
-
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-
-        public List<AddrResult> LoadList()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Event Template 3", 0));
-            return result;
-        }
-
-        public void LoadEntry(uint addr)
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-
-            CurrentAddr = addr;
-            IsLoaded = true;
-        }
+        protected override int TemplateNumber => 3;
     }
 }

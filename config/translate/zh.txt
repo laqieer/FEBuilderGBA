@@ -26104,6 +26104,12 @@ FE-Repo-音乐浏览器
 
 :New Split Menu
 新建分支菜单
+
+:File:
+文件:
+
+:Copy generated hex
+复制生成的十六进制
 :Loaded Address:
 已加载地址:
 
@@ -26121,3 +26127,6 @@ PLIST 分割
 
 :PLIST tables split.
 PLIST 表已分割。
+
+:Template config file not found.
+找不到模板配置文件。
