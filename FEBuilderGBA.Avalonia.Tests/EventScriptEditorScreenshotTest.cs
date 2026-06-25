@@ -128,7 +128,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 c.DrawText("Event Script editor — structural editing — FE8U   [#1435]", 24, 38, title);
 
-                // Toolbar mock (the real buttons added to EventScriptView.axaml).
+                // Toolbar row — the real buttons added to EventScriptView.axaml.
                 string[] buttons = { "Insert", "Insert (hex)", "Delete", "Move Up", "Move Down", "Import (append)" };
                 float bx = 24, by = 56;
                 foreach (var b in buttons)

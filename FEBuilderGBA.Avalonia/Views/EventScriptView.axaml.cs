@@ -118,6 +118,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 CommandsList.SelectedIndex = _vm.SelectedCommandIndex;
         }
 
+        /// <summary>
+        /// Tell the editor which kind of event script it is editing so the
+        /// termination scan + Write-All terminator selection are correct
+        /// (world-map / chapter top-level vs a normal chapter event). Callers that
+        /// open this view on a world-map or top-level event pointer must call this
+        /// BEFORE <see cref="NavigateTo"/> (Copilot PR review #1510 finding #2).
+        /// </summary>
+        public void SetEventKind(bool isWorldMapEvent, bool isTopLevelEvent)
+        {
+            _vm.IsWorldMapEvent = isWorldMapEvent;
+            _vm.IsTopLevelEvent = isTopLevelEvent;
+        }
+
         /// <summary>Navigate to a specific address and disassemble.</summary>
         public void NavigateTo(uint address)
         {

@@ -488,6 +488,51 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(EventScriptEditorCore.WriteResult.NoOp, result);
         }
 
+        [Fact]
+        public void WriteAll_DangerZoneAddress_RefusesUnsafe()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { Code(es, 0x0A, 0x00, 0x00, 0x00) });
+
+            byte[] before = U.getBinaryData(rom.Data, 0x100, 8);
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            // 0x100 is < 0x200 → danger zone → isSafetyOffset false.
+            var result = ed.WriteAll(rom, 0x100, false, false, undo, out _);
+            Assert.Equal(EventScriptEditorCore.WriteResult.UnsafeAddress, result);
+            Assert.Equal(before, U.getBinaryData(rom.Data, 0x100, 8)); // untouched
+        }
+
+        [Fact]
+        public void WriteAll_UnalignedAddress_RefusesUnsafe()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { Code(es, 0x0A, 0x00, 0x00, 0x00) });
+
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            // 0x1002 is not 4-byte aligned.
+            var result = ed.WriteAll(rom, 0x1002, false, false, undo, out _);
+            Assert.Equal(EventScriptEditorCore.WriteResult.UnsafeAddress, result);
+        }
+
+        [Fact]
+        public void Serialize_WorldMapUsesWorldMapTerm()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { Code(es, 0x01, 0x00, 0x01, 0x00) });
+
+            byte[] data = ed.Serialize(rom, isWorldMapEvent: true, isTopLevelEvent: false);
+            byte[] term = rom.RomInfo.Default_event_script_mapterm_code;
+            Assert.Equal(4 + term.Length, data.Length);
+            // Confirms the mapterm code (0x0C in our seed) was appended, not the normal term.
+            Assert.Equal(term[0], data[4]);
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]

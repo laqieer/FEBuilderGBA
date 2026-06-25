@@ -43,6 +43,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>The script type this editor operates on (Event, Procs, or AI).</summary>
         public EventScript.EventScriptType ScriptType { get; set; } = EventScript.EventScriptType.Event;
 
+        /// <summary>
+        /// True when this editor was opened on a WORLD-MAP event script (set by the
+        /// world-map event jump before navigating). Controls termination-scan rules and
+        /// which default terminator <see cref="EventScriptEditorCore"/> appends on write
+        /// — the WinForms editor detects this via <c>WorldMapEventPointerForm.isWorldMapEvent</c>;
+        /// the cross-platform VM carries it through navigation instead (Copilot PR review
+        /// finding #2). Defaults to false (the main-menu Event Script entry opens chapter
+        /// events).
+        /// </summary>
+        public bool IsWorldMapEvent { get; set; }
+
+        /// <summary>
+        /// True when this editor was opened on a CHAPTER TOP-LEVEL event pointer (set by
+        /// the EventCond jump). Selects the top-level terminator on write (WinForms
+        /// <c>EventCondForm.isTopLevelEvent</c>). Ignored when <see cref="IsWorldMapEvent"/>
+        /// is true (world-map terminator wins, mirroring WinForms).
+        /// </summary>
+        public bool IsTopLevelEvent { get; set; }
+
         /// <summary>True when there are unsaved structural edits (mirrors the WinForms
         /// "yellow write button" dirty flag).</summary>
         public bool IsDirty { get => _dirty; set => SetField(ref _dirty, value); }
@@ -174,8 +193,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             _editor = new EventScriptEditorCore(_es);
-            bool isWorldMapEvent = false; // primary editor opens chapter/event scripts
-            _editor.BuildFromRom(rom, offset, isWorldMapEvent);
+            // Event kind is carried through navigation (IsWorldMapEvent / IsTopLevelEvent);
+            // the main-menu Event Script entry leaves both false (chapter events).
+            _editor.BuildFromRom(rom, offset, IsWorldMapEvent);
 
             BuildCommandCatalog();
             RefreshDisplay();
@@ -338,8 +358,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                var result = _editor.WriteAll(rom, addr, isWorldMapEvent: false,
-                    isTopLevelEvent: false, undo, out uint newAddr);
+                var result = _editor.WriteAll(rom, addr, IsWorldMapEvent,
+                    IsTopLevelEvent, undo, out uint newAddr);
 
                 switch (result)
                 {
@@ -367,6 +387,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         StatusText = "Could not find free space for the grown script. ROM unchanged.";
                         return false;
 
+                    case EventScriptEditorCore.WriteResult.UnsafeAddress:
+                        StatusText = "Unsafe target address: must be 4-byte aligned and within the " +
+                                     "safe ROM range (>= 0x200, not the header/BIOS). ROM unchanged.";
+                        return false;
+
                     default:
                         StatusText = "Nothing was written (empty list or invalid address).";
                         return false;
@@ -385,7 +410,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || _es == null) return;
             _editor = new EventScriptEditorCore(_es);
-            _editor.BuildFromRom(rom, newOffset, false);
+            _editor.BuildFromRom(rom, newOffset, IsWorldMapEvent);
             RefreshDisplay();
         }
 

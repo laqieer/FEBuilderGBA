@@ -922,7 +922,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             uint addr = U.toOffset(ptr);
-            WindowManager.Instance.Navigate<EventScriptView>(addr);
+            // EventCond targets are chapter event-condition (top-level) event pointers, so
+            // flag the editor accordingly — the Write-All terminator selection then uses the
+            // top-level terminator (#1510 review finding #2). The kind must be set before
+            // NavigateTo runs the disassemble.
+            var view = WindowManager.Instance.Open<EventScriptView>();
+            view.SetEventKind(isWorldMapEvent: false, isTopLevelEvent: true);
+            view.NavigateTo(addr);
         }
 
         void JumpEventUnit_Click(object? sender, RoutedEventArgs e)

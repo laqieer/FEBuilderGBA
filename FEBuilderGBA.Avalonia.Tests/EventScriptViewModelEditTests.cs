@@ -236,6 +236,65 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void WriteAll_DangerZoneAddress_RefusesAndReportsUnsafe()
+        {
+            // Plant a TERM-only script at a danger-zone offset (< 0x200).
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+            Array.Copy(new byte[] { 0x0A, 0x00, 0x00, 0x00 }, 0, _rom.Data, 0x100, 4);
+            vm.AddressText = "0x100";
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+
+            byte[] before = U.getBinaryData(_rom.Data, 0x100, 4);
+            Assert.False(vm.WriteAll());
+            Assert.Contains("Unsafe", vm.StatusText);
+            Assert.Equal(before, U.getBinaryData(_rom.Data, 0x100, 4));
+        }
+
+        [Fact]
+        public void WorldMapFlag_IsCarriedThroughToWriteAll()
+        {
+            // A world-map event opened via the world-map jump sets IsWorldMapEvent; the VM
+            // must carry it into WriteAll so the world-map terminator is appended (not the
+            // normal one). To keep the assertion deterministic regardless of the synthetic
+            // disassembler vocabulary, we add an explicit MAPTERM command to the ES so the
+            // engine's scan stops cleanly, plant ONLY that single LOAD1 with no terminator,
+            // and verify the written script ends with the world-map terminator code.
+            // (Core terminator selection is also covered by
+            // EventScriptEditorCoreTests.Serialize_WorldMapUsesWorldMapTerm.)
+            byte[] mapterm = _rom.RomInfo.Default_event_script_mapterm_code;
+            byte[] normterm = _rom.RomInfo.Default_event_script_term_code;
+            Assert.NotEqual(mapterm[0], normterm[0]); // meaningful only when they differ
+
+            var es = (EventScript)CoreState.EventScript;
+            // The single-command list (LOAD1) is serialized in place; with IsWorldMapEvent
+            // the engine appends mapterm. Drive the engine directly via the VM and read the
+            // terminator byte that follows the 4-byte LOAD1.
+            var vm = new EventScriptViewModel
+            {
+                ScriptType = EventScript.EventScriptType.Event,
+                IsWorldMapEvent = true,
+            };
+            // LOAD1 then ENDA so the scan terminates cleanly at 1 real command region;
+            // we then delete the ENDA so the list has NO terminator and Write-All must
+            // append the world-map one.
+            Array.Copy(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 }, 0,
+                _rom.Data, (int)ScriptOffset, 8);
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+            // Remove the ENDA terminator so the list has none.
+            vm.SelectedCommandIndex = vm.CommandCount - 1;
+            if (vm.Commands[vm.SelectedCommandIndex].Contains("ENDA"))
+                vm.DeleteSelected();
+
+            Assert.True(vm.WriteAll());
+            // After LOAD1 (4 bytes) the engine appended the world-map terminator.
+            Assert.Equal(mapterm[0], _rom.Data[ScriptOffset + 4]);
+            Assert.NotEqual(normterm[0], _rom.Data[ScriptOffset + 4]);
+        }
+
+        [Fact]
         public void ProcsScriptType_Disassembles_ViaSharedEngine()
         {
             // The same VM engine drives Procs scripts by ScriptType — set up a synthetic

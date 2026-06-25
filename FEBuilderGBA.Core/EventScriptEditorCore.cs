@@ -399,6 +399,14 @@ namespace FEBuilderGBA
             /// hardcoded ASM path that the cross-platform repointer does not cover).
             /// </summary>
             NoReferenceRefused,
+            /// <summary>
+            /// The target base is unsafe to write — outside the safe ROM range
+            /// (<c>U.isSafetyOffset</c>: header / danger-zone <c>&lt; 0x200</c>, BIOS, or
+            /// past EOF) or not 4-byte aligned. ROM unchanged. (Copilot PR review
+            /// finding #3 — ports the WinForms <c>CheckZeroAddressWriteHigh</c> +
+            /// <c>CheckPaddingALIGN4</c> gates that the All-Write path runs before mutating.)
+            /// </summary>
+            UnsafeAddress,
         }
 
         /// <summary>
@@ -443,6 +451,14 @@ namespace FEBuilderGBA
             if (_codes.Count <= 0) return WriteResult.NoOp;
             if (rom.Data == null || offset == 0 || offset >= (uint)rom.Data.Length)
                 return WriteResult.NoOp;
+
+            // SAFETY GATE (Copilot PR review finding #3): refuse to write to an unsafe
+            // base — header / danger-zone (< 0x200), BIOS, past EOF, or an unaligned
+            // address. Ports the WinForms CheckZeroAddressWriteHigh + CheckPaddingALIGN4
+            // gates the All-Write path runs before any mutation. No partial write happens
+            // because this returns before the undo scope opens.
+            if (!U.isSafetyOffset(offset, rom) || (offset & 3) != 0)
+                return WriteResult.UnsafeAddress;
 
             byte[] databyte = Serialize(rom, isWorldMapEvent, isTopLevelEvent);
 
