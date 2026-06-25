@@ -5,7 +5,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>World map path movement node editor.
     /// WinForms: WorldMapPathMoveEditorForm — 8-byte entries (ElapsedTime u32, X u16, Y u16).
-    /// Terminated when ElapsedTime == 0 (all zeros). Opened via JumpTo with a base address.</summary>
+    /// Terminated by a u32 0xFFFFFFFF sentinel (WinForms parity: WorldMapPathMoveEditorForm
+    /// list filter is u32(addr) != 0xFFFFFFFF; WorldMapPathForm.CalcPathMoveDataLength returns
+    /// on u32 == 0xFFFFFFFF). All-zeros is NOT a terminator. Opened via JumpTo with a base address.</summary>
     public class WorldMapPathMoveEditorViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
@@ -39,11 +41,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (addr + blockSize > (uint)rom.Data.Length) break;
 
                 uint elapsed = rom.u32(addr);
+
+                // Terminator: u32 0xFFFFFFFF sentinel (WinForms parity — see class doc).
+                // Checked before reading/adding the node so the sentinel itself is never
+                // shown as an editable row and the walk does not over-read past the list end.
+                if (elapsed == 0xFFFFFFFF) break;
+
                 uint x = rom.u16(addr + 4);
                 uint y = rom.u16(addr + 6);
-
-                // Terminator: all zeros
-                if (elapsed == 0 && x == 0 && y == 0 && i > 0) break;
 
                 string display = $"Node {i}: T={elapsed} ({x},{y})";
                 result.Add(new AddrResult(addr, display, (uint)i));
