@@ -48,6 +48,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
+                // LoadSong derives SongIndex from the table base, so the
+                // write-protection guard (IsSongIdZero) recognises Song ID 0
+                // regardless of how the entry was selected.
                 _vm.LoadSong(addr);
                 UpdateUI();
             }
@@ -80,16 +83,35 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
+            // WF parity: SongID 0 is write-protected (UseWriteProtectionID00).
+            // Mirrors SongTrackView — the reserved silence entry must not be
+            // overwritten (breaks "no music" semantics).
+            if (_vm.IsSongIdZero)
+            {
+                CoreState.Services.ShowError("Song ID 0 is write-protected (silence song).");
+                return;
+            }
 
             _undoService.Begin("Edit Song Table");
             try
             {
                 _vm.SongHeaderPointer = ParseHexText(HeaderBox.Text);
                 _vm.PlayerType = (uint)(PlayerTypeBox.Value ?? 0);
-                _vm.WriteSong();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services.ShowInfo("Song table data written.");
+                // Only commit + report success when a write actually occurred.
+                // WriteSong() returns false (no ROM mutation) for a protected /
+                // out-of-range entry — roll back and surface an error instead of
+                // falsely reporting success.
+                if (_vm.WriteSong())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo("Song table data written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError("Song table data was not written.");
+                }
             }
             catch (Exception ex)
             {
