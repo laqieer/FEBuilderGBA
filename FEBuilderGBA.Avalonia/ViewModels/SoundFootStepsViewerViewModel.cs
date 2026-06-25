@@ -12,10 +12,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _canWrite;
         uint _dataPointer;
+        bool _isSwitch2Enabled;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint DataPointer { get => _dataPointer; set => SetField(ref _dataPointer, value); }
+
+        /// <summary>
+        /// True when the SoundFootSteps Switch2 jump-table signature is present.
+        /// Gates the Write + List Expansion buttons — mirrors WinForms
+        /// <c>SoundFootStepsForm_Load</c> (hides Write + shows the not-found
+        /// error when the Switch2 is absent). Refreshed by
+        /// <see cref="RefreshEnableState"/>.
+        /// </summary>
+        public bool IsSwitch2Enabled
+        {
+            get => _isSwitch2Enabled;
+            set => SetField(ref _isSwitch2Enabled, value);
+        }
+
+        /// <summary>
+        /// Recompute <see cref="IsSwitch2Enabled"/> from the current ROM —
+        /// thin wrapper over <see cref="SoundFootStepsExpandCore.IsEnabled"/>.
+        /// </summary>
+        public void RefreshEnableState()
+        {
+            IsSwitch2Enabled = SoundFootStepsExpandCore.IsEnabled(CoreState.ROM);
+        }
 
         public List<AddrResult> LoadSoundFootStepsList()
         {
@@ -28,21 +51,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint startClassId = 0;
-            uint switchAddr = rom.RomInfo.sound_foot_steps_switch2_address;
-            if (switchAddr != 0 && U.isSafetyOffset(switchAddr))
-            {
-                startClassId = rom.u8(switchAddr);
-            }
+            // Switch2 jump-table: the entry count comes from the Switch2
+            // metadata (`u8(switch2 + 2) + 1`), NOT a first-NULL/non-pointer
+            // stop. Mirrors WinForms ReInit (`ifr.ReInit(addr, count + 1)`) so a
+            // NULL pointer between two valid entries stays in the list — and so
+            // the rows immediately reflect a freshly-expanded table. Falls back
+            // to the legacy first-non-pointer scan when no Switch2 is present
+            // (e.g. an unpatched ROM where the editor is read-only anyway).
+            var s2 = SoundFootStepsExpandCore.ReadSwitch2(rom);
+            uint startClassId = s2?.Start ?? 0;
+            uint totalCount = s2?.TotalCount ?? 0;
+            bool useSwitch2Count = s2 != null;
 
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x200; i++)
+            for (uint i = 0; useSwitch2Count ? i < totalCount : i < 0x200; i++)
             {
                 uint addr = (uint)(baseAddr + i * 4);
                 if (addr + 4 > (uint)rom.Data.Length) break;
 
                 uint value = rom.u32(addr);
-                if (!U.isPointer(value)) break;
+                if (!useSwitch2Count && !U.isPointer(value)) break;
 
                 uint classId = startClassId + i;
                 string className = NameResolver.GetClassName(classId);
@@ -50,6 +78,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
+        }
+
+        /// <summary>
+        /// Number of classes the footstep-sound table should cover — the
+        /// <c>newCount</c> WinForms <c>SwitchListExpandsButton_Click</c> passes
+        /// to <c>Switch2Expands</c> (<c>ClassForm.DataCount()</c>). Delegates to
+        /// the Core port <see cref="RebuildProducerCore.ClassDataCount"/>.
+        /// </summary>
+        public uint GetNewCount()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            return RebuildProducerCore.ClassDataCount(rom);
+        }
+
+        /// <summary>
+        /// Expand the per-class footstep-sound table to cover all classes and
+        /// apply the FE8 <c>PlaySoundStepByClass</c> hardcode fix under the same
+        /// undo scope. Delegates to <see cref="SoundFootStepsExpandCore.Expand"/>
+        /// (the shared WinForms-parity mutation). The View owns the undo scope.
+        /// Returns the new table address, or <see cref="U.NOT_FOUND"/> on
+        /// failure (caller rolls back).
+        /// </summary>
+        public uint ExpandList(uint newCount, uint defaultJumpAddr, Undo.UndoData undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return U.NOT_FOUND;
+            return SoundFootStepsExpandCore.Expand(rom, newCount, defaultJumpAddr, undo);
         }
 
         public void LoadSoundFootSteps(uint addr)
