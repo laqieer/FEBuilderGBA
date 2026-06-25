@@ -4430,6 +4430,8 @@ W92: D ヘクトル 困難
 
 :Write
 書き込み
+:New Block
+新規ブロック
 
 :W40: Prologue BGM (Eliwood)
 W40: Prologue BGM (エリウッド)

@@ -152,6 +152,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{a:X08}",
                 ["u32@0x00_TextId"] = $"0x{rom.u32(a + 0):X08}",
+                // The list label reads the text id via u16 (parity with WinForms
+                // MakeList); surface it so data-verify cross-checks that read too.
+                ["u16@0x00_TextIdLow"] = $"0x{rom.u16(a + 0):X04}",
             };
         }
 

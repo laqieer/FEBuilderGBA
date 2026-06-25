@@ -20711,6 +20711,8 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :Write
 写入
+:New Block
+新建块
 
 :Open Source Folder
 打开源文件夹
