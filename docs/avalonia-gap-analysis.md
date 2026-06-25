@@ -256,7 +256,7 @@ Map Editor is no longer read-only: current code supports map rendering, tile sel
 | EventHaikuForm / EventHaikuVM | **55%** | ~~Auto-populated list~~ **FIXED** — list from event_haiku_pointer with unit name resolution. Missing: patch detection |
 | EventHaikuFE6/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_haiku_pointer (16-byte blocks) + unit names. Missing: chapter filter |
 | EventForceSortie/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_force_sortie_pointer with unit name resolution. FE7 (#1439): inner unit-list now loaded — outer D0 pointer is dereferenced and the 4-byte sub-entries (UnitId + Unknown 1-3) are walked (terminator `id==0x00 || byte3==0xD1`), editable and undo-tracked. Missing: AllocIfNeed |
-| EventFunctionPointer/FE7 | **45%** | ~~List stub~~ **FIXED** — list from event_function_pointer_table_pointer. Missing: filter combo |
+| EventFunctionPointer/FE7 | **55%** | ~~List stub~~ **FIXED** — list from event_function_pointer_table_pointer. **FE8 editor only** (`EventFunctionPointerView`) Worldmap filter (#1441): a Primary/Worldmap combo toggles table1/table2 (event_function_pointer_table2_pointer) with the +0x80 worldmap id offset; entries require isPointer && IsValueOdd (Thumb). The FE7 editor (`EventFunctionPointerFE7View`) is unaffected — FE7 has no table2. |
 | EventTalkGroupFE7 | 30% | AllocIfNeed, RecycleOldData |
 | EventMoveDataFE7 | 25% | Variable-size records, direction types |
 

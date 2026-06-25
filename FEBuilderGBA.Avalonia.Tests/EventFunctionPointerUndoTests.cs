@@ -34,8 +34,10 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public class EventFunctionPointerUndoTests : IDisposable
 {
     const uint TableBase = 0x00900000u; // function-pointer table
-    const uint Entry0Ptr = 0x08123456u; // initial pointer at slot 0
-    const uint NewPtr    = 0x08ABCDEFu; // edited pointer
+    // Function-pointer entries must be Thumb (odd) code pointers: the editor's
+    // list scan requires U.isPointer && U.IsValueOdd (WinForms parity, #1441).
+    const uint Entry0Ptr = 0x08123457u; // initial pointer at slot 0 (odd/Thumb)
+    const uint NewPtr    = 0x08ABCDEFu; // edited pointer (odd/Thumb)
     const uint NewUnk4   = 0x08FEDCBAu; // edited Unknown4 (FE7 only)
 
     readonly ROM? _savedRom;
@@ -243,11 +245,13 @@ public class EventFunctionPointerUndoTests : IDisposable
         // p32(tablePtrLoc) → TableBase (as a GBA pointer).
         PlantU32(bytes, tablePtrLoc, TableBase | 0x08000000u);
 
-        // Three valid pointer entries, then a 0 terminator.
+        // Three valid Thumb (odd) pointer entries, then a 0 terminator.
         for (uint i = 0; i < 3; i++)
         {
             uint slot = TableBase + i * stride;
-            PlantU32(bytes, slot, i == 0 ? Entry0Ptr : (0x08000100u + i * 4u));
+            // OR 1 to keep every entry odd (Thumb) so the editor's
+            // isPointer && IsValueOdd scan accepts the full table.
+            PlantU32(bytes, slot, i == 0 ? Entry0Ptr : ((0x08000100u + i * 4u) | 1u));
             if (strideEight)
                 PlantU32(bytes, slot + 4, 0x08000000u + i); // Unknown4 (any value)
         }
