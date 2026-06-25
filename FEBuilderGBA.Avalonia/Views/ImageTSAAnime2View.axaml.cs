@@ -31,7 +31,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnime2View.LoadList failed: {0}", ex.Message);
+                // Log.Error joins its params with spaces (no composite format) —
+                // interpolate so the message isn't logged as a literal "{0}".
+                Log.Error($"ImageTSAAnime2View.LoadList failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -47,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnime2View.OnSelected failed: {0}", ex.Message);
+                Log.Error($"ImageTSAAnime2View.OnSelected failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -81,8 +83,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // A manual Write can change the TSA pointer; refresh the preview
+                // so it doesn't show stale data until the entry is reselected.
+                LoadImage();
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageTSAAnime2View.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"ImageTSAAnime2View.Write: {ex}"); }
         }
 
         static uint ParseHexText(string? text)
