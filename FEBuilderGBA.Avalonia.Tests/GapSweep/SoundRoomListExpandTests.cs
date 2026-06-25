@@ -59,7 +59,7 @@ public class SoundRoomListExpandTests
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
 
         uint pointerSlot = rom.RomInfo.sound_room_pointer; // 0x1BC14
-        BitConverter.GetBytes(TableBase | 0x08000000u).CopyTo(bytes, pointerSlot);
+        BitConverter.GetBytes(TableBase | 0x08000000u).CopyTo(bytes, (int)pointerSlot);
 
         for (int r = 0; r < rows; r++)
         {
@@ -72,8 +72,8 @@ public class SoundRoomListExpandTests
         BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(bytes, (int)(TableBase + (uint)rows * DataSize));
 
         // Explicit 0xFF free-space region so FindFreeSpace lands here.
-        for (uint i = 0; i < 0x80000u; i++)
-            bytes[FreeSpace + i] = 0xFF;
+        for (int i = 0; i < 0x80000; i++)
+            bytes[(int)FreeSpace + i] = 0xFF;
 
         if (plantOver255)
             Array.Copy(Over255Sig, 0, bytes, Over255Addr, Over255Sig.Length);
