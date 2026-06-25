@@ -261,15 +261,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void Consumer_EventScriptView_AwaitsScriptResult()
+        public void Picker_IsOpenableStandalone()
         {
+            // After #1510 rebuilt EventScriptView into a structural editor with
+            // its own command catalog combo, the picker is no longer launched
+            // from EventScriptView. It remains a real, openable dialog wired
+            // through the window registry + list-parity surface — so the #1443
+            // fix (a functional picker that returns a real Script) still stands.
             string repoRoot = FindRepoRoot();
-            string consumer = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
-                "Views", "EventScriptView.axaml.cs");
-            string code = File.ReadAllText(consumer);
-            // The consumer must await an EventScript.Script? (not a string).
-            Assert.Contains("ShowDialog<EventScript.Script?>", code);
-            Assert.DoesNotContain("ShowDialog<string?>", code);
+
+            string mainWindow = File.ReadAllText(Path.Combine(repoRoot,
+                "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
+            Assert.Contains("Open<EventScriptCategorySelectView>", mainWindow);
+
+            string listParity = File.ReadAllText(Path.Combine(repoRoot,
+                "FEBuilderGBA.Avalonia", "Services", "ListParityHelper.cs"));
+            Assert.Contains("EventScriptCategorySelectView", listParity);
         }
 
         [Fact]
