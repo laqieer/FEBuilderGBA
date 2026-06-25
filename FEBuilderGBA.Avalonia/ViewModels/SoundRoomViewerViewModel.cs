@@ -201,8 +201,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ReadCount == 0)
                 return R._("Cannot expand: the sound room list is empty (no row 0 to copy).");
 
-            uint oldBase = rom.p32(ptr);
-
             // Defensive snapshot — guarantees a FAILED expand mutates ZERO bytes,
             // even beyond what the ambient undo scope tracks.
             byte[] snap = (byte[])rom.Data.Clone();
@@ -262,7 +260,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 RestoreSnapshot(rom, snap, undo);
-                Log.Error("SoundRoomViewerViewModel.ExpandList failed: {0}", ex.Message);
+                // Log.Error joins args with spaces (no composite formatting),
+                // so pass a single interpolated string + the full exception.
+                Log.Error("SoundRoomViewerViewModel.ExpandList failed: " + ex.ToString());
                 return R._("Sound room table expansion failed: {0}", ex.Message);
             }
         }

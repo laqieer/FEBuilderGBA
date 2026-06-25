@@ -130,13 +130,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("SoundRoomViewerView.ListExpand_Click inner failed: {0}", inner.Message);
+                    // Log.Error joins args with spaces (no composite formatting),
+                    // so pass a single interpolated string + the full exception.
+                    Log.Error("SoundRoomViewerView.ListExpand_Click inner failed: " + inner.ToString());
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("SoundRoomViewerView.ListExpand_Click failed: {0}", ex.Message);
+                Log.Error("SoundRoomViewerView.ListExpand_Click failed: " + ex.ToString());
             }
         }
 
