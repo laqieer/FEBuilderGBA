@@ -192,8 +192,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (slotAddr + 4 <= (uint)rom.Data.Length)
                     {
                         uint ptrOffset = rom.p32(slotAddr);
-                        LevelUpAddr = ptrOffset;
-                        XLevelUpAddr = (ptrOffset != 0) ? U.toPointer(ptrOffset) : 0;
+                        // 0 = unallocated (valid → zero-pointer panel). A non-zero
+                        // pointer that lands outside the ROM is garbage: treat it
+                        // as 0 rather than surfacing a junk XLevelUpAddr + a
+                        // silently-empty N1 list.
+                        bool safe = ptrOffset == 0 || U.isSafetyOffset(ptrOffset, rom);
+                        LevelUpAddr = safe ? ptrOffset : 0;
+                        XLevelUpAddr = (safe && ptrOffset != 0) ? U.toPointer(ptrOffset) : 0;
                     }
                 }
                 else

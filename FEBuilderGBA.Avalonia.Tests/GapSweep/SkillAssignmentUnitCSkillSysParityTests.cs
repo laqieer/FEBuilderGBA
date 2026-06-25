@@ -493,6 +493,32 @@ public class SkillAssignmentUnitCSkillSysParityTests
         } finally { CoreState.ROM = prevRom; }
     }
 
+    // Copilot review: LoadEntry must NOT surface a garbage XLevelUpAddr when the
+    // per-unit level-up pointer lands outside the ROM — treat unsafe as 0.
+    [Fact] public void ViewModel_LoadEntry_UnsafeLevelUpPointer_TreatedAsZero() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            // Plant a valid level-up table base pointer.
+            uint levelUpBase = 0x00880000u;
+            uint slot = SkillAssignmentUnitCSkillSysViewModel.gpCharLevelUpSkillTable;
+            BitConverter.GetBytes(levelUpBase | 0x08000000u).CopyTo(bytes, (int)slot);
+            // Unit 1's slot holds a GARBAGE pointer (far outside the ROM).
+            BitConverter.GetBytes(0x0BADF00Du).CopyTo(bytes, (int)(levelUpBase + 1 * 4));
+            uint entry = 0x00800000u;
+            bytes[(int)entry + 0] = 0x07; bytes[(int)entry + 1] = 0x00;
+            var vm = new SkillAssignmentUnitCSkillSysViewModel();
+            vm.SelectedUnitIndex = 1;
+            vm.LoadEntry(entry);
+            Assert.True(vm.HasLevelUpTable);    // table itself is valid
+            Assert.Equal(0x0007u, vm.UnitSkill); // master still loads
+            Assert.Equal(0u, vm.LevelUpAddr);   // garbage pointer suppressed
+            Assert.Equal(0u, vm.XLevelUpAddr);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact] public void ViewModel_RefreshPatchState_NullRom_NotActive() {
         var prevRom = CoreState.ROM;
         try {

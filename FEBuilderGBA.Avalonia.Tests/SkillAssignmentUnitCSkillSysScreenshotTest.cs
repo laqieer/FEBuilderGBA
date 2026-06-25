@@ -152,9 +152,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(b, SkillAssignmentUnitCSkillSysViewModel.gpSkillInfos, U.toPointer(SkillInfoBase));
 
             // --- Per-unit W0 rows (256 distinct plausible skills, stride 4) ---
-            for (uint i = 0; i < 256; i++)
+            for (int i = 0; i < 256; i++)
             {
-                uint addr = UnitSkillTableBase + i * 4;
+                int addr = checked((int)UnitSkillTableBase + i * 4);
                 b[addr + 0] = (byte)((i % 0x40) + 1); // W0 low byte = skill id
                 b[addr + 1] = 0x00;
             }
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Array.Copy(LevelUpRows, 0, b, (int)LevelUpRowsBase, LevelUpRows.Length);
 
             // --- Minimal skill-info entries (icon ptr = 0 so no icon render). ---
-            for (uint i = 0; i < 0x800; i++) b[SkillInfoBase + i] = 0x00;
+            for (int i = 0; i < 0x800; i++) b[checked((int)SkillInfoBase + i)] = 0x00;
 
             rom.LoadLow("synthetic-cskillsys-unit.gba", b, "BE8E01");
             return rom;
@@ -178,10 +178,11 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static void WriteU32(byte[] b, uint addr, uint v)
         {
-            b[addr + 0] = (byte)(v & 0xFF);
-            b[addr + 1] = (byte)((v >> 8) & 0xFF);
-            b[addr + 2] = (byte)((v >> 16) & 0xFF);
-            b[addr + 3] = (byte)((v >> 24) & 0xFF);
+            int a = checked((int)addr);
+            b[a + 0] = (byte)(v & 0xFF);
+            b[a + 1] = (byte)((v >> 8) & 0xFF);
+            b[a + 2] = (byte)((v >> 16) & 0xFF);
+            b[a + 3] = (byte)((v >> 24) & 0xFF);
         }
 
         void SaveRender(Window view, int w, int h, string outPath)
