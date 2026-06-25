@@ -609,13 +609,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 byte[] bytes = File.ReadAllBytes(path);
 
+                // #1448: open the conversion dialog (sox resample / DPCM / SNR
+                // preview), seeded with the chosen .wav, and await the ready GBA
+                // DirectSound sample bytes. Cancel returns null => strict no-op
+                // (no ROM mutation, no fallback import — #1448 review pt 2).
+                var dlg = new SongInstrumentImportWaveView();
+                dlg.Seed(bytes, System.IO.Path.GetFileName(path));
+                byte[]? sample = await dlg.ShowDialog<byte[]?>(this);
+                if (sample == null || sample.Length == 0) return; // cancelled / failed in-dialog
+
                 _undoService.Begin("Import DirectSound Wave");
                 try
                 {
                     // P4 wave-pointer slot = THIS voice entry +4 (passed as OFFSET;
-                    // ImportWave converts it to a GBA pointer via write_p32).
-                    uint newPtr = SongDirectSoundWavCore.ImportWave(
-                        CoreState.ROM, _vm.CurrentAddr + 4, bytes, out string err);
+                    // ImportSampleBytes converts it to a GBA pointer via write_p32).
+                    // The dialog already encoded the sample (raw 8-bit or DPCM), so
+                    // we append the bytes verbatim — NOT re-running WavToByte (which
+                    // would corrupt a DPCM sample).
+                    uint newPtr = SongDirectSoundWavCore.ImportSampleBytes(
+                        CoreState.ROM, _vm.CurrentAddr + 4, sample, out string err);
                     if (newPtr == U.NOT_FOUND)
                     {
                         _undoService.Rollback();
