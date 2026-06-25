@@ -1074,6 +1074,23 @@ namespace FEBuilderGBA.Avalonia.Views
                         window = factory();
                         await Task.Delay(300); // Let the window initialize and render
 
+                        // Optionally switch a combo (by AutomationId) to a
+                        // non-default index BEFORE the first-item selection, so a
+                        // combo-driven editor is captured in an alternate state
+                        // (e.g. the FE6 Battle Dialogue editor's secondary
+                        // boss-conversation table). Switching the combo reloads the
+                        // list, so SelectFirstItem below then picks a row in the new
+                        // table. Opt-in via --screenshot-select-combo=<AutomationId>=<index>.
+                        if (!string.IsNullOrEmpty(App.ScreenshotSelectComboSpec))
+                        {
+                            var parts = App.ScreenshotSelectComboSpec!.Split('=');
+                            if (parts.Length == 2 && int.TryParse(parts[1], out int comboIndex)
+                                && SelectComboByAutomationId(window, parts[0], comboIndex))
+                            {
+                                await Task.Delay(150); // Let the combo's reload handler run
+                            }
+                        }
+
                         // Try to select first item for richer screenshots
                         try
                         {
@@ -1229,6 +1246,35 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (peer?.GetProvider<global::Avalonia.Automation.Provider.IInvokeProvider>() is { } invoke)
                     {
                         invoke.Invoke();
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Set the <c>SelectedIndex</c> of the first descendant
+        /// <see cref="global::Avalonia.Controls.ComboBox"/> whose
+        /// <c>AutomationProperties.AutomationId</c> equals <paramref name="automationId"/>,
+        /// by walking the logical tree. Returns true when a matching combo was found
+        /// and the index was applied. Used by the opt-in
+        /// <c>--screenshot-select-combo=&lt;AutomationId&gt;=&lt;index&gt;</c> screenshot mode
+        /// to capture a combo-driven editor in a non-default state (e.g. the FE6
+        /// Battle Dialogue editor's secondary boss-conversation table). Editors
+        /// without a matching combo are captured unchanged.
+        /// </summary>
+        static bool SelectComboByAutomationId(Control root, string automationId, int index)
+        {
+            foreach (var descendant in root.GetLogicalDescendants())
+            {
+                if (descendant is global::Avalonia.Controls.ComboBox combo
+                    && AutomationProperties.GetAutomationId(combo) == automationId)
+                {
+                    if (index >= 0 && index < combo.ItemCount)
+                    {
+                        combo.SelectedIndex = index;
                         return true;
                     }
                     return false;

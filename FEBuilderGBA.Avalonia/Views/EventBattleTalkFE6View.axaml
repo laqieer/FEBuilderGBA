@@ -5,52 +5,76 @@
         Title="Battle Dialogue (FE6)" Width="1585" Height="940"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventBattleTalkFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+    <DockPanel Grid.Column="0" Margin="4">
+      <!-- Table filter: switches between the main 12-byte battle-talk table and
+           the FE6-only secondary 16-byte table (event_ballte_talk2_pointer — the
+           boss generic-conversation table), mirroring WinForms
+           EventBattleTalkFE6Form's two address lists. -->
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+        <TextBlock Text="Table:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="EventBattleTalkFE6_Table_Combo"
+                  Name="TableFilter" Width="190" SelectedIndex="0">
+          <!-- ComboBoxItem string Content doesn't trigger ViewTranslationHelper;
+               wrap each option in a TextBlock so its Text is localized in ja/zh. -->
+          <ComboBoxItem><TextBlock Text="Main (12-byte)" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="Boss conversation (16-byte)" /></ComboBoxItem>
+        </ComboBox>
+      </StackPanel>
+      <controls:AddressListControl AutomationProperties.AutomationId="EventBattleTalkFE6_Entry_List" Name="EntryList" />
+    </DockPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Battle Dialogue (FE6)" FontSize="18" FontWeight="Bold" />
 
         <Grid ColumnDefinitions="180,140,*"
-              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Table:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_Table_Label" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Name="TableLabel" VerticalAlignment="Center" Foreground="Gray" Margin="0,4" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Attacker Unit:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerUnit_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerName_Label" Grid.Row="1" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_Addr_Label" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Name="AddrLabel" VerticalAlignment="Center" Margin="0,4" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderName_Label" Grid.Row="2" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Attacker Unit:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerName_Label" Grid.Row="2" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown02_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown02Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_Defender_Label" Grid.Row="3" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" Name="DefenderLabel" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderUnit_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderName_Label" Grid.Row="3" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown03_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown03Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown02_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown02Box" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Text_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Margin="0,4" />
-          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_TextPreview_Label" Grid.Row="5" Grid.Column="2" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown03_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown03Box" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Unknown (0x06):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown06_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="Unknown06Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Text:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Text_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_TextPreview_Label" Grid.Row="6" Grid.Column="2" Name="TextPreviewLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown07_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="Unknown07Box" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Unknown (0x06):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown06_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="Unknown06Box" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AchievementFlag_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,4" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown07_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="Unknown07Box" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown (0x0A):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown0A_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="Unknown0ABox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AchievementFlag_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,4" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Unknown (0x0B):" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown0B_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Unknown0BBox" Minimum="0" Maximum="255" Margin="0,4" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Unknown (0x0A):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown0A_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Unknown0ABox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Unknown (0x0B):" VerticalAlignment="Center" Margin="0,4" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_Unknown0B_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="Unknown0BBox" Minimum="0" Maximum="255" Margin="0,4" />
+
+          <!-- Event pointer (offset +0x0C) — only present in the secondary
+               16-byte boss-conversation table. Hidden in main-table mode. -->
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_EventPointer_Label" Grid.Row="12" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" Name="EventPointerLabel" IsVisible="False" />
+          <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_EventPointer_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" IsVisible="False" />
         </Grid>
 
-        <TextBlock Text="A mid-battle conversation triggered when the attacker and defender units fight." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+        <TextBlock Text="A mid-battle conversation triggered when the attacker and defender units fight. The boss-conversation table holds FE6's generic boss lines (a single triggering unit plus an event pointer)." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
 
         <Button AutomationProperties.AutomationId="EventBattleTalkFE6_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>

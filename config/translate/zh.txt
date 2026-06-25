@@ -26155,3 +26155,12 @@ PLIST 表已分割。
 时间 / 速度:
 :Time / Speed is the extra parameter byte (offset+1) for Highlight (09) and Speed change (0C) commands only.
 时间 / 速度 是仅用于 Highlight (09) 和 Speed change (0C) 命令的额外参数字节 (offset+1)。
+
+:Main (12-byte)
+主表 (12字节)
+
+:Boss conversation (16-byte)
+Boss对话 (16字节)
+
+:A mid-battle conversation triggered when the attacker and defender units fight. The boss-conversation table holds FE6's generic boss lines (a single triggering unit plus an event pointer).
+当攻击单位与防御单位交战时触发的战斗中对话。Boss对话表保存FE6的通用Boss台词（一个触发单位加一个事件指针）。

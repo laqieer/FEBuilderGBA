@@ -200,7 +200,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 99 | EventUnitNewAllocView | EventUnitNewAllocViewModel | Event unit New Allocation modal count-picker (NumericUpDown Min=1/Max=50/Value=1 + OK/Cancel; returns the count via `ShowDialog<uint?>`) — #776 |
 | 100 | EventBattleTalkView | EventBattleTalkViewModel | Battle conversation editor |
 | 101 | EventBattleTalkMainView | EventBattleTalkMainViewModel | Nested sub-view for battle talk |
-| 102 | EventBattleTalkFE6View | EventBattleTalkFE6ViewModel | Battle conversation (FE6) |
+| 102 | EventBattleTalkFE6View | EventBattleTalkFE6ViewModel | Battle conversation (FE6) — Table selector switches the main 12-byte table (`event_ballte_talk_pointer`) and the FE6-only boss generic-conversation 16-byte table (`event_ballte_talk2_pointer`; event pointer at +0x0C). #1438 |
 | 103 | EventBattleTalkFE7View | EventBattleTalkFE7ViewModel | Battle conversation (FE7) — full editor: per-schema input fields (attacker/defender, text, event pointer, achievement flag) + undo-tracked Write; Main 16-byte / Secondary 12-byte tables (#1437) |
 | 104 | EventBattleDataFE7View | EventBattleDataFE7ViewModel | Battle data editor (FE7) — editable AttackType/Attacker/Damage + undo-tracked Write (#1436) |
 | 105 | EventHaikuView | EventHaikuViewModel | Haiku/death quote editor |
