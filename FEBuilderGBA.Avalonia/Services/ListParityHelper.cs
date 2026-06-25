@@ -1677,13 +1677,15 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint maxCount = 0;
+            // Match the WinForms / Core canon (SummonsDemonKingForm.cs:36-42,
+            // StructExportCore.cs:975-978) and SummonsDemonKingViewerViewModel:
+            // a missing count source or a corrupt count byte (>=100) means an
+            // EMPTY list; count==0 yields exactly 1 row via the i<=maxCount loop
+            // (NOT 21 fabricated rows from the old `maxCount = 20` — issue #1424).
             uint countAddr = rom.RomInfo.summons_demon_king_count_address;
-            if (countAddr > 0 && countAddr < (uint)rom.Data.Length)
-            {
-                maxCount = rom.u8(countAddr);
-            }
-            if (maxCount == 0 || maxCount >= 100) maxCount = 20;
+            if (countAddr == 0 || !U.isSafetyOffset(countAddr)) return new List<AddrResult>();
+            uint maxCount = rom.u8(countAddr);
+            if (maxCount >= 100) return new List<AddrResult>();
 
             const uint blockSize = 20;
             var result = new List<AddrResult>();
