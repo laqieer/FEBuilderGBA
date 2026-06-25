@@ -2894,7 +2894,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     string content = btn.Content?.ToString() ?? "";
 
                     // Respect version-hidden buttons (Tag == false means version-hidden)
-                    if (btn.Tag is bool versionVisible && !versionVisible)
+                    if (IsButtonVersionHidden(btn.Tag))
                     {
                         btn.IsVisible = false;
                         continue;
@@ -3334,13 +3334,13 @@ namespace FEBuilderGBA.Avalonia.Views
             // open on FE6 (16-byte table) because Write would silently corrupt the next
             // entry. The button is already hidden on FE6 (UpdateEditorVisibility), but if
             // this handler is ever reached on FE6 (e.g. via search-filter race), route to
-            // the correct dedicated 16-byte editor instead of the corrupting generic one.
-            if (CoreState.ROM?.RomInfo?.version == 6)
-            {
+            // the correct dedicated 16-byte editor. Routing lives in the shared
+            // ResolvePortraitEditorViewType helper so production and tests agree.
+            int ver = CoreState.ROM?.RomInfo?.version ?? 0;
+            if (ResolvePortraitEditorViewType(ver) == typeof(ImagePortraitFE6View))
                 WindowManager.Instance.Open<ImagePortraitFE6View>();
-                return;
-            }
-            WindowManager.Instance.Open<ImagePortraitView>();
+            else
+                WindowManager.Instance.Open<ImagePortraitView>();
         }
         private void OpenImagePortraitFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImagePortraitFE6View>();
         private void OpenImagePortraitImporter_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImagePortraitImporterView>();
@@ -3686,9 +3686,8 @@ namespace FEBuilderGBA.Avalonia.Views
             // buttons whose Tag is bool false as version-hidden).
             if (PortraitEditorButton != null)
             {
-                bool portraitGenericVisible = ver != 6;
-                PortraitEditorButton.IsVisible = portraitGenericVisible;
-                PortraitEditorButton.Tag = portraitGenericVisible ? null : (object)false;
+                PortraitEditorButton.IsVisible = ShouldShowGenericPortraitEditor(ver);
+                PortraitEditorButton.Tag = GenericPortraitEditorTag(ver);
             }
 
             AutoHideEmptySections(EditorPanel);
@@ -3758,6 +3757,46 @@ namespace FEBuilderGBA.Avalonia.Views
                 return ver == 8;
             return null; // no tag — always show
         }
+
+        // ===================== #1411 Portrait Editor version gating =====================
+        // The generic "Portrait Editor" button has no version suffix in its Content, so
+        // GetVersionVisibility cannot express its rule ("hide on FE6 only"). These pure,
+        // testable predicates are the SINGLE SOURCE OF TRUTH: UpdateEditorVisibility and
+        // OpenImagePortrait_Click below call them, and the unit tests call the SAME
+        // methods — so a regression in the production assignment is caught (Copilot
+        // PR-review #2).
+
+        /// <summary>
+        /// True when the generic 28-byte Portrait Editor should be shown. It is hidden
+        /// ONLY on FE6 (16-byte portrait table), whose dedicated editor is Portrait (FE6).
+        /// </summary>
+        internal static bool ShouldShowGenericPortraitEditor(int ver) => ver != 6;
+
+        /// <summary>
+        /// The Button.Tag value for the generic Portrait Editor button. When the button
+        /// is version-hidden the Tag must be boxed bool false so the editor search filter
+        /// (ApplyFilter) keeps it hidden across typing/clearing (it only preserves buttons
+        /// whose Tag is bool b and !b); otherwise null.
+        /// </summary>
+        internal static object? GenericPortraitEditorTag(int ver)
+            => ShouldShowGenericPortraitEditor(ver) ? null : (object)false;
+
+        /// <summary>
+        /// Which portrait editor view OpenImagePortrait_Click opens for a given version:
+        /// FE6 to the dedicated 16-byte ImagePortraitFE6View; any other version to the
+        /// generic 28-byte ImagePortraitView. Returns the view Type so both the handler
+        /// and the tests agree on the routing without constructing a window.
+        /// </summary>
+        internal static System.Type ResolvePortraitEditorViewType(int ver)
+            => ver == 6 ? typeof(ImagePortraitFE6View) : typeof(ImagePortraitView);
+
+        /// <summary>
+        /// The exact rule ApplyFilter uses to decide a button is version-hidden and must
+        /// stay hidden through search/clear: its Tag is a boxed bool false. Shared so a
+        /// test can prove the full chain (GenericPortraitEditorTag on FE6 => this returns
+        /// true => filter keeps the button hidden), guarding the #1411 P1 regression.
+        /// </summary>
+        internal static bool IsButtonVersionHidden(object? tag) => tag is bool b && !b;
 
         /// <summary>
         /// After filtering, if all buttons inside an Expander are hidden,

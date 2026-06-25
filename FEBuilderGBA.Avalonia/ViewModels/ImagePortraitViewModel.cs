@@ -303,25 +303,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// #1411 — this generic editor assumes a 28-byte portrait entry (FE7/FE8).
-        /// On FE6 the portrait table is 16 bytes/entry (<c>portrait_datasize == 16</c>),
-        /// so reading/writing 28 bytes spills into the FOLLOWING entry. Guard every
-        /// per-entry read/write against any ROM whose stride differs from <see cref="SIZE"/>
-        /// (FE6, or any patched layout) so the generic editor can never corrupt or
-        /// mis-read a non-28-byte table. The dedicated <c>ImagePortraitFE6ViewModel</c>
-        /// (SIZE=16) is the correct editor for FE6.
+        /// #1411 — the size in bytes of one portrait entry this generic editor reads/writes.
+        /// Exposed so tests can assert the guard invariant against the real stride.
         /// </summary>
+        public static uint EntrySize => SIZE;
+
+        /// <summary>
+        /// #1411 — pure guard predicate. The generic editor assumes a 28-byte portrait
+        /// entry (FE7/FE8). It is supported ONLY when the ROM's portrait stride equals
+        /// <see cref="SIZE"/> exactly. ANY other value — FE6's 16, a patched stride, or
+        /// an unknown/zero stride — is UNSUPPORTED, so the editor never reads/writes 28
+        /// bytes into a differently-sized (or invalid) table. (Copilot PR-review #1
+        /// closed the prior <c>stride == 0</c> hole, which let a write proceed on an
+        /// unknown layout.) The dedicated <c>ImagePortraitFE6ViewModel</c> (SIZE=16) is
+        /// FE6's editor.
+        /// </summary>
+        public static bool IsUnsupportedPortraitStride(uint portraitDataSize)
+            => portraitDataSize != SIZE;
+
         bool IsUnsupportedPortraitStride(ROM rom)
-        {
-            uint stride = rom?.RomInfo?.portrait_datasize ?? 0;
-            return stride != 0 && stride != SIZE;
-        }
+            => IsUnsupportedPortraitStride(rom?.RomInfo?.portrait_datasize ?? 0);
 
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — FE6 (16-byte) not supported here
+            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — only the 28-byte FE7/FE8 layout is supported
             if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;

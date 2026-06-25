@@ -25,21 +25,24 @@ using System.Text;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
+using global::Avalonia.Headless.XUnit;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
     // ====================================================================
-    // Layer 1 + 2 — pure logic (no ROM, no Avalonia app needed)
+    // Layer 1 + 2 — call the PRODUCTION predicates directly (not reimplemented
+    // copies). MainWindow.UpdateEditorVisibility / OpenImagePortrait_Click /
+    // ApplyFilter all delegate to these same methods, so a regression in the
+    // production assignment is caught here (Copilot PR-review #2).
     // ====================================================================
     public class ImagePortraitFE6VisibilityTests
     {
         /// <summary>
         /// #1411 — the generic "Portrait Editor" button (no version suffix in its
-        /// Content) must be HIDDEN on FE6 and SHOWN on FE7/FE8. UpdateEditorVisibility
-        /// sets PortraitEditorButton.IsVisible = (ver != 6); this pins that predicate
-        /// (mirrors SensekiComment_OnlyVisibleForFE7).
+        /// Content) must be HIDDEN on FE6 and SHOWN on FE7/FE8. Calls the SAME
+        /// MainWindow.ShouldShowGenericPortraitEditor that UpdateEditorVisibility uses.
         /// </summary>
         [Theory]
         [InlineData(6, false)]
@@ -47,58 +50,104 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData(8, true)]
         public void GenericPortraitEditor_HiddenOnlyForFE6(int ver, bool expectedVisible)
         {
-            // UpdateEditorVisibility: PortraitEditorButton.IsVisible = (ver != 6)
-            Assert.Equal(expectedVisible, ver != 6);
+            Assert.Equal(expectedVisible, MainWindow.ShouldShowGenericPortraitEditor(ver));
         }
 
         /// <summary>
         /// #1411 (P1, Copilot plan review) — hiding by IsVisible alone is not durable:
         /// the editor search filter (ApplyFilter) re-sets IsVisible and only keeps a
-        /// button hidden when its Tag is bool==false. UpdateEditorVisibility therefore
-        /// sets PortraitEditorButton.Tag = false on FE6 (null otherwise). This pins the
-        /// tag value the filter relies on so a search/clear can't revive the button.
+        /// button hidden when its Tag is bool==false (MainWindow.IsButtonVersionHidden).
+        /// This proves the FULL CHAIN through production code: the Tag that
+        /// UpdateEditorVisibility assigns (GenericPortraitEditorTag) on FE6 is exactly
+        /// the Tag that ApplyFilter treats as version-hidden — so a search/clear cannot
+        /// revive the FE6-hidden button, while FE7/FE8 keep a null (always-shown) Tag.
         /// </summary>
         [Theory]
-        [InlineData(6, false)]   // FE6: Tag must be boxed bool false (version-hidden)
-        [InlineData(7, true)]    // FE7: Tag cleared to null (always shown)
-        [InlineData(8, true)]
-        public void GenericPortraitEditor_TagMarksVersionHiddenOnFE6(int ver, bool genericVisible)
+        [InlineData(6, true)]    // FE6: tag => version-hidden => filter keeps it hidden
+        [InlineData(7, false)]   // FE7: null tag => not version-hidden
+        [InlineData(8, false)]
+        public void GenericPortraitEditor_TagDurablyHidesOnFE6ThroughFilter(int ver, bool expectedHiddenByFilter)
         {
-            // Reproduce the exact Tag assignment from UpdateEditorVisibility.
-            object? tag = genericVisible ? null : (object)false;
-
-            if (ver == 6)
-            {
-                // ApplyFilter keeps the button hidden iff (Tag is bool b && !b).
-                Assert.True(tag is bool b && !b);
-            }
-            else
-            {
-                Assert.Null(tag);
-            }
+            // Production Tag assignment (UpdateEditorVisibility) ...
+            object? tag = MainWindow.GenericPortraitEditorTag(ver);
+            // ... fed into the production filter predicate (ApplyFilter).
+            Assert.Equal(expectedHiddenByFilter, MainWindow.IsButtonVersionHidden(tag));
         }
 
         /// <summary>
         /// #1411 — OpenImagePortrait_Click routes FE6 to ImagePortraitFE6View (the
         /// dedicated 16-byte editor) and every other version to the generic
-        /// ImagePortraitView. This pins the routing decision (the same shape as the
-        /// existing ResolveMapSettingView / ResolveClassEditorView dispatch tests),
-        /// without constructing windows or touching the WindowManager service.
+        /// ImagePortraitView. Calls the SAME MainWindow.ResolvePortraitEditorViewType
+        /// the handler uses, so the routing is verified against production code.
         /// </summary>
         [Theory]
-        [InlineData(6, "ImagePortraitFE6View")]
-        [InlineData(7, "ImagePortraitView")]
-        [InlineData(8, "ImagePortraitView")]
-        public void OpenImagePortrait_RoutesFE6ToDedicatedEditor(int ver, string expectedView)
+        [InlineData(6, typeof(ImagePortraitFE6View))]
+        [InlineData(7, typeof(ImagePortraitView))]
+        [InlineData(8, typeof(ImagePortraitView))]
+        public void OpenImagePortrait_RoutesFE6ToDedicatedEditor(int ver, System.Type expectedView)
         {
-            Assert.Equal(expectedView, ResolvePortraitEditorView(ver));
+            Assert.Equal(expectedView, MainWindow.ResolvePortraitEditorViewType(ver));
         }
 
         /// <summary>
-        /// Reproduces the dispatch logic from MainWindow.OpenImagePortrait_Click.
+        /// #1411 (Copilot PR-review #1) — the VM stride guard is supported ONLY when the
+        /// portrait stride equals the editor's 28-byte SIZE. Every other value is
+        /// unsupported: FE6's 16, a patched stride, AND an unknown/zero stride (the
+        /// prior `stride == 0` hole let a 28-byte write proceed on an unknown layout).
         /// </summary>
-        private static string ResolvePortraitEditorView(int ver)
-            => ver == 6 ? "ImagePortraitFE6View" : "ImagePortraitView";
+        [Theory]
+        [InlineData(28u, false)] // FE7/FE8 — supported
+        [InlineData(16u, true)]  // FE6 — unsupported (16-byte)
+        [InlineData(0u, true)]   // unknown/zero — unsupported (no longer a hole)
+        [InlineData(32u, true)]  // hypothetical patched stride — unsupported
+        public void IsUnsupportedPortraitStride_OnlySize28IsSupported(uint stride, bool expectedUnsupported)
+        {
+            Assert.Equal(28u, ImagePortraitViewModel.EntrySize); // sanity: SIZE is 28
+            Assert.Equal(expectedUnsupported, ImagePortraitViewModel.IsUnsupportedPortraitStride(stride));
+        }
+    }
+
+    // ====================================================================
+    // Layer 1b — REAL Avalonia control: build a WrapPanel + Button tagged by the
+    // production helper, run the production filter predicate against the real
+    // Button.Tag, and assert the button is hidden on FE6 across a filter pass.
+    // ====================================================================
+    [Collection("WindowManagerSerial")]
+    public class ImagePortraitFE6FilterDurabilityTests
+    {
+        /// <summary>
+        /// #1411 P1 end-to-end on a real control: a Button whose Tag is set by
+        /// GenericPortraitEditorTag(6) is treated as version-hidden by the production
+        /// IsButtonVersionHidden predicate (the exact gate inside ApplyFilter), so a
+        /// search-filter pass would set IsVisible=false and skip it. FE7's null tag is
+        /// not version-hidden. This exercises the actual Avalonia Button + the shared
+        /// production predicates, not a reimplementation.
+        /// </summary>
+        [AvaloniaFact]
+        public void RealButton_Tag_IsRespectedByProductionFilterPredicate()
+        {
+            var fe6Button = new global::Avalonia.Controls.Button
+            {
+                Content = "Portrait Editor",
+                Tag = MainWindow.GenericPortraitEditorTag(6),
+            };
+            var fe7Button = new global::Avalonia.Controls.Button
+            {
+                Content = "Portrait Editor",
+                Tag = MainWindow.GenericPortraitEditorTag(7),
+            };
+
+            // Simulate the ApplyFilter version-hidden short-circuit on the real Button.Tag.
+            bool fe6Hidden = MainWindow.IsButtonVersionHidden(fe6Button.Tag);
+            bool fe7Hidden = MainWindow.IsButtonVersionHidden(fe7Button.Tag);
+            if (fe6Hidden) fe6Button.IsVisible = false;
+            if (fe7Hidden) fe7Button.IsVisible = false;
+
+            Assert.True(fe6Hidden);
+            Assert.False(fe6Button.IsVisible); // FE6 generic Portrait Editor stays hidden through filter
+            Assert.False(fe7Hidden);
+            Assert.True(fe7Button.IsVisible);  // FE7 unaffected
+        }
     }
 
     // ====================================================================
