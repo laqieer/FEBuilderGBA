@@ -26214,3 +26214,5 @@ Boss对话 (16字节)
 搜索命令 / 提示
 :Select a command from the list first.
 请先从列表中选择一个命令。
+:Footstep-sound Switch2 table not found in this ROM. Editing is unavailable.
+此ROM中找不到脚步声Switch2表。无法编辑。
