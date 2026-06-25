@@ -190,7 +190,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint palPtr = PalettePointer;
             if (!U.isPointer(palPtr)) return null;
             uint palAddr = U.toOffset(palPtr);
-            if (!U.isSafetyOffset(palAddr)) return null;
+            // rom-aware safety check — never dereference the ambient CoreState.ROM
+            // when we already hold a ROM instance (#993 ImageUtilCore guidance).
+            if (!U.isSafetyOffset(palAddr, rom)) return null;
             // RAW read (not LZ77) — 16 colors * 2 bytes = 0x20 bytes.
             return ImageUtilCore.GetPalette(rom, palAddr, 16);
         }

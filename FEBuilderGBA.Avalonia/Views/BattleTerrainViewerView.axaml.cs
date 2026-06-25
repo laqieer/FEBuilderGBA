@@ -171,7 +171,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
-                uint addr = _vm.CurrentAddr;
                 _undoService.Begin("Import Battle Terrain Palette");
                 // BattleTerrain palette is stored RAW at offset +16 (NOT LZ77).
                 if (!_vm.ImportPaletteBytes(palData, out string palErr))
