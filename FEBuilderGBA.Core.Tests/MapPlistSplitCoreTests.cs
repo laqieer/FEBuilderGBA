@@ -70,6 +70,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ex); // never throws — degrades gracefully
         }
 
+        [Fact]
+        public void Split_TinyTruncatedRom_DoesNotThrow_ReturnsFalse()
+        {
+            // Split's pre-mutation validation (MakeMapIDList / split-state query)
+            // must not throw on a corrupt/truncated ROM — the "return false on ANY
+            // fault" contract requires it to fail gracefully (#1432 Copilot
+            // re-review).
+            var rom = MakeVanillaRom();
+            rom.write_resize_data(0x100u);
+            byte[] before = (byte[])rom.Data.Clone();
+
+            bool ok = true;
+            string error = "";
+            var ex = Record.Exception(() => ok = MapPlistSplitCore.Split(rom, out error));
+            Assert.Null(ex);                 // never throws
+            Assert.False(ok);                // graceful failure
+            Assert.Equal(before, rom.Data);  // no mutation
+        }
+
         // ----------------------------------------------------------------
         // Split — happy path + WF invariants.
         // ----------------------------------------------------------------

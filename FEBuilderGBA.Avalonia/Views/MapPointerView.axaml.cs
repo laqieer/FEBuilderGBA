@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapPointerView.LoadList failed: {0}", ex.Message);
+                Log.Error("MapPointerView.LoadList failed: " + ex);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapPointerView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MapPointerView.OnSelected failed: " + ex);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Map Pointer data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapPointerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapPointerView.Write: " + ex); }
         }
 
         // PLIST Split/Expand — port of WinForms MapPointerForm.PListSplitsExpandsButton_Click

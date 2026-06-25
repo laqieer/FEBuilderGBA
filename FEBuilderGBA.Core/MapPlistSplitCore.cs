@@ -148,8 +148,22 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            // Validate the maps + old bases BEFORE any mutation.
-            List<AddrResult> mapList = MapSettingCore.MakeMapIDList(rom);
+            // Validate the maps + old bases BEFORE any mutation. MakeMapIDList
+            // dereferences map_setting_pointer via rom.p32 without a 4-byte extent
+            // guard, so a truncated/corrupt ROM could throw here — BEFORE the
+            // snapshot/undo scope below. Catch it and fail gracefully so the
+            // "return false on ANY fault" contract holds and the UI never crashes
+            // (#1432 Copilot re-review).
+            List<AddrResult> mapList;
+            try
+            {
+                mapList = MapSettingCore.MakeMapIDList(rom);
+            }
+            catch (Exception ex)
+            {
+                error = "could not enumerate maps: " + ex.Message;
+                return false;
+            }
             if (mapList == null || mapList.Count == 0) { error = "no maps found"; return false; }
 
             // Capture EVERY old base address (deref of each purpose's base
