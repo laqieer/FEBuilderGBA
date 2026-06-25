@@ -39,7 +39,7 @@
           <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AttackerUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
           <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_AttackerName_Label" Grid.Row="2" Grid.Column="2" Name="AttackerNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" Name="DefenderLabel" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_Defender_Label" Grid.Row="3" Grid.Column="0" Text="Defender Unit:" VerticalAlignment="Center" Margin="0,4" Name="DefenderLabel" />
           <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderUnit_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DefenderUnitBox" Minimum="0" Maximum="255" Margin="0,4" />
           <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_DefenderName_Label" Grid.Row="3" Grid.Column="2" Name="DefenderNameLabel" VerticalAlignment="Center" TextWrapping="Wrap" Margin="8,4" />
 
@@ -70,7 +70,7 @@
 
           <!-- Event pointer (offset +0x0C) — only present in the secondary
                16-byte boss-conversation table. Hidden in main-table mode. -->
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" Name="EventPointerLabel" IsVisible="False" />
+          <TextBlock AutomationProperties.AutomationId="EventBattleTalkFE6_EventPointer_Label" Grid.Row="12" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" Margin="0,4" Name="EventPointerLabel" IsVisible="False" />
           <NumericUpDown AutomationProperties.AutomationId="EventBattleTalkFE6_EventPointer_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" IsVisible="False" />
         </Grid>
 
