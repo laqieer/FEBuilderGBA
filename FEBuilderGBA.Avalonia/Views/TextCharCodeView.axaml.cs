@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class TextCharCodeView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly TextCharCodeViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Text Character Code";
         public bool IsLoaded => _vm.IsLoaded;
@@ -21,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             CharCodeList.ItemsSource = _vm.CharCodes;
             CharCodeList.SelectionChanged += CharCodeList_SelectionChanged;
+            WriteButton.Click += OnWrite;
             _vm.Initialize();
             if (_vm.CharCodes.Count > 0)
             {
@@ -29,6 +31,49 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
+
+        /// <summary>
+        /// Persist the edited Char Code (u16@0) and Terminator (u16@2) to the ROM under an
+        /// ambient undo scope, then rebuild the Huffman text encoder so the change takes
+        /// effect immediately. Mirrors WinForms <c>TextCharCodeForm</c>'s InputFormRef write
+        /// button + <c>PostWriteHandler → Program.ReBuildFETextEncoder()</c> (#1446).
+        /// </summary>
+        void OnWrite(object? sender, RoutedEventArgs e)
+        {
+            // No entry selected → nothing to persist. _vm.Write() also guards on
+            // CurrentAddr == 0, but bail early so we don't open an empty undo scope.
+            if (_vm.CurrentAddr == 0)
+            {
+                return;
+            }
+
+            _undoService.Begin("Edit Char Code");
+            try
+            {
+                _vm.CharCode = (uint)(CharCodeBox.Value ?? 0);
+                _vm.TerminatorValue = (uint)(TerminatorBox.Value ?? 0);
+                _vm.Write();
+
+                // Equivalent to WinForms Program.ReBuildFETextEncoder(): rebuild the Huffman
+                // text encoder so the encoding table change is picked up. Non-fatal if it
+                // fails (matches MainWindow/RomFixture init pattern).
+                try { CoreState.FETextEncoder = new FETextEncode(); }
+                catch (Exception ex) { Log.Error("TextCharCodeView: FETextEncode rebuild failed: {0}", ex.Message); }
+
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // _vm.Write() refreshed the list label + CharacterDisplay; push the new
+                // values back into the editor controls.
+                UpdateUI();
+                UpdateFontPreview();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("TextCharCodeView.OnWrite failed: {0}", ex.Message);
+            }
+        }
 
         public void NavigateTo(uint address)
         {
