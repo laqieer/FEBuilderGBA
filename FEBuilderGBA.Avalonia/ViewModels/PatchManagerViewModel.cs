@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (result.Success)
             {
-                // only record when at least one region was actually written (avoid a no-op Undo History entry)
+                // only record when at least one region was recorded into UndoData (avoid a no-op Undo History entry)
                 if (undo != null && undoData != null && undoData.list.Count > 0)
                     undo.Push(undoData);
 
@@ -269,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             else
             {
                 // Rollback any partial restore on failure.
-                // only rollback when at least one region was actually written (avoid a no-op Undo History entry)
+                // only rollback when at least one region was recorded into UndoData (avoid a no-op Undo History entry)
                 if (undo != null && undoData != null && undoData.list.Count > 0)
                     undo.Rollback(undoData);
                 StatusMessage = "Uninstall failed: " + result.Message;

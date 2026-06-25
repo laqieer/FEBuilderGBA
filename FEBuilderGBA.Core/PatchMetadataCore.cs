@@ -665,7 +665,7 @@ namespace FEBuilderGBA
             {
                 return PatchApplyResult.Fail(
                     "No backup file found for this patch. Uninstall is only possible for patches " +
-                    "installed through the Avalonia port (which saves a backup automatically). " +
+                    "installed with a backup (SaveBackup) (which saves a backup automatically). " +
                     "Restore from a ROM backup instead.");
             }
 
