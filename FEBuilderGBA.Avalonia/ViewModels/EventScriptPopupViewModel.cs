@@ -31,6 +31,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Byte offset within the command's byte data.</summary>
         public int ByteOffset { get => _byteOffset; set { _byteOffset = value; OnChanged(); } }
 
+        /// <summary>
+        /// Index of this row's source arg within <c>code.Script.Args</c>. Once FIXED + alias args
+        /// are filtered out of the editable list, rows no longer map 1:1 to <c>Args</c> by position,
+        /// so each editable row records which primary arg it edits (#1422).
+        /// </summary>
+        public int SourceArgIndex { get; set; }
+
         /// <summary>Number of bytes this argument occupies (1, 2, 3, or 4).</summary>
         public int ByteSize { get => _byteSize; set { _byteSize = value; OnChanged(); } }
 
@@ -453,8 +460,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SelectedCommandName = EventScript.makeCommandComboText(code.Script, false);
             HasSelectedCommand = true;
 
-            foreach (var arg in code.Script.Args)
+            // Only show EDITABLE rows: drop FIXED constants AND alias args (args whose Symbol
+            // duplicates an earlier arg). WinForms hides both via EventScript.IsFixedArg; rendering
+            // an alias as its own editable row would let the user leave alias bytes stale (#1422).
+            foreach (int argIndex in EventScriptAliasCore.EnumerateEditableArgIndices(code))
             {
+                var arg = code.Script.Args[argIndex];
                 uint value = EventScript.GetArgValue(code, arg);
 
                 var entry = new CommandArgEntry
@@ -463,6 +474,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ArgType = arg.Type,
                     ByteOffset = arg.Position,
                     ByteSize = arg.Size,
+                    SourceArgIndex = argIndex,
                     IsPointer = EventScript.IsPointerArgs(arg.Type),
                     IsDecimal = EventScript.IsDecimal(arg.Type),
                     IsFixed = (arg.Type == EventScript.ArgType.FIXED),
@@ -497,11 +509,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (code?.Script?.Args == null)
                 return false;
 
-            // Validate that CommandArgs count matches non-alias args
-            if (CommandArgs.Count != code.Script.Args.Length)
+            // Validate that the editable-row count matches the editable args of the command
+            // (FIXED + alias args are filtered out of CommandArgs).
+            var editableIndices = new HashSet<int>(EventScriptAliasCore.EnumerateEditableArgIndices(code));
+            if (CommandArgs.Count != editableIndices.Count)
             {
                 StatusText = "Error: Argument count mismatch.";
                 return false;
+            }
+
+            // Each row must still map to a current editable (primary) arg.
+            foreach (var entry in CommandArgs)
+            {
+                if (!editableIndices.Contains(entry.SourceArgIndex))
+                {
+                    StatusText = "Error: Argument mapping is stale; reselect the command.";
+                    return false;
+                }
             }
 
             // Use UndoService for tracked writes
@@ -510,35 +534,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                for (int i = 0; i < CommandArgs.Count; i++)
+                foreach (var entry in CommandArgs)
                 {
-                    var entry = CommandArgs[i];
-                    var arg = code.Script.Args[i];
-
-                    // Skip FIXED args — they are constants, not editable
-                    if (arg.Type == EventScript.ArgType.FIXED)
-                        continue;
-
-                    uint writeAddr = cmdOffset + (uint)arg.Position;
                     uint val = entry.Value;
 
-                    switch (arg.Size)
+                    // Write the edited primary value to the primary arg AND to every alias arg
+                    // sharing its Symbol (mirror WinForms WriteAliasScriptEditSetTables) so alias
+                    // byte-positions can never retain a stale value (#1422).
+                    foreach (var target in EventScriptAliasCore.EnumerateAliasWriteTargets(code, entry.SourceArgIndex))
                     {
-                        case 1:
-                            rom.write_u8(writeAddr, val & 0xFF);
-                            break;
-                        case 2:
-                            rom.write_u16(writeAddr, val & 0xFFFF);
-                            break;
-                        case 3:
-                            // Write 3 bytes manually
-                            rom.write_u8(writeAddr, val & 0xFF);
-                            rom.write_u8(writeAddr + 1, (val >> 8) & 0xFF);
-                            rom.write_u8(writeAddr + 2, (val >> 16) & 0xFF);
-                            break;
-                        case 4:
-                            rom.write_u32(writeAddr, val);
-                            break;
+                        WriteArgValue(rom, cmdOffset, target, val);
                     }
                 }
 
@@ -566,6 +571,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 undoService.Rollback();
                 StatusText = $"Error writing command: {ex.Message}";
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Serialize <paramref name="val"/> into the ROM at the command base + arg position,
+        /// mirroring WinForms <c>WriteOneScriptEditSetTables</c>: size-based, with pointer args
+        /// stored via <c>write_p32</c> (GBA pointer form) (#1422).
+        /// </summary>
+        static void WriteArgValue(ROM rom, uint cmdOffset, EventScript.Arg arg, uint val)
+        {
+            uint writeAddr = cmdOffset + (uint)arg.Position;
+            switch (arg.Size)
+            {
+                case 1:
+                    rom.write_u8(writeAddr, val & 0xFF);
+                    break;
+                case 2:
+                    rom.write_u16(writeAddr, val & 0xFFFF);
+                    break;
+                case 3:
+                    // Write 3 bytes manually (no ROM.write_u24)
+                    rom.write_u8(writeAddr, val & 0xFF);
+                    rom.write_u8(writeAddr + 1, (val >> 8) & 0xFF);
+                    rom.write_u8(writeAddr + 2, (val >> 16) & 0xFF);
+                    break;
+                default: // 4 bytes
+                    if (EventScript.IsPointerArgs(arg.Type))
+                        rom.write_p32(writeAddr, val); // pointer args stored in GBA pointer form
+                    else
+                        rom.write_u32(writeAddr, val);
+                    break;
             }
         }
 
