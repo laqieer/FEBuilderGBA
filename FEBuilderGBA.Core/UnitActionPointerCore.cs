@@ -33,8 +33,10 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// The unit-action function-pointer table <b>slot</b> (a pointer, not the table base).
-        /// Non-rework: <c>RomInfo.unitaction_function_pointer</c>. Rework: the relocated slot
+        /// The unit-action function-pointer table <b>slot ADDRESS</b> — i.e. the ROM offset where the
+        /// 32-bit pointer to the table base is stored (NOT the dereferenced table base itself; call
+        /// <see cref="ResolveBaseAddress"/> to dereference it via <c>p32</c>).
+        /// Non-rework: <c>RomInfo.unitaction_function_pointer</c>. Rework: the relocated slot address
         /// grepped from <c>config/patch2/&lt;ver&gt;/UnitActionRework/.../ApplyAction.bin</c>
         /// (BaseDirectory/missing-file safe — returns 0 when unresolved). Verbatim WF port
         /// reused from <see cref="RebuildProducerCore.SearchActionPointer"/>.
