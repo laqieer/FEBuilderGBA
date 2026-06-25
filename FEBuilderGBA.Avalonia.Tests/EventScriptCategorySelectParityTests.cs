@@ -187,6 +187,47 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void FilterChange_ResetsStaleSelection()
+        {
+            using var env = new EvDisasmEnv();
+
+            var vm = new EventScriptCategorySelectViewModel();
+            vm.Load();
+            vm.SelectedCategory = "Show all";
+            Assert.NotEmpty(vm.ScriptNames);
+
+            // Select a command, then change the filter to something that yields
+            // no matches. The stale selection / result / info must be cleared
+            // (Copilot PR review #1525), and ConfirmSelection must refuse.
+            vm.SelectedScriptIndex = 0;
+            Assert.NotNull(vm.SelectedScript);
+
+            vm.FilterText = "zzz_no_such_command_zzz";
+            Assert.Empty(vm.ScriptNames);
+            Assert.Equal(-1, vm.SelectedScriptIndex);
+            Assert.Null(vm.SelectedScript);
+            Assert.Equal("", vm.InfoText);
+            Assert.False(vm.ConfirmSelection());
+        }
+
+        [Fact]
+        public void CategoryChange_ResetsStaleSelection()
+        {
+            using var env = new EvDisasmEnv();
+
+            var vm = new EventScriptCategorySelectViewModel();
+            vm.Load();
+            vm.SelectedCategory = "Show all";
+            vm.SelectedScriptIndex = 0;
+            Assert.NotNull(vm.SelectedScript);
+
+            // Switching category rebuilds the list and must drop the old result.
+            vm.SelectedCategory = "Text";
+            Assert.Equal(-1, vm.SelectedScriptIndex);
+            Assert.Null(vm.SelectedScript);
+        }
+
+        [Fact]
         public void SelectedScript_SetsInfoText()
         {
             using var env = new EvDisasmEnv();

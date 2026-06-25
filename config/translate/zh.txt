@@ -26212,3 +26212,5 @@ Boss对话 (16字节)
 信息
 :search command / hint
 搜索命令 / 提示
+:Select a command from the list first.
+请先从列表中选择一个命令。

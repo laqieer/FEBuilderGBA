@@ -15,6 +15,11 @@ namespace FEBuilderGBA.Avalonia.Views
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
 
+        // R._() runs the runtime translation (TranslatedWindow's pass only covers
+        // AXAML literals, not strings assigned later in code-behind) — Copilot PR
+        // review #1525.
+        static string Placeholder => R._("(select a command)");
+
         public EventScriptCategorySelectView()
         {
             InitializeComponent();
@@ -22,6 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             CategoryList.ItemsSource = _vm.Categories;
             ScriptList.ItemsSource = _vm.ScriptNames;
+            InfoLabel.Text = Placeholder;
 
             FilterBox.Text = _vm.FilterText;
             FilterBox.TextChanged += FilterBox_TextChanged;
@@ -50,20 +56,21 @@ namespace FEBuilderGBA.Avalonia.Views
             RebindScriptList();
         }
 
-        // The VM rebuilds ScriptNames into a fresh list on each filter change;
-        // rebind the ItemsSource and clear selection so the info panel resets.
+        // The VM rebuilds ScriptNames into a fresh list on each filter change
+        // (and resets its own selection/info); rebind the ItemsSource and reset
+        // the info panel so the view stays in sync.
         void RebindScriptList()
         {
             ScriptList.ItemsSource = _vm.ScriptNames;
             ScriptList.SelectedIndex = -1;
             _vm.SelectedScriptIndex = -1;
-            InfoLabel.Text = "(select a command)";
+            InfoLabel.Text = Placeholder;
         }
 
         void ScriptList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             _vm.SelectedScriptIndex = ScriptList.SelectedIndex;
-            InfoLabel.Text = string.IsNullOrEmpty(_vm.InfoText) ? "(select a command)" : _vm.InfoText;
+            InfoLabel.Text = string.IsNullOrEmpty(_vm.InfoText) ? Placeholder : _vm.InfoText;
         }
 
         void ScriptList_DoubleTapped(object? sender, TappedEventArgs e)
@@ -79,8 +86,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void ConfirmAndClose()
         {
             if (_vm.ConfirmSelection())
+            {
                 Close(_vm.SelectedScript);
-            // No valid command selected — keep the dialog open.
+            }
+            else
+            {
+                // No valid command selected — surface an inline hint and stay open
+                // so OK doesn't look broken (parity with ScriptCommandPickerView).
+                InfoLabel.Text = R._("Select a command from the list first.");
+            }
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)

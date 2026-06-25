@@ -12374,3 +12374,5 @@ LOWコマンドを表示
 情報
 :search command / hint
 コマンド / ヒントを検索
+:Select a command from the list first.
+最初にリストからコマンドを選択してください。

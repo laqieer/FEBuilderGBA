@@ -158,6 +158,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         void RefreshScriptList()
         {
             _scriptCache.Clear();
+
+            // The backing list is being rebuilt, so any prior selection no
+            // longer maps to a valid row. Reset selection / result / info so a
+            // filter/category/show-low change can't leave a stale SelectedScript
+            // (Copilot PR review #1525).
+            _selectedScriptIndex = -1;
+            OnPropertyChanged(nameof(SelectedScriptIndex));
+            SelectedScript = null;
+            InfoText = "";
+
             var names = new List<string>();
 
             var es = CoreState.EventScript;
@@ -232,7 +242,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool ConfirmSelection()
         {
             if (_selectedScriptIndex < 0 || _selectedScriptIndex >= _scriptCache.Count)
+            {
+                // Clear any stale result so callers can't observe a SelectedScript
+                // that no longer corresponds to ScriptNames (Copilot PR review #1525).
+                SelectedScript = null;
                 return false;
+            }
 
             SelectedScript = _scriptCache[_selectedScriptIndex];
             return true;
