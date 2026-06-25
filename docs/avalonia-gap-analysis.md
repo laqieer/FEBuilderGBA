@@ -114,7 +114,7 @@ The follow-up fix pass for issues `#48`-`#51` removed several false-negative val
 | UnitFE6Form / (via UnitEditorVM) | 50% | ~~Checkboxes~~ **FIXED** |
 | ExtraUnitForm / ExtraUnitVM | 30% | Proper List, Flag Editor |
 | ExtraUnitFE8UForm / ExtraUnitFE8UVM | 35% | Proper List, Address Tracking |
-| UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, Rework Patch, Action Names |
+| UnitActionPointerForm / UnitActionPointerVM | 25% | Write, Proper List, ~~Rework Patch~~ **FIXED** (#1415 — UnitActionPointerCore: relocated base via ApplyAction.bin, 0-based ids, `& 0x0FFFFFFF` masking), Action Names |
 | UnitCustomBattleAnimeForm / UnitCustomBattleAnimeVM | **40%** | ~~List stub~~ **FIXED** — BuildList with weapon/anim display. Missing: SP Names, Preview |
 | UnitIncreaseHeightForm / UnitIncreaseHeightVM | 25% | Write, Proper List, Switch2, Height Options |
 | UnitPaletteForm / UnitPaletteVM | **40%** | ~~List stub~~ **FIXED** — list from unit_palette_color_pointer with unit names. Missing: Dual Tables, Preview |

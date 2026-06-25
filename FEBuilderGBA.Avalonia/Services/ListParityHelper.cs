@@ -3636,24 +3636,21 @@ namespace FEBuilderGBA.Avalonia.Services
         // Batch 5 builders — remaining coverable editors
         // ==================================================================
 
-        /// <summary>Build unit action pointer list — 4-byte pointer entries from unitaction_function_pointer.</summary>
+        /// <summary>Build unit action pointer list — 4-byte pointer entries. Honors the
+        /// UnitActionRework patch (relocated base, 0-based ids, <c>&amp; 0x0FFFFFFF</c> masking)
+        /// via <see cref="UnitActionPointerCore"/>, matching WinForms UnitActionPointerForm (#1415).</summary>
         static List<AddrResult> BuildUnitActionPointerList(ROM rom)
         {
-            uint pointer = rom.RomInfo.unitaction_function_pointer;
-            if (pointer == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(pointer);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            uint baseAddr = UnitActionPointerCore.ResolveBaseAddress(rom);
+            if (baseAddr == 0) return new List<AddrResult>();
 
+            bool isRework = UnitActionPointerCore.IsRework(rom);
             const uint entrySize = 4;
             return EditorFormRef.BuildListWithCount(rom, baseAddr, entrySize,
+                (i, addr) => UnitActionPointerCore.IsDataExists(rom, addr, isRework),
                 (i, addr) =>
                 {
-                    uint a = rom.u32(addr);
-                    return U.isSafetyPointer(a);
-                },
-                (i, addr) =>
-                {
-                    uint id = (uint)(i + 1);
+                    uint id = UnitActionPointerCore.ResolveActionId(i, isRework);
                     return $"{U.ToHexString(id)} Action {id}";
                 });
         }
