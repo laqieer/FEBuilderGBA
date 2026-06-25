@@ -3691,7 +3691,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 });
         }
 
-        /// <summary>Build unit custom battle anime list — from unit_custom_battle_anime_pointer.</summary>
+        /// <summary>
+        /// Build the unit custom battle anime list — the FE7 POINTER TABLE at
+        /// <c>unit_custom_battle_anime_pointer</c> (one u32 pointer per class). Mirrors the WinForms
+        /// <c>UnitCustomBattleAnimeForm.N2_Init</c> rule (<c>i==0 || isPointer(u32)</c>), NOT a plain
+        /// <c>val==0</c> stop (#1412 plan review point 5). Each row is a pointer-table SLOT, NOT a
+        /// weapon-anime record — drilling into the inner list requires a SECOND p32 dereference.
+        /// </summary>
         static List<AddrResult> BuildUnitCustomBattleAnimeList(ROM rom)
         {
             uint pointer = rom.RomInfo.unit_custom_battle_anime_pointer;
@@ -3705,11 +3711,14 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                uint val = rom.u32(addr);
-                if (val == 0 && i > 0) break;
+                // WinForms N2 rule: i==0 ? true : isPointer(u32(addr)).
+                if (i != 0 && !U.isPointer(rom.u32(addr))) break;
 
-                string unitName = NameResolver.GetUnitName(i);
-                string name = $"{U.ToHexString(i)} {unitName}";
+                // Label = the OWNING unit + lower/upper marker for this custom-battle-anime index
+                // (WinForms UnitFE7Form.GetNameWhereCustomBattleAnime). NOT GetUnitName(i): `i` is the
+                // custom-battle-anime id (matched against unit +37/+38), not a unit-table row (#1412).
+                string label = NameResolver.GetCustomBattleAnimeName(rom, i);
+                string name = label.Length == 0 ? U.ToHexString(i) : $"{U.ToHexString(i)} {label}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
