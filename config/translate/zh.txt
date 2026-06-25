@@ -7525,6 +7525,9 @@ PLIST分配
 :既に拡張済みです
 已经扩大
 
+:Use the Map Pointer editor to split/extend the PLIST range.
+请在地图指针编辑器中拆分/扩展PLIST范围。
+
 :MapPointer(PLIST)を拡張
 扩展Map指针（PLIST）
 
@@ -26101,17 +26104,11 @@ FE-Repo-音乐浏览器
 
 :New Split Menu
 新建分支菜单
-:PLIST Split
-PLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).
-(This is a destructive operation — be sure to back up your ROM first.)
-PLIST 分割
-PLIST 表把多种用途打包进同一个共享数组，因此按用途拆分它们可以增加可用的 PLIST 槽位数量（每张表会扩展到 256 项 / 0xFF）。
-（这是破坏性操作 — 请务必先备份你的 ROM。）
+:PLIST Split\r\nPLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).\r\n(This is a destructive operation — be sure to back up your ROM first.)
+PLIST 分割\r\nPLIST 表把多种用途打包进同一个共享数组，因此按用途拆分它们可以增加可用的 PLIST 槽位数量（每张表会扩展到 256 项 / 0xFF）。\r\n（这是破坏性操作 — 请务必先备份你的 ROM。）
 
-:Split the PLIST tables?
-This is a destructive operation — be sure to back up your ROM first.
-要分割 PLIST 表吗？
-这是破坏性操作 — 请务必先备份你的 ROM。
+:Split the PLIST tables?\r\nThis is a destructive operation — be sure to back up your ROM first.
+要分割 PLIST 表吗？\r\n这是破坏性操作 — 请务必先备份你的 ROM。
 
 :PLIST Split
 PLIST 分割

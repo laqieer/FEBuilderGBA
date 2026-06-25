@@ -31,9 +31,14 @@ namespace FEBuilderGBA
     /// <see cref="Undo.UndoData"/> + <see cref="ROM.BeginUndoScope"/>. On ANY
     /// fault it restores the ROM byte-identical (including a down-resize if a
     /// free-space append grew the ROM) and returns <c>false</c>; on success it
-    /// <c>CoreState.Undo.Push</c>es the captured undo. This mirrors the
+    /// <c>CoreState.Undo.Push</c>es the captured undo <b>only when the passed rom
+    /// is the active <c>CoreState.ROM</c></b> (the undo machinery byte-snapshots
+    /// from <c>CoreState.ROM</c>; a headless/test caller still gets a correct
+    /// in-place ROM result, just no editor-undo entry). This mirrors the
     /// <see cref="SkillSystemsAnimeImportCore"/> single-import contract — no
-    /// caller can leave partial appends/repoints/resizes behind.</para>
+    /// caller can leave partial appends/repoints/resizes behind. The helper also
+    /// refuses to run inside an existing ambient undo scope (the thread-static
+    /// scope is non-reentrant).</para>
     ///
     /// <para>Reuses existing Core seams (no fork): <see cref="MapChangeCore"/>
     /// (PlistType / GetPlistBasePointer / IsPlistSplit / GetPlistLimit),
@@ -103,6 +108,21 @@ namespace FEBuilderGBA
         {
             error = "";
             if (rom == null || rom.RomInfo == null) { error = "no ROM"; return false; }
+
+            // ROM.BeginUndoScope is thread-static and non-reentrant: opening our
+            // own scope here while an OUTER ambient scope is active would clobber
+            // the caller's scope (our Dispose nulls the ambient undo data),
+            // breaking the caller's undo recording. Refuse rather than corrupt it
+            // (#1432 Copilot review). The Avalonia View deliberately calls this
+            // WITHOUT opening a UndoService scope (the helper owns its own), and
+            // WinForms has no ambient scope here either, so production callers are
+            // never inside one.
+            if (ROM.IsAmbientUndoScopeActive)
+            {
+                error = "PLIST split cannot run inside an active undo scope.";
+                return false;
+            }
+
             if (MapChangeCore.IsPlistSplit(rom))
             {
                 // Already split — WF never reaches PListSplitsExpands in this
@@ -126,7 +146,7 @@ namespace FEBuilderGBA
             {
                 uint basePtr = MapChangeCore.GetPlistBasePointer(rom, t);
                 if (basePtr == 0) continue;
-                uint baseAddr = rom.p32(basePtr);
+                uint baseAddr = SafeP32(rom, basePtr);
                 if (U.isSafetyOffset(baseAddr, rom))
                     oldBases.Add(baseAddr);
             }
@@ -141,7 +161,11 @@ namespace FEBuilderGBA
             // that path reads CoreState.ROM.Data.Length for its file-size
             // snapshot and would NRE on a ROM-explicit/headless caller whose
             // CoreState.ROM is not the passed rom. We set the fields from the
-            // passed rom directly so the helper never touches CoreState.ROM.
+            // passed rom directly. (The captured undo is only PUSHED onto the
+            // editor stack when rom == CoreState.ROM — see the push below — since
+            // the undo machinery byte-snapshots from CoreState.ROM. The
+            // byte-identical FAULT restore uses an explicit snapshot of the PASSED
+            // rom and is always correct regardless of CoreState.ROM.)
             Undo.UndoData undoData = new Undo.UndoData
             {
                 time = DateTime.Now.ToLocalTime(),
@@ -202,7 +226,16 @@ namespace FEBuilderGBA
                 return false;
             }
 
-            if (CoreState.Undo != null)
+            // Push the captured undo onto the editor's undo/redo stack — but ONLY
+            // when the passed rom IS the active CoreState.ROM. The undo machinery
+            // (Undo.UndoPostion / Undo.Rollback) snapshots bytes from
+            // CoreState.ROM, not from an arbitrary passed instance, so pushing an
+            // undo recorded against a different ROM would store bytes from the
+            // wrong buffer. Headless/test callers (rom != CoreState.ROM) get a
+            // correct in-place ROM result without a (meaningless) editor-undo
+            // entry; the byte-identical FAULT restore above never depends on this
+            // push and is always correct for the passed rom (#1432 Copilot review).
+            if (CoreState.Undo != null && ReferenceEquals(rom, CoreState.ROM))
                 CoreState.Undo.Push(undoData);
             return true;
         }
@@ -223,7 +256,7 @@ namespace FEBuilderGBA
             // then IDToAddr(plist) → p32. Here we read directly from the old
             // base table: oldBaseAddr + plist*4.
             uint basePtr = MapChangeCore.GetPlistBasePointer(rom, purpose);
-            uint oldBaseAddr = basePtr != 0 ? rom.p32(basePtr) : 0;
+            uint oldBaseAddr = basePtr != 0 ? SafeP32(rom, basePtr) : 0;
 
             foreach (AddrResult map in mapList)
             {
@@ -341,6 +374,21 @@ namespace FEBuilderGBA
             if (baseAddr + bytes > (uint)rom.Data.Length)
                 bytes = (uint)rom.Data.Length - baseAddr; // clamp at EOF
             rom.write_fill(baseAddr, bytes, 0x00);
+        }
+
+        /// <summary>
+        /// Read a 32-bit pointer at <paramref name="addr"/>, returning 0 when the
+        /// 4-byte read would run past the end of the ROM. <see cref="ROM.p32"/>
+        /// only guards <c>addr &gt;= Length</c>, so a base pointer that lands in
+        /// the last 1-3 bytes of a truncated/corrupt ROM would throw. Guarding the
+        /// full 4-byte extent here lets <see cref="Split"/> fail gracefully (0 is
+        /// treated as "skip" / unsafe by every downstream check) instead of
+        /// relying on an exception for control flow (#1432 Copilot review).
+        /// </summary>
+        static uint SafeP32(ROM rom, uint addr)
+        {
+            if (addr + 4u > (uint)rom.Data.Length) return 0u;
+            return rom.p32(addr);
         }
     }
 }

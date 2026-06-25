@@ -142,7 +142,7 @@ namespace FEBuilderGBA.Core.Tests
             // first default-size span (the WF wipe extent).
             uint wipeBytes = rom.RomInfo.map_map_pointer_list_default_size * 4u;
             for (uint i = 0; i < wipeBytes; i++)
-                Assert.Equal(0, rom.Data[oldShared + i]);
+                Assert.Equal(0u, rom.u8(oldShared + i));
         }
 
         // ----------------------------------------------------------------
@@ -183,6 +183,32 @@ namespace FEBuilderGBA.Core.Tests
 
             Assert.False(ok);
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void Split_InsideActiveUndoScope_IsRefused_WithoutMutation()
+        {
+            // ROM.BeginUndoScope is thread-static / non-reentrant. Split must
+            // refuse when an OUTER ambient scope is already open so it does not
+            // clobber the caller's scope (#1432 Copilot review).
+            var rom = MakeVanillaRom();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var outer = new Undo.UndoData
+            {
+                time = System.DateTime.Now,
+                name = "outer",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+                is_f5test = false,
+            };
+            using (ROM.BeginUndoScope(outer))
+            {
+                bool ok = MapPlistSplitCore.Split(rom, out string error);
+                Assert.False(ok);
+                Assert.NotEqual("", error);
+            }
+            Assert.Equal(before, rom.Data); // no mutation
         }
 
         [Fact]
