@@ -111,6 +111,18 @@ namespace FEBuilderGBA.Avalonia
         /// </summary>
         public static string? ScreenshotInvokeButtonAutomationId { get; set; }
 
+        /// <summary>
+        /// Optional <c>&lt;ComboBoxAutomationId&gt;=&lt;index&gt;</c> spec the
+        /// <c>--screenshot-all</c> runner applies to each captured editor before the
+        /// first-item selection, setting that combo's <c>SelectedIndex</c> so a
+        /// combo-driven editor is captured in a non-default state (e.g. the FE6
+        /// Battle Dialogue editor's secondary boss-conversation table:
+        /// <c>EventBattleTalkFE6_Table_Combo=1</c>). Editors without a matching combo
+        /// are captured unchanged. Opt-in via
+        /// <c>--screenshot-select-combo=&lt;AutomationId&gt;=&lt;index&gt;</c>.
+        /// </summary>
+        public static string? ScreenshotSelectComboSpec { get; set; }
+
         /// <summary>Gap-sweep mode (Phase 1 density, Phase 2 labels, …) or null if no gap-sweep flag was passed.</summary>
         public static string? GapSweepMode { get; set; }
 
@@ -571,6 +583,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--screenshot-invoke-button="))
                 {
                     ScreenshotInvokeButtonAutomationId = args[i].Substring("--screenshot-invoke-button=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-select-combo="))
+                {
+                    ScreenshotSelectComboSpec = args[i].Substring("--screenshot-select-combo=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {
