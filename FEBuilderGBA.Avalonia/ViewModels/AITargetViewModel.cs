@@ -5,6 +5,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class AITargetViewModel : ViewModelBase, IDataVerifiable
     {
+        /// <summary>
+        /// Fixed number of AI Target (AI3) profiles. WinForms <c>AITargetForm</c> uses the count
+        /// predicate <c>i &lt; 8</c> and <c>StructExportCore</c> hardcodes 8 for <c>ai_targets</c>
+        /// (issue #1419).
+        /// </summary>
+        public const uint ProfileCount = 8;
+
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] {
                 "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7",
@@ -78,15 +85,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             const uint blockSize = 20;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 16; i++)
+            // Fixed count of 8 profiles, matching WinForms AITargetForm (count predicate i < 8)
+            // and StructExportCore (ai_targets hardcodes 8). Do NOT use an all-zero early-stop:
+            // it can hide valid later profiles, and a >8 cap surfaces phantom rows 8-15 whose
+            // edits write 20 bytes outside the AI3 table (issue #1419).
+            for (uint i = 0; i < ProfileCount; i++)
             {
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-                // Stop if entire block is zero
-                bool allZero = true;
-                for (uint j = 0; j < blockSize && allZero; j++)
-                    if (rom.u8(addr + j) != 0) allZero = false;
-                if (allZero && i > 0) break;
 
                 result.Add(new AddrResult(addr, $"0x{i:X02} AI Target Profile {i}", i));
             }

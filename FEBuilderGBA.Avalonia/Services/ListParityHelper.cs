@@ -1823,16 +1823,13 @@ namespace FEBuilderGBA.Avalonia.Services
 
             const uint blockSize = 20;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 16; i++)
+            // Fixed count of 8 profiles, matching AITargetViewModel.ProfileCount, WinForms
+            // AITargetForm (i < 8), and StructExportCore (ai_targets hardcodes 8). No all-zero
+            // early-stop and no >8 cap (issue #1419).
+            for (uint i = 0; i < AITargetViewModel.ProfileCount; i++)
             {
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;
-
-                // Check all-zero (end marker) for i > 0
-                bool allZero = true;
-                for (int j = 0; j < blockSize; j++)
-                    if (rom.u8(addr + (uint)j) != 0) allZero = false;
-                if (allZero && i > 0) break;
 
                 result.Add(new AddrResult(addr, $"0x{i:X02} AI Target Profile {i}", i));
             }
