@@ -26150,3 +26150,8 @@ PLIST 表已分割。
 
 :Edit Battle Dialogue (FE7)
 编辑战斗对话 (FE7)
+
+:Time / Speed:
+时间 / 速度:
+:Time / Speed is the extra parameter byte (offset+1) for Highlight (09) and Speed change (0C) commands only.
+时间 / 速度 是仅用于 Highlight (09) 和 Speed change (0C) 命令的额外参数字节 (offset+1)。

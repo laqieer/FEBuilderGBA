@@ -12306,3 +12306,8 @@ PLISTテーブルを分割しました。
 
 :Edit Battle Dialogue (FE7)
 戦闘会話の編集 (FE7)
+
+:Time / Speed:
+時間 / 速度:
+:Time / Speed is the extra parameter byte (offset+1) for Highlight (09) and Speed change (0C) commands only.
+Time / Speed は Highlight (09) と Speed change (0C) コマンドのみの追加パラメータバイト (offset+1) です。
