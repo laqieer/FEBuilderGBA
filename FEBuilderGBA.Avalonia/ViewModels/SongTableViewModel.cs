@@ -16,6 +16,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint SongIndex { get => _songIndex; set => SetField(ref _songIndex, value); }
+
+        /// <summary>
+        /// WF parity: Song ID 0 (the reserved "silence/unset" entry) is
+        /// write-protected. <c>SongTableForm.cs:21</c> sets
+        /// <c>UseWriteProtectionID00 = true</c> and
+        /// <c>InputFormRef.CheckWriteProtectionID00</c> hard-refuses the write
+        /// (default option → <c>ShowStopError</c>). True when the currently
+        /// loaded entry is index 0 (the issue's "tag==0 / CurrentAddr==base"
+        /// criterion). <see cref="SongIndex"/> is derived from the table base
+        /// inside <see cref="LoadSong"/>, so this is reliable even for a headless
+        /// caller that invokes <c>LoadSong(base + 8)</c> without first selecting
+        /// a list row.
+        /// </summary>
+        public bool IsSongIdZero => _songIndex == 0;
         /// <summary>Pointer to the song header (P0).</summary>
         public uint SongHeaderPointer { get => _songHeaderPointer; set => SetField(ref _songHeaderPointer, value); }
         /// <summary>Track count read from the song header (read-only info).</summary>
@@ -63,6 +77,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 7 >= (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            // Derive the song index from the table base so the write-protection
+            // guard (IsSongIdZero) is reliable even for a direct LoadSong() call
+            // that did not go through list selection. Song table entries are
+            // 8 bytes each; index = (addr - base) / 8.
+            SongIndex = ComputeSongIndex(rom, addr);
 
             uint headerPtr = rom.u32(addr);        // P0 - Song header pointer
             PlayerType = rom.u32(addr + 4);         // D4 - Priority(PlayerType)
@@ -82,14 +101,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanWrite = true;
         }
 
-        public void WriteSong()
+        /// <summary>
+        /// Maps a song-table entry address to its index. Entries are 8 bytes
+        /// each starting at the table base (<c>rom.p32(sound_table_pointer)</c>).
+        /// Returns <see cref="uint.MaxValue"/> if the base cannot be resolved or
+        /// the address is below it (which never matches index 0, so the guard
+        /// fails open to "not protected" only for genuinely unknown addresses).
+        /// </summary>
+        static uint ComputeSongIndex(ROM rom, uint addr)
+        {
+            if (rom?.RomInfo == null) return uint.MaxValue;
+            uint ptr = rom.RomInfo.sound_table_pointer;
+            // Guard the full 4-byte read: ROM.p32 only checks ptr >= Data.Length,
+            // so a ptr within the last 3 bytes of the buffer can throw.
+            if (ptr == 0 || ptr + 3 >= (uint)rom.Data.Length) return uint.MaxValue;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr) || addr < baseAddr) return uint.MaxValue;
+            return (addr - baseAddr) / 8;
+        }
+
+        /// <summary>
+        /// Writes the song-table entry. Returns <c>false</c> WITHOUT mutating the
+        /// ROM when the entry is the reserved Song ID 0 (silence) — WF parity,
+        /// defense-in-depth behind the view's Write_Click guard so no caller can
+        /// bypass the protection — or when the address is out of range.
+        /// </summary>
+        public bool WriteSong()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return;
-            if (CurrentAddr + 7 >= (uint)rom.Data.Length) return;
+            if (rom == null || CurrentAddr == 0) return false;
+            if (CurrentAddr + 7 >= (uint)rom.Data.Length) return false;
+            // WF parity: never overwrite the reserved Song ID 0 (silence) entry.
+            if (IsSongIdZero) return false;
 
             rom.write_u32(CurrentAddr + 0, SongHeaderPointer);
             rom.write_u32(CurrentAddr + 4, PlayerType);
+            return true;
         }
 
         public int GetListCount() => LoadSongList().Count;
