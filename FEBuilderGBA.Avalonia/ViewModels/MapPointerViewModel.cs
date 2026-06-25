@@ -195,6 +195,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return null;
         }
 
+        /// <summary>
+        /// True when the PLIST tables are NOT yet split, so the Map Pointer
+        /// editor should offer the "PLIST Split" operation. Mirrors WinForms
+        /// showing the "PLIST分割" panel when <c>IsPlistSplits()==false</c> (#1432).
+        /// </summary>
+        public bool CanSplit => MapPlistSplitCore.CanSplit(CoreState.ROM);
+
+        /// <summary>
+        /// Run the PLIST Split/Expand operation (port of WinForms
+        /// <c>MapPointerForm.PListSplitsExpands</c>, #1432). Splits the shared
+        /// PLIST table into independent 256-entry tables per purpose, lifting
+        /// the usable-slot limit from the per-version vanilla default to 256.
+        ///
+        /// <para>The Core helper is fully atomic — it owns its own snapshot +
+        /// undo scope and leaves the ROM byte-identical on any fault — so the
+        /// View should NOT wrap this in its own undo scope (a redundant outer
+        /// scope would double-record). Returns <c>null</c> on success, or a
+        /// non-null error message on failure (ROM left unchanged).</para>
+        /// </summary>
+        public string? SplitPlist()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "No ROM is loaded.";
+
+            // Call Split() directly — it already validates split-state (and the
+            // can't-determine / already-split cases) and returns a precise error.
+            // We do NOT pre-gate on CanSplit here: that would duplicate the check
+            // and surface a less accurate message (#1432 Copilot re-review).
+            bool ok = MapPlistSplitCore.Split(rom, out string error);
+            if (!ok)
+                return string.IsNullOrEmpty(error) ? "PLIST split failed." : error;
+            return null;
+        }
+
         public int GetListCount() => LoadMapPointerList().Count;
 
         public Dictionary<string, string> GetDataReport()
