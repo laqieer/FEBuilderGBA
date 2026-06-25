@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             string outPath = Path.Combine(outDir, "pr1422-eventscript-alias-fe8u.png");
             using (var img = SKImage.FromBitmap(bmp))
             using (var data = img.Encode(SKEncodedImageFormat.Png, 100))
-            using (var fs = File.OpenWrite(outPath))
+            using (var fs = File.Create(outPath)) // truncate/replace — never leave stale trailing bytes
                 data.SaveTo(fs);
 
             Assert.True(new FileInfo(outPath).Length > 0);
