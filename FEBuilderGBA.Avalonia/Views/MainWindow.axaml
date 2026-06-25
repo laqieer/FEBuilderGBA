@@ -344,16 +344,15 @@
           <Expander AutomationProperties.AutomationId="Main_AIScripts_Expander" Header="AI Scripts" IsExpanded="True" Name="AIScriptsExpander">
             <WrapPanel Orientation="Horizontal">
               <Button AutomationProperties.AutomationId="Main_AIScript_Button" Name="AIScriptButton" Content="AI Script" Click="OpenAIScript_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_AIASMCall_Button" Name="AIASMCallButton" Content="AI ASM Call" Click="OpenAIASMCALLTALK_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_AICoordinate_Button" Name="AICoordinateButton" Content="AI Coordinate" Click="OpenAIASMCoordinate_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_AIRange_Button" Name="AIRangeButton" Content="AI Range" Click="OpenAIASMRange_Click" Margin="4" MinWidth="100" />
+              <!-- #1414: AI ASM Call / AI Coordinate / AI Range / AI Tiles / AI Units buttons removed.
+                   These context-dependent sub-editors self-initialized a heuristically-guessed write
+                   target when opened standalone, silently corrupting ROM. WinForms reaches them ONLY
+                   via the AIScript per-parameter dispatch, never from the main menu. -->
               <Button AutomationProperties.AutomationId="Main_AIMapSetting_Button" Name="AIMapSettingButton" Content="AI Map Setting" Click="OpenAIMapSetting_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AIItem_Button" Name="AIItemButton" Content="AI Item" Click="OpenAIPerformItem_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AIStaff_Button" Name="AIStaffButton" Content="AI Staff" Click="OpenAIPerformStaff_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AISteal_Button" Name="AIStealButton" Content="AI Steal" Click="OpenAIStealItem_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AITarget_Button" Name="AITargetButton" Content="AI Target" Click="OpenAITarget_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_AITiles_Button" Name="AITilesButton" Content="AI Tiles" Click="OpenAITiles_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_AIUnits_Button" Name="AIUnitsButton" Content="AI Units" Click="OpenAIUnits_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_AOERange_Button" Name="AOERangeButton" Content="AOE Range" Click="OpenAOERANGE_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>

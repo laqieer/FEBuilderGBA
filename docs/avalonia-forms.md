@@ -231,16 +231,16 @@ Editors for enemy AI behavior scripts.
 |---|------|-----------|-------------|
 | 124 | AIScriptView | AIScriptViewModel | Main AI script editor (opcode edit + write-back + full byte-stream Export/Import, #965) |
 | 125 | AIScriptCategorySelectView | AIScriptCategorySelectViewModel | AI script category picker |
-| 126 | AIASMCALLTALKView | AIASMCALLTALKViewModel | AI ASM call/talk script |
-| 127 | AIASMCoordinateView | AIASMCoordinateViewModel | AI ASM coordinate script |
-| 128 | AIASMRangeView | AIASMRangeViewModel | AI ASM range script |
+| 126 | AIASMCALLTALKView | AIASMCALLTALKViewModel | AI ASM call/talk script — **context-dependent sub-editor** (#1414): no standalone main-menu button, reached only via the AIScript per-parameter dispatch; standalone open shows a placeholder at addr 0 so Write is a no-op |
+| 127 | AIASMCoordinateView | AIASMCoordinateViewModel | AI ASM coordinate script — **context-dependent sub-editor** (#1414) |
+| 128 | AIASMRangeView | AIASMRangeViewModel | AI ASM range script — **context-dependent sub-editor** (#1414) |
 | 129 | AIMapSettingView | AIMapSettingViewModel | AI map setting editor |
 | 130 | AIPerformItemView | AIPerformItemViewModel | AI item usage behavior |
 | 131 | AIPerformStaffView | AIPerformStaffViewModel | AI staff usage behavior |
 | 132 | AIStealItemView | AIStealItemViewModel | AI steal behavior |
 | 133 | AITargetView | AITargetViewModel | AI target selection |
-| 134 | AITilesView | AITilesViewModel | AI tile evaluation |
-| 135 | AIUnitsView | AIUnitsViewModel | AI unit evaluation |
+| 134 | AITilesView | AITilesViewModel | AI tile evaluation — **context-dependent sub-editor** (#1414) |
+| 135 | AIUnitsView | AIUnitsViewModel | AI unit evaluation — **context-dependent sub-editor** (#1414) |
 | 136 | AOERANGEView | AOERANGEViewModel | Area of effect range editor |
 
 ## 7. Procs Script Editors

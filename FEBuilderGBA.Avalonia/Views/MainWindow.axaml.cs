@@ -415,16 +415,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // AI Scripts
             if (AIScriptButton != null) AIScriptButton.Content = R._("AI Script");
-            if (AIASMCallButton != null) AIASMCallButton.Content = R._("AI ASM Call");
-            if (AICoordinateButton != null) AICoordinateButton.Content = R._("AI Coordinate");
-            if (AIRangeButton != null) AIRangeButton.Content = R._("AI Range");
+            // #1414: AI ASM Call / AI Coordinate / AI Range / AI Tiles / AI Units buttons removed
+            // (context-dependent sub-editors; standalone open corrupted ROM via a guessed write target).
             if (AIMapSettingButton != null) AIMapSettingButton.Content = R._("AI Map Setting");
             if (AIItemButton != null) AIItemButton.Content = R._("AI Item");
             if (AIStaffButton != null) AIStaffButton.Content = R._("AI Staff");
             if (AIStealButton != null) AIStealButton.Content = R._("AI Steal");
             if (AITargetButton != null) AITargetButton.Content = R._("AI Target");
-            if (AITilesButton != null) AITilesButton.Content = R._("AI Tiles");
-            if (AIUnitsButton != null) AIUnitsButton.Content = R._("AI Units");
             if (AOERangeButton != null) AOERangeButton.Content = R._("AOE Range");
 
             // Map Editors
@@ -3396,16 +3393,15 @@ namespace FEBuilderGBA.Avalonia.Views
         // category-select dialog is reached internally from AIScriptView's
         // Script Change button, not from the main menu.
         private void OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptView>();
-        private void OpenAIASMCALLTALK_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCALLTALKView>();
-        private void OpenAIASMCoordinate_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCoordinateView>();
-        private void OpenAIASMRange_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMRangeView>();
+        // #1414: The AI ASM Call / AI Coordinate / AI Range / AI Tiles / AI Units sub-editors
+        // are context-dependent and were removed from the main menu — exposing them standalone
+        // let them self-initialize a heuristically-guessed write target (silent ROM corruption).
+        // WinForms reaches these ONLY from the AIScript per-parameter dispatch, never standalone.
         private void OpenAIMapSetting_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIMapSettingView>();
         private void OpenAIPerformItem_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIPerformItemView>();
         private void OpenAIPerformStaff_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIPerformStaffView>();
         private void OpenAIStealItem_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIStealItemView>();
         private void OpenAITarget_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AITargetView>();
-        private void OpenAITiles_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AITilesView>();
-        private void OpenAIUnits_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIUnitsView>();
         private void OpenAOERANGE_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AOERANGEView>();
 
         // ===================== Map Editors =====================
