@@ -52,11 +52,17 @@ namespace FEBuilderGBA
                 if (isSelect) return U.NOT_FOUND; // FE7 has no second (select) export
                 return GetEventByMapIDFE7(rom, mapid);
             }
-            else
-            {//6
+            else if (version == 6)
+            {
                 if (isSelect) return U.NOT_FOUND; // FE6 has no second (select) export
                 return GetEventByMapIDFE6(rom, mapid);
             }
+
+            // Any other version (e.g. the ROMFE0 testing build, version==0, or a
+            // hypothetical future version) has no defined world-map-event layout —
+            // fail cleanly instead of falling through to the FE6 PLIST path and
+            // reading unrelated pointers.
+            return U.NOT_FOUND;
         }
 
         /// <summary>
@@ -144,11 +150,14 @@ namespace FEBuilderGBA
             {
                 return U.NOT_FOUND;
             }
-            uint slot = baseAddr + wmapid * 4u;
-            if (slot + 4u > (uint)rom.Data.Length)
+            // Compute the slot in ulong so a large/corrupted wmapid can't overflow
+            // and wrap a uint past the bounds check into a valid-looking offset.
+            ulong slot64 = (ulong)baseAddr + (ulong)wmapid * 4u;
+            if (slot64 + 4u > (ulong)rom.Data.Length)
             {
                 return U.NOT_FOUND;
             }
+            uint slot = (uint)slot64;
             uint eventAddr = rom.p32(slot);
             if (!U.isSafetyOffset(eventAddr, rom))
             {

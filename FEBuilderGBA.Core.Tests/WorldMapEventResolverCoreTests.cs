@@ -163,6 +163,37 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(null, 0));
         }
 
+        // A non-FE6/7/8 ROM (e.g. the ROMFE0 testing build, version 0) has no
+        // defined world-map-event layout and must fail cleanly — NOT fall through
+        // to the FE6 PLIST path and read unrelated pointers. (Review thread #1481.)
+        [Fact]
+        public void UnknownVersion_NotFound()
+        {
+            var rom = MakeFe0Rom();
+            Assert.NotEqual(6, rom.RomInfo.version);
+            Assert.NotEqual(7, rom.RomInfo.version);
+            Assert.NotEqual(8, rom.RomInfo.version);
+
+            // Even if the FE6 worldmap pointer slot happened to hold a valid value,
+            // an unknown version must never resolve through it.
+            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(rom, 1, isSelect: false));
+            Assert.Equal(U.NOT_FOUND, WorldMapEventResolverCore.GetEventByMapID(rom, 1, isSelect: true));
+        }
+
+        // Overflow guard: a huge wmapid (corrupted PLIST byte / caller mapid) must
+        // not wrap the uint slot past the bounds check. (Review thread #1481.)
+        [Fact]
+        public void FE8_HugeMapId_NoOverflowWrap_NotFound()
+        {
+            var rom = MakeFe8uRom();
+            uint tableBase = 0x00900000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.worldmap_event_on_stageclear_pointer, tableBase | 0x08000000u);
+            // mapid chosen so baseAddr + mapid*4 would wrap a uint if not widened.
+            uint hugeMapId = (0xFFFFFFFFu - tableBase) / 4u + 4u;
+            uint addr = WorldMapEventResolverCore.GetEventByMapID(rom, hugeMapId, isSelect: false);
+            Assert.Equal(U.NOT_FOUND, addr);
+        }
+
         // Out-of-range slot -> NOT_FOUND (full-slot guard).
         [Fact]
         public void FE8_TableBaseUnsafe_NotFound()
@@ -220,7 +251,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 var maps = MapSettingCore.MakeMapIDList(rom);
                 bool foundAny = false;
-                for (uint mapId = 0; mapId < maps.Count; mapId++)
+                for (uint mapId = 0; mapId < (uint)maps.Count; mapId++)
                 {
                     uint mapAddr = MapSettingCore.GetMapAddr(rom, mapId);
                     if (!U.isSafetyOffset(mapAddr, rom)) continue;
@@ -269,6 +300,15 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.LoadLow("test-fe6jp.gba", new byte[0x1000000], "AFEJ01");
+            return rom;
+        }
+
+        // ROMFE0 testing build — signature "NAZO", version defaults to 0
+        // (no FE6/7/8 world-map-event layout).
+        static ROM MakeFe0Rom()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test-fe0.gba", new byte[0x1000000], "NAZO");
             return rom;
         }
 

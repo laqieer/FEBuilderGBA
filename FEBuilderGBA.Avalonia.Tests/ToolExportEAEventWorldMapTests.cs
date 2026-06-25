@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 uint firstAddr = U.NOT_FOUND;
                 uint firstMap = 0;
                 var maps = MapSettingCore.MakeMapIDList(rom);
-                for (uint mapId = 0; mapId < maps.Count; mapId++)
+                for (uint mapId = 0; mapId < (uint)maps.Count; mapId++)
                 {
                     uint mapAddr = MapSettingCore.GetMapAddr(rom, mapId);
                     if (!U.isSafetyOffset(mapAddr, rom)) continue;
