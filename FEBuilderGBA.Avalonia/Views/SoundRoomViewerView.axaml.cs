@@ -53,6 +53,93 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// List-expansion handler (#1450). Prompts for a new row count, delegates
+        /// to <see cref="SoundRoomViewerViewModel.ExpandList"/> inside an
+        /// <see cref="UndoService"/> scope, then reloads the list preserving the
+        /// current selection. Mirrors WinForms <c>SoundRoomForm</c>'s "List
+        /// Expansion" button (255, or 1000 with the soundroom_over255 patch) and
+        /// the <c>ImageMapActionAnimationView.ListExpand_Click</c> flow.
+        /// </summary>
+        async void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanWrite || CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.ReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                uint cap = _vm.GetExpandsCap();
+                uint defaultCount = _vm.ReadCount + 1;
+                if (defaultCount > cap) defaultCount = cap;
+
+                uint? chosen = await Dialogs.NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the sound room list (current: {0}, max: {1}).",
+                        _vm.ReadCount, cap),
+                    R._("List Expansion"),
+                    defaultCount,
+                    _vm.ReadCount,
+                    cap);
+                if (chosen == null) return; // user cancelled
+                uint newCount = chosen.Value;
+                if (newCount == _vm.ReadCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                uint selectedAddr = EntryList.SelectedItem?.addr ?? 0;
+
+                _undoService.Begin("Expand Sound Room List");
+                try
+                {
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Reload, preserving the previous selection when possible.
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        var items = _vm.LoadSoundRoomList();
+                        EntryList.SetItemsPreserveSelection(items, selectedAddr);
+                    }
+                    finally
+                    {
+                        _vm.IsLoading = false;
+                        _vm.MarkClean();
+                    }
+
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded sound room list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("SoundRoomViewerView.ListExpand_Click inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SoundRoomViewerView.ListExpand_Click failed: {0}", ex.Message);
+            }
+        }
+
         void OnSelected(uint addr)
         {
             _vm.IsLoading = true;

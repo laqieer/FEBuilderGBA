@@ -328,7 +328,7 @@ Editors for songs, instruments, sound effects, and sound room.
 | 192 | SongExchangeView | SongExchangeViewModel | Song exchange/swap tool |
 | 193 | SoundBossBGMViewerView | SoundBossBGMViewerViewModel | Boss BGM assignment viewer |
 | 194 | SoundFootStepsViewerView | SoundFootStepsViewerViewModel | Footstep sound assignment viewer |
-| 195 | SoundRoomViewerView | SoundRoomViewerViewModel | Sound room entry viewer |
+| 195 | SoundRoomViewerView | SoundRoomViewerViewModel | Sound room entry viewer + List Expansion (255 / 1000 with soundroom_over255 patch, #1450) |
 | 196 | SoundRoomFE6View | SoundRoomFE6ViewModel | Sound room (FE6 variant) |
 | 197 | SoundRoomCGView | SoundRoomCGViewModel | Sound room CG display |
 | 198 | ToolBGMMuteDialogView | ToolBGMMuteDialogViewModel | BGM mute settings dialog |
