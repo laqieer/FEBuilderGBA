@@ -322,7 +322,6 @@ Editors for songs, instruments, sound effects, and sound room.
 | 186 | SongTrackChangeTrackView | SongTrackChangeTrackViewModel | Single track change tool |
 | 187 | SongTrackImportMidiView | SongTrackImportMidiViewModel | MIDI import tool |
 | 188 | SongTrackImportSelectInstrumentView | SongTrackImportSelectInstrumentViewModel | Instrument selection for import |
-| 189 | SongTrackImportWaveView | SongTrackImportWaveViewModel | Wave import for tracks |
 | 190 | SongInstrumentView | SongInstrumentViewModel | Instrument editor |
 | 191 | SongInstrumentDirectSoundView | SongInstrumentDirectSoundViewModel | Direct sound instrument editor |
 | 192 | SongInstrumentImportWaveView | SongInstrumentImportWaveViewModel | Wave import for instruments |

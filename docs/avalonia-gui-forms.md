@@ -412,7 +412,6 @@ Standalone usage docs for specific editors that need extra explanation:
 | 296 | SongTrackAllChangeTrackView | E2E COVERED | - | ALIGNED |
 | 297 | SongTrackChangeTrackView | E2E COVERED | - | ALIGNED |
 | 298 | SongTrackImportSelectInstrumentView | E2E COVERED | - | ALIGNED |
-| 299 | SongTrackImportWaveView | E2E COVERED | - | ALIGNED |
 | 300 | ToolInitWizardView | E2E COVERED | - | ALIGNED |
 | 301 | ToolUndoPopupDialogView | E2E COVERED | YES | ALIGNED |
 | 302 | ToolUpdateDialogView | E2E COVERED | - | ALIGNED |
