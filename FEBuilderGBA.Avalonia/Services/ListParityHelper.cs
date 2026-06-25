@@ -387,6 +387,12 @@ namespace FEBuilderGBA.Avalonia.Services
             "ImageTSAEditorView",
             "ImageMagicCSACreatorView",
             "ProcsScriptView", "EventScriptView", "AIScriptView",
+            // #1431 — AOE Range editor: a real address-driven sub-editor (manual
+            // address input + dynamic w×h grid + repoint-on-write), NOT an
+            // enumerable list. WinForms AOERANGEForm itself has no list (it exposes
+            // ReadStartAddress + Reload). No-list, address-driven — like the System
+            // image viewers above.
+            "AOERANGEView",
         };
 
         /// <summary>
@@ -407,7 +413,8 @@ namespace FEBuilderGBA.Avalonia.Services
             "SomeClassListView", "UnitsShortTextView",
             // Event sub-editors (need parent event context)
             "EventUnitColorView", "EventUnitItemDropView", "EventUnitNewAllocView",
-            "AOERANGEView",
+            // #1431 — AOERANGEView moved to NoListEditors (now a real address-driven
+            // editor, no longer a stub that depends on parent context).
             // System image viewers (single-entry, address-driven)
             "SystemIconViewerView", "SystemHoverColorViewerView",
             // Item sub-editors (patch-dependent, need parent context)

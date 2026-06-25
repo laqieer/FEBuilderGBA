@@ -1,6 +1,8 @@
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Controls.Primitives;
 using global::Avalonia.Interactivity;
+using global::Avalonia.VisualTree;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -10,6 +12,8 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly AOERANGEViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppress;
+        UniformGrid? _cellPanel; // cached ItemsControl panel (resolved once).
 
         public string ViewTitle => "Area of Effect Range";
         public bool IsLoaded => _vm.IsLoaded;
@@ -17,41 +21,41 @@ namespace FEBuilderGBA.Avalonia.Views
         public AOERANGEView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+            DataContext = _vm;
+
+            ReloadButton.Click += OnReload;
             WriteButton.Click += OnWrite;
-            Opened += (_, _) => LoadList();
+
+            // Header changes resize the grid (preserving overlap) + move the center.
+            WidthBox.ValueChanged += OnSizeChanged;
+            HeightBox.ValueChanged += OnSizeChanged;
+            CenterXBox.ValueChanged += OnCenterChanged;
+            CenterYBox.ValueChanged += OnCenterChanged;
+
+            Opened += (_, _) => SyncFromVm();
         }
 
-        void LoadList()
+        // ------------------------------------------------------------------
+        // Loading
+        // ------------------------------------------------------------------
+
+        void OnReload(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                _vm.IsLoading = true;
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
-            }
-            catch (Exception ex)
-            {
-                Log.Error("AOERANGEView.LoadList failed: {0}", ex.Message);
-            }
-            finally
-            {
-                _vm.IsLoading = false;
-                _vm.MarkClean();
-            }
+            uint addr = (uint)(ReadStartBox.Value ?? 0);
+            LoadAddress(addr);
         }
 
-        void OnSelected(uint addr)
+        void LoadAddress(uint addr)
         {
             try
             {
                 _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
-                UpdateUI();
+                SyncFromVm();
             }
             catch (Exception ex)
             {
-                Log.Error("AOERANGEView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"AOERANGEView.LoadAddress failed: {ex}");
             }
             finally
             {
@@ -60,14 +64,78 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void UpdateUI()
+        /// <summary>Push VM header values into the spinners + size the grid panel.</summary>
+        void SyncFromVm()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            WidthBox.Value = _vm.Width;
-            HeightBox.Value = _vm.Height;
-            CenterXBox.Value = _vm.CenterX;
-            CenterYBox.Value = _vm.CenterY;
+            _suppress = true;
+            try
+            {
+                AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+                ReadStartBox.Value = _vm.CurrentAddr;
+                WidthBox.Value = _vm.Width;
+                HeightBox.Value = _vm.Height;
+                CenterXBox.Value = _vm.CenterX;
+                CenterYBox.Value = _vm.CenterY;
+                ApplyGridColumns();
+            }
+            finally
+            {
+                _suppress = false;
+            }
         }
+
+        /// <summary>Lay the UniformGrid out with exactly Width columns (WinForms rows).</summary>
+        void ApplyGridColumns()
+        {
+            UniformGrid? panel = ResolveUniformGrid();
+            if (panel != null)
+            {
+                panel.Columns = (int)Math.Max(1, _vm.Width);
+            }
+        }
+
+        /// <summary>
+        /// Resolve the grid's <see cref="UniformGrid"/> ItemsPanel ONCE and cache it.
+        /// The panel is a single, stable instance for the ItemsControl's lifetime, so
+        /// caching avoids re-walking the whole cell visual tree (O(cells)) on every
+        /// header change — which would stall the UI for a large W×H grid.
+        /// </summary>
+        UniformGrid? ResolveUniformGrid()
+        {
+            if (_cellPanel != null) return _cellPanel;
+            foreach (var d in CellGrid.GetVisualDescendants())
+            {
+                if (d is UniformGrid ug) { _cellPanel = ug; break; }
+            }
+            return _cellPanel;
+        }
+
+        // ------------------------------------------------------------------
+        // Header edits
+        // ------------------------------------------------------------------
+
+        void OnSizeChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppress) return;
+            int oldW = (int)_vm.Width;
+            int oldH = (int)_vm.Height;
+            _vm.Width = (uint)(WidthBox.Value ?? 0);
+            _vm.Height = (uint)(HeightBox.Value ?? 0);
+            _vm.ResizeGridPreserving(oldW, oldH);
+            ApplyGridColumns();
+        }
+
+        void OnCenterChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppress) return;
+            _vm.CenterX = (uint)(CenterXBox.Value ?? 0);
+            _vm.CenterY = (uint)(CenterYBox.Value ?? 0);
+            _vm.UpdateCenterMark();
+        }
+
+        // ------------------------------------------------------------------
+        // Write
+        // ------------------------------------------------------------------
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
@@ -78,19 +146,53 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Height = (uint)(HeightBox.Value ?? 0);
                 _vm.CenterX = (uint)(CenterXBox.Value ?? 0);
                 _vm.CenterY = (uint)(CenterYBox.Value ?? 0);
-                _vm.Write();
-                _undoService.Commit();
-                _vm.MarkClean();
+
+                bool changed = _vm.Write();
+                if (changed)
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    SyncFromVm(); // a move updates CurrentAddr.
+                }
+                else
+                {
+                    _undoService.Rollback();
+                }
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AOERANGEView.Write failed: {0}", ex.Message);
+                Log.Error($"AOERANGEView.Write failed: {ex}");
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+        // ------------------------------------------------------------------
+        // IEditorView
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Navigate to a record at <paramref name="address"/> (the standalone /
+        /// manual path; no parent pointer slot to repoint on a move).
+        /// </summary>
+        public void NavigateTo(uint address) => NavigateFromParent(address, 0);
+
+        /// <summary>
+        /// Navigate to a record from a PARENT editor, supplying the ROM offset of the
+        /// pointer slot that references it so a grow/move can repoint that slot
+        /// (ports the WinForms AOERANGEPOINTER <c>JumpTo(parentNumnic, addr)</c> path).
+        /// </summary>
+        public void NavigateFromParent(uint address, uint parentPointerSlot)
+        {
+            // Set the parent slot WITHIN the load's IsLoading window so its
+            // assignment does not mark the freshly-loaded VM dirty (LoadAddress
+            // ends with MarkClean()). ParentPointerSlot is metadata, not user input.
+            _vm.IsLoading = true;
+            try { _vm.ParentPointerSlot = parentPointerSlot; }
+            finally { _vm.IsLoading = false; }
+            LoadAddress(address);
+        }
+
+        public void SelectFirstItem() { /* no list — manual address entry */ }
         public ViewModelBase? DataViewModel => _vm;
     }
 }
