@@ -23312,7 +23312,7 @@ BattleRound
 BattleSome
 
 :Worldmap
-Worldmap
+世界地图
 
 :Dungeon
 Dungeon
@@ -26164,3 +26164,6 @@ Boss对话 (16字节)
 
 :A mid-battle conversation triggered when the attacker and defender units fight. The boss-conversation table holds FE6's generic boss lines (a single triggering unit plus an event pointer).
 当攻击单位与防御单位交战时触发的战斗中对话。Boss对话表保存FE6的通用Boss台词（一个触发单位加一个事件指针）。
+
+:Primary
+主表

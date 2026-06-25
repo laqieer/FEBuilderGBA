@@ -11,22 +11,57 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
         uint _eventCommandFunctionPointer;
+        int _filterIndex;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         // P0: Event command function pointer (u32 at offset 0) — ASM pointer
         public uint EventCommandFunctionPointer { get => _eventCommandFunctionPointer; set => SetField(ref _eventCommandFunctionPointer, value); }
 
+        // #1441 — list filter: 0 = Primary (event_function_pointer_table_pointer),
+        // 1 = Worldmap (event_function_pointer_table2_pointer, FE8-only). Mirrors
+        // the WinForms EventFunctionPointerForm FilterComboBox; LoadList() selects
+        // the table base by this index and applies the WinForms +0x80 worldmap id
+        // offset. LoadEntry/Write stay absolute-address based, so only the list
+        // base changes.
+        public int FilterIndex { get => _filterIndex; set => SetField(ref _filterIndex, value); }
+
+        // WinForms +0x80 displayed/tagged event-id offset for the worldmap table.
+        const uint WorldmapIdOffset = 0x80;
+
+        /// <summary>
+        /// True when the FE8-only worldmap event-function pointer table slot is
+        /// present in this ROM's metadata (FE8U/FE8JP nonzero; FE7/FE6 == 0).
+        /// Parity with WinForms: the filter option is gated purely on the
+        /// metadata slot, NOT on the pointed-table validity — a corrupt/repointed
+        /// FE8 table must still surface the option (LoadList then yields an empty
+        /// list rather than hiding the table).
+        /// </summary>
+        public bool IsWorldmapAvailable
+        {
+            get
+            {
+                ROM rom = CoreState.ROM;
+                return rom?.RomInfo != null
+                    && rom.RomInfo.event_function_pointer_table2_pointer != 0;
+            }
+        }
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint pointer = rom.RomInfo.event_function_pointer_table_pointer;
+            bool worldmap = _filterIndex == 1;
+            uint pointer = worldmap
+                ? rom.RomInfo.event_function_pointer_table2_pointer
+                : rom.RomInfo.event_function_pointer_table_pointer;
             if (pointer == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+
+            uint idOffset = worldmap ? WorldmapIdOffset : 0u;
 
             const uint blockSize = 4;
             var result = new List<AddrResult>();
@@ -35,10 +70,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
                 uint funcPtr = rom.u32(addr);
-                if (!U.isPointer(funcPtr)) break;
+                // Mirror WinForms Init: a valid entry is a Thumb (odd) code
+                // pointer; the first failure terminates the scan (the table is
+                // not a sparse/skip list).
+                if (!U.isPointer(funcPtr) || !U.IsValueOdd(funcPtr)) break;
 
+                uint displayId = idOffset + (uint)i;
                 string ptrStr = $"0x{funcPtr:X08}";
-                result.Add(new AddrResult(addr, $"0x{i:X2} {ptrStr}", (uint)i));
+                result.Add(new AddrResult(addr, $"0x{displayId:X2} {ptrStr}", displayId));
             }
             return result;
         }
