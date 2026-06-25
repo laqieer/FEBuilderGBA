@@ -96,7 +96,13 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             // Route through the Core seam.
             Assert.Contains("SongDirectSoundWavCore.ExportWave", cs);
-            Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
+            // #1448: import now opens the conversion dialog (sox/DPCM/SNR) and
+            // appends the ready sample via ImportSampleBytes (NOT WavToByte, which
+            // would corrupt a DPCM sample). The dialog is launched modally and a
+            // null result (Cancel) is a strict no-op.
+            Assert.Contains("SongDirectSoundWavCore.ImportSampleBytes", cs);
+            Assert.Contains("SongInstrumentImportWaveView", cs);
+            Assert.Contains("ShowDialog<byte[]?>", cs);
 
             // Gate on the LOADED ROM byte 0x00 (NOT the mutable category) so a
             // tab switch can't trick the gate (#1057 Copilot plan review pt 1).
@@ -181,7 +187,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("N08_P4_Box", cs);
 
             // Shared route through the Core seam + own P4 slot (CurrentAddr + 4).
-            Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
+            Assert.Contains("SongDirectSoundWavCore.ImportSampleBytes", cs);
             Assert.Contains("_vm.CurrentAddr + 4", cs);
         }
 
@@ -231,7 +237,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("N18_P4_Box", cs);
 
             // Reuse the shared Core seam + own P4 slot (CurrentAddr + 4).
-            Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
+            Assert.Contains("SongDirectSoundWavCore.ImportSampleBytes", cs);
             Assert.Contains("_vm.CurrentAddr + 4", cs);
         }
 

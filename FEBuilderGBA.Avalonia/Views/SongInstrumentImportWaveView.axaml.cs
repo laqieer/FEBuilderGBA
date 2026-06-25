@@ -36,8 +36,10 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += async (_, _) =>
             {
                 // Standalone open (no seed): prompt for a .wav so the window is a
-                // working tool, not a dead placeholder.
-                if (!_seeded)
+                // working tool, not a dead placeholder. Skip the prompt in the
+                // headless screenshot/smoke runner so the options panel renders
+                // unobstructed (the runner instantiates views without a user).
+                if (!_seeded && !App.SmokeTestMode)
                 {
                     await PromptForSourceAsync();
                 }

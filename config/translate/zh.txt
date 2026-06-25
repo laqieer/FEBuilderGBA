@@ -26214,3 +26214,25 @@ Boss对话 (16字节)
 搜索命令 / 提示
 :Select a command from the list first.
 请先从列表中选择一个命令。
+
+:Channel:
+声道:
+
+:Compress with DPCM
+用 DPCM 压缩
+
+:Conversion (sox resample / normalize)
+转换 (sox 重采样 / 归一化)
+
+:Lookahead:
+前瞻:
+
+:Sample rate (Hz):
+采样率 (Hz):
+
+:Strip silence:
+去除静音:
+
+:Volume (%):
+音量 (%):
+
