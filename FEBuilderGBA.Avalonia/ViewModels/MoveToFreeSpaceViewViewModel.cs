@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// misaligned pointers). Mirrors WinForms <c>MoveToFreeSapceForm</c>, which
         /// allocates via <c>ROM.FindFreeSpace</c>.</para>
         /// </summary>
-        public uint? FindFreeSpace(uint requestedSize, byte fillByte = 0xFF)
+        public uint? FindFreeSpace(uint requestedSize)
         {
             var rom = CoreState.ROM;
             if (rom == null || requestedSize == 0) return null;
@@ -105,8 +105,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint dst = freeAddr.Value;
             FreeSpaceAddress = $"0x{dst:X08}";
 
-            // Copy data from source to destination
-            if (srcAddr + size <= (uint)rom.Data.Length && dst + size <= (uint)rom.Data.Length)
+            // Copy data from source to destination. Use overflow-safe bounds
+            // checks (subtraction against the length) so a huge srcAddr/size or
+            // dst/size can't wrap past uint.MaxValue and bypass the guard.
+            uint romLen = (uint)rom.Data.Length;
+            if (size <= romLen && srcAddr <= romLen - size && dst <= romLen - size)
             {
                 // Single range read + range write: records ONE undo position for
                 // the whole block (not one per byte) under the ambient scope,
