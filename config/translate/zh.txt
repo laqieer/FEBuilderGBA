@@ -7525,6 +7525,9 @@ PLIST分配
 :既に拡張済みです
 已经扩大
 
+:Use the Map Pointer editor to split/extend the PLIST range.
+请在地图指针编辑器中拆分/扩展PLIST范围。
+
 :MapPointer(PLIST)を拡張
 扩展Map指针（PLIST）
 
