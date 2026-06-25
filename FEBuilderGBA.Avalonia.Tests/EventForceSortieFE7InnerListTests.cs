@@ -110,6 +110,29 @@ public class EventForceSortieFE7InnerListTests : IDisposable
     }
 
     [Fact]
+    public void LoadSubList_Label_UsesOneBasedUnitNameResolver()
+    {
+        // WF UnitForm.GetUnitName(uid) is 1-based (it does uid--), and the row's
+        // portrait icon loader (UnitPortraitByIdLoader) is also 1-based off the
+        // leading hex id. The label must therefore resolve names via the 1-based
+        // NameResolver.GetUnitNameByOneBasedId, NOT the 0-based GetUnitName.
+        var rom = MakeRom();
+        uint list = 0x1000;
+        byte id = 0x05;
+        WriteSubEntry(rom, list, id, 0x11, 0x22, 0x33);
+        var vm = VmWithUnitList(rom, list);
+
+        var sub = vm.LoadSubList();
+        Assert.Single(sub);
+
+        string expected = U.ToHexString(id) + " " + NameResolver.GetUnitNameByOneBasedId(id);
+        Assert.Equal(expected, sub[0].name);
+        // The leading hex id is preserved so UnitPortraitByIdLoader's U.atoh(name)
+        // parses the same 1-based id for the portrait icon.
+        Assert.StartsWith(U.ToHexString(id), sub[0].name);
+    }
+
+    [Fact]
     public void LoadSubList_InvalidPointer_ReturnsEmpty()
     {
         var rom = MakeRom();

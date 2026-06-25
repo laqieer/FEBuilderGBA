@@ -112,9 +112,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (id == 0x00 || term == 0xD1) break;
 
                 // WF label: U.ToHexString(uid) + " " + UnitForm.GetUnitName(uid).
-                // UnitForm.GetUnitName is the Core NameResolver.GetUnitName alias
-                // (0-based table index), so the raw u8 maps directly.
-                string unitName = NameResolver.GetUnitName(id);
+                // WF UnitForm.GetUnitName is 1-BASED (it does `uid--` then resolves
+                // table row uid-1, returning "" for uid==0), so use the 1-based
+                // resolver here — NOT the 0-based NameResolver.GetUnitName. This
+                // also keeps the name in sync with the row's portrait icon, which
+                // is loaded by UnitPortraitByIdLoader (also 1-based) off the same
+                // leading hex id. (Copilot PR #1517 review.)
+                string unitName = NameResolver.GetUnitNameByOneBasedId(id);
                 result.Add(new AddrResult(addr, U.ToHexString(id) + " " + unitName, id));
             }
             return result;
