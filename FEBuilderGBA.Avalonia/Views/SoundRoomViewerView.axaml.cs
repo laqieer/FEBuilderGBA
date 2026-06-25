@@ -53,6 +53,108 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// List-expansion handler (#1450). Prompts for a new row count, delegates
+        /// to <see cref="SoundRoomViewerViewModel.ExpandList"/> inside an
+        /// <see cref="UndoService"/> scope, then reloads the list preserving the
+        /// current selection. Mirrors WinForms <c>SoundRoomForm</c>'s "List
+        /// Expansion" button (255, or 1000 with the soundroom_over255 patch) and
+        /// the <c>ImageMapActionAnimationView.ListExpand_Click</c> flow.
+        /// </summary>
+        async void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanWrite || CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.ReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                uint cap = _vm.GetExpandsCap();
+                uint defaultCount = _vm.ReadCount + 1;
+                if (defaultCount > cap) defaultCount = cap;
+
+                uint? chosen = await Dialogs.NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the sound room list (current: {0}, max: {1}).",
+                        _vm.ReadCount, cap),
+                    R._("List Expansion"),
+                    defaultCount,
+                    _vm.ReadCount,
+                    cap);
+                if (chosen == null) return; // user cancelled
+                uint newCount = chosen.Value;
+                if (newCount == _vm.ReadCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                // Capture the selected row's TAG (its 0-based index), NOT its
+                // addr: ExpandList relocates the table to a new base, so every
+                // row's addr changes. The tag (row index) is stable across the
+                // relocation, so SelectByTag after reload re-selects the same
+                // logical row (Copilot review on PR #1540).
+                var selectedItem = EntryList.SelectedItem;
+                bool hadSelection = selectedItem != null;
+                uint selectedTag = selectedItem?.tag ?? 0;
+
+                _undoService.Begin("Expand Sound Room List");
+                try
+                {
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Reload, preserving the previous selection by TAG (row index)
+                    // since the table relocated and addresses changed. SetItems
+                    // selects row 0 by default; re-select the original row by tag
+                    // when there was a prior selection (falls back to row 0 if the
+                    // tag no longer exists, which can't happen on a grow-only expand).
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        var items = _vm.LoadSoundRoomList();
+                        EntryList.SetItems(items);
+                        if (hadSelection)
+                            EntryList.SelectByTag(selectedTag);
+                    }
+                    finally
+                    {
+                        _vm.IsLoading = false;
+                        _vm.MarkClean();
+                    }
+
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded sound room list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    // Log.Error joins args with spaces (no composite formatting),
+                    // so pass a single interpolated string + the full exception.
+                    Log.Error("SoundRoomViewerView.ListExpand_Click inner failed: " + inner.ToString());
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SoundRoomViewerView.ListExpand_Click failed: " + ex.ToString());
+            }
+        }
+
         void OnSelected(uint addr)
         {
             _vm.IsLoading = true;

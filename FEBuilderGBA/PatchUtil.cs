@@ -1852,11 +1852,8 @@ namespace FEBuilderGBA
         }
         static Cache_SoundRoomExpands Search_SoundRoomExpandsLow()
         {
-            PatchTableSt[] table = new PatchTableSt[] { 
-                new PatchTableSt{ name="soundroom_over255",	ver = "FE8J", addr = 0xb449c,data = new byte[]{0x68, 0x34, 0x21, 0x88}},
-                new PatchTableSt{ name="soundroom_over255",	ver = "FE8U", addr = 0xAF87C,data = new byte[]{0x68, 0x34, 0x21, 0x88}},
-            };
-            if (SearchPatchBool(table))
+            // Single source of truth — delegate to the Core detector (#1450).
+            if (PatchDetection.SearchSoundRoomExpandsPatch(Program.ROM))
             {
                 return Cache_SoundRoomExpands.soundroom_over255;
             }

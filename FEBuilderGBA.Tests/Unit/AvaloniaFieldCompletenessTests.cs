@@ -107,14 +107,13 @@ namespace FEBuilderGBA.Tests.Unit
             ("StatusOptionOrderView", "StatusOptionOrderForm", "StatusOptionOrderViewModel"),
 
             // Skill Systems
-            ("SkillAssignmentUnitCSkillSysView", "SkillAssignmentUnitCSkillSysForm", "SkillAssignmentUnitCSkillSysViewViewModel"),
+            ("SkillAssignmentUnitCSkillSysView", "SkillAssignmentUnitCSkillSysForm", "SkillAssignmentUnitCSkillSysViewModel"),
             ("SkillAssignmentClassCSkillSysView", "SkillAssignmentClassCSkillSysForm", "SkillAssignmentClassCSkillSysViewModel"),
             ("SkillAssignmentUnitFE8NView", "SkillAssignmentUnitFE8NForm", "SkillAssignmentUnitFE8NViewViewModel"),
             ("SkillConfigFE8NSkillView", "SkillConfigFE8NSkillForm", "SkillConfigFE8NSkillViewModel"),
             ("SkillConfigFE8NVer2SkillView", "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer2SkillViewModel"),
             ("SkillConfigFE8NVer3SkillView", "SkillConfigFE8NVer3SkillForm", "SkillConfigFE8NVer3SkillViewModel"),
             ("SkillConfigFE8UCSkillSys09xView", "SkillConfigFE8UCSkillSys09xForm", "SkillConfigFE8UCSkillSys09xViewModel"),
-            ("SkillSystemsEffectivenessReworkClassTypeView", "SkillSystemsEffectivenessReworkClassTypeForm", "SkillSystemsEffectivenessReworkClassTypeViewViewModel"),
 
             // OP Class Editors
             ("OPClassDemoFE7View", "OPClassDemoFE7Form", "OPClassDemoFE7ViewModel"),
@@ -845,6 +844,12 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // systemhover_gradation_palette_pointer is NOT in Core ROMFEINFO — WinForms-only
             "ImageSystemHoverColorForm",
+            // #1453: SkillSystemsEffectivenessReworkClassTypeForm is NOT a standalone
+            // editor — it is a CLASSTYPE bitmask picker popup invoked from the Class
+            // editor (InputFormRef.cs CLASSTYPE link, U.NOT_FOUND), so it has no
+            // standalone Avalonia view by design. The functional standalone editor is
+            // ItemEffectivenessSkillSystemsReworkForm/ItemEffectivenessSkillSystemsReworkView.
+            "SkillSystemsEffectivenessReworkClassTypeForm",
         };
 
         /// <summary>

@@ -467,6 +467,40 @@ namespace FEBuilderGBA
             return SearchAntiHuffmanPatch(CoreState.ROM);
         }
 
+        // ---- SoundRoom over-255 expansion patch detector (#1450) ----
+        // Cross-platform port of WinForms PatchUtil.Search_SoundRoomExpandsLow
+        // (PatchUtil.cs:1853-1864). Decides the Sound Room editor's list-expansion
+        // cap: vanilla FE caps the sound-room list at 255 slots; with the
+        // "soundroom_over255" patch installed (FE8J/FE8U) the cap rises to 1000.
+        // The WinForms SoundRoomForm renames its AddressListExpandsButton from
+        // "_255" to "_1000" when this patch is present; the Avalonia editor reads
+        // this detector for the same cap. Single source of truth — the WinForms
+        // PatchUtil cached wrapper delegates here.
+
+        static readonly PatchTableSt[] SoundRoomExpandsTable = new PatchTableSt[] {
+            new PatchTableSt{ name="soundroom_over255", ver = "FE8J", addr = 0xb449c, data = new byte[]{0x68, 0x34, 0x21, 0x88}},
+            new PatchTableSt{ name="soundroom_over255", ver = "FE8U", addr = 0xAF87C, data = new byte[]{0x68, 0x34, 0x21, 0x88}},
+        };
+
+        /// <summary>
+        /// True when the "soundroom_over255" patch (FE8J or FE8U) is installed in
+        /// <paramref name="rom"/>. Cross-platform port of WinForms
+        /// <c>PatchUtil.Search_SoundRoomExpands() == soundroom_over255</c>. Returns
+        /// false on a null ROM and on any non-FE8 version (the signature table only
+        /// contains FE8J/FE8U). When present, the Sound Room editor's list-expansion
+        /// cap rises from 255 to 1000.
+        /// </summary>
+        public static bool SearchSoundRoomExpandsPatch(ROM rom)
+        {
+            return SearchPatchBool(rom, SoundRoomExpandsTable);
+        }
+
+        /// <summary>Ambient-ROM overload. Reads <see cref="CoreState.ROM"/>.</summary>
+        public static bool SearchSoundRoomExpandsPatch()
+        {
+            return SearchSoundRoomExpandsPatch(CoreState.ROM);
+        }
+
         // ---- Class skill extends (SkillSystem) ----
         // The CSkillSys "class skill extends" patch detector now lives in
         // FEBuilderGBA.Core/SkillSystemPatchScanner.cs as

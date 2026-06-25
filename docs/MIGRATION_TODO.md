@@ -230,7 +230,7 @@ ArenaClassViewer, ArenaEnemyWeaponViewer, BattleBGViewer, BattleTerrainViewer, B
 | SkillConfigFE8NSkillForm | SkillConfigFE8NSkillView | DONE |
 | SkillConfigFE8NVer2SkillForm | SkillConfigFE8NVer2SkillView | DONE |
 | SkillConfigFE8NVer3SkillForm | SkillConfigFE8NVer3SkillView | DONE |
-| SkillSystemsEffectivenessReworkClassTypeForm | SkillSystemsEffectivenessReworkClassTypeView | DONE |
+| SkillSystemsEffectivenessReworkClassTypeForm | _(CLASSTYPE picker popup — not a standalone editor; see ClassEditorView CLASSTYPE link / ItemEffectivenessSkillSystemsReworkView)_ | N/A (#1453) |
 | SkillSystemsCSkillRechainForm | SkillSystemsCSkillRechainView | DONE |
 
 ### J. Tools & Advanced (23 forms) — DONE
