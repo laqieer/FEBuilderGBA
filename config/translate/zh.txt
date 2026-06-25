@@ -26110,3 +26110,30 @@ FE-Repo-音乐浏览器
 
 :AoE mask grid (W×H). The highlighted cell is the center / detonation point. Set attacked tiles to 1 (or any non-zero), others to 0.
 效果范围掩码 (宽×高)。高亮单元格为中心 / 引爆点。将受攻击的格子设为 1 (或任意非零值)，其余设为 0。
+
+:Import (append)
+导入 (追加)
+
+:Import (replace)
+导入 (替换)
+
+:Import text (one hex command per line)
+导入文本 (每行一条16进制命令)
+
+:Insert (hex)
+插入 (16进制)
+
+:Insert command:
+插入命令:
+
+:Move Down
+下移
+
+:Move Up
+上移
+
+:Write All
+全部写入
+
+:hex e.g. 0100 4200
+16进制 例: 0100 4200
