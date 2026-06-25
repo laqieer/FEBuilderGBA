@@ -104,6 +104,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void NavigateTo_UnsafeHeaderOffset_DoesNotLoad()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                // A header/low offset below the U.isSafetyOffset floor (0x200) —
+                // mirrors WinForms isSafetyOffset gating. NavigateTo must refuse it
+                // so the VM never loads/writes into the ROM header.
+                const uint unsafeAddr = 0x100;
+                Assert.False(U.isSafetyOffset(unsafeAddr));
+
+                foreach (IViewProbe probe in Probes())
+                {
+                    Window view = probe.MakeView();
+                    ((IEditorView)view).NavigateTo(unsafeAddr);
+                    Assert.Equal(0u, CurrentAddrOf(view));
+                    Assert.False(IsLoadedOf(view),
+                        $"{view.GetType().Name}: NavigateTo(unsafeHeaderAddr) must not load.");
+                }
+            });
+        }
+
+        [AvaloniaFact]
         public void Write_AfterNavigateToRealPointer_MutatesOnlySuppliedAddress()
         {
             RomTestHelper.WithRom("FE8U", () =>

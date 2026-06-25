@@ -93,6 +93,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // parent pointer, load it directly so Write() targets the SUPPLIED
             // address instead of being a no-op. addr 0 keeps the placeholder/no-op.
             if (EntryList.SelectAddress(address) || address == 0) return;
+            // Mirror WinForms isSafetyOffset gating: never load/write a header/unsafe
+            // offset (< 0x200 or past EOF). The VM's LoadEntry/Write only bounds-check
+            // Data.Length, so guard here before the direct load (#1414 review).
+            if (CoreState.ROM == null || !U.isSafetyOffset(address)) return;
             OnSelected(address);
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
