@@ -20817,3 +20817,21 @@ Select a shop first.
 :Nothing to remove (shop is empty).
 Nothing to remove (shop is empty).
 
+:PLIST Split
+PLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).
+(This is a destructive operation — be sure to back up your ROM first.)
+PLIST Split
+PLIST tables pack several purposes into one shared array, so splitting them by purpose increases the number of usable PLIST slots (each table is expanded to 256 entries / 0xFF).
+(This is a destructive operation — be sure to back up your ROM first.)
+
+:Split the PLIST tables?
+This is a destructive operation — be sure to back up your ROM first.
+Split the PLIST tables?
+This is a destructive operation — be sure to back up your ROM first.
+
+:PLIST Split
+PLIST Split
+
+:PLIST tables split.
+PLIST tables split.
+

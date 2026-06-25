@@ -24,6 +24,18 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="MapPointer_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
+
+        <!-- PLIST Split/Expand panel — shown only when the ROM is NOT yet split (#1432). -->
+        <Border AutomationProperties.AutomationId="MapPointer_PlistSplit_Panel" Name="PlistSplitPanel"
+                BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,24,0,0"
+                IsVisible="False">
+          <StackPanel Spacing="8">
+            <TextBlock AutomationProperties.AutomationId="MapPointer_PlistSplit_Explain" Name="PlistSplitExplainLabel"
+                       TextWrapping="Wrap" MaxWidth="700" />
+            <Button AutomationProperties.AutomationId="MapPointer_PlistSplit_Button" Name="PlistSplitButton"
+                    Content="PLIST Split" Click="PlistSplit_Click" HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

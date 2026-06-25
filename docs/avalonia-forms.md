@@ -148,7 +148,7 @@ Editors for map settings, tiles, terrain, and map style.
 | 54 | MapChangeMainView | MapChangeMainViewModel | Nested sub-view for map changes |
 | 55 | MapExitPointView | MapExitPointViewModel | Map exit point editor |
 | 56 | MapExitPointMainView | MapExitPointMainViewModel | Nested sub-view for exit points |
-| 57 | MapPointerView | MapPointerViewModel | Map pointer table editor |
+| 57 | MapPointerView | MapPointerViewModel | Map pointer table editor (incl. PLIST Split/Expand `MapPlistSplitCore`, #1432) |
 | 58 | MapPointerMainView | MapPointerMainViewModel | Nested sub-view for map pointers |
 | 59 | MapPointerNewPLISTView | MapPointerNewPLISTViewModel | New PLIST entry creator |
 | 60 | MapPointerNewPLISTPopupView | MapPointerNewPLISTPopupViewModel | New PLIST popup dialog |

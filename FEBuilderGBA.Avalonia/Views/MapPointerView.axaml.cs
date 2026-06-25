@@ -31,6 +31,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 PlistTypeCombo.SelectedIndex = 0;
             // Always load — SelectionChanged may not fire if Avalonia auto-selects index 0
             LoadList(Math.Max(0, PlistTypeCombo.SelectedIndex));
+            RefreshSplitPanel();
+        }
+
+        // Show the PLIST Split panel only when the ROM is NOT yet split — WF
+        // hides the "PLIST分割" panel once IsPlistSplits()==true (#1432).
+        void RefreshSplitPanel()
+        {
+            bool canSplit = _vm.CanSplit;
+            PlistSplitPanel.IsVisible = canSplit;
+            if (canSplit)
+            {
+                PlistSplitExplainLabel.Text = R._(
+                    "PLIST Split\r\nPLIST tables pack several purposes into one shared array, " +
+                    "so splitting them by purpose increases the number of usable PLIST slots " +
+                    "(each table is expanded to 256 entries / 0xFF).\r\n" +
+                    "(This is a destructive operation — be sure to back up your ROM first.)");
+                PlistSplitButton.Content = R._("PLIST Split");
+            }
         }
 
         void PlistType_Changed(object? sender, SelectionChangedEventArgs e)
@@ -101,6 +119,34 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Map Pointer data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MapPointerView.Write: {0}", ex.Message); }
+        }
+
+        // PLIST Split/Expand — port of WinForms MapPointerForm.PListSplitsExpandsButton_Click
+        // (#1432). Confirm (destructive op), run the atomic Core split, then on
+        // success reload the list (limit becomes 256) and hide the panel.
+        void PlistSplit_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanSplit) return;
+
+            bool yes = CoreState.Services?.ShowYesNo(
+                R._("Split the PLIST tables?\r\n" +
+                    "This is a destructive operation — be sure to back up your ROM first.")) ?? false;
+            if (!yes) return;
+
+            // The Core helper (MapPlistSplitCore.Split) owns its own snapshot +
+            // undo scope and leaves the ROM byte-identical on any fault, so the
+            // View does NOT open a redundant outer UndoService scope here.
+            string? error = _vm.SplitPlist();
+            if (error != null)
+            {
+                CoreState.Services?.ShowError(error);
+                return;
+            }
+
+            // Re-init: split-PLIST ROMs are byte-indexed (limit 256), so reload
+            // the filter list and refresh the now-hidden split panel.
+            InitFilter();
+            CoreState.Services?.ShowInfo(R._("PLIST tables split."));
         }
 
         public void NavigateTo(uint address)
