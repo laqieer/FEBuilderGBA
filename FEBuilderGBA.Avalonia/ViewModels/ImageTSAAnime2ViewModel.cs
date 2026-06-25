@@ -156,8 +156,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int heightTiles = tsaData[1] + 1; // masterHeaderY + 1
                 if (heightTiles < 1) heightTiles = 1;
 
+                // WinForms ImageTSAAnime2Form.DrawTSAAnime2 -> ByteToImage16TileInner
+                // skips ONLY 0xFFFF; tile index 0 is a valid drawn tile (and the
+                // import encoder assigns the first unique tile index 0). Pass
+                // skipTile0:false for WinForms parity so a tile-0 cell renders.
                 return ImageUtilCore.DecodeHeaderTSA(tileData, tsaData, palette,
-                    PREVIEW_WIDTH_TILES, heightTiles);
+                    PREVIEW_WIDTH_TILES, heightTiles, is4bpp: true, tsaAddend: 0,
+                    paletteShift: 0, skipTile0: false);
             }
             catch { return null; }
         }
@@ -173,8 +178,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (data == null || offset + 2 > (uint)data.Length) return null;
             int mhx = data[offset];
             int mhy = data[offset + 1];
-            long len = 2L + (long)(mhx + 1) * (mhy + 1) * 2;
-            if (offset + len > (uint)data.Length) return null;
+            // Header bytes are 0..255 each, so the max length is
+            // 2 + 256*256*2 = 131074 — comfortably an int, no truncation risk.
+            int len = 2 + (mhx + 1) * (mhy + 1) * 2;
+            if ((long)offset + len > data.Length) return null;
             byte[] tsa = new byte[len];
             Array.Copy(data, offset, tsa, 0, len);
             return tsa;

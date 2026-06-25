@@ -104,6 +104,59 @@ public class ImageTSAAnime2ImportTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// WinForms parity (Copilot CLI review on PR #1484): the v2 preview must
+    /// render with skipTile0:false, because WF ByteToImage16TileInner skips ONLY
+    /// 0xFFFF and EncodeTSA assigns the first unique tile the index 0. A
+    /// header-TSA cell referencing tile 0 must therefore draw NONBLANK; with the
+    /// (wrong) skipTile0:true default it would be left transparent.
+    /// </summary>
+    [Fact]
+    public void DecodeHeaderTSA_Tile0Cell_RendersNonblank_WithSkipTile0False()
+    {
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            CoreState.ImageService = new StubImageService();
+
+            // 1x1-tile header-TSA whose single cell references tile index 0
+            // (palette bank 0, no flip). header = {mhx=0, mhy=0}, then 1 cell.
+            byte[] headerTsa = { 0x00, 0x00, 0x00, 0x00 };
+
+            // One opaque 4bpp tile (index 0): all pixels = palette index 1.
+            byte[] tileData = new byte[32];
+            for (int i = 0; i < 32; i++) tileData[i] = 0x11; // both nibbles = 1
+
+            // Palette: color 0 = transparent (0), color 1 = opaque white-ish.
+            byte[] palette = new byte[32];
+            palette[2] = 0xFF; palette[3] = 0x7F; // index 1 = 0x7FFF (white)
+
+            var blank = ImageUtilCore.DecodeHeaderTSA(tileData, headerTsa, palette,
+                1, 1, is4bpp: true, tsaAddend: 0, paletteShift: 0, skipTile0: true);
+            var parity = ImageUtilCore.DecodeHeaderTSA(tileData, headerTsa, palette,
+                1, 1, is4bpp: true, tsaAddend: 0, paletteShift: 0, skipTile0: false);
+
+            Assert.NotNull(blank);
+            Assert.NotNull(parity);
+
+            // skipTile0:false (parity) draws tile 0 -> some opaque (alpha>0) pixels.
+            Assert.True(HasOpaquePixel(parity.GetPixelData()),
+                "skipTile0:false must draw the tile-0 cell (WinForms parity)");
+            // skipTile0:true (the bug) leaves the tile-0 cell fully transparent.
+            Assert.False(HasOpaquePixel(blank.GetPixelData()),
+                "skipTile0:true wrongly blanks the tile-0 cell");
+        }
+        finally { CoreState.ImageService = prevSvc; }
+    }
+
+    static bool HasOpaquePixel(byte[] rgba)
+    {
+        if (rgba == null) return false;
+        for (int i = 3; i < rgba.Length; i += 4)
+            if (rgba[i] != 0) return true;
+        return false;
+    }
+
     [Fact]
     public void V2Import_FailsCleanly_OnDegenerateMargin()
     {
