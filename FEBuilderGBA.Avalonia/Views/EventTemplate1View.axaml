@@ -1,28 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EventTemplate1View"
-        Title="Event Template 1" Width="760" Height="560">
-  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="8">
-    <TextBlock Grid.Row="0" Text="Event Template 1" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
+        Title="Event Template 1" Width="760" Height="560"
+        SizeToContent="Manual">
+  <ScrollViewer>
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="8" MinHeight="520">
+      <TextBlock Grid.Row="0" Text="Event Template 1" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
 
-    <WrapPanel AutomationProperties.AutomationId="EventTemplate1_Buttons"
-               Grid.Row="1" Name="ButtonPanel" Orientation="Horizontal" />
+      <WrapPanel AutomationProperties.AutomationId="EventTemplate1_Buttons"
+                 Grid.Row="1" Name="ButtonPanel" Orientation="Horizontal" />
 
-    <TextBox AutomationProperties.AutomationId="EventTemplate1_Preview"
-             Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
-             FontFamily="Consolas, Courier New, monospace" FontSize="12"
-             TextWrapping="NoWrap" Margin="0,8,0,0"
-             VerticalContentAlignment="Top"
-             Text="{Binding Preview}" />
+      <TextBox AutomationProperties.AutomationId="EventTemplate1_Preview"
+               Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
+               FontFamily="Consolas, Courier New, monospace" FontSize="12"
+               TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="240"
+               VerticalContentAlignment="Top"
+               Text="{Binding Preview}" />
 
-    <TextBlock AutomationProperties.AutomationId="EventTemplate1_Status"
-               Grid.Row="3" Name="StatusLabel" Margin="0,6,0,0"
-               Text="{Binding Status}" />
+      <TextBlock AutomationProperties.AutomationId="EventTemplate1_Status"
+                 Grid.Row="3" Name="StatusLabel" Margin="0,6,0,0"
+                 Text="{Binding Status}" />
 
-    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
-      <Button AutomationProperties.AutomationId="EventTemplate1_CopyHex_Button"
-              Name="CopyHexButton" Content="Copy generated hex" Click="CopyHex_Click"
-              IsEnabled="{Binding HasGenerated}" />
-    </StackPanel>
-  </Grid>
+      <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
+        <Button AutomationProperties.AutomationId="EventTemplate1_CopyHex_Button"
+                Name="CopyHexButton" Content="Copy generated hex" Click="CopyHex_Click"
+                IsEnabled="{Binding HasGenerated}" />
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
 </Window>

@@ -1,37 +1,40 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EventTemplateImplView"
-        Title="Event Template Implementation" Width="860" Height="600">
+        Title="Event Template Implementation" Width="860" Height="600"
+        SizeToContent="Manual">
   <Grid ColumnDefinitions="320,*" Margin="8">
     <ListBox AutomationProperties.AutomationId="EventTemplateImpl_List"
              Grid.Column="0" Name="TemplateList" Margin="0,0,8,0"
              ItemsSource="{Binding TemplateInfos}"
              SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
 
-    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,Auto">
-      <TextBlock Grid.Row="0" Text="Templates" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
+    <ScrollViewer Grid.Column="1">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinHeight="560">
+        <TextBlock Grid.Row="0" Text="Templates" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
 
-      <Grid Grid.Row="1" ColumnDefinitions="100,*">
-        <TextBlock Grid.Column="0" Text="File:" VerticalAlignment="Center" />
-        <TextBlock AutomationProperties.AutomationId="EventTemplateImpl_Filename"
-                   Grid.Column="1" Text="{Binding Filename}" VerticalAlignment="Center" />
+        <Grid Grid.Row="1" ColumnDefinitions="100,*">
+          <TextBlock Grid.Column="0" Text="File:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventTemplateImpl_Filename"
+                     Grid.Column="1" Text="{Binding Filename}" VerticalAlignment="Center" />
+        </Grid>
+
+        <TextBox AutomationProperties.AutomationId="EventTemplateImpl_Preview"
+                 Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas, Courier New, monospace" FontSize="12"
+                 TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="280"
+                 VerticalContentAlignment="Top"
+                 Text="{Binding Preview}" />
+
+        <TextBlock AutomationProperties.AutomationId="EventTemplateImpl_Status"
+                   Grid.Row="3" Margin="0,6,0,0" Text="{Binding Status}" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
+          <Button AutomationProperties.AutomationId="EventTemplateImpl_CopyHex_Button"
+                  Content="Copy generated hex" Click="CopyHex_Click"
+                  IsEnabled="{Binding HasGenerated}" />
+        </StackPanel>
       </Grid>
-
-      <TextBox AutomationProperties.AutomationId="EventTemplateImpl_Preview"
-               Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
-               FontFamily="Consolas, Courier New, monospace" FontSize="12"
-               TextWrapping="NoWrap" Margin="0,8,0,0"
-               VerticalContentAlignment="Top"
-               Text="{Binding Preview}" />
-
-      <TextBlock AutomationProperties.AutomationId="EventTemplateImpl_Status"
-                 Grid.Row="3" Margin="0,6,0,0" Text="{Binding Status}" />
-
-      <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
-        <Button AutomationProperties.AutomationId="EventTemplateImpl_CopyHex_Button"
-                Content="Copy generated hex" Click="CopyHex_Click"
-                IsEnabled="{Binding HasGenerated}" />
-      </StackPanel>
-    </Grid>
+    </ScrollViewer>
   </Grid>
 </Window>
