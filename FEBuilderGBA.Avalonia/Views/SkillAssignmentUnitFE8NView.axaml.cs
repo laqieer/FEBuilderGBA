@@ -43,12 +43,14 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) =>
             {
                 _vm.Initialize();
-                // Screenshot-only convenience: the --screenshot-all runner opens
-                // this view via Open<T>() (no address). When an FE8N patch is
-                // present, seed the first unit address so the editor renders
-                // POPULATED rather than empty (mirrors the App.ScreenshotAllMode
-                // gates other views use). Never affects normal use.
-                if (App.ScreenshotAllMode && _vm.CurrentAddr == 0)
+                // When opened WITHOUT a navigated address (the main-menu
+                // OpenSkillAssignmentUnitFE8N entry and the --screenshot-all
+                // runner both use Open<T>()), seed the first unit so the editor
+                // is usable / renders populated instead of an empty window.
+                // EditSkills from the Unit Editor always passes an address via
+                // Navigate, so this never overrides a real selection.
+                if (_vm.CurrentAddr == 0
+                    && IsFE8NFamily(PatchDetectionService.Instance.SkillSystem))
                 {
                     uint firstUnit = TryGetFirstUnitAddress();
                     if (firstUnit != 0) _vm.CurrentAddr = firstUnit;
