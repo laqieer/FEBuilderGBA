@@ -19,16 +19,19 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        /// <summary>Set the local work version shown in the dialog (mirrors WF <c>SetVersion</c>).</summary>
+        public void SetVersion(string version) => _vm.SetVersion(version);
+
         void ForceUpdate_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "retry";
-            Close();
+            Close("retry");
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogResult = "cancel";
-            Close();
+            Close("cancel");
         }
 
         public void NavigateTo(uint address) { }

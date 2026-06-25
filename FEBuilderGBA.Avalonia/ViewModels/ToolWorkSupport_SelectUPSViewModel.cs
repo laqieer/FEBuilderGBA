@@ -1,3 +1,5 @@
+using System;
+
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class ToolWorkSupport_SelectUPSViewModel : ViewModelBase
@@ -42,6 +44,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void OpenUPS(string upsFilename)
         {
             UpsFilename = upsFilename;
+            AutoFindOriginal();
+        }
+
+        /// <summary>
+        /// Auto-find the unmodified vanilla ROM for the staged UPS by its source
+        /// CRC32 (mirrors WinForms <c>ToolWorkSupport_SelectUPSForm._Shown</c> →
+        /// <c>MainFormUtil.FindOrignalROMByCRC32</c>). Best-effort: leaves
+        /// <see cref="OriginalFilename"/> empty when nothing matches.
+        /// </summary>
+        public void AutoFindOriginal()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(UpsFilename) || !System.IO.File.Exists(UpsFilename))
+                {
+                    return;
+                }
+                uint srcCrc32 = UPSUtilCore.GetUPSSrcCRC32(UpsFilename);
+                if (srcCrc32 == U.NOT_FOUND)
+                {
+                    return;
+                }
+                // Search the UPS directory first, then the loaded ROM's directory
+                // (lastROMFilename) — mirrors WF FindOrignalROMByCRC32's multi-dir
+                // search (Copilot review finding #4). Emulator dir is Windows-only
+                // and not meaningfully available cross-platform, so it is left empty.
+                string dir = System.IO.Path.GetDirectoryName(UpsFilename) ?? "";
+                string lastRom = CoreState.ROM?.Filename ?? "";
+                string found = ToolTranslateROMCore.FindOrignalROMByCRC32(dir, srcCrc32, "", lastRom, "") ?? "";
+                if (!string.IsNullOrEmpty(found))
+                {
+                    OriginalFilename = found;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolWorkSupport_SelectUPSViewModel.AutoFindOriginal", ex.ToString());
+            }
         }
 
         public string GetOriginalFilename() => OriginalFilename;
