@@ -20846,3 +20846,25 @@ Chapter/Map ID:
 
 :Edit Battle Dialogue (FE7)
 Edit Battle Dialogue (FE7)
+
+:Channel:
+Channel:
+
+:Compress with DPCM
+Compress with DPCM
+
+:Conversion (sox resample / normalize)
+Conversion (sox resample / normalize)
+
+:Lookahead:
+Lookahead:
+
+:Sample rate (Hz):
+Sample rate (Hz):
+
+:Strip silence:
+Strip silence:
+
+:Volume (%):
+Volume (%):
+
