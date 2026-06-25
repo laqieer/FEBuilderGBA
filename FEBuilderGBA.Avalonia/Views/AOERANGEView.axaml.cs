@@ -13,6 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly AOERANGEViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppress;
+        UniformGrid? _cellPanel; // cached ItemsControl panel (resolved once).
 
         public string ViewTitle => "Area of Effect Range";
         public bool IsLoaded => _vm.IsLoaded;
@@ -86,20 +87,27 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>Lay the UniformGrid out with exactly Width columns (WinForms rows).</summary>
         void ApplyGridColumns()
         {
-            UniformGrid? panel = FindUniformGrid();
+            UniformGrid? panel = ResolveUniformGrid();
             if (panel != null)
             {
                 panel.Columns = (int)Math.Max(1, _vm.Width);
             }
         }
 
-        UniformGrid? FindUniformGrid()
+        /// <summary>
+        /// Resolve the grid's <see cref="UniformGrid"/> ItemsPanel ONCE and cache it.
+        /// The panel is a single, stable instance for the ItemsControl's lifetime, so
+        /// caching avoids re-walking the whole cell visual tree (O(cells)) on every
+        /// header change — which would stall the UI for a large W×H grid.
+        /// </summary>
+        UniformGrid? ResolveUniformGrid()
         {
+            if (_cellPanel != null) return _cellPanel;
             foreach (var d in CellGrid.GetVisualDescendants())
             {
-                if (d is UniformGrid ug) return ug;
+                if (d is UniformGrid ug) { _cellPanel = ug; break; }
             }
-            return null;
+            return _cellPanel;
         }
 
         // ------------------------------------------------------------------

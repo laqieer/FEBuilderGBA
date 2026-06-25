@@ -44,10 +44,12 @@
       <TextBlock Text="AoE mask grid (W×H). The highlighted cell is the center / detonation point. Set attacked tiles to 1 (or any non-zero), others to 0."
                  TextWrapping="Wrap" Foreground="Gray" Margin="0,8,0,0" />
 
-      <!-- Dynamic w×h grid of editable hex cells. ItemsSource binds the VM's Cells
-           collection; the panel column-count is set from code-behind to Width so the
-           UniformGrid lays rows out exactly like the WinForms MapController. The
-           center cell is highlighted via the IsCenter trigger. -->
+      <!-- Dynamic w×h grid of editable decimal (0..255) byte cells. ItemsSource
+           binds the VM's Cells collection; the panel column-count is set from
+           code-behind to Width so the UniformGrid lays rows out exactly like the
+           WinForms MapController. The center cell is highlighted via CellBackground.
+           (Cells use FormatString="0" — Avalonia NumericUpDown throws on hex "X*"
+           formats over its decimal value; see the address box above.) -->
       <Border BorderBrush="Gray" BorderThickness="1" Padding="4"
               AutomationProperties.AutomationId="AOERANGE_Grid">
         <ItemsControl AutomationProperties.AutomationId="AOERANGE_Cell_List" Name="CellGrid" ItemsSource="{Binding Cells}">

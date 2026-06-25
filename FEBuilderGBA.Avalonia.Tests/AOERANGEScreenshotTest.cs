@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1431 PR proof — render the real AOERANGEView with a loaded AoE record so the
 // screenshot shows the manual address bar, the 4 header spinners, and the
-// dynamic w×h grid of hex cells (center cell highlighted). The previous stub
-// had a single addr-0 list entry and NO grid.
+// dynamic w×h grid of decimal byte cells (0..255; center cell highlighted). The
+// previous stub had a single addr-0 list entry and NO grid.
 //
 // Headless RenderTargetBitmap — works on locked machines and in CI. Default
 // output is a temp dir; set FEBUILDERGBA_SCREENSHOT_DIR to regenerate the
