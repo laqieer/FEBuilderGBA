@@ -260,8 +260,8 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 |---|------|-----------|-------------|
 | 139 | ImageViewerView | ImageViewerViewModel | Generic image viewer |
 | 140 | PortraitViewerView | PortraitViewerViewModel | Character portrait viewer |
-| 141 | ImagePortraitView | ImagePortraitViewModel | Portrait editor |
-| 142 | ImagePortraitFE6View | ImagePortraitFE6ViewModel | Portrait editor (FE6) |
+| 141 | ImagePortraitView | ImagePortraitViewModel | Portrait editor (FE7/FE8 only — 28-byte entries; hidden on FE6, which uses the 16-byte editor below, #1411) |
+| 142 | ImagePortraitFE6View | ImagePortraitFE6ViewModel | Portrait editor (FE6 — 16-byte entries) |
 | 143 | ImagePortraitImporterView | ImagePortraitImporterViewModel | Portrait import tool |
 | 144 | ImageBGView | ImageBGViewModel | Background image editor |
 | 145 | ImageBGSelectPopupView | ImageBGSelectPopupViewModel | Background selection popup |

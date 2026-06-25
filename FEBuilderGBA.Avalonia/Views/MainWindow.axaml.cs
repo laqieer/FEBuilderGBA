@@ -3328,7 +3328,20 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // ===================== Image Editors =====================
-        private void OpenImagePortrait_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImagePortraitView>();
+        private void OpenImagePortrait_Click(object? sender, RoutedEventArgs e)
+        {
+            // #1411 — defense in depth: the generic 28-byte Portrait Editor must never
+            // open on FE6 (16-byte table) because Write would silently corrupt the next
+            // entry. The button is already hidden on FE6 (UpdateEditorVisibility), but if
+            // this handler is ever reached on FE6 (e.g. via search-filter race), route to
+            // the correct dedicated 16-byte editor instead of the corrupting generic one.
+            if (CoreState.ROM?.RomInfo?.version == 6)
+            {
+                WindowManager.Instance.Open<ImagePortraitFE6View>();
+                return;
+            }
+            WindowManager.Instance.Open<ImagePortraitView>();
+        }
         private void OpenImagePortraitFE6_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImagePortraitFE6View>();
         private void OpenImagePortraitImporter_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImagePortraitImporterView>();
         private void OpenImageBG_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ImageBGView>();
@@ -3662,6 +3675,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Senseki Comment is FE7-only (no version suffix in its Content)
             SensekiCommentButton.IsVisible = ver == 7;
+
+            // #1411 — the generic "Portrait Editor" (ImagePortraitView, 28-byte stride)
+            // must be HIDDEN on FE6, whose portrait table is 16 bytes/entry. WinForms
+            // MainFE6Form opens only the dedicated 16-byte ImagePortraitFE6Form and never
+            // the 28-byte editor; opening the generic one on FE6 silently corrupts the
+            // next entry on Write. Its Content carries no version suffix, so we gate it by
+            // Name here (like SensekiCommentButton above). Setting Tag = false also keeps
+            // it durably hidden across the editor search filter (ApplyFilter only preserves
+            // buttons whose Tag is bool false as version-hidden).
+            if (PortraitEditorButton != null)
+            {
+                bool portraitGenericVisible = ver != 6;
+                PortraitEditorButton.IsVisible = portraitGenericVisible;
+                PortraitEditorButton.Tag = portraitGenericVisible ? null : (object)false;
+            }
 
             AutoHideEmptySections(EditorPanel);
         }

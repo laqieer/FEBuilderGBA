@@ -302,10 +302,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>
+        /// #1411 — this generic editor assumes a 28-byte portrait entry (FE7/FE8).
+        /// On FE6 the portrait table is 16 bytes/entry (<c>portrait_datasize == 16</c>),
+        /// so reading/writing 28 bytes spills into the FOLLOWING entry. Guard every
+        /// per-entry read/write against any ROM whose stride differs from <see cref="SIZE"/>
+        /// (FE6, or any patched layout) so the generic editor can never corrupt or
+        /// mis-read a non-28-byte table. The dedicated <c>ImagePortraitFE6ViewModel</c>
+        /// (SIZE=16) is the correct editor for FE6.
+        /// </summary>
+        bool IsUnsupportedPortraitStride(ROM rom)
+        {
+            uint stride = rom?.RomInfo?.portrait_datasize ?? 0;
+            return stride != 0 && stride != SIZE;
+        }
+
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — FE6 (16-byte) not supported here
             if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
@@ -348,6 +364,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
+            if (IsUnsupportedPortraitStride(rom)) return; // #1411 — never write 28 bytes into a 16-byte FE6 entry
             if (CurrentAddr + SIZE > (uint)rom.Data.Length) return;
             if (undoService == null) { Write(); return; }
 
