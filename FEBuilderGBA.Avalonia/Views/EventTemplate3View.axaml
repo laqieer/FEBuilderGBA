@@ -1,21 +1,31 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventTemplate3View"
-        Title="Event Template 3" Width="799" Height="624"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventTemplate3_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Event Template 3" Width="760" Height="560"
+        SizeToContent="Manual">
+  <ScrollViewer>
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="8" MinHeight="520">
+      <TextBlock Grid.Row="0" Text="Event Template 3" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Event Template 3" FontSize="18" FontWeight="Bold" />
+      <WrapPanel AutomationProperties.AutomationId="EventTemplate3_Buttons_Control"
+                 Grid.Row="1" Name="ButtonPanel" Orientation="Horizontal" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventTemplate3_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+      <TextBox AutomationProperties.AutomationId="EventTemplate3_Preview_Input"
+               Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
+               FontFamily="Consolas, Courier New, monospace" FontSize="12"
+               TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="240"
+               VerticalContentAlignment="Top"
+               Text="{Binding Preview}" />
+
+      <TextBlock AutomationProperties.AutomationId="EventTemplate3_Status_Label"
+                 Grid.Row="3" Name="StatusLabel" Margin="0,6,0,0"
+                 Text="{Binding Status}" />
+
+      <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
+        <Button AutomationProperties.AutomationId="EventTemplate3_CopyHex_Button"
+                Name="CopyHexButton" Content="Copy generated hex" Click="CopyHex_Click"
+                IsEnabled="{Binding HasGenerated}" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    </Grid>
+  </ScrollViewer>
 </Window>

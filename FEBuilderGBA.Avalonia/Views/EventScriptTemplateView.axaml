@@ -1,21 +1,40 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventScriptTemplateView"
-        Title="Script Template Browser" Width="1076" Height="828"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventScriptTemplate_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Script Template Browser" Width="860" Height="600"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="320,*" Margin="8">
+    <ListBox AutomationProperties.AutomationId="EventScriptTemplate_List"
+             Grid.Column="0" Name="TemplateList" Margin="0,0,8,0"
+             ItemsSource="{Binding TemplateInfos}"
+             SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Script Template Browser" FontSize="18" FontWeight="Bold" />
+    <ScrollViewer Grid.Column="1">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinHeight="560">
+        <TextBlock Grid.Row="0" Text="Templates" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Grid Grid.Row="1" ColumnDefinitions="100,*">
+          <TextBlock Grid.Column="0" Text="File:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Filename_Label"
+                     Grid.Column="1" Text="{Binding Filename}" VerticalAlignment="Center" />
         </Grid>
-      </StackPanel>
+
+        <TextBox AutomationProperties.AutomationId="EventScriptTemplate_Preview_Input"
+                 Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas, Courier New, monospace" FontSize="12"
+                 TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="280"
+                 VerticalContentAlignment="Top"
+                 Text="{Binding Preview}" />
+
+        <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Status_Label"
+                   Grid.Row="3" Margin="0,6,0,0" Text="{Binding Status}" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
+          <Button AutomationProperties.AutomationId="EventScriptTemplate_CopyHex_Button"
+                  Content="Copy generated hex" Click="CopyHex_Click"
+                  IsEnabled="{Binding HasGenerated}" />
+        </StackPanel>
+      </Grid>
     </ScrollViewer>
   </Grid>
 </Window>

@@ -1,33 +1,9 @@
-using System;
-using System.Collections.Generic;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class EventTemplate4ViewModel : ViewModelBase
+    // Event Template 4 (BLANK / TalkEvent / TalkEventItem / TalkEventJoin).
+    // Real generator wired to EventTemplateCore. (#1434)
+    public class EventTemplate4ViewModel : EventTemplateViewModelBase
     {
-        uint _currentAddr;
-        bool _isLoaded;
-
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
-        public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-
-        public List<AddrResult> LoadList()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Event Template 4", 0));
-            return result;
-        }
-
-        public void LoadEntry(uint addr)
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-
-            CurrentAddr = addr;
-            IsLoaded = true;
-        }
+        protected override int TemplateNumber => 4;
     }
 }
