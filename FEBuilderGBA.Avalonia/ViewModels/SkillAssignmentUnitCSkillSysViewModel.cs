@@ -216,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint baseAddr = rom.p32(gpSkillInfos);
                 if (!U.isSafetyOffset(baseAddr, rom)) return "";
                 uint entryAddr = baseAddr + SKILL_INFO_SIZE * id;
-                if (!U.isSafetyOffset(entryAddr + 6, rom)) return "";
+                if (!U.isSafetyOffset(entryAddr + 7, rom)) return "";
                 uint nameMsg = rom.u16(entryAddr + 4);
                 if (nameMsg != 0)
                 {
@@ -247,7 +247,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint baseAddr = rom.p32(gpSkillInfos);
                 if (!U.isSafetyOffset(baseAddr, rom)) return "";
                 uint entryAddr = baseAddr + SKILL_INFO_SIZE * id;
-                if (!U.isSafetyOffset(entryAddr + 6, rom)) return "";
+                if (!U.isSafetyOffset(entryAddr + 7, rom)) return "";
                 uint descMsg = rom.u16(entryAddr + 6);
                 if (descMsg == 0) return "";
                 return NameResolver.GetTextById(descMsg) ?? "";
@@ -530,7 +530,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (U.isSafetyOffset(baseAddr, rom))
                     {
                         uint entry = baseAddr + SKILL_INFO_SIZE * UnitSkill;
-                        if (U.isSafetyOffset(entry + 6, rom))
+                        if (U.isSafetyOffset(entry + 7, rom))
                         {
                             report["skill_info_addr"] = "0x" + entry.ToString("X08");
                             report["u32@0x00"] = "0x" + rom.u32(entry + 0).ToString("X08");

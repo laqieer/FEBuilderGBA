@@ -143,7 +143,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Resolve / display the per-unit level-up pointer (GBA form).
                 N1LevelUpAddrBox.Value = _vm.XLevelUpAddr;
                 LoadN1Sublist(_vm.LevelUpAddr);
-                UpdateIndependencePanels(ar.tag, (uint)_unitItems.Count);
+                // Use the REAL unit count (unit_maxcount) for share detection, not
+                // the loaded-subset count: a user ReadCount override can cap
+                // _unitItems below the full table and otherwise hide a genuine
+                // shared-pointer warning for units outside the loaded subset.
+                uint shareScanCount = CoreState.ROM?.RomInfo?.unit_maxcount ?? (uint)_unitItems.Count;
+                if (shareScanCount < (uint)_unitItems.Count) shareScanCount = (uint)_unitItems.Count;
+                UpdateIndependencePanels(ar.tag, shareScanCount);
             }
             catch (Exception ex)
             {
