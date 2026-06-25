@@ -25,6 +25,7 @@ The Avalonia port of FEBuilderGBA now covers a broad amount of ROM read/write be
 12. ~~**No Hex Editor**~~ **FIXED** -- `HexEditorView` with hex dump display, jump-to-address, page navigation, byte search
 13. ~~**No Pointer Search**~~ **FIXED** -- `PointerToolViewModel.SearchPointer()` scans ROM for pointer references
 14. ~~**No Free Space Scan**~~ **FIXED** -- `MoveToFreeSpaceViewViewModel.FindFreeSpace()` finds contiguous free regions
+15. ~~**Move to Free Space corrupted the ROM**~~ **FIXED (#1410)** -- `MoveToFreeSpaceViewViewModel.ExecuteMove()` now repoints every reference (`DataExpansionCore.RepointAllReferences` — raw 32-bit pointers + ARM-Thumb LDR literal-pool loads) BEFORE the destructive source clear, refuses to clear when 0 references are found (mirrors WinForms `MoveToFreeSapceForm` "no pointers found" guard), relocates lint/comment caches via `RepointEtcData`, and wraps copy+repoint+clear in one undo group
 
 ### 2026-03-13 Verification Note
 
@@ -375,7 +376,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | ToolSubtitle (Overlay/Settings) | 18% | No subtitle overlay |
 | **ToolThreeMarge (Main/CloseAlert)** | **15%** | **No three-way merge algorithm** |
 | ToolWorkSupport (Main/UPS/Update) | 20% | No update checking/download |
-| ~~**MoveToFreeSpace**~~ | **30%** | **FIXED** -- Free space search finds contiguous regions |
+| ~~**MoveToFreeSpace**~~ | **30%** | **FIXED** -- Free space search + reference repoint (#1410): copy, repoint raw+LDR references, refuse-and-warn on 0 refs, RepointEtcData, one undo scope |
 | **PatchFormUninstall** | **35%** | ~~Entire patch manager missing~~ **FIXED** -- patch manager / uninstall UI exists. Missing: full WinForms parity depth |
 | PackedMemorySlot | 25% | No slot operations |
 | EmulatorMemory | 5% | Platform limitation (P/Invoke) |
