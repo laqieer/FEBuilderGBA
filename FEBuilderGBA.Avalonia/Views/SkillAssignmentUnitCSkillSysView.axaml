@@ -1,25 +1,227 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillAssignmentUnitCSkillSysView"
-        Title="Skill Assignment - Unit (CSkillSys)" Width="1189" Height="849"
+        Title="Skill Assignment - Unit (CSkillSys)" Width="1200" Height="900"
         SizeToContent="WidthAndHeight">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Skill Assignment - Unit (CSkillSys)" FontSize="18" FontWeight="Bold" />
-    <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Status_Label" TextWrapping="Wrap" Name="StatusText"
-                 Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
-    </Border>
+    <StackPanel Margin="12" Spacing="8">
 
-    <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto" IsVisible="False" Name="FieldsPanel">
-      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <TextBlock Text="Skill Assignment - Unit (CSkillSys)" FontSize="18" FontWeight="Bold" />
 
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Skill:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_UnitSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitSkillBox" Minimum="0" Maximum="65535" Margin="0,4" />
-    </Grid>
+      <Border Background="{DynamicResource WarningBackgroundBrush}"
+              BorderBrush="{DynamicResource WarningBorderBrush}"
+              BorderThickness="1" CornerRadius="4" Padding="10"
+              Name="PatchBanner">
+        <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Status_Label"
+                   Name="StatusText" TextWrapping="Wrap"
+                   Text="Skill Assignment - Unit (CSkillSys 0.9x / 3.00+).&#10;This editor requires the CSkillSys skill system patch to be installed.&#10;Use the Patch Manager to install the CSkillSys patch first." />
+      </Border>
 
-    <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
-  </StackPanel>
+      <!-- Top read-config bar — unified via EditorTopBarWithInputs (#743).
+           A 0/unset Read Count means the FULL unit_maxcount; only an explicit
+           override caps the list. -->
+      <controls:EditorTopBarWithInputs Name="TopBar"
+                                       AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_TopBar"
+                                       ReadStartLabel="Start Address:"
+                                       ReadCountLabel="Read Count:"
+                                       ReadStartMaximum="2147483647"
+                                       ReadCountMaximum="1024"
+                                       ShowReadSize="False"
+                                       ReadStartAutomationId="SkillAssignmentUnitCSkillSys_ReadStart_Input"
+                                       ReadCountAutomationId="SkillAssignmentUnitCSkillSys_ReadCount_Input"
+                                       ReloadAutomationId="SkillAssignmentUnitCSkillSys_ReloadList_Button"
+                                       ReloadRequested="OnTopBarReloadRequested" />
+
+      <Grid ColumnDefinitions="260,*">
+
+        <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2" Margin="0,0,8,0">
+          <DockPanel>
+            <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_UnitList_NameFilter_Label"
+                       DockPanel.Dock="Top" Text="Name" Margin="0,0,0,4" FontWeight="Bold" />
+            <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_UnitList_Expand_Button"
+                    DockPanel.Dock="Bottom" Name="UnitListExpandButton" Content="Expand List"
+                    Click="OnUnitExpand" Margin="0,4,0,0" />
+            <ListBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Unit_List"
+                     Name="UnitListBox" Height="700" />
+          </DockPanel>
+        </Border>
+
+        <StackPanel Grid.Column="1" Spacing="8">
+
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,80,Auto,Auto" RowDefinitions="Auto,Auto">
+              <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_UnitSkill_Label"
+                         Grid.Row="0" Grid.Column="0" Text="Unit Skill" VerticalAlignment="Center"
+                         Margin="0,0,8,0" FontWeight="Bold" />
+              <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_UnitSkill_Input"
+                             Grid.Row="0" Grid.Column="1" Name="UnitSkillBox" FormatString="0"
+                             Minimum="0" Maximum="65535" Margin="0,0,8,0" />
+              <Image AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SkillIcon_Image"
+                     Grid.Row="0" Grid.Column="2" Name="SkillIconImage"
+                     Width="32" Height="32" Margin="0,0,8,0" />
+              <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SkillName_Label"
+                       Grid.Row="0" Grid.Column="3" Name="SkillNameTextBox" IsReadOnly="True"
+                       Margin="0,0,8,0" />
+              <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SkillText_Label"
+                       Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="6" Name="SkillTextTextBox"
+                       IsReadOnly="True" AcceptsReturn="True" Height="60" Margin="0,4,0,0" />
+            </Grid>
+          </Border>
+
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
+            <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,Auto">
+              <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Addr_Label"
+                         Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Addr_Input"
+                             Grid.Column="1" Name="AddressBox" FormatString="0" IsReadOnly="True"
+                             Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
+              <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Size_Label"
+                         Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_BlockSize_Input"
+                             Grid.Column="3" Name="BlockSizeBox" IsReadOnly="True"
+                             Minimum="0" Maximum="64" Margin="0,0,8,0" />
+              <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SelectAddr_Label"
+                         Grid.Column="4" Text="Selected:" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SelectedAddress_Input"
+                             Grid.Column="5" Name="SelectedAddressBox" IsReadOnly="True" FormatString="0"
+                             Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
+              <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Write_Button"
+                      Grid.Column="6" Name="WriteButton" Content="Write" Click="OnWrite" MinWidth="100" />
+            </Grid>
+          </Border>
+
+          <!-- N1 level-up group: the entire block (level-up address bar + N1
+               sub-list + N1 detail/write controls) is hidden when the per-unit
+               level-up table is absent (old patches). Mirrors WF
+               UnitLevelUpSkill.Hide(). -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2"
+                  AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_LevelUp_Control"
+                  Name="LevelUpGroup" IsVisible="{Binding HasLevelUpTable}">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="*,Auto,140,Auto,80,Auto">
+                <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_LevelUpAddr_Label"
+                           Grid.Column="0" Text="Level-up Skill Table Address"
+                           VerticalAlignment="Center" FontWeight="Bold" />
+                <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_LevelUpAddr_Input"
+                               Grid.Column="2" Name="N1LevelUpAddrBox" FormatString="0"
+                               Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
+                <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_ReadCount_Input"
+                               Grid.Column="4" Name="N1ReadCountBox" FormatString="0"
+                               Minimum="0" Maximum="256" Margin="0,0,8,0" />
+                <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_ReloadList_Button"
+                        Grid.Column="5" Name="N1ReloadListButton" Content="Reload" Click="OnN1ReloadList" MinWidth="80" />
+              </Grid>
+
+              <Grid ColumnDefinitions="240,*">
+                <Border Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="0,0,8,0">
+                  <DockPanel>
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Filter_Label"
+                               DockPanel.Dock="Top" Text="Name" FontWeight="Bold" Margin="0,0,0,4" />
+                    <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Expand_Button"
+                            DockPanel.Dock="Bottom" Name="N1ExpandButton" Content="Expand List"
+                            Click="OnN1Expand" Margin="0,4,0,0" />
+                    <ListBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_List"
+                             Name="N1ListBox" Height="220" />
+                  </DockPanel>
+                </Border>
+
+                <StackPanel Grid.Column="1" Spacing="6">
+
+                  <Grid ColumnDefinitions="Auto,80,Auto,Auto,Auto">
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Level_Label"
+                               Grid.Column="0" Text="Acquired Level" VerticalAlignment="Center"
+                               Margin="0,0,8,0" FontWeight="Bold" />
+                    <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_B0_Input"
+                                   Grid.Column="1" Name="N1B0Box" FormatString="0"
+                                   Minimum="0" Maximum="255" Margin="0,0,8,0" />
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,80,Auto,Auto,Auto">
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Skill_Label"
+                               Grid.Column="0" Text="Skill" VerticalAlignment="Center"
+                               Margin="0,0,8,0" FontWeight="Bold" />
+                    <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_B1_Input"
+                                   Grid.Column="1" Name="N1B1Box" FormatString="0"
+                                   Minimum="0" Maximum="255" Margin="0,0,8,0" />
+                    <Image AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SkillIcon_Image"
+                           Grid.Column="2" Name="N1SkillIconImage"
+                           Width="32" Height="32" Margin="0,0,8,0" />
+                    <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SkillName_Label"
+                             Grid.Column="3" Name="N1SkillNameTextBox" IsReadOnly="True"
+                             Width="200" Margin="0,0,8,0" />
+                  </Grid>
+                  <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SkillText_Label"
+                           Name="N1SkillTextTextBox" IsReadOnly="True" AcceptsReturn="True"
+                           Height="60" Margin="0,4,0,0" />
+
+                  <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,Auto">
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Addr_Label"
+                               Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Addr_Input"
+                                   Grid.Column="1" Name="N1AddressBox" FormatString="0" IsReadOnly="True"
+                                   Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Size_Label"
+                               Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_BlockSize_Input"
+                                   Grid.Column="3" Name="N1BlockSizeBox" IsReadOnly="True"
+                                   Minimum="0" Maximum="64" Margin="0,0,8,0" />
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SelectAddr_Label"
+                               Grid.Column="4" Text="Selected:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SelectedAddress_Input"
+                                   Grid.Column="5" Name="N1SelectedAddressBox" IsReadOnly="True" FormatString="0"
+                                   Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
+                    <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Write_Button"
+                            Grid.Column="6" Name="N1WriteButton" Content="Write" Click="OnN1Write" MinWidth="100" />
+                  </Grid>
+
+                  <Border AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_ZeroPointer_Control"
+                          Name="ZeroPointerPanel" IsVisible="False"
+                          BorderBrush="OrangeRed" BorderThickness="1" Padding="6" CornerRadius="2">
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_ZeroPointer_Label"
+                               TextWrapping="Wrap"
+                               Text="No level-up skill area is allocated for this unit.&#10;Press the &quot;Expand List&quot; button to allocate one." />
+                  </Border>
+
+                  <Border AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Independence_Control"
+                          Name="IndependencePanel" IsVisible="False"
+                          BorderBrush="Goldenrod" BorderThickness="1" Padding="6" CornerRadius="2">
+                    <StackPanel Spacing="4">
+                      <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_IndependenceNotice_Label"
+                                 TextWrapping="Wrap"
+                                 Text="This table is referenced by multiple units." />
+                      <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Independence_Button"
+                              Name="IndependenceButton" Content="Detach Selected Unit (make independent)"
+                              Click="OnIndependence" HorizontalAlignment="Left" />
+                    </StackPanel>
+                  </Border>
+
+                  <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_LearnInfo_Link"
+                          Name="LearnInfoLink" Content="Click here for acquired level and skill details"
+                          Click="OnLearnInfo" Classes="Hyperlink" HorizontalAlignment="Left" />
+
+                  <!-- WF SkillAssignmentUnitCSkillSysForm.ExportAllData/ImportAllData are
+                       empty stubs, so the Avalonia bulk buttons are DISABLED (not silent
+                       no-ops) with the explanation on the enabled wrapping panel (a
+                       disabled Avalonia control is not hit-testable and would not surface
+                       its own ToolTip on hover). -->
+                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0"
+                              ToolTip.Tip="Bulk Import/Export is not available for the C-SkillSys variant (unimplemented in WinForms too).">
+                    <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_ImportAll_Button"
+                            Name="ImportAllButton" Content="Bulk Import" IsEnabled="False" MinWidth="140" />
+                    <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_ExportAll_Button"
+                            Name="ExportAllButton" Content="Bulk Export" IsEnabled="False" MinWidth="140" />
+                  </StackPanel>
+
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+          </Border>
+          <!-- end N1 level-up group -->
+
+        </StackPanel>
+      </Grid>
+
+    </StackPanel>
   </ScrollViewer>
 </Window>

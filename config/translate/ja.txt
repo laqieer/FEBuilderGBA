@@ -12379,3 +12379,15 @@ LOWコマンドを表示
 
 :The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
 上記アドレスにあるNUL終端文字列です。編集して書き込むと、文字列 + 末尾の 0x00 をエンコードします。その場に収まらなくなった場合は空き領域へ再配置し、すべての参照 (および参照元ポインタ) を張り替えます。
+
+:Skill Assignment - Unit (CSkillSys 0.9x / 3.00+).\r\nThis editor requires the CSkillSys skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys patch first.
+スキル_ユニット別割当 (CSkillSys 0.9x / 3.00+)。\r\nこのエディタを使用するには CSkillSys パッチが必要です。\r\nまずパッチマネージャから CSkillSys パッチをインストールしてください。
+
+:No level-up skill area is allocated for this unit.\r\nPress the "Expand List" button to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
+:Detach Selected Unit (make independent)
+選択ユニットの分離独立
+
+:This table is referenced by multiple units.
+このテーブルは、複数のユニットで参照されています。

@@ -26217,3 +26217,15 @@ Boss对话 (16字节)
 
 :The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
 上述地址处的以NUL结尾的字符串。编辑后点击Write将对字符串 + 末尾的 0x00 进行编码；若不再适合原位置，则重定位到空闲区域并重新指向每一个引用（以及源指针）。
+
+:Skill Assignment - Unit (CSkillSys 0.9x / 3.00+).\r\nThis editor requires the CSkillSys skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys patch first.
+技能_单位分配 (CSkillSys 0.9x / 3.00+)。\r\n此编辑器需要安装 CSkillSys 技能系统补丁。\r\n请先在补丁管理器中安装 CSkillSys 补丁。
+
+:No level-up skill area is allocated for this unit.\r\nPress the "Expand List" button to allocate one.
+该单位尚未分配升级技能区域。\r\n请按"扩展列表"按钮以分配区域。
+
+:Detach Selected Unit (make independent)
+将所选单位的数据分离独立
+
+:This table is referenced by multiple units.
+此表正在被多个单位引用。
