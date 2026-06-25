@@ -344,6 +344,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void StagedKind_Abandoned_ClearedByManualDisassemble()
+        {
+            // Stage a world-map kind but NEVER navigate (the abandoned NewAlloc / jump flow).
+            // A later manual Disassemble must clear the stale pending kind so a normal script
+            // is scanned/written with chapter-event semantics (#1510).
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+            vm.StageEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+
+            // The user abandons the flow, then manually disassembles a normal script. The
+            // manual Disassemble path calls ClearStagedEventKind() before DisassembleAt.
+            Array.Copy(new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 }, 0,
+                _rom.Data, (int)ScriptOffset, 8);
+            vm.ClearStagedEventKind();           // what Disassemble_Click does first
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+
+            Assert.False(vm.IsWorldMapEvent);    // stale staged kind did NOT leak
+            Assert.False(vm.IsTopLevelEvent);
+        }
+
+        [Fact]
         public void ProcsScriptType_Disassembles_ViaSharedEngine()
         {
             // The same VM engine drives Procs scripts by ScriptType — set up a synthetic

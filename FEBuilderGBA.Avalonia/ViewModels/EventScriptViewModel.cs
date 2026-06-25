@@ -84,6 +84,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _pendingTopLevel = isTopLevelEvent;
         }
 
+        /// <summary>
+        /// Discard any staged-but-not-yet-consumed event kind. A USER-initiated disassemble
+        /// (typing an address + clicking Disassemble) is always a chapter-event assumption
+        /// unless a jump staged a kind AND immediately navigated (which consumes it). The
+        /// manual Disassemble path calls this first so a stale pending kind left over from an
+        /// abandoned jump/NewAlloc flow can't leak into a normal script (#1510).
+        /// </summary>
+        public void ClearStagedEventKind()
+        {
+            _pendingWorldMap = false;
+            _pendingTopLevel = false;
+        }
+
         /// <summary>True when there are unsaved structural edits (mirrors the WinForms
         /// "yellow write button" dirty flag).</summary>
         public bool IsDirty { get => _dirty; set => SetField(ref _dirty, value); }

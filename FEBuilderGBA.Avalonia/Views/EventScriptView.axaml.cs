@@ -22,6 +22,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Disassemble_Click(object? sender, RoutedEventArgs e)
         {
+            // A user-initiated (manual) disassemble is a chapter-event assumption — discard
+            // any stale pending kind left over from an abandoned jump/NewAlloc flow so it
+            // can't leak the wrong terminator into a normal script (#1510). Jump paths set
+            // the kind then call NavigateTo directly (bypassing this handler), so they still
+            // consume their staged kind.
+            _vm.ClearStagedEventKind();
             _vm.AddressText = AddressBox.Text ?? "";
             RunDisassemble();
         }

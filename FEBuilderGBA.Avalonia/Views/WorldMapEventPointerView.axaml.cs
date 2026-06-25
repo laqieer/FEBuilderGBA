@@ -275,16 +275,16 @@ namespace FEBuilderGBA.Avalonia.Views
         // ----------------------------------------------------------------
         void BeforeNewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            // NewAlloc authors a NEW world-map event, so stage the world-map kind for the
-            // next disassembly the user performs in the editor (#1510).
-            var view = WindowManager.Instance.Open<EventScriptView>();
-            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            // NewAlloc just OPENS the editor (no immediate navigate/disassemble), so it must
+            // NOT stage an event kind — a staged-but-not-consumed kind would leak into a
+            // later manual disassemble of a normal script (#1510). The user picks an address
+            // and disassembles manually, which uses the chapter-event default.
+            WindowManager.Instance.Open<EventScriptView>();
         }
 
         void AfterNewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            var view = WindowManager.Instance.Open<EventScriptView>();
-            view.SetEventKind(isWorldMapEvent: true, isTopLevelEvent: false);
+            WindowManager.Instance.Open<EventScriptView>();
         }
 
         // ----------------------------------------------------------------
