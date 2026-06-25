@@ -330,7 +330,13 @@ generate_editor "SkillConfigFE8UCSkillSys09x" "FE8U C-Skill Config"
 generate_editor "SkillConfigFE8NSkill" "FE8N Skill Config"
 generate_editor "SkillConfigFE8NVer2Skill" "FE8N v2 Skill Config"
 generate_editor "SkillConfigFE8NVer3Skill" "FE8N v3 Skill Config"
-generate_editor "SkillSystemsEffectivenessReworkClassType" "Effectiveness Rework"
+# NOTE (#1453): intentionally NOT generated. The WinForms
+# SkillSystemsEffectivenessReworkClassTypeForm is NOT a standalone editor — it is
+# only a CLASSTYPE bitmask picker popup invoked from the Class editor
+# (InputFormRef.cs CLASSTYPE link). The functional standalone editor is
+# ItemEffectivenessSkillSystemsReworkView ("Effectiveness (Rework)" button). A
+# generated standalone view here would be a permanently inert window. Do not
+# re-add this line.
 generate_editor "SkillSystemsCSkillRechain" "C-Skill Rechain"
 
 # ==========================

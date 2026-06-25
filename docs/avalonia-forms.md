@@ -471,8 +471,7 @@ Editors for various skill system implementations.
 | 272 | SkillConfigFE8NVer2SkillView | SkillConfigFE8NVer2SkillViewModel | Skill config (FE8N v2) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
 | 273 | SkillConfigFE8NVer3SkillView | SkillConfigFE8NVer3SkillViewModel | Skill config (FE8N v3) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
 | 274 | SkillConfigFE8UCSkillSys09xView | SkillConfigFE8UCSkillSys09xViewModel | Skill config (FE8U CSkillSys 0.9.x) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
-| 275 | SkillSystemsEffectivenessReworkClassTypeView | SkillSystemsEffectivenessReworkClassTypeViewModel | Effectiveness rework class type |
-| 276 | SkillSystemsCSkillRechainView | SkillSystemsCSkillRechainViewModel | CSkill rechain editor |
+| 275 | SkillSystemsCSkillRechainView | SkillSystemsCSkillRechainViewModel | CSkill rechain editor |
 
 ## 20. Patch Management
 
@@ -480,13 +479,13 @@ Editors for patch installation, filtering, and custom builds.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 277 | PatchManagerView | PatchManagerViewModel | Patch manager main view |
-| 278 | PatchFilterExView | PatchFilterExViewModel | Patch filter editor |
-| 279 | PatchFormUninstallDialogView | PatchFormUninstallDialogViewModel | Patch uninstall confirmation |
-| 280 | PatchUninstallDialogView | PatchUninstallDialogViewModel | Patch uninstall dialog |
-| 281 | HowDoYouLikePatchView | HowDoYouLikePatchViewModel | Patch feedback dialog |
-| 282 | HowDoYouLikePatch2View | HowDoYouLikePatch2ViewModel | Patch feedback dialog (v2) |
-| 283 | ToolCustomBuildView | ToolCustomBuildViewModel | Custom build configuration |
+| 276 | PatchManagerView | PatchManagerViewModel | Patch manager main view |
+| 277 | PatchFilterExView | PatchFilterExViewModel | Patch filter editor |
+| 278 | PatchFormUninstallDialogView | PatchFormUninstallDialogViewModel | Patch uninstall confirmation |
+| 279 | PatchUninstallDialogView | PatchUninstallDialogViewModel | Patch uninstall dialog |
+| 280 | HowDoYouLikePatchView | HowDoYouLikePatchViewModel | Patch feedback dialog |
+| 281 | HowDoYouLikePatch2View | HowDoYouLikePatch2ViewModel | Patch feedback dialog (v2) |
+| 282 | ToolCustomBuildView | ToolCustomBuildViewModel | Custom build configuration |
 
 ## 21. Hex Editor & Disassembly Tools
 
@@ -494,16 +493,16 @@ Low-level ROM editing and disassembly tools.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 284 | HexEditorView | HexEditorViewModel | Hex editor main view |
-| 285 | HexEditorJumpView | HexEditorJumpViewModel | Hex editor jump-to-address dialog |
-| 286 | HexEditorMarkView | HexEditorMarkViewModel | Hex editor bookmark manager |
-| 287 | HexEditorSearchView | HexEditorSearchViewModel | Hex editor search dialog |
-| 288 | DisASMView | DisASMViewModel | Disassembler main view |
-| 289 | DisASMDumpAllView | DisASMDumpAllViewModel | Dump all disassembly |
-| 290 | DisASMDumpAllArgGrepView | DisASMDumpAllArgGrepViewModel | Disassembly argument grep |
-| 291 | ToolASMEditView | ToolASMEditViewViewModel | ASM code editor |
-| 292 | ToolASMInsertView | ToolASMInsertViewModel | ASM code insertion tool |
-| 293 | ToolDecompileResultView | ToolDecompileResultViewViewModel | Decompilation result viewer |
+| 283 | HexEditorView | HexEditorViewModel | Hex editor main view |
+| 284 | HexEditorJumpView | HexEditorJumpViewModel | Hex editor jump-to-address dialog |
+| 285 | HexEditorMarkView | HexEditorMarkViewModel | Hex editor bookmark manager |
+| 286 | HexEditorSearchView | HexEditorSearchViewModel | Hex editor search dialog |
+| 287 | DisASMView | DisASMViewModel | Disassembler main view |
+| 288 | DisASMDumpAllView | DisASMDumpAllViewModel | Dump all disassembly |
+| 289 | DisASMDumpAllArgGrepView | DisASMDumpAllArgGrepViewModel | Disassembly argument grep |
+| 290 | ToolASMEditView | ToolASMEditViewViewModel | ASM code editor |
+| 291 | ToolASMInsertView | ToolASMInsertViewModel | ASM code insertion tool |
+| 292 | ToolDecompileResultView | ToolDecompileResultViewViewModel | Decompilation result viewer |
 
 ## 22. Pointer & Memory Tools
 
@@ -511,14 +510,14 @@ Pointer manipulation and emulator memory access tools.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 294 | PointerToolView | PointerToolViewModel | Pointer manipulation tool (cross-ROM raw + LDR literal-pool reference search via `U.GrepPointerAll` / `U.GrepPointerAllOnLDR`, #966) |
-| 295 | PointerToolBatchInputView | PointerToolBatchInputViewModel | Batch pointer input |
-| 296 | PointerToolCopyToView | PointerToolCopyToViewModel | Copy pointer data tool |
-| 297 | MoveToFreeSpaceView | MoveToFreeSpaceViewViewModel | Move data to free space tool |
-| 298 | PackedMemorySlotView | PackedMemorySlotViewModel | Packed memory slot viewer |
-| 299 | EmulatorMemoryView | EmulatorMemoryViewModel | Emulator memory viewer |
-| 300 | RAMRewriteToolView | RAMRewriteToolViewModel | RAM rewrite tool |
-| 301 | RAMRewriteToolMAPView | RAMRewriteToolMAPViewViewModel | RAM rewrite tool (map view) |
+| 293 | PointerToolView | PointerToolViewModel | Pointer manipulation tool (cross-ROM raw + LDR literal-pool reference search via `U.GrepPointerAll` / `U.GrepPointerAllOnLDR`, #966) |
+| 294 | PointerToolBatchInputView | PointerToolBatchInputViewModel | Batch pointer input |
+| 295 | PointerToolCopyToView | PointerToolCopyToViewModel | Copy pointer data tool |
+| 296 | MoveToFreeSpaceView | MoveToFreeSpaceViewViewModel | Move data to free space tool |
+| 297 | PackedMemorySlotView | PackedMemorySlotViewModel | Packed memory slot viewer |
+| 298 | EmulatorMemoryView | EmulatorMemoryViewModel | Emulator memory viewer |
+| 299 | RAMRewriteToolView | RAMRewriteToolViewModel | RAM rewrite tool |
+| 300 | RAMRewriteToolMAPView | RAMRewriteToolMAPViewViewModel | RAM rewrite tool (map view) |
 
 ## 23. Bit Flag Editors
 
@@ -526,9 +525,9 @@ Generic bit flag editing dialogs for different data widths.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 302 | UbyteBitFlagView | UbyteBitFlagViewModel | 8-bit (byte) flag editor |
-| 303 | UshortBitFlagView | UshortBitFlagViewModel | 16-bit (ushort) flag editor |
-| 304 | UwordBitFlagView | UwordBitFlagViewModel | 32-bit (uint) flag editor |
+| 301 | UbyteBitFlagView | UbyteBitFlagViewModel | 8-bit (byte) flag editor |
+| 302 | UshortBitFlagView | UshortBitFlagViewModel | 16-bit (ushort) flag editor |
+| 303 | UwordBitFlagView | UwordBitFlagViewModel | 32-bit (uint) flag editor |
 
 ## 24. Structural Data Editors
 
@@ -536,10 +535,10 @@ Editors for miscellaneous ROM structure data.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 305 | Command85PointerView | Command85PointerViewModel | Command 0x85 pointer table editor |
-| 306 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog (CSV/TSV/EA/STRUCT/NMM all export struct-aware output for resolved tables via `StructExportCore`; STRUCT=.h C-header, NMM=No$gba memory map — #1012) |
-| 307 | DumpStructSelectToTextDialogView | DumpStructSelectToTextDialogViewModel | Struct dump to text dialog |
-| 308 | ResourceView | ResourceViewModel | Resource table viewer |
+| 304 | Command85PointerView | Command85PointerViewModel | Command 0x85 pointer table editor |
+| 305 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog (CSV/TSV/EA/STRUCT/NMM all export struct-aware output for resolved tables via `StructExportCore`; STRUCT=.h C-header, NMM=No$gba memory map — #1012) |
+| 306 | DumpStructSelectToTextDialogView | DumpStructSelectToTextDialogViewModel | Struct dump to text dialog |
+| 307 | ResourceView | ResourceViewModel | Resource table viewer |
 
 ## 25. Error & Notification Dialogs
 
@@ -547,15 +546,15 @@ Error reporting, palette warnings, and notification overlays.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 309 | ErrorReportView | ErrorReportViewModel | Error report dialog |
-| 310 | ErrorPaletteMissMatchView | ErrorPaletteMissMatchViewModel | Palette mismatch warning |
-| 311 | ErrorPaletteShowView | ErrorPaletteShowViewModel | Palette error display |
-| 312 | ErrorPaletteTransparentView | ErrorPaletteTransparentViewModel | Transparent palette error |
-| 313 | ErrorTSAErrorView | ErrorTSAErrorViewModel | TSA error display |
-| 314 | ErrorLongMessageDialogView | ErrorLongMessageDialogViewModel | Long error message dialog |
-| 315 | NotifyDirectInjectionView | NotifyDirectInjectionViewModel | Direct injection notification |
-| 316 | NotifyPleaseWaitView | NotifyPleaseWaitViewModel | Please wait notification overlay |
-| 317 | NotifyWriteView | NotifyWriteViewModel | Write notification overlay |
+| 308 | ErrorReportView | ErrorReportViewModel | Error report dialog |
+| 309 | ErrorPaletteMissMatchView | ErrorPaletteMissMatchViewModel | Palette mismatch warning |
+| 310 | ErrorPaletteShowView | ErrorPaletteShowViewModel | Palette error display |
+| 311 | ErrorPaletteTransparentView | ErrorPaletteTransparentViewModel | Transparent palette error |
+| 312 | ErrorTSAErrorView | ErrorTSAErrorViewModel | TSA error display |
+| 313 | ErrorLongMessageDialogView | ErrorLongMessageDialogViewModel | Long error message dialog |
+| 314 | NotifyDirectInjectionView | NotifyDirectInjectionViewModel | Direct injection notification |
+| 315 | NotifyPleaseWaitView | NotifyPleaseWaitViewModel | Please wait notification overlay |
+| 316 | NotifyWriteView | NotifyWriteViewModel | Write notification overlay |
 
 ## 26. Tool Utilities
 
@@ -563,38 +562,38 @@ Miscellaneous tools for ROM management, lint, diff, UPS, and more.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 318 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
-| 319 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
-| 320 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool — read-only viewer over the cross-platform `FELintScanner` (same scan as CLI `--lint`): per-finding list, severity/category/address/message detail, error+warning summary, Rescan, and double-click/Enter jump-to-HexEditor for jumpable findings (#1168) |
-| 321 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |
-| 322 | ToolLZ77View | ToolLZ77ViewModel | LZ77 compression/decompression tool |
-| 323 | ToolDiffView | ToolDiffViewModel | ROM diff comparison tool |
-| 324 | ToolDiffDebugSelectView | ToolDiffDebugSelectViewModel | Diff debug selection dialog |
-| 325 | ToolUPSPatchSimpleView | ToolUPSPatchSimpleViewModel | UPS patch application tool |
-| 326 | ToolUPSOpenSimpleView | ToolUPSOpenSimpleViewModel | UPS patch open tool |
-| 327 | ToolFlagNameView | ToolFlagNameViewModel | Flag name editor |
-| 328 | ToolUseFlagView | ToolUseFlagViewModel | Flag usage viewer |
-| 329 | ToolUnitTalkGroupView | ToolUnitTalkGroupViewModel | Unit talk group editor |
-| 330 | ToolAnimationCreatorView | ToolAnimationCreatorViewViewModel | Animation creator (#500): `InitFromRom` / `InitFromFile` flows, frame list browser, per-frame editor |
-| 331 | ToolThreeMargeView | ToolThreeMargeViewModel | Three-way merge tool |
-| 332 | ToolThreeMargeCloseAlertView | ToolThreeMargeCloseAlertViewModel | Three-way merge close alert |
-| 333 | ToolExportEAEventView | ToolExportEAEventViewViewModel | Export events to EA format |
-| 334 | ToolChangeProjectnameView | ToolChangeProjectnameViewViewModel | Project name change tool |
-| 335 | ToolAutomaticRecoveryROMHeaderView | ToolAutomaticRecoveryROMHeaderViewViewModel | ROM header recovery tool |
-| 336 | ToolClickWriteFloatControlPanelButtonView | ToolClickWriteFloatControlPanelButtonViewModel | Float control panel button tool |
-| 337 | ToolSubtitleOverlayView | ToolSubtitleOverlayViewModel | Subtitle overlay tool |
-| 338 | ToolSubtitleSettingDialogView | ToolSubtitleSettingDialogViewViewModel | Subtitle settings dialog |
-| 339 | ToolInitWizardView | ToolInitWizardViewModel | Initial setup wizard |
-| 340 | ToolUpdateDialogView | ToolUpdateDialogViewModel | Application update dialog |
-| 341 | ToolRunHintMessageView | ToolRunHintMessageViewModel | Run hint message dialog |
-| 342 | ToolEmulatorSetupMessageView | ToolEmulatorSetupMessageViewModel | Emulator setup message |
-| 343 | ToolProblemReportView | ToolProblemReportViewModel | Problem report tool |
-| 344 | ToolProblemReportSearchBackupView | ToolProblemReportSearchBackupViewModel | Problem report backup search |
-| 345 | ToolProblemReportSearchSavView | ToolProblemReportSearchSavViewModel | Problem report save search |
-| 346 | ToolAllWorkSupportView | ToolAllWorkSupportViewModel | All work support tool |
-| 347 | ToolWorkSupportView | ToolWorkSupportViewModel | Work support tool |
-| 348 | ToolWorkSupport_SelectUPSView | ToolWorkSupport_SelectUPSViewModel | Work support UPS selection |
-| 349 | ToolWorkSupport_UpdateQuestionDialogView | ToolWorkSupport_UpdateQuestionDialogViewModel | Work support update question |
+| 317 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
+| 318 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
+| 319 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool — read-only viewer over the cross-platform `FELintScanner` (same scan as CLI `--lint`): per-finding list, severity/category/address/message detail, error+warning summary, Rescan, and double-click/Enter jump-to-HexEditor for jumpable findings (#1168) |
+| 320 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |
+| 321 | ToolLZ77View | ToolLZ77ViewModel | LZ77 compression/decompression tool |
+| 322 | ToolDiffView | ToolDiffViewModel | ROM diff comparison tool |
+| 323 | ToolDiffDebugSelectView | ToolDiffDebugSelectViewModel | Diff debug selection dialog |
+| 324 | ToolUPSPatchSimpleView | ToolUPSPatchSimpleViewModel | UPS patch application tool |
+| 325 | ToolUPSOpenSimpleView | ToolUPSOpenSimpleViewModel | UPS patch open tool |
+| 326 | ToolFlagNameView | ToolFlagNameViewModel | Flag name editor |
+| 327 | ToolUseFlagView | ToolUseFlagViewModel | Flag usage viewer |
+| 328 | ToolUnitTalkGroupView | ToolUnitTalkGroupViewModel | Unit talk group editor |
+| 329 | ToolAnimationCreatorView | ToolAnimationCreatorViewViewModel | Animation creator (#500): `InitFromRom` / `InitFromFile` flows, frame list browser, per-frame editor |
+| 330 | ToolThreeMargeView | ToolThreeMargeViewModel | Three-way merge tool |
+| 331 | ToolThreeMargeCloseAlertView | ToolThreeMargeCloseAlertViewModel | Three-way merge close alert |
+| 332 | ToolExportEAEventView | ToolExportEAEventViewViewModel | Export events to EA format |
+| 333 | ToolChangeProjectnameView | ToolChangeProjectnameViewViewModel | Project name change tool |
+| 334 | ToolAutomaticRecoveryROMHeaderView | ToolAutomaticRecoveryROMHeaderViewViewModel | ROM header recovery tool |
+| 335 | ToolClickWriteFloatControlPanelButtonView | ToolClickWriteFloatControlPanelButtonViewModel | Float control panel button tool |
+| 336 | ToolSubtitleOverlayView | ToolSubtitleOverlayViewModel | Subtitle overlay tool |
+| 337 | ToolSubtitleSettingDialogView | ToolSubtitleSettingDialogViewViewModel | Subtitle settings dialog |
+| 338 | ToolInitWizardView | ToolInitWizardViewModel | Initial setup wizard |
+| 339 | ToolUpdateDialogView | ToolUpdateDialogViewModel | Application update dialog |
+| 340 | ToolRunHintMessageView | ToolRunHintMessageViewModel | Run hint message dialog |
+| 341 | ToolEmulatorSetupMessageView | ToolEmulatorSetupMessageViewModel | Emulator setup message |
+| 342 | ToolProblemReportView | ToolProblemReportViewModel | Problem report tool |
+| 343 | ToolProblemReportSearchBackupView | ToolProblemReportSearchBackupViewModel | Problem report backup search |
+| 344 | ToolProblemReportSearchSavView | ToolProblemReportSearchSavViewModel | Problem report save search |
+| 345 | ToolAllWorkSupportView | ToolAllWorkSupportViewModel | All work support tool |
+| 346 | ToolWorkSupportView | ToolWorkSupportViewModel | Work support tool |
+| 347 | ToolWorkSupport_SelectUPSView | ToolWorkSupport_SelectUPSViewModel | Work support UPS selection |
+| 348 | ToolWorkSupport_UpdateQuestionDialogView | ToolWorkSupport_UpdateQuestionDialogViewModel | Work support update question |
 
 ## 27. Simple Menu Mode
 
@@ -602,10 +601,10 @@ Simplified beginner-mode views.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 350 | MainSimpleMenuView | MainSimpleMenuViewModel | Simplified main menu |
-| 351 | MainSimpleMenuEventErrorView | MainSimpleMenuEventErrorViewModel | Simple menu event error display |
-| 352 | MainSimpleMenuEventErrorIgnoreErrorView | MainSimpleMenuEventErrorIgnoreErrorViewModel | Simple menu ignore error dialog |
-| 353 | MainSimpleMenuImageSubView | MainSimpleMenuImageSubViewModel | Simple menu image sub-view |
+| 349 | MainSimpleMenuView | MainSimpleMenuViewModel | Simplified main menu |
+| 350 | MainSimpleMenuEventErrorView | MainSimpleMenuEventErrorViewModel | Simple menu event error display |
+| 351 | MainSimpleMenuEventErrorIgnoreErrorView | MainSimpleMenuEventErrorIgnoreErrorViewModel | Simple menu ignore error dialog |
+| 352 | MainSimpleMenuImageSubView | MainSimpleMenuImageSubViewModel | Simple menu image sub-view |
 
 ---
 

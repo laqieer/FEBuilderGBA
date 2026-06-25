@@ -355,7 +355,13 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | SkillConfigFE8NVer2Skill | 35% | 4 sub-InputFormRefs, tabs |
 | SkillConfigFE8NVer3Skill | 35% | 5 sub-InputFormRefs |
 | SkillConfigFE8UCSkillSys09x | 32% | 1024 skills, icon rendering |
-| EffectivenessReworkClassType | 30% | Bit-flag UI, class type icons |
+
+> **Note (#1453):** `EffectivenessReworkClassType` is intentionally NOT a standalone
+> Avalonia editor. The WinForms `SkillSystemsEffectivenessReworkClassTypeForm` is only a
+> CLASSTYPE bitmask picker popup invoked from the Class editor; the standalone
+> Effectiveness-Rework editor is `ItemEffectivenessSkillSystemsReworkView`
+> ("Effectiveness (Rework)" button). The previously-generated inert standalone view was
+> removed in #1453.
 
 ---
 

@@ -511,7 +511,6 @@
               <Button AutomationProperties.AutomationId="Main_ConfigFE8Nv2_Button" Name="ConfigFE8Nv2Button" Content="Config FE8N v2" Click="OpenSkillConfigFE8NVer2_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_ConfigFE8Nv3_Button" Name="ConfigFE8Nv3Button" Content="Config FE8N v3" Click="OpenSkillConfigFE8NVer3_Click" Margin="4" MinWidth="100" />
               <Button AutomationProperties.AutomationId="Main_ConfigCSkill09x_Button" Name="ConfigCSkill09xButton" Content="Config CSkill09x" Click="OpenSkillConfigFE8UCSkillSys09x_Click" Margin="4" MinWidth="100" />
-              <Button AutomationProperties.AutomationId="Main_EffRework_Button" Name="EffReworkButton" Content="Eff Rework" Click="OpenSkillSystemsEffectivenessRework_Click" Margin="4" MinWidth="100" />
             </WrapPanel>
           </Expander>
 

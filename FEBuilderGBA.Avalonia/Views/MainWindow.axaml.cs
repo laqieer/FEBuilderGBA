@@ -536,7 +536,6 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ConfigFE8Nv2Button != null) ConfigFE8Nv2Button.Content = R._("Config FE8N v2");
             if (ConfigFE8Nv3Button != null) ConfigFE8Nv3Button.Content = R._("Config FE8N v3");
             if (ConfigCSkill09xButton != null) ConfigCSkill09xButton.Content = R._("Config CSkill09x");
-            if (EffReworkButton != null) EffReworkButton.Content = R._("Eff Rework");
 
             // Version-Specific
             if (ItemsFE6Button != null) ItemsFE6Button.Content = R._("Items (FE6)");
@@ -2387,7 +2386,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("SkillConfigFE8NVer2SkillView", () => wm.Open<SkillConfigFE8NVer2SkillView>()),
                 ("SkillConfigFE8NVer3SkillView", () => wm.Open<SkillConfigFE8NVer3SkillView>()),
                 ("SkillConfigFE8UCSkillSys09xView", () => wm.Open<SkillConfigFE8UCSkillSys09xView>()),
-                ("SkillSystemsEffectivenessReworkClassTypeView", () => wm.Open<SkillSystemsEffectivenessReworkClassTypeView>()),
 
                 // Song/Audio Dialogs (WU4)
                 ("ToolBGMMuteDialogView", () => wm.Open<ToolBGMMuteDialogView>()),
@@ -3554,7 +3552,6 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenSkillConfigFE8NVer2_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8NVer2SkillView>();
         private void OpenSkillConfigFE8NVer3_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8NVer3SkillView>();
         private void OpenSkillConfigFE8UCSkillSys09x_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillConfigFE8UCSkillSys09xView>();
-        private void OpenSkillSystemsEffectivenessRework_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<SkillSystemsEffectivenessReworkClassTypeView>();
 
         // Audio (WU4)
         private void OpenToolBGMMuteDialog_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<ToolBGMMuteDialogView>();
