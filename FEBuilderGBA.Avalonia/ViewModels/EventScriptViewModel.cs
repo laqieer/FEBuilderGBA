@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -268,7 +269,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool InsertHexCommand()
         {
             if (_editor == null) { StatusText = "Disassemble a script first."; return false; }
-            byte[] bytes = EventScriptEditorCore.LineToEventByte(InsertHexText ?? "");
+            // Strip whitespace so the watermark example "0100 4200" works — LineToEventByte
+            // stops at the first non-hex char (faithful to WinForms for the line-based text
+            // import), but the single-field Insert box should be whitespace-tolerant
+            // (Copilot PR review inline #4).
+            string hex = new string((InsertHexText ?? "").Where(ch => !char.IsWhiteSpace(ch)).ToArray());
+            byte[] bytes = EventScriptEditorCore.LineToEventByte(hex);
             if (bytes.Length < 4) { StatusText = "Enter at least 4 hex bytes (e.g. 0100 4200)."; return false; }
 
             var code = _editor.NewCodeFromBytes(bytes);

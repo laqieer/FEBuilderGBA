@@ -109,6 +109,19 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void InsertHexCommand_IsWhitespaceTolerant()
+        {
+            // The watermark example "0100 4200" contains a space; the single-field Insert
+            // box must tolerate it (Copilot PR review inline #4).
+            var vm = MakeVmDisassembled(LoadEnda());
+            vm.SelectedCommandIndex = 0;
+            vm.InsertHexText = "02 00 00 00";   // spaced MOVE
+            Assert.True(vm.InsertHexCommand());
+            Assert.Equal(3, vm.CommandCount);
+            Assert.Contains("MOVE", vm.Commands[1]);
+        }
+
+        [Fact]
         public void InsertSelectedCatalogCommand_UsesCatalogPick()
         {
             var vm = MakeVmDisassembled(LoadEnda());

@@ -104,7 +104,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptView.WriteAll failed: {0}", ex.Message);
+                // Log.Error joins its params with spaces (no composite formatting), so
+                // build the message string ourselves (Copilot PR review inline #3).
+                Log.Error("EventScriptView.WriteAll failed: " + ex.Message);
                 StatusLabel.Text = $"Write failed: {ex.Message}";
             }
         }

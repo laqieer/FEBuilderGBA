@@ -43,8 +43,10 @@ namespace FEBuilderGBA
         /// <summary>
         /// Disassemble the script region starting at <paramref name="addr"/> into the
         /// editable list (ports the WinForms <c>ReloadEvent</c> loop). The region length
-        /// is auto-detected via <see cref="EventScript.SearchEveneLength"/>. After load,
-        /// indentation (<c>JisageCount</c>) is recomputed.
+        /// is auto-detected via this editor's own <see cref="ScanLength"/> (NOT the global
+        /// <c>CoreState.EventScript</c>-bound <c>EventScript.SearchEveneLength</c>), so the
+        /// scan uses this instance's disassembler — important for Procs/AI/custom widths.
+        /// After load, indentation (<c>JisageCount</c>) is recomputed.
         /// </summary>
         public void BuildFromRom(ROM rom, uint addr, bool isWorldMapEvent = false)
         {
@@ -362,8 +364,14 @@ namespace FEBuilderGBA
                 var code = _codes[i];
                 if (code.ByteData != null) databyte.AddRange(code.ByteData);
 
-                if (code.Script.Has == EventScript.ScriptHas.TERM) hasTerm = true;
-                if (isWorldMapEvent && code.Script.Has == EventScript.ScriptHas.MAPTERM) hasTerm = true;
+                // A MAPTERM byte IS a terminator in its own right, so count it regardless
+                // of the event kind — otherwise a script that already ends in MAPTERM but
+                // is written with isWorldMapEvent==false would get a SECOND terminator
+                // appended, changing its bytes (Copilot PR review inline #1). WinForms
+                // only checks MAPTERM under the world-map flag; treating it as always-terminal
+                // here is strictly safer and never double-terminates.
+                if (code.Script.Has == EventScript.ScriptHas.TERM ||
+                    code.Script.Has == EventScript.ScriptHas.MAPTERM) hasTerm = true;
             }
 
             if (!hasTerm)
