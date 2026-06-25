@@ -693,7 +693,7 @@ namespace FEBuilderGBA
                     totalBytes += data.Length;
                 }
 
-                // Backup is intentionally PRESERVED across uninstall: undoing the uninstall reapplies the patched ROM bytes, and keeping the backup lets the user uninstall again. It is harmless while not installed (every uninstall path is gated on Status==Installed) and a re-install overwrites it via SaveBackup.
+                // Backup is intentionally PRESERVED across uninstall: undoing the uninstall reapplies the patched ROM bytes, and keeping the backup lets the user uninstall again. It is harmless while not installed (the GUI gates uninstall on Status==Installed, though UninstallPatch itself does not guard on status and is safe to call idempotently) and a re-install overwrites it via SaveBackup.
 
                 return PatchApplyResult.Ok(
                     $"Patch uninstalled successfully. {totalBytes} bytes restored.",
