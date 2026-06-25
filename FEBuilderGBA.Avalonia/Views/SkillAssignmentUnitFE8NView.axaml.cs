@@ -43,6 +43,16 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) =>
             {
                 _vm.Initialize();
+                // Screenshot-only convenience: the --screenshot-all runner opens
+                // this view via Open<T>() (no address). When an FE8N patch is
+                // present, seed the first unit address so the editor renders
+                // POPULATED rather than empty (mirrors the App.ScreenshotAllMode
+                // gates other views use). Never affects normal use.
+                if (App.ScreenshotAllMode && _vm.CurrentAddr == 0)
+                {
+                    uint firstUnit = TryGetFirstUnitAddress();
+                    if (firstUnit != 0) _vm.CurrentAddr = firstUnit;
+                }
                 RefreshUiForCurrentAddress();
             };
         }
@@ -86,6 +96,25 @@ namespace FEBuilderGBA.Avalonia.Views
             if (SkillSet1Box != null) SkillSet1Box.Value = _vm.SkillSet1;
             if (SkillSet2Box != null) SkillSet2Box.Value = _vm.SkillSet2;
             _vm.MarkClean();
+        }
+
+        /// <summary>
+        /// Resolve the first real unit row address (index 1; index 0 is the
+        /// empty sentinel) for the screenshot-only seed. Returns 0 on any fault.
+        /// </summary>
+        static uint TryGetFirstUnitAddress()
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return 0;
+                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return 0;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                uint addr = baseAddr + dataSize; // unit #1
+                return addr + 42 <= (uint)rom.Data.Length ? addr : 0;
+            }
+            catch { return 0; }
         }
 
         void OnWrite(object? sender, RoutedEventArgs e)
