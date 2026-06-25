@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // text encoder so the encoding table change is picked up. Non-fatal if it
                 // fails (matches MainWindow/RomFixture init pattern).
                 try { CoreState.FETextEncoder = new FETextEncode(); }
-                catch (Exception ex) { Log.Error("TextCharCodeView: FETextEncode rebuild failed: {0}", ex.Message); }
+                catch (Exception ex) { Log.Error($"TextCharCodeView: FETextEncode rebuild failed: {ex}"); }
 
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("TextCharCodeView.OnWrite failed: {0}", ex.Message);
+                Log.Error($"TextCharCodeView.OnWrite failed: {ex}");
             }
         }
 
