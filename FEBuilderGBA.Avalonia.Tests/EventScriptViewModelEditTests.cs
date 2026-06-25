@@ -191,6 +191,40 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void ImportFromText_EmptyOrInvalid_DoesNotMarkDirty()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            Assert.False(vm.IsDirty);
+            int countBefore = vm.CommandCount;
+
+            // An invalid append (no line has >= 4 hex bytes) must NOT change the list,
+            // must NOT mark dirty, and must report failure (#1510).
+            vm.ImportText = "zz\n12\n";   // 0 valid commands
+            Assert.False(vm.ImportFromText(clear: false));
+            Assert.False(vm.IsDirty);
+            Assert.Equal(countBefore, vm.CommandCount);
+            Assert.Contains("No valid commands", vm.StatusText);
+        }
+
+        [Fact]
+        public void ImportFromText_ClearEmpty_OnAlreadyEmpty_DoesNotMarkDirty()
+        {
+            // Disassemble then clear to empty, then clear-import nothing again: a clear that
+            // removes nothing from an already-empty list is a no-op (no false dirty).
+            var vm = MakeVmDisassembled(LoadEnda());
+            vm.ImportText = "";
+            // First clear empties the (2-command) list — that IS a change.
+            Assert.True(vm.ImportFromText(clear: true));
+            Assert.Equal(0, vm.CommandCount);
+
+            // Second clear-import on the already-empty list changes nothing.
+            vm.ImportText = "";
+            bool dirtyBefore = vm.IsDirty;
+            Assert.False(vm.ImportFromText(clear: true));
+            Assert.Equal(0, vm.CommandCount);
+        }
+
+        [Fact]
         public void WriteAll_InPlaceShrink_Succeeds()
         {
             var vm = MakeVmDisassembled(new byte[]

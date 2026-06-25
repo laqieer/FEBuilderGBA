@@ -369,9 +369,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool ImportFromText(bool clear)
         {
             if (_editor == null) { StatusText = "Disassemble a script first."; return false; }
+
+            // Detect whether the list actually changed: an empty/invalid append (clear:false,
+            // 0 imported) leaves the script untouched and must NOT mark it dirty / enable
+            // Write All; a clear:true that removed existing commands DID change it even when
+            // 0 were imported (Copilot PR review #1510).
+            int countBefore = _editor.Count;
             int n = _editor.ImportFromText(ImportText ?? "", SelectedCommandIndex, clear);
-            AfterEdit(Math.Min(SelectedCommandIndex, _editor.Count - 1), $"Imported {n} command(s).");
-            return n > 0;
+            bool changed = n > 0 || _editor.Count != countBefore;
+
+            if (!changed)
+            {
+                StatusText = "No valid commands to import (each line needs >= 4 hex bytes).";
+                return false;
+            }
+
+            AfterEdit(Math.Min(SelectedCommandIndex, _editor.Count - 1),
+                clear && n == 0 ? "Cleared the script." : $"Imported {n} command(s).");
+            return true; // the list changed (imported >0 and/or clear removed commands)
         }
 
         void AfterEdit(int newSelection, string status)
