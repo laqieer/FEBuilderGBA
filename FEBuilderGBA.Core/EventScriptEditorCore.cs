@@ -59,7 +59,7 @@ namespace FEBuilderGBA
                 return;
             }
 
-            uint length = ScanLength(rom.Data, offset, isWorldMapEvent);
+            uint length = ScanLength(rom, rom.Data, offset, isWorldMapEvent);
             uint limit = offset + length;
             if (limit > (uint)rom.Data.Length) limit = (uint)rom.Data.Length;
 
@@ -89,8 +89,16 @@ namespace FEBuilderGBA
         /// global static the original helper hard-codes — see Copilot plan review
         /// finding #1). Terminates on TERM/MAPTERM exit codes or 30 consecutive unknowns.
         /// </summary>
-        uint ScanLength(byte[] romdata, uint startAddr, bool isWorldMapEvent)
+        uint ScanLength(ROM rom, byte[] romdata, uint startAddr, bool isWorldMapEvent)
         {
+            // EventScript.IsExitCode refines TERM/MAPTERM detection with an FE8 dummy-end
+            // heuristic that reads CoreState.ROM. To avoid a hidden global dependency on a
+            // DIFFERENT (or null) ambient ROM, only use that heuristic when the ambient ROM
+            // IS the rom we're editing; otherwise fall back to a direct TERM/MAPTERM exit
+            // check (Copilot PR review #1510). The fallback can't throw on a mismatched/null
+            // CoreState.ROM and is correct for non-FE8 / non-dummy terminators.
+            bool useHeuristic = ReferenceEquals(CoreState.ROM, rom);
+
             uint lastBranchAddr = 0;
             int unknownCount = 0;
             uint addr = startAddr;
@@ -101,7 +109,11 @@ namespace FEBuilderGBA
                 EventScript.OneCode code = _es.DisAseemble(romdata, addr);
                 if (code == null || code.Script == null) break;
 
-                if (EventScript.IsExitCode(code, addr, lastBranchAddr))
+                bool isExit = useHeuristic
+                    ? EventScript.IsExitCode(code, addr, lastBranchAddr)
+                    : (code.Script.Has == EventScript.ScriptHas.TERM ||
+                       code.Script.Has == EventScript.ScriptHas.MAPTERM);
+                if (isExit)
                 {
                     addr += (uint)code.Script.Size;
                     break;
@@ -513,7 +525,7 @@ namespace FEBuilderGBA
             // Original region length (so we know whether the new bytes fit and how much
             // tail to zero-fill / how big the old region is when relocating). Drive off
             // THIS editor's disassembler so Procs / world-map widths are correct.
-            uint originalSize = ScanLength(rom.Data, offset, isWorldMapEvent);
+            uint originalSize = ScanLength(rom, rom.Data, offset, isWorldMapEvent);
             if (originalSize == 0) originalSize = (uint)databyte.Length;
             // CLAMP to the bytes actually remaining in the ROM (Copilot PR review #1510):
             // DisAseemble synthesizes a full 4-byte UNKNOWN even when fewer bytes remain near
@@ -523,7 +535,14 @@ namespace FEBuilderGBA
             if (originalSize > remaining) originalSize = remaining;
 
             int undoCountBefore = undo.list.Count;
-            using (ROM.BeginUndoScope(undo))
+            // Nest-safe ambient undo (Copilot PR review #1510 — ROM.BeginUndoScope is
+            // thread-static and NOT stacked: Dispose() clears the ambient to null rather
+            // than restoring the previous one). Save the caller's prior ambient, open our
+            // own only when it differs, and RESTORE the prior on exit so an outer scope
+            // (e.g. a bulk caller) is never clobbered. Mirrors ImageBG256ColorCore.Import.
+            Undo.UndoData priorAmbient = ROM.GetAmbientUndoData();
+            bool ownsScope = priorAmbient != undo;
+            IDisposable scope = ownsScope ? ROM.BeginUndoScope(undo) : null;
             {
                 try
                 {
@@ -605,6 +624,17 @@ namespace FEBuilderGBA
                     RollbackTo(rom, undo, undoCountBefore);
                     newAddr = offset;
                     throw;
+                }
+                finally
+                {
+                    if (ownsScope)
+                    {
+                        // Dispose our scope (sets ambient to null), then re-open the caller's
+                        // prior scope so an outer bulk operation's undo tracking survives.
+                        scope.Dispose();
+                        if (priorAmbient != null)
+                            ROM.BeginUndoScope(priorAmbient);
+                    }
                 }
             }
         }

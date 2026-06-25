@@ -648,6 +648,40 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ex);
         }
 
+        [Fact]
+        public void WriteAll_NestedInOuterAmbientScope_PreservesOuterScope()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+            uint baseOff = 0x1000;
+            WriteBytes(rom, baseOff, new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 });
+
+            var ed = new EventScriptEditorCore(es);
+            ed.BuildFromRom(rom, baseOff);
+            ed.Delete(ed.Count - 1); // shrink → in-place write
+
+            var outer = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            var inner = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+
+            using (ROM.BeginUndoScope(outer))
+            {
+                // A write through the OUTER scope before the nested WriteAll.
+                rom.write_u8(0x5000, 0xAB);
+                Assert.Same(outer, ROM.GetAmbientUndoData());
+
+                // WriteAll opens + restores its own scope; the outer must survive.
+                ed.WriteAll(rom, baseOff, false, false, inner, out _);
+                Assert.Same(outer, ROM.GetAmbientUndoData()); // outer restored
+
+                // A subsequent write still records into the OUTER scope.
+                int outerBefore = outer.list.Count;
+                rom.write_u8(0x5001, 0xCD);
+                Assert.True(outer.list.Count > outerBefore);
+            }
+            Assert.Null(ROM.GetAmbientUndoData()); // fully unwound
+            Assert.True(inner.list.Count > 0);      // WriteAll recorded into its own buffer
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]
