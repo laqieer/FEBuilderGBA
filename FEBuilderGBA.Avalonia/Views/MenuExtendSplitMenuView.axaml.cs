@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     CoreState.Services?.ShowError(
-                        "The split-menu command area is not allocated, or the EventMenuCommand patch is not installed. No data was written.");
+                        "No data was written: the header or command-array pointer is unsafe, the command array does not fit in ROM, or the EventMenuCommand patch is not installed (FE8 only).");
                 }
             }
             catch (Exception ex)

@@ -464,6 +464,27 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void LoadEntry_FromRom_LeavesViewModelClean_NotDirty()
+        {
+            // Populating fields straight from ROM must NOT mark the VM dirty
+            // (LoadEntry suppresses dirty-marking via IsLoading + MarkClean),
+            // otherwise the editor shows a false "unsaved changes" state.
+            var rom = MakeSplitRom();
+            WithRom(rom, () =>
+            {
+                var vm = new MenuExtendSplitMenuViewModel();
+                vm.LoadEntry(HeaderBase);
+                Assert.True(vm.IsLoaded);
+                Assert.False(vm.IsDirty);   // pure load => clean
+                Assert.False(vm.IsLoading); // loading flag restored
+
+                // A genuine user edit DOES mark dirty.
+                vm.String0 = 0x1234;
+                Assert.True(vm.IsDirty);
+            });
+        }
+
+        [Fact]
         public void LoadList_NoSplitPointer_ReturnsEmpty()
         {
             // FE6/FE7 have menu_definiton_split_pointer == 0.

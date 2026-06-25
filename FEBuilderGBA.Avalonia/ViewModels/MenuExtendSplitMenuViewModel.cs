@@ -109,40 +109,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (!U.isSafetyOffset(addr + 8 + 4, rom)) return;
 
-            CurrentAddr = addr;
-            var header = EditorFormRef.ReadFields(rom, addr, _headerFields);
-            PosX = header["B0"];
-            PosY = header["B1"];
-            Width = header["B2"];
-            // byte 3 is height/padding
-            Style = header["D4"];
-
-            uint menuPtr = rom.u32(addr + 8);
-            CommandPtr = menuPtr;
-            uint menuaddr = U.toOffset(menuPtr);
-
-            int count = GetDataLength(rom, menuaddr); // 5 or 8
-            StringCount = count;
-
-            uint[] slots = new uint[8]; // default 0; only [0..count-1] are read
-            for (int n = 0; n < count; n++)
+            // Suppress dirty-marking while we populate fields straight from ROM
+            // (otherwise SetField would mark the VM dirty on a pure load and
+            // trigger a false "unsaved changes" state). Restore in finally so
+            // an exception can't leave the VM stuck in loading mode.
+            IsLoading = true;
+            try
             {
-                uint a = menuaddr + (CommandStride * (uint)n) + 4;
-                if (!U.isSafetyOffset(a + 2, rom))
+                CurrentAddr = addr;
+                var header = EditorFormRef.ReadFields(rom, addr, _headerFields);
+                PosX = header["B0"];
+                PosY = header["B1"];
+                Width = header["B2"];
+                // byte 3 is height/padding
+                Style = header["D4"];
+
+                uint menuPtr = rom.u32(addr + 8);
+                CommandPtr = menuPtr;
+                uint menuaddr = U.toOffset(menuPtr);
+
+                int count = GetDataLength(rom, menuaddr); // 5 or 8
+                StringCount = count;
+
+                uint[] slots = new uint[8]; // default 0; only [0..count-1] are read
+                for (int n = 0; n < count; n++)
                 {
-                    // An out-of-bounds slot means the 8-command read can't
-                    // complete; fall back to the 5-command view (StringCount
-                    // stays one of the two documented values {5, 8}).
-                    StringCount = 5;
-                    break;
+                    uint a = menuaddr + (CommandStride * (uint)n) + 4;
+                    if (!U.isSafetyOffset(a + 2, rom))
+                    {
+                        // An out-of-bounds slot means the 8-command read can't
+                        // complete; fall back to the 5-command view (StringCount
+                        // stays one of the two documented values {5, 8}).
+                        StringCount = 5;
+                        break;
+                    }
+                    slots[n] = rom.u16(a);
                 }
-                slots[n] = rom.u16(a);
+
+                String0 = slots[0]; String1 = slots[1]; String2 = slots[2]; String3 = slots[3];
+                String4 = slots[4]; String5 = slots[5]; String6 = slots[6]; String7 = slots[7];
+
+                IsLoaded = true;
             }
-
-            String0 = slots[0]; String1 = slots[1]; String2 = slots[2]; String3 = slots[3];
-            String4 = slots[4]; String5 = slots[5]; String6 = slots[6]; String7 = slots[7];
-
-            IsLoaded = true;
+            finally
+            {
+                IsLoading = false;
+                // Data came straight from ROM — the VM is clean, not edited.
+                MarkClean();
+            }
         }
 
         /// <summary>
