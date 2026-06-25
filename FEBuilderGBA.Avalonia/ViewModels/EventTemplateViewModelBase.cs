@@ -15,8 +15,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _status = "";
 
         // The config-style hex lines (one per OneCode) that the event editor's
-        // clipboard/paste import consumes.
-        public string GeneratedHex { get => _generatedHex; set => SetField(ref _generatedHex, value); }
+        // clipboard/paste import consumes. HasGenerated is computed from this, so
+        // notify it on every change (Copy button enablement stays consistent even
+        // when generation fails/is blocked and the field is cleared).
+        public string GeneratedHex
+        {
+            get => _generatedHex;
+            set { if (SetField(ref _generatedHex, value)) OnPropertyChanged(nameof(HasGenerated)); }
+        }
 
         // Human-readable disassembled preview shown in the read-only TextBox.
         public string Preview { get => _preview; set => SetField(ref _preview, value); }
@@ -59,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("EventTemplate.GenerateButton failed: " + ex.Message);
+                Log.Error("EventTemplate.GenerateButton failed: " + ex.ToString());
                 Status = R._("Generation failed.");
                 return false;
             }
@@ -91,10 +97,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 prev.AppendLine(raw.ToString());
             }
 
-            GeneratedHex = hex.ToString().TrimEnd();
+            GeneratedHex = hex.ToString().TrimEnd();   // setter notifies HasGenerated
             Preview = prev.ToString().TrimEnd();
             Status = string.Format(R._("Generated {0} byte(s)."), bin.Length);
-            OnPropertyChanged(nameof(HasGenerated));
             return true;
         }
     }

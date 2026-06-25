@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventTemplateView.OnTemplateButtonClick failed: " + ex.Message);
+                Log.Error("EventTemplateView.OnTemplateButtonClick failed: " + ex.ToString());
             }
         }
 
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventTemplateView.CopyHex failed: " + ex.Message);
+                Log.Error("EventTemplateView.CopyHex failed: " + ex.ToString());
             }
         }
 

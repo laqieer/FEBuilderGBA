@@ -34,7 +34,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public string Preview { get => _preview; set => SetField(ref _preview, value); }
-        public string GeneratedHex { get => _generatedHex; set => SetField(ref _generatedHex, value); }
+        public string GeneratedHex
+        {
+            get => _generatedHex;
+            // HasGenerated is computed from this; notify it on every change so the
+            // Copy button disables when switching to a context-required/unavailable
+            // template (which clears the field).
+            set { if (SetField(ref _generatedHex, value)) OnPropertyChanged(nameof(HasGenerated)); }
+        }
         public string Status { get => _status; set => SetField(ref _status, value); }
         public string Filename { get => _filename; set => SetField(ref _filename, value); }
         public bool HasGenerated => !string.IsNullOrEmpty(_generatedHex);
@@ -56,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptTemplate.LoadList failed: " + ex.Message);
+                Log.Error("EventScriptTemplate.LoadList failed: " + ex.ToString());
                 return;
             }
             foreach (var et in _templates)
@@ -106,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptTemplate.Generate failed: " + ex.Message);
+                Log.Error("EventScriptTemplate.Generate failed: " + ex.ToString());
                 Status = R._("Generation failed.");
                 return;
             }
@@ -128,7 +135,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Preview = prev.ToString().TrimEnd();
             GeneratedHex = hex.ToString().TrimEnd();
             Status = string.Format(R._("Generated {0} byte(s)."), bin.Length);
-            OnPropertyChanged(nameof(HasGenerated));
         }
     }
 }

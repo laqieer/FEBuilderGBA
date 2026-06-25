@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptTemplateView.LoadList failed: " + ex.Message);
+                Log.Error("EventScriptTemplateView.LoadList failed: " + ex.ToString());
             }
         }
 
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptTemplateView.CopyHex failed: " + ex.Message);
+                Log.Error("EventScriptTemplateView.CopyHex failed: " + ex.ToString());
             }
         }
 
