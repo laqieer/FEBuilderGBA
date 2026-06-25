@@ -335,6 +335,27 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WriteCString_FreshAppend_UnsafeParentSlot_RefusedWithClearMessage()
+        {
+            // Fresh append (no data addr) with a non-zero but UNSAFE parent slot must
+            // refuse with a slot-specific message, NOT the misleading "no reference"
+            // orphan message (Copilot follow-up finding).
+            var rom = MakeRom();
+            CoreState.ROM = rom;
+            uint badSlot = 0x100; // < 0x200 danger zone.
+            byte[] snap = (byte[])rom.Data.Clone();
+
+            CStringCore.WriteResult r;
+            using (ROM.BeginUndoScope(NewUndo(rom)))
+            {
+                r = CStringCore.WriteCString(rom, badSlot, 0, "New string");
+            }
+            Assert.Equal(CStringCore.WriteStatus.Refused, r.Status);
+            Assert.Contains("parent pointer slot", r.Message);
+            Assert.Equal(snap, rom.Data); // no mutation.
+        }
+
+        [Fact]
         public void WriteCString_FreshAppend_WithParentSlot_AppendsAndRepoints()
         {
             var rom = MakeRom();

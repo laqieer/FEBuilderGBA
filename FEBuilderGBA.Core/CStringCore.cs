@@ -197,13 +197,23 @@ namespace FEBuilderGBA
             uint writeAddr = U.toOffset(pointer);
 
             // A zero (or unset) data address means "create new" — only reachable
-            // through a parent slot (a NULL CSTRING pointer field).
+            // through a parent slot (a NULL CSTRING pointer field). The slot is the
+            // ONLY way the fresh data can be referenced, so it must be FULLY usable
+            // (whole 4-byte slot safe). Validate it here for a clear refusal instead
+            // of letting Move()'s orphan guard surface a misleading "no reference"
+            // message for a slot that is actually unsafe.
             if (writeAddr == 0)
             {
                 if (slot == 0)
                 {
                     result.Status = WriteStatus.Refused;
                     result.Message = "Refused: no address to write to (enter a valid pointer, or arrive from a CSTRING field).";
+                    return result;
+                }
+                if (!U.isSafetyOffset(slot, rom) || !U.isSafetyOffset(slot + 3, rom))
+                {
+                    result.Status = WriteStatus.Refused;
+                    result.Message = "Refused: unsafe parent pointer slot (0x" + slot.ToString("X8") + ").";
                     return result;
                 }
                 return Move(rom, result, bin, slot, oldAddr: 0, oldLen: 0);
