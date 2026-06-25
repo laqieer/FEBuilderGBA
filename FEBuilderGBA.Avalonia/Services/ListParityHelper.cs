@@ -3709,8 +3709,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 // WinForms N2 rule: i==0 ? true : isPointer(u32(addr)).
                 if (i != 0 && !U.isPointer(rom.u32(addr))) break;
 
-                string unitName = NameResolver.GetUnitName(i);
-                string name = $"{U.ToHexString(i)} {unitName}";
+                // Label = the OWNING unit + lower/upper marker for this custom-battle-anime index
+                // (WinForms UnitFE7Form.GetNameWhereCustomBattleAnime). NOT GetUnitName(i): `i` is the
+                // custom-battle-anime id (matched against unit +37/+38), not a unit-table row (#1412).
+                string label = NameResolver.GetCustomBattleAnimeName(rom, i);
+                string name = label.Length == 0 ? U.ToHexString(i) : $"{U.ToHexString(i)} {label}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
