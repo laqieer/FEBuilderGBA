@@ -109,12 +109,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 for (uint i = 0; i < size; i++)
                     rom.write_u8(dst + i, rom.u8(srcAddr + i));
 
-                // Clear old location
+                // Repoint every reference to the moved block BEFORE the
+                // destructive source clear. Mirrors WinForms
+                // MoveToFreeSapceForm.RunButton_Click (repoint, then clear).
+                // Pass undo=null so the writes record into the ambient
+                // ROM.BeginUndoScope already opened by Move_Click — copy +
+                // repoint + clear are one undo group. The helper rescans raw
+                // 32-bit pointers AND ARM-Thumb LDR literal-pool loads
+                // (mirror of WF GrepPointerAll + GrepPointerAllOnLDR), de-dups,
+                // danger-zone-gates each slot, and write_p32's each one.
+                // KnownGap vs WF SearchPointer: the event-aware
+                // GrepPointerAllOnEvent pass and the IsFixedASM confirmation
+                // are intentionally out of Core scope (InputFormRef-dependent).
+                int refs = DataExpansionCore.RepointAllReferences(rom, srcAddr, dst, null);
+
+                if (refs <= 0)
+                {
+                    // No references found. Refuse the destructive clear — wiping
+                    // the source now would orphan the moved block (the very
+                    // corruption this tool exists to prevent). Mirrors the WF
+                    // "no pointers found — dangerous, stop" guard (RunButton_Click
+                    // lines 732-742); the headless VM has no confirm dialog, so
+                    // refuse-and-warn is the safe default. The block was copied
+                    // into free space but the source is preserved, so the ROM
+                    // stays valid.
+                    NewAddress = $"0x{dst:X08}";
+                    StatusMessage =
+                        $"Copied {size} bytes from 0x{srcAddr:X08} to 0x{dst:X08}, " +
+                        "but found NO references to repoint. The source was NOT cleared " +
+                        "to avoid corrupting the ROM. This data may be unreferenced or " +
+                        "referenced in a way this tool cannot detect (event scripts / ASM).";
+                    DialogResult = "NoReferences";
+                    return;
+                }
+
+                // References were repointed — now it is safe to clear the source.
                 for (uint i = 0; i < size; i++)
                     rom.write_u8(srcAddr + i, 0xFF);
 
+                // Relocate per-row lint/comment cache keys so they follow the
+                // moved block. Mirrors WF MoveToFreeSapceForm.RepointEtcData.
+                // Forward-only (ROM undo does not reverse this — matches WF).
+                CoreState.LintCache?.RepointEtcData(srcAddr, size, dst);
+                CoreState.CommentCache?.RepointEtcData(srcAddr, size, dst);
+
                 NewAddress = $"0x{dst:X08}";
-                StatusMessage = $"Moved {size} bytes from 0x{srcAddr:X08} to 0x{dst:X08}.";
+                StatusMessage =
+                    $"Moved {size} bytes from 0x{srcAddr:X08} to 0x{dst:X08}; " +
+                    $"repointed {refs} reference{(refs == 1 ? "" : "s")}.";
                 DialogResult = "Moved";
             }
             else
