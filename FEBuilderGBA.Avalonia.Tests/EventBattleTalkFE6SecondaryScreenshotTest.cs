@@ -140,7 +140,17 @@ namespace FEBuilderGBA.Avalonia.Tests
             byte[] bgra = new byte[stride * h];
             using (var fb = bmp.Lock())
             {
-                System.Runtime.InteropServices.Marshal.Copy(fb.Address, bgra, 0, bgra.Length);
+                // The framebuffer row stride (RowBytes) can be padded to be wider
+                // than width*4, so copy row-by-row honoring fb.RowBytes rather than
+                // assuming a tightly-packed buffer (which would read padding bytes
+                // as pixel data and corrupt the PNG on platforms with padding).
+                int srcStride = fb.RowBytes;
+                System.IntPtr basePtr = fb.Address;
+                for (int y = 0; y < h; y++)
+                {
+                    System.IntPtr rowPtr = System.IntPtr.Add(basePtr, y * srcStride);
+                    System.Runtime.InteropServices.Marshal.Copy(rowPtr, bgra, y * stride, stride);
+                }
             }
 
             // Build raw RGBA scanlines (PNG filter byte 0 per row), BGRA -> RGBA.
