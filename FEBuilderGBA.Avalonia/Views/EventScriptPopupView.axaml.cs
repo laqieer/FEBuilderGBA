@@ -201,14 +201,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? result = await picker.ShowDialog<uint?>(this);
                 if (result.HasValue)
                 {
+                    // Preserve sibling in-flight edits, then apply the picked value
+                    // and rebuild so every arg's friendly DisplayName (incl. this
+                    // UNIT_COLOR summary) re-resolves and shows immediately.
+                    SyncControlsToViewModel();
                     _vm.CommandArgs[argIndex].Value = result.Value;
-                    if (hexBox != null)
-                        hexBox.Text = $"0x{result.Value:X04}";
+                    BuildArgsPanel();
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptPopupView.UnitColorPick failed: ", ex.Message);
+                Log.Error("EventScriptPopupView.UnitColorPick failed: ", ex.ToString());
             }
         }
 
@@ -219,13 +222,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 return null;
             if (ArgsPanel.Children[argIndex] is not Border border || border.Child is not StackPanel stack)
                 return null;
+            // ScriptEditorHelper tags the hex box as exactly "hex_{index}";
+            // match the exact tag so a future second hex input can't be grabbed.
+            string wantTag = $"hex_{argIndex}";
             foreach (var child in stack.Children)
             {
                 if (child is StackPanel valuePanel)
                 {
                     foreach (var ctrl in valuePanel.Children)
                     {
-                        if (ctrl is TextBox tb && tb.Tag is string tag && tag.StartsWith("hex_"))
+                        if (ctrl is TextBox tb && tb.Tag is string tag && tag == wantTag)
                             return tb;
                     }
                 }

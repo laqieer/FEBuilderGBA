@@ -173,7 +173,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         var pickBtn = new Button
                         {
-                            Content = "Pick…",
+                            // "Pick..." (three ASCII dots) matches the translation key.
+                            Content = "Pick...",
                             FontSize = 11,
                             Padding = new Thickness(8, 2),
                             Tag = index,

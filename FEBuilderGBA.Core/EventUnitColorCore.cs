@@ -70,6 +70,10 @@ namespace FEBuilderGBA
         /// </summary>
         public static string GetUNIT_COLOR(uint num)
         {
+            // Only the low 16 bits hold the four colour nibbles; mask up-front so
+            // an effectively-zero value with stray high bits (e.g. 0x00010000)
+            // still reports "no change" and aligns with Unpack().
+            num &= 0xFFFF;
             if (num == 0)
             {
                 return R._("変更せずに元の色で描画する");

@@ -119,6 +119,25 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void GetUNIT_COLOR_HighBitsOnly_TreatedAsNoChange()
+        {
+            // A value whose low 16 bits are all zero (only stray high bits set)
+            // is effectively "no change" and must report so (masked up-front).
+            string s = EventUnitColorCore.GetUNIT_COLOR(0x00010000u);
+            Assert.Equal(EventUnitColorCore.GetUNIT_COLOR(0u), s);
+            Assert.False(string.IsNullOrEmpty(s));
+        }
+
+        [Fact]
+        public void GetUNIT_COLOR_IgnoresHighBitsAboveNibble15()
+        {
+            // High bits above the four nibbles must not change the label.
+            Assert.Equal(
+                EventUnitColorCore.GetUNIT_COLOR(0x4321u),
+                EventUnitColorCore.GetUNIT_COLOR(0xFFFF4321u));
+        }
+
+        [Fact]
         public void GetUNIT_COLORSub_MapsKnownSlots_UnknownReturnsEmpty()
         {
             Assert.NotEqual("", EventUnitColorCore.GetUNIT_COLORSub(1));

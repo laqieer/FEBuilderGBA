@@ -36,8 +36,10 @@ namespace FEBuilderGBA.Avalonia.Views
         void Apply_Click(object? sender, RoutedEventArgs e)
         {
             // Return the packed value to a ShowDialog<uint?> caller; harmless
-            // (ignored result) for a standalone main-menu open.
-            Close(_vm.Result);
+            // (ignored result) for a standalone main-menu open. Box as the exact
+            // uint? the caller awaits — a boxed plain uint cannot be unboxed to
+            // uint? and would surface as null.
+            Close((uint?)_vm.Result);
         }
 
         /// <summary>
@@ -53,7 +55,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitColorView.NavigateTo failed: ", ex.Message);
+                Log.Error("EventUnitColorView.NavigateTo failed: ", ex.ToString());
             }
             finally
             {
