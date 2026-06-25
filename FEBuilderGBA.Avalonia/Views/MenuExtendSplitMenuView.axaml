@@ -45,13 +45,13 @@
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Text ID 4:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MenuExtendSplitMenu_Str4_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Str4Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Text ID 5:" VerticalAlignment="Center" Name="Str5Label" />
+          <TextBlock AutomationProperties.AutomationId="MenuExtendSplitMenu_Str5_Label" Grid.Row="11" Grid.Column="0" Text="Text ID 5:" VerticalAlignment="Center" Name="Str5Label" />
           <NumericUpDown AutomationProperties.AutomationId="MenuExtendSplitMenu_Str5_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="Str5Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Text ID 6:" VerticalAlignment="Center" Name="Str6Label" />
+          <TextBlock AutomationProperties.AutomationId="MenuExtendSplitMenu_Str6_Label" Grid.Row="12" Grid.Column="0" Text="Text ID 6:" VerticalAlignment="Center" Name="Str6Label" />
           <NumericUpDown AutomationProperties.AutomationId="MenuExtendSplitMenu_Str6_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="Str6Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="Text ID 7:" VerticalAlignment="Center" Name="Str7Label" />
+          <TextBlock AutomationProperties.AutomationId="MenuExtendSplitMenu_Str7_Label" Grid.Row="13" Grid.Column="0" Text="Text ID 7:" VerticalAlignment="Center" Name="Str7Label" />
           <NumericUpDown AutomationProperties.AutomationId="MenuExtendSplitMenu_Str7_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="Str7Box" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
         </Grid>
 

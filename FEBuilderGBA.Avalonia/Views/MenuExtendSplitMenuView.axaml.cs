@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MenuExtendSplitMenuView.LoadList failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.LoadList failed: " + ex);
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MenuExtendSplitMenuView.OnSelected failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.OnSelected failed: " + ex);
             }
         }
 
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MenuExtendSplitMenuView.Write failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.Write failed: " + ex);
             }
         }
 
@@ -126,15 +126,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 _undoService.Commit();
 
-                // Reload the master list and jump to the newly allocated menu.
-                LoadList();
-                EntryList.SelectAddress(addr);
+                // The new header is a STANDALONE free-space allocation — it is
+                // NOT part of the contiguous menu_definiton_split_pointer run,
+                // so it won't appear in the master list (SelectAddress would
+                // no-op). Load it directly into the editor instead.
+                _vm.LoadEntry(addr);
+                UpdateUI();
                 CoreState.Services?.ShowInfo($"New split menu allocated at 0x{addr:X08}.");
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MenuExtendSplitMenuView.NewAlloc failed: {0}", ex.Message);
+                Log.Error("MenuExtendSplitMenuView.NewAlloc failed: " + ex);
             }
         }
 

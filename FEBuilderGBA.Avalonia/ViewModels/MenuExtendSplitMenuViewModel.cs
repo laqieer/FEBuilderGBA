@@ -173,14 +173,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 : new[] { String0, String1, String2, String3, String4 };
 
             // VALIDATE-ALL-BEFORE-MUTATE: every command slot must be in-bounds
-            // for all 21 written bytes BEFORE we touch any ROM byte (including
-            // the header). A command pointer can pass isSafetyOffset(menuaddr)
-            // yet sit too close to EOF for all 5/8 rows — refusing here keeps
-            // a rejected Write byte-for-byte no-mutation.
+            // for ALL written bytes BEFORE we touch any ROM byte (including the
+            // header). The widest write is the u32 at +20 (bytes +20..+23), so
+            // the last touched byte is +23 — validate isSafetyOffset(a + 23).
+            // A command pointer can pass isSafetyOffset(menuaddr) yet sit too
+            // close to EOF for all 5/8 rows; refusing here keeps a rejected
+            // Write byte-for-byte no-mutation.
             for (uint i = 0; i < texts.Length; i++)
             {
                 uint a = menuaddr + (CommandStride * i);
-                if (!U.isSafetyOffset(a + 21, rom)) return false;
+                if (!U.isSafetyOffset(a + 23, rom)) return false;
             }
 
             // Header scalar fields only — never +8 / handler pointers.
