@@ -15,7 +15,6 @@
 // These tests construct in-memory synthetic ROMs (no real ROM file needed) and
 // drive BuildList directly. Because BuildList reads the static CoreState.ROM,
 // the class is in the "SharedState" collection and each case saves/restores it.
-using System.Collections.Generic;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
