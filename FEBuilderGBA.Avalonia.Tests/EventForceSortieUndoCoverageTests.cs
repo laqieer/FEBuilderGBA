@@ -12,15 +12,16 @@
 //     pattern in UndoCoverageScannerTests.
 //  2. Behavioral round-trip (ROM-gated) — load an entry, write inside a scope,
 //     assert ROM bytes changed, RunUndo, assert bytes restored byte-identical.
+//
+// Both gates use [SkippableFact] + Skip.If so an unavailable source tree / ROM
+// reports as a real SKIP (not a silent pass that hides the guard not running).
 using System;
 using System.IO;
-using System.Linq;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
@@ -28,12 +29,10 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class EventForceSortieUndoCoverageTests : IClassFixture<RomFixture>
     {
         private readonly RomFixture _fixture;
-        private readonly ITestOutputHelper _output;
 
-        public EventForceSortieUndoCoverageTests(RomFixture fixture, ITestOutputHelper output)
+        public EventForceSortieUndoCoverageTests(RomFixture fixture)
         {
             _fixture = fixture;
-            _output = output;
         }
 
         // ---- (1) Static-analysis guard: View wraps _vm.Write() in a scope --------
@@ -43,17 +42,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// OnWrite wraps _vm.Write() in _undoService.Begin / try-Commit / catch-Rollback.
         /// FAILS before the #1427 fix (no Begin/Commit), PASSES after.
         /// </summary>
-        [Fact]
+        [SkippableFact]
         public void EventForceSortieView_WrapsVmWrite_InUndoScope()
         {
             string? repoRoot = FindRepoRoot();
-            if (repoRoot == null)
-            {
-                _output.WriteLine("SKIP: repo root not found (running from published binary)");
-                return;
-            }
+            Skip.If(repoRoot == null,
+                "Repo root (FEBuilderGBA.sln) not found — running from a published binary outside the source tree.");
 
-            string viewPath = Path.Combine(repoRoot,
+            string viewPath = Path.Combine(repoRoot!,
                 "FEBuilderGBA.Avalonia", "Views", "EventForceSortieView.axaml.cs");
             Assert.True(File.Exists(viewPath), $"View source not found at {viewPath}");
 
@@ -69,22 +65,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// bytes byte-identical. Confirms the VM/WriteFields path participates in
         /// undo once a scope is active (which the View now opens).
         /// </summary>
-        [Fact]
+        [SkippableFact]
         public void Write_UnderUndoScope_IsRevertedByUndo()
         {
-            if (!_fixture.IsAvailable)
-            {
-                _output.WriteLine("SKIP: no ROM available");
-                return;
-            }
+            Skip.IfNot(_fixture.IsAvailable, "No ROM available for the behavioral undo round-trip.");
 
             var vm = new EventForceSortieViewModel();
             var list = vm.LoadList();
-            if (list == null || list.Count < 2)
-            {
-                _output.WriteLine($"SKIP: force-sortie list has {list?.Count ?? 0} entries (need >= 2)");
-                return;
-            }
+            Skip.If(list == null || list.Count < 2,
+                $"Force-sortie list has {list?.Count ?? 0} entries (need >= 2).");
 
             uint addr = list[1].addr;
             vm.LoadEntry(addr);
@@ -105,17 +94,26 @@ namespace FEBuilderGBA.Avalonia.Tests
                 vm.Write();
                 svc.Commit();
 
-                // ROM byte at the Unit field (u16 @ +0) must reflect the new value.
-                Assert.Equal((ushort)testValue, CoreState.ROM.u16(addr));
-                bool anyChanged = false;
-                for (int i = 0; i < (int)size; i++)
+                // From here the undo buffer holds a record; ALWAYS RunUndo (even on
+                // assertion failure) so the shared [Collection("SharedState")] undo
+                // state can't leak into unrelated tests.
+                try
                 {
-                    if (snapshot[i] != CoreState.ROM.Data[(int)addr + i]) { anyChanged = true; break; }
+                    // ROM byte at the Unit field (u16 @ +0) must reflect the new value.
+                    Assert.Equal((ushort)testValue, CoreState.ROM.u16(addr));
+                    bool anyChanged = false;
+                    for (int i = 0; i < (int)size; i++)
+                    {
+                        if (snapshot[i] != CoreState.ROM.Data[(int)addr + i]) { anyChanged = true; break; }
+                    }
+                    Assert.True(anyChanged, "Write did not change any ROM bytes");
                 }
-                Assert.True(anyChanged, "Write did not change any ROM bytes");
+                finally
+                {
+                    CoreState.Undo.RunUndo();
+                }
 
                 // Undo must restore every byte.
-                CoreState.Undo.RunUndo();
                 for (int i = 0; i < (int)size; i++)
                 {
                     Assert.Equal(snapshot[i], CoreState.ROM.Data[(int)addr + i]);

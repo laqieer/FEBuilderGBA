@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventForceSortieView.LoadList failed: {0}", ex.Message);
+                Log.Error($"EventForceSortieView.LoadList failed: {ex.Message}");
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventForceSortieView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"EventForceSortieView.OnSelected failed: {ex.Message}");
             }
         }
 
@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventForceSortieView.OnWrite failed: {0}", ex.Message);
+                Log.Error($"EventForceSortieView.OnWrite failed: {ex.Message}");
             }
         }
 
