@@ -42,6 +42,8 @@ namespace FEBuilderGBA
             MissingUpdateRegex,
             RegexNoMatch,
             HttpError,
+            /// <summary>Resolution succeeded but produced no usable URL (e.g. empty CHECK_URL fallback).</summary>
+            EmptyUrl,
         }
 
         public sealed class ResolveResult
@@ -95,14 +97,20 @@ namespace FEBuilderGBA
                     {
                         url = U.at(lines, "CHECK_URL");
                     }
-                    return ResolveResult.Of(ResolveStatus.Ok, url);
+                    // Ok must imply a usable URL (inline review): an empty CHECK_URL
+                    // fallback is an error, not a confusing "Ok with empty URL".
+                    return string.IsNullOrEmpty(url)
+                        ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                        : ResolveResult.Of(ResolveStatus.Ok, url);
                 }
 
                 if (url == "@CHECK_URL")
                 {
                     // Same listing as the check page.
                     url = U.at(lines, "CHECK_URL");
-                    return ResolveResult.Of(ResolveStatus.Ok, url);
+                    return string.IsNullOrEmpty(url)
+                        ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                        : ResolveResult.Of(ResolveStatus.Ok, url);
                 }
 
                 string html;
@@ -123,7 +131,9 @@ namespace FEBuilderGBA
 
                 string download = m.Groups[1].ToString();
                 download = EscapeURLToDecode(download);
-                return ResolveResult.Of(ResolveStatus.Ok, download);
+                return string.IsNullOrEmpty(download)
+                    ? ResolveResult.Of(ResolveStatus.EmptyUrl)
+                    : ResolveResult.Of(ResolveStatus.Ok, download);
             }
             catch (Exception e)
             {
@@ -189,6 +199,12 @@ namespace FEBuilderGBA
                     return StageResult.Fail(StageStatus.DownloadFailed, "ROM directory is empty.");
                 }
 
+                // Snapshot the UPS files (path + last-write time) that ALREADY exist in
+                // the ROM dir so we only return the ones THIS staging operation creates
+                // or overwrites (inline review): a hack folder often holds unrelated
+                // *.ups patches that must NOT be applied/written by this update.
+                var preExisting = SnapshotUps(romDir);
+
                 string tempfile = Path.GetTempFileName();
                 try
                 {
@@ -238,14 +254,29 @@ namespace FEBuilderGBA
                     try { if (File.Exists(tempfile)) File.Delete(tempfile); } catch { /* best-effort */ }
                 }
 
-                // ---- enumerate staged UPS ----
-                string[] upsFiles = U.Directory_GetFiles_Safe(romDir, "*.ups", SearchOption.AllDirectories);
-                if (upsFiles.Length <= 0)
+                // ---- enumerate ONLY the UPS this operation created/overwrote ----
+                string[] allUps = U.Directory_GetFiles_Safe(romDir, "*.ups", SearchOption.AllDirectories);
+                var staged = new List<string>();
+                foreach (string f in allUps)
+                {
+                    // New (not in the pre-snapshot) OR overwritten (newer mtime) => ours.
+                    if (!preExisting.TryGetValue(f, out DateTime prevMtime))
+                    {
+                        staged.Add(f);
+                    }
+                    else
+                    {
+                        DateTime now;
+                        try { now = File.GetLastWriteTimeUtc(f); } catch { now = prevMtime; }
+                        if (now > prevMtime) staged.Add(f);
+                    }
+                }
+                if (staged.Count <= 0)
                 {
                     return StageResult.Fail(StageStatus.NoUpsFound);
                 }
 
-                return new StageResult { Status = StageStatus.Ok, UpsFiles = new List<string>(upsFiles) };
+                return new StageResult { Status = StageStatus.Ok, UpsFiles = staged };
             }
             catch (Exception e)
             {
@@ -481,6 +512,26 @@ namespace FEBuilderGBA
         }
 
         // ---- private directory/temp helpers (ported from WF U.cs) ---------------
+
+        /// <summary>
+        /// Snapshot every <c>*.ups</c> already under <paramref name="romDir"/> with its
+        /// UTC last-write time, so the staging step can distinguish pre-existing
+        /// unrelated patches from the ones this download produced.
+        /// </summary>
+        static Dictionary<string, DateTime> SnapshotUps(string romDir)
+        {
+            var map = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (string f in U.Directory_GetFiles_Safe(romDir, "*.ups", SearchOption.AllDirectories))
+                {
+                    try { map[f] = File.GetLastWriteTimeUtc(f); }
+                    catch { map[f] = DateTime.MinValue; }
+                }
+            }
+            catch { /* best-effort */ }
+            return map;
+        }
 
         static string MakeTempDir()
         {

@@ -276,10 +276,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // One shared HttpClient for all HEAD probes (per .NET guidance) with a
         // bounded timeout so a slow/unreachable host cannot hang the update check.
-        static readonly System.Net.Http.HttpClient s_httpClient = new System.Net.Http.HttpClient
+        // A User-Agent consistent with Core's U.CreateHttpClient ("FEBuilderGBA/1.0")
+        // is set so hosts that reject/throttle UA-less requests don't make the
+        // freshness HEAD fail and report "Latest" incorrectly (inline review).
+        static readonly System.Net.Http.HttpClient s_httpClient = CreateHeadClient();
+
+        static System.Net.Http.HttpClient CreateHeadClient()
         {
-            Timeout = TimeSpan.FromSeconds(8),
-        };
+            var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("FEBuilderGBA/1.0");
+            return client;
+        }
 
         /// <summary>HTTP HEAD probe for a URL's Last-Modified header (null when absent/unreachable/timed out).</summary>
         static string? HttpHeadLastModified(string url)

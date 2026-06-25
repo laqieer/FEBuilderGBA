@@ -111,6 +111,24 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Resolve_DirectUrl_EmptyCheckUrlFallback_ReturnsEmptyUrl()
+        {
+            // @DIRECT_URL with no UPDATE_URL and no CHECK_URL => Ok must NOT imply an
+            // empty URL (inline review). Surface EmptyUrl, not a confusing Ok.
+            var r = WorkSupportUpdateDownloadCore.ResolveDownloadUrl(
+                Lines(("UPDATE_REGEX", "@DIRECT_URL")), _ => "");
+            Assert.Equal(WorkSupportUpdateDownloadCore.ResolveStatus.EmptyUrl, r.Status);
+        }
+
+        [Fact]
+        public void Resolve_AtCheckUrl_EmptyCheckUrl_ReturnsEmptyUrl()
+        {
+            var r = WorkSupportUpdateDownloadCore.ResolveDownloadUrl(
+                Lines(("UPDATE_REGEX", @"href=(\S+)")), _ => "");
+            Assert.Equal(WorkSupportUpdateDownloadCore.ResolveStatus.EmptyUrl, r.Status);
+        }
+
+        [Fact]
         public void EscapeURLToDecode_UnescapesJsonSlashes()
         {
             Assert.Equal("http://x/y", WorkSupportUpdateDownloadCore.EscapeURLToDecode(@"http:\/\/x/y"));
@@ -179,6 +197,31 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Single(r.UpsFiles);
             // CopyDirectory1Trim must have copied the INNER dir's contents (no wrapper folder).
             Assert.True(File.Exists(Path.Combine(romDir, "patch.ups")));
+        }
+
+        [Fact]
+        public void Stage_IgnoresPreExistingUnrelatedUps()
+        {
+            // A hack folder already holds an unrelated *.ups; the staging must return
+            // ONLY the newly-downloaded UPS, not the pre-existing one (inline review).
+            byte[] ups = MakeUpsBytes();
+            string romDir = Path.Combine(_root, "romdir_pre");
+            Directory.CreateDirectory(romDir);
+
+            // Pre-existing unrelated patch (older mtime).
+            string unrelated = Path.Combine(romDir, "unrelated.ups");
+            File.WriteAllBytes(unrelated, MakeUpsBytes());
+            File.SetLastWriteTimeUtc(unrelated, DateTime.UtcNow.AddHours(-2));
+
+            var r = WorkSupportUpdateDownloadCore.DownloadAndStage(
+                "http://cdn/new.ups", romDir, Path.Combine(romDir, "myrom.gba"),
+                downloadFile: (url, dest) => { File.WriteAllBytes(dest, ups); return (true, ""); },
+                extract: (a, d) => "should-not-extract");
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
+            Assert.Single(r.UpsFiles);
+            Assert.Equal("new.ups", Path.GetFileName(r.UpsFiles[0]));
+            Assert.DoesNotContain(r.UpsFiles, p => Path.GetFileName(p) == "unrelated.ups");
         }
 
         [Fact]
