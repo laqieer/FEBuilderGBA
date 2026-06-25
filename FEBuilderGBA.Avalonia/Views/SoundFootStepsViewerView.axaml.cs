@@ -143,7 +143,10 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SoundFootStepsViewerView.SwitchListExpands_Click failed: {0}", ex.Message);
+                // Log.Error(params string[]) joins args with spaces (no composite
+                // formatting) — pass ONE interpolated string with the full exception
+                // so the stack trace survives. (#1449 Copilot CLI review fix.)
+                Log.Error($"SoundFootStepsViewerView.SwitchListExpands_Click failed: {ex}");
             }
         }
 
