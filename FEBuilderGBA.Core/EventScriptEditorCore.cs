@@ -127,8 +127,15 @@ namespace FEBuilderGBA
             return addr - startAddr;
         }
 
-        /// <summary>Replace the entire list with a clone of <paramref name="codes"/>
-        /// (used by tests and bulk operations). Recomputes indentation.</summary>
+        /// <summary>
+        /// Replace the entire list with a DEEP CLONE of <paramref name="codes"/> (used by
+        /// tests and bulk operations). Each <see cref="EventScript.OneCode"/> is cloned via
+        /// <see cref="EventScript.CloneCode"/> so the engine's later in-place mutations of
+        /// <c>OneCode.ByteData</c> (e.g. <see cref="EventScript.NotifyChangePointer(System.Collections.Generic.List{EventScript.OneCode}, uint, uint)"/>
+        /// during relocation) can never reach back into the caller's list (Copilot PR
+        /// review #1510 finding — the doc said "clone" but the old impl stored the same
+        /// instances). Recomputes indentation.
+        /// </summary>
         public void SetCodes(IEnumerable<EventScript.OneCode> codes)
         {
             _codes.Clear();
@@ -136,7 +143,7 @@ namespace FEBuilderGBA
             {
                 foreach (var c in codes)
                 {
-                    _codes.Add(c);
+                    _codes.Add(c == null ? null : EventScript.CloneCode(c));
                 }
             }
             EventScriptUtil.JisageReorder(_codes);
@@ -313,7 +320,8 @@ namespace FEBuilderGBA
         /// index each line), so a multi-line block ends up REVERSED relative to file order —
         /// this faithfully reproduces the WinForms <c>TextToEvent</c> behaviour. When
         /// <paramref name="clear"/> is true the list is cleared first. Returns the number of
-        /// commands imported. PURE.
+        /// commands imported. ROM-I/O-free, but MUTATES this editor's in-memory command list
+        /// (not a pure function).
         /// </summary>
         public int ImportFromText(string text, int insertPoint = -1, bool clear = false)
         {

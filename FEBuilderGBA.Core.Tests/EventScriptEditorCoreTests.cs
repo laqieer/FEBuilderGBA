@@ -533,6 +533,34 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(term[0], data[4]);
         }
 
+        [Fact]
+        public void SetCodes_DeepClones_CallerListNotMutatedByRelocate()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+
+            uint baseOff = 0x1000;
+            uint basePtr = 0x08000000 + baseOff;
+            WriteBytes(rom, baseOff, new byte[] { 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x08, 0x0A, 0x00, 0x00, 0x00 });
+            uint ownerSlot = 0x4000;
+            WriteWord(rom, ownerSlot, basePtr);
+
+            // A CALL command whose pointer arg == basePtr, held by the CALLER.
+            var callerCode = Code(es, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x08);
+            byte[] callerBytesBefore = (byte[])callerCode.ByteData.Clone();
+
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { callerCode });          // deep-cloned into the editor
+            // Grow so it relocates (NotifyChangePointer mutates the editor's ByteData).
+            ed.Insert(0, Code(es, 0x02, 0x00, 0x02, 0x00));
+
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            ed.WriteAll(rom, baseOff, false, false, undo, out _); // refs==0 path won't fire (ownerSlot refs base) — relocates
+
+            // The caller's OneCode.ByteData is UNCHANGED — the editor mutated its own clone.
+            Assert.Equal(callerBytesBefore, callerCode.ByteData);
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]
