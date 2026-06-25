@@ -128,7 +128,6 @@ public class EventTalkGroupFE7ListTests : IDisposable
             CoreState.Undo = new Undo();
 
             var vm = new EventTalkGroupFE7ViewModel();
-            int before = rom.Data.Length;
 
             uint addr;
             using (ROM.BeginUndoScope(CoreState.Undo.NewUndoData("t")))

@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // The caller (View "New Block" button) opens a UndoService.Begin scope
             // before calling, so the ambient UndoData is non-null and captures the
             // append (mirrors EventCondViewModel.AppendBinaryDataHeadless).
-            Undo.UndoData ambient = ROM.GetAmbientUndoData();
+            Undo.UndoData? ambient = ROM.GetAmbientUndoData();
             uint addr = MapEventUnitCore.AppendBinaryDataHeadless(rom, alloc, ambient);
             if (addr == U.NOT_FOUND) return U.NOT_FOUND;
 
