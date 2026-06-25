@@ -446,11 +446,9 @@ Specialized utilities for different graphic types:
 - `BattleAnimeRendererCore.CountAnimationPaletteBanks`/`MaxOamPaletteBank` (Core, READ-ONLY) — 32-color
   banner detector (#1033) replacing WF `GetPalette16Count`: scans all sections/frames' OAM for the max
   non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner); CONSERVATIVE; safe default 1.
-- `ClassOPDemoFontRenderCore.cs` (Core, READ-ONLY) — Class OP Demo N1 JP-name font-glyph preview (#1032;
-  ports WF `OPClassFontForm.DrawFontByID`/`DrawFont`). `RenderGlyphById(rom,id)` bounded-DataCount-scans the
-  4-byte-pointer table at `op_class_font_pointer` (reject id ≥ run; overflow-safe) → `RenderGlyphImage`
-  LZ77-decompresses the 4bpp glyph → 32×32 `ImageUtilCore.ByteToImage16Tile`. Drives the Avalonia
-  `ClassOPDemoView` preview (live on N1 spinner/selection).
+- `ClassOPDemoFontRenderCore.cs` (Core, R/O) — Class OP Demo N1 JP-name font-glyph preview (#1032; ports WF
+  `OPClassFontForm.DrawFontByID`). `RenderGlyphById(rom,id)` bounded-scans the 4-byte-pointer table at
+  `op_class_font_pointer` → `RenderGlyphImage` LZ77-decompresses the 4bpp glyph → 32×32. Avalonia `ClassOPDemoView`.
 - `OPClassFontImportCore.cs` (Core, ROM-MUTATING) — OP Class Font glyph PNG import (#999; wait-icon pattern).
   `Import` validates dims (%8), `EncodeDirectTiles4bpp` + LZ77-writes + repoints the D0 glyph pointer (ambient
   undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto palette.
@@ -462,6 +460,7 @@ Specialized utilities for different graphic types:
   Mini/Point1/Point2/Road single-LZ77 strip imports (#1000; wait-icon pattern): validate dims (%8), encode +
   LZ77-write + repoint the ONE image pointer; palette NOT written; fault-restore. Avalonia `WorldMapImageView`
   4 handlers + FE8-only `CanImport{strip}` gates.
+- `WorldMapEventResolverCore.GetEventByMapID(rom,mapid,isSelect)` (Core, READ-ONLY) — version-branched world-map-event resolver for the Avalonia Export-EA-Event tool (#1420; ports WF `ToolExportEAEventForm` dispatch): FE8 indexes stageclear/stageselect tables; FE7 = WMAP-plist byte→stageselect table (stageclear=0x0); FE6→`MapChangeCore.PlistToOffsetAddr(WORLDMAP_FE6ONLY)`. FE6/FE7 select→NOT_FOUND; full-slot guards.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA), hex stub for unresolved. #1012.
@@ -469,19 +468,18 @@ Specialized utilities for different graphic types:
   — live-recolor the Unit Palette editor sample preview from R/G/B spinners: Avalonia
   `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) → `RenderClassSamplePreview(...,
   editedBlock)` ONLY when `PaletteTypeIndex==EditableBlockIndex`. #1022.
-- `SongTrackChangeCore.ApplyTrackChange` (Core, ROM-MUTATING) + `SongMidiCore.ParseSingleTrackFromDataOffset`
-  (Core, READ-ONLY) — single-track Track Change writer (#1002 Slice 1; ports WF `SongUtil.ChangeTrackAndWrite`):
-  voice(0xBD) remap + VOL/PAN clamp 0..127 + TEMPO clamp 0..255 + gated note-velocity; validate-all-before-mutate,
-  ambient undo, byte-identical fault restore. Wires Avalonia `SongTrackChangeTrackView`/`SongTrackAllChangeTrackView`.
-  Slice 3 = `SongExchangeCore.ConvertSong` cross-ROM transplant (InstrumentMap/Rip/Burn port, sample
-  recycle + pointer fixups, validate-before-mutate, NO ROM growth); Avalonia `SongExchangeView` + CLI `--songexchange`.
-- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor AI Hints export (#1028): `GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, `(f2&0x80)==0x20`) + `AppendAIHintMessage` (escape forms, dedup, mob fallback); Avalonia `ExportAllTexts`
-- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): 6 un-Huffman sigs (both FE8U @0x2BA4); `PatchDetectionService.DetectAntiHuffman`. `TextViewerViewModel.WriteText` = encode-fail→callback shows `TextBadCharPopupView`→ABORT via `EncodeAbortedException` (ja/zh/ko).
-- `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, READ-ONLY) — Text Editor Export Filter (#1028): `InitExportFilter` 11 cats (0=All→null); BattleTalk/Haiku event-ptr-when-0; Skill via `SkillSystemTextScanner`; EventCond via `EventScriptReferenceScanner.CollectEventCondTextIds`.
-- `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors (MenuDefinition/StatusRMenu/SoundBossBGM+WorldMapBGM/WorldMapEvent/FE8N-skill), reusing ExportFilterCore; `AsmMapTextSymbolReader` + `PatchTextRefScannerCore` (installed ADDR/STRUCT) + `ITextIDCache`. PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
+- `SongTrackChangeCore.ApplyTrackChange` (ROM-MUTATING) + `SongMidiCore.ParseSingleTrackFromDataOffset` (R/O) —
+  single-track Track Change writer (#1002 Slice 1; ports WF `SongUtil.ChangeTrackAndWrite`): voice(0xBD) remap +
+  VOL/PAN/TEMPO clamp + gated note-velocity; validate-before-mutate, ambient undo, byte-identical fault restore.
+  Avalonia `SongTrackChangeTrackView`/`SongTrackAllChangeTrackView`. Slice 3 = `SongExchangeCore.ConvertSong`
+  cross-ROM transplant (Instrument Rip/Burn, sample recycle, NO ROM growth); `SongExchangeView` + CLI `--songexchange`.
+- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, R/O) — Text Editor AI Hints export (#1028): `GetTranslateInfoByFaceID` (unit-table-by-face-at-+6) + `AppendAIHintMessage` (escape forms, dedup, mob fallback); Avalonia `ExportAllTexts`
+- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, R/O) — Text Editor bad-char popup (#1028 Slice D): 6 un-Huffman sigs; `PatchDetectionService.DetectAntiHuffman`. `TextViewerViewModel.WriteText` = encode-fail→`TextBadCharPopupView`→ABORT via `EncodeAbortedException`.
+- `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, R/O) — Text Editor Export Filter (#1028): `InitExportFilter` 11 cats (0=All→null); BattleTalk/Haiku event-ptr-when-0; Skill via `SkillSystemTextScanner`; EventCond via `EventScriptReferenceScanner.CollectEventCondTextIds`.
+- `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, R/O) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors, reusing ExportFilterCore; `AsmMapTextSymbolReader` + `PatchTextRefScannerCore` + `ITextIDCache`. PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
 - `ToolAnimationCreatorViewViewModel.InitFromMagicRom`/`InitFromSkillRom` (Avalonia, R/O) — Animation-Creator jump seeds: magic #996 (FEditor/CSA 0x86 via `MagicEffectExportCore`) + skill #1115 (`ExportSkillAnimation`; `CountSkillFrames`; `SkillConfigAnimeJumpHelper` 4 variants, Ver1 render-only). MapAction write-back only.
-- `PatchMacroAddressResolverCore.cs` (Core, READ-ONLY) — `$GREP`/`$XGREP`/`$FGREP`/`$P32`/`$TEXTID` resolver; adds `GrepPatternMatchEnd/Begin` to `U.cs`; wires `PatchTextRefScannerCore` so grep-resolved TEXT/SONG/EVENT refs reach the free-area union. #1027.
-- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp open mode (#1129): `Detect`+`ResolveBuiltRom`; `IsDecompMode`; CLI `--project`. #1130 `DecompSymbolResolver` (`--resolve-addr`); #1131 `DecompDiffMigrationCore` (`--migrate-diff`); #1133 `DecompAssetExportCore`+`IndexedPngWriter` (`--export-asset`; #1148 `ImportMap`/`--import-asset`/`--roundtrip-asset`: `.mar`→blob). #1132/#1141/#1148 `DecompSourceWriterCore` C+JSON (items/units/classes/map_settings); chapter scalars source-backed; pointers+raw map ASSETs ROM-only/manual (`DecompMapAssetGuard`). #1150 `DecompRoundTripAuditCore` (`--decomp-audit`)+`NmmSchemaBridgeCore` (`--nmm-to-manifest`/`--manifest-to-nmm`; pointer/odd-size flagged)+`IndexedPngReader`/`DecompAssetValidatorCore` (`--validate-asset`, no ROM)
+- `PatchMacroAddressResolverCore.cs` (Core, R/O) — `$GREP`/`$XGREP`/`$FGREP`/`$P32`/`$TEXTID` resolver; adds `GrepPatternMatchEnd/Begin` to `U.cs`; wires `PatchTextRefScannerCore` so grep-resolved TEXT/SONG/EVENT refs reach the free-area union. #1027.
+- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp open mode (#1129): `Detect`+`ResolveBuiltRom`; `IsDecompMode`; CLI `--project`. #1130 `DecompSymbolResolver` (`--resolve-addr`); #1131 `DecompDiffMigrationCore` (`--migrate-diff`); #1133 `DecompAssetExportCore`+`IndexedPngWriter` (`--export-asset`; #1148 `ImportMap`/`--import-asset`/`--roundtrip-asset`: `.mar`→blob). #1132/#1141/#1148 `DecompSourceWriterCore` C+JSON (items/units/classes/map_settings); chapter scalars source-backed; pointers+raw map ASSETs ROM-only/manual (`DecompMapAssetGuard`). #1150 `DecompRoundTripAuditCore` (`--decomp-audit`)+`NmmSchemaBridgeCore` (`--nmm-to-manifest`/`--manifest-to-nmm`)+`IndexedPngReader`/`DecompAssetValidatorCore` (`--validate-asset`)
 
 ### Caching System
 
