@@ -124,6 +124,51 @@ public class EventTalkGroupFE7UndoTests : IDisposable
         Assert.Contains("_vm.MarkClean()", src);
     }
 
+    // #1442 — NewAlloc (new 14×4=56-byte block) must be undo-tracked through the
+    // UndoService scope, exactly like OnNewBlock in the view. Commit records the
+    // append (IsModified) and the editor repoints onto the new block; Undo restores
+    // byte identity.
+    [Fact]
+    public void NewAlloc_IsUndoable_FE7()
+    {
+        var savedAppend = CoreState.AppendBinaryData;
+        try
+        {
+            CoreState.AppendBinaryData = null; // force the headless free-space fallback
+
+            ROM rom = MakeRom();
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new EventTalkGroupFE7ViewModel();
+            byte[] snap = (byte[])rom.Data.Clone();
+            var undoService = new UndoService();
+
+            // EXACT View OnNewBlock sequence (Begin -> NewAlloc -> Commit).
+            undoService.Begin("New Block Talk Group (FE7)");
+            uint newAddr = vm.NewAlloc();
+            Assert.NotEqual(U.NOT_FOUND, newAddr);
+            undoService.Commit();
+
+            // The 56-byte block was appended, the editor repointed onto it, and the
+            // append was captured by the undo buffer.
+            Assert.Equal(newAddr, vm.BaseAddr);
+            Assert.True(CoreState.Undo.IsModified);
+
+            // The new block lists 14 stride-4 entries.
+            var list = vm.LoadList();
+            Assert.Equal(EventTalkGroupFE7ViewModel.EntryCount, list.Count);
+
+            // Undo reverts byte-identity.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(snap, rom.Data);
+        }
+        finally
+        {
+            CoreState.AppendBinaryData = savedAppend;
+        }
+    }
+
     // ================================================================
     // Helpers
     // ================================================================

@@ -214,7 +214,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 113 | EventAssemblerView | EventAssemblerViewModel | Event assembler integration |
 | 114 | EventFinalSerifFE7View | EventFinalSerifFE7ViewModel | Final chapter serif (FE7) |
 | 115 | EventMoveDataFE7View | EventMoveDataFE7ViewModel | Unit move data events (FE7) |
-| 116 | EventTalkGroupFE7View | EventTalkGroupFE7ViewModel | Talk group events (FE7) |
+| 116 | EventTalkGroupFE7View | EventTalkGroupFE7ViewModel | Talk group events (FE7) — 14-entry stride-4 list + repoint + NewAlloc (#1442) |
 | 117 | EventTemplate1View | EventTemplate1ViewModel | Event template 1 |
 | 118 | EventTemplate2View | EventTemplate2ViewModel | Event template 2 |
 | 119 | EventTemplate3View | EventTemplate3ViewModel | Event template 3 |
