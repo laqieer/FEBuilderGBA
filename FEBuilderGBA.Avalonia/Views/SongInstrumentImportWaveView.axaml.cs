@@ -58,11 +58,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (CoreState.ROM == null)
-                {
-                    _vm.PreviewText = R._("No ROM is loaded.");
-                    return;
-                }
+                // No ROM guard here (Copilot review #1537): Convert/Preview do not
+                // need a ROM — HasHqMixer(null) safely returns false, so DPCM is
+                // simply unavailable. The standalone window is a working convert +
+                // preview tool even without a ROM; only the Import (write) step
+                // needs one, and ImportSampleBytes fails gracefully if absent.
                 string? path = await FileDialogHelper.OpenFile(this, R._("Import Wave"), "*.wav");
                 if (string.IsNullOrEmpty(path))
                 {
