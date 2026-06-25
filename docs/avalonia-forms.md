@@ -148,7 +148,7 @@ Editors for map settings, tiles, terrain, and map style.
 | 54 | MapChangeMainView | MapChangeMainViewModel | Nested sub-view for map changes |
 | 55 | MapExitPointView | MapExitPointViewModel | Map exit point editor |
 | 56 | MapExitPointMainView | MapExitPointMainViewModel | Nested sub-view for exit points |
-| 57 | MapPointerView | MapPointerViewModel | Map pointer table editor |
+| 57 | MapPointerView | MapPointerViewModel | Map pointer table editor (incl. PLIST Split/Expand `MapPlistSplitCore`, #1432) |
 | 58 | MapPointerMainView | MapPointerMainViewModel | Nested sub-view for map pointers |
 | 59 | MapPointerNewPLISTView | MapPointerNewPLISTViewModel | New PLIST entry creator |
 | 60 | MapPointerNewPLISTPopupView | MapPointerNewPLISTPopupViewModel | New PLIST popup dialog |
@@ -241,7 +241,7 @@ Editors for enemy AI behavior scripts.
 | 133 | AITargetView | AITargetViewModel | AI target selection |
 | 134 | AITilesView | AITilesViewModel | AI tile evaluation — **context-dependent sub-editor** (#1414) |
 | 135 | AIUnitsView | AIUnitsViewModel | AI unit evaluation — **context-dependent sub-editor** (#1414) |
-| 136 | AOERANGEView | AOERANGEViewModel | Area of effect range editor |
+| 136 | AOERANGEView | AOERANGEViewModel | Area of effect range editor — **functional** (#1431): manual address + Reload, dynamic w×h AoE grid with center highlight, real repoint-on-write (`AoeRangeCore`) |
 
 ## 7. Procs Script Editors
 

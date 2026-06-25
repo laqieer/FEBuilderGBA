@@ -1,37 +1,80 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.AOERANGEView"
-        Title="Area of Effect Range" Width="800" Height="450"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="AOERANGE_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        x:DataType="vm:AOERANGEViewModel"
+        Title="Area of Effect Range" Width="720" Height="560"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="4">
+    <StackPanel Spacing="8" Margin="8">
+      <TextBlock Text="Area of Effect Range" FontSize="18" FontWeight="Bold" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Area of Effect Range" FontSize="18" FontWeight="Bold" />
+      <!-- Manual address input + Reload (WinForms ReadStartAddress + ReloadListButton).
+           The editor is a sub-editor with no enumerable list; you load a record by
+           its address (or arrive here from a parent jump that supplies one). -->
+      <!-- Avalonia's NumericUpDown FormatString throws FormatException on hex ("X*")
+           specifiers over its decimal value (see EventMapChangeView), so the address
+           box is decimal; the AddrLabel below echoes the loaded address in hex. -->
+      <Grid ColumnDefinitions="160,140,Auto" RowDefinitions="Auto">
+        <TextBlock Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="AOERANGE_ReadStart_Input"
+                       Grid.Column="1" Name="ReadStartBox"
+                       FormatString="0" Minimum="0" Maximum="33554432" Margin="0,2" />
+        <Button AutomationProperties.AutomationId="AOERANGE_Reload_Button"
+                Grid.Column="2" Name="ReloadButton" Content="Reload" Margin="8,2,0,2" />
+      </Grid>
 
-        <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="AOERANGE_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+      <Grid ColumnDefinitions="160,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Loaded Address:" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="AOERANGE_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Width:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="AOERANGE_Width_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Margin="0,4" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Width:" VerticalAlignment="Center" Margin="0,4" />
+        <NumericUpDown AutomationProperties.AutomationId="AOERANGE_Width_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WidthBox" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Height:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="AOERANGE_Height_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Margin="0,4" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Height:" VerticalAlignment="Center" Margin="0,4" />
+        <NumericUpDown AutomationProperties.AutomationId="AOERANGE_Height_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="HeightBox" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Center X:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="AOERANGE_CenterX_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="CenterXBox" Minimum="0" Maximum="255" Margin="0,4" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Center X:" VerticalAlignment="Center" Margin="0,4" />
+        <NumericUpDown AutomationProperties.AutomationId="AOERANGE_CenterX_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="CenterXBox" Minimum="0" Maximum="255" Margin="0,4" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Center Y:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="AOERANGE_CenterY_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="CenterYBox" Minimum="0" Maximum="255" Margin="0,4" />
-        </Grid>
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Center Y:" VerticalAlignment="Center" Margin="0,4" />
+        <NumericUpDown AutomationProperties.AutomationId="AOERANGE_CenterY_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="CenterYBox" Minimum="0" Maximum="255" Margin="0,4" />
+      </Grid>
 
-        <TextBlock Text="Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+      <TextBlock Text="AoE mask grid (W×H). The highlighted cell is the center / detonation point. Set attacked tiles to 1 (or any non-zero), others to 0."
+                 TextWrapping="Wrap" Foreground="Gray" Margin="0,8,0,0" />
 
-        <Button AutomationProperties.AutomationId="AOERANGE_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <!-- Dynamic w×h grid of editable decimal (0..255) byte cells. ItemsSource
+           binds the VM's Cells collection; the panel column-count is set from
+           code-behind to Width so the UniformGrid lays rows out exactly like the
+           WinForms MapController. The center cell is highlighted via CellBackground.
+           (Cells use FormatString="0" — Avalonia NumericUpDown throws on hex "X*"
+           formats over its decimal value; see the address box above.) -->
+      <Border BorderBrush="Gray" BorderThickness="1" Padding="4"
+              AutomationProperties.AutomationId="AOERANGE_Grid">
+        <ItemsControl AutomationProperties.AutomationId="AOERANGE_Cell_List" Name="CellGrid" ItemsSource="{Binding Cells}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Name="CellPanel" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:AoeCell">
+              <Border Background="{Binding CellBackground}" Padding="1" Margin="1">
+                <NumericUpDown Width="64" FormatString="0"
+                               Minimum="0" Maximum="255"
+                               Value="{Binding Value, Mode=TwoWay}" />
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </Border>
+
+      <TextBlock AutomationProperties.AutomationId="AOERANGE_Status_Label"
+                 Name="StatusLabel" Text="{Binding Status}" Foreground="DarkSlateGray"
+                 TextWrapping="Wrap" Margin="0,4" />
+
+      <Button AutomationProperties.AutomationId="AOERANGE_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
