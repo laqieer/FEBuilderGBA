@@ -196,6 +196,102 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ============================================================
+        // View-layer ordering (#1425 Copilot PR-review finding): the View's
+        // OnWriteTextClick runs a bad-character / AntiHuffman pre-flight BEFORE
+        // calling WriteText. For a RAM-pointer slot it must refuse FIRST — never
+        // showing the AntiHuffman popup / Patch Manager — using the read-only
+        // IsCurrentSlotRamPointer helper the View now consults. These tests pin
+        // that helper: true for every RAM-pointer slot form (so the View short-
+        // circuits the pre-flight), false for a normal ROM-pointer slot.
+        // ============================================================
+
+        [Theory]
+        [InlineData(0x03001000u)] // raw IW-RAM
+        [InlineData(0x02001000u)] // raw EW-RAM
+        [InlineData(0x83001000u)] // unHuffman IW-RAM
+        [InlineData(0x82001000u)] // unHuffman EW-RAM
+        public void IsCurrentSlotRamPointer_TrueForRamSlot_SoViewSkipsBadCharPreflight(uint ramPointer)
+        {
+            if (SkipNoRom()) return;
+            ROM rom = _fixture.ROM!;
+
+            var vm = new TextViewerViewModel();
+            uint textBase = vm.ResolveTextTableBase();
+            Assert.NotEqual(0u, textBase);
+
+            uint id = 0x43;
+            uint slot = textBase + id * 4;
+            if (slot + 4 > (uint)rom.Data.Length)
+            {
+                _output.WriteLine("Chosen slot out of ROM bounds; skipping.");
+                return;
+            }
+
+            uint originalSlotValue = rom.u32(slot);
+            try
+            {
+                rom.write_u32(slot, ramPointer);
+
+                // The View consults this BEFORE PeekEncodeError; true => refuse first,
+                // no bad-char popup. (Read-only: no ROM mutation.)
+                byte[] dataBefore = (byte[])rom.Data.Clone();
+                Assert.True(vm.IsCurrentSlotRamPointer(id));
+                Assert.True(dataBefore.SequenceEqual(rom.Data),
+                    "IsCurrentSlotRamPointer mutated the ROM (must be read-only)");
+            }
+            finally
+            {
+                rom.write_u32(slot, originalSlotValue);
+            }
+        }
+
+        [Fact]
+        public void IsCurrentSlotRamPointer_FalseForNormalSlot()
+        {
+            if (SkipNoRom()) return;
+            ROM rom = _fixture.ROM!;
+
+            var vm = new TextViewerViewModel();
+            uint textBase = vm.ResolveTextTableBase();
+            Assert.NotEqual(0u, textBase);
+
+            uint id = 0x44;
+            uint slot = textBase + id * 4;
+            if (slot + 4 > (uint)rom.Data.Length)
+            {
+                _output.WriteLine("Chosen slot out of ROM bounds; skipping.");
+                return;
+            }
+
+            // The slot's natural pointer is a normal ROM pointer on this ROM; the
+            // helper must return false so the View proceeds to its normal pre-flight.
+            if (TextViewerViewModel.Is_RAMPointerArea(rom.u32(slot)))
+            {
+                _output.WriteLine("Slot is a RAM pointer on this ROM; skipping.");
+                return;
+            }
+            Assert.False(vm.IsCurrentSlotRamPointer(id));
+        }
+
+        [Fact]
+        public void IsCurrentSlotRamPointer_NoRom_ReturnsFalse()
+        {
+            // Headless / unloaded ROM: the helper is a safe no-op returning false
+            // (the View then proceeds; WriteText surfaces the no-ROM error).
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var vm = new TextViewerViewModel();
+                Assert.False(vm.IsCurrentSlotRamPointer(1));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        // ============================================================
         // Regression: a NORMAL ROM-pointer slot still writes successfully.
         // ============================================================
 

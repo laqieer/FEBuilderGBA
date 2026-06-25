@@ -587,6 +587,19 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.CanWrite) return;
             string editedText = EditTextBox.Text ?? "";
 
+            // #1425 — WF TextForm.WriteText refuses a RAM-pointer slot FIRST, before
+            // encoding / the AntiHuffman prompt (range check → Is_RAMPointerArea →
+            // encode). Mirror that ordering at the GUI layer: if the current slot's
+            // pointer targets IW/EW-RAM, refuse here WITHOUT running the bad-char
+            // pre-flight (so the AntiHuffman popup / Patch Manager never appears for a
+            // RAM slot). WriteText also re-checks this, so the ROM stays untouched.
+            if (_vm.IsCurrentSlotRamPointer(_vm.CurrentId))
+            {
+                WriteStatusLabel.Text =
+                    R._("RAMエリアのため、書き込めません.\r\nTextID:{0}", U.To0xHexString(_vm.CurrentId));
+                return;
+            }
+
             // #1028 Slice D: WF TextForm.WriteText flow. Pre-flight the Huffman
             // encode (no mutation). On a bad-character failure, if the AntiHuffman
             // patch is missing, run the WF NeedAntiHuffman interaction (popup for

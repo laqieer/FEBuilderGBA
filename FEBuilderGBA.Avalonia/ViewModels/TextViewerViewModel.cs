@@ -67,6 +67,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Read-only (no-mutation) check of whether the CURRENT pointer stored in
+        /// text slot <paramref name="id"/> targets IW/EW-RAM — i.e. whether
+        /// <see cref="WriteText"/> would refuse it via <see cref="Is_RAMPointerArea"/>.
+        /// The View calls this BEFORE its bad-character / AntiHuffman pre-flight so a
+        /// RAM-pointer slot is refused first (matching WF order: RAM check → encode),
+        /// without ever showing the bad-char popup or Patch Manager. Returns false
+        /// when the ROM is unloaded or the slot is out of range (WriteText then
+        /// surfaces the appropriate error). #1425.
+        /// </summary>
+        public bool IsCurrentSlotRamPointer(uint id)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || rom.Data == null) return false;
+
+            uint textBase = ResolveTextTableBase();
+            if (textBase == 0) return false;
+
+            uint writePointer = textBase + (id * 4);
+            if (writePointer + 4 > (uint)rom.Data.Length || !U.isSafetyOffset(writePointer, rom))
+                return false;
+
+            return Is_RAMPointerArea(rom.u32(writePointer));
+        }
+
+        /// <summary>
         /// Check whether a text pointer value is valid: standard ROM pointer,
         /// UnHuffman-patched pointer, or RAM pointer (IW-RAM / EW-RAM).
         /// Mirrors WinForms TextForm logic.
