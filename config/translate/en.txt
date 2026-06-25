@@ -7528,6 +7528,9 @@ PLIST Assignment
 :既に拡張済みです
 Already Expanded
 
+:Use the Map Pointer editor to split/extend the PLIST range.
+Use the Map Pointer editor to split/extend the PLIST range.
+
 :MapPointer(PLIST)を拡張
 Extended MapPointer (PLIST)
 
