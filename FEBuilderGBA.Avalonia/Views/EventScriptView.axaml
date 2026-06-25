@@ -35,7 +35,7 @@
           <Button AutomationProperties.AutomationId="EventScript_ImportAppend_Button" Name="ImportAppendButton" Content="Import (append)" Click="ImportAppend_Click" />
           <Button AutomationProperties.AutomationId="EventScript_ImportReplace_Button" Name="ImportReplaceButton" Content="Import (replace)" Click="ImportReplace_Click" />
           <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
-          <Button AutomationProperties.AutomationId="EventScript_WriteAll_Button" Name="WriteAllButton" Content="Write All" Background="#FFD27A" Click="WriteAll_Click" />
+          <Button AutomationProperties.AutomationId="EventScript_WriteAll_Button" Name="WriteAllButton" Content="Write All" Background="{DynamicResource WarningBackgroundBrush}" Click="WriteAll_Click" />
         </StackPanel>
       </StackPanel>
     </Border>
