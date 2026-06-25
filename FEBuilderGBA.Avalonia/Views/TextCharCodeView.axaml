@@ -40,6 +40,7 @@
     </StackPanel>
 
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0" HorizontalAlignment="Right">
+      <Button AutomationProperties.AutomationId="TextCharCode_Write_Button" Name="WriteButton" Content="Write" Width="80" />
       <Button AutomationProperties.AutomationId="TextCharCode_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <ListBox AutomationProperties.AutomationId="TextCharCode_CharCode_List" Name="CharCodeList" />

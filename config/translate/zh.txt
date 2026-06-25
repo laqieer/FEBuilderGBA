@@ -26236,3 +26236,5 @@ Boss对话 (16字节)
 :Volume (%):
 音量 (%):
 
+:The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
+上述地址处的以NUL结尾的字符串。编辑后点击Write将对字符串 + 末尾的 0x00 进行编码；若不再适合原位置，则重定位到空闲区域并重新指向每一个引用（以及源指针）。

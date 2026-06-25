@@ -6,8 +6,8 @@ Comprehensive documentation of all GUI forms (views) in **FEBuilderGBA.Avalonia*
 
 | Metric | Count |
 |--------|-------|
-| Total AXAML Views | 354 |
-| Total ViewModels | 367 |
+| Total AXAML Views | 353 |
+| Total ViewModels | 366 |
 | Shared Controls | 2 |
 | Functional Categories | 24 |
 
@@ -322,17 +322,16 @@ Editors for songs, instruments, sound effects, and sound room.
 | 186 | SongTrackChangeTrackView | SongTrackChangeTrackViewModel | Single track change tool |
 | 187 | SongTrackImportMidiView | SongTrackImportMidiViewModel | MIDI import tool |
 | 188 | SongTrackImportSelectInstrumentView | SongTrackImportSelectInstrumentViewModel | Instrument selection for import |
-| 189 | SongTrackImportWaveView | SongTrackImportWaveViewModel | Wave import for tracks |
-| 190 | SongInstrumentView | SongInstrumentViewModel | Instrument editor |
-| 191 | SongInstrumentDirectSoundView | SongInstrumentDirectSoundViewModel | Direct sound instrument editor |
-| 192 | SongInstrumentImportWaveView | SongInstrumentImportWaveViewModel | Wave import for instruments |
-| 193 | SongExchangeView | SongExchangeViewModel | Song exchange/swap tool |
-| 194 | SoundBossBGMViewerView | SoundBossBGMViewerViewModel | Boss BGM assignment viewer |
-| 195 | SoundFootStepsViewerView | SoundFootStepsViewerViewModel | Footstep sound assignment viewer |
-| 196 | SoundRoomViewerView | SoundRoomViewerViewModel | Sound room entry viewer |
-| 197 | SoundRoomFE6View | SoundRoomFE6ViewModel | Sound room (FE6 variant) |
-| 198 | SoundRoomCGView | SoundRoomCGViewModel | Sound room CG display |
-| 199 | ToolBGMMuteDialogView | ToolBGMMuteDialogViewModel | BGM mute settings dialog |
+| 189 | SongInstrumentView | SongInstrumentViewModel | Instrument editor |
+| 190 | SongInstrumentDirectSoundView | SongInstrumentDirectSoundViewModel | Direct sound instrument editor |
+| 191 | SongInstrumentImportWaveView | SongInstrumentImportWaveViewModel | Wave import for instruments |
+| 192 | SongExchangeView | SongExchangeViewModel | Song exchange/swap tool |
+| 193 | SoundBossBGMViewerView | SoundBossBGMViewerViewModel | Boss BGM assignment viewer |
+| 194 | SoundFootStepsViewerView | SoundFootStepsViewerViewModel | Footstep sound assignment viewer |
+| 195 | SoundRoomViewerView | SoundRoomViewerViewModel | Sound room entry viewer |
+| 196 | SoundRoomFE6View | SoundRoomFE6ViewModel | Sound room (FE6 variant) |
+| 197 | SoundRoomCGView | SoundRoomCGViewModel | Sound room CG display |
+| 198 | ToolBGMMuteDialogView | ToolBGMMuteDialogViewModel | BGM mute settings dialog |
 
 ## 11. Text & Translation Editors
 
@@ -340,21 +339,21 @@ Editors for game text, fonts, translation, and text utilities.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 200 | TextViewerView | TextViewerViewModel | Main text viewer/editor |
-| 201 | TextMainView | TextMainViewModel | Nested sub-view for text |
-| 202 | OtherTextView | OtherTextViewModel | Other text data editor |
-| 203 | CStringView | CStringViewModel | C-style string editor |
-| 204 | FontEditorView | FontEditorViewModel | Font tile editor |
-| 205 | FontZHView | FontZHViewModel | Chinese font editor (per-glyph + bulk export/import + .ttf auto-generate) |
-| 206 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
-| 207 | TextScriptCategorySelectView | TextScriptCategorySelectViewModel | Text script category picker |
-| 208 | TextDicView | TextDicViewModel | Text dictionary editor |
-| 209 | TextCharCodeView | TextCharCodeViewModel | Character code table viewer |
-| 210 | TextBadCharPopupView | TextBadCharPopupViewModel | Invalid character warning popup |
-| 211 | TextRefAddDialogView | TextRefAddDialogViewModel | Text reference addition dialog |
-| 212 | TextToSpeechView | TextToSpeechViewModel | Text-to-speech preview tool |
-| 213 | DevTranslateView | DevTranslateViewModel | Developer translation tool |
-| 214 | ToolTranslateROMView | ToolTranslateROMViewModel | ROM translation tool |
+| 199 | TextViewerView | TextViewerViewModel | Main text viewer/editor |
+| 200 | TextMainView | TextMainViewModel | Nested sub-view for text |
+| 201 | OtherTextView | OtherTextViewModel | Other text data editor |
+| 202 | CStringView | CStringViewModel | C-style string editor — **functional** (#1445): manual address + Reload, editable string TextBox, real read (`TextForm.Direct` decode) + repoint-on-write (`CStringCore`, encode + NUL, in-place else relocate) |
+| 203 | FontEditorView | FontEditorViewModel | Font tile editor |
+| 204 | FontZHView | FontZHViewModel | Chinese font editor (per-glyph + bulk export/import + .ttf auto-generate) |
+| 205 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
+| 206 | TextScriptCategorySelectView | TextScriptCategorySelectViewModel | Text script category picker |
+| 207 | TextDicView | TextDicViewModel | Text dictionary editor |
+| 208 | TextCharCodeView | TextCharCodeViewModel | Character code table editor (Write button persists Char Code/Terminator + rebuilds text encoder) |
+| 209 | TextBadCharPopupView | TextBadCharPopupViewModel | Invalid character warning popup |
+| 210 | TextRefAddDialogView | TextRefAddDialogViewModel | Text reference addition dialog |
+| 211 | TextToSpeechView | TextToSpeechViewModel | Text-to-speech preview tool |
+| 212 | DevTranslateView | DevTranslateViewModel | Developer translation tool |
+| 213 | ToolTranslateROMView | ToolTranslateROMViewModel | ROM translation tool |
 
 ## 12. Support System Editors
 
@@ -362,12 +361,12 @@ Editors for support conversations and affinity.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 215 | SupportUnitEditorView | SupportUnitEditorViewModel | Support unit pair editor |
-| 216 | SupportUnitFE6View | SupportUnitFE6ViewModel | Support units (FE6 variant) |
-| 217 | SupportAttributeView | SupportAttributeViewModel | Support affinity attribute editor |
-| 218 | SupportTalkView | SupportTalkViewModel | Support conversation editor |
-| 219 | SupportTalkFE6View | SupportTalkFE6ViewModel | Support conversations (FE6) |
-| 220 | SupportTalkFE7View | SupportTalkFE7ViewModel | Support conversations (FE7) |
+| 214 | SupportUnitEditorView | SupportUnitEditorViewModel | Support unit pair editor |
+| 215 | SupportUnitFE6View | SupportUnitFE6ViewModel | Support units (FE6 variant) |
+| 216 | SupportAttributeView | SupportAttributeViewModel | Support affinity attribute editor |
+| 217 | SupportTalkView | SupportTalkViewModel | Support conversation editor |
+| 218 | SupportTalkFE6View | SupportTalkFE6ViewModel | Support conversations (FE6) |
+| 219 | SupportTalkFE7View | SupportTalkFE7ViewModel | Support conversations (FE7) |
 
 ## 13. Arena, Monster & Summon Editors
 
@@ -375,14 +374,14 @@ Editors for arena, monster, and summon data.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 221 | ArenaClassViewerView | ArenaClassViewerViewModel | Arena class table viewer |
-| 222 | ArenaEnemyWeaponViewerView | ArenaEnemyWeaponViewerViewModel | Arena enemy weapon table viewer |
-| 223 | LinkArenaDenyUnitViewerView | LinkArenaDenyUnitViewerViewModel | Link arena banned unit viewer |
-| 224 | MonsterProbabilityViewerView | MonsterProbabilityViewerViewModel | Monster spawn probability viewer |
-| 225 | MonsterItemViewerView | MonsterItemViewerViewModel | Monster item drop viewer |
-| 226 | MonsterWMapProbabilityViewerView | MonsterWMapProbabilityViewerViewModel | World map monster probability viewer |
-| 227 | SummonUnitViewerView | SummonUnitViewerViewModel | Summoned unit table viewer |
-| 228 | SummonsDemonKingViewerView | SummonsDemonKingViewerViewModel | Demon King summon table viewer |
+| 220 | ArenaClassViewerView | ArenaClassViewerViewModel | Arena class table viewer |
+| 221 | ArenaEnemyWeaponViewerView | ArenaEnemyWeaponViewerViewModel | Arena enemy weapon table viewer |
+| 222 | LinkArenaDenyUnitViewerView | LinkArenaDenyUnitViewerViewModel | Link arena banned unit viewer |
+| 223 | MonsterProbabilityViewerView | MonsterProbabilityViewerViewModel | Monster spawn probability viewer |
+| 224 | MonsterItemViewerView | MonsterItemViewerViewModel | Monster item drop viewer |
+| 225 | MonsterWMapProbabilityViewerView | MonsterWMapProbabilityViewerViewModel | World map monster probability viewer |
+| 226 | SummonUnitViewerView | SummonUnitViewerViewModel | Summoned unit table viewer |
+| 227 | SummonsDemonKingViewerView | SummonsDemonKingViewerViewModel | Demon King summon table viewer |
 
 ## 14. Menu Editors
 
@@ -390,10 +389,10 @@ Editors for in-game menus and commands.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 229 | MenuDefinitionView | MenuDefinitionViewModel | Menu definition table editor |
-| 230 | MenuCommandView | MenuCommandViewModel | Menu command table editor |
-| 231 | MenuExtendSplitMenuView | MenuExtendSplitMenuViewModel | Extended split menu editor |
-| 232 | FE8SpellMenuExtendsView | FE8SpellMenuExtendsViewModel | FE8 spell menu extension editor |
+| 228 | MenuDefinitionView | MenuDefinitionViewModel | Menu definition table editor |
+| 229 | MenuCommandView | MenuCommandViewModel | Menu command table editor |
+| 230 | MenuExtendSplitMenuView | MenuExtendSplitMenuViewModel | Extended split menu editor |
+| 231 | FE8SpellMenuExtendsView | FE8SpellMenuExtendsViewModel | FE8 spell menu extension editor |
 
 ## 15. Ending (ED) Editors
 
@@ -401,11 +400,11 @@ Editors for game endings, staff rolls, and credits.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 233 | EDView | EDViewModel | Main ending data editor |
-| 234 | EDStaffRollView | EDStaffRollViewModel | Staff roll/credits editor |
-| 235 | EDFE6View | EDFE6ViewModel | Ending data (FE6 variant) |
-| 236 | EDFE7View | EDFE7ViewModel | Ending data (FE7 variant) |
-| 237 | EDSensekiCommentView | EDSensekiCommentViewModel | Battle record comment editor |
+| 232 | EDView | EDViewModel | Main ending data editor |
+| 233 | EDStaffRollView | EDStaffRollViewModel | Staff roll/credits editor |
+| 234 | EDFE6View | EDFE6ViewModel | Ending data (FE6 variant) |
+| 235 | EDFE7View | EDFE7ViewModel | Ending data (FE7 variant) |
+| 236 | EDSensekiCommentView | EDSensekiCommentViewModel | Battle record comment editor |
 
 ## 16. World Map Editors
 
@@ -413,17 +412,17 @@ Editors for world map nodes, paths, events, and images.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 238 | WorldMapPointView | WorldMapPointViewModel | World map node/point editor |
-| 239 | WorldMapBGMView | WorldMapBGMViewModel | World map BGM assignment editor |
-| 240 | WorldMapEventPointerView | WorldMapEventPointerViewModel | World map event pointer editor |
-| 241 | WorldMapEventPointerFE6View | WorldMapEventPointerFE6ViewModel | World map events (FE6) |
-| 242 | WorldMapEventPointerFE7View | WorldMapEventPointerFE7ViewModel | World map events (FE7) |
-| 243 | WorldMapPathView | WorldMapPathViewModel | World map path editor |
-| 244 | WorldMapPathEditorView | WorldMapPathEditorViewModel | World map path visual editor |
-| 245 | WorldMapPathMoveEditorView | WorldMapPathMoveEditorViewModel | World map path movement editor |
-| 246 | WorldMapImageView | WorldMapImageViewModel | World map image editor — Main/Dark import (#875), Mini/Point1/Point2/Road strip image imports wired via `ImageWorldMapCore.ImportIconStrip` (single-LZ77-stream, image-only nearest-color remap, FE8-only gates, #1000); Event/Border image imports + legacy full Export are deferred follow-ups |
-| 247 | WorldMapImageFE6View | WorldMapImageFE6ViewModel | World map image (FE6) |
-| 248 | WorldMapImageFE7View | WorldMapImageFE7ViewModel | World map image (FE7) |
+| 237 | WorldMapPointView | WorldMapPointViewModel | World map node/point editor |
+| 238 | WorldMapBGMView | WorldMapBGMViewModel | World map BGM assignment editor |
+| 239 | WorldMapEventPointerView | WorldMapEventPointerViewModel | World map event pointer editor |
+| 240 | WorldMapEventPointerFE6View | WorldMapEventPointerFE6ViewModel | World map events (FE6) |
+| 241 | WorldMapEventPointerFE7View | WorldMapEventPointerFE7ViewModel | World map events (FE7) |
+| 242 | WorldMapPathView | WorldMapPathViewModel | World map path editor |
+| 243 | WorldMapPathEditorView | WorldMapPathEditorViewModel | World map path visual editor |
+| 244 | WorldMapPathMoveEditorView | WorldMapPathMoveEditorViewModel | World map path movement editor |
+| 245 | WorldMapImageView | WorldMapImageViewModel | World map image editor — Main/Dark import (#875), Mini/Point1/Point2/Road strip image imports wired via `ImageWorldMapCore.ImportIconStrip` (single-LZ77-stream, image-only nearest-color remap, FE8-only gates, #1000); Event/Border image imports + legacy full Export are deferred follow-ups |
+| 246 | WorldMapImageFE6View | WorldMapImageFE6ViewModel | World map image (FE6) |
+| 247 | WorldMapImageFE7View | WorldMapImageFE7ViewModel | World map image (FE7) |
 
 ## 17. Opening (OP) Editors
 
@@ -431,18 +430,18 @@ Editors for opening demos, fonts, prologues, and alpha names.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 249 | OPClassDemoViewerView | OPClassDemoViewerViewModel | Opening class demo viewer |
-| 250 | OPClassDemoFE7View | OPClassDemoFE7ViewModel | Class demo (FE7 variant) |
-| 251 | OPClassDemoFE7UView | OPClassDemoFE7UViewModel | Class demo (FE7U variant) |
-| 252 | OPClassDemoFE8UView | OPClassDemoFE8UViewModel | Class demo (FE8U variant) |
-| 253 | OPClassFontViewerView | OPClassFontViewerViewModel | Opening class font editor (Write + Export PNG + Import PNG, #999) |
-| 254 | OPClassFontFE8UView | OPClassFontFE8UViewModel | Class font (FE8U variant) |
-| 255 | OPClassAlphaNameView | OPClassAlphaNameViewModel | Opening alpha name editor |
-| 256 | OPClassAlphaNameFE6View | OPClassAlphaNameFE6ViewModel | Alpha name (FE6 variant) |
-| 257 | OPClassAlphaNameFE6ExtraView | OPClassAlphaNameFE6ExtraViewModel | Alpha name extra (FE6) |
-| 258 | OPPrologueViewerView | OPPrologueViewerViewModel | Opening prologue viewer |
-| 259 | ClassOPDemoView | ClassOPDemoViewModel | Class opening demo data editor |
-| 260 | ClassOPFontView | ClassOPFontViewModel | Class opening font data editor |
+| 248 | OPClassDemoViewerView | OPClassDemoViewerViewModel | Opening class demo viewer |
+| 249 | OPClassDemoFE7View | OPClassDemoFE7ViewModel | Class demo (FE7 variant) |
+| 250 | OPClassDemoFE7UView | OPClassDemoFE7UViewModel | Class demo (FE7U variant) |
+| 251 | OPClassDemoFE8UView | OPClassDemoFE8UViewModel | Class demo (FE8U variant) |
+| 252 | OPClassFontViewerView | OPClassFontViewerViewModel | Opening class font editor (Write + Export PNG + Import PNG, #999) |
+| 253 | OPClassFontFE8UView | OPClassFontFE8UViewModel | Class font (FE8U variant) |
+| 254 | OPClassAlphaNameView | OPClassAlphaNameViewModel | Opening alpha name editor |
+| 255 | OPClassAlphaNameFE6View | OPClassAlphaNameFE6ViewModel | Alpha name (FE6 variant) |
+| 256 | OPClassAlphaNameFE6ExtraView | OPClassAlphaNameFE6ExtraViewModel | Alpha name extra (FE6) |
+| 257 | OPPrologueViewerView | OPPrologueViewerViewModel | Opening prologue viewer |
+| 258 | ClassOPDemoView | ClassOPDemoViewModel | Class opening demo data editor |
+| 259 | ClassOPFontView | ClassOPFontViewModel | Class opening font data editor |
 
 ## 18. Status Screen Editors
 
@@ -450,11 +449,11 @@ Editors for status screen layout and parameters.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 261 | StatusParamView | StatusParamViewModel | Status parameter display editor |
-| 262 | StatusRMenuView | StatusRMenuViewModel | Status R-button menu editor |
-| 263 | StatusUnitsMenuView | StatusUnitsMenuViewModel | Status units menu editor |
-| 264 | StatusOptionOrderView | StatusOptionOrderViewModel | Status option order editor |
-| 265 | StatusOptionView | StatusOptionViewModel | Status option data editor |
+| 260 | StatusParamView | StatusParamViewModel | Status parameter display editor |
+| 261 | StatusRMenuView | StatusRMenuViewModel | Status R-button menu editor |
+| 262 | StatusUnitsMenuView | StatusUnitsMenuViewModel | Status units menu editor |
+| 263 | StatusOptionOrderView | StatusOptionOrderViewModel | Status option order editor |
+| 264 | StatusOptionView | StatusOptionViewModel | Status option data editor |
 
 ## 19. Skill System Editors
 
@@ -462,18 +461,18 @@ Editors for various skill system implementations.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 266 | SkillAssignmentUnitSkillSystemView | SkillAssignmentUnitSkillSystemViewModel | Unit skill assignment (SkillSystem) |
-| 267 | SkillAssignmentClassSkillSystemView | SkillAssignmentClassSkillSystemViewModel | Class skill assignment (SkillSystem) |
-| 268 | SkillConfigSkillSystemView | SkillConfigSkillSystemViewModel | Skill config (SkillSystem) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
-| 269 | SkillAssignmentUnitCSkillSysView | SkillAssignmentUnitCSkillSysViewModel | Unit skill assignment (CSkillSys) |
-| 270 | SkillAssignmentClassCSkillSysView | SkillAssignmentClassCSkillSysViewModel | Class skill assignment (CSkillSys) |
-| 271 | SkillAssignmentUnitFE8NView | SkillAssignmentUnitFE8NViewModel | Unit skill assignment (FE8N) |
-| 272 | SkillConfigFE8NSkillView | SkillConfigFE8NSkillViewModel | Skill config (FE8N) |
-| 273 | SkillConfigFE8NVer2SkillView | SkillConfigFE8NVer2SkillViewModel | Skill config (FE8N v2) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
-| 274 | SkillConfigFE8NVer3SkillView | SkillConfigFE8NVer3SkillViewModel | Skill config (FE8N v3) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
-| 275 | SkillConfigFE8UCSkillSys09xView | SkillConfigFE8UCSkillSys09xViewModel | Skill config (FE8U CSkillSys 0.9.x) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
-| 276 | SkillSystemsEffectivenessReworkClassTypeView | SkillSystemsEffectivenessReworkClassTypeViewModel | Effectiveness rework class type |
-| 277 | SkillSystemsCSkillRechainView | SkillSystemsCSkillRechainViewModel | CSkill rechain editor |
+| 265 | SkillAssignmentUnitSkillSystemView | SkillAssignmentUnitSkillSystemViewModel | Unit skill assignment (SkillSystem) |
+| 266 | SkillAssignmentClassSkillSystemView | SkillAssignmentClassSkillSystemViewModel | Class skill assignment (SkillSystem) |
+| 267 | SkillConfigSkillSystemView | SkillConfigSkillSystemViewModel | Skill config (SkillSystem) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 268 | SkillAssignmentUnitCSkillSysView | SkillAssignmentUnitCSkillSysViewModel | Unit skill assignment (CSkillSys) |
+| 269 | SkillAssignmentClassCSkillSysView | SkillAssignmentClassCSkillSysViewModel | Class skill assignment (CSkillSys) |
+| 270 | SkillAssignmentUnitFE8NView | SkillAssignmentUnitFE8NViewModel | Unit skill assignment (FE8N) |
+| 271 | SkillConfigFE8NSkillView | SkillConfigFE8NSkillViewModel | Skill config (FE8N) |
+| 272 | SkillConfigFE8NVer2SkillView | SkillConfigFE8NVer2SkillViewModel | Skill config (FE8N v2) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 273 | SkillConfigFE8NVer3SkillView | SkillConfigFE8NVer3SkillViewModel | Skill config (FE8N v3) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 274 | SkillConfigFE8UCSkillSys09xView | SkillConfigFE8UCSkillSys09xViewModel | Skill config (FE8U CSkillSys 0.9.x) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 275 | SkillSystemsEffectivenessReworkClassTypeView | SkillSystemsEffectivenessReworkClassTypeViewModel | Effectiveness rework class type |
+| 276 | SkillSystemsCSkillRechainView | SkillSystemsCSkillRechainViewModel | CSkill rechain editor |
 
 ## 20. Patch Management
 
@@ -481,13 +480,13 @@ Editors for patch installation, filtering, and custom builds.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 278 | PatchManagerView | PatchManagerViewModel | Patch manager main view |
-| 279 | PatchFilterExView | PatchFilterExViewModel | Patch filter editor |
-| 280 | PatchFormUninstallDialogView | PatchFormUninstallDialogViewModel | Patch uninstall confirmation |
-| 281 | PatchUninstallDialogView | PatchUninstallDialogViewModel | Patch uninstall dialog |
-| 282 | HowDoYouLikePatchView | HowDoYouLikePatchViewModel | Patch feedback dialog |
-| 283 | HowDoYouLikePatch2View | HowDoYouLikePatch2ViewModel | Patch feedback dialog (v2) |
-| 284 | ToolCustomBuildView | ToolCustomBuildViewModel | Custom build configuration |
+| 277 | PatchManagerView | PatchManagerViewModel | Patch manager main view |
+| 278 | PatchFilterExView | PatchFilterExViewModel | Patch filter editor |
+| 279 | PatchFormUninstallDialogView | PatchFormUninstallDialogViewModel | Patch uninstall confirmation |
+| 280 | PatchUninstallDialogView | PatchUninstallDialogViewModel | Patch uninstall dialog |
+| 281 | HowDoYouLikePatchView | HowDoYouLikePatchViewModel | Patch feedback dialog |
+| 282 | HowDoYouLikePatch2View | HowDoYouLikePatch2ViewModel | Patch feedback dialog (v2) |
+| 283 | ToolCustomBuildView | ToolCustomBuildViewModel | Custom build configuration |
 
 ## 21. Hex Editor & Disassembly Tools
 
@@ -495,16 +494,16 @@ Low-level ROM editing and disassembly tools.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 285 | HexEditorView | HexEditorViewModel | Hex editor main view |
-| 286 | HexEditorJumpView | HexEditorJumpViewModel | Hex editor jump-to-address dialog |
-| 287 | HexEditorMarkView | HexEditorMarkViewModel | Hex editor bookmark manager |
-| 288 | HexEditorSearchView | HexEditorSearchViewModel | Hex editor search dialog |
-| 289 | DisASMView | DisASMViewModel | Disassembler main view |
-| 290 | DisASMDumpAllView | DisASMDumpAllViewModel | Dump all disassembly |
-| 291 | DisASMDumpAllArgGrepView | DisASMDumpAllArgGrepViewModel | Disassembly argument grep |
-| 292 | ToolASMEditView | ToolASMEditViewViewModel | ASM code editor |
-| 293 | ToolASMInsertView | ToolASMInsertViewModel | ASM code insertion tool |
-| 294 | ToolDecompileResultView | ToolDecompileResultViewViewModel | Decompilation result viewer |
+| 284 | HexEditorView | HexEditorViewModel | Hex editor main view |
+| 285 | HexEditorJumpView | HexEditorJumpViewModel | Hex editor jump-to-address dialog |
+| 286 | HexEditorMarkView | HexEditorMarkViewModel | Hex editor bookmark manager |
+| 287 | HexEditorSearchView | HexEditorSearchViewModel | Hex editor search dialog |
+| 288 | DisASMView | DisASMViewModel | Disassembler main view |
+| 289 | DisASMDumpAllView | DisASMDumpAllViewModel | Dump all disassembly |
+| 290 | DisASMDumpAllArgGrepView | DisASMDumpAllArgGrepViewModel | Disassembly argument grep |
+| 291 | ToolASMEditView | ToolASMEditViewViewModel | ASM code editor |
+| 292 | ToolASMInsertView | ToolASMInsertViewModel | ASM code insertion tool |
+| 293 | ToolDecompileResultView | ToolDecompileResultViewViewModel | Decompilation result viewer |
 
 ## 22. Pointer & Memory Tools
 
@@ -512,14 +511,14 @@ Pointer manipulation and emulator memory access tools.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 295 | PointerToolView | PointerToolViewModel | Pointer manipulation tool (cross-ROM raw + LDR literal-pool reference search via `U.GrepPointerAll` / `U.GrepPointerAllOnLDR`, #966) |
-| 296 | PointerToolBatchInputView | PointerToolBatchInputViewModel | Batch pointer input |
-| 297 | PointerToolCopyToView | PointerToolCopyToViewModel | Copy pointer data tool |
-| 298 | MoveToFreeSpaceView | MoveToFreeSpaceViewViewModel | Move data to free space tool |
-| 299 | PackedMemorySlotView | PackedMemorySlotViewModel | Packed memory slot viewer |
-| 300 | EmulatorMemoryView | EmulatorMemoryViewModel | Emulator memory viewer |
-| 301 | RAMRewriteToolView | RAMRewriteToolViewModel | RAM rewrite tool |
-| 302 | RAMRewriteToolMAPView | RAMRewriteToolMAPViewViewModel | RAM rewrite tool (map view) |
+| 294 | PointerToolView | PointerToolViewModel | Pointer manipulation tool (cross-ROM raw + LDR literal-pool reference search via `U.GrepPointerAll` / `U.GrepPointerAllOnLDR`, #966) |
+| 295 | PointerToolBatchInputView | PointerToolBatchInputViewModel | Batch pointer input |
+| 296 | PointerToolCopyToView | PointerToolCopyToViewModel | Copy pointer data tool |
+| 297 | MoveToFreeSpaceView | MoveToFreeSpaceViewViewModel | Move data to free space tool |
+| 298 | PackedMemorySlotView | PackedMemorySlotViewModel | Packed memory slot viewer |
+| 299 | EmulatorMemoryView | EmulatorMemoryViewModel | Emulator memory viewer |
+| 300 | RAMRewriteToolView | RAMRewriteToolViewModel | RAM rewrite tool |
+| 301 | RAMRewriteToolMAPView | RAMRewriteToolMAPViewViewModel | RAM rewrite tool (map view) |
 
 ## 23. Bit Flag Editors
 
@@ -527,9 +526,9 @@ Generic bit flag editing dialogs for different data widths.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 303 | UbyteBitFlagView | UbyteBitFlagViewModel | 8-bit (byte) flag editor |
-| 304 | UshortBitFlagView | UshortBitFlagViewModel | 16-bit (ushort) flag editor |
-| 305 | UwordBitFlagView | UwordBitFlagViewModel | 32-bit (uint) flag editor |
+| 302 | UbyteBitFlagView | UbyteBitFlagViewModel | 8-bit (byte) flag editor |
+| 303 | UshortBitFlagView | UshortBitFlagViewModel | 16-bit (ushort) flag editor |
+| 304 | UwordBitFlagView | UwordBitFlagViewModel | 32-bit (uint) flag editor |
 
 ## 24. Structural Data Editors
 
@@ -537,10 +536,10 @@ Editors for miscellaneous ROM structure data.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 306 | Command85PointerView | Command85PointerViewModel | Command 0x85 pointer table editor |
-| 307 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog (CSV/TSV/EA/STRUCT/NMM all export struct-aware output for resolved tables via `StructExportCore`; STRUCT=.h C-header, NMM=No$gba memory map — #1012) |
-| 308 | DumpStructSelectToTextDialogView | DumpStructSelectToTextDialogViewModel | Struct dump to text dialog |
-| 309 | ResourceView | ResourceViewModel | Resource table viewer |
+| 305 | Command85PointerView | Command85PointerViewModel | Command 0x85 pointer table editor |
+| 306 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog (CSV/TSV/EA/STRUCT/NMM all export struct-aware output for resolved tables via `StructExportCore`; STRUCT=.h C-header, NMM=No$gba memory map — #1012) |
+| 307 | DumpStructSelectToTextDialogView | DumpStructSelectToTextDialogViewModel | Struct dump to text dialog |
+| 308 | ResourceView | ResourceViewModel | Resource table viewer |
 
 ## 25. Error & Notification Dialogs
 
@@ -548,15 +547,15 @@ Error reporting, palette warnings, and notification overlays.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 310 | ErrorReportView | ErrorReportViewModel | Error report dialog |
-| 311 | ErrorPaletteMissMatchView | ErrorPaletteMissMatchViewModel | Palette mismatch warning |
-| 312 | ErrorPaletteShowView | ErrorPaletteShowViewModel | Palette error display |
-| 313 | ErrorPaletteTransparentView | ErrorPaletteTransparentViewModel | Transparent palette error |
-| 314 | ErrorTSAErrorView | ErrorTSAErrorViewModel | TSA error display |
-| 315 | ErrorLongMessageDialogView | ErrorLongMessageDialogViewModel | Long error message dialog |
-| 316 | NotifyDirectInjectionView | NotifyDirectInjectionViewModel | Direct injection notification |
-| 317 | NotifyPleaseWaitView | NotifyPleaseWaitViewModel | Please wait notification overlay |
-| 318 | NotifyWriteView | NotifyWriteViewModel | Write notification overlay |
+| 309 | ErrorReportView | ErrorReportViewModel | Error report dialog |
+| 310 | ErrorPaletteMissMatchView | ErrorPaletteMissMatchViewModel | Palette mismatch warning |
+| 311 | ErrorPaletteShowView | ErrorPaletteShowViewModel | Palette error display |
+| 312 | ErrorPaletteTransparentView | ErrorPaletteTransparentViewModel | Transparent palette error |
+| 313 | ErrorTSAErrorView | ErrorTSAErrorViewModel | TSA error display |
+| 314 | ErrorLongMessageDialogView | ErrorLongMessageDialogViewModel | Long error message dialog |
+| 315 | NotifyDirectInjectionView | NotifyDirectInjectionViewModel | Direct injection notification |
+| 316 | NotifyPleaseWaitView | NotifyPleaseWaitViewModel | Please wait notification overlay |
+| 317 | NotifyWriteView | NotifyWriteViewModel | Write notification overlay |
 
 ## 26. Tool Utilities
 
@@ -564,38 +563,38 @@ Miscellaneous tools for ROM management, lint, diff, UPS, and more.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 319 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
-| 320 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
-| 321 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool — read-only viewer over the cross-platform `FELintScanner` (same scan as CLI `--lint`): per-finding list, severity/category/address/message detail, error+warning summary, Rescan, and double-click/Enter jump-to-HexEditor for jumpable findings (#1168) |
-| 322 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |
-| 323 | ToolLZ77View | ToolLZ77ViewModel | LZ77 compression/decompression tool |
-| 324 | ToolDiffView | ToolDiffViewModel | ROM diff comparison tool |
-| 325 | ToolDiffDebugSelectView | ToolDiffDebugSelectViewModel | Diff debug selection dialog |
-| 326 | ToolUPSPatchSimpleView | ToolUPSPatchSimpleViewModel | UPS patch application tool |
-| 327 | ToolUPSOpenSimpleView | ToolUPSOpenSimpleViewModel | UPS patch open tool |
-| 328 | ToolFlagNameView | ToolFlagNameViewModel | Flag name editor |
-| 329 | ToolUseFlagView | ToolUseFlagViewModel | Flag usage viewer |
-| 330 | ToolUnitTalkGroupView | ToolUnitTalkGroupViewModel | Unit talk group editor |
-| 331 | ToolAnimationCreatorView | ToolAnimationCreatorViewViewModel | Animation creator (#500): `InitFromRom` / `InitFromFile` flows, frame list browser, per-frame editor |
-| 332 | ToolThreeMargeView | ToolThreeMargeViewModel | Three-way merge tool |
-| 333 | ToolThreeMargeCloseAlertView | ToolThreeMargeCloseAlertViewModel | Three-way merge close alert |
-| 334 | ToolExportEAEventView | ToolExportEAEventViewViewModel | Export events to EA format |
-| 335 | ToolChangeProjectnameView | ToolChangeProjectnameViewViewModel | Project name change tool |
-| 336 | ToolAutomaticRecoveryROMHeaderView | ToolAutomaticRecoveryROMHeaderViewViewModel | ROM header recovery tool |
-| 337 | ToolClickWriteFloatControlPanelButtonView | ToolClickWriteFloatControlPanelButtonViewModel | Float control panel button tool |
-| 338 | ToolSubtitleOverlayView | ToolSubtitleOverlayViewModel | Subtitle overlay tool |
-| 339 | ToolSubtitleSettingDialogView | ToolSubtitleSettingDialogViewViewModel | Subtitle settings dialog |
-| 340 | ToolInitWizardView | ToolInitWizardViewModel | Initial setup wizard |
-| 341 | ToolUpdateDialogView | ToolUpdateDialogViewModel | Application update dialog |
-| 342 | ToolRunHintMessageView | ToolRunHintMessageViewModel | Run hint message dialog |
-| 343 | ToolEmulatorSetupMessageView | ToolEmulatorSetupMessageViewModel | Emulator setup message |
-| 344 | ToolProblemReportView | ToolProblemReportViewModel | Problem report tool |
-| 345 | ToolProblemReportSearchBackupView | ToolProblemReportSearchBackupViewModel | Problem report backup search |
-| 346 | ToolProblemReportSearchSavView | ToolProblemReportSearchSavViewModel | Problem report save search |
-| 347 | ToolAllWorkSupportView | ToolAllWorkSupportViewModel | All work support tool |
-| 348 | ToolWorkSupportView | ToolWorkSupportViewModel | Work support tool |
-| 349 | ToolWorkSupport_SelectUPSView | ToolWorkSupport_SelectUPSViewModel | Work support UPS selection |
-| 350 | ToolWorkSupport_UpdateQuestionDialogView | ToolWorkSupport_UpdateQuestionDialogViewModel | Work support update question |
+| 318 | ToolUndoView | ToolUndoViewModel | Undo history viewer |
+| 319 | ToolUndoPopupDialogView | ToolUndoPopupDialogViewModel | Undo popup dialog |
+| 320 | ToolFELintView | ToolFELintViewModel | FE Lint ROM validation tool — read-only viewer over the cross-platform `FELintScanner` (same scan as CLI `--lint`): per-finding list, severity/category/address/message detail, error+warning summary, Rescan, and double-click/Enter jump-to-HexEditor for jumpable findings (#1168) |
+| 321 | ToolROMRebuildView | ToolROMRebuildViewModel | ROM rebuild tool |
+| 322 | ToolLZ77View | ToolLZ77ViewModel | LZ77 compression/decompression tool |
+| 323 | ToolDiffView | ToolDiffViewModel | ROM diff comparison tool |
+| 324 | ToolDiffDebugSelectView | ToolDiffDebugSelectViewModel | Diff debug selection dialog |
+| 325 | ToolUPSPatchSimpleView | ToolUPSPatchSimpleViewModel | UPS patch application tool |
+| 326 | ToolUPSOpenSimpleView | ToolUPSOpenSimpleViewModel | UPS patch open tool |
+| 327 | ToolFlagNameView | ToolFlagNameViewModel | Flag name editor |
+| 328 | ToolUseFlagView | ToolUseFlagViewModel | Flag usage viewer |
+| 329 | ToolUnitTalkGroupView | ToolUnitTalkGroupViewModel | Unit talk group editor |
+| 330 | ToolAnimationCreatorView | ToolAnimationCreatorViewViewModel | Animation creator (#500): `InitFromRom` / `InitFromFile` flows, frame list browser, per-frame editor |
+| 331 | ToolThreeMargeView | ToolThreeMargeViewModel | Three-way merge tool |
+| 332 | ToolThreeMargeCloseAlertView | ToolThreeMargeCloseAlertViewModel | Three-way merge close alert |
+| 333 | ToolExportEAEventView | ToolExportEAEventViewViewModel | Export events to EA format |
+| 334 | ToolChangeProjectnameView | ToolChangeProjectnameViewViewModel | Project name change tool |
+| 335 | ToolAutomaticRecoveryROMHeaderView | ToolAutomaticRecoveryROMHeaderViewViewModel | ROM header recovery tool |
+| 336 | ToolClickWriteFloatControlPanelButtonView | ToolClickWriteFloatControlPanelButtonViewModel | Float control panel button tool |
+| 337 | ToolSubtitleOverlayView | ToolSubtitleOverlayViewModel | Subtitle overlay tool |
+| 338 | ToolSubtitleSettingDialogView | ToolSubtitleSettingDialogViewViewModel | Subtitle settings dialog |
+| 339 | ToolInitWizardView | ToolInitWizardViewModel | Initial setup wizard |
+| 340 | ToolUpdateDialogView | ToolUpdateDialogViewModel | Application update dialog |
+| 341 | ToolRunHintMessageView | ToolRunHintMessageViewModel | Run hint message dialog |
+| 342 | ToolEmulatorSetupMessageView | ToolEmulatorSetupMessageViewModel | Emulator setup message |
+| 343 | ToolProblemReportView | ToolProblemReportViewModel | Problem report tool |
+| 344 | ToolProblemReportSearchBackupView | ToolProblemReportSearchBackupViewModel | Problem report backup search |
+| 345 | ToolProblemReportSearchSavView | ToolProblemReportSearchSavViewModel | Problem report save search |
+| 346 | ToolAllWorkSupportView | ToolAllWorkSupportViewModel | All work support tool |
+| 347 | ToolWorkSupportView | ToolWorkSupportViewModel | Work support tool |
+| 348 | ToolWorkSupport_SelectUPSView | ToolWorkSupport_SelectUPSViewModel | Work support UPS selection |
+| 349 | ToolWorkSupport_UpdateQuestionDialogView | ToolWorkSupport_UpdateQuestionDialogViewModel | Work support update question |
 
 ## 27. Simple Menu Mode
 
@@ -603,10 +602,10 @@ Simplified beginner-mode views.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 351 | MainSimpleMenuView | MainSimpleMenuViewModel | Simplified main menu |
-| 352 | MainSimpleMenuEventErrorView | MainSimpleMenuEventErrorViewModel | Simple menu event error display |
-| 353 | MainSimpleMenuEventErrorIgnoreErrorView | MainSimpleMenuEventErrorIgnoreErrorViewModel | Simple menu ignore error dialog |
-| 354 | MainSimpleMenuImageSubView | MainSimpleMenuImageSubViewModel | Simple menu image sub-view |
+| 350 | MainSimpleMenuView | MainSimpleMenuViewModel | Simplified main menu |
+| 351 | MainSimpleMenuEventErrorView | MainSimpleMenuEventErrorViewModel | Simple menu event error display |
+| 352 | MainSimpleMenuEventErrorIgnoreErrorView | MainSimpleMenuEventErrorIgnoreErrorViewModel | Simple menu ignore error dialog |
+| 353 | MainSimpleMenuImageSubView | MainSimpleMenuImageSubViewModel | Simple menu image sub-view |
 
 ---
 

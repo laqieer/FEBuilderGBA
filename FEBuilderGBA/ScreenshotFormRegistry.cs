@@ -365,7 +365,6 @@ namespace FEBuilderGBA
                 ("SongTrackChangeTrackView", () => new SongTrackChangeTrackForm()),
                 ("SongTrackAllChangeTrackView", () => new SongTrackAllChangeTrackForm()),
                 ("SongTrackImportSelectInstrumentView", () => new SongTrackImportSelectInstrumentForm()),
-                ("SongTrackImportWaveView", () => new SongTrackImportWaveForm()),
 
                 // ED/Credits + Item Variants
                 ("EDFE6View", () => new EDFE6Form()),

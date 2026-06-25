@@ -12402,3 +12402,5 @@ DPCMで圧縮
 :DPCM圧縮
 DPCM圧縮
 
+:The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
+上記アドレスにあるNUL終端文字列です。編集して書き込むと、文字列 + 末尾の 0x00 をエンコードします。その場に収まらなくなった場合は空き領域へ再配置し、すべての参照 (および参照元ポインタ) を張り替えます。
