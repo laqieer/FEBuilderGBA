@@ -561,6 +561,35 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(callerBytesBefore, callerCode.ByteData);
         }
 
+        [Fact]
+        public void InsertRange_DeepClones_CallerTemplateNotMutatedByRelocate()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+
+            uint baseOff = 0x1000;
+            uint basePtr = 0x08000000 + baseOff;
+            WriteBytes(rom, baseOff, new byte[] { 0x01, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00 });
+            WriteWord(rom, 0x4000, basePtr); // inbound reference so relocation is allowed
+
+            var ed = new EventScriptEditorCore(es);
+            ed.BuildFromRom(rom, baseOff);
+
+            // A caller-owned template containing a CALL whose pointer == basePtr.
+            var templateCode = Code(es, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x08);
+            byte[] templateBytesBefore = (byte[])templateCode.ByteData.Clone();
+            ed.InsertRange(0, new List<EventScript.OneCode> { templateCode });
+
+            // Grow further so WriteAll relocates and runs NotifyChangePointer over the list.
+            ed.Insert(0, Code(es, 0x02, 0x00, 0x02, 0x00));
+
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            ed.WriteAll(rom, baseOff, false, false, undo, out _);
+
+            // The caller's template OneCode bytes are untouched (engine cloned on insert).
+            Assert.Equal(templateBytesBefore, templateCode.ByteData);
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]

@@ -167,6 +167,9 @@ namespace FEBuilderGBA
         public int Insert(int selectedIndex, EventScript.OneCode code)
         {
             if (code == null) throw new ArgumentNullException(nameof(code));
+            // Deep-clone so the engine OWNS its copy — its later in-place ByteData mutations
+            // (NotifyChangePointer on relocate) must never reach a caller-held instance.
+            code = EventScript.CloneCode(code);
 
             int selected;
             if (selectedIndex < 0 || selectedIndex >= _codes.Count)
@@ -192,7 +195,11 @@ namespace FEBuilderGBA
         /// <summary>
         /// Insert a whole template (a list of codes) at <paramref name="selectedIndex"/>
         /// (clamped to 0). Ports WinForms <c>InsertEventTemplate</c> /
-        /// <c>EventAsm.InsertRange</c>. Returns the index of the last inserted code.
+        /// <c>EventAsm.InsertRange</c>. Each code is DEEP-CLONED so the engine owns its
+        /// copies and a later relocate's in-place <c>NotifyChangePointer</c> can't mutate
+        /// the caller's template list (Copilot PR review #1510 — same isolation contract as
+        /// <see cref="SetCodes"/> / <see cref="Insert"/>). Returns the index of the last
+        /// inserted code.
         /// </summary>
         public int InsertRange(int selectedIndex, IList<EventScript.OneCode> codes)
         {
@@ -201,7 +208,9 @@ namespace FEBuilderGBA
             if (insertedPoint < 0) insertedPoint = 0;
             if (insertedPoint > _codes.Count) insertedPoint = _codes.Count;
 
-            _codes.InsertRange(insertedPoint, codes);
+            var clones = new List<EventScript.OneCode>(codes.Count);
+            foreach (var c in codes) clones.Add(c == null ? null : EventScript.CloneCode(c));
+            _codes.InsertRange(insertedPoint, clones);
             EventScriptUtil.JisageReorder(_codes);
             return insertedPoint + Math.Max(0, codes.Count - 1);
         }
@@ -515,6 +524,17 @@ namespace FEBuilderGBA
                         freespace + (uint)databyte.Length > (uint)rom.Data.Length)
                     {
                         return WriteResult.NoFreeSpace;
+                    }
+
+                    // Validate the DESTINATION the same way as the source (Copilot PR review
+                    // #1510 finding #2): the fallback FindSpace(0x100, ...) could in principle
+                    // return header/danger-zone (< 0x200) or unaligned space — refuse rather
+                    // than repoint+write a script into an unsafe address. Nothing destructive
+                    // has happened yet.
+                    if (!U.isSafetyOffset(freespace, rom) || (freespace & 3) != 0 ||
+                        !U.isSafetyOffset(freespace + (uint)databyte.Length - 1, rom))
+                    {
+                        return WriteResult.UnsafeAddress;
                     }
 
                     // SAFETY GATE (Copilot plan review finding #2): before any destructive
