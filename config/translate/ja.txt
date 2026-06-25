@@ -12286,3 +12286,18 @@ PLISTテーブルを分割しました。
 
 :Template config file not found.
 テンプレート設定ファイルが見つかりません。
+
+:Attack Type (W0):
+攻撃方法 (W0):
+
+:Attacker / Side (B2):
+攻撃側 (B2):
+
+:Damage (B3):
+ダメージ (B3):
+
+:Attack Type (W0, decimal input; reference hex values): 0x0000=Attack, 0x0001=Critical, 0x0002=Miss, 0x0040=Poison, 0x0080=Devil Axe, 0x0100=HP Restoring, 0x0200=HP Halving, 0x0800=Instant kill
+攻撃方法 (W0、10進数で入力; 参考の16進値): 0x0000=攻撃, 0x0001=必殺, 0x0002=ミス, 0x0040=毒, 0x0080=デビルアクス, 0x0100=HP回復, 0x0200=HP半減, 0x0800=瞬殺
+
+:Attacker / Side (B2, decimal input; reference hex values): 0x00=Attacker starts, 0x01=Attacker starts (counter next), 0x08=Counter starts, 0x09=Counter starts (counter next), 0x0A=Counter starts 2, 0x80=Battle end
+攻撃側 (B2、10進数で入力; 参考の16進値): 0x00=攻撃側から攻撃開始, 0x01=攻撃側から攻撃開始(次は相手), 0x08=反撃側から攻撃開始, 0x09=反撃側から攻撃開始(次は相手), 0x0A=反撃側から攻撃開始2, 0x80=戦闘終端
