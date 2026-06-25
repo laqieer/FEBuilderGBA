@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.Initialize failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.Initialize failed: {ex.Message}");
             }
             finally { _vm.IsLoaded = true; }
         }
@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.LoadUnitList failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadUnitList failed: {ex.Message}");
             }
         }
 
@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnUnitSelected failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnUnitSelected failed: {ex.Message}");
             }
         }
 
@@ -171,7 +171,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.LoadN1Sublist failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.LoadN1Sublist failed: {ex.Message}");
             }
         }
 
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnN1Selected failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Selected failed: {ex.Message}");
             }
         }
 
@@ -284,7 +284,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnWrite failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnWrite failed: {ex.Message}");
             }
         }
 
@@ -303,7 +303,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnN1Write failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Write failed: {ex.Message}");
             }
         }
 
@@ -324,7 +324,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnIndependence failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnIndependence failed: {ex.Message}");
             }
         }
 
@@ -346,7 +346,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnN1Expand failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnN1Expand failed: {ex.Message}");
             }
         }
 
@@ -373,7 +373,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitCSkillSysView.OnLearnInfo failed: {0}", ex.Message);
+                Log.Error($"SkillAssignmentUnitCSkillSysView.OnLearnInfo failed: {ex.Message}");
             }
         }
 
