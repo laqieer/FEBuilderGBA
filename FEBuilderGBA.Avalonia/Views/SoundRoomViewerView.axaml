@@ -5,7 +5,16 @@
         Title="Sound Room Editor" Width="1275" Height="817"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="SoundRoomViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+    <DockPanel Grid.Column="0" Margin="4">
+      <Button DockPanel.Dock="Bottom"
+              AutomationProperties.AutomationId="SoundRoomViewer_ListExpand_Button"
+              Name="ListExpandButton" Content="List Expansion"
+              Click="ListExpand_Click"
+              ToolTip.Tip="Expand the sound room list to a specified entry count (max 255, or 1000 with the soundroom_over255 patch)."
+              Margin="0,4,0,0"
+              HorizontalAlignment="Stretch" />
+      <controls:AddressListControl AutomationProperties.AutomationId="SoundRoomViewer_Entry_List" Name="EntryList" />
+    </DockPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">

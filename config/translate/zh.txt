@@ -26241,6 +26241,14 @@ Boss对话 (16字节)
 :The NUL-terminated string at the address above. Editing then Write encodes the string + a trailing 0x00; if it no longer fits in place it is relocated to free space and every reference (plus the source pointer) is repointed.
 上述地址处的以NUL结尾的字符串。编辑后点击Write将对字符串 + 末尾的 0x00 进行编码；若不再适合原位置，则重定位到空闲区域并重新指向每一个引用（以及源指针）。
 
+:Expand the sound room list to a specified entry count (max 255, or 1000 with the soundroom_over255 patch).
+将音乐室列表扩展到指定的条目数（最大 255，安装 soundroom_over255 补丁后为 1000）。
+
+:Enter the new entry count for the sound room list (current: {0}, max: {1}).
+请输入音乐室列表的新条目数（当前：{0}，最大：{1}）。
+
+:Expanded sound room list to {0} entries.
+已将音乐室列表扩展到 {0} 个条目。
 :Skill Assignment - Unit (CSkillSys 0.9x / 3.00+).\r\nThis editor requires the CSkillSys skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys patch first.
 技能_单位分配 (CSkillSys 0.9x / 3.00+)。\r\n此编辑器需要安装 CSkillSys 技能系统补丁。\r\n请先在补丁管理器中安装 CSkillSys 补丁。
 
