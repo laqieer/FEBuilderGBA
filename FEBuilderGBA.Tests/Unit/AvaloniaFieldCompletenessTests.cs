@@ -176,6 +176,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("EventMoveDataFE7View", "EventMoveDataFE7Form", "EventMoveDataFE7ViewModel"),
             ("EventTalkGroupFE7View", "EventTalkGroupFE7Form", "EventTalkGroupFE7ViewModel"),
             ("AOERANGEView", "AOERANGEForm", "AOERANGEViewModel"),
+            ("CStringView", "CStringForm", "CStringViewModel"),
             ("AIASMCALLTALKView", "AIASMCALLTALKForm", "AIASMCALLTALKViewModel"),
             ("AIASMCoordinateView", "AIASMCoordinateForm", "AIASMCoordinateViewModel"),
             ("AIASMRangeView", "AIASMRangeForm", "AIASMRangeViewModel"),

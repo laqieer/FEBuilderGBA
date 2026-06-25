@@ -342,13 +342,13 @@ Editors for game text, fonts, translation, and text utilities.
 | 199 | TextViewerView | TextViewerViewModel | Main text viewer/editor |
 | 200 | TextMainView | TextMainViewModel | Nested sub-view for text |
 | 201 | OtherTextView | OtherTextViewModel | Other text data editor |
-| 202 | CStringView | CStringViewModel | C-style string editor |
+| 202 | CStringView | CStringViewModel | C-style string editor — **functional** (#1445): manual address + Reload, editable string TextBox, real read (`TextForm.Direct` decode) + repoint-on-write (`CStringCore`, encode + NUL, in-place else relocate) |
 | 203 | FontEditorView | FontEditorViewModel | Font tile editor |
 | 204 | FontZHView | FontZHViewModel | Chinese font editor (per-glyph + bulk export/import + .ttf auto-generate) |
 | 205 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
 | 206 | TextScriptCategorySelectView | TextScriptCategorySelectViewModel | Text script category picker |
 | 207 | TextDicView | TextDicViewModel | Text dictionary editor |
-| 208 | TextCharCodeView | TextCharCodeViewModel | Character code table viewer |
+| 208 | TextCharCodeView | TextCharCodeViewModel | Character code table editor (Write button persists Char Code/Terminator + rebuilds text encoder) |
 | 209 | TextBadCharPopupView | TextBadCharPopupViewModel | Invalid character warning popup |
 | 210 | TextRefAddDialogView | TextRefAddDialogViewModel | Text reference addition dialog |
 | 211 | TextToSpeechView | TextToSpeechViewModel | Text-to-speech preview tool |
