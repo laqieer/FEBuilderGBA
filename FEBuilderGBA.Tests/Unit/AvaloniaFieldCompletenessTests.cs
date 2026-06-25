@@ -114,7 +114,6 @@ namespace FEBuilderGBA.Tests.Unit
             ("SkillConfigFE8NVer2SkillView", "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer2SkillViewModel"),
             ("SkillConfigFE8NVer3SkillView", "SkillConfigFE8NVer3SkillForm", "SkillConfigFE8NVer3SkillViewModel"),
             ("SkillConfigFE8UCSkillSys09xView", "SkillConfigFE8UCSkillSys09xForm", "SkillConfigFE8UCSkillSys09xViewModel"),
-            ("SkillSystemsEffectivenessReworkClassTypeView", "SkillSystemsEffectivenessReworkClassTypeForm", "SkillSystemsEffectivenessReworkClassTypeViewViewModel"),
 
             // OP Class Editors
             ("OPClassDemoFE7View", "OPClassDemoFE7Form", "OPClassDemoFE7ViewModel"),
