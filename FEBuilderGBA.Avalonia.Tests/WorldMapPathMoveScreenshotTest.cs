@@ -44,10 +44,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine("SKIP: no ROM available");
                 return;
             }
-            ROM rom = CoreState.ROM!;
-            if (rom.RomInfo == null || rom.RomInfo.version != 8 || rom.RomInfo.worldmap_road_pointer == 0)
+            // This proof asserts FE8U-specific data (Path 0 = exactly 2 nodes, the
+            // 0x2064BC fallback offset), so gate strictly on FE8U for determinism
+            // across whichever ROM the fixture happened to load.
+            if (_fixture.Version != "FE8U")
             {
-                _output.WriteLine("SKIP: not FE8 (no world-map road pointer).");
+                _output.WriteLine($"SKIP: not FE8U (fixture loaded {_fixture.Version ?? "no ROM"}).");
+                return;
+            }
+            ROM rom = CoreState.ROM!;
+            if (rom.RomInfo == null || rom.RomInfo.worldmap_road_pointer == 0)
+            {
+                _output.WriteLine("SKIP: no world-map road pointer.");
                 return;
             }
 
@@ -115,12 +123,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var accent = new SKColor(0x4E, 0xC9, 0xB0);
                 var bad = new SKColor(0xE0, 0x6C, 0x6C);
                 var fg = new SKColor(0xEC, 0xEC, 0xEC);
-                var dim = new SKColor(0x9A, 0xA0, 0xA6);
                 c.Clear(bg);
 
                 using var title = new SKPaint { Color = accent, IsAntialias = true, TextSize = 24, FakeBoldText = true };
                 using var hdr = new SKPaint { Color = fg, IsAntialias = true, TextSize = 18, FakeBoldText = true };
-                using var lbl = new SKPaint { Color = dim, IsAntialias = true, TextSize = 15 };
                 using var mono = new SKPaint { Color = fg, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
                 using var monoBad = new SKPaint { Color = bad, IsAntialias = true, TextSize = 15, Typeface = SKTypeface.FromFamilyName("Consolas") };
                 using var note = new SKPaint { Color = accent, IsAntialias = true, TextSize = 14 };
