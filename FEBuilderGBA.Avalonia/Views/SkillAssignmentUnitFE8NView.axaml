@@ -6,7 +6,7 @@
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <StackPanel Margin="16" Spacing="12">
     <TextBlock Text="Skill Assignment - Unit (FE8N)" FontSize="18" FontWeight="Bold" />
-    <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
+    <Border Name="WarningBorder" Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
       <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitFE8N_Status_Label" TextWrapping="Wrap" Name="StatusText"
                  Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
     </Border>

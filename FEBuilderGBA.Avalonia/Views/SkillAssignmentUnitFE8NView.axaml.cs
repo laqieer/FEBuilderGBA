@@ -6,6 +6,29 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// Avalonia counterpart of WinForms <c>SkillAssignmentUnitFE8NForm</c>.
+    ///
+    /// #1452: the view used to be inert — <c>Initialize()</c> only set
+    /// <c>IsLoaded</c>, the editing panel + Write button were hardcoded hidden,
+    /// and <c>Write()</c> no-opped on <c>CurrentAddr==0</c>. A user WITH an FE8N
+    /// skill patch was wrongly told "no patch installed".
+    ///
+    /// The view now consults <see cref="PatchDetectionService"/>: when an
+    /// FE8N-family skill patch (FE8N / FE8N_Ver2 / FE8N_Ver3 / Yugudora / Midori)
+    /// is detected AND a valid unit address has been navigated to, it hides the
+    /// warning, reveals the field grid + Write button, and edits the open unit's
+    /// Personal Skill / Skill Set 1 / Skill Set 2 bytes (struct offsets
+    /// 0x27/0x28/0x29 = B39/B40/B41) — exactly the three bytes the WinForms form
+    /// writes. When no FE8N patch is present, the warning stays and the panel
+    /// stays hidden (correct behavior).
+    ///
+    /// The reveal/load logic lives in <see cref="RefreshUiForCurrentAddress"/>
+    /// and is called from BOTH <c>Opened</c> and <see cref="NavigateTo"/> so a
+    /// REUSED singleton window (WindowManager.Navigate reuses an already-open
+    /// window and only fires NavigateTo, not Opened) refreshes for the new unit
+    /// instead of showing stale/hidden state.
+    /// </summary>
     public partial class SkillAssignmentUnitFE8NView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly SkillAssignmentUnitFE8NViewViewModel _vm = new();
@@ -17,11 +40,58 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             WriteButton.Click += OnWrite;
-            Opened += (_, _) => _vm.Initialize();
+            Opened += (_, _) =>
+            {
+                _vm.Initialize();
+                RefreshUiForCurrentAddress();
+            };
+        }
+
+        /// <summary>
+        /// True iff the detected skill system is an FE8N-family variant that this
+        /// editor handles. Mirrors the routing in
+        /// <c>UnitEditorView.EditSkills_Click</c>.
+        /// </summary>
+        static bool IsFE8NFamily(PatchDetectionService.SkillSystemType t) =>
+            t == PatchDetectionService.SkillSystemType.FE8N ||
+            t == PatchDetectionService.SkillSystemType.FE8N_Ver2 ||
+            t == PatchDetectionService.SkillSystemType.FE8N_Ver3 ||
+            t == PatchDetectionService.SkillSystemType.Yugudora ||
+            t == PatchDetectionService.SkillSystemType.Midori;
+
+        /// <summary>
+        /// Detect the FE8N patch and, when present + a valid unit address is set,
+        /// reveal the editing panel and load the unit's skill bytes into the UI.
+        /// Otherwise keep the "no patch" warning and the hidden panel.
+        /// Idempotent — safe to call from both Opened and NavigateTo.
+        /// </summary>
+        void RefreshUiForCurrentAddress()
+        {
+            bool hasPatch = IsFE8NFamily(PatchDetectionService.Instance.SkillSystem);
+            bool hasAddress = _vm.CurrentAddr != 0;
+            bool functional = hasPatch && hasAddress;
+
+            // Reveal/hide the editor surface.
+            if (FieldsPanel != null) FieldsPanel.IsVisible = functional;
+            if (WriteButton != null) WriteButton.IsVisible = functional;
+            // The "no patch" warning is only honest when no FE8N patch is present.
+            if (WarningBorder != null) WarningBorder.IsVisible = !hasPatch;
+
+            if (!functional) return;
+
+            // Load the unit's skill bytes and populate the controls.
+            _vm.LoadEntry(_vm.CurrentAddr);
+            if (AddrLabel != null) AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            if (PersonalSkillBox != null) PersonalSkillBox.Value = _vm.PersonalSkill;
+            if (SkillSet1Box != null) SkillSet1Box.Value = _vm.SkillSet1;
+            if (SkillSet2Box != null) SkillSet2Box.Value = _vm.SkillSet2;
+            _vm.MarkClean();
         }
 
         void OnWrite(object? sender, RoutedEventArgs e)
         {
+            if (_vm.CurrentAddr == 0) return;
+
             _vm.PersonalSkill = (uint)(PersonalSkillBox.Value ?? 0);
             _vm.SkillSet1 = (uint)(SkillSet1Box.Value ?? 0);
             _vm.SkillSet2 = (uint)(SkillSet2Box.Value ?? 0);
@@ -40,7 +110,12 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) { }
+        public void NavigateTo(uint address)
+        {
+            _vm.CurrentAddr = address;
+            RefreshUiForCurrentAddress();
+        }
+
         public void SelectFirstItem() { }
         public ViewModelBase? DataViewModel => _vm;
     }
