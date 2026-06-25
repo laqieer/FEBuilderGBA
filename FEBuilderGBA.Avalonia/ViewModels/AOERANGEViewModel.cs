@@ -170,11 +170,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Status = "ROM not loaded.";
                 return false;
             }
-            if (!IsLoaded || (CurrentAddr == 0 && ParentPointerSlot == 0))
+            // Refuse only when there is nothing safe to write to: no loaded record
+            // AND no parent pointer slot. A parent slot (e.g. a NULL AOERANGE pointer
+            // reached from a patch jump) makes CurrentAddr == 0 a valid FRESH APPEND —
+            // AoeRangeCore.WriteAoeRange creates the record and repoints the slot.
+            if (CurrentAddr == 0 && ParentPointerSlot == 0)
             {
-                // Standalone, no address loaded and no parent slot: a header-only or
-                // fresh write here would be orphaned — refuse (matches the old
-                // addr-0 no-op, but now explicit).
                 Status = "No AOE record loaded. Enter an address and Reload first.";
                 return false;
             }
@@ -232,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
 
             uint a = CurrentAddr;
-            if (!U.isSafetyOffset(a + 2, rom)) return new Dictionary<string, string>();
+            if (!U.isSafetyOffset(a + 3, rom)) return new Dictionary<string, string>();
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",

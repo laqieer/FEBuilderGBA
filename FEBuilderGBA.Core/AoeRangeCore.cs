@@ -106,8 +106,10 @@ namespace FEBuilderGBA
         {
             if (rom == null) return null;
             addr = U.toOffset(addr);
-            // WF: if (!isSafetyOffset(addr + 2)) return; (header is one word)
-            if (!U.isSafetyOffset(addr + 2, rom)) return null;
+            // Guard the FULL 4-byte header (w/h/cx/cy) before reading. WF checks
+            // addr+2 (its NumericUpDowns tolerate a short tail), but we read cx@+2
+            // and cy@+3, so guard addr+3 to honour the never-throw contract at EOF.
+            if (!U.isSafetyOffset(addr + 3, rom)) return null;
 
             uint w = rom.u8(addr + 0);
             uint h = rom.u8(addr + 1);

@@ -262,6 +262,36 @@ public class AOERANGEViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Write_FreshAppend_WithParentSlot_NotLoaded_CreatesRecord()
+    {
+        // A NULL AOERANGE pointer reached from a parent (slot set, CurrentAddr==0,
+        // IsLoaded==false) must be initialisable: Write does a fresh append +
+        // repoints the slot (Copilot review #2 — must not refuse here).
+        var rom = MakeRom();
+        CoreState.ROM = rom;
+        CoreState.Undo = new Undo();
+        uint slot = 0x400;
+        for (int i = 0; i < 256; i++) rom.Data[0x100100 + i] = 0xFF;
+
+        var vm = new AOERANGEViewModel();
+        vm.ParentPointerSlot = slot;     // CurrentAddr stays 0, IsLoaded stays false.
+        vm.Width = 2; vm.Height = 2;
+        vm.ResizeGridPreserving(0, 0);   // build 2×2 empty grid.
+
+        var undoService = new UndoService();
+        undoService.Begin("Edit AOE Range");
+        bool changed = vm.Write();
+        if (changed) undoService.Commit(); else undoService.Rollback();
+
+        Assert.True(changed);
+        Assert.NotEqual(0u, vm.CurrentAddr);
+        Assert.Equal(vm.CurrentAddr, rom.p32(slot));
+        var back = AoeRangeCore.ReadAoeRange(rom, vm.CurrentAddr);
+        Assert.Equal(2u, back.Width);
+        Assert.Equal(2u, back.Height);
+    }
+
+    [Fact]
     public void Write_NoRecordLoaded_RefusesNoMutation()
     {
         var rom = MakeRom();

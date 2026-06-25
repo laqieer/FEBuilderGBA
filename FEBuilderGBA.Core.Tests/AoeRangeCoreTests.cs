@@ -73,6 +73,16 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ReadAoeRange_HeaderTruncatedAtEof_ReturnsNullNotThrow()
+        {
+            // addr+2 is the last valid byte; addr+3 (CenterY) is past EOF. The method
+            // must return null, never throw (Copilot review boundary case).
+            var rom = MakeRom(0x103);
+            uint addr = 0x100; // addr+2 = 0x102 (last index), addr+3 = 0x103 (OOB).
+            Assert.Null(AoeRangeCore.ReadAoeRange(rom, addr));
+        }
+
+        [Fact]
         public void ReadAoeRange_ZeroSize_ReturnsEmptyGrid()
         {
             var rom = MakeRom();

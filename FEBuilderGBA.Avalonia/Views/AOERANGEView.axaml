@@ -50,7 +50,7 @@
            center cell is highlighted via the IsCenter trigger. -->
       <Border BorderBrush="Gray" BorderThickness="1" Padding="4"
               AutomationProperties.AutomationId="AOERANGE_Grid">
-        <ItemsControl Name="CellGrid" ItemsSource="{Binding Cells}">
+        <ItemsControl AutomationProperties.AutomationId="AOERANGE_Cell_List" Name="CellGrid" ItemsSource="{Binding Cells}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
               <UniformGrid Name="CellPanel" />

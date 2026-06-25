@@ -13,6 +13,7 @@ using global::Avalonia;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Media.Imaging;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
 using Xunit.Abstractions;
@@ -59,14 +60,30 @@ namespace FEBuilderGBA.Avalonia.Tests
             var view = new AOERANGEView();
             view.NavigateTo(addr); // load the record → header + grid populate.
 
-            // Data-layer proof: the editor is functional, not the addr-0 stub.
+            // Data-layer render coverage (ENFORCED — these assert the real load/grid
+            // path the screenshot depicts; a regression here fails CI regardless of
+            // whether the headless platform rasterises). The editor is functional,
+            // not the addr-0 stub.
             Assert.True(view.IsLoaded);
+            var vm = Assert.IsType<AOERANGEViewModel>(view.DataViewModel);
+            Assert.Equal((uint)W, vm.Width);
+            Assert.Equal((uint)H, vm.Height);
+            Assert.Equal(W * H, vm.Cells.Count);          // dynamic grid is populated.
+            int centerIdx = -1;
+            for (int i = 0; i < vm.Cells.Count; i++)
+                if (vm.Cells[i].IsCenter) { centerIdx = i; break; }
+            Assert.Equal(2 + 2 * W, centerIdx);           // center @ (2,2) = 2 + 2*5 = 12.
 
+            // Measure/Arrange must not throw on the real visual tree (catches XAML
+            // binding/format faults like the hex-FormatString bug). The PNG Save
+            // itself is best-effort — the test headless platform uses
+            // UseHeadlessDrawing (no rasteriser), so a saved PNG would be blank
+            // (see the other *ScreenshotTest siblings).
+            const int VW = 720, VH = 620;
+            view.Measure(new Size(VW, VH));
+            view.Arrange(new Rect(0, 0, VW, VH));
             try
             {
-                const int VW = 720, VH = 620;
-                view.Measure(new Size(VW, VH));
-                view.Arrange(new Rect(0, 0, VW, VH));
                 using var bitmap = new RenderTargetBitmap(new PixelSize(VW, VH));
                 bitmap.Render(view);
 
@@ -78,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"Headless render failed (environment, not the #1431 fix): {ex.Message}");
+                _output.WriteLine($"Headless PNG save no-op (UseHeadlessDrawing, not the #1431 fix): {ex.Message}");
             }
         }
 
