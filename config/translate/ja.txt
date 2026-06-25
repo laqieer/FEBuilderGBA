@@ -12426,3 +12426,9 @@ DPCM圧縮
 
 :This table is referenced by multiple units.
 このテーブルは、複数のユニットで参照されています。
+
+:Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)
+相手の値を自動調整する（初期値/進行度を相手の相互支援に反映）
+
+:Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
+相互反映はROM保存のみ有効です。decompモードではソースを編集して再ビルドしてください。

@@ -20868,3 +20868,9 @@ Strip silence:
 :Volume (%):
 Volume (%):
 
+
+:Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)
+Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)
+
+:Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
+Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.

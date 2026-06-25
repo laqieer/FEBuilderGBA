@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 AutoCollectCheckBox.IsChecked = false;
                 AutoCollectCheckBox.IsEnabled = false;
                 ToolTip.SetTip(AutoCollectCheckBox,
-                    "Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.");
+                    R._("Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild."));
             }
             Opened += (_, _) => LoadList();
         }

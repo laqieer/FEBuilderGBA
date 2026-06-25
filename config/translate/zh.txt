@@ -26260,3 +26260,9 @@ Boss对话 (16字节)
 
 :This table is referenced by multiple units.
 此表正在被多个单位引用。
+
+:Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)
+自动调整搭档数值（将初期值/进行度镜像到搭档的互相支援）
+
+:Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
+互相镜像仅适用于 ROM 保存。在 decomp 模式下，请编辑源码并重新构建。
