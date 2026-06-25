@@ -404,9 +404,12 @@ namespace FEBuilderGBA.Core
         /// <c>.byte</c> / <c>.word</c> directives carry the sample data (the format
         /// sox+DPCM tooling and some external converters emit). Strips <c>@</c>/<c>#</c>
         /// comments; accepts decimal, negative-decimal, and <c>0x</c> hex byte tokens.
-        /// <para>Returns <c>true</c> on success with <paramref name="data"/> set;
-        /// on a non-numeric token sets <paramref name="error"/> + returns <c>false</c>
-        /// (matches the WF <c>R.Error</c> message shape). Never throws.</para>
+        /// <para>Returns <c>true</c> on success with <paramref name="data"/> set.
+        /// Token validation matches WinForms exactly: a non-numeric <c>.byte</c>
+        /// token sets <paramref name="error"/> + returns <c>false</c> (the WF
+        /// <c>R.Error</c> message shape), but <c>.word</c> tokens are parsed with
+        /// <see cref="U.atoi0x"/> and an unparsable one becomes <c>0</c> (NOT an
+        /// error) — verbatim WF behavior. Never throws.</para>
         /// </summary>
         public static bool LoadWavS(string[] lines, out byte[] data, out string error)
         {

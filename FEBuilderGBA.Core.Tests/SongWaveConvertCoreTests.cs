@@ -16,6 +16,8 @@
 //   * Convert/Preview orchestration: DPCM gated off when hqMixerAvailable=false
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices;
 using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using Xunit;
@@ -256,6 +258,76 @@ namespace FEBuilderGBA.Core.Tests
             finally
             {
                 CoreState.Config = saved;
+            }
+        }
+
+        [Fact]
+        public void Sox_NonZeroExit_RejectedEvenIfOutputCreated()
+        {
+            // A sox shim that CREATES a >0-byte out.wav but exits non-zero must be
+            // rejected (Copilot review #1537): a partial output on a failed run is
+            // not a valid sample. The args end with the escaped out.wav path, so the
+            // shim writes to its LAST argument.
+            // On Unix CI the .sh launches and exercises the true ExitCode!=0 branch;
+            // on Windows the .cmd is not directly launchable by Process.Start, so the
+            // launch-exception path (synthetic exit -1) is exercised instead — both
+            // resolve to a rejected (null) result, which is what we assert.
+            Config saved = CoreState.Config;
+            string shim = MakeFailingSoxShim();
+            try
+            {
+                CoreState.Config = new Config();
+                CoreState.Config["sox"] = shim;
+                byte[] wav = MakeWav(8, SmoothPcm(64));
+                byte[] r = SongSoxConvertCore.ConvertWaveBySox(wav, 1, 12000, 0, 0, out string err);
+                Assert.Null(r); // rejected despite the shim creating out.wav
+                Assert.False(string.IsNullOrEmpty(err));
+            }
+            finally
+            {
+                CoreState.Config = saved;
+                try { if (File.Exists(shim)) File.Delete(shim); } catch { }
+            }
+        }
+
+        // Write a tiny platform-appropriate shim that creates a non-empty file at
+        // its LAST argument (the out.wav path) then exits with code 1.
+        static string MakeFailingSoxShim()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                string path = Path.Combine(Path.GetTempPath(), "feb_soxfail_" + Guid.NewGuid().ToString("N") + ".cmd");
+                // %~$ last arg is awkward in cmd; the LAST positional arg is the
+                // out.wav. Use a for-loop to grab the last token, write to it, exit 1.
+                File.WriteAllText(path,
+                    "@echo off\r\n" +
+                    "set last=\r\n" +
+                    ":loop\r\n" +
+                    "if \"%~1\"==\"\" goto done\r\n" +
+                    "set last=%~1\r\n" +
+                    "shift\r\n" +
+                    "goto loop\r\n" +
+                    ":done\r\n" +
+                    "echo partial> \"%last%\"\r\n" +
+                    "exit /b 1\r\n");
+                return path;
+            }
+            else
+            {
+                string path = Path.Combine(Path.GetTempPath(), "feb_soxfail_" + Guid.NewGuid().ToString("N") + ".sh");
+                File.WriteAllText(path,
+                    "#!/bin/sh\n" +
+                    "for a in \"$@\"; do last=\"$a\"; done\n" +
+                    "echo partial > \"$last\"\n" +
+                    "exit 1\n");
+                try
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo("chmod", "+x \"" + path + "\"")
+                    { UseShellExecute = false, CreateNoWindow = true };
+                    System.Diagnostics.Process.Start(psi)?.WaitForExit(5000);
+                }
+                catch { }
+                return path;
             }
         }
 

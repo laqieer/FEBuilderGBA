@@ -129,10 +129,17 @@ namespace FEBuilderGBA.Core
                     args.Append(" gain -h ");
                 }
 
-                string output = RunProcess(soxExe, args.ToString(), tempDir);
-                if (output != null && output.IndexOf("ERROR", StringComparison.OrdinalIgnoreCase) == 0)
+                int exitCode = RunProcess(soxExe, args.ToString(), tempDir, out string output, out bool timedOut);
+
+                // Treat a timeout, a non-zero exit code, OR an "ERROR..." banner as
+                // failure (Copilot review #1537): a sox timeout or a non-zero exit
+                // that left a partial out.wav (>0 bytes) must NOT be imported as a
+                // corrupted sample. The output-existence check is the LAST gate.
+                bool errBanner = output != null && output.IndexOf("ERROR", StringComparison.OrdinalIgnoreCase) == 0;
+                if (timedOut || exitCode != 0 || errBanner)
                 {
-                    error = soxExe + " " + args + " \r\noutput:\r\n" + output;
+                    error = soxExe + " " + args + " \r\nexit=" + exitCode
+                          + (timedOut ? " (timed out)" : "") + "\r\noutput:\r\n" + output;
                     return null;
                 }
 
@@ -157,9 +164,14 @@ namespace FEBuilderGBA.Core
         }
 
         // Process runner — same shape as AsmCompileCore.RunProcess (120s timeout,
-        // combined stdout+stderr). Never throws; a timeout returns an Error: line.
-        static string RunProcess(string exePath, string args, string workDir)
+        // combined stdout+stderr). Never throws. Returns the process exit code and
+        // sets <paramref name="timedOut"/> so the caller can reject a timeout or a
+        // non-zero exit (Copilot review #1537). On a launch exception the exit code
+        // is a synthetic -1 with the message in <paramref name="output"/>.
+        static int RunProcess(string exePath, string args, string workDir, out string output, out bool timedOut)
         {
+            output = "";
+            timedOut = false;
             try
             {
                 var psi = new ProcessStartInfo(exePath, args)
@@ -182,14 +194,21 @@ namespace FEBuilderGBA.Core
                     if (!proc.WaitForExit(120_000))
                     {
                         try { proc.Kill(); } catch { }
-                        return "Error: sox timed out after 120 seconds.";
+                        timedOut = true;
+                        output = "Error: sox timed out after 120 seconds.\r\n" + sb.ToString();
+                        return -1;
                     }
+                    // Drain the async stdout/stderr handlers (a bounded WaitForExit
+                    // can return before the last OutputDataReceived fires).
+                    proc.WaitForExit();
+                    output = sb.ToString();
+                    return proc.ExitCode;
                 }
-                return sb.ToString();
             }
             catch (Exception ex)
             {
-                return "Error: " + ex.Message;
+                output = "Error: " + ex.Message;
+                return -1;
             }
         }
     }

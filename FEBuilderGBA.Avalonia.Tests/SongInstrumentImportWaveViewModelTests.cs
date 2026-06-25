@@ -94,6 +94,15 @@ public class SongInstrumentImportWaveViewModelTests : IDisposable
     }
 
     [Fact]
+    public void ChannelValues_ExcludeStereo()
+    {
+        // GBA DirectSound samples are mono; stereo (-c 2) is intentionally not
+        // offered (Copilot review #1537). WF parity = {unchanged, mono}.
+        Assert.Equal(new uint[] { 0, 1 }, SongInstrumentImportWaveViewModel.ChannelValues);
+        Assert.DoesNotContain(2u, SongInstrumentImportWaveViewModel.ChannelValues);
+    }
+
+    [Fact]
     public void Dpcm_GatedOff_WhenNoHqMixer()
     {
         CoreState.ROM = null; // HasHqMixer(null) == false

@@ -31,7 +31,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // WF default indices: HZ=4, Strip=1, Channel=1, Volume=9, DPCM=0, Lookahead=3.
         public static readonly uint[] HzValues = { 0, 8000, 10512, 11025, 13379, 16000, 18157, 22050, 32000, 44100 };
         public static readonly uint[] StripValues = { 0, 1, 2, 3, 6, 11 }; // 0=off; value-1 = silence %
-        public static readonly uint[] ChannelValues = { 0, 1, 2 };          // 0=unchanged, 1=mono, 2=stereo
+        // GBA DirectSound samples are MONO. The WF dialog only offered unchanged /
+        // mono — stereo (-c 2) would produce interleaved samples encoded as if mono
+        // (wrong audio), so it is intentionally excluded (Copilot review #1537).
+        public static readonly uint[] ChannelValues = { 0, 1 };             // 0=unchanged, 1=mono
         public static readonly uint[] VolumeValues = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 100, 120, 150, 200 };
         public static readonly uint[] LookaheadValues = { 1, 2, 3, 4, 5 };
 
