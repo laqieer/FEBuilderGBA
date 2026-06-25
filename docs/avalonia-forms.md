@@ -348,7 +348,7 @@ Editors for game text, fonts, translation, and text utilities.
 | 205 | TextEscapeEditorView | TextEscapeEditorViewModel | Text escape code editor |
 | 206 | TextScriptCategorySelectView | TextScriptCategorySelectViewModel | Text script category picker |
 | 207 | TextDicView | TextDicViewModel | Text dictionary editor |
-| 208 | TextCharCodeView | TextCharCodeViewModel | Character code table viewer |
+| 208 | TextCharCodeView | TextCharCodeViewModel | Character code table editor (Write button persists Char Code/Terminator + rebuilds text encoder) |
 | 209 | TextBadCharPopupView | TextBadCharPopupViewModel | Invalid character warning popup |
 | 210 | TextRefAddDialogView | TextRefAddDialogViewModel | Text reference addition dialog |
 | 211 | TextToSpeechView | TextToSpeechViewModel | Text-to-speech preview tool |
