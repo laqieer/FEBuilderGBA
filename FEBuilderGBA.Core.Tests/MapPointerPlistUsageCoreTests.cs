@@ -198,27 +198,33 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void TruncatedRom_MidPointerSlot_NeverThrows()
+        public void RecognizedRom_UnsafePointerSlots_NeverThrows()
         {
-            // A ROM truncated mid-pointer-slot must not throw when the helpers
-            // dereference the PLIST base pointers.
-            var rom = MakeSplitFe8uRomWithMap(config: 7, evt: 3, mapchange: 4,
-                mappointer: 5, anime1: 8, anime2: 9, palette: 10, palette2: 0,
-                objLow: 11, objHigh: 12);
-            // Shrink to land partway through the map-event pointer slot.
-            uint slot = rom.RomInfo.map_event_pointer;
-            var shrunk = new ROM();
-            byte[] data = new byte[slot + 2]; // 2 bytes into the 4-byte slot
-            System.Array.Copy(rom.Data, data, System.Math.Min(rom.Data.Length, data.Length));
-            shrunk.LoadLow("trunc-fe8u.gba", data, "BE8E01");
+            // A fully-recognized FE8U ROM (RomInfo IS set) whose PLIST / map-
+            // setting base pointers are deliberately unsafe (point at or past
+            // EOF, and one slot straddles the very end of the data) must not
+            // throw when the helpers dereference those slots.
+            var rom = MakeFe8uRom();
+            Assert.NotNull(rom.RomInfo); // recognized — not the null-RomInfo path
+
+            uint romLen = (uint)rom.Data.Length;
+            // Base pointers that dereference to a GBA offset past EOF.
+            WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer,    0x08000000u | romLen);      // == EOF
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer,     0x08000000u | (romLen + 4));
+            WriteU32(rom.Data, (int)rom.RomInfo.map_event_pointer,      0x08000000u | (romLen - 2)); // slot straddles EOF
+            WriteU32(rom.Data, (int)rom.RomInfo.map_tileanime1_pointer, 0xFFFFFFFFu);                // garbage pointer
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer,        0x08000000u | (romLen - 1));
+            WriteU32(rom.Data, (int)rom.RomInfo.map_map_pointer_pointer,0x00000000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_mapchange_pointer,  0x08000000u | romLen);
 
             var ex = Record.Exception(() =>
             {
-                MapPointerPlistUsageCore.GetEventPlistCount(shrunk);
-                MapPointerPlistUsageCore.IsExtendsPlist(shrunk);
-                MapPointerPlistUsageCore.GetExtendState(shrunk);
-                MapPointerPlistUsageCore.GetMapIDsWherePlist(shrunk, MapChangeCore.PlistType.EVENT, 3);
-                MapPointerPlistUsageCore.BuildPlistUsageInfo(shrunk, MapChangeCore.PlistType.EVENT, 3);
+                MapPointerPlistUsageCore.GetEventPlistCount(rom);
+                MapPointerPlistUsageCore.IsExtendsPlist(rom);
+                MapPointerPlistUsageCore.GetExtendState(rom);
+                MapPointerPlistUsageCore.GetMapIDsWherePlist(rom, MapChangeCore.PlistType.EVENT, 3);
+                MapPointerPlistUsageCore.GetMapIDsWherePlist(rom, null, 3);
+                MapPointerPlistUsageCore.BuildPlistUsageInfo(rom, MapChangeCore.PlistType.EVENT, 3);
             });
             Assert.Null(ex);
         }

@@ -99,6 +99,26 @@ public class MapPointerNewPLISTPopupViewModelTests
     }
 
     [Fact]
+    public void UpdatePlistInfo_RecomputesFromStaleState_GatesOverwrite()
+    {
+        // Mirrors the OK_Click fix: even if the VM holds a stale "not in use"
+        // state for one value, re-running UpdatePlistInfo for the committed
+        // value must reflect that value's real usage (so OK can gate).
+        ROM rom = MakeSplitFe8uRomWithMap(config: 7, evt: 3, mapchange: 4,
+            mappointer: 5, anime1: 8, anime2: 9, palette: 10, palette2: 0,
+            objLow: 11, objHigh: 12);
+
+        var vm = new MapPointerNewPLISTPopupViewModel();
+        vm.Initialize();
+        // Seed a stale "unused" state for PLIST 60.
+        vm.UpdatePlistInfo(rom, 60);
+        Assert.False(vm.IsAlreadyUse);
+        // OK is pressed with the committed value 3 (used) — recompute gates it.
+        vm.UpdatePlistInfo(rom, 3);
+        Assert.True(vm.IsAlreadyUse);
+    }
+
+    [Fact]
     public void DefaultSearchType_IsEvent()
     {
         var vm = new MapPointerNewPLISTPopupViewModel();

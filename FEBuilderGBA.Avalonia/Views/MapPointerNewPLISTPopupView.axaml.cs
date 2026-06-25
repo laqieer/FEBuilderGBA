@@ -44,7 +44,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PlistId = (uint)(PlistIdInput.Value ?? 0);
+            uint plist = (uint)(PlistIdInput.Value ?? 0);
+            // Recompute usage for the committed value before the gate so a value
+            // committed without a ValueChanged (e.g. typed + Enter) cannot skip
+            // the confirmation with stale IsAlreadyUse state.
+            _vm.UpdatePlistInfo(CoreState.ROM, plist);
 
             // WF OKButton_Click: confirm before overwriting an already-used /
             // reserved / out-of-range PLIST; abort on No.
