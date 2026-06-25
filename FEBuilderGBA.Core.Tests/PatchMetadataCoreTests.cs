@@ -697,8 +697,8 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0x33u, rom.u8(0x202));
                 Assert.Equal(0x44u, rom.u8(0x203));
 
-                // Verify backup file was deleted
-                Assert.False(PatchMetadataCore.HasBackup(patchFile));
+                // Backup is now PRESERVED across uninstall (closes #1429 undo-of-uninstall dead-end)
+                Assert.True(PatchMetadataCore.HasBackup(patchFile));
             }
             finally
             {
@@ -1209,8 +1209,9 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0x33u, rom.u8(0x202));
                 Assert.Equal(0x44u, rom.u8(0x203));
 
-                // Backup deleted on success.
-                Assert.False(PatchMetadataCore.HasBackup(patchFile));
+                // Backup is PRESERVED across uninstall (closes #1429 undo-of-uninstall dead-end);
+                // the parameterless overload delegates to the same restore path.
+                Assert.True(PatchMetadataCore.HasBackup(patchFile));
             }
             finally
             {

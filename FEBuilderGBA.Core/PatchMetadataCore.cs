@@ -637,7 +637,9 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Uninstall a patch by restoring original ROM bytes from a backup file.
-        /// The backup file is created during patch installation.
+        /// The backup file is created during patch installation. The backup file is
+        /// PRESERVED across uninstall so that undoing the uninstall (which reapplies the
+        /// patched ROM bytes) leaves the patch uninstallable again; a re-install overwrites it.
         /// </summary>
         public static PatchApplyResult UninstallPatch(ROM rom, string patchFilePath)
             => UninstallPatch(rom, patchFilePath, null);
@@ -649,8 +651,9 @@ namespace FEBuilderGBA
         /// recorded into it (via the recording <c>write_range</c> overload) BEFORE the
         /// write so the caller can <c>Push</c> on success or <c>Rollback</c> to byte-
         /// identity on failure — even a partial restore (the records written before a
-        /// later record fails validation) is captured. The deleted backup file itself is
-        /// NOT undo-restored (re-installing the patch regenerates it).
+        /// later record fails validation) is captured. The backup file is PRESERVED
+        /// across uninstall so that undoing the uninstall (which reapplies the patched
+        /// ROM bytes) leaves the patch uninstallable again; a re-install overwrites it.
         /// </summary>
         public static PatchApplyResult UninstallPatch(ROM rom, string patchFilePath, Undo.UndoData? undoData)
         {
@@ -690,8 +693,7 @@ namespace FEBuilderGBA
                     totalBytes += data.Length;
                 }
 
-                // Delete backup file after successful restore
-                File.Delete(backupPath);
+                // Backup is intentionally PRESERVED across uninstall: undoing the uninstall reapplies the patched ROM bytes, and keeping the backup lets the user uninstall again. It is harmless while not installed (every uninstall path is gated on Status==Installed) and a re-install overwrites it via SaveBackup.
 
                 return PatchApplyResult.Ok(
                     $"Patch uninstalled successfully. {totalBytes} bytes restored.",
