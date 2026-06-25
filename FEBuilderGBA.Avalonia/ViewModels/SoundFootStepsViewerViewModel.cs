@@ -48,6 +48,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint ptr = rom.RomInfo.sound_foot_steps_pointer;
             if (ptr == 0) return new List<AddrResult>();
 
+            // Guard the FULL 4-byte pointer slot before dereferencing: ROM.p32
+            // only checks `addr >= Data.Length` (not addr+3), so a truncated/
+            // corrupt ROM could throw IndexOutOfRangeException. (#1449 review.)
+            if (!U.isSafetyOffset(ptr + 3, rom)) return new List<AddrResult>();
+
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
