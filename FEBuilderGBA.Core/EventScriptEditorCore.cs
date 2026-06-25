@@ -223,7 +223,12 @@ namespace FEBuilderGBA
             }
             _codes.InsertRange(insertedPoint, clones);
             EventScriptUtil.JisageReorder(_codes);
-            return insertedPoint + Math.Max(0, clones.Count - 1);
+            // When nothing was actually inserted (all-null / empty input) return a clamped
+            // "previous" selection index rather than insertedPoint, which would point past
+            // the (unchanged) list when inserting at the end (Copilot PR review #1510).
+            if (clones.Count == 0)
+                return Math.Min(insertedPoint, _codes.Count - 1);
+            return insertedPoint + clones.Count - 1;
         }
 
         /// <summary>Delete the code at <paramref name="index"/>. Returns the new
@@ -510,6 +515,12 @@ namespace FEBuilderGBA
             // THIS editor's disassembler so Procs / world-map widths are correct.
             uint originalSize = ScanLength(rom.Data, offset, isWorldMapEvent);
             if (originalSize == 0) originalSize = (uint)databyte.Length;
+            // CLAMP to the bytes actually remaining in the ROM (Copilot PR review #1510):
+            // DisAseemble synthesizes a full 4-byte UNKNOWN even when fewer bytes remain near
+            // EOF, so ScanLength can overstate the region. Without this clamp the in-place
+            // branch could pass the fit check yet write_range past EOF.
+            uint remaining = (uint)rom.Data.Length - offset;
+            if (originalSize > remaining) originalSize = remaining;
 
             int undoCountBefore = undo.list.Count;
             using (ROM.BeginUndoScope(undo))

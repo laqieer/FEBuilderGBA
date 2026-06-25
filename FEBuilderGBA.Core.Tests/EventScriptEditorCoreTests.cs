@@ -614,6 +614,40 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0, lastSel);            // 1 inserted → insertedPoint + 0
         }
 
+        [Fact]
+        public void InsertRange_AllNull_ReturnsValidSelectionIndex_NoThrow()
+        {
+            var es = StdEs();
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { Code(es, 0x01, 0x00, 0x01, 0x00) });
+
+            // Inserting at the end (index 1) with an all-null list inserts nothing; the
+            // returned index must be a valid selection (not point past the unchanged list).
+            int sel = ed.InsertRange(1, new List<EventScript.OneCode> { null, null });
+            Assert.Equal(1, ed.Count);                 // nothing inserted
+            Assert.InRange(sel, -1, ed.Count - 1);     // valid selection index
+        }
+
+        [Fact]
+        public void WriteAll_InPlace_NearEof_ClampsOriginalSize_NoOutOfBounds()
+        {
+            var es = StdEs();
+            // Small ROM whose end is just past a single LOAD1, so ScanLength's synthetic
+            // UNKNOWN would otherwise overstate the region past EOF.
+            var rom = MakeRom(es, size: 0x2010);
+            uint baseOff = 0x2000;                      // 16 bytes from end
+            WriteBytes(rom, baseOff, new byte[] { 0x01, 0x00, 0x00, 0x00 }); // LOAD1, no term
+
+            var ed = new EventScriptEditorCore(es);
+            ed.SetCodes(new[] { Code(es, 0x01, 0x00, 0x00, 0x00) });
+
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+            // Must not throw an out-of-bounds write; either writes in place within bounds or
+            // relocates/refuses — never past EOF.
+            var ex = Record.Exception(() => ed.WriteAll(rom, baseOff, false, false, undo, out _));
+            Assert.Null(ex);
+        }
+
         // ── round-trip: export → import ────────────────────────────────
 
         [Fact]
