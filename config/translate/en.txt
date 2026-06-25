@@ -20820,3 +20820,9 @@ Select a shop first.
 :Nothing to remove (shop is empty).
 Nothing to remove (shop is empty).
 
+
+:File:
+File:
+
+:Copy generated hex
+Copy generated hex

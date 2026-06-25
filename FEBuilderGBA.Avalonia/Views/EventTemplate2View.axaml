@@ -7,17 +7,17 @@
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="8" MinHeight="520">
       <TextBlock Grid.Row="0" Text="Event Template 2" FontSize="18" FontWeight="Bold" Margin="0,0,0,6" />
 
-      <WrapPanel AutomationProperties.AutomationId="EventTemplate2_Buttons"
+      <WrapPanel AutomationProperties.AutomationId="EventTemplate2_Buttons_Control"
                  Grid.Row="1" Name="ButtonPanel" Orientation="Horizontal" />
 
-      <TextBox AutomationProperties.AutomationId="EventTemplate2_Preview"
+      <TextBox AutomationProperties.AutomationId="EventTemplate2_Preview_Input"
                Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
                FontFamily="Consolas, Courier New, monospace" FontSize="12"
                TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="240"
                VerticalContentAlignment="Top"
                Text="{Binding Preview}" />
 
-      <TextBlock AutomationProperties.AutomationId="EventTemplate2_Status"
+      <TextBlock AutomationProperties.AutomationId="EventTemplate2_Status_Label"
                  Grid.Row="3" Name="StatusLabel" Margin="0,6,0,0"
                  Text="{Binding Status}" />
 

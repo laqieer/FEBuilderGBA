@@ -15,18 +15,18 @@
 
         <Grid Grid.Row="1" ColumnDefinitions="100,*">
           <TextBlock Grid.Column="0" Text="File:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Filename"
+          <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Filename_Label"
                      Grid.Column="1" Text="{Binding Filename}" VerticalAlignment="Center" />
         </Grid>
 
-        <TextBox AutomationProperties.AutomationId="EventScriptTemplate_Preview"
+        <TextBox AutomationProperties.AutomationId="EventScriptTemplate_Preview_Input"
                  Grid.Row="2" Name="PreviewBox" IsReadOnly="True" AcceptsReturn="True"
                  FontFamily="Consolas, Courier New, monospace" FontSize="12"
                  TextWrapping="NoWrap" Margin="0,8,0,0" MinHeight="280"
                  VerticalContentAlignment="Top"
                  Text="{Binding Preview}" />
 
-        <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Status"
+        <TextBlock AutomationProperties.AutomationId="EventScriptTemplate_Status_Label"
                    Grid.Row="3" Margin="0,6,0,0" Text="{Binding Status}" />
 
         <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0" Spacing="6">
