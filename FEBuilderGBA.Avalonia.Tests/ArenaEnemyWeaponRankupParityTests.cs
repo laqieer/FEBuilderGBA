@@ -17,10 +17,7 @@
 
 using System;
 using System.IO;
-using System.Linq;
-using System.Xml.Linq;
 using FEBuilderGBA;
-using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
 
