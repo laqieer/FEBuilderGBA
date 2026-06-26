@@ -1,8 +1,18 @@
+#nullable enable annotations
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// Single-work Work Support VM (#1454). Parity with WinForms
+    /// <c>ToolWorkSupportForm</c>: the "Update" action checks the loaded ROM hack's
+    /// own <c>.updateinfo.txt</c> (CHECK_URL/UPDATE_URL), NOT the editor's GitHub
+    /// release. Network/archive/ROM touches are delegated into Core
+    /// (<see cref="WorkSupportUpdateCheckCore"/> + <see cref="WorkSupportUpdateDownloadCore"/>)
+    /// with injectable delegates so the flow is testable offline.
+    /// </summary>
     public class ToolWorkSupportViewModel : ViewModelBase
     {
         bool _isLoaded;
@@ -23,6 +33,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AutoFeedbackStatus { get => _autoFeedbackStatus; set => SetField(ref _autoFeedbackStatus, value); }
         public bool HasUpdateInfo { get => _hasUpdateInfo; set => SetField(ref _hasUpdateInfo, value); }
 
+        /// <summary>Resolved path to the loaded ROM's <c>.updateinfo.txt</c> (or "").</summary>
+        public string UpdateInfoPath { get; private set; } = "";
+
+        /// <summary>Absolute filename of the currently-loaded ROM (or "").</summary>
+        public string RomFilename { get; private set; } = "";
+
+        /// <summary>Parsed <c>.updateinfo.txt</c> key/value pairs (never null).</summary>
+        public Dictionary<string, string> UpdateinfoLines { get; private set; }
+            = new Dictionary<string, string>();
+
         public void Initialize()
         {
             try
@@ -38,6 +58,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         void LoadUpdateInfo()
         {
+            Name = "";
+            Author = "";
+            Version = "";
+            CommunityUrl = "";
+            UpdateInfoPath = "";
+            RomFilename = "";
+            HasUpdateInfo = false;
+            UpdateinfoLines = new Dictionary<string, string>();
+
             if (CoreState.ROM == null)
             {
                 InfoText = "No ROM loaded.";
@@ -50,40 +79,120 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 InfoText = "ROM filename is empty.";
                 return;
             }
+            RomFilename = romFilename;
 
-            string dir = Path.GetDirectoryName(romFilename) ?? "";
-            string updateInfoPath = Path.Combine(dir, ".updateinfo.txt");
-
-            if (!File.Exists(updateInfoPath))
+            // Resolve the sidecar exactly like WinForms (exact swap, then trimmed
+            // name variants) — NOT a hard-coded ".updateinfo.txt" in the ROM dir.
+            string updateInfoPath = WorkSupportScannerCore.GetUpdateInfo(romFilename);
+            if (string.IsNullOrEmpty(updateInfoPath) || !File.Exists(updateInfoPath))
             {
-                InfoText = "No .updateinfo.txt found in ROM directory.";
+                InfoText = "No .updateinfo.txt found for this ROM.";
                 HasUpdateInfo = false;
                 return;
             }
 
             HasUpdateInfo = true;
+            UpdateInfoPath = updateInfoPath;
             InfoText = updateInfoPath;
 
+            UpdateinfoLines = WorkSupportScannerCore.LoadUpdateInfo(updateInfoPath);
+            Name = U.at(UpdateinfoLines, "NAME");
+            if (string.IsNullOrEmpty(Name)) Name = Path.GetFileNameWithoutExtension(romFilename);
+            Author = U.at(UpdateinfoLines, "AUTHOR");
+            CommunityUrl = U.at(UpdateinfoLines, "COMMUNITY_URL");
+            Version = GetUpsDateTimeString(romFilename);
+        }
+
+        /// <summary>
+        /// Local work version string (the newer of the ROM and its sibling <c>.ups</c>
+        /// timestamps). Ports WF <c>GetUPSDateTimeString</c>.
+        /// </summary>
+        public static string GetUpsDateTimeString(string romFilename)
+        {
             try
             {
-                string[] lines = File.ReadAllLines(updateInfoPath);
-                foreach (string line in lines)
+                string ups = Path.ChangeExtension(romFilename, ".ups");
+                if (File.Exists(ups))
                 {
-                    if (line.StartsWith("name=", StringComparison.OrdinalIgnoreCase))
-                        Name = line.Substring(5).Trim();
-                    else if (line.StartsWith("author=", StringComparison.OrdinalIgnoreCase))
-                        Author = line.Substring(7).Trim();
-                    else if (line.StartsWith("version=", StringComparison.OrdinalIgnoreCase))
-                        Version = line.Substring(8).Trim();
-                    else if (line.StartsWith("community=", StringComparison.OrdinalIgnoreCase))
-                        CommunityUrl = line.Substring(10).Trim();
+                    return File.GetLastWriteTime(ups).ToString();
                 }
+                return File.GetLastWriteTime(romFilename).ToString() + "(ROM)";
             }
-            catch (Exception ex)
+            catch
             {
-                Log.Error("ToolWorkSupportViewModel.LoadUpdateInfo", ex.ToString());
-                InfoText = $"Error reading updateinfo: {ex.Message}";
+                return "";
             }
+        }
+
+        // ---- Update flow (delegates to Core) -----------------------------------
+
+        /// <summary>
+        /// Decide whether the loaded work has a newer version. Mirrors WF
+        /// <c>CheckUpdate()</c> via <see cref="WorkSupportUpdateCheckCore.Check"/>.
+        /// Delegates injected so the call is offline-testable. Read-only.
+        /// </summary>
+        public WorkSupportUpdateCheckCore.UpdateResult CheckUpdate(
+            Func<string, string> httpGet,
+            Func<string, string?> httpHeadLastModified,
+            Func<string, DateTime> romDateTime)
+        {
+            return WorkSupportUpdateCheckCore.Check(
+                UpdateinfoLines, RomFilename, httpGet, httpHeadLastModified, romDateTime);
+        }
+
+        /// <summary>
+        /// Resolve the package download URL from UPDATE_URL/UPDATE_REGEX. Mirrors WF
+        /// <c>RunDownloadAndExtract</c> URL-resolution head.
+        /// </summary>
+        public WorkSupportUpdateDownloadCore.ResolveResult ResolveDownloadUrl(Func<string, string> httpGet)
+        {
+            return WorkSupportUpdateDownloadCore.ResolveDownloadUrl(UpdateinfoLines, httpGet);
+        }
+
+        /// <summary>
+        /// Download + stage the package into the ROM directory, returning the staged
+        /// <c>*.ups</c> files. Mirrors WF <c>DownloadAndExtract</c> (download/extract half).
+        /// </summary>
+        public WorkSupportUpdateDownloadCore.StageResult DownloadAndStage(
+            string downloadUrl,
+            Func<string, string, (bool ok, string error)> downloadFile,
+            Func<string, string, string> extract)
+        {
+            string romDir = Path.GetDirectoryName(RomFilename) ?? "";
+            return WorkSupportUpdateDownloadCore.DownloadAndStage(
+                downloadUrl, romDir, RomFilename, downloadFile, extract);
+        }
+
+        /// <summary>
+        /// PHASE 1: apply staged UPS files to a user-selected vanilla ROM in memory
+        /// (NO write). The caller inspects <c>PrepareResult.Warnings</c> and decides
+        /// whether to <see cref="CommitUps"/>. Mirrors WF prompting before continuing
+        /// on CRC mismatches.
+        /// </summary>
+        public WorkSupportUpdateDownloadCore.PrepareResult PrepareUps(
+            IReadOnlyList<string> upsFiles,
+            string originalRomFilename,
+            Func<byte[], string, (byte[]? bytes, string error, string warning)> applyOne)
+        {
+            return WorkSupportUpdateDownloadCore.PrepareApply(
+                upsFiles, originalRomFilename, applyOne);
+        }
+
+        /// <summary>PHASE 2: atomically write the pre-staged patched ROMs (with rollback).</summary>
+        public WorkSupportUpdateDownloadCore.ApplyResult CommitUps(
+            WorkSupportUpdateDownloadCore.PrepareResult prepared)
+        {
+            return WorkSupportUpdateDownloadCore.CommitApply(prepared);
+        }
+
+        /// <summary>One-shot apply+commit (no warning prompt) — kept for non-interactive callers/tests.</summary>
+        public WorkSupportUpdateDownloadCore.ApplyResult ApplyUps(
+            IReadOnlyList<string> upsFiles,
+            string originalRomFilename,
+            Func<byte[], string, (byte[]? bytes, string error, string warning)> applyOne)
+        {
+            return WorkSupportUpdateDownloadCore.ApplyUpsAgainstOriginal(
+                upsFiles, originalRomFilename, applyOne);
         }
     }
 }

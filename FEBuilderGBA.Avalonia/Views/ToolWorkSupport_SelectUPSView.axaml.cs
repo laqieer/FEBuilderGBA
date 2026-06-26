@@ -23,6 +23,18 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
+        /// <summary>
+        /// Stage a UPS and auto-find its vanilla ROM by source CRC32 (mirrors WF
+        /// <c>OpenUPS</c> + <c>_Shown</c>). Call before <c>ShowDialog</c>.
+        /// </summary>
+        public void OpenUPS(string upsFilename) => _vm.OpenUPS(upsFilename);
+
+        /// <summary>True when the user confirmed (Apply). Read after <c>ShowDialog</c>.</summary>
+        public bool DialogConfirmed => _vm.DialogConfirmed;
+
+        /// <summary>The chosen vanilla ROM path. Read after <c>ShowDialog</c>.</summary>
+        public string SelectedOriginal => _vm.GetOriginalFilename();
+
         async void Browse_Click(object? sender, RoutedEventArgs e)
         {
             try
@@ -42,13 +54,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void ApplyUPS_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = true;
-            Close();
+            Close(true);
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)
         {
             _vm.DialogConfirmed = false;
-            Close();
+            Close(false);
         }
 
         public void NavigateTo(uint address) { }
