@@ -26272,3 +26272,6 @@ Boss对话 (16字节)
 :Load .road.bin
 从 .road.bin 读取
 
+:RMenu Table:
+R菜单表:
+

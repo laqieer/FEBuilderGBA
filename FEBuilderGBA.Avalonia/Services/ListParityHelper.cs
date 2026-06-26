@@ -3252,35 +3252,14 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build status R-menu list — 28-byte entries, validate directional pointers.</summary>
+        /// <summary>
+        /// Build status R-menu list — 28-byte nodes discovered via the WF
+        /// directional-pointer traversal (#1459). Parity uses table 0 (the unit
+        /// table), the same root the WF list opens on by default.
+        /// </summary>
         static List<AddrResult> BuildStatusRMenuList(ROM rom)
         {
-            uint ptrAddr = rom.RomInfo.status_rmenu_unit_pointer;
-            if (ptrAddr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptrAddr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
-            {
-                uint addr = baseAddr + i * 28;
-                if (addr + 28 > (uint)rom.Data.Length) break;
-
-                uint up = rom.u32(addr + 0);
-                uint down = rom.u32(addr + 4);
-                uint left = rom.u32(addr + 8);
-                uint right = rom.u32(addr + 12);
-
-                bool anyValid = U.isPointerOrNULL(up) || U.isPointerOrNULL(down)
-                    || U.isPointerOrNULL(left) || U.isPointerOrNULL(right);
-                if (!anyValid) break;
-
-                uint textId = rom.u16(addr + 18);
-                string textName = GetTextById(textId);
-                string name = $"{U.ToHexString(i)} {textName}";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            return StatusRMenuListCore.BuildTableList(rom, 0);
         }
 
         /// <summary>Build status units menu list — 16-byte entries, stop when order >= 0xFF.</summary>

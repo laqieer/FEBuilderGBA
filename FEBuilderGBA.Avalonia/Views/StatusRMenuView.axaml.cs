@@ -21,7 +21,39 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             TextIdBox.ValueChanged += OnTextIdChanged;
-            Opened += (_, _) => LoadList();
+            FilterComboBox.SelectionChanged += FilterCombo_SelectionChanged;
+            Opened += (_, _) =>
+            {
+                PopulateFilterCombo();
+                // Selecting index 0 fires FilterCombo_SelectionChanged →
+                // LoadList(). If the combo ended up empty (no ROM) load directly.
+                if (FilterComboBox.ItemCount > 0)
+                    FilterComboBox.SelectedIndex = 0;
+                else
+                    LoadList();
+            };
+        }
+
+        /// <summary>
+        /// Populate the RMenu table switcher from
+        /// <see cref="StatusRMenuListCore.TableCount"/> (5 entries, +1 FE8-only
+        /// status-screen entry). Mirrors WinForms StatusRMenuForm's
+        /// version-gated FilterComboBox population (#1459).
+        /// </summary>
+        void PopulateFilterCombo()
+        {
+            FilterComboBox.Items.Clear();
+            int count = _vm.GetTableCount();
+            for (int i = 0; i < count && i < StatusRMenuListCore.TableLabelKeys.Length; i++)
+            {
+                FilterComboBox.Items.Add(R._(StatusRMenuListCore.TableLabelKeys[i]));
+            }
+        }
+
+        void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            _vm.SelectedTableIndex = Math.Max(0, FilterComboBox.SelectedIndex);
+            LoadList();
         }
 
         void OnTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)

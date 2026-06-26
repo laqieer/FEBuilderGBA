@@ -12438,3 +12438,6 @@ DPCM圧縮
 :Load .road.bin
 .road.bin から読込
 
+:RMenu Table:
+Rメニューテーブル:
+

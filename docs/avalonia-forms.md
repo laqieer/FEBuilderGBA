@@ -450,7 +450,7 @@ Editors for status screen layout and parameters.
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
 | 260 | StatusParamView | StatusParamViewModel | Status parameter display editor |
-| 261 | StatusRMenuView | StatusRMenuViewModel | Status R-button menu editor |
+| 261 | StatusRMenuView | StatusRMenuViewModel | Status R-button menu editor (FilterCombo exposes all up-to-6 RMenu tables — status params / items / weapon level / battle forecast 1+2 / FE8 status screen — via the WF directional traversal, #1459) |
 | 262 | StatusUnitsMenuView | StatusUnitsMenuViewModel | Status units menu editor |
 | 263 | StatusOptionOrderView | StatusOptionOrderViewModel | Status option order editor |
 | 264 | StatusOptionView | StatusOptionViewModel | Status option data editor |

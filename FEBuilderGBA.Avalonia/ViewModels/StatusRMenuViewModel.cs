@@ -11,6 +11,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         uint _currentAddr;
         bool _canWrite;
+        int _selectedTableIndex;
         uint _upPtr;
         uint _downPtr;
         uint _leftPtr;
@@ -21,6 +22,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        /// <summary>
+        /// Which of the up-to-6 RMenu tables is shown (0=unit, 1=game/items,
+        /// 2=weapon level, 3=battle forecast 1, 4=battle forecast 2,
+        /// 5=FE8 status screen). Mirrors WinForms' FilterComboBox selection.
+        /// </summary>
+        public int SelectedTableIndex
+        {
+            get => _selectedTableIndex;
+            set => SetField(ref _selectedTableIndex, value);
+        }
         public uint UpPtr { get => _upPtr; set => SetField(ref _upPtr, value); }
         public uint DownPtr { get => _downPtr; set => SetField(ref _downPtr, value); }
         public uint LeftPtr { get => _leftPtr; set => SetField(ref _leftPtr, value); }
@@ -35,36 +47,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
+            // #1459: build the selected RMenu table via the WF directional
+            // ListFounder traversal over the six status_rmenu*_pointer roots,
+            // not a single-table linear scan.
+            return StatusRMenuListCore.BuildTableList(rom, SelectedTableIndex);
+        }
 
-            uint ptrAddr = rom.RomInfo.status_rmenu_unit_pointer;
-            if (ptrAddr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptrAddr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            // Scan consecutive 28-byte blocks; stop when none of the 4 directional pointers are valid
-            for (uint i = 0; i < 0x100; i++)
-            {
-                uint addr = (uint)(baseAddr + i * 28);
-                if (addr + 28 > (uint)rom.Data.Length) break;
-
-                uint up = rom.u32(addr + 0);
-                uint down = rom.u32(addr + 4);
-                uint left = rom.u32(addr + 8);
-                uint right = rom.u32(addr + 12);
-
-                // At least one directional pointer must be valid (pointer or null)
-                bool anyValid = U.isPointerOrNULL(up) || U.isPointerOrNULL(down)
-                    || U.isPointerOrNULL(left) || U.isPointerOrNULL(right);
-                if (!anyValid) break;
-
-                uint textId = rom.u16(addr + 18);
-                string textName = NameResolver.GetTextById(textId);
-                string name = $"{U.ToHexString(i)} {textName}";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+        /// <summary>Number of selectable RMenu tables (6 on FE8, 5 otherwise).</summary>
+        public int GetTableCount()
+        {
+            ROM rom = CoreState.ROM;
+            return rom == null ? 0 : StatusRMenuListCore.TableCount(rom);
         }
 
         public void LoadStatusRMenu(uint addr)

@@ -1,0 +1,220 @@
+using System;
+using System.Collections.Generic;
+
+namespace FEBuilderGBA
+{
+    /// <summary>
+    /// Status R-Menu list builder (Core, READ-ONLY) — port of WinForms
+    /// <c>StatusRMenuForm</c>'s multi-table FilterComboBox + <c>ListFounder</c>
+    /// directional-pointer traversal (#1459).
+    ///
+    /// <para>The table/pointer/traversal helpers are pure over the passed ROM;
+    /// <see cref="GetMenuName"/> additionally reads the ambient
+    /// <c>CoreState.SystemTextEncoder</c> to decode the menu text id (same as
+    /// every other Avalonia list-name path), so the class is READ-ONLY but not
+    /// strictly pure. Every read is bounds-guarded; nothing throws.</para>
+    ///
+    /// WinForms exposes up to SIX independent RMenu "menu graphs" via a
+    /// FilterComboBox: status params, items held, weapon level, battle forecast
+    /// 1, battle forecast 2, and — on FE8 only — the status screen. Each table
+    /// is rooted at one of the six <c>RomInfo.status_rmenu*_pointer</c> slots and
+    /// is discovered by following the four directional pointers
+    /// (up/down/left/right at +0/+4/+8/+12) of each 28-byte node
+    /// (<c>IsMemoryNotContinuous</c> — the nodes are NOT contiguous in ROM).
+    ///
+    /// The legacy Avalonia editor only ever read <c>status_rmenu_unit_pointer</c>
+    /// and used a weaker linear <c>+i*28</c> scan, so 5 of the 6 tables were
+    /// invisible. This class restores full parity: the table switcher
+    /// (<see cref="TableCount"/>/<see cref="GetTablePointer"/>) plus the WF
+    /// directional traversal (<see cref="BuildTableList"/>).
+    /// </summary>
+    public static class StatusRMenuListCore
+    {
+        /// <summary>Each RMenu node is 28 (0x1C) bytes — identical across all six tables.</summary>
+        public const int RMENU_STRIDE = 28;
+
+        /// <summary>
+        /// Number of selectable RMenu tables for this ROM: 6 on FE8 (the 6th is
+        /// the FE8-only status-screen table), 5 otherwise. Mirrors WF's
+        /// version-gated FilterComboBox population.
+        /// </summary>
+        public static int TableCount(ROM rom)
+        {
+            if (rom?.RomInfo == null) return 0;
+            return rom.RomInfo.version == 8 ? 6 : 5;
+        }
+
+        /// <summary>
+        /// Map a table index (0..5) to its root pointer slot. Mirrors WF
+        /// <c>FilterComboBox_SelectedIndexChanged</c>:
+        /// 0=unit, 1=game, 2=rmenu3, 3=rmenu4, 4=rmenu5, 5=rmenu6.
+        /// Returns 0 for an out-of-range index.
+        /// </summary>
+        public static uint GetTablePointer(ROM rom, int tableIndex)
+        {
+            if (rom?.RomInfo == null) return 0;
+            var info = rom.RomInfo;
+            switch (tableIndex)
+            {
+                case 0: return info.status_rmenu_unit_pointer;
+                case 1: return info.status_rmenu_game_pointer;
+                case 2: return info.status_rmenu3_pointer;
+                case 3: return info.status_rmenu4_pointer;
+                case 4: return info.status_rmenu5_pointer;
+                case 5: return info.status_rmenu6_pointer;
+                default: return 0;
+            }
+        }
+
+        /// <summary>
+        /// Localized FilterComboBox labels (WF Japanese source keys, run through
+        /// the en/ja/zh translation chain by the caller via R._). Index 5 is the
+        /// FE8-only status-screen entry. The caller takes the first
+        /// <see cref="TableCount"/> entries.
+        /// </summary>
+        public static readonly string[] TableLabelKeys =
+        {
+            "0=ステータスパラメータ", // 0 Status parameters
+            "1=所持アイテム",         // 1 Items held
+            "2=武器レベル",           // 2 Weapon level
+            "3=戦闘予測1",            // 3 Battle forecast 1
+            "4=戦闘予測2",            // 4 Battle forecast 2
+            "5=状況画面",             // 5 Status screen (FE8 only)
+        };
+
+        /// <summary>
+        /// Build the RMenu node list for the given table via the WF directional
+        /// traversal (port of <c>StatusRMenuForm.Init</c> + <c>ListFounder</c>):
+        /// seed from <c>p32(root)</c>, include every safely-reachable 28-byte
+        /// node, follow the four directional pointers (+0/+4/+8/+12), dedup.
+        /// A node is included regardless of whether its directional pointers are
+        /// valid (terminal nodes count). Returns an empty list (never throws) for
+        /// a 0 root or unsafe addresses.
+        /// </summary>
+        public static List<AddrResult> BuildTableList(ROM rom, int tableIndex)
+        {
+            var result = new List<AddrResult>();
+            if (rom?.RomInfo == null) return result;
+
+            uint root = GetTablePointer(rom, tableIndex);
+            if (root == 0) return result;
+            if (!U.isSafetyOffset(root + 3, rom)) return result;
+
+            uint start = rom.p32(root);
+            if (!U.isSafetyOffset(start, rom)) return result;
+
+            // Breadth-first walk over the menu graph. `already` mirrors WF's
+            // dedup list; `queue` mirrors the WF rmenulist work queue. The start
+            // node is always visited first (index 0).
+            var already = new HashSet<uint>();
+            var queue = new Queue<uint>();
+            queue.Enqueue(start);
+            already.Add(start);
+
+            int i = 0;
+            while (queue.Count > 0)
+            {
+                uint addr = queue.Dequeue();
+                // Guard the full 28-byte node. The upper bound is INCLUSIVE
+                // (addr+28 <= Data.Length) so a record ending exactly at EOF is
+                // still valid — matching the Avalonia editor's own `addr + 28 >
+                // length` break convention. (isSafetyOffset's strict `<` would
+                // off-by-one-skip the last reachable node.)
+                if (!IsNodeInBounds(rom, addr))
+                {
+                    continue;
+                }
+
+                string menuName = GetMenuName(rom, addr);
+                string name = $"{U.ToHexString(i)} {menuName}";
+                result.Add(new AddrResult(addr, name, (uint)i));
+                i++;
+
+                // ListFounder: enqueue the four directional children.
+                EnqueueChild(rom, addr + 0, already, queue);
+                EnqueueChild(rom, addr + 4, already, queue);
+                EnqueueChild(rom, addr + 8, already, queue);
+                EnqueueChild(rom, addr + 12, already, queue);
+            }
+
+            return result;
+        }
+
+        static void EnqueueChild(ROM rom, uint slotAddr, HashSet<uint> already, Queue<uint> queue)
+        {
+            if (!U.isSafetyOffset(slotAddr + 3, rom)) return;
+            uint child = rom.p32(slotAddr);
+            if (U.isSafetyOffset(child, rom) && !already.Contains(child))
+            {
+                already.Add(child);
+                queue.Enqueue(child);
+            }
+        }
+
+        /// <summary>
+        /// A 28-byte node is in bounds when it starts at/above the 0x200 safety
+        /// floor and ENDS at or before EOF (inclusive upper bound — a record
+        /// ending exactly at <c>Data.Length</c> is valid). Mirrors the Avalonia
+        /// editor's <c>addr + 28 &gt; length</c> break convention rather than
+        /// <c>isSafetyOffset</c>'s strict <c>&lt; Data.Length</c> (which would
+        /// off-by-one-skip the last reachable node).
+        /// </summary>
+        static bool IsNodeInBounds(ROM rom, uint addr)
+        {
+            return addr >= 0x00000200
+                && addr < 0x02000000
+                && (ulong)addr + RMENU_STRIDE <= (ulong)rom.Data.Length;
+        }
+
+        /// <summary>
+        /// Port of WF <c>StatusRMenuForm.GetMenuName</c>: the RMenu node's text id
+        /// at +18; blank for <c>tid &lt;= 0x10</c>; the decoded name truncated at
+        /// the first CRLF (WF <c>U.cut(name, "\r\n")</c>). We decode via
+        /// <c>FETextDecode</c> bound to the PASSED <paramref name="rom"/> (the Core
+        /// port of the <c>TextForm.Direct</c> decode), apply the first-line cut on
+        /// the RAW decode so the <c>\r\n</c> boundary is still present, then strip
+        /// residual control/escape codes for a clean single-line list label (the
+        /// convention every Avalonia list uses). Returns blank when no ambient
+        /// encoder is wired. Safe / never throws.
+        /// </summary>
+        public static string GetMenuName(ROM rom, uint addr)
+        {
+            if (rom == null) return "";
+            addr = U.toOffset(addr);
+            if (!IsNodeInBounds(rom, addr))
+            {
+                return "";
+            }
+
+            uint tid = rom.u16(addr + 18);
+            if (tid <= 0x10)
+            {
+                return "";
+            }
+
+            // Decode against the PASSED rom (not the ambient CoreState.ROM):
+            // FETextDecode.Direct() would build from CoreState.ROM, which is wrong
+            // when a caller passes a different ROM. We need an encoder to decode;
+            // without one we cannot safely decode against `rom`, so we return a
+            // blank LABEL rather than fall back to the ambient-ROM Direct() path
+            // (which could mislabel / show "???"). The encoder is ambient, hence
+            // READ-ONLY but not strictly pure.
+            var encoder = CoreState.SystemTextEncoder;
+            if (encoder == null) return "";
+
+            string raw;
+            try { raw = new FETextDecode(rom, encoder).Decode(tid) ?? ""; }
+            catch { return ""; }
+            if (raw == null) return "";
+
+            // WF cuts at the first CRLF on the decoded (escape-bearing) text,
+            // BEFORE any control-code stripping would remove the newline.
+            int idx = raw.IndexOf("\r\n", StringComparison.Ordinal);
+            if (idx >= 0) raw = raw.Substring(0, idx);
+
+            // Clean single-line label (matches NameResolver.GetTextById's output
+            // shape used by every other Avalonia list).
+            return NameResolver.StripControlCodes(raw);
+        }
+    }
+}
