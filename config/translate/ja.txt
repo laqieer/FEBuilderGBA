@@ -12528,3 +12528,21 @@ Rメニューテーブル:
 
 :Error: No ROM loaded.
 エラー: ROMが読み込まれていません。
+
+:Start Event:
+開始イベント:
+
+:End Event:
+終了イベント:
+
+:Base Point (where monsters appear)
+拠点 (魔物が出現する場所)
+
+:Stage Spread (per-stage monster map)
+進行 (ステージごとの魔物マップ)
+
+:Per-Base Probabilities (spawn weights)
+拠点ごとの確率 (出現重み)
+
+:Skirmish Events (free map start / end)
+フリーマップイベント (開始 / 終了)

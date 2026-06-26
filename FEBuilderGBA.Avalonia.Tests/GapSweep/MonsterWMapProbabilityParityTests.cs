@@ -34,17 +34,17 @@ public class MonsterWMapProbabilityParityTests
     public void View_HasStageSpreadSurface()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_StageList\"", axaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_Stage_List\"", axaml);
         Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_StageMapId_Input\"", axaml);
         Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_StageWrite_Button\"", axaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_StageFilter\"", axaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_Stage_Combo\"", axaml);
     }
 
     [Fact]
     public void View_HasProbabilitySurface_With9CellsAndSum()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_ProbList\"", axaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_Prob_List\"", axaml);
         for (int i = 0; i < 9; i++)
         {
             Assert.Contains($"AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_Prob{i}_Input\"", axaml);
@@ -52,7 +52,7 @@ public class MonsterWMapProbabilityParityTests
         // Live SUM% label (mirrors WF N2_SUM -> SUM label).
         Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_ProbSum_Label\"", axaml);
         Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_ProbWrite_Button\"", axaml);
-        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_ProbFilter\"", axaml);
+        Assert.Contains("AutomationProperties.AutomationId=\"MonsterWMapProbabilityViewer_Prob_Combo\"", axaml);
     }
 
     [Fact]

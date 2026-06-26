@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.LoadList failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.LoadList failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.OnSelected failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 RefreshProbLabels();
                 CoreState.Services?.ShowInfo("World map monster data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterWMapProbabilityViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"MonsterWMapProbabilityViewerView.Write: {ex}"); }
         }
 
         // ----------------------------------------------------------------
@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.LoadStageList failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.LoadStageList failed: {ex}");
             }
         }
 
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.OnStageSelected failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.OnStageSelected failed: {ex}");
             }
             finally { _loading = false; }
 
@@ -159,7 +159,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 StageList.SelectAddress(sel);
                 CoreState.Services?.ShowInfo("World map monster stage written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterWMapProbabilityViewerView.StageWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"MonsterWMapProbabilityViewerView.StageWrite: {ex}"); }
         }
 
         void OnStageFilterChanged(object? sender, SelectionChangedEventArgs e)
@@ -184,7 +184,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.LoadProbList failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.LoadProbList failed: {ex}");
             }
         }
 
@@ -202,7 +202,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.RefreshProbLabels failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.RefreshProbLabels failed: {ex}");
             }
         }
 
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.OnProbSelected failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.OnProbSelected failed: {ex}");
             }
             finally { _loading = false; }
 
@@ -251,7 +251,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 CoreState.Services?.ShowInfo("World map monster probability written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterWMapProbabilityViewerView.ProbWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"MonsterWMapProbabilityViewerView.ProbWrite: {ex}"); }
         }
 
         void OnProbFilterChanged(object? sender, SelectionChangedEventArgs e)
@@ -276,7 +276,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.LoadSkirmishEvents failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.LoadSkirmishEvents failed: {ex}");
             }
         }
 
@@ -291,7 +291,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 CoreState.Services?.ShowInfo("World map skirmish events written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterWMapProbabilityViewerView.SkirmishWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"MonsterWMapProbabilityViewerView.SkirmishWrite: {ex}"); }
         }
 
         void SkirmishStartJump_Click(object? sender, RoutedEventArgs e)
@@ -313,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterWMapProbabilityViewerView.JumpToEvent failed: {0}", ex.Message);
+                Log.Error($"MonsterWMapProbabilityViewerView.JumpToEvent failed: {ex}");
             }
         }
 

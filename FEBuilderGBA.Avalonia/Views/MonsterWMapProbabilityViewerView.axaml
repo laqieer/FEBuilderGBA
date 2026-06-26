@@ -35,13 +35,13 @@
               <TextBlock Text="Stage Spread (per-stage monster map)" FontWeight="Bold" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="Route:" VerticalAlignment="Center" />
-                <ComboBox AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_StageFilter" Name="StageFilter" SelectedIndex="0" MinWidth="160">
+                <ComboBox AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Stage_Combo" Name="StageFilter" SelectedIndex="0" MinWidth="160">
                   <ComboBoxItem>Eirika</ComboBoxItem>
                   <ComboBoxItem>Ephraim</ComboBoxItem>
                 </ComboBox>
               </StackPanel>
               <Grid ColumnDefinitions="260,*">
-                <controls:AddressListControl AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_StageList" Grid.Column="0" Name="StageList" Height="220" Margin="0,0,8,0" />
+                <controls:AddressListControl AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Stage_List" Grid.Column="0" Name="StageList" Height="220" Margin="0,0,8,0" />
                 <StackPanel Grid.Column="1" Spacing="6">
                   <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
@@ -63,33 +63,33 @@
               <TextBlock Text="Per-Base Probabilities (spawn weights)" FontWeight="Bold" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="Route:" VerticalAlignment="Center" />
-                <ComboBox AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbFilter" Name="ProbFilter" SelectedIndex="0" MinWidth="160">
+                <ComboBox AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob_Combo" Name="ProbFilter" SelectedIndex="0" MinWidth="160">
                   <ComboBoxItem>Eirika</ComboBoxItem>
                   <ComboBoxItem>Ephraim</ComboBoxItem>
                 </ComboBox>
               </StackPanel>
               <Grid ColumnDefinitions="260,*">
-                <controls:AddressListControl AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbList" Grid.Column="0" Name="ProbList" Height="280" Margin="0,0,8,0" />
+                <controls:AddressListControl AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob_List" Grid.Column="0" Name="ProbList" Height="280" Margin="0,0,8,0" />
                 <StackPanel Grid.Column="1" Spacing="4">
                   <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbAddr_Label" Name="ProbAddrLabel" VerticalAlignment="Center" />
                   <Grid ColumnDefinitions="180,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-                    <TextBlock Grid.Row="0" Grid.Column="0" Name="ProbLabel0" Text="Base 0:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel0_Label" Grid.Row="0" Grid.Column="0" Name="ProbLabel0" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob0_Input" Grid.Row="0" Grid.Column="1" Name="Prob0Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Name="ProbLabel1" Text="Base 1:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel1_Label" Grid.Row="1" Grid.Column="0" Name="ProbLabel1" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob1_Input" Grid.Row="1" Grid.Column="1" Name="Prob1Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="2" Grid.Column="0" Name="ProbLabel2" Text="Base 2:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel2_Label" Grid.Row="2" Grid.Column="0" Name="ProbLabel2" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob2_Input" Grid.Row="2" Grid.Column="1" Name="Prob2Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" Name="ProbLabel3" Text="Base 3:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel3_Label" Grid.Row="3" Grid.Column="0" Name="ProbLabel3" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob3_Input" Grid.Row="3" Grid.Column="1" Name="Prob3Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="4" Grid.Column="0" Name="ProbLabel4" Text="Base 4:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel4_Label" Grid.Row="4" Grid.Column="0" Name="ProbLabel4" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob4_Input" Grid.Row="4" Grid.Column="1" Name="Prob4Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="5" Grid.Column="0" Name="ProbLabel5" Text="Base 5:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel5_Label" Grid.Row="5" Grid.Column="0" Name="ProbLabel5" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob5_Input" Grid.Row="5" Grid.Column="1" Name="Prob5Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="6" Grid.Column="0" Name="ProbLabel6" Text="Base 6:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel6_Label" Grid.Row="6" Grid.Column="0" Name="ProbLabel6" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob6_Input" Grid.Row="6" Grid.Column="1" Name="Prob6Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="7" Grid.Column="0" Name="ProbLabel7" Text="Base 7:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel7_Label" Grid.Row="7" Grid.Column="0" Name="ProbLabel7" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob7_Input" Grid.Row="7" Grid.Column="1" Name="Prob7Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
-                    <TextBlock Grid.Row="8" Grid.Column="0" Name="ProbLabel8" Text="Base 8:" VerticalAlignment="Center" />
+                    <TextBlock AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_ProbLabel8_Label" Grid.Row="8" Grid.Column="0" Name="ProbLabel8" VerticalAlignment="Center" />
                     <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_Prob8_Input" Grid.Row="8" Grid.Column="1" Name="Prob8Box" FormatString="0" Minimum="0" Maximum="255" ValueChanged="Prob_Changed" />
                   </Grid>
                   <StackPanel Orientation="Horizontal" Spacing="8">
@@ -108,11 +108,11 @@
               <TextBlock Text="Skirmish Events (free map start / end)" FontWeight="Bold" />
               <Grid ColumnDefinitions="180,160,Auto" RowDefinitions="Auto,Auto">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Start Event:" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishStart_Input" Grid.Row="0" Grid.Column="1" Name="SkirmishStartBox" FormatString="X8" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishStart_Input" Grid.Row="0" Grid.Column="1" Name="SkirmishStartBox" FormatString="0" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
                 <Button AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishStartJump_Button" Grid.Row="0" Grid.Column="2" Content="Jump" Click="SkirmishStartJump_Click" Margin="8,0,0,0" />
 
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="End Event:" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishEnd_Input" Grid.Row="1" Grid.Column="1" Name="SkirmishEndBox" FormatString="X8" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishEnd_Input" Grid.Row="1" Grid.Column="1" Name="SkirmishEndBox" FormatString="0" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
                 <Button AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishEndJump_Button" Grid.Row="1" Grid.Column="2" Content="Jump" Click="SkirmishEndJump_Click" Margin="8,0,0,0" />
               </Grid>
               <Button AutomationProperties.AutomationId="MonsterWMapProbabilityViewer_SkirmishWrite_Button" Content="Write" Click="SkirmishWrite_Click" HorizontalAlignment="Left" />

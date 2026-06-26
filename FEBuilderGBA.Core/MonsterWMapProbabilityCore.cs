@@ -44,6 +44,18 @@ namespace FEBuilderGBA
                 && rom.RomInfo.worldmap_skirmish_startevent_pointer != 0;
         }
 
+        /// <summary>
+        /// Dereference a pointer slot, returning 0 (instead of throwing) when the slot's
+        /// 4 bytes do not fully fit in the ROM. <c>ROM.p32</c>→<c>U.u32</c> throws on a
+        /// slot within the last 3 bytes of the ROM; this keeps the "never throws" contract.
+        /// </summary>
+        static uint SafeP32(ROM rom, uint slot)
+        {
+            if (rom == null || slot == 0) return 0;
+            if ((ulong)slot + 4 > (ulong)rom.Data.Length) return 0;
+            return rom.p32(slot);
+        }
+
         // ----------------------------------------------------------------------------
         // Surface 2 — stage spread
         // ----------------------------------------------------------------------------
@@ -69,7 +81,7 @@ namespace FEBuilderGBA
             uint ptr = GetStagePointer(rom, isEphraim);
             if (ptr == 0) return result;
 
-            uint baseAddr = rom.p32(ptr);
+            uint baseAddr = SafeP32(rom, ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             for (uint i = 0; i < StageCount; i++)
@@ -128,7 +140,7 @@ namespace FEBuilderGBA
             uint ptr = GetProbabilityPointer(rom, isEphraim);
             if (ptr == 0) return result;
 
-            uint baseAddr = rom.p32(ptr);
+            uint baseAddr = SafeP32(rom, ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             for (uint i = 0; i < ProbabilityCount; i++)
@@ -191,7 +203,7 @@ namespace FEBuilderGBA
             uint ptr = rom.RomInfo.worldmap_point_pointer;
             if (ptr == 0) return "";
 
-            uint baseAddr = rom.p32(ptr);
+            uint baseAddr = SafeP32(rom, ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return "";
 
             uint addr = (uint)(baseAddr + baseId * WorldMapPointStride);
@@ -217,7 +229,7 @@ namespace FEBuilderGBA
             uint ptr = rom.RomInfo.monster_wmap_base_point_pointer;
             if (ptr == 0) return labels;
 
-            uint baseAddr = rom.p32(ptr);
+            uint baseAddr = SafeP32(rom, ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return labels;
 
             for (uint i = 0; i < BasePointCount; i++)
@@ -239,8 +251,7 @@ namespace FEBuilderGBA
         {
             if (rom?.RomInfo == null) return 0;
             uint slot = rom.RomInfo.worldmap_skirmish_startevent_pointer;
-            if (slot == 0) return 0;
-            return rom.p32(slot);
+            return SafeP32(rom, slot);
         }
 
         /// <summary>Read the skirmish-end event pointer (free-map end event).</summary>
@@ -248,8 +259,7 @@ namespace FEBuilderGBA
         {
             if (rom?.RomInfo == null) return 0;
             uint slot = rom.RomInfo.worldmap_skirmish_endevent_pointer;
-            if (slot == 0) return 0;
-            return rom.p32(slot);
+            return SafeP32(rom, slot);
         }
 
         /// <summary>
