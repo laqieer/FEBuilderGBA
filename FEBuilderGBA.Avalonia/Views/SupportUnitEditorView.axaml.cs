@@ -40,6 +40,18 @@ namespace FEBuilderGBA.Avalonia.Views
             Partner5Nud.ValueChanged += (s, e) => Partner5NameLabel.Text = ResolvePartnerName(Partner5Nud.Value);
             Partner6Nud.ValueChanged += (s, e) => Partner6NameLabel.Text = ResolvePartnerName(Partner6Nud.Value);
             Partner7Nud.ValueChanged += (s, e) => Partner7NameLabel.Text = ResolvePartnerName(Partner7Nud.Value);
+            // #1455: reciprocal mirroring is a ROM-byte mutation of OTHER rows.
+            // In decomp mode Write_Click is source-backed and never reaches
+            // WriteSupportUnit(), so a default-on checkbox would silently lie —
+            // disable it (and force it off) there. Reciprocal source-entry
+            // mirroring for support_units is out of scope (separate decomp concern).
+            if (CoreState.IsDecompMode)
+            {
+                AutoCollectCheckBox.IsChecked = false;
+                AutoCollectCheckBox.IsEnabled = false;
+                ToolTip.SetTip(AutoCollectCheckBox,
+                    R._("Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild."));
+            }
             Opened += (_, _) => LoadList();
         }
 
@@ -257,6 +269,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.PartnerCount = (uint)(PartnerCountNud.Value ?? 0);
             _vm.Separator1 = (uint)(Separator1Nud.Value ?? 0);
             _vm.Separator2 = (uint)(Separator2Nud.Value ?? 0);
+
+            // #1455: reciprocal mirroring toggle (disabled in decomp mode).
+            _vm.AutoCollect = AutoCollectCheckBox.IsEnabled && (AutoCollectCheckBox.IsChecked == true);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -278,6 +293,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteSupportUnit();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // #1455: AutoCollect may have recomputed B21 (partner count) —
+                // reflect it back into the UI so the field shows the saved value.
+                PartnerCountNud.Value = _vm.PartnerCount;
             }
             catch (Exception ex)
             {

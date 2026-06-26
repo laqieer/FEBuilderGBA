@@ -552,7 +552,13 @@ sibling.
   **Support Talk** (FE8/FE7/FE6, #1149) editor Write buttons route to the source writer when the
   matching table is source-owned (showing e.g. *"Support unit source updated. Project needs rebuild."*)
   instead of mutating the preview ROM; an owned-but-unsupported / ROM-only entry shows a ROM-only notice
-  instead of a silent ROM write. **Shop editors** (Item Shop Viewer): in decomp mode all three
+  instead of a silent ROM write. The **Support Unit Editor** (FE7/FE8) ROM-save path now ports WinForms
+  `SupportUnitForm.AutoCollect` (#1455): an **"Auto-adjust partner values"** checkbox (default on, matching
+  WinForms) makes Write mirror each edited partner's initial value / growth rate into that partner's
+  *reciprocal* support slot and recompute the partner count (B21), so both sides of a support pair stay in
+  sync (the FELint reciprocity check). All reciprocal writes share the editor's undo scope (one undo step).
+  The checkbox is disabled in decomp mode (reciprocal mirroring is a ROM-byte mutation — edit the source and
+  rebuild). **Shop editors** (Item Shop Viewer): in decomp mode all three
   mutating operations (Write, Append Slot, Remove Last Slot) now **route to the owning decomp source
   list** when the selected shop's ROM address resolves to a manifest `u16-list` owner (symbol-resolved
   via the project `.map`/`.elf`/`.sym`) — covering **both** literal raw-hex lists **and** resolvable
