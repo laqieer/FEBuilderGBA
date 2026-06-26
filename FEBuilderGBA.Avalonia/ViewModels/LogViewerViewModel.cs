@@ -34,31 +34,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Flush the in-memory buffer to disk and re-read the latest lines into
-        /// <see cref="LogText"/>. Safe to call repeatedly (the WinForms LogForm
-        /// reloads the whole list on every <c>UpdateEvent</c>).
+        /// Re-read the latest log lines into <see cref="LogText"/>. Safe to call
+        /// repeatedly (the WinForms LogForm reloads the whole list on every
+        /// <c>UpdateEvent</c>). <c>Log.LogToString()</c> already flushes the
+        /// in-memory buffer to disk (it calls <c>SyncLog</c> internally), so we
+        /// do not flush again here.
         /// </summary>
         public void Refresh()
         {
-            Log.SyncLog();
             LogText = Log.LogToString();
             IsLoaded = true;
         }
 
-        /// <summary>Current full log text for the clipboard (Core <c>Log.LogToString()</c>).</summary>
+        /// <summary>Current full log text for the clipboard (Core <c>Log.LogToString()</c>, which flushes internally).</summary>
         public string GetClipboardText()
         {
-            Log.SyncLog();
             return Log.LogToString();
         }
 
         /// <summary>
         /// Write the current log text to <paramref name="path"/>
         /// (mirrors WinForms <c>Log.ToFile</c> minus the explorer-select).
+        /// <c>Log.LogToString()</c> flushes the buffer internally.
         /// </summary>
         public void SaveToFile(string path)
         {
-            Log.SyncLog();
             File.WriteAllText(path, Log.LogToString());
         }
     }

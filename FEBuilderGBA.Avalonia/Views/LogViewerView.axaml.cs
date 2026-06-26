@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     this, R._("Save"), R._("TEXT"), "*.txt", "log.txt");
                 if (string.IsNullOrEmpty(path)) return;
                 _vm.SaveToFile(path);
-                StatusLabel.Text = R._("Saved") + ": " + path;
+                StatusLabel.Text = R._("Saved to {0}", path);
             }
             catch (Exception ex)
             {

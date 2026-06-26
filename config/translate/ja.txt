@@ -12558,3 +12558,9 @@ Rメニューテーブル:
 
 :The most recent application log lines. Read-only; refreshes live as new messages are logged.
 最新のアプリケーションログ行。読み取り専用。新しいメッセージが記録されると自動的に更新されます。
+
+:Copied to clipboard
+クリップボードにコピーしました
+
+:Log folder not found
+ログフォルダが見つかりません
