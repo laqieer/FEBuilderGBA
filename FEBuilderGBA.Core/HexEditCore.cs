@@ -213,18 +213,38 @@ namespace FEBuilderGBA
 
                 if (!inRom)
                 {
-                    // Out-of-ROM slot: the renderer wrote "   " (3 spaces). Require the
-                    // 2-char slot to be blank so a user can't smuggle bytes past EOF here.
-                    if (pos + 2 <= body.Length)
+                    // Out-of-ROM slot on the last partial row: the renderer wrote "   "
+                    // (3 spaces). Two valid behaviours (Copilot PR review):
+                    //  * left blank  → no edit (skip), matches the rendered padding;
+                    //  * filled with EXACTLY two hex digits at the fixed column → an
+                    //    edit that GROWS the ROM (ApplyWrite resize-if-larger parity
+                    //    with WinForms; BuildEdits keeps out-of-ROM cells as edits).
+                    // Anything else (1 digit, non-hex, misaligned) is rejected so a
+                    // user still can't smuggle shifted bytes past EOF.
+                    if (pos + 2 > body.Length)
                     {
-                        string slot = body.Substring(pos, 2);
-                        if (slot.Trim().Length != 0)
-                        {
-                            result.Cells.Clear();
-                            result.Error = $"Byte at 0x{addr:X08} is past end-of-ROM and must stay blank.";
-                            return false;
-                        }
+                        continue; // row simply ends here — nothing typed past EOF
                     }
+                    string slot = body.Substring(pos, 2);
+                    if (slot.Trim().Length == 0)
+                    {
+                        continue; // blank padding, as rendered — no edit
+                    }
+                    char o0 = body[pos], o1 = body[pos + 1];
+                    if (!IsHexChar(o0) || !IsHexChar(o1))
+                    {
+                        result.Cells.Clear();
+                        result.Error = $"Invalid byte at 0x{addr:X08} (past end-of-ROM). Leave blank, or enter exactly two hex digits to grow the ROM.";
+                        return false;
+                    }
+                    int oSep = pos + 2;
+                    if (oSep < body.Length && body[oSep] != ' ')
+                    {
+                        result.Cells.Clear();
+                        result.Error = $"Byte at 0x{addr:X08} is not aligned to its column. Do not add or remove characters between byte columns.";
+                        return false;
+                    }
+                    result.Cells.Add(new ByteEdit(addr, (byte)((HexVal(o0) << 4) | HexVal(o1))));
                     continue;
                 }
 

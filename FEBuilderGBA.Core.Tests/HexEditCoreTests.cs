@@ -290,6 +290,42 @@ namespace FEBuilderGBA.Core.Tests
         // ------------------------------------------------------------------
 
         [Fact]
+        public void FillOutOfRomSlotOnLastPartialRow_GrowsRom()
+        {
+            // ROM length falls mid-row (0x108): the last rendered row 0x100 shows
+            // cols 0..7 as bytes and cols 8..15 as blank padding. Filling an
+            // out-of-ROM slot with two hex digits must parse as an edit that grows
+            // the ROM (Copilot PR review: resize-if-larger reachable from the UI).
+            var rom = MakeRom(0x108);
+            string page = RenderPage(rom, 0x100, 0x100); // one partial row
+            // Fill col 0x09 (addr 0x109, currently blank) with "C3".
+            page = FillBlankSlot(page, 0x100, 9, "C3");
+
+            var parsed = HexEditCore.ParseDisplay(page, 0x100, (uint)rom.Data.Length, 0x100);
+            Assert.True(parsed.Ok, parsed.Error);
+            var edits = HexEditCore.BuildEdits(rom, parsed.Cells);
+            Assert.Contains(edits, e => e.Addr == 0x109 && e.Value == 0xC3);
+
+            var wr = HexEditCore.ApplyWrite(rom, edits);
+            Assert.True(wr.Success);
+            Assert.True(rom.Data.Length > 0x108);
+            Assert.Equal(0xC3u, rom.u8(0x109));
+        }
+
+        [Fact]
+        public void OutOfRomSlot_OneDigit_Rejected()
+        {
+            var rom = MakeRom(0x108);
+            string page = RenderPage(rom, 0x100, 0x100);
+            // Put a single hex digit in an out-of-ROM slot (col 9) — invalid.
+            page = FillBlankSlot(page, 0x100, 9, "C ");
+
+            var parsed = HexEditCore.ParseDisplay(page, 0x100, (uint)rom.Data.Length, 0x100);
+            Assert.False(parsed.Ok);
+            Assert.Empty(parsed.Cells);
+        }
+
+        [Fact]
         public void EditBeyondEof_ResizesRom()
         {
             var rom = MakeRom(0x100);
@@ -502,6 +538,39 @@ namespace FEBuilderGBA.Core.Tests
             var list = new System.Collections.Generic.List<string>(lines);
             list.RemoveAt(lastData);
             return string.Join("\n", list);
+        }
+
+        /// <summary>
+        /// Overwrite the 2-char slot at a fixed COLUMN (not token) index on the row
+        /// whose base is <paramref name="rowBase"/>. Mirrors the renderer geometry
+        /// (slot col k at body offset k*3 + (k>=8?1:0), where body starts after the
+        /// single "| " space). Used to fill an out-of-ROM blank slot.
+        /// </summary>
+        static string FillBlankSlot(string page, uint rowBase, int col, string token2)
+        {
+            string[] lines = page.Replace("\r\n", "\n").Split('\n');
+            for (int li = 0; li < lines.Length; li++)
+            {
+                string line = lines[li];
+                int bar1 = line.IndexOf('|');
+                if (bar1 < 0) continue;
+                string addrTok = line.Substring(0, bar1).Trim();
+                if (addrTok.Length != 8) continue;
+                if (!uint.TryParse(addrTok, System.Globalization.NumberStyles.HexNumber, null, out uint rb)) continue;
+                if (rb != rowBase) continue;
+
+                int bar2 = line.IndexOf('|', bar1 + 1);
+                string hexRegion = line.Substring(bar1 + 1, bar2 - bar1 - 1);
+                // body starts after one leading space; column k → body offset:
+                int bodyPos = 1 + col * 3 + (col >= 8 ? 1 : 0);
+                var chars = hexRegion.ToCharArray();
+                chars[bodyPos] = token2[0];
+                chars[bodyPos + 1] = token2[1];
+                string newHex = new string(chars);
+                lines[li] = line.Substring(0, bar1 + 1) + newHex + line.Substring(bar2);
+                return string.Join("\n", lines);
+            }
+            throw new InvalidOperationException($"Row 0x{rowBase:X} not found.");
         }
 
         static string MangleAsciiGutter(string page)
