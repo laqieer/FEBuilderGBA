@@ -26362,3 +26362,21 @@ R菜单表:
 
 :Error: No ROM loaded.
 错误: 未加载 ROM。
+
+:Start Event:
+开始事件:
+
+:End Event:
+结束事件:
+
+:Base Point (where monsters appear)
+据点 (魔物出现的位置)
+
+:Stage Spread (per-stage monster map)
+进行 (各阶段魔物地图)
+
+:Per-Base Probabilities (spawn weights)
+各据点概率 (出现权重)
+
+:Skirmish Events (free map start / end)
+自由地图事件 (开始 / 结束)

@@ -3207,6 +3207,32 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
+        // MonsterWMapProbabilityForm exposes FOUR list surfaces in WinForms
+        // (MakeAllDataLength registers MonsterWMapProbability + Eirika/Ephraim
+        // stage + Eirika/Ephraim probability + skirmish event scans). The Avalonia
+        // counterpart is a single multi-surface view, so EditorMap holds the canonical
+        // pair (MonsterWMapProbabilityViewerView -> MonsterWMapProbabilityForm). The
+        // route-specific stage/probability builders below are exposed for the
+        // MonsterWMapProbabilityParityTests round-trip tests covering the extra
+        // surfaces, delegating to MonsterWMapProbabilityCore so they stay in lockstep
+        // with the view's actual loaders. See #1464.
+
+        /// <summary>Build the Eirika stage-spread list (monster_wmap_stage_1). #1464.</summary>
+        public static List<AddrResult> BuildMonsterWMapStageEirikaList(ROM rom)
+            => MonsterWMapProbabilityCore.LoadStageList(rom, isEphraim: false);
+
+        /// <summary>Build the Ephraim stage-spread list (monster_wmap_stage_2). #1464.</summary>
+        public static List<AddrResult> BuildMonsterWMapStageEphraimList(ROM rom)
+            => MonsterWMapProbabilityCore.LoadStageList(rom, isEphraim: true);
+
+        /// <summary>Build the Eirika per-base probability list (monster_wmap_probability_1). #1464.</summary>
+        public static List<AddrResult> BuildMonsterWMapProbabilityEirikaList(ROM rom)
+            => MonsterWMapProbabilityCore.LoadProbabilityList(rom, isEphraim: false);
+
+        /// <summary>Build the Ephraim per-base probability list (monster_wmap_probability_2). #1464.</summary>
+        public static List<AddrResult> BuildMonsterWMapProbabilityEphraimList(ROM rom)
+            => MonsterWMapProbabilityCore.LoadProbabilityList(rom, isEphraim: true);
+
         // ==================================================================
         // Batch 4 builders — Status/Menu editors
         // ==================================================================
