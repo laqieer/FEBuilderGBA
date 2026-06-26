@@ -125,6 +125,46 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CollectPatchRegions_EmptyTypeLine_TreatedAsBin()
+        {
+            // Legacy BIN patches that OMIT the TYPE= line must still be uninstallable —
+            // matching the Avalonia Patch Manager's string.IsNullOrEmpty(Type) convention.
+            byte[] clean = Clean();
+            var rom = MakeRom(WithPatchAt(clean, 0x250, new byte[0x10]));
+            string binName = "NoType_250.bin";
+            File.WriteAllBytes(Path.Combine(_tempDir, binName), new byte[0x10]);
+            string outFile = Path.Combine(_tempDir, "PATCH_NoType.txt");
+            // No TYPE= line at all.
+            File.WriteAllLines(outFile, new[] { "NAME=NoType", "BIN:0x250=" + binName });
+
+            var regions = PatchMetadataCore.CollectPatchRegions(rom, outFile, out int untraceable);
+
+            Assert.Single(regions);
+            Assert.Equal(0x250u, regions[0].address);
+            Assert.Equal(0, untraceable);
+        }
+
+        [Fact]
+        public void Uninstall_TwoSeparateRuns_RestoresBothRuns_BatchedWrites()
+        {
+            // Two disjoint differing runs inside one over-length region. The batched
+            // write_range path must restore BOTH runs and leave the identical gap untouched.
+            byte[] clean = Clean();
+            byte[] patched = (byte[])clean.Clone();
+            patched[0x250] = 0xAB; patched[0x251] = 0xAB;          // run 1 (2 bytes)
+            patched[0x25A] = 0xCD; patched[0x25B] = 0xCD; patched[0x25C] = 0xCD; // run 2 (3 bytes)
+            var rom = MakeRom(patched);
+            string patch = MakeBinPatch("Runs", 0x250, 0x20); // covers both runs + the gap
+            var undo = NewUndo(rom);
+
+            var result = PatchMetadataCore.UninstallPatchWithCleanRom(rom, patch, clean, undo);
+
+            Assert.True(result.Success, result.Message);
+            Assert.Equal(5, result.BytesWritten); // 2 + 3 differing bytes
+            Assert.Equal(clean, rom.Data);
+        }
+
+        [Fact]
         public void CollectPatchRegions_EaPatch_ReturnsEmptyAndUntraceable()
         {
             byte[] clean = Clean();

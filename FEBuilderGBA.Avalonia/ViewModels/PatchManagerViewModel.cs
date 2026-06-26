@@ -304,7 +304,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// #1462: Uninstall the selected patch by diff-restoring its touched regions from a
         /// user-supplied patch-free ("clean") ROM file. Used when no per-patch backup exists.
-        /// Validates (CRC32 + patch-absence) and writes under an undo scope, mirroring the
+        /// The actual ROM validation (GBA-header compatibility gate + patch-absence check, both
+        /// BEFORE any mutation) happens inside <see cref="PatchMetadataCore.UninstallPatchWithCleanRom"/>;
+        /// this method only reads the file and runs the restore under an undo scope, mirroring the
         /// backup-based path's Push/Rollback discipline.
         /// </summary>
         public string UninstallPatchWithCleanRom(string cleanRomPath)

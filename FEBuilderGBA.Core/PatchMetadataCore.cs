@@ -749,8 +749,12 @@ namespace FEBuilderGBA
 
             var allParams = ParsePatchParams(patchFilePath);
             string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
-            // Only BIN patches have a portable fixed-address region map. EA tracing is WF-only.
-            if (!type.Equals("BIN", StringComparison.OrdinalIgnoreCase))
+            // BIN patches have a portable fixed-address region map. An EMPTY/missing TYPE is
+            // treated as BIN — matching the Avalonia Patch Manager's CanInstall/CanUninstall
+            // convention (string.IsNullOrEmpty(Type)) so legacy BIN patches that omit TYPE= are
+            // still uninstallable. EA tracing is WF-only.
+            bool isBin = string.IsNullOrEmpty(type) || type.Equals("BIN", StringComparison.OrdinalIgnoreCase);
+            if (!isBin)
             {
                 // Count every action-bearing line as untraceable so EA is reported as not supported.
                 untraceableCount = allParams.Count(p =>
@@ -913,17 +917,30 @@ namespace FEBuilderGBA
 
                     // CORRECTION-ONLY: restore only the bytes that actually differ. Identical
                     // bytes are skipped, so an over-estimated length never clobbers neighbours.
+                    // Consecutive differing bytes are batched into a single write_range so a
+                    // large region produces few undo records / write calls (not one per byte).
                     byte[] current = rom.getBinaryData(address, safeLen);
-                    for (int i = 0; i < safeLen; i++)
+                    int run = 0; // length of the current differing run
+                    for (int i = 0; i <= safeLen; i++)
                     {
-                        byte cleanByte = cleanRomBytes[address + i];
-                        if (cleanByte == current[i]) continue;
-                        uint a = address + (uint)i;
-                        if (undoData != null)
-                            rom.write_u8(a, cleanByte, undoData);
-                        else
-                            rom.write_u8(a, cleanByte);
-                        totalBytes++;
+                        bool differs = i < safeLen && cleanRomBytes[address + i] != current[i];
+                        if (differs)
+                        {
+                            run++;
+                            continue;
+                        }
+                        if (run > 0)
+                        {
+                            uint runStart = address + (uint)(i - run);
+                            byte[] block = new byte[run];
+                            Array.Copy(cleanRomBytes, runStart, block, 0, run);
+                            if (undoData != null)
+                                rom.write_range(runStart, block, undoData);
+                            else
+                                rom.write_range(runStart, block);
+                            totalBytes += run;
+                            run = 0;
+                        }
                     }
                 }
 
