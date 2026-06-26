@@ -58,10 +58,10 @@ public class ArenaEnemyWeaponRankupParityTests : IDisposable
         Assert.True(basicSlot != 0);
         Assert.True(rankupSlot != 0);
 
-        for (uint i = 0; i < 8; i++) bytes[BasicTableAddr + i] = (byte)(i + 1);
-        for (uint i = 0; i < 0x1A; i++) bytes[RankupTableAddr + i] = (byte)(i + 1);
-        BitConverter.GetBytes(BasicTableAddr | 0x08000000u).CopyTo(bytes, basicSlot);
-        BitConverter.GetBytes(RankupTableAddr | 0x08000000u).CopyTo(bytes, rankupSlot);
+        for (int i = 0; i < 8; i++) bytes[(int)BasicTableAddr + i] = (byte)(i + 1);
+        for (int i = 0; i < 0x1A; i++) bytes[(int)RankupTableAddr + i] = (byte)(i + 1);
+        BitConverter.GetBytes(BasicTableAddr | 0x08000000u).CopyTo(bytes, (int)basicSlot);
+        BitConverter.GetBytes(RankupTableAddr | 0x08000000u).CopyTo(bytes, (int)rankupSlot);
 
         rom.LoadLow("arena-1465.gba", bytes, "BE8E01");
         CoreState.ROM = rom;

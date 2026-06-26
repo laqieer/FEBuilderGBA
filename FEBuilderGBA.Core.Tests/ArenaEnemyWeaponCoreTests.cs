@@ -40,10 +40,10 @@ public class ArenaEnemyWeaponCoreTests : IDisposable
         Assert.True(basicSlot != 0, "ROMFE8U must define arena_enemy_weapon_basic_pointer");
         Assert.True(rankupSlot != 0, "ROMFE8U must define arena_enemy_weapon_rankup_pointer");
 
-        Array.Copy(basicBytes, 0, bytes, BasicTableAddr, basicBytes.Length);
-        Array.Copy(rankupBytes, 0, bytes, RankupTableAddr, rankupBytes.Length);
-        BitConverter.GetBytes(BasicTableAddr | 0x08000000u).CopyTo(bytes, basicSlot);
-        BitConverter.GetBytes(RankupTableAddr | 0x08000000u).CopyTo(bytes, rankupSlot);
+        Array.Copy(basicBytes, 0, bytes, (int)BasicTableAddr, basicBytes.Length);
+        Array.Copy(rankupBytes, 0, bytes, (int)RankupTableAddr, rankupBytes.Length);
+        BitConverter.GetBytes(BasicTableAddr | 0x08000000u).CopyTo(bytes, (int)basicSlot);
+        BitConverter.GetBytes(RankupTableAddr | 0x08000000u).CopyTo(bytes, (int)rankupSlot);
 
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
         // The list builders resolve item names via NameResolver.GetItemName,

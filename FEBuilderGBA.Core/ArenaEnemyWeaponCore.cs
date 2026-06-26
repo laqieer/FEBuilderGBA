@@ -29,6 +29,11 @@ namespace FEBuilderGBA
         /// <summary>
         /// Basic weapon list builder. Mirrors WF <c>Init</c>:
         /// pointer = <c>arena_enemy_weapon_basic_pointer</c>, stride 1, fixed 8 entries.
+        /// Address/value reads are scoped to the passed <paramref name="rom"/>; the
+        /// display NAME comes from <c>NameResolver.GetItemName</c>, which resolves item
+        /// names via the ambient <c>CoreState.ROM</c> (id-keyed shared cache). The
+        /// editor only opens against the active ROM, so callers must keep
+        /// <c>CoreState.ROM</c> equal to <paramref name="rom"/> for correct names.
         /// </summary>
         public static List<AddrResult> BuildBasicList(ROM rom)
         {
@@ -60,6 +65,9 @@ namespace FEBuilderGBA
         /// <summary>
         /// Rank-up weapon list builder. Mirrors WF <c>N_Init</c>:
         /// pointer = <c>arena_enemy_weapon_rankup_pointer</c>, stride 1, fixed 0x1A (26) entries.
+        /// Same name-resolution contract as <see cref="BuildBasicList"/>: address/value
+        /// reads are scoped to <paramref name="rom"/>, but item NAMES resolve via the
+        /// ambient <c>CoreState.ROM</c>, which must match <paramref name="rom"/>.
         /// </summary>
         public static List<AddrResult> BuildRankupList(ROM rom)
         {
