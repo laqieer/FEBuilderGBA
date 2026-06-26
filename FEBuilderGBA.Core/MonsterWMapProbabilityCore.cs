@@ -207,6 +207,9 @@ namespace FEBuilderGBA
         /// Resolve the world-map base-point name for a given base-point id. Ports
         /// WinForms <c>WorldMapPointForm.GetWorldMapPointName</c>: index the world-map
         /// point table (stride 32), read the name textid at +28, decode it.
+        /// The text is decoded against the PASSED <paramref name="rom"/> (not the ambient
+        /// <c>CoreState.ROM</c>) so a caller using a different ROM gets the right name;
+        /// the encoder is ambient, so this is READ-ONLY but not strictly pure.
         /// </summary>
         public static string GetWorldMapPointName(ROM rom, uint baseId)
         {
@@ -218,11 +221,21 @@ namespace FEBuilderGBA
             if (!U.isSafetyOffset(baseAddr, rom)) return "";
 
             uint addr = (uint)(baseAddr + baseId * WorldMapPointStride);
-            if (addr + WorldMapPointNameTextIdOffset + 2 > (uint)rom.Data.Length) return "";
+            if (!FitsInRom(rom, addr + WorldMapPointNameTextIdOffset, 2)) return "";
 
             uint textid = rom.u16((uint)(addr + WorldMapPointNameTextIdOffset));
             if (textid == 0) return "";
-            return NameResolver.GetTextById(textid);
+
+            // Decode against the PASSED rom (NameResolver.GetTextById/FETextDecode.Direct
+            // read CoreState.ROM, which would mislabel when rom != the active ROM).
+            var encoder = CoreState.SystemTextEncoder;
+            if (encoder == null) return "";
+            try
+            {
+                string raw = new FETextDecode(rom, encoder).Decode(textid) ?? "";
+                return NameResolver.StripControlCodes(raw);
+            }
+            catch { return ""; }
         }
 
         /// <summary>

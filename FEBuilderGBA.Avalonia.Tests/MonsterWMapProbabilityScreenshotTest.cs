@@ -56,12 +56,12 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             for (int i = 0; i < MonsterWMapProbabilityCore.StageCount; i++)
             {
-                rom.Data[stageEirikaBase + i] = (byte)(0x10 + i);
-                rom.Data[stageEphraimBase + i] = (byte)(0x40 + i);
+                rom.Data[(int)(stageEirikaBase + i)] = (byte)(0x10 + i);
+                rom.Data[(int)(stageEphraimBase + i)] = (byte)(0x40 + i);
             }
             // Plant a probability row whose 9 cells sum to 100.
             byte[] row = { 10, 20, 30, 5, 0, 0, 0, 0, 35 };
-            for (int i = 0; i < row.Length; i++) rom.Data[probEirikaBase + i] = row[i];
+            for (int i = 0; i < row.Length; i++) rom.Data[(int)(probEirikaBase + i)] = row[i];
 
             var view = new MonsterWMapProbabilityViewerView();
             view.SelectFirstItem();

@@ -82,8 +82,8 @@ namespace FEBuilderGBA.Core.Tests
             // Plant distinct map ids so the two routes are distinguishable.
             for (int i = 0; i < MonsterWMapProbabilityCore.StageCount; i++)
             {
-                rom.Data[eirikaBase + i] = (byte)(0x10 + i);
-                rom.Data[ephraimBase + i] = (byte)(0x40 + i);
+                rom.Data[(int)(eirikaBase + i)] = (byte)(0x10 + i);
+                rom.Data[(int)(ephraimBase + i)] = (byte)(0x40 + i);
             }
 
             var eirika = MonsterWMapProbabilityCore.LoadStageList(rom, isEphraim: false);
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Core.Tests
             // Edit → write → read back.
             MonsterWMapProbabilityCore.WriteStageMapId(rom, addr, 0x7F);
             Assert.Equal(0x7Fu, MonsterWMapProbabilityCore.ReadStageMapId(rom, addr));
-            Assert.Equal((byte)0x7F, rom.Data[addr]);
+            Assert.Equal((byte)0x7F, rom.Data[(int)(addr)]);
 
             // The Ephraim route is independent.
             Assert.Equal(0x43u, MonsterWMapProbabilityCore.ReadStageMapId(rom, ephraim[3].addr));
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Core.Tests
             var rom = MakeFe8uRom();
             uint addr = 0x00920000u;
             // Pre-fill with 0xFF so we can prove the unset bytes are zeroed.
-            for (int k = 0; k < MonsterWMapProbabilityCore.ProbabilityWidth; k++) rom.Data[addr + k] = 0xFF;
+            for (int k = 0; k < MonsterWMapProbabilityCore.ProbabilityWidth; k++) rom.Data[(int)(addr + k)] = 0xFF;
 
             MonsterWMapProbabilityCore.WriteProbabilityRow(rom, addr, new byte[] { 1, 2, 3 });
             byte[] back = MonsterWMapProbabilityCore.ReadProbabilityRow(rom, addr);
@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Core.Tests
             uint baseListBase = 0x00930000u;
             WriteU32(rom.Data, (int)rom.RomInfo.monster_wmap_base_point_pointer, baseListBase | 0x08000000u);
             for (int i = 0; i < MonsterWMapProbabilityCore.BasePointCount; i++)
-                rom.Data[baseListBase + i] = (byte)i;
+                rom.Data[(int)(baseListBase + i)] = (byte)i;
 
             var labels = MonsterWMapProbabilityCore.GetBasePointLabels(rom);
             Assert.Equal(MonsterWMapProbabilityCore.BasePointCount, labels.Count);

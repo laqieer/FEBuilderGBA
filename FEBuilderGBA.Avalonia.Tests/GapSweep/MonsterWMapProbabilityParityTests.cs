@@ -234,8 +234,8 @@ public class MonsterWMapProbabilityParityTests
 
         for (int i = 0; i < MonsterWMapProbabilityCore.StageCount; i++)
         {
-            rom.Data[stageEirikaBase + i] = (byte)(0x10 + i);
-            rom.Data[stageEphraimBase + i] = (byte)(0x40 + i);
+            rom.Data[(int)(stageEirikaBase + i)] = (byte)(0x10 + i);
+            rom.Data[(int)(stageEphraimBase + i)] = (byte)(0x40 + i);
         }
 
         return (rom, stageEirikaBase, probEirikaBase);
