@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -32,26 +31,40 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Search_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SearchPattern = GrepPatternInput.Text ?? string.Empty;
+            // TargetFunctionAddress is two-way bound to TargetFunctionInput; the
+            // remaining option controls are read into the VM here.
+            _vm.SearchRegisterIndex = SearchRegisterCombo.SelectedIndex < 0 ? 0 : SearchRegisterCombo.SelectedIndex;
+            _vm.AllowedRows = (int)(AllowedRowsInput.Value ?? _vm.AllowedRows);
+            _vm.HideFunctionCalls = HideFunctionCallsCheck.IsChecked == true;
+            _vm.HideUnknownArgs = HideUnknownArgsCheck.IsChecked == true;
 
-            if (string.IsNullOrWhiteSpace(_vm.SearchPattern))
+            if (string.IsNullOrWhiteSpace(_vm.TargetFunctionAddress))
             {
-                _vm.Results = "Please enter a search pattern.";
+                _vm.Results = R._("Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).");
                 ResultsBox.Text = _vm.Results;
                 return;
             }
 
             if (CoreState.ROM == null)
             {
-                _vm.Results = "Error: No ROM loaded.";
+                _vm.Results = R._("Error: No ROM loaded.");
                 ResultsBox.Text = _vm.Results;
                 return;
             }
 
-            _vm.Results = "Searching... please wait.";
+            _vm.Results = R._("Searching... please wait.");
             ResultsBox.Text = _vm.Results;
 
-            string pattern = _vm.SearchPattern;
+            // Normalize the target function (hex address -> 0x pointer string; symbol name pass-through).
+            string searchFunction = DisASMArgGrepCore.NormalizeSearchFunction(_vm.TargetFunctionAddress.Trim());
+            string registerText = _vm.SearchRegisterIndex >= 0 && _vm.SearchRegisterIndex < _vm.RegisterItems.Count
+                ? _vm.RegisterItems[_vm.SearchRegisterIndex]
+                : "r0";
+            string searchReg = DisASMArgGrepCore.BuildSearchReg(registerText);
+            int allowNumber = _vm.AllowedRows;
+            bool hideFunctionCall = _vm.HideFunctionCalls;
+            bool hideUnknownArg = _vm.HideUnknownArgs;
+
             string? resultText = null;
             string? error = null;
 
@@ -59,36 +72,34 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 try
                 {
-                    // Disassemble once and cache the result
+                    // Disassemble once and cache the result.
                     if (_cachedLines == null)
                     {
                         var core = new DisassemblerCore();
                         _cachedLines = core.DisassembleToLines();
                     }
 
-                    // Grep: find lines containing the pattern (case-insensitive)
-                    var sb = new StringBuilder();
-                    int matchCount = 0;
-                    string patternLower = pattern.ToLowerInvariant();
+                    string grep = DisASMArgGrepCore.Grep(
+                        _cachedLines,
+                        searchFunction,
+                        searchReg,
+                        allowNumber,
+                        hideFunctionCall,
+                        hideUnknownArg);
 
-                    for (int i = 0; i < _cachedLines.Count; i++)
+                    if (string.IsNullOrEmpty(grep))
                     {
-                        string line = _cachedLines[i];
-                        if (line.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0)
-                        {
-                            sb.AppendLine(line);
-                            matchCount++;
-                        }
+                        resultText = R._("No argument blocks found for \"{0}\" feeding register \"{1}\" within {2} rows.",
+                            searchFunction, registerText, allowNumber);
                     }
-
-                    if (matchCount == 0)
-                        resultText = $"No matches found for \"{pattern}\".";
                     else
-                        resultText = $"; {matchCount} matches for \"{pattern}\"\n\n" + sb.ToString();
+                    {
+                        resultText = $"; ArgGrep {searchFunction} {registerText}\n\n" + grep;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    error = $"Error: {ex.Message}";
+                    error = R._("Error: {0}", ex.Message);
                 }
             });
 

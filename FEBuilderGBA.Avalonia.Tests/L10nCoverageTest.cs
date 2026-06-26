@@ -48,6 +48,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             "https://github.com/laqieer/FEBuilderGBA-patch2.git",
             "https://github.com/Klokinator/FE-Repo",
             "https://github.com/laqieer/FE-Repo-Music-No-Preview",
+            // #1463 Disassembly Argument Grep target-function watermark — a code
+            // example (an ASM symbol name + a hex address), not a UI label, so it
+            // stays verbatim in every locale (mirrors WinForms placeholder).
+            "m4aSongNumStart  or  D01FC",
         };
 
         /// <summary>
