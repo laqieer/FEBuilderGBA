@@ -81,6 +81,12 @@ namespace FEBuilderGBA.Core.Tests
                 Log.UpdateEvent += handler;
                 Log.Notify("#1467 update-event probe " + Guid.NewGuid().ToString("N"));
                 Assert.True(fired >= 1, "Log.UpdateEvent did not fire on a logged message.");
+
+                // Flush the buffered line into the TEMP log NOW, while
+                // BaseDirectory still points at tempDir, so it can't later be
+                // flushed into the real log path after the restore below (and so
+                // it can't leak across the SharedState collection).
+                Log.SyncLog();
             }
             finally
             {
