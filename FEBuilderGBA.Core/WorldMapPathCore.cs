@@ -397,8 +397,17 @@ namespace FEBuilderGBA
         public static byte[] ExportPathBinFromRom(ROM rom, uint dataOffset, out string error)
         {
             error = "";
-            if (rom == null || rom.Data == null) { error = R.Error("ROM not loaded."); return null; }
+            if (rom == null || rom.RomInfo == null || rom.Data == null) { error = R.Error("ROM not loaded."); return null; }
+            // FE8-only (Copilot PR #1564 review): the rest of WorldMapPathCore
+            // gates on FE8; honor the same contract here.
+            if (rom.RomInfo.version != VERSION_FE8) { error = R.Error("World map roads are FE8-only."); return null; }
             if (!IsRegionSafe(rom, dataOffset, 4)) { error = R.Error("Road data offset is out of range."); return null; }
+            // "No road data" guard (mirrors LoadPath): a real path's first header
+            // byte is always >=1, so a u32==0 stream is null/empty. Without this,
+            // CalcPathDataLength would walk 4 bytes at a time to EOF (count==0,
+            // never hitting the 0xFF terminator) and Save would export a huge
+            // file (Copilot PR #1564 review).
+            if (rom.u32(dataOffset) == 0) { error = R.Error("No road data to export at this address."); return null; }
 
             uint length = RebuildProducerCore.CalcPathDataLength(rom, dataOffset);
             if (length == 0) { error = R.Error("No road data to export at this address."); return null; }

@@ -70,12 +70,25 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(string.IsNullOrEmpty(exErr), exErr);
             Assert.NotNull(bin);
 
+            // Snapshot the original chip buffer for a chip-by-chip comparison.
+            var original = new List<PathChip>(vm.Chips);
+
             // Load: import the exported bytes into a fresh VM buffer.
             var vm2 = new WorldMapPathEditorViewModel();
             vm2.LoadEntry((int)list[0].tag);
             string imErr = vm2.ImportPathBin(bin!);
             Assert.Equal("", imErr);
             Assert.Equal(originalCount, vm2.Chips.Count);
+
+            // Prove the round-trip chip-by-chip (matches the header's claim), not
+            // just the count (Copilot PR #1564 review).
+            for (int i = 0; i < originalCount; i++)
+            {
+                Assert.Equal(original[i].WorldX, vm2.Chips[i].WorldX);
+                Assert.Equal(original[i].WorldY, vm2.Chips[i].WorldY);
+                Assert.Equal(original[i].PathX, vm2.Chips[i].PathX);
+                Assert.Equal(original[i].PathY, vm2.Chips[i].PathY);
+            }
 
             RenderProof(_fixture.Version!, vm.CurrentAddr, bin!, originalCount, vm2.Chips);
         }

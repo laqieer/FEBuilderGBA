@@ -300,9 +300,11 @@ namespace FEBuilderGBA.Core.Tests
         {
             // PARITY ANCHOR (Copilot review #4): WF SaveAS exports raw ROM bytes,
             // so a non-canonical-but-loadable stream must round out byte-for-byte:
-            //   * header byte 3 is 0xAB (canonical is 1) — ignored on read
-            //   * an EXTRA padding chip whose tile/flag bytes are arbitrary
-            // PackPath would canonicalize these; ExportPathBinFromRom must NOT.
+            //   * header byte 3 is 0xAB (canonical data writes 1) — ignored on read
+            //   * a chip with an unknown flag 0x07 (canonical flags are 0/4/8/0xC,
+            //     decoded as variant 0) — its raw byte must be preserved verbatim
+            // PackPath would canonicalize both (byte 3 -> 1, flag -> 0); the raw
+            // ExportPathBinFromRom must NOT.
             WithRom((rom) =>
             {
                 PlantRoadTable(rom);
@@ -340,6 +342,34 @@ namespace FEBuilderGBA.Core.Tests
             {
                 byte[] r = WorldMapPathCore.ExportPathBinFromRom(rom, 0x0, out string err);
                 Assert.Null(r); // 0x0 is in the danger zone -> unsafe -> error
+                Assert.False(string.IsNullOrEmpty(err));
+            });
+        }
+
+        [Fact]
+        public void ExportPathBinFromRom_ZeroStream_ReturnsError_NoHugeWalk()
+        {
+            // "No road data" guard (Copilot PR #1564 review): a resolvable offset
+            // whose first u32 is 0 is null road data. Without the guard,
+            // CalcPathDataLength would walk 4 bytes at a time (count==0) to EOF and
+            // Save would export a huge file. The guard rejects it with an error.
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                // PATH_DATA_OFFSET region is all-zero by default.
+                byte[] r = WorldMapPathCore.ExportPathBinFromRom(rom, PATH_DATA_OFFSET, out string err);
+                Assert.Null(r);
+                Assert.False(string.IsNullOrEmpty(err));
+            });
+        }
+
+        [Fact]
+        public void ExportPathBinFromRom_NonFE8_ReturnsError()
+        {
+            WithRomVersion(MakeFE7Rom, (rom) =>
+            {
+                byte[] r = WorldMapPathCore.ExportPathBinFromRom(rom, 0x2000, out string err);
+                Assert.Null(r);
                 Assert.False(string.IsNullOrEmpty(err));
             });
         }
