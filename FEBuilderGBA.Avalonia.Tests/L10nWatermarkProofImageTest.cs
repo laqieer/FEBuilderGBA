@@ -67,13 +67,23 @@ namespace FEBuilderGBA.Avalonia.Tests
                 MyTranslateResource.Clear();
             }
 
-            // Every literal must have actually changed (or, for URLs, been resolved
-            // through a real entry) — none may pass through unchanged English for
-            // the hex examples.
-            for (int i = 0; i < 6; i++) // hex examples
+            // The 6 hex examples must localize (their value differs from the key).
+            for (int i = 0; i < 6; i++)
             {
                 Assert.StartsWith("例:", ja[i]);
                 Assert.StartsWith("例:", zh[i]);
+            }
+
+            // The 3 URL placeholders translate to themselves, so R._() returning
+            // the URL is NOT evidence the entry exists. Verify the `:URL` keys are
+            // actually present in both translation files (this is the real proof
+            // that the URL entries — not just the hex ones — were added).
+            string[] jaKeys = ReadEntryKeys(jaPath);
+            string[] zhKeys = ReadEntryKeys(zhPath);
+            foreach (string lit in Literals)
+            {
+                Assert.Contains(lit, jaKeys);
+                Assert.Contains(lit, zhKeys);
             }
 
             const int W = 1180, H = 560;
@@ -133,6 +143,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
             for (int i = 0; i < Literals.Length; i++)
                 _output.WriteLine($"  '{Literals[i]}' -> ja '{ja[i]}' | zh '{zh[i]}'");
+        }
+
+        // Collect every `:key` line (the source-string keys) from a translate
+        // file, so a URL entry whose value equals its key can still be proven to
+        // exist. Mirrors the `:`-prefixed key format read by
+        // MyTranslateResource.LoadResource.
+        static string[] ReadEntryKeys(string path)
+        {
+            var keys = new System.Collections.Generic.List<string>();
+            foreach (string line in File.ReadAllLines(path))
+            {
+                if (line.Length > 0 && line[0] == ':')
+                    keys.Add(line.Substring(1).Replace("\\r\\n", "\r\n"));
+            }
+            return keys.ToArray();
         }
 
         static string FindRepoRoot()

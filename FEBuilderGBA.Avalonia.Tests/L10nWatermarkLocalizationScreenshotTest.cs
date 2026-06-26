@@ -39,10 +39,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(File.Exists(jaPath), $"ja.txt not found at {jaPath}");
 
             // Load the REAL shipped Japanese translation table (the file this PR
-            // edits) so the lookup exercises the new dictionary entries.
-            MyTranslateResource.LoadResource(jaPath);
+            // edits) so the lookup exercises the new dictionary entries. The load
+            // is INSIDE the try so the finally restores the shared translator even
+            // if LoadResource throws (MyTranslateResource is global SharedState).
             try
             {
+                MyTranslateResource.LoadResource(jaPath);
+
                 // Sanity: the new entries resolve through the runtime translator.
                 Assert.Equal("例: 0x01", R._("e.g. 0x01"));
                 Assert.Equal("例: 0x02000000", R._("e.g. 0x02000000"));
