@@ -89,9 +89,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(string.Empty, vm.StatusMessage);
                 // Exactly the two prefix-matched files moved.
                 Assert.Equal(2, fs.Moves);
-                Assert.True(fs.Files.Contains(Path.Combine(dir, "Renamed.gba")));
-                Assert.True(fs.Files.Contains(Path.Combine(dir, "Renamed.bak001.gba")));
-                Assert.True(fs.Files.Contains(Path.Combine(dir, "Other.gba")));
+                Assert.Contains(Path.Combine(dir, "Renamed.gba"), fs.Files);
+                Assert.Contains(Path.Combine(dir, "Renamed.bak001.gba"), fs.Files);
+                Assert.Contains(Path.Combine(dir, "Other.gba"), fs.Files);
             }
             finally
             {
@@ -172,7 +172,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 var vm = new ToolChangeProjectnameViewViewModel();
                 vm.CurrentName = "rom";
-                vm.NewName = "bad*name";
+                // NUL is invalid on every OS (see Core Validate_BadFilename_Rejected).
+                vm.NewName = "bad\0name";
 
                 string newPath = vm.TryRename(fs);
 

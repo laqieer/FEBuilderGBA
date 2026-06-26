@@ -65,6 +65,40 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        /// <summary>
+        /// Models a case-INSENSITIVE filesystem (Windows / most macOS volumes):
+        /// FileExists/DirectoryExists compare ignoring case, and a case-only move
+        /// keeps a single entry. Used to prove the delete-then-move guard cannot
+        /// destroy the source on a case-only rename.
+        /// </summary>
+        sealed class CaseInsensitiveFakeFs : ProjectRenameCore.IProjectRenameFileSystem
+        {
+            public readonly HashSet<string> Files =
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public readonly HashSet<string> Dirs =
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public bool Deleted;
+            public bool DirDeleted;
+
+            public string[] GetFilesTopDirectory(string dir) => Files
+                .Where(f => string.Equals(Path.GetDirectoryName(f), dir, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            public bool FileExists(string path) => Files.Contains(path);
+            public void FileMove(string oldPath, string newPath)
+            {
+                Files.Remove(oldPath);
+                Files.Add(newPath);
+            }
+            public void FileDelete(string path) { Deleted = true; Files.Remove(path); }
+            public bool DirectoryExists(string path) => Dirs.Contains(path);
+            public void DirectoryMove(string oldPath, string newPath)
+            {
+                Dirs.Remove(oldPath);
+                Dirs.Add(newPath);
+            }
+            public void DirectoryDelete(string path) { DirDeleted = true; Dirs.Remove(path); }
+        }
+
         static ROM MakeRom(string filename = "rom.gba")
         {
             var rom = new ROM();
@@ -105,9 +139,12 @@ namespace FEBuilderGBA.Core.Tests
         public void Validate_BadFilename_Rejected()
         {
             var rom = MakeRom();
-            // '*' is not a legal filename char.
+            // Use NUL (\0): it is in Path.GetInvalidFileNameChars() on EVERY OS,
+            // so this assertion is platform-independent. (Chars like '*' are
+            // illegal only on Windows, where IsBadFilename → escape_filename uses
+            // the OS-dependent Path.GetInvalidFileNameChars().)
             Assert.Equal(ProjectRenameCore.ValidateResult.BadFilename,
-                ProjectRenameCore.Validate(rom, "rom", "bad*name"));
+                ProjectRenameCore.Validate(rom, "rom", "bad\0name"));
         }
 
         [Fact]
@@ -214,9 +251,9 @@ namespace FEBuilderGBA.Core.Tests
 
             ProjectRenameCore.ExecutePlan(plan, fs);
 
-            Assert.False(fs.Files.Contains(Path.Combine(dir, "rom.gba")));
-            Assert.True(fs.Files.Contains(Path.Combine(dir, "newrom.gba")));
-            Assert.True(fs.Files.Contains(Path.Combine(dir, "newrom.bak001.gba")));
+            Assert.DoesNotContain(Path.Combine(dir, "rom.gba"), fs.Files);
+            Assert.Contains(Path.Combine(dir, "newrom.gba"), fs.Files);
+            Assert.Contains(Path.Combine(dir, "newrom.bak001.gba"), fs.Files);
         }
 
         [Fact]
@@ -233,7 +270,7 @@ namespace FEBuilderGBA.Core.Tests
 
             ProjectRenameCore.ExecutePlan(plan, fs);
 
-            Assert.True(fs.Files.Contains(Path.Combine(dir, "newrom.gba")));
+            Assert.Contains(Path.Combine(dir, "newrom.gba"), fs.Files);
             Assert.Contains(fs.Log, l => l.StartsWith("FileDelete"));
         }
 
@@ -253,8 +290,8 @@ namespace FEBuilderGBA.Core.Tests
 
             ProjectRenameCore.ExecutePlan(plan, fs);
 
-            Assert.False(fs.Dirs.Contains(oldEtc));
-            Assert.True(fs.Dirs.Contains(newEtc));
+            Assert.DoesNotContain(oldEtc, fs.Dirs);
+            Assert.Contains(newEtc, fs.Dirs);
         }
 
         [Fact]
@@ -294,7 +331,7 @@ namespace FEBuilderGBA.Core.Tests
             ProjectRenameCore.ExecutePlan(plan, fs);
 
             Assert.Contains(fs.Log, l => l.StartsWith("DirDelete"));
-            Assert.True(fs.Dirs.Contains(newEtc));
+            Assert.Contains(newEtc, fs.Dirs);
         }
 
         // ---- Rename (full, against a live ROM) ------------------------------
@@ -320,9 +357,9 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Equal(ProjectRenameCore.ValidateResult.Ok, result);
                 Assert.Equal(Path.Combine(dir, "newrom.gba"), newPath);
-                Assert.True(fs.Files.Contains(Path.Combine(dir, "newrom.gba")));
-                Assert.True(fs.Files.Contains(Path.Combine(dir, "newrom.bak001.gba")));
-                Assert.False(fs.Files.Contains(romPath));
+                Assert.Contains(Path.Combine(dir, "newrom.gba"), fs.Files);
+                Assert.Contains(Path.Combine(dir, "newrom.bak001.gba"), fs.Files);
+                Assert.DoesNotContain(romPath, fs.Files);
             }
             finally
             {
@@ -356,8 +393,8 @@ namespace FEBuilderGBA.Core.Tests
                     out ProjectRenameCore.ValidateResult result);
 
                 Assert.Equal(ProjectRenameCore.ValidateResult.Ok, result);
-                Assert.False(fs.Dirs.Contains(oldEtc));
-                Assert.True(fs.Dirs.Contains(newEtc));
+                Assert.DoesNotContain(oldEtc, fs.Dirs);
+                Assert.Contains(newEtc, fs.Dirs);
             }
             finally
             {
@@ -384,6 +421,77 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(newPath);
             Assert.Equal(ProjectRenameCore.ValidateResult.SameName, result);
             Assert.Empty(fs.Log);
+        }
+
+        [Fact]
+        public void ExecutePlan_CaseOnlyRename_DoesNotDeleteSource()
+        {
+            // rom.gba -> Rom.gba: on a case-insensitive FS these are the same
+            // file. The fake FS treats FileExists ordinally, so to model the
+            // hazard we add ONLY the source under its old casing; the guard must
+            // skip the delete (which would otherwise be a no-op here) AND, more
+            // importantly, must not delete a same-file destination. We assert the
+            // move happens and NO FileDelete was logged.
+            string dir = Path.Combine("C:", "proj");
+            var fs = new FakeFs();
+            string src = Path.Combine(dir, "rom.gba");
+            fs.Files.Add(src);
+
+            var plan = ProjectRenameCore.BuildPlan(
+                src, "rom", "Rom",
+                new[] { src }, "", "");
+
+            ProjectRenameCore.ExecutePlan(plan, fs);
+
+            Assert.Contains(Path.Combine(dir, "Rom.gba"), fs.Files);
+            Assert.DoesNotContain(src, fs.Files);
+            Assert.DoesNotContain(fs.Log, l => l.StartsWith("FileDelete"));
+        }
+
+        [Fact]
+        public void ExecutePlan_CaseOnlyRename_SameFileDestination_NotDeleted()
+        {
+            // Model a case-insensitive FS explicitly: a FileExists check on the
+            // new-cased path returns true because the source file exists. A naive
+            // delete-then-move would delete the source. The guard must prevent it.
+            string dir = Path.Combine("C:", "proj");
+            var ciFs = new CaseInsensitiveFakeFs();
+            string src = Path.Combine(dir, "rom.gba");
+            ciFs.Files.Add(src);
+
+            var plan = ProjectRenameCore.BuildPlan(
+                src, "rom", "Rom",
+                new[] { src }, "", "");
+
+            ProjectRenameCore.ExecutePlan(plan, ciFs);
+
+            // Source preserved under the new casing; nothing deleted.
+            Assert.False(ciFs.Deleted);
+            Assert.Single(ciFs.Files);
+            Assert.Contains(Path.Combine(dir, "Rom.gba"), ciFs.Files);
+        }
+
+        [Fact]
+        public void ExecutePlan_CaseOnlyEtcDirRename_DoesNotDeleteSource()
+        {
+            string dir = Path.Combine("C:", "proj");
+            string oldEtc = Path.Combine("C:", "etc", "rom");
+            string newEtc = Path.Combine("C:", "etc", "Rom"); // case-only diff
+            var ciFs = new CaseInsensitiveFakeFs();
+            ciFs.Files.Add(Path.Combine(dir, "rom.gba"));
+            ciFs.Dirs.Add(oldEtc);
+
+            var plan = ProjectRenameCore.BuildPlan(
+                Path.Combine(dir, "rom.gba"), "rom", "newrom",
+                new[] { Path.Combine(dir, "rom.gba") }, oldEtc, newEtc);
+
+            ProjectRenameCore.ExecutePlan(plan, ciFs);
+
+            // The delete-then-move guard must NOT have deleted the (same-on-disk)
+            // source directory; the move renames it to the new casing.
+            Assert.False(ciFs.DirDeleted);
+            Assert.Single(ciFs.Dirs);
+            Assert.Contains(newEtc, ciFs.Dirs);
         }
 
         [Fact]

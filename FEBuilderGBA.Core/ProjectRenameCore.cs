@@ -194,7 +194,13 @@ namespace FEBuilderGBA
 
             foreach (FileMove mv in plan.FileMoves)
             {
-                if (fs.FileExists(mv.NewPath))
+                // Delete a stale destination first (WinForms ChangeName), BUT skip
+                // the delete on a case-only rename: on a case-insensitive
+                // filesystem (Windows / most macOS volumes) NewPath and OldPath then
+                // refer to the SAME on-disk file, so deleting NewPath would destroy
+                // the source. In that case FileMove performs the case-only rename
+                // directly.
+                if (!IsCaseOnlyRename(mv.OldPath, mv.NewPath) && fs.FileExists(mv.NewPath))
                 {
                     fs.FileDelete(mv.NewPath);
                 }
@@ -206,12 +212,29 @@ namespace FEBuilderGBA
                 && !string.IsNullOrEmpty(plan.NewEtcDir)
                 && fs.DirectoryExists(plan.OldEtcDir))
             {
-                if (fs.DirectoryExists(plan.NewEtcDir))
+                // Same case-only-rename guard as the file moves above: never
+                // delete the destination dir when it is the same on-disk dir as
+                // the source under a case-insensitive comparison.
+                if (!IsCaseOnlyRename(plan.OldEtcDir, plan.NewEtcDir)
+                    && fs.DirectoryExists(plan.NewEtcDir))
                 {
                     fs.DirectoryDelete(plan.NewEtcDir);
                 }
                 fs.DirectoryMove(plan.OldEtcDir, plan.NewEtcDir);
             }
+        }
+
+        /// <summary>
+        /// True when <paramref name="oldPath"/> and <paramref name="newPath"/>
+        /// are the same path ignoring case but differ in their exact characters
+        /// — i.e. a case-only rename. On a case-insensitive filesystem the two
+        /// paths name the SAME on-disk entry, so a delete-then-move would destroy
+        /// the source; the caller must move directly instead.
+        /// </summary>
+        static bool IsCaseOnlyRename(string oldPath, string newPath)
+        {
+            return !string.Equals(oldPath, newPath, StringComparison.Ordinal)
+                && string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
