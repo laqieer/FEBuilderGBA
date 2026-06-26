@@ -12549,3 +12549,12 @@ Rメニューテーブル:
 
 :Write edited bytes to the ROM (Ctrl+S)
 編集したバイトをROMに書き込みます (Ctrl+S)
+
+:Copy to clipboard
+クリップボードにコピー
+
+:Open log folder
+ログフォルダを開く
+
+:The most recent application log lines. Read-only; refreshes live as new messages are logged.
+最新のアプリケーションログ行。読み取り専用。新しいメッセージが記録されると自動的に更新されます。
