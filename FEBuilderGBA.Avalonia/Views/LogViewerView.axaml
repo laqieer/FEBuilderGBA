@@ -3,7 +3,8 @@
         xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.LogViewerView"
         x:DataType="vm:LogViewerViewModel"
-        Title="Log Viewer" Width="800" Height="560">
+        Title="Log Viewer" Width="800" Height="560"
+        SizeToContent="Manual">
   <DockPanel Margin="8" LastChildFill="True">
 
     <TextBlock DockPanel.Dock="Top" Text="Log Viewer" FontSize="18" FontWeight="Bold" Margin="0,0,0,4" />
@@ -24,17 +25,24 @@
                AutomationProperties.AutomationId="LogViewer_Status_Label"
                Name="StatusLabel" Foreground="DarkSlateGray" TextWrapping="Wrap" Margin="0,6,0,0" />
 
-    <Border BorderBrush="Gray" BorderThickness="1">
-      <TextBox AutomationProperties.AutomationId="LogViewer_Log_Text"
-               Name="LogTextBox"
-               Text="{Binding LogText, Mode=OneWay}"
-               IsReadOnly="True"
-               AcceptsReturn="True"
-               TextWrapping="NoWrap"
-               FontFamily="Consolas,Menlo,Monospace"
-               VerticalAlignment="Stretch"
-               HorizontalAlignment="Stretch"
-               VerticalContentAlignment="Top" />
-    </Border>
+    <!-- The log lines. The read-only multiline TextBox scrolls internally; the
+         outer ScrollViewer satisfies the repo-wide no-clipping contract
+         (AvaloniaScrollViewerTests) and guards the description/button chrome on
+         very small windows. -->
+    <ScrollViewer Name="LogScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <Border BorderBrush="Gray" BorderThickness="1">
+        <TextBox AutomationProperties.AutomationId="LogViewer_Log_Input"
+                 Name="LogTextBox"
+                 Text="{Binding LogText, Mode=OneWay}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas,Menlo,Monospace"
+                 MinHeight="320"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Stretch"
+                 VerticalContentAlignment="Top" />
+      </Border>
+    </ScrollViewer>
   </DockPanel>
 </Window>
