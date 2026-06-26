@@ -31,11 +31,13 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _basicItems = _vm.LoadArenaEnemyWeaponList();
-                EntryList.SetItemsWithIcons(_basicItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_basicItems, i));
+                var items = _vm.LoadArenaEnemyWeaponList();
+                _basicItems = items;
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconFromAddrU8Loader(items, i));
 
-                _rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
-                RankupEntryList.SetItemsWithIcons(_rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_rankupItems, i));
+                var rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
+                _rankupItems = rankupItems;
+                RankupEntryList.SetItemsWithIcons(rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(rankupItems, i));
             }
             catch (Exception ex)
             {
@@ -95,8 +97,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _basicItems = _vm.LoadArenaEnemyWeaponList();
-                EntryList.SetItemsWithIcons(_basicItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_basicItems, i));
+                var items = _vm.LoadArenaEnemyWeaponList();
+                _basicItems = items;
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconFromAddrU8Loader(items, i));
                 EntryList.SelectAddress(addr);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
@@ -153,8 +156,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
-                RankupEntryList.SetItemsWithIcons(_rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_rankupItems, i));
+                var rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
+                _rankupItems = rankupItems;
+                RankupEntryList.SetItemsWithIcons(rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(rankupItems, i));
                 RankupEntryList.SelectAddress(addr);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
