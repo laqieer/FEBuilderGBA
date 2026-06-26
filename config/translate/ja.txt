@@ -12613,6 +12613,15 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 :Nothing to send: select a generatable (placeholder-free) template first.
 送信できません。生成可能な（プレースホルダのない）テンプレートを先に選択してください。
 
+:Nothing to send: select a generatable template first.
+送信できません。生成可能なテンプレートを先に選択してください。
+
+:[insert into open editor]
+[開いているエディタに挿入]
+
+:This template needs the open editor's map/label context, which could not be resolved here (e.g. the loaded event is not a chapter event). Nothing was inserted.
+このテンプレートには開いているエディタのマップ／ラベルのコンテキストが必要ですが、ここでは解決できませんでした（例：読み込まれているイベントが章イベントではない）。何も挿入されませんでした。
+
 :Could not open the Event Script editor.
 イベントスクリプトエディタを開けませんでした。
 

@@ -71,7 +71,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string label = et.Info;
                 if (et.RequiresContext)
                 {
-                    label += "  " + R._("[requires event editor context]");
+                    // No longer a hard "unavailable" flag (#1591): these now insert
+                    // with real substituted labels/pointers via "Send to Event
+                    // Editor" against an OPEN editor. The hint tells the user the
+                    // standalone preview stays placeholder and they must send it
+                    // into an open, disassembled editor.
+                    label += "  " + R._("[insert into open editor]");
                 }
                 TemplateInfos.Add(label);
             }
@@ -170,6 +175,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 Log.Error("EventScriptTemplate.GetGeneratedCodes failed: " + ex.ToString());
+                return empty;
+            }
+        }
+
+        /// <summary>True when the currently-selected template is the placeholder-gated
+        /// (context-required) kind (XXXX/YYYY) — the browser must build a host context
+        /// from the open editor before it can be generated/inserted (#1591).</summary>
+        public bool SelectedRequiresContext =>
+            _selectedIndex >= 0 && _selectedIndex < _templates.Count && _templates[_selectedIndex].RequiresContext;
+
+        /// <summary>
+        /// Generate the currently-selected template as editable commands USING the
+        /// open editor's host context (#1591) so context-required templates get real
+        /// substituted labels/pointers. Returns an empty list for every refusal
+        /// (no host, map-required-but-unresolved, unknown placeholder family, or a
+        /// residual placeholder after substitution) — the same no-partial-bytes gate
+        /// as <see cref="GetGeneratedCodes"/>. A placeholder-free template generates
+        /// identically with or without a host. GUI-free apart from CoreState.ROM.
+        /// </summary>
+        public List<EventScript.OneCode> GetGeneratedCodesWithContext(IEventEditorHostContext host)
+        {
+            var empty = new List<EventScript.OneCode>();
+            if (_selectedIndex < 0 || _selectedIndex >= _templates.Count)
+            {
+                return empty;
+            }
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                return empty;
+            }
+            try
+            {
+                var result = EventTemplateCore.TryGenerateBrowserTemplateCodesWithContext(
+                    rom, _templates[_selectedIndex], host, out var codes);
+                return result == EventTemplateCore.GenerateResult.Ok ? codes : empty;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventScriptTemplate.GetGeneratedCodesWithContext failed: " + ex.ToString());
                 return empty;
             }
         }
