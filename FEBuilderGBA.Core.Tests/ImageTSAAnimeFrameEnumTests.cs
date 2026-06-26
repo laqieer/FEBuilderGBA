@@ -146,6 +146,35 @@ public class ImageTSAAnimeFrameEnumTests
     }
 
     [Fact]
+    public void PointerSlotInLastBytes_DoesNotThrow()
+    {
+        var prev = CoreState.ROM;
+        try
+        {
+            // ROM whose only category pointer slot sits in the final 2 bytes, so a
+            // 4-byte p32 read would overrun. The helper must skip it, not throw
+            // (the "never throws" contract). #1457 review finding.
+            uint romLen = 0x00100000u;
+            var bytes = new byte[romLen];
+            var rom = new ROM();
+            rom.LoadLow("edge.gba", bytes, "BE8E01");
+            CoreState.ROM = rom;
+
+            uint badSlot = romLen - 2; // ptrOff + 4 > romLen
+            var dict = new Dictionary<uint, string[]>
+            {
+                [U.toPointer(badSlot)] = new[] { "014", "edge" },
+            };
+
+            var ex = Record.Exception(() => ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, dict));
+            Assert.Null(ex);
+            // The malformed category is skipped → empty result.
+            Assert.Empty(ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, dict));
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
+    [Fact]
     public void MultipleCategories_SequentialTagsAcrossCategories()
     {
         var prev = CoreState.ROM;

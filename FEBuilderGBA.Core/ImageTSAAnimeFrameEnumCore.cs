@@ -45,7 +45,10 @@ namespace FEBuilderGBA
                 if (sp == null) continue;
 
                 uint ptrOff = U.toOffset(pointer);
-                if (!U.isSafetyOffset(ptrOff, rom)) continue;
+                // Full 4-byte extent guard: isSafetyOffset only proves ptrOff itself
+                // is in-bounds, but p32 reads 4 bytes — a slot in the last 1-3 bytes
+                // would otherwise throw and break the "never throws" contract.
+                if (!U.isSafetyOffset(ptrOff, rom) || ptrOff + 4 > romLen) continue;
 
                 uint baseAddr = rom.p32(ptrOff);
                 if (!U.isSafetyOffset(baseAddr, rom)) continue;

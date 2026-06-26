@@ -12,6 +12,10 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ImageTSAAnimeViewModel _vm = new();
 
+        // TSA Anime v1 palette is the WinForms 8-bank raw palette:
+        // 8 banks x 16 colors x 2 bytes = 256 bytes (ImageTSAAnimeForm uses palette_count=8).
+        const int PALETTE_BYTES = 0x20 * 8;
+
         public string ViewTitle => "TSA Animation Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -109,8 +113,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palAddr = U.toOffset(palPtr);
                 // Palette is RAW in ROM (8 banks x 16 colors x 2 bytes = 256), NOT LZ77 —
                 // matches WinForms ImageTSAAnimeForm (WriteImageData(P4,...,false)) (#1457).
-                byte[] pal = rom.getBinaryData(palAddr, 0x20 * 8);
-                if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
+                // getBinaryData truncates at EOF, so reject a short read (palette pointer
+                // near the ROM end) rather than exporting a partial 8-bank palette.
+                byte[] pal = rom.getBinaryData(palAddr, PALETTE_BYTES);
+                if (pal == null || pal.Length < PALETTE_BYTES) { CoreState.Services.ShowError("Failed to read palette (expected 256 bytes)"); return; }
                 string path = await FileDialogHelper.SavePaletteFile(this, "tsa_anime_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
                 PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
@@ -130,7 +136,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] fileData = File.ReadAllBytes(path);
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
-                if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                // TSA Anime v1 palette is the WinForms 8-bank raw palette (exactly 256 bytes).
+                // Repointing P4 to a 16-color or otherwise mis-sized blob would leave
+                // rendering/export reading unrelated following bytes — require the full size.
+                if (palData.Length != PALETTE_BYTES) { CoreState.Services.ShowError($"Palette must be exactly {PALETTE_BYTES} bytes (8 banks x 16 colors)."); return; }
                 uint addr = _vm.CurrentAddr;
                 // Palette is RAW in ROM, NOT LZ77 — write uncompressed at +4 to match
                 // WinForms ImageTSAAnimeForm (WriteImageData(P4,...,false)) (#1457).
