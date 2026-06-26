@@ -22,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly LogViewerViewModel _vm = new();
         EventHandler? _logUpdateHandler;
+        bool _reloadPending;
 
         public string ViewTitle => "Log Viewer";
         public bool IsLoaded => _vm.IsLoaded;
@@ -47,14 +48,40 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             ReloadLog();
 
-            // Live refresh: re-pull the log whenever a new message is logged.
-            // Marshal to the UI thread (Log.UpdateEvent can fire from any thread).
-            _logUpdateHandler = (_, _) =>
+            // Guard against a double Opened (e.g. re-shown window): unsubscribe
+            // any prior handler before re-subscribing so we never leak/duplicate.
+            if (_logUpdateHandler != null)
             {
-                try { Dispatcher.UIThread.Post(ReloadLog); }
-                catch (Exception) { /* dispatcher gone during shutdown — ignore */ }
-            };
+                Log.UpdateEvent -= _logUpdateHandler;
+            }
+
+            // Live refresh: re-pull the log whenever a new message is logged.
+            // Marshal to the UI thread (Log.UpdateEvent can fire from any thread)
+            // and COALESCE — a burst of UpdateEvents (heavy logging) schedules at
+            // most one pending reload so we don't flood the Dispatcher queue or
+            // re-read the file once per message.
+            _logUpdateHandler = (_, _) => ScheduleReload();
             Log.UpdateEvent += _logUpdateHandler;
+        }
+
+        void ScheduleReload()
+        {
+            if (_reloadPending) return;
+            _reloadPending = true;
+            try
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    _reloadPending = false;
+                    ReloadLog();
+                });
+            }
+            catch (Exception)
+            {
+                // Dispatcher gone during shutdown — clear the flag so a later
+                // event can re-arm, and ignore.
+                _reloadPending = false;
+            }
         }
 
         void OnClosed(object? sender, EventArgs e)
