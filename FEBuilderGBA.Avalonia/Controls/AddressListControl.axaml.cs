@@ -516,5 +516,358 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (clipboard != null)
                 await clipboard.SetTextAsync(sb.ToString());
         }
+
+        // =================================================================
+        // #1539 — opt-in structural-edit context menu (Paste / Swap / Clear)
+        //
+        // Ports the WinForms InputFormRef.MakeGeneralAddressListContextMenu
+        // Copy / Paste / Swap-up / Swap-down / Invalidate set onto the shared
+        // AddressListControl. OPT-IN: hosts that never call EnableStructuralEdit
+        // keep the copy-only menu, so the 100+ copy-only editors are unaffected.
+        // The 'Copy(&C)' item added here writes the WinForms block-copy clipboard
+        // format (AddressListClipboardCore.Serialize) so Copy/Paste interoperate
+        // byte-for-byte with a WinForms session.
+        // =================================================================
+
+        bool _structuralEditEnabled;
+        int _blockSize;
+        Func<List<AddrResult>>? _reload;
+        Func<uint, bool>? _writeProtectId00;
+        bool _useSwap;
+        bool _useClear;
+        string _clipboardListName = "AddressList";
+        string _clipboardFormName = "";
+        readonly UndoService _structuralUndo = new();
+
+        /// <summary>True once <see cref="EnableStructuralEdit"/> has wired the menu (for tests).</summary>
+        internal bool StructuralEditEnabled => _structuralEditEnabled;
+
+        /// <summary>
+        /// Enable the WinForms-parity structural-edit context menu (Copy block /
+        /// Paste / Swap Up / Swap Down / Invalidate) on this list. OPT-IN — call
+        /// once from a host editor that should allow per-row structural edits;
+        /// editors that never call this stay copy-only. Idempotent: a second call
+        /// is a no-op (so a reload path can't duplicate menu items / key handlers —
+        /// Copilot plan review #3).
+        /// </summary>
+        /// <param name="blockSize">Per-row byte size (the WinForms
+        /// <c>InputFormRef.BlockSize</c>). Copy/Paste/Swap/Clear operate on this many
+        /// bytes at the selected row's address.</param>
+        /// <param name="reload">Delegate that re-scans the underlying list after a
+        /// mutation (the host's list loader). The list is reloaded preserving the
+        /// selected address.</param>
+        /// <param name="writeProtectId00">Optional row-0 guard. When non-null and the
+        /// selected row is index 0, it is called with the row's id (first u16); if it
+        /// returns <c>false</c> the mutation is blocked. NOTE: this is a *safer-than-WF*
+        /// addition — WinForms Paste/Clear/Swap do NOT call <c>CheckWriteProtectionID00</c>
+        /// (only drag-drop does), so leaving this null reproduces exact WF SoundRoom
+        /// behaviour (Copilot plan review #2).</param>
+        /// <param name="useSwap">Add the Ctrl+Up / Ctrl+Down swap items (WF
+        /// <c>useUpDown</c>).</param>
+        /// <param name="useClear">Add the DEL Invalidate item (WF <c>useClear</c>).</param>
+        /// <param name="clipboardListName">WinForms inner-ListBox name for the clipboard
+        /// identity header (default <c>"AddressList"</c> — the WF control name).</param>
+        /// <param name="clipboardFormName">WinForms form name for the clipboard identity
+        /// header (e.g. <c>"SoundRoomForm"</c> / <c>"SoundRoomFE6Form"</c>) so paste
+        /// interoperates with a WinForms session.</param>
+        public void EnableStructuralEdit(
+            int blockSize,
+            Func<List<AddrResult>> reload,
+            Func<uint, bool>? writeProtectId00 = null,
+            bool useSwap = true,
+            bool useClear = false,
+            string? clipboardListName = null,
+            string? clipboardFormName = null)
+        {
+            if (_structuralEditEnabled) return; // idempotent
+            if (blockSize <= 0 || reload == null) return;
+
+            _structuralEditEnabled = true;
+            _blockSize = blockSize;
+            _reload = reload;
+            _writeProtectId00 = writeProtectId00;
+            _useSwap = useSwap;
+            _useClear = useClear;
+            if (!string.IsNullOrEmpty(clipboardListName)) _clipboardListName = clipboardListName!;
+            if (!string.IsNullOrEmpty(clipboardFormName)) _clipboardFormName = clipboardFormName!;
+
+            var menu = AddressList.ContextMenu;
+            if (menu != null)
+            {
+                menu.Items.Add(new Separator());
+
+                var copyBlock = new MenuItem { Header = R._("コピー(&C)") };
+                copyBlock.Click += async (_, _) => await CopyBlock_ClickAsync();
+                menu.Items.Add(copyBlock);
+
+                var paste = new MenuItem { Header = R._("貼り付け(&V)") };
+                paste.Click += async (_, _) => await Paste_ClickAsync();
+                menu.Items.Add(paste);
+
+                if (_useSwap)
+                {
+                    menu.Items.Add(new Separator());
+                    var up = new MenuItem { Header = R._("↑データ入れ替え(Ctrl + Up)") };
+                    up.Click += (_, _) => SwapData(false);
+                    menu.Items.Add(up);
+                    var down = new MenuItem { Header = R._("↓データ入れ替え(Ctrl + Down)") };
+                    down.Click += (_, _) => SwapData(true);
+                    menu.Items.Add(down);
+                }
+
+                if (_useClear)
+                {
+                    menu.Items.Add(new Separator());
+                    var clear = new MenuItem { Header = R._("無効化する(DEL)") };
+                    clear.Click += (_, _) => ClearData();
+                    menu.Items.Add(clear);
+                }
+            }
+
+            // Key handlers (WF GeneralAddressList_KeyDown). Registered once.
+            AddressList.KeyDown += StructuralEdit_KeyDown;
+        }
+
+        void StructuralEdit_KeyDown(object? sender, KeyEventArgs e)
+        {
+            if (!_structuralEditEnabled) return;
+            bool ctrl = e.KeyModifiers.HasFlag(KeyModifiers.Control);
+            if (ctrl && e.Key == Key.C)
+            {
+                _ = CopyBlock_ClickAsync();
+                e.Handled = true;
+            }
+            else if (ctrl && e.Key == Key.V)
+            {
+                _ = Paste_ClickAsync();
+                e.Handled = true;
+            }
+            else if (_useSwap && ctrl && e.Key == Key.Up)
+            {
+                SwapData(false);
+                e.Handled = true;
+            }
+            else if (_useSwap && ctrl && e.Key == Key.Down)
+            {
+                SwapData(true);
+                e.Handled = true;
+            }
+            else if (_useClear && e.Key == Key.Delete)
+            {
+                ClearData();
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>
+        /// The selected row's address, or <see cref="U.NOT_FOUND"/> when nothing is
+        /// selected. WinForms <c>InputFormRef.SelectToAddr</c> equivalent.
+        /// </summary>
+        uint SelectToAddr()
+        {
+            var item = SelectedItem;
+            return item != null ? item.addr : U.NOT_FOUND;
+        }
+
+        /// <summary>
+        /// Row-0 write guard (WF <c>CheckWriteProtectionID00</c>). Returns true (allowed)
+        /// unless a guard predicate is set AND the selected row is original-index 0 AND the
+        /// predicate (tested against the row's actual id, not merely the index) denies it.
+        /// </summary>
+        bool CheckWriteProtectionId00()
+        {
+            if (_writeProtectId00 == null) return true;
+            if (SelectedOriginalIndex != 0) return true;
+            var item = SelectedItem;
+            if (item == null) return true;
+            // Read the row's actual id (first u16) so the predicate tests id==0, not
+            // only the index (Copilot plan review #2).
+            var rom = CoreState.ROM;
+            uint id = rom != null && U.isSafetyOffset(item.addr + 1) ? rom.u16(item.addr) : 0;
+            if (_writeProtectId00(id)) return true;
+            CoreState.Services?.ShowError(R._("00のデータの変更は許可されていません。"));
+            return false;
+        }
+
+        async System.Threading.Tasks.Task CopyBlock_ClickAsync()
+        {
+            if (!_structuralEditEnabled) return;
+            uint src = SelectToAddr();
+            if (src == U.NOT_FOUND) return;
+            var rom = CoreState.ROM;
+            if (rom == null || !U.isSafetyOffset(src) || !U.isSafetyOffset((uint)(src + _blockSize - 1))) return;
+
+            byte[] data = rom.getBinaryData(src, _blockSize);
+            string text = AddressListClipboardCore.Serialize(_clipboardListName, _clipboardFormName, data);
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+                await clipboard.SetTextAsync(text);
+        }
+
+        async System.Threading.Tasks.Task Paste_ClickAsync()
+        {
+            if (!_structuralEditEnabled) return;
+            uint dest = SelectToAddr();
+            if (dest == U.NOT_FOUND) return;
+            var rom = CoreState.ROM;
+            if (rom == null) return;
+            // Validate the full destination range before doing anything.
+            if (!U.isSafetyOffset(dest) || !U.isSafetyOffset((uint)(dest + _blockSize - 1))) return;
+            if (!CheckWriteProtectionId00()) return;
+
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard == null) return;
+            string? text = await clipboard.GetTextAsync();
+            if (text == null) return;
+            PasteFromText(text);
+        }
+
+        /// <summary>
+        /// Apply a clipboard <paramref name="text"/> payload to the selected row
+        /// (the validation + confirm + write + reload half of Paste, factored out so
+        /// it is unit-testable without a live clipboard). Returns true when a write
+        /// committed. Mirrors WinForms <c>ClipbordToPaste</c>.
+        /// </summary>
+        internal bool PasteFromText(string text)
+        {
+            if (!_structuralEditEnabled) return false;
+            uint dest = SelectToAddr();
+            if (dest == U.NOT_FOUND) return false;
+            var rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (!U.isSafetyOffset(dest) || !U.isSafetyOffset((uint)(dest + _blockSize - 1))) return false;
+            if (!CheckWriteProtectionId00()) return false;
+
+            if (!AddressListClipboardCore.TryParse(text, _clipboardListName, _clipboardFormName, _blockSize, out byte[] block))
+                return false; // header / count / hex mismatch — silently ignore, no mutation (WF parity)
+
+            if (CoreState.Services?.ShowYesNo(R._("クリップボードのデータで上書きしてもよろしいですか？")) != true)
+                return false;
+
+            uint preserve = dest;
+            _structuralUndo.Begin("Paste");
+            try
+            {
+                rom.write_range(dest, block);
+                _structuralUndo.Commit();
+                ReloadPreserving(preserve);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _structuralUndo.Rollback();
+                Log.Error("AddressListControl.Paste failed: " + ex.ToString());
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Swap the selected row with its adjacent UNDERLYING row (selected
+        /// original-index ±1). Operating on original indices (not display indices)
+        /// keeps the swap correct under an active search filter and never swaps
+        /// non-contiguous visible rows (Copilot plan review #4). WinForms
+        /// <c>SwapData(bool isDown)</c>.
+        /// </summary>
+        internal void SwapData(bool isDown)
+        {
+            if (!_structuralEditEnabled || !_useSwap) return;
+            int origIdx = SelectedOriginalIndex;
+            if (origIdx < 0) return;
+            var rom = CoreState.ROM;
+            if (rom == null) return;
+
+            int neighborIdx = isDown ? origIdx + 1 : origIdx - 1;
+            if (neighborIdx < 0 || neighborIdx >= _items.Count) return;
+
+            // The two underlying rows must be adjacent and the neighbour must be
+            // currently visible (display) so we never silently reorder rows the user
+            // can't see under a filter.
+            if (!IsOriginalIndexVisible(neighborIdx)) return;
+            if (!CheckWriteProtectionId00()) return;
+
+            AddrResult a = _items[origIdx];
+            AddrResult b = _items[neighborIdx];
+
+            // Validate both full ranges before any write.
+            if (!U.isSafetyOffset(a.addr) || !U.isSafetyOffset((uint)(a.addr + _blockSize - 1))) return;
+            if (!U.isSafetyOffset(b.addr) || !U.isSafetyOffset((uint)(b.addr + _blockSize - 1))) return;
+
+            if (CoreState.Services?.ShowYesNo(R._("{0}と{1}を入れ替えもよろしいですか？", a.name ?? "", b.name ?? "")) != true)
+                return;
+
+            byte[] abin = rom.getBinaryData(a.addr, _blockSize);
+            byte[] bbin = rom.getBinaryData(b.addr, _blockSize);
+            if (!AddressListClipboardCore.BuildSwap(abin, bbin, out byte[] newAtA, out byte[] newAtB))
+                return;
+
+            uint preserve = a.addr;
+            _structuralUndo.Begin("Swap");
+            try
+            {
+                rom.write_range(a.addr, newAtA);
+                rom.write_range(b.addr, newAtB);
+                _structuralUndo.Commit();
+                ReloadPreserving(preserve);
+            }
+            catch (Exception ex)
+            {
+                _structuralUndo.Rollback();
+                Log.Error("AddressListControl.SwapData failed: " + ex.ToString());
+            }
+        }
+
+        /// <summary>Zero-fill the selected row's block (WF <c>ClearData</c>).</summary>
+        internal void ClearData()
+        {
+            if (!_structuralEditEnabled || !_useClear) return;
+            uint dest = SelectToAddr();
+            if (dest == U.NOT_FOUND) return;
+            var rom = CoreState.ROM;
+            if (rom == null) return;
+            if (!U.isSafetyOffset(dest) || !U.isSafetyOffset((uint)(dest + _blockSize - 1))) return;
+            if (!CheckWriteProtectionId00()) return;
+
+            if (CoreState.Services?.ShowYesNo(R._("このデータを消去してもよろしいですか？")) != true)
+                return;
+
+            byte[] data = AddressListClipboardCore.BuildCleared(_blockSize);
+            uint preserve = dest;
+            _structuralUndo.Begin("Clear");
+            try
+            {
+                rom.write_range(dest, data);
+                _structuralUndo.Commit();
+                ReloadPreserving(preserve);
+            }
+            catch (Exception ex)
+            {
+                _structuralUndo.Rollback();
+                Log.Error("AddressListControl.ClearData failed: " + ex.ToString());
+            }
+        }
+
+        /// <summary>True when the given original (unfiltered) index is currently
+        /// visible in the filtered display.</summary>
+        bool IsOriginalIndexVisible(int originalIndex)
+        {
+            for (int i = 0; i < _filteredIndices.Count; i++)
+                if (_filteredIndices[i] == originalIndex) return true;
+            return false;
+        }
+
+        /// <summary>Reload the underlying list via the host delegate, re-selecting the
+        /// row whose addr equals <paramref name="preserveAddress"/>.</summary>
+        void ReloadPreserving(uint preserveAddress)
+        {
+            if (_reload == null) return;
+            List<AddrResult> items;
+            try { items = _reload() ?? new List<AddrResult>(); }
+            catch (Exception ex)
+            {
+                Log.Error("AddressListControl.ReloadPreserving reload failed: " + ex.ToString());
+                return;
+            }
+            SetItemsPreserveSelection(items, preserveAddress);
+        }
     }
 }
