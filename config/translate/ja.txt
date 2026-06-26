@@ -12594,3 +12594,15 @@ https://github.com/Klokinator/FE-Repo
 
 :https://github.com/laqieer/FE-Repo-Music-No-Preview
 https://github.com/laqieer/FE-Repo-Music-No-Preview
+
+:Basic Weapons
+基本武器
+
+:Rank-up Weapons
+ランクアップ武器
+
+:Arena Enemy Weapon - Basic
+闘技場敵武器 - 基本
+
+:Arena Enemy Weapon - Rank-up
+闘技場敵武器 - ランクアップ
