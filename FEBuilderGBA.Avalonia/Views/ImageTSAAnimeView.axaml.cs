@@ -75,9 +75,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
 
                 uint addr = _vm.CurrentAddr;
-                // P0=image, P4=TSA, P8=palette (matching WinForms)
+                // WinForms ImageTSAAnimeForm layout: P0=image(LZ77)@+0, P4=palette(raw)@+4,
+                // P8=TSA(LZ77)@+8. Import3Pointer's signature is (img, tsa, pal), so TSA
+                // maps to addr+8 and the (raw) palette to addr+4 (#1457). compressPalette
+                // stays false → palette written raw, matching WinForms WriteImageData(P4,...,false).
                 var importResult = ImageImportCore.Import3Pointer(rom, loadResult.IndexedPixels, loadResult.GBAPalette,
-                    loadResult.Width, loadResult.Height, addr + 0, addr + 4, addr + 8);
+                    loadResult.Width, loadResult.Height, addr + 0, addr + 8, addr + 4);
 
                 if (!importResult.Success) { CoreState.Services.ShowError(importResult.Error); return; }
 
@@ -104,7 +107,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palPtr = rom.u32(addr + 4);
                 if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
                 uint palAddr = U.toOffset(palPtr);
-                byte[] pal = LZ77.decompress(rom.Data, palAddr);
+                // Palette is RAW in ROM (8 banks x 16 colors x 2 bytes = 256), NOT LZ77 —
+                // matches WinForms ImageTSAAnimeForm (WriteImageData(P4,...,false)) (#1457).
+                byte[] pal = rom.getBinaryData(palAddr, 0x20 * 8);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string path = await FileDialogHelper.SavePaletteFile(this, "tsa_anime_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
@@ -127,7 +132,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
                 uint addr = _vm.CurrentAddr;
-                uint palAddr = ImageImportCore.WriteCompressedToROM(rom, palData, addr + 4);
+                // Palette is RAW in ROM, NOT LZ77 — write uncompressed at +4 to match
+                // WinForms ImageTSAAnimeForm (WriteImageData(P4,...,false)) (#1457).
+                uint palAddr = ImageImportCore.WriteRawToROM(rom, palData, addr + 4);
                 if (palAddr == U.NOT_FOUND) { CoreState.Services.ShowError("Failed to write palette"); return; }
                 _vm.LoadEntry(addr);
                 UpdateUI();

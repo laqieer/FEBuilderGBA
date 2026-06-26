@@ -27,33 +27,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            // Load TSA anime resource file to find known pointers
-            // Format: pointer<tab>count<tab>name — LoadTSVResource1 gives pointer → count
-            var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime_"), false);
+            // Load TSA anime resource with the FULL value array (pointer → [FRAMECOUNT, NAME]).
+            // LoadTSVResource1 discarded the FRAMECOUNT column, which is why the old
+            // path could only ever surface frame 0 of each category (#1457).
+            var tsaAnime = U.LoadTSVResource(U.ConfigDataFilename("tsaanime_"), false);
             if (tsaAnime == null || tsaAnime.Count == 0) return new List<AddrResult>();
 
-            var result = new List<AddrResult>();
-            // For each TSA anime category, load the first entry's pointers
-            foreach (var pair in tsaAnime)
-            {
-                uint pointer = pair.Key;
-                uint ptrOff = U.toOffset(pointer);
-                if (!U.isSafetyOffset(ptrOff)) continue;
-
-                uint baseAddr = rom.p32(ptrOff);
-                if (!U.isSafetyOffset(baseAddr)) continue;
-
-                // First entry at baseAddr: 12 bytes (image, palette, tsa)
-                if (baseAddr + SIZE > (uint)rom.Data.Length) continue;
-                uint img = rom.u32(baseAddr);
-                if (!U.isPointer(img)) continue;
-
-                string name = U.ToHexString(pointer) + " " + pair.Value;
-                result.Add(new AddrResult(baseAddr, name, (uint)result.Count));
-
-                if (result.Count >= 20) break; // Limit to avoid huge lists
-            }
-            return result;
+            // Enumerate ALL FRAMECOUNT frames per category (base + i*12), mirroring
+            // WinForms ImageTSAAnimeForm's ReInitPointer(pointer, count). No 20-cap.
+            return ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, tsaAnime);
         }
 
         public void LoadEntry(uint addr)
