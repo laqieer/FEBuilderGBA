@@ -26447,6 +26447,15 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 :Nothing to send: select a generatable (placeholder-free) template first.
 没有可发送的内容：请先选择一个可生成的（无占位符的）模板。
 
+:Nothing to send: select a generatable template first.
+没有可发送的内容：请先选择一个可生成的模板。
+
+:[insert into open editor]
+[插入到打开的编辑器]
+
+:This template needs the open editor's map/label context, which could not be resolved here (e.g. the loaded event is not a chapter event). Nothing was inserted.
+此模板需要打开的编辑器的地图/标签上下文，但此处无法解析（例如：所加载的事件不是章节事件）。未插入任何内容。
+
 :Could not open the Event Script editor.
 无法打开事件脚本编辑器。
 

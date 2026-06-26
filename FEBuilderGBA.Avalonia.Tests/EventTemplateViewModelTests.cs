@@ -91,30 +91,94 @@ public class EventTemplateViewModelTests : IClassFixture<RomFixture>
         if (Skip()) return;
         var vm = new EventScriptTemplateViewModel();
         vm.LoadList();
-        // Find a context-required entry by its label marker and select it.
-        int idx = -1;
-        for (int i = 0; i < vm.TemplateInfos.Count; i++)
-        {
-            if (vm.TemplateInfos[i].Contains("requires event editor context"))
-            {
-                idx = i;
-                break;
-            }
-        }
+        // Find a context-required entry and select it (via the VM's own flag, robust
+        // to the display-label wording change in #1591).
+        int idx = FindContextRequiredIndex(vm);
         if (idx < 0)
         {
             _output.WriteLine("No context-required template in shipped list — skipping.");
             return;
         }
         vm.SelectedIndex = idx;
-        Assert.False(vm.HasGenerated);            // never copyable
+        Assert.True(vm.SelectedRequiresContext);
+        Assert.False(vm.HasGenerated);            // standalone preview never copyable
         Assert.True(string.IsNullOrEmpty(vm.GeneratedHex));
         Assert.False(string.IsNullOrEmpty(vm.Status)); // honest status shown
 
-        // #1585: context-required template yields NO codes for in-editor insert either.
+        // #1585: context-required template yields NO codes for the NO-CONTEXT in-editor
+        // insert path either (the gate holds without a host).
         var codes = vm.GetGeneratedCodes();
         Assert.NotNull(codes);
         Assert.Empty(codes);
+
+        // #1591: even the context-aware path refuses with a NULL host (gate holds).
+        var noHostCodes = vm.GetGeneratedCodesWithContext(null);
+        Assert.NotNull(noHostCodes);
+        Assert.Empty(noHostCodes);
+    }
+
+    [Fact]
+    public void Browser_ContextRequired_CondTemplate_WithHost_GeneratesCodes()
+    {
+        // #1591: a _COND_ template now generates real substituted codes when given a
+        // host context (label allocator only, no map needed). Without a host the same
+        // template produces nothing (the gate).
+        if (Skip()) return;
+        var vm = new EventScriptTemplateViewModel();
+        vm.LoadList();
+
+        int idx = FindCondTemplateIndex(vm);
+        if (idx < 0)
+        {
+            _output.WriteLine("No _COND_ template in shipped list — skipping.");
+            return;
+        }
+        vm.SelectedIndex = idx;
+        Assert.True(vm.SelectedRequiresContext);
+
+        // no host => empty (gate)
+        Assert.Empty(vm.GetGeneratedCodesWithContext(null));
+
+        // host with no labels used + "no map" (Cond doesn't need a map) => real codes
+        var host = new TestHost(hasMap: false, mapid: 0);
+        var codes = vm.GetGeneratedCodesWithContext(host);
+        Assert.NotNull(codes);
+        Assert.NotEmpty(codes);
+    }
+
+    static int FindContextRequiredIndex(EventScriptTemplateViewModel vm)
+    {
+        for (int i = 0; i < vm.TemplateInfos.Count; i++)
+        {
+            vm.SelectedIndex = i;
+            if (vm.SelectedRequiresContext) return i;
+        }
+        return -1;
+    }
+
+    int FindCondTemplateIndex(EventScriptTemplateViewModel vm)
+    {
+        for (int i = 0; i < vm.TemplateInfos.Count; i++)
+        {
+            vm.SelectedIndex = i;
+            // The standalone preview Status names the file? No — use Filename which the VM
+            // exposes for the selected entry.
+            if (vm.SelectedRequiresContext &&
+                (vm.Filename ?? "").IndexOf("_COND_", System.StringComparison.Ordinal) >= 0)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    sealed class TestHost : IEventEditorHostContext
+    {
+        readonly bool _hasMap;
+        readonly uint _mapid;
+        public TestHost(bool hasMap, uint mapid) { _hasMap = hasMap; _mapid = mapid; }
+        public bool TryGetMapID(out uint mapid) { mapid = _hasMap ? _mapid : 0; return _hasMap; }
+        public bool IsUseLabelID(uint labelID) => false;
     }
 
     [Fact]

@@ -495,6 +495,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int CommandCount => _editor?.Count ?? 0;
 
         /// <summary>
+        /// The editor's current editable command list (read-only snapshot reference)
+        /// — the host context's label allocator scans it. Empty when no script is
+        /// loaded. (#1591)
+        /// </summary>
+        public IReadOnlyList<EventScript.OneCode> LoadedCommands =>
+            _editor?.Codes ?? (IReadOnlyList<EventScript.OneCode>)Array.Empty<EventScript.OneCode>();
+
+        /// <summary>
+        /// Build an <see cref="IEventEditorHostContext"/> for this open editor so the
+        /// Script Template browser can substitute the context-required templates'
+        /// XXXX/YYYY/XXXXXXXX placeholders against THIS editor's loaded map +
+        /// command list (#1591). Returns null when no script is loaded — the
+        /// template browser then refuses the context-required templates (the gate
+        /// holds: no partial bytes).
+        /// </summary>
+        public IEventEditorHostContext BuildHostContext()
+        {
+            if (_editor == null || _editor.Count <= 0) return null;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            return new EventEditorHostContext(rom, U.toOffset(CurrentAddr), _editor.Codes);
+        }
+
+        /// <summary>
         /// Disassemble event script at the given address and return the text representation.
         /// Static helper for testing without UI.
         /// </summary>

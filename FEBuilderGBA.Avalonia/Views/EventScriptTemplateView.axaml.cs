@@ -66,13 +66,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var codes = _vm.GetGeneratedCodes();
-                if (codes == null || codes.Count == 0)
-                {
-                    _vm.Status = R._("Nothing to send: select a generatable (placeholder-free) template first.");
-                    return;
-                }
-
+                // Open/activate the editor FIRST so a context-required template can be
+                // substituted against its loaded map + command list (#1591). The editor
+                // must already have a script disassembled — both the placeholder-free
+                // insert and the host-context substitution need a landing list.
                 var view = WindowManager.Instance.Open<EventScriptView>();
                 if (view == null)
                 {
@@ -82,6 +79,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!view.HasLoadedScript)
                 {
                     _vm.Status = R._("Open the Event Script editor and Disassemble an event address first, then Send to Event Editor.");
+                    return;
+                }
+
+                // Context-required templates (XXXX/YYYY) substitute against the open
+                // editor's host context; placeholder-free templates ignore it. Either
+                // way the Core gate refuses (empty) when context is missing — no
+                // partial bytes (#1589 invariant preserved).
+                IEventEditorHostContext host = view.BuildHostContext();
+                var codes = _vm.GetGeneratedCodesWithContext(host);
+                if (codes == null || codes.Count == 0)
+                {
+                    _vm.Status = _vm.SelectedRequiresContext
+                        ? R._("This template needs the open editor's map/label context, which could not be resolved here (e.g. the loaded event is not a chapter event). Nothing was inserted.")
+                        : R._("Nothing to send: select a generatable template first.");
                     return;
                 }
 

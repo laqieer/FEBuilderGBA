@@ -597,5 +597,215 @@ namespace FEBuilderGBA
             }
             return ConverteventTextToBin(rom, full, TermCode.NoTerm);
         }
+
+        // --------------------------------------------------------------------
+        // #1591 — context-required template substitution (the Alloc-Event host
+        // path). Ports EventTemplateImpl.GetCodes's XXXX/YYYY/XXXXXXXX branches
+        // using the open editor's IEventEditorHostContext (map-id + label
+        // allocator). The placeholder-free path is unchanged; this adds the
+        // substitution for templates that previously hit RequiresEditorContext.
+        // --------------------------------------------------------------------
+
+        /// <summary>
+        /// Which host-context substitution a template needs (drives the gate and
+        /// the substituted-string source). Classified from the template filename,
+        /// exactly like WinForms <c>EventTemplateImpl.GetCodes</c>.
+        /// </summary>
+        public enum ContextKind
+        {
+            None,           // no placeholder / placeholder-free template
+            Cond,           // _COND_  -> two unused label ids (needs label allocator only)
+            Preparation,    // PREPARATION -> player + enemy unit pointers (needs map)
+            CallEndEvent,   // CALL_END_EVENT -> end-event pointer (needs map)
+            Unknown,        // file still has a placeholder but matches no known family
+        }
+
+        /// <summary>
+        /// Classify a browser template's required context from its filename,
+        /// mirroring <c>EventTemplateImpl.GetCodes</c>'s filename branches. A
+        /// template with NO placeholder is <see cref="ContextKind.None"/>; one
+        /// that carries a placeholder but matches no known family is
+        /// <see cref="ContextKind.Unknown"/> (the gate refuses it — finding #2).
+        /// </summary>
+        public static ContextKind ClassifyContextKind(ROM rom, string filename)
+        {
+            if (string.IsNullOrEmpty(filename) || !File.Exists(filename))
+            {
+                return ContextKind.None;
+            }
+            if (filename.IndexOf("template_event_CALL_END_EVENT", StringComparison.Ordinal) >= 0)
+            {
+                return ContextKind.CallEndEvent;
+            }
+            if (filename.IndexOf("template_event_PREPARATION", StringComparison.Ordinal) >= 0)
+            {
+                return ContextKind.Preparation;
+            }
+            if (filename.IndexOf("_COND_", StringComparison.Ordinal) >= 0)
+            {
+                return ContextKind.Cond;
+            }
+            // No known family — but does it still carry a placeholder?
+            if (RequiresEditorContext(rom, filename))
+            {
+                return ContextKind.Unknown;
+            }
+            return ContextKind.None;
+        }
+
+        /// <summary>
+        /// True if any active (non-other-language) line of <paramref name="filename"/>
+        /// STILL contains an XXXX/YYYY placeholder after the given substitutions
+        /// were applied. Used as the post-substitution guard so a 'X' can never
+        /// reach <see cref="LineToEventByte"/> (which would silently truncate the
+        /// command) — preserves the #1589 no-partial-bytes invariant even as the
+        /// template configs evolve (Copilot review finding #2).
+        /// </summary>
+        static bool HasResidualPlaceholder(ROM rom, string filename, string XXXX, string YYYY)
+        {
+            string text = File.ReadAllText(filename);
+            string[] lines = text.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (U.OtherLangLine(line, rom)) continue;
+                if (XXXX != null)
+                {
+                    line = line.Replace("XXXXXXXX", XXXX);
+                    line = line.Replace("XXXX", XXXX);
+                }
+                if (YYYY != null)
+                {
+                    line = line.Replace("YYYYYYYY", YYYY);
+                    line = line.Replace("YYYY", YYYY);
+                }
+                if (line.IndexOf("XXXX", StringComparison.Ordinal) >= 0 ||
+                    line.IndexOf("YYYY", StringComparison.Ordinal) >= 0)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Generate a browser template WITH an open-editor host context, porting
+        /// <c>EventTemplateImpl.GetCodes</c>'s XXXX/YYYY/XXXXXXXX substitution.
+        /// <para>SAFETY (never regress #1589):
+        /// <list type="bullet">
+        /// <item>host == null  -> <see cref="GenerateResult.RequiresEditorContext"/>, EMPTY.</item>
+        /// <item>map-required (Preparation / CallEndEvent) but the host cannot
+        /// resolve a map -> RequiresEditorContext, EMPTY (no map-0 substitution).</item>
+        /// <item>Unknown placeholder family -> RequiresEditorContext, EMPTY.</item>
+        /// <item>any placeholder survives substitution -> RequiresEditorContext,
+        /// EMPTY (no 'X' ever reaches the hex parser).</item>
+        /// </list>
+        /// For a placeholder-FREE template the host is ignored and it generates
+        /// exactly as <see cref="TryGenerateBrowserTemplate"/>.</para>
+        /// </summary>
+        public static GenerateResult TryGenerateBrowserTemplateWithContext(
+            ROM rom, BrowserTemplate et, IEventEditorHostContext host, out byte[] bytes)
+        {
+            bytes = null;
+            if (rom?.RomInfo == null)
+            {
+                return GenerateResult.NoRom;
+            }
+            if (et == null || string.IsNullOrEmpty(et.Filename))
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+            string full = Path.Combine(CoreState.BaseDirectory, "config", "data", et.Filename);
+            if (!File.Exists(full))
+            {
+                return GenerateResult.ConfigNotFound;
+            }
+
+            ContextKind kind = ClassifyContextKind(rom, full);
+
+            // Placeholder-free template: host is irrelevant, generate as before.
+            if (kind == ContextKind.None)
+            {
+                bytes = ConverteventTextToBin(rom, full, TermCode.NoTerm);
+                return GenerateResult.Ok;
+            }
+
+            // From here the template needs context. No host => refuse (the gate).
+            if (host == null)
+            {
+                return GenerateResult.RequiresEditorContext;
+            }
+            // Unknown placeholder family => refuse (finding #2): we don't know how
+            // to substitute it, so emitting anything risks a truncated command.
+            if (kind == ContextKind.Unknown)
+            {
+                return GenerateResult.RequiresEditorContext;
+            }
+
+            string XXXX = null;
+            string YYYY = null;
+
+            if (kind == ContextKind.CallEndEvent)
+            {
+                if (!host.TryGetMapID(out uint mapid))
+                {
+                    return GenerateResult.RequiresEditorContext; // no map => refuse
+                }
+                XXXX = EventEditorHostContext.ToPointerToString(
+                    EventEditorHostContext.ResolveEndEvent(rom, mapid));
+            }
+            else if (kind == ContextKind.Preparation)
+            {
+                if (!host.TryGetMapID(out uint mapid))
+                {
+                    return GenerateResult.RequiresEditorContext; // no map => refuse
+                }
+                XXXX = EventEditorHostContext.ToPointerToString(
+                    EventEditorHostContext.ResolvePlayerUnits(rom, mapid));
+                YYYY = EventEditorHostContext.ToPointerToString(
+                    EventEditorHostContext.ResolveEnemyUnits(rom, mapid));
+            }
+            else if (kind == ContextKind.Cond)
+            {
+                // Two distinct unused conditional-label ids from 0x9000, exactly
+                // like EventTemplateImpl.GetCodes (needs only the label allocator,
+                // no map).
+                uint labelX = EventEditorHostContext.GetUnuseLabelID(host, 0x9000);
+                XXXX = EventEditorHostContext.ToUShortToString(labelX);
+                uint labelY = EventEditorHostContext.GetUnuseLabelID(host, labelX + 1);
+                YYYY = EventEditorHostContext.ToUShortToString(labelY);
+            }
+
+            // Post-substitution guard: if ANY placeholder survives, refuse rather
+            // than let a 'X' reach LineToEventByte (#1589 no-partial-bytes).
+            if (HasResidualPlaceholder(rom, full, XXXX, YYYY))
+            {
+                return GenerateResult.RequiresEditorContext;
+            }
+
+            bytes = ConverteventTextToBin(rom, full, TermCode.NoTerm, XXXX, YYYY);
+            return GenerateResult.Ok;
+        }
+
+        /// <summary>
+        /// Context-aware sibling of <see cref="TryGenerateBrowserTemplateCodes"/>:
+        /// generate a (possibly context-substituted) browser template and return
+        /// it disassembled into editable <see cref="EventScript.OneCode"/> commands
+        /// for the Avalonia event editor's in-editor insert (#1591). Same gating as
+        /// <see cref="TryGenerateBrowserTemplateWithContext"/>; an EMPTY list is
+        /// returned for every refusal (never partial bytes).
+        /// </summary>
+        public static GenerateResult TryGenerateBrowserTemplateCodesWithContext(
+            ROM rom, BrowserTemplate et, IEventEditorHostContext host, out List<EventScript.OneCode> codes)
+        {
+            codes = new List<EventScript.OneCode>();
+            GenerateResult result = TryGenerateBrowserTemplateWithContext(rom, et, host, out byte[] bin);
+            if (result != GenerateResult.Ok)
+            {
+                return result;
+            }
+            codes = DisassembleToCodes(rom, bin);
+            return result;
+        }
     }
 }

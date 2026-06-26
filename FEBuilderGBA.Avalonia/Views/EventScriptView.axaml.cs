@@ -174,5 +174,14 @@ namespace FEBuilderGBA.Avalonia.Views
             AfterEdit();
             return ok;
         }
+
+        /// <summary>
+        /// Build the host context (map-id + label allocator) for this open editor so
+        /// the Script Template browser can substitute the context-required templates'
+        /// placeholders against THIS editor's loaded script (#1591). Returns null when
+        /// no script is loaded — the browser then refuses the context-required
+        /// templates (the gate holds; no partial bytes).
+        /// </summary>
+        public IEventEditorHostContext BuildHostContext() => _vm.BuildHostContext();
     }
 }

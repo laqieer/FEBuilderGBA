@@ -436,6 +436,72 @@ namespace FEBuilderGBA.Avalonia.Tests
             return procEs;
         }
 
+        // ── #1591: event-editor host context (map-id + label allocator) ─────
+
+        [Fact]
+        public void BuildHostContext_NullBeforeDisassemble_NonNullAfter()
+        {
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+            // No script loaded yet → no host context (the template browser then refuses
+            // the context-required templates; the gate holds — no partial bytes).
+            Assert.Null(vm.BuildHostContext());
+
+            // After disassembling a real (non-empty) script the host context is available.
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            PlantScript(LoadEnda());
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+            Assert.True(vm.CommandCount > 0);
+            Assert.NotNull(vm.BuildHostContext());
+        }
+
+        [Fact]
+        public void LoadedCommands_ReflectsEdits()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            int before = vm.LoadedCommands.Count;
+            Assert.Equal(vm.CommandCount, before);
+
+            vm.SelectedCommandIndex = 0;
+            vm.InsertHexText = "02000000"; // MOVE
+            Assert.True(vm.InsertHexCommand());
+
+            Assert.Equal(before + 1, vm.LoadedCommands.Count);
+            Assert.Equal(vm.CommandCount, vm.LoadedCommands.Count);
+        }
+
+        [Fact]
+        public void HostContext_LabelAllocator_SkipsLabelsUsedInLoadedScript()
+        {
+            // A LABEL command in the loaded list must make the host's IsUseLabelID return
+            // true for that id, so the _COND_ allocator skips it (the WinForms
+            // IsUseLabelID over EventAsm behaviour).
+            var es = new EventScript();
+            typeof(EventScript).GetProperty("Scripts")!.SetValue(es, new[]
+            {
+                // A LABEL command carrying a LABEL_CONDITIONAL arg at byte +2 (u16);
+                // mirrors the shipped config "2008XXXX  LABEL[XXXX:LABEL_CONDITIONAL:..]".
+                EventScript.ParseScriptLine("2008XXXX\tLABEL[XXXX:LABEL_CONDITIONAL:Label]"),
+                EventScript.ParseScriptLine("0A000000\tENDA [TERM]"),
+            });
+            CoreState.EventScript = es;
+
+            // LABEL 0x9000 (little-endian 00 90) + ENDA.
+            PlantScript(0x20, 0x08, 0x00, 0x90, 0x0A, 0x00, 0x00, 0x00);
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Event };
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+
+            var host = vm.BuildHostContext();
+            Assert.NotNull(host);
+            Assert.True(host.IsUseLabelID(0x9000));   // used by the LABEL command
+            Assert.False(host.IsUseLabelID(0x9001));  // free
+
+            // The allocator therefore skips 0x9000 → first free is 0x9001.
+            Assert.Equal(0x9001u, EventEditorHostContext.GetUnuseLabelID(host, 0x9000));
+        }
+
         [Fact]
         public void ProcsScriptType_WriteAll_AppendsProcsEnd_NotEventTerminator()
         {
