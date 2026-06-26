@@ -76,10 +76,20 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // Write a BIN patch file with one fixed-address BIN entry + .bin sidecar of `len` bytes.
-        string MakeBinPatch(string name, uint addr, int len)
+        // The sidecar bytes ARE the patch's own bytes (WinForms BinMapping.bin) used by the
+        // patch-absence check; pass `fill` to match what the patch wrote at install time.
+        string MakeBinPatch(string name, uint addr, int len, byte fill = 0x00)
+        {
+            byte[] bin = new byte[len];
+            for (int i = 0; i < len; i++) bin[i] = fill;
+            return MakeBinPatchBytes(name, addr, bin);
+        }
+
+        // As MakeBinPatch but with explicit sidecar bytes.
+        string MakeBinPatchBytes(string name, uint addr, byte[] bin)
         {
             string binName = name + "_" + addr.ToString("X") + ".bin";
-            File.WriteAllBytes(Path.Combine(_tempDir, binName), new byte[len]);
+            File.WriteAllBytes(Path.Combine(_tempDir, binName), bin);
             string outFile = Path.Combine(_tempDir, "PATCH_" + name + ".txt");
             File.WriteAllLines(outFile, new[]
             {
@@ -203,6 +213,44 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(PatchMetadataCore.RomContainsPatch(rom, regions, patched));
         }
 
+        [Fact]
+        public void RomContainsPatch_StillContainsPatchButEditedElsewhereInRegion_Rejected()
+        {
+            // FAITHFULNESS regression (WF SearchContainThisPatchBy compares against t.bin, the
+            // patch's OWN bytes — NOT the current ROM). A candidate that STILL CONTAINS the patch
+            // at its first bytes but differs from the loaded ROM elsewhere in the SAME region
+            // (e.g. extra edits made after install) must be REJECTED as not-clean.
+            byte[] clean = Clean();
+            // Patch wrote 0xAB*0x10 at 0x250 (the .bin sidecar content == patch's own bytes).
+            byte[] patchOwnBytes = FillBytes(0x10, 0xAB);
+            // Loaded ROM = patch bytes PLUS a later post-install edit inside the same region.
+            byte[] loaded = (byte[])clean.Clone();
+            Array.Copy(patchOwnBytes, 0, loaded, 0x250, patchOwnBytes.Length);
+            loaded[0x25F] = 0x99; // post-install edit at the tail of the region
+            var rom = MakeRom(loaded);
+
+            // Candidate STILL contains the patch's own bytes at 0x250..0x25F but its tail byte
+            // (0x25F) holds the patch byte 0xAB, not the loaded ROM's 0x99.
+            byte[] candidateStillPatched = (byte[])clean.Clone();
+            Array.Copy(patchOwnBytes, 0, candidateStillPatched, 0x250, patchOwnBytes.Length);
+
+            string patch = MakeBinPatchBytes("Edited", 0x250, patchOwnBytes);
+            var regions = PatchMetadataCore.CollectPatchRegionsWithBytes(rom, patch, out _);
+
+            // Old (buggy) impl compared candidate-vs-loaded-ROM: 0x25F differs (0xAB vs 0x99) ->
+            // would wrongly classify the candidate as "clean". The faithful impl compares
+            // candidate-vs-t.bin: 0x25F matches (both 0xAB) -> still contains the patch -> REJECT.
+            Assert.True(PatchMetadataCore.RomContainsPatch(regions, candidateStillPatched));
+
+            // And the full uninstall must REJECT it (no mutation).
+            var rom2 = MakeRom(loaded);
+            var undo = NewUndo(rom2);
+            var result = PatchMetadataCore.UninstallPatchWithCleanRom(rom2, patch, candidateStillPatched, undo);
+            Assert.False(result.Success);
+            Assert.Equal(loaded, rom2.Data);
+            Assert.Empty(undo.list);
+        }
+
         // ---------- IsCompatibleRom ----------
 
         [Fact]
@@ -298,7 +346,8 @@ namespace FEBuilderGBA.Core.Tests
             byte[] clean = Clean();
             byte[] patched = WithPatchAt(clean, 0x250, FillBytes(0x10, 0xAB));
             var rom = MakeRom(patched);
-            string patch = MakeBinPatch("Contains", 0x250, 0x10);
+            // .bin sidecar bytes (patch's own bytes) == 0xAB*0x10 to match what was installed.
+            string patch = MakeBinPatch("Contains", 0x250, 0x10, fill: 0xAB);
             var undo = NewUndo(rom);
 
             // Hand the patched ROM itself as the "clean" candidate -> still contains the patch.
@@ -307,6 +356,31 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(result.Success);
             Assert.Equal(patched, rom.Data);
             Assert.Empty(undo.list);
+        }
+
+        [Fact]
+        public void Uninstall_TruncatedCleanRom_FailsClosed_NotPartialOk()
+        {
+            // A clean ROM that is SMALLER than the highest traced region (e.g. predates a ROM
+            // expansion) must FAIL closed BEFORE any write — never silently skip the region and
+            // still return Ok(...). Region is at 0x250 (len 0x10); the clean ROM ends at 0x254.
+            byte[] cleanFull = Clean(0x400);
+            byte[] patched = WithPatchAt(cleanFull, 0x250, FillBytes(0x10, 0xAB));
+            var rom = MakeRom(patched);
+            string patch = MakeBinPatch("Trunc", 0x250, 0x10, fill: 0xAB);
+
+            // Truncate the clean ROM so it does NOT cover the region end (0x260). Keep a valid
+            // GBA header so the compatibility gate passes and we exercise the SIZE gate.
+            byte[] truncatedClean = new byte[0x254];
+            Array.Copy(cleanFull, truncatedClean, truncatedClean.Length);
+            var undo = NewUndo(rom);
+
+            var result = PatchMetadataCore.UninstallPatchWithCleanRom(rom, patch, truncatedClean, undo);
+
+            Assert.False(result.Success);                       // FAIL, not partial Ok
+            Assert.Contains("too small", result.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(patched, rom.Data);                    // ROM untouched
+            Assert.Empty(undo.list);                            // nothing recorded
         }
 
         [Fact]

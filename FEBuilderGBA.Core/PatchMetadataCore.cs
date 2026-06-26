@@ -734,17 +734,34 @@ namespace FEBuilderGBA
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// Collect the fixed-address regions a BIN patch touches (the same
-        /// (address, length) list the install path builds for <see cref="SaveBackup"/>)
-        /// and report how many entries could NOT be traced from the patch text alone
-        /// (EA patches, $FREEAREA payloads, $GREP/macro/pointer address forms).
-        /// Returns an empty list (never null) for non-BIN/EA patches or on parse failure.
+        /// A traced patch region: where the patch wrote, how many bytes, and (for fixed-address
+        /// BIN entries) the patch's OWN recorded bytes — the content of the patch's <c>.bin</c>
+        /// sidecar, i.e. WinForms <c>BinMapping.bin</c>. <see cref="PatchBytes"/> is <c>null</c>
+        /// for JUMP regions whose injected code we cannot synthesise from the patch text alone.
         /// </summary>
-        public static List<(uint address, int length)> CollectPatchRegions(
+        public readonly struct PatchRegion
+        {
+            public readonly uint Address;
+            public readonly int Length;
+            public readonly byte[]? PatchBytes; // null when the patch's own bytes are unknown (JUMP)
+            public PatchRegion(uint address, int length, byte[]? patchBytes)
+            {
+                Address = address; Length = length; PatchBytes = patchBytes;
+            }
+        }
+
+        /// <summary>
+        /// Collect the fixed-address regions a BIN patch touches WITH each region's own patch
+        /// bytes (the <c>.bin</c> sidecar content = WinForms <c>BinMapping.bin</c>), and report
+        /// how many entries could NOT be traced from the patch text alone (EA patches, $FREEAREA
+        /// payloads, $GREP/macro/pointer address forms). Returns an empty list (never null) for
+        /// non-BIN/EA patches or on parse failure.
+        /// </summary>
+        public static List<PatchRegion> CollectPatchRegionsWithBytes(
             ROM rom, string patchFilePath, out int untraceableCount)
         {
             untraceableCount = 0;
-            var regions = new List<(uint address, int length)>();
+            var regions = new List<PatchRegion>();
             if (rom == null || !File.Exists(patchFilePath)) return regions;
 
             var allParams = ParsePatchParams(patchFilePath);
@@ -769,19 +786,61 @@ namespace FEBuilderGBA
             var binEntries = allParams.Where(p => binKeywords.Contains(p.Keyword)).ToList();
             var jumpEntries = allParams.Where(p => p.Keyword == "JUMP").ToList();
 
-            // Count BIN entries we will NOT trace: $FREEAREA payloads and non-literal
-            // ($GREP/$FGREP/$XGREP/pointer-deref) address forms — these need the WF GREP/mask machinery.
+            // Fixed-address BIN entries: record the address AND the patch's own bytes (the .bin
+            // file content) so the patch-absence check can compare candidate-vs-patch-bytes
+            // exactly like WinForms SearchContainThisPatchBy (memcmp against t.bin). $FREEAREA /
+            // $GREP / non-literal address forms cannot be traced from text -> untraceable.
             foreach (var param in binEntries)
             {
                 string addrPart = param.KeyParts.Length > 1 ? param.KeyParts[1] : "";
-                if (addrPart.StartsWith("$", StringComparison.OrdinalIgnoreCase))
-                    untraceableCount++;
-                else if (ParseHexAddress(addrPart) == U.NOT_FOUND)
-                    untraceableCount++;
+                string filePath = Path.Combine(patchDir, param.Value);
+
+                if (addrPart.StartsWith("$", StringComparison.OrdinalIgnoreCase)) { untraceableCount++; continue; }
+                uint addr = ParseHexAddress(addrPart);
+                if (addr == U.NOT_FOUND) { untraceableCount++; continue; }
+                if (!File.Exists(filePath)) { untraceableCount++; continue; }
+
+                byte[] binData;
+                try { binData = File.ReadAllBytes(filePath); }
+                catch { untraceableCount++; continue; }
+                if (binData.Length == 0) continue;
+                if (addr + binData.Length > rom.Data.Length) continue;
+
+                regions.Add(new PatchRegion(addr, binData.Length, binData));
             }
 
-            CollectBinRegions(rom, patchDir, binEntries, regions);
-            CollectJumpRegions(rom, patchDir, jumpEntries, binEntries, regions);
+            // JUMP entries: the injected code is synthesised at install from register/offset,
+            // which we cannot reproduce from text alone. Keep the region (with its estimated
+            // length) for the restore-coverage size gate, but PatchBytes=null so the
+            // patch-absence check skips it (we can't assert "still contains the patch" for it).
+            foreach (var param in jumpEntries)
+            {
+                if (param.KeyParts.Length < 2) continue;
+                uint injectionAddr = ParseHexAddress(param.KeyParts[1]);
+                if (injectionAddr == U.NOT_FOUND) { untraceableCount++; continue; }
+
+                int jumpSize = 8; // $NONE/$B/$BL=4, register-based=8 (conservative)
+                if (param.KeyParts.Length > 2)
+                {
+                    string regStr = param.KeyParts[2];
+                    if (regStr == "$NONE" || regStr == "$BL" || regStr == "$B") jumpSize = 4;
+                }
+                if (injectionAddr + jumpSize <= rom.Data.Length)
+                    regions.Add(new PatchRegion(injectionAddr, jumpSize, null));
+            }
+
+            return regions;
+        }
+
+        /// <summary>
+        /// Backward-compatible (address, length) view of <see cref="CollectPatchRegionsWithBytes"/>.
+        /// </summary>
+        public static List<(uint address, int length)> CollectPatchRegions(
+            ROM rom, string patchFilePath, out int untraceableCount)
+        {
+            var rich = CollectPatchRegionsWithBytes(rom, patchFilePath, out untraceableCount);
+            var regions = new List<(uint address, int length)>(rich.Count);
+            foreach (var r in rich) regions.Add((r.Address, r.Length));
             return regions;
         }
 
@@ -790,32 +849,51 @@ namespace FEBuilderGBA
             => CollectPatchRegions(rom, patchFilePath, out _);
 
         /// <summary>
-        /// Port of WinForms <c>PatchFormUninstallDialogForm.SearchContainThisPatchBy</c>:
-        /// returns <c>true</c> if <paramref name="candidateRomBytes"/> still holds the
-        /// CURRENT (patched) ROM's bytes at ANY of the patch's regions — i.e. the
-        /// candidate is NOT a clean pre-patch ROM and must be rejected.
-        /// Returns <c>false</c> when the candidate differs in at least one region
-        /// (a genuine pre-patch ROM, vanilla OR otherwise-modified).
+        /// Faithful port of WinForms <c>PatchFormUninstallDialogForm.SearchContainThisPatchBy</c>:
+        /// returns <c>true</c> if <paramref name="candidateRomBytes"/> still holds the PATCH'S OWN
+        /// bytes (<see cref="PatchRegion.PatchBytes"/> == WinForms <c>t.bin</c>) at ANY traced
+        /// region — i.e. the candidate STILL CONTAINS THE PATCH and must be rejected as not-clean.
+        /// Regions whose patch bytes are unknown (JUMP, PatchBytes==null) are skipped — we cannot
+        /// assert containment for them. Returns <c>false</c> when no region's own bytes are present
+        /// (a genuine pre-patch ROM, vanilla OR otherwise-modified, even with edits elsewhere).
+        /// </summary>
+        public static bool RomContainsPatch(List<PatchRegion> regions, byte[] candidateRomBytes)
+        {
+            if (regions == null || candidateRomBytes == null) return false;
+            foreach (var r in regions)
+            {
+                byte[]? patchBytes = r.PatchBytes;
+                if (patchBytes == null || patchBytes.Length == 0) continue; // unknown own-bytes -> skip
+                if (r.Address + patchBytes.Length > candidateRomBytes.Length) continue;
+
+                bool match = true;
+                for (int i = 0; i < patchBytes.Length; i++)
+                {
+                    if (candidateRomBytes[r.Address + i] != patchBytes[i]) { match = false; break; }
+                }
+                if (match)
+                    return true; // candidate still contains the patch's own bytes -> not clean
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Backward-compatible overload. Builds patch-byte info from the loaded ROM when only
+        /// (address, length) regions are supplied: each region's patch bytes are taken from the
+        /// CURRENT ROM (best-effort), then routed through the faithful
+        /// <see cref="RomContainsPatch(List{PatchRegion}, byte[])"/>. Prefer the
+        /// <see cref="PatchRegion"/> overload, which carries the patch's true recorded bytes.
         /// </summary>
         public static bool RomContainsPatch(ROM rom, List<(uint address, int length)> regions, byte[] candidateRomBytes)
         {
             if (rom == null || regions == null || candidateRomBytes == null) return false;
+            var rich = new List<PatchRegion>(regions.Count);
             foreach (var (address, length) in regions)
             {
-                if (length <= 0) continue;
-                if (address + length > rom.Data.Length) continue;
-                if (address + length > candidateRomBytes.Length) continue;
-
-                byte[] current = rom.getBinaryData(address, length);
-                bool match = true;
-                for (int i = 0; i < length; i++)
-                {
-                    if (candidateRomBytes[address + i] != current[i]) { match = false; break; }
-                }
-                if (match)
-                    return true; // candidate still contains the patch -> not clean
+                if (length <= 0 || address + length > rom.Data.Length) continue;
+                rich.Add(new PatchRegion(address, length, rom.getBinaryData(address, length)));
             }
-            return false;
+            return RomContainsPatch(rich, candidateRomBytes);
         }
 
         /// <summary>
@@ -861,7 +939,11 @@ namespace FEBuilderGBA
         ///  * the patch must expose at least one fixed-address region;
         ///  * the clean ROM must be header-compatible (<see cref="IsCompatibleRom"/>) —
         ///    fail closed for a wrong game/version;
-        ///  * the clean ROM must NOT still contain the patch (<see cref="RomContainsPatch"/>).
+        ///  * the clean ROM must COVER every traced region (preflight size gate) — fail closed
+        ///    for a truncated / pre-expansion ROM rather than silently skipping regions;
+        ///  * the clean ROM must NOT still contain the patch's OWN bytes
+        ///    (<see cref="RomContainsPatch(List{PatchRegion}, byte[])"/>, faithful to WF
+        ///    SearchContainThisPatchBy's memcmp-against-t.bin).
         ///
         /// Only bytes that DIFFER between the current ROM and the clean ROM inside each
         /// traced region are written (so an over-estimated length is a safe no-op).
@@ -878,7 +960,7 @@ namespace FEBuilderGBA
             if (cleanRomBytes == null || cleanRomBytes.Length == 0)
                 return PatchApplyResult.Fail("Clean ROM is empty or could not be read.");
 
-            var regions = CollectPatchRegions(rom, patchFilePath, out int untraceableCount);
+            var regions = CollectPatchRegionsWithBytes(rom, patchFilePath, out int untraceableCount);
             if (regions.Count == 0)
             {
                 return PatchApplyResult.Fail(
@@ -894,8 +976,23 @@ namespace FEBuilderGBA
                     "Choose the patch-free ROM that matches the loaded game.");
             }
 
-            // Patch-absence check: the picked ROM must be a genuine pre-patch ROM.
-            if (RomContainsPatch(rom, regions, cleanRomBytes))
+            // PREFLIGHT SIZE GATE (before any mutation): the clean ROM must cover EVERY traced
+            // region. A truncated / pre-expansion clean ROM would otherwise silently skip whole
+            // regions yet still report success, leaving the patch effectively installed.
+            foreach (var r in regions)
+            {
+                if (r.Length <= 0) continue;
+                if (r.Address + r.Length > cleanRomBytes.Length)
+                {
+                    return PatchApplyResult.Fail(
+                        $"The selected clean ROM is too small: it does not cover the patched region at " +
+                        $"0x{r.Address:X} ({r.Length} bytes). It may predate a ROM expansion. " +
+                        "Choose a patch-free ROM at least as large as the current one.");
+                }
+            }
+
+            // Patch-absence check: the picked ROM must NOT still contain the patch's OWN bytes.
+            if (RomContainsPatch(regions, cleanRomBytes))
             {
                 return PatchApplyResult.Fail(
                     "The selected ROM still contains this patch. Choose the ROM from BEFORE the patch was installed.");
@@ -904,10 +1001,14 @@ namespace FEBuilderGBA
             try
             {
                 int totalBytes = 0;
-                foreach (var (address, length) in regions)
+                foreach (var r in regions)
                 {
+                    uint address = r.Address;
+                    int length = r.Length;
                     if (length <= 0) continue;
-                    // Clamp to bytes that exist in BOTH ROMs.
+                    // Clamp to bytes that exist in BOTH ROMs. (The preflight gate already
+                    // guaranteed the clean ROM covers each region; the current ROM is the
+                    // only remaining bound and matches in the common case.)
                     int safeLen = length;
                     if (address + safeLen > rom.Data.Length)
                         safeLen = (int)(rom.Data.Length - address);
