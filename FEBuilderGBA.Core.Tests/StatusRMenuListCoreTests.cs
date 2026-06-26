@@ -219,6 +219,23 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void BuildTableList_IncludesNodeEndingExactlyAtEOF()
+        {
+            // A node whose 28 bytes end EXACTLY at Data.Length must still be
+            // listed — the inclusive (addr+28 <= length) bound, not the strict
+            // isSafetyOffset `<` which would off-by-one-skip it (Copilot PR #1566
+            // review thread on line 123).
+            uint A = (uint)(RomSize - 28);
+            var rom = MakeRom(8, ROOT0, ROOT1, ROOT2, ROOT3, ROOT4, ROOT5);
+            rom.write_u32(ROOT0, U.toPointer(A));
+            WriteNode(rom, A, 0, 0, 0, 0, textId: 0x1234);
+
+            var list = StatusRMenuListCore.BuildTableList(rom, 0);
+            Assert.Single(list);
+            Assert.Equal(A, list[0].addr);
+        }
+
+        [Fact]
         public void BuildTableList_ZeroRoot_ReturnsEmpty_NoThrow()
         {
             // FE6/FE7: rmenu6 (index 5) root is 0 → empty list, no exception.

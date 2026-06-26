@@ -115,9 +115,12 @@ namespace FEBuilderGBA
             while (queue.Count > 0)
             {
                 uint addr = queue.Dequeue();
-                // Guard the full 28-byte node like WF's
-                // `isSafetyOffset(addr) && isSafetyOffset(addr+28)`.
-                if (!U.isSafetyOffset(addr, rom) || !U.isSafetyOffset(addr + RMENU_STRIDE, rom))
+                // Guard the full 28-byte node. The upper bound is INCLUSIVE
+                // (addr+28 <= Data.Length) so a record ending exactly at EOF is
+                // still valid — matching the Avalonia editor's own `addr + 28 >
+                // length` break convention. (isSafetyOffset's strict `<` would
+                // off-by-one-skip the last reachable node.)
+                if (!IsNodeInBounds(rom, addr))
                 {
                     continue;
                 }
@@ -149,19 +152,36 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// A 28-byte node is in bounds when it starts at/above the 0x200 safety
+        /// floor and ENDS at or before EOF (inclusive upper bound — a record
+        /// ending exactly at <c>Data.Length</c> is valid). Mirrors the Avalonia
+        /// editor's <c>addr + 28 &gt; length</c> break convention rather than
+        /// <c>isSafetyOffset</c>'s strict <c>&lt; Data.Length</c> (which would
+        /// off-by-one-skip the last reachable node).
+        /// </summary>
+        static bool IsNodeInBounds(ROM rom, uint addr)
+        {
+            return addr >= 0x00000200
+                && addr < 0x02000000
+                && (ulong)addr + RMENU_STRIDE <= (ulong)rom.Data.Length;
+        }
+
+        /// <summary>
         /// Port of WF <c>StatusRMenuForm.GetMenuName</c>: the RMenu node's text id
         /// at +18; blank for <c>tid &lt;= 0x10</c>; the decoded name truncated at
         /// the first CRLF (WF <c>U.cut(name, "\r\n")</c>). We decode via
-        /// <c>FETextDecode.Direct</c> (the Core port of the <c>TextForm.Direct</c>
-        /// decode), apply the first-line cut on the RAW decode so the `\r\n`
-        /// boundary is still present, then strip residual control/escape codes for
-        /// a clean single-line list label (the convention every Avalonia list
-        /// uses). Safe / never throws.
+        /// <c>FETextDecode</c> bound to the PASSED <paramref name="rom"/> (the Core
+        /// port of the <c>TextForm.Direct</c> decode), apply the first-line cut on
+        /// the RAW decode so the <c>\r\n</c> boundary is still present, then strip
+        /// residual control/escape codes for a clean single-line list label (the
+        /// convention every Avalonia list uses). Returns blank when no ambient
+        /// encoder is wired. Safe / never throws.
         /// </summary>
         public static string GetMenuName(ROM rom, uint addr)
         {
+            if (rom == null) return "";
             addr = U.toOffset(addr);
-            if (!U.isSafetyOffset(addr, rom) || !U.isSafetyOffset(addr + RMENU_STRIDE, rom))
+            if (!IsNodeInBounds(rom, addr))
             {
                 return "";
             }
@@ -172,20 +192,18 @@ namespace FEBuilderGBA
                 return "";
             }
 
+            // Decode against the PASSED rom (not the ambient CoreState.ROM):
+            // FETextDecode.Direct() would build from CoreState.ROM, which is wrong
+            // when a caller passes a different ROM. We need an encoder to decode;
+            // without one we cannot safely decode against `rom`, so we return a
+            // blank LABEL rather than fall back to the ambient-ROM Direct() path
+            // (which could mislabel / show "???"). The encoder is ambient, hence
+            // READ-ONLY but not strictly pure.
+            var encoder = CoreState.SystemTextEncoder;
+            if (encoder == null) return "";
+
             string raw;
-            try
-            {
-                // Decode against the PASSED rom (not the ambient CoreState.ROM):
-                // FETextDecode.Direct() would build from CoreState.ROM, which is
-                // wrong when a caller passes a different ROM. The encoder is still
-                // the ambient CoreState.SystemTextEncoder (same as every other
-                // Avalonia list-name path) — hence this method is READ-ONLY but
-                // not strictly pure.
-                if (CoreState.SystemTextEncoder == null)
-                    raw = FETextDecode.Direct(tid) ?? "";
-                else
-                    raw = new FETextDecode(rom, CoreState.SystemTextEncoder).Decode(tid) ?? "";
-            }
+            try { raw = new FETextDecode(rom, encoder).Decode(tid) ?? ""; }
             catch { return ""; }
             if (raw == null) return "";
 
