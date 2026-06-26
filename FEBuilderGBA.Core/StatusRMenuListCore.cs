@@ -4,9 +4,15 @@ using System.Collections.Generic;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// Status R-Menu list builder (Core, READ-ONLY, PURE) — port of WinForms
+    /// Status R-Menu list builder (Core, READ-ONLY) — port of WinForms
     /// <c>StatusRMenuForm</c>'s multi-table FilterComboBox + <c>ListFounder</c>
     /// directional-pointer traversal (#1459).
+    ///
+    /// <para>The table/pointer/traversal helpers are pure over the passed ROM;
+    /// <see cref="GetMenuName"/> additionally reads the ambient
+    /// <c>CoreState.SystemTextEncoder</c> to decode the menu text id (same as
+    /// every other Avalonia list-name path), so the class is READ-ONLY but not
+    /// strictly pure. Every read is bounds-guarded; nothing throws.</para>
     ///
     /// WinForms exposes up to SIX independent RMenu "menu graphs" via a
     /// FilterComboBox: status params, items held, weapon level, battle forecast
@@ -167,7 +173,19 @@ namespace FEBuilderGBA
             }
 
             string raw;
-            try { raw = FETextDecode.Direct(tid) ?? ""; }
+            try
+            {
+                // Decode against the PASSED rom (not the ambient CoreState.ROM):
+                // FETextDecode.Direct() would build from CoreState.ROM, which is
+                // wrong when a caller passes a different ROM. The encoder is still
+                // the ambient CoreState.SystemTextEncoder (same as every other
+                // Avalonia list-name path) — hence this method is READ-ONLY but
+                // not strictly pure.
+                if (CoreState.SystemTextEncoder == null)
+                    raw = FETextDecode.Direct(tid) ?? "";
+                else
+                    raw = new FETextDecode(rom, CoreState.SystemTextEncoder).Decode(tid) ?? "";
+            }
             catch { return ""; }
             if (raw == null) return "";
 

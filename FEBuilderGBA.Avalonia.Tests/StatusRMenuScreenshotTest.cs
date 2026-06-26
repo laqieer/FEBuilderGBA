@@ -69,7 +69,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             view.Show();
             try
             {
-                // After Opened: 6 table entries on FE8, EntryList has the 2 nodes.
+                // ENFORCED data-layer assertions — these run OUTSIDE the render
+                // try/catch so an xUnit failure is NOT swallowed by the broad
+                // headless-tolerant catch below (Copilot PR #1566 review thread
+                // on line 94). After Opened: 6 table entries on FE8, EntryList
+                // has the 2 nodes.
                 Assert.Equal(6, combo!.ItemCount);
                 // Explicitly select NodeA so the assertion documents the intended
                 // selection dependency rather than relying on SetItems auto-select
@@ -77,20 +81,23 @@ namespace FEBuilderGBA.Avalonia.Tests
                 view.NavigateTo(NodeA);
                 Assert.True(view.IsLoaded);
 
-                // Render the OPEN view (closing first yields a blank/throwing
-                // bitmap — Copilot PR #1566 review thread on line 95).
-                using var bitmap = new RenderTargetBitmap(new PixelSize(VW, VH));
-                bitmap.Render(view);
+                // Render the OPEN view. ONLY the render/save (which is best-effort
+                // on UseHeadlessDrawing) is wrapped in the tolerant catch.
+                try
+                {
+                    using var bitmap = new RenderTargetBitmap(new PixelSize(VW, VH));
+                    bitmap.Render(view);
 
-                string outDir = ResolveScreenshotOutputDir();
-                Directory.CreateDirectory(outDir);
-                string outPath = Path.Combine(outDir, "pr1459-statusrmenu-fe8u.png");
-                bitmap.Save(outPath);
-                _output.WriteLine($"Saved screenshot to: {outPath} ({new FileInfo(outPath).Length} bytes)");
-            }
-            catch (Exception ex)
-            {
-                _output.WriteLine($"Headless PNG save no-op (UseHeadlessDrawing, not the #1459 fix): {ex.Message}");
+                    string outDir = ResolveScreenshotOutputDir();
+                    Directory.CreateDirectory(outDir);
+                    string outPath = Path.Combine(outDir, "pr1459-statusrmenu-fe8u.png");
+                    bitmap.Save(outPath);
+                    _output.WriteLine($"Saved screenshot to: {outPath} ({new FileInfo(outPath).Length} bytes)");
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"Headless PNG save no-op (UseHeadlessDrawing, not the #1459 fix): {ex.Message}");
+                }
             }
             finally
             {
