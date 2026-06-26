@@ -33,10 +33,16 @@ namespace FEBuilderGBA
         /// Which script family this editor edits (Event / Procs / AI). Drives the
         /// terminator <see cref="Serialize"/> appends when the edited list has no
         /// trailing TERM: an Event editor appends the FE event/world-map/top-level
-        /// terminator, but a Procs / AI editor must append ITS OWN <c>{TERM}</c> command
-        /// (e.g. the 8-byte Procs <c>End</c> <c>0000000000000000</c>), NOT an FE event
-        /// terminator — appending an event terminator to a Procs stream would corrupt it
-        /// (Copilot plan review #1585 finding #1).
+        /// terminator, while a Procs editor appends ITS OWN <c>{TERM}</c> command (the
+        /// 8-byte Procs <c>End</c> <c>0000000000000000</c>), NOT an FE event terminator —
+        /// appending an event terminator to a Procs stream would corrupt it (Copilot plan
+        /// review #1585 finding #1).
+        /// <para>NOTE on AI: the shipped AI vocabularies (<c>config/data/aiscript_*.txt</c>)
+        /// define NO <c>[TERM]</c> command, so for <see cref="EventScript.EventScriptType.AI"/>
+        /// <see cref="Serialize"/> finds no family terminator and <see cref="WriteAll"/>
+        /// refuses with <see cref="WriteResult.NoTerminator"/> (ROM unchanged) — by design.
+        /// AI is edited through its own dedicated 16-byte-grid editor (AIScriptView), not this
+        /// engine, so this refusal is the correct safe fallback rather than a supported path.</para>
         /// </summary>
         public EventScript.EventScriptType ScriptType => _scriptType;
 
@@ -54,10 +60,13 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Construct an editor for a specific script family. Pass
-        /// <see cref="EventScript.EventScriptType.Procs"/> / <c>AI</c> so a Write-All on a
-        /// list whose terminal command was deleted appends the correct family terminator
+        /// <see cref="EventScript.EventScriptType.Procs"/> so a Write-All on a list whose
+        /// terminal command was deleted appends the Procs <c>End</c> family terminator
         /// instead of an FE event terminator (#1585 finding #1). Defaults to
         /// <see cref="EventScript.EventScriptType.Event"/> for the legacy ctor.
+        /// (<see cref="EventScript.EventScriptType.AI"/> has no <c>[TERM]</c> in its
+        /// vocabulary, so a terminator-less AI Write-All refuses with
+        /// <see cref="WriteResult.NoTerminator"/> by design — see <see cref="ScriptType"/>.)
         /// </summary>
         public EventScriptEditorCore(EventScript es, EventScript.EventScriptType scriptType)
         {
