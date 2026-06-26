@@ -23,13 +23,13 @@
 
             <!-- WF J_0_ITEM: per-slot type name -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_TypeLabel"
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Type_Label"
                          Name="TypeLabel" FontWeight="Bold" TextAlignment="Center" />
             </Border>
 
             <!-- WF X_INFO: per-slot guidance text -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6" MinHeight="80">
-              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Info"
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Info_Label"
                          Name="InfoLabel" TextWrapping="Wrap" TextAlignment="Center"
                          VerticalAlignment="Center" Foreground="Gray" />
             </Border>
@@ -64,13 +64,13 @@
 
             <!-- WF N_J_0_ITEM: per-slot type name -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_TypeLabel"
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Type_Label"
                          Name="RankupTypeLabel" FontWeight="Bold" TextAlignment="Center" />
             </Border>
 
             <!-- WF N_X_INFO: per-slot guidance text -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6" MinHeight="80">
-              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Info"
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Info_Label"
                          Name="RankupInfoLabel" TextWrapping="Wrap" TextAlignment="Center"
                          VerticalAlignment="Center" Foreground="Gray" />
             </Border>
