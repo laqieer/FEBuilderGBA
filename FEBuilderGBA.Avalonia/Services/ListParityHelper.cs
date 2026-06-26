@@ -4179,20 +4179,38 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build ImageTSAAnime2 list — from config TSV resource tsaanime2_.</summary>
+        /// <summary>
+        /// Build ImageTSAAnime2 list — from config TSV resource tsaanime2_.
+        /// #1456: enumerate every per-category 12-byte entry (WinForms two-level
+        /// editor), not one row per category, so --data-verify-full covers all
+        /// reachable entries. Uses the same stop condition as the VM
+        /// (<see cref="FEBuilderGBA.Avalonia.ViewModels.ImageTSAAnime2ViewModel.CountCategoryEntries"/>).
+        /// </summary>
         static List<AddrResult> BuildImageTSAAnime2List(ROM rom)
         {
             var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime2_"), false);
             if (tsaAnime == null || tsaAnime.Count == 0) return new List<AddrResult>();
 
+            const uint SIZE = 12;
             var result = new List<AddrResult>();
             foreach (var pair in tsaAnime)
             {
                 uint pointer = pair.Key;
-                string label = U.ToHexString(pointer) + " " + pair.Value;
+                string catName = pair.Value;
                 uint offset = U.toOffset(pointer);
                 if (!U.isSafetyOffset(offset, rom)) continue;
-                result.Add(new AddrResult(offset, label, pointer));
+                uint dataAddr = rom.p32(offset);
+                if (!U.isSafetyOffset(dataAddr, rom)) continue;
+
+                uint entry0Addr = dataAddr + 20;
+                uint count = FEBuilderGBA.Avalonia.ViewModels.ImageTSAAnime2ViewModel
+                    .CountCategoryEntries(rom, entry0Addr);
+                for (uint i = 0; i < count; i++)
+                {
+                    uint entryAddr = entry0Addr + i * SIZE;
+                    string label = U.ToHexString(pointer) + " " + catName + " " + U.To0xHexString(i);
+                    result.Add(new AddrResult(entryAddr, label, pointer));
+                }
             }
             return result;
         }
