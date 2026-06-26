@@ -328,6 +328,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Update category-specific sub-panels
             UpdateCategoryPanels();
 
+            // Alloc Event template affordance (#1592): only on NEWALLOC-EVENT
+            // surfaces (TURN/TALK/OBJECT/ALWAYS event-pointer records). The
+            // counter-reinforcement button is TURN-only.
+            AllocTemplatePanel.IsVisible = _vm.CanAllocCallTemplate;
+            AllocCounterBtn.IsVisible = _vm.CanAllocCounterReinforcement;
+
             // Name hints
             UpdateNameHints();
 
@@ -656,6 +662,8 @@ namespace FEBuilderGBA.Avalonia.Views
             AlwaysPanel.IsVisible = false;
             TrapPanel.IsVisible = false;
             TutorialPanel.IsVisible = false;
+            AllocTemplatePanel.IsVisible = false;
+            AllocCounterBtn.IsVisible = false;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -856,6 +864,85 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("EventCondView.NewAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // ============================================================
+        // Alloc Event template record side effects (#1592).
+        //   CALL EndEvent / CALL 1 → write the record's event-pointer field
+        //     (+ W2 victory flag for EndEvent), via ResolveCallTemplate.
+        //   Counter Reinforcement → allocate a counter event + set TURN 1-255.
+        // All under one undo scope; refuse (no mutation) on unresolvable.
+        // ============================================================
+
+        void AllocCallEndEvent_Click(object? sender, RoutedEventArgs e)
+            => ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice.CallEndEvent,
+                              "Could not resolve the chapter end-event for this map (no end-event or no map selected).");
+
+        void AllocCall1_Click(object? sender, RoutedEventArgs e)
+            => ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice.Call1,
+                              "Cannot apply the CALL 1 template to this record.");
+
+        void ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice choice, string refuseMessage)
+        {
+            if (!_vm.CanAllocCallTemplate) return;
+
+            _undoService.Begin("Alloc Event Template (CALL)");
+            try
+            {
+                bool ok = _vm.ApplyAllocCallTemplate(choice);
+                if (!ok)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowInfo(refuseMessage);
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Refresh the editor so the new event-pointer + W2 flag show.
+                EventPtrBox.Value = _vm.EventPtr;
+                FlagIdBox.Value = _vm.FlagId;
+                UpdateRawHex();
+                UpdateNameHints();
+                CoreState.Services.ShowInfo("Alloc-Event template applied. Event pointer = 0x" + _vm.EventPtr.ToString("X08") + ".");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.ApplyAllocCall failed: {0}", ex.Message);
+            }
+        }
+
+        void AllocCounter_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanAllocCounterReinforcement) return;
+
+            _undoService.Begin("Alloc Event Template (Counter Reinforcement)");
+            try
+            {
+                bool ok = _vm.ApplyCounterReinforcement();
+                if (!ok)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowInfo("Could not allocate the counter-reinforcement event.");
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Refresh: event pointer + the TURN start/end (B8/B9).
+                EventPtrBox.Value = _vm.EventPtr;
+                TurnStartBox.Value = _vm.TurnStart;
+                TurnEndBox.Value = _vm.TurnEnd;
+                UpdateRawHex();
+                UpdateNameHints();
+                CoreState.Services.ShowInfo("Counter-reinforcement event allocated at 0x" + _vm.EventPtr.ToString("X08") + " (turn 1-255).");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.AllocCounter_Click failed: {0}", ex.Message);
             }
         }
 

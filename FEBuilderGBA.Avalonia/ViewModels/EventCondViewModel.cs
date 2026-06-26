@@ -28,6 +28,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public partial class EventCondViewModel : ViewModelBase, IDataVerifiable
     {
         uint _mapSettingAddr;
+        uint _selectedMapId = U.NOT_FOUND; // map-id (AddrResult.tag) of the selected map; NOT_FOUND ⇒ no/invalid map (#1592)
         uint _eventDataAddr;     // base of the event data block (array of pointers)
         int _selectedSlotIndex = -1;
         uint _condRecordAddr;    // address of the currently-selected condition record
@@ -85,6 +86,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static List<CondSlotDef> _slotDefs = new();
 
         public uint MapSettingAddr { get => _mapSettingAddr; set => SetField(ref _mapSettingAddr, value); }
+        /// <summary>The selected map's id (AddrResult.tag from MakeMapIDList).
+        /// <see cref="U.NOT_FOUND"/> when no map (or an unrecognised addr) is
+        /// selected — the Alloc-Event CALL_EndEvent path refuses on NOT_FOUND
+        /// (#1592 finding #4: no wrapped/garbage map id reaches ResolveEndEvent).</summary>
+        public uint SelectedMapId { get => _selectedMapId; set => SetField(ref _selectedMapId, value); }
         public uint EventDataAddr { get => _eventDataAddr; set => SetField(ref _eventDataAddr, value); }
         public int SelectedSlotIndex { get => _selectedSlotIndex; set => SetField(ref _selectedSlotIndex, value); }
         public uint CondRecordAddr { get => _condRecordAddr; set => SetField(ref _condRecordAddr, value); }
@@ -236,6 +242,154 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Resolve the map-id (AddrResult.tag) for a map-setting address by
+        /// matching it against MakeMapIDList. Returns <see cref="U.NOT_FOUND"/>
+        /// when the address isn't a recognised map (#1592 finding #4).
+        /// </summary>
+        static uint ResolveMapIdForAddr(uint mapSettingAddr)
+        {
+            foreach (var m in MapSettingCore.MakeMapIDList())
+            {
+                if (m.addr == mapSettingAddr) return m.tag;
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
+        /// Map the Avalonia <see cref="CondCategory"/> of the selected slot onto
+        /// the Core <see cref="MapEventUnitCore.CondType"/> so the shared
+        /// <see cref="EventEditorHostContext.IsEventPointerSurface"/> gate can
+        /// decide whether the record's +4 field is a genuine event pointer.
+        /// </summary>
+        static MapEventUnitCore.CondType ToCoreCondType(CondCategory cat)
+        {
+            switch (cat)
+            {
+                case CondCategory.TURN: return MapEventUnitCore.CondType.Turn;
+                case CondCategory.TALK: return MapEventUnitCore.CondType.Talk;
+                case CondCategory.OBJECT: return MapEventUnitCore.CondType.Object;
+                case CondCategory.ALWAYS: return MapEventUnitCore.CondType.Always;
+                case CondCategory.TUTORIAL: return MapEventUnitCore.CondType.Tutorial;
+                case CondCategory.TRAP: return MapEventUnitCore.CondType.Trap;
+                case CondCategory.PLAYER_UNIT: return MapEventUnitCore.CondType.PlayerUnit;
+                case CondCategory.ENEMY_UNIT: return MapEventUnitCore.CondType.EnemyUnit;
+                case CondCategory.FREEMAP_PLAYER_UNIT: return MapEventUnitCore.CondType.FreemapPlayerUnit;
+                case CondCategory.FREEMAP_ENEMY_UNIT: return MapEventUnitCore.CondType.FreemapEnemyUnit;
+                case CondCategory.START_EVENT: return MapEventUnitCore.CondType.StartEvent;
+                case CondCategory.END_EVENT: return MapEventUnitCore.CondType.EndEvent;
+                default: return MapEventUnitCore.CondType.Unknown;
+            }
+        }
+
+        /// <summary>
+        /// True when the currently-loaded record is a WinForms NEWALLOC-EVENT
+        /// surface (its +4 field is a real top-level event pointer), so the
+        /// Alloc-Event CALL_EndEvent / CALL_1 buttons may write it (#1592
+        /// finding #3). False for pointer-only / TRAP / TUTORIAL slots and for
+        /// OBJECT chest/shop subtypes that pack +4 with non-pointer data.
+        /// </summary>
+        public bool CanAllocCallTemplate
+        {
+            get
+            {
+                if (IsPointerSlot) return false;
+                if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count) return false;
+                var cat = _slotDefs[_selectedSlotIndex].Category;
+                return EventEditorHostContext.IsEventPointerSurface(ToCoreCondType(cat), _condType);
+            }
+        }
+
+        /// <summary>
+        /// True when the currently-loaded record is the TURN counter-
+        /// reinforcement surface (EVENT3 / Template-3). The B8/B9 counter
+        /// fields are the TURN record's TurnStart/TurnEnd bytes (#1592
+        /// finding #2 — written via the category properties so
+        /// ComposeCategoryFields persists them).
+        /// </summary>
+        public bool CanAllocCounterReinforcement
+        {
+            get
+            {
+                if (!CanAllocCallTemplate) return false;
+                if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count) return false;
+                return _slotDefs[_selectedSlotIndex].Category == CondCategory.TURN;
+            }
+        }
+
+        /// <summary>
+        /// Apply a numbered CALL button's record side effects (#1592). Resolves
+        /// the side effects via <see cref="EventEditorHostContext.ResolveCallTemplate"/>,
+        /// applies the event-pointer + W2 (victory flag) record fields, and
+        /// commits via <see cref="WriteCondRecord"/>. Requires an active undo
+        /// scope (WriteCondRecord throws otherwise). Returns false WITHOUT
+        /// mutating when the choice can't be resolved (no map / no end-event)
+        /// or the record isn't an event-pointer surface — the caller refuses.
+        /// </summary>
+        public bool ApplyAllocCallTemplate(EventEditorHostContext.AllocTemplateChoice choice)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CondRecordAddr == 0) return false;
+            if (!CanAllocCallTemplate) return false;
+
+            var eff = EventEditorHostContext.ResolveCallTemplate(rom, _selectedMapId, choice);
+            if (!eff.Resolvable || !eff.HasEventPtr) return false;
+
+            // Event-pointer field (+4 u32). WinForms writes the literal 1 for
+            // CALL_1 and U.toPointer(addr) for CALL_EndEvent — ResolveCallTemplate
+            // already produced the exact value.
+            EventPtr = eff.EventPtr;
+
+            // W2 (victory flag) = u16 @ +2 = FlagId. Set to 0x03 when needed,
+            // else clear ONLY when it is currently exactly 0x03 (WF rule).
+            if (eff.SetFlag03)
+            {
+                FlagId = 0x03;
+            }
+            else if (FlagId == 0x03)
+            {
+                FlagId = 0;
+            }
+
+            WriteCondRecord();
+            return true;
+        }
+
+        /// <summary>
+        /// Apply the counter-reinforcement record side effects (#1592): allocate
+        /// a counter-reinforcement event block, point the TURN record's
+        /// event-pointer field at it, and set B8=1 / B9=255 (the TURN record's
+        /// TurnStart/TurnEnd). Requires an active undo scope. Returns false
+        /// without mutating when the record isn't the TURN counter surface or
+        /// allocation fails.
+        /// </summary>
+        public bool ApplyCounterReinforcement()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CondRecordAddr == 0) return false;
+            if (!CanAllocCounterReinforcement) return false;
+
+            // Allocate a fresh event block for the counter-reinforcement event
+            // (the same minimal toplevel-code stub AllocateNewEvent uses).
+            uint newPtr = AllocateNewEvent();
+            if (newPtr == 0) return false;
+
+            var eff = EventEditorHostContext.CounterReinforcementSideEffects();
+            if (!eff.Resolvable || !eff.CounterReinforcement) return false;
+
+            // Point the record at the new counter event.
+            EventPtr = newPtr;
+
+            // B8=1 / B9=255 are the TURN record's TurnStart/TurnEnd. Writing the
+            // category properties (not the raw ExtraB8/B9) so ComposeCategoryFields
+            // persists them (finding #2). TURN guarantees CondRecordSize >= 12.
+            TurnStart = 1;
+            TurnEnd = 255;
+
+            WriteCondRecord();
+            return true;
+        }
+
+        /// <summary>
         /// Resolve the event data block address for a given map setting address.
         /// The map setting contains an event PLIST at a known offset.
         /// </summary>
@@ -247,6 +401,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             MapSettingAddr = mapSettingAddr;
             EventDataAddr = 0;
             CanWrite = false;
+
+            // Resolve the map-id (AddrResult.tag) for the selected map setting
+            // address so the Alloc-Event CALL_EndEvent path can resolve the
+            // chapter end-event. NOT_FOUND when the addr isn't a known map
+            // (#1592 finding #4 — refuse rather than feed a garbage id).
+            SelectedMapId = ResolveMapIdForAddr(mapSettingAddr);
 
             uint eventPlistPos = rom.RomInfo.map_setting_event_plist_pos;
             uint eventPlist = rom.u8(mapSettingAddr + eventPlistPos);

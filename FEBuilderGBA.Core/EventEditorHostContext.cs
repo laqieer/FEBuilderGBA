@@ -199,6 +199,180 @@ namespace FEBuilderGBA
         public static uint ResolvePlayerUnits(ROM rom, uint mapid)
             => ResolveFirstCondSlot(rom, mapid, MapEventUnitCore.CondType.PlayerUnit);
 
+        // ----------------------------------------------------------------
+        // EventCond-RECORD Alloc-Event side effects (#1592) — the WinForms
+        // `InputFormRef.AllocEvent_EventTemplate` surface that mutates the
+        // parent EventCond record fields (W2 / B8 / B9 / event-pointer),
+        // which is a DIFFERENT surface from #1591's in-editor browser insert.
+        //
+        // These are PURE resolvers: they compute WHAT to write into the record;
+        // the (platform) caller performs the actual undo-tracked ROM write via
+        // the EventCond editor's WriteCondRecord path. No ROM mutation here.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// The two numbered "CALL" buttons from the WinForms EventCond
+        /// Alloc-Event template dialog (<c>EventTemplate{1..6}Form</c>):
+        /// <list type="bullet">
+        /// <item><c>CallEndEvent</c> — write the chapter END_EVENT pointer
+        /// (<c>GetEndEvent(GetMapID(...))</c>) into the record's event-pointer
+        /// field AND set the victory flag (W2 = 0x03).</item>
+        /// <item><c>Call1</c> — write the literal value <c>1</c> into the
+        /// event-pointer field (no flag).</item>
+        /// </list>
+        /// </summary>
+        public enum AllocTemplateChoice
+        {
+            CallEndEvent,
+            Call1,
+        }
+
+        /// <summary>
+        /// The record-field side effects a template choice produces. The caller
+        /// applies these to the parent EventCond record (event-pointer field +
+        /// W2 victory flag + B8/B9 counter-reinforcement) under an undo scope.
+        /// When <see cref="Resolvable"/> is false the caller MUST refuse and
+        /// write nothing (no silent map-0 / garbage pointer — #1589/#1591 safety
+        /// discipline carried into the record surface).
+        /// </summary>
+        public struct AllocEventRecordSideEffects
+        {
+            /// <summary>True ⇒ the caller may write <see cref="EventPtr"/> into
+            /// the record's event-pointer field. False (with Resolvable=false)
+            /// ⇒ refuse.</summary>
+            public bool HasEventPtr;
+
+            /// <summary>The value to write into the event-pointer field —
+            /// either the literal <c>1</c> (Call1) or <c>U.toPointer(endAddr)</c>
+            /// (CallEndEvent). Only meaningful when <see cref="HasEventPtr"/>.</summary>
+            public uint EventPtr;
+
+            /// <summary>True ⇒ set the record's W2 (victory) field to 0x03.
+            /// When false the caller follows the WinForms "clear only if exactly
+            /// 0x03" rule on the existing value.</summary>
+            public bool SetFlag03;
+
+            /// <summary>True ⇒ apply the counter-reinforcement record fields
+            /// (B8 = 1, B9 = 255). Only produced by
+            /// <see cref="CounterReinforcementSideEffects"/>.</summary>
+            public bool CounterReinforcement;
+
+            /// <summary>False ⇒ the choice could not be resolved (no selected/
+            /// valid map, or no chapter END_EVENT pointer). The caller MUST
+            /// refuse and mutate nothing.</summary>
+            public bool Resolvable;
+        }
+
+        /// <summary>
+        /// Resolve the record side effects for a numbered CALL button, ported
+        /// verbatim from <c>InputFormRef.AllocEvent_EventTemplate</c> +
+        /// <c>EventTemplate{1..6}Form.CALL_*_button_Click</c>:
+        /// <list type="bullet">
+        /// <item><c>Call1</c> ⇒ always resolvable; event-pointer field = literal
+        /// <c>1</c>; no flag.</item>
+        /// <item><c>CallEndEvent</c> ⇒ resolve <c>GetEndEvent(GetMapID())</c>; on
+        /// success event-pointer = <c>U.toPointer(endAddr)</c> and W2 = 0x03; on
+        /// failure (no selected/valid map, or no END_EVENT pointer) returns
+        /// <c>Resolvable=false</c> — the caller refuses (no wrong pointer).</item>
+        /// </list>
+        /// The explicit invalid-map guard (Copilot #1592 review finding #4):
+        /// refuse BEFORE <see cref="ResolveEndEvent"/> when
+        /// <paramref name="mapid"/> is <see cref="U.NOT_FOUND"/>, so a wrapped /
+        /// unselected map id can never produce a plausible-but-wrong address.
+        /// </summary>
+        public static AllocEventRecordSideEffects ResolveCallTemplate(ROM rom, uint mapid, AllocTemplateChoice choice)
+        {
+            var eff = new AllocEventRecordSideEffects();
+
+            if (choice == AllocTemplateChoice.Call1)
+            {
+                // CALL_1: literal 1 written directly into the event-pointer
+                // field (WinForms `src_object.Value = callEventAddr` when ==1).
+                eff.HasEventPtr = true;
+                eff.EventPtr = 1;
+                eff.SetFlag03 = false;
+                eff.Resolvable = true;
+                return eff;
+            }
+
+            // CALL_EndEvent. Invalid-map guard first (finding #4): never call
+            // ResolveEndEvent with NOT_FOUND — refuse outright.
+            if (rom?.RomInfo == null || mapid == U.NOT_FOUND)
+            {
+                eff.Resolvable = false;
+                return eff;
+            }
+
+            uint endAddr = ResolveEndEvent(rom, mapid);
+            if (endAddr == U.NOT_FOUND)
+            {
+                // No chapter END_EVENT pointer — refuse (no silent garbage).
+                eff.Resolvable = false;
+                return eff;
+            }
+
+            eff.HasEventPtr = true;
+            eff.EventPtr = U.toPointer(endAddr);
+            eff.SetFlag03 = true; // CALL_EndEvent sets NeedFlag03 = true.
+            eff.Resolvable = true;
+            return eff;
+        }
+
+        /// <summary>
+        /// The counter-reinforcement record side effects, ported from
+        /// <c>EventTemplate3Form.EnemyReinforcementByCounterButton_Click</c>
+        /// (sets <c>CounterReinforcementEvent = true</c>) + the
+        /// <c>AllocEvent_EventTemplate</c> follow-up that writes <c>B8 = 1</c>
+        /// and <c>B9 = 255</c>. Always resolvable (no map/end-event lookup) —
+        /// the caller allocates the counter event block and applies these
+        /// fields to the TURN record (where B8/B9 are TurnStart/TurnEnd).
+        /// </summary>
+        public static AllocEventRecordSideEffects CounterReinforcementSideEffects()
+        {
+            return new AllocEventRecordSideEffects
+            {
+                CounterReinforcement = true,
+                Resolvable = true,
+            };
+        }
+
+        /// <summary>
+        /// True when the EventCond record category + condition-type combination
+        /// is one of the WinForms NEWALLOC-EVENT surfaces — i.e. the record's
+        /// event-pointer field at +4 is a genuine top-level CODE pointer (not a
+        /// chest's packed item/durability/gold or a shop's item-list pointer)
+        /// (Copilot #1592 review finding #3). Mirrors the
+        /// <c>*_L_4_NEWALLOC_EVENT*</c> button surfaces in
+        /// <c>EventCondForm.Designer.cs</c>:
+        /// <list type="bullet">
+        /// <item>TURN N02 (type 0x02 / FE7 NFE702)</item>
+        /// <item>TALK N03 (0x03), N04 (0x04), FE6 N0D (0x0D)</item>
+        /// <item>OBJECT N06 (0x06 Visit Village), N08 (0x08 Door) — NOT N05/N07
+        /// chest or N0A shop</item>
+        /// <item>ALWAYS N01 (0x01), N0B (0x0B), N0D (0x0D), N0E (0x0E)</item>
+        /// </list>
+        /// </summary>
+        public static bool IsEventPointerSurface(MapEventUnitCore.CondType category, uint condType)
+        {
+            switch (category)
+            {
+                case MapEventUnitCore.CondType.Turn:
+                    // TURN N02 has the EVENT3 template; treat any non-zero TURN
+                    // type as an event-pointer surface (TURN records always carry
+                    // a real event pointer at +4).
+                    return condType == 0x02;
+                case MapEventUnitCore.CondType.Talk:
+                    return condType == 0x03 || condType == 0x04 || condType == 0x0D;
+                case MapEventUnitCore.CondType.Object:
+                    return condType == 0x06 || condType == 0x08;
+                case MapEventUnitCore.CondType.Always:
+                    return condType == 0x01 || condType == 0x0B
+                        || condType == 0x0D || condType == 0x0E;
+                default:
+                    return false;
+            }
+        }
+
         /// <summary>Port of <c>EventCondForm.GetEnemyUnits(mapid)</c>.</summary>
         public static uint ResolveEnemyUnits(ROM rom, uint mapid)
             => ResolveFirstCondSlot(rom, mapid, MapEventUnitCore.CondType.EnemyUnit);
