@@ -41,6 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadSoundRoomList();
                 EntryList.SetItems(items);
+                EnableStructuralEdit();
             }
             catch (Exception ex)
             {
@@ -51,6 +52,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
+        }
+
+        /// <summary>
+        /// Wire the shared <see cref="AddressListControl"/>'s opt-in structural-edit
+        /// context menu (Copy block / Paste / Swap Up / Swap Down) — the WinForms
+        /// <c>SoundRoomForm</c>/<c>SoundRoomFE6Form</c> get this via
+        /// <c>InputFormRef.MakeGeneralAddressListContextMenu(true)</c>, i.e.
+        /// <c>useUpDown:true, useClear:false</c> (#1539). EXACT parity: SoundRoom does
+        /// NOT enable the DEL/Invalidate clear action, so <c>useClear:false</c> here too.
+        /// Block size is the WF <c>BlockSize</c> = <c>sound_room_datasize</c> (12 or 16).
+        /// The clipboard identity header matches WinForms (<c>AddressList@SoundRoomForm</c>,
+        /// or <c>AddressList@SoundRoomFE6Form</c> on FE6) so copy/paste interoperates
+        /// across the two apps. No row-0 guard — WF SoundRoomForm does not set
+        /// <c>UseWriteProtectionID00</c>. Idempotent on the control, so calling from
+        /// every <c>LoadList</c> is safe.
+        /// </summary>
+        void EnableStructuralEdit()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+            int blockSize = (int)rom.RomInfo.sound_room_datasize;
+            if (blockSize <= 0) return;
+            string formName = rom.RomInfo.version == 6 ? "SoundRoomFE6Form" : "SoundRoomForm";
+            EntryList.EnableStructuralEdit(
+                blockSize,
+                reload: () => _vm.LoadSoundRoomList(),
+                writeProtectId00: null,
+                useSwap: true,
+                useClear: false, // WF SoundRoomForm = MakeGeneralAddressListContextMenu(true) → useClear default false
+                clipboardListName: "AddressList",
+                clipboardFormName: formName);
         }
 
         /// <summary>
