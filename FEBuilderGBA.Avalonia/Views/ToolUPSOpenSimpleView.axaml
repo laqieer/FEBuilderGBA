@@ -1,21 +1,38 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolUPSOpenSimpleView"
-        Title="UPS Patch Applier" Width="1193" Height="298"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolUPSOpenSimple_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="UPS Patch Applier" Width="760" Height="360"
+        SizeToContent="Manual">
+  <ScrollViewer Margin="8">
+    <StackPanel Spacing="12" Margin="8">
+      <TextBlock Text="UPS Patch Applier" FontSize="18" FontWeight="Bold" />
+      <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                 Text="Apply a distributed UPS patch to a clean (unmodified) original ROM, then open the patched ROM." />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="UPS Patch Applier" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="UPS patch file:" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" AutomationProperties.AutomationId="ToolUPSOpenSimple_Ups_Input"
+                 Name="UpsTextBox" Watermark="Path to the .ups patch" />
+        <Button Grid.Column="1" AutomationProperties.AutomationId="ToolUPSOpenSimple_SelectUps_Button"
+                Name="SelectUpsButton" Content="Select…" Click="SelectUps_Click" Margin="6,0,0,0" />
+      </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolUPSOpenSimple_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <TextBlock Text="Original (unmodified) ROM:" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox Grid.Column="0" AutomationProperties.AutomationId="ToolUPSOpenSimple_Original_Input"
+                 Name="OriginalRomTextBox" Watermark="Path to the clean ROM (auto-detected by CRC32)" />
+        <Button Grid.Column="1" AutomationProperties.AutomationId="ToolUPSOpenSimple_SelectOriginal_Button"
+                Name="SelectOriginalButton" Content="Select…" Click="SelectOriginal_Click" Margin="6,0,0,0" />
+      </Grid>
+
+      <CheckBox AutomationProperties.AutomationId="ToolUPSOpenSimple_Save_Check"
+                Name="SaveAsGbaCheck" Content="Save the patched ROM as a .gba file" IsChecked="True" />
+
+      <Button AutomationProperties.AutomationId="ToolUPSOpenSimple_Apply_Button" Name="ApplyButton"
+              Content="Apply UPS patch…" Click="Apply_Click" />
+
+      <TextBlock AutomationProperties.AutomationId="ToolUPSOpenSimple_Status_Label" Name="StatusText"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>
