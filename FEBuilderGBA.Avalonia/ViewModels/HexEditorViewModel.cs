@@ -88,5 +88,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void PageUp() => BaseAddress = _baseAddress >= _viewSize ? _baseAddress - _viewSize : 0;
         public void PageDown() => BaseAddress = _baseAddress + _viewSize;
+
+        /// <summary>
+        /// Parse the edited hex display and commit only the bytes that differ from the
+        /// current ROM (#1466). Ports WinForms <c>HexEditorForm.WriteButton_Click</c>:
+        /// resize-if-larger then <c>write_u8</c> per edited cell. Pure validation lives
+        /// in <see cref="HexEditCore"/>; the caller (code-behind) must have opened an
+        /// ambient undo scope (UndoService.Begin) so every write is undo-tracked, and
+        /// must Commit on <see cref="HexEditCore.WriteResult.Success"/> / Rollback
+        /// otherwise. Returns the write result (Success=false ⇒ no mutation occurred,
+        /// or zero changes; Message carries the reason). Unexpected ROM/write
+        /// exceptions are NOT swallowed (Copilot review #5) — they propagate so the
+        /// caller can Rollback and surface the error.
+        /// </summary>
+        public HexEditCore.WriteResult Write(string editedHexText)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || rom.Data == null)
+            {
+                return new HexEditCore.WriteResult { Success = false, Message = "ROM not loaded." };
+            }
+
+            var parsed = HexEditCore.ParseDisplay(editedHexText, _baseAddress, (uint)rom.Data.Length);
+            if (!parsed.Ok)
+            {
+                AddressInfo = parsed.Error ?? "Invalid hex input.";
+                return new HexEditCore.WriteResult { Success = false, Message = parsed.Error ?? "Invalid hex input." };
+            }
+
+            var edits = HexEditCore.BuildEdits(rom, parsed.Cells);
+            var wr = HexEditCore.ApplyWrite(rom, edits);
+            if (wr.Success)
+            {
+                RefreshDisplay();
+                AddressInfo = wr.Message + " | " + AddressInfo;
+            }
+            else
+            {
+                AddressInfo = wr.Message;
+            }
+            return wr;
+        }
     }
 }

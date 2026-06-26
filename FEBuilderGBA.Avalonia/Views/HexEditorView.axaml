@@ -12,13 +12,15 @@
       <Button AutomationProperties.AutomationId="HexEditor_Go_Button" x:Name="GoBtn" Content="Go" Click="Go_Click" Margin="0,0,8,0" />
       <Button AutomationProperties.AutomationId="HexEditor_Search_Button" x:Name="SearchBtn" Content="Search" Click="Search_Click" Margin="0,0,8,0" />
       <Button AutomationProperties.AutomationId="HexEditor_PageUp_Button" x:Name="PrevBtn" Content="Page Up" Click="PageUp_Click" Margin="0,0,4,0" />
-      <Button AutomationProperties.AutomationId="HexEditor_PageDown_Button" x:Name="NextBtn" Content="Page Down" Click="PageDown_Click" Margin="0,0,4,0" />
+      <Button AutomationProperties.AutomationId="HexEditor_PageDown_Button" x:Name="NextBtn" Content="Page Down" Click="PageDown_Click" Margin="0,0,8,0" />
+      <Button AutomationProperties.AutomationId="HexEditor_Write_Button" x:Name="WriteBtn" Content="Write" Click="Write_Click"
+              ToolTip.Tip="Write edited bytes to the ROM (Ctrl+S)" Margin="0,0,4,0" />
     </StackPanel>
     <TextBlock AutomationProperties.AutomationId="HexEditor_Info_Label" x:Name="InfoLabel" DockPanel.Dock="Bottom" Margin="8,4" FontSize="11"
                Foreground="Gray" />
-    <TextBox AutomationProperties.AutomationId="HexEditor_HexGrid_Input" x:Name="HexGrid" Margin="8" IsReadOnly="True"
+    <TextBox AutomationProperties.AutomationId="HexEditor_HexGrid_Input" x:Name="HexGrid" Margin="8"
              FontFamily="Consolas, Courier New, monospace" FontSize="13"
-             AcceptsReturn="True" TextWrapping="NoWrap"
+             AcceptsReturn="True" TextWrapping="NoWrap" KeyDown="HexGrid_KeyDown"
              VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
   </DockPanel>
   </ScrollViewer>

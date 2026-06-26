@@ -12546,3 +12546,6 @@ Rメニューテーブル:
 
 :Skirmish Events (free map start / end)
 フリーマップイベント (開始 / 終了)
+
+:Write edited bytes to the ROM (Ctrl+S)
+編集したバイトをROMに書き込みます (Ctrl+S)
