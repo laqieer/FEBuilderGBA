@@ -13,12 +13,9 @@
 // event terminator — so a Procs stream is never corrupted with an event terminator.
 // Every byte and list line is sourced from the real VM state.
 //
-// NOTE: this test uses a SIMPLIFIED SYNTHETIC Procs vocabulary (4-byte commands and a
-// 4-byte all-zero `End [TERM]`) so the in-place geometry is easy to assert. The shipped
-// production Procs vocabulary (config/data/6c_script_ALL.txt) defines 8-byte commands
-// and an 8-byte `End` {TERM} (0000000000000000); the engine logic under test is
-// identical — it always appends the FAMILY {TERM} from the loaded vocabulary, whatever
-// its width.
+// The synthetic vocabulary matches the REAL Procs format: 8-byte commands and an 8-byte
+// all-zero `End [TERM]` (0000000000000000), mirroring config/data/6c_script_ALL.txt, so
+// the proof exercises the actual 8-byte terminator path.
 //
 // Set FEBUILDERGBA_SCREENSHOT_DIR to the repo's pr-screenshots/.
 using System;
@@ -57,12 +54,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.Undo = new Undo();
             CoreState.CommentCache = new HeadlessEtcCache();
 
+            // REAL Procs format: 8-byte commands + an 8-byte all-zero End [TERM]
+            // (0000000000000000), matching the shipped config/data/6c_script_ALL.txt.
             var procEs = new EventScript();
             typeof(EventScript).GetProperty("Scripts")!.SetValue(procEs, new[]
             {
-                EventScript.ParseScriptLine("0100XXXX\tPROC_CALL [X:UNIT:Units]"),
-                EventScript.ParseScriptLine("0200XXXX\tPROC_MOVE [X:UNIT:Units]"),
-                EventScript.ParseScriptLine("00000000\tEnd (Deletes Self) [TERM]"),
+                EventScript.ParseScriptLine("0100XXXX00000000\tPROC_CALL [X:UNIT:Units]"),
+                EventScript.ParseScriptLine("0200XXXX00000000\tPROC_MOVE [X:UNIT:Units]"),
+                EventScript.ParseScriptLine("0000000000000000\tEnd (Deletes Self) [TERM]"),
             });
             CoreState.ProcsScript = procEs;
         }
@@ -79,18 +78,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void RenderProcsScriptEditorProof_FE8U()
         {
-            // SIMPLIFIED SYNTHETIC layout (see file header): this vocabulary uses 4-byte
-            // commands + a 4-byte End [TERM]. (Production Procs in 6c_script_ALL.txt is
-            // 8 bytes per command/TERM; the engine behaviour is the same.) Plant a Procs
-            // script: PROC_CALL + PROC_MOVE + End (12 bytes). Deleting the terminal End
-            // leaves PROC_CALL + PROC_MOVE (8 bytes); Write-All re-appends the Procs End
-            // (4 bytes) = 12 bytes, which FITS the original region → an in-place write
-            // whose appended terminator lands predictably at ScriptOffset+8.
+            // REAL Procs format (8-byte commands + 8-byte all-zero End [TERM], per
+            // 6c_script_ALL.txt). Plant PROC_CALL + PROC_MOVE + End = 24 bytes. Deleting the
+            // terminal End leaves PROC_CALL + PROC_MOVE (16 bytes); Write-All re-appends the
+            // 8-byte Procs End = 24 bytes, which FITS the original region → an in-place write
+            // whose appended terminator lands predictably at ScriptOffset+16.
             byte[] original =
             {
-                0x01, 0x00, 0x00, 0x00, // PROC_CALL
-                0x02, 0x00, 0x00, 0x00, // PROC_MOVE
-                0x00, 0x00, 0x00, 0x00, // End [TERM]
+                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // PROC_CALL (8)
+                0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // PROC_MOVE (8)
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // End [TERM] (8)
             };
             Array.Copy(original, 0, _rom.Data, (int)ScriptOffset, original.Length);
 
@@ -102,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(vm.CommandCount >= 1);
 
             // Remove the terminal End so the list has NO terminator → Write-All must append
-            // the Procs End (00000000), NOT the FE event terminator (#1585 finding #1).
+            // the 8-byte Procs End, NOT the FE event terminator (#1585 finding #1).
             vm.SelectedCommandIndex = vm.CommandCount - 1;
             if (vm.Commands[vm.SelectedCommandIndex].Contains("End"))
                 vm.DeleteSelected();
@@ -112,11 +109,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(vm.WriteAll());
             string status = vm.StatusText;
 
-            // Read the appended terminator bytes from the ROM (after PROC_CALL+PROC_MOVE = 8 bytes).
+            // Read the appended terminator bytes (after PROC_CALL + PROC_MOVE = 16 bytes).
             byte[] eventTerm = _rom.RomInfo.Default_event_script_term_code;
-            byte[] appended = U.getBinaryData(_rom.Data, ScriptOffset + 8, 8);
-            // The appended terminator must be the Procs End (all-zero), not the event term.
-            Assert.Equal(0x00, appended[0]);
+            byte[] appended = U.getBinaryData(_rom.Data, ScriptOffset + 16, 8);
+            // The full 8-byte appended terminator must be the Procs End (all-zero), not the
+            // event term (so a partial/wrong terminator write would fail this test).
+            for (int i = 0; i < 8; i++) Assert.Equal(0x00, appended[i]);
             Assert.NotEqual(0x00, eventTerm[0]);
 
             // --- Render a faithful SkiaSharp proof image ---
@@ -172,8 +170,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 float x0 = 768;
                 c.DrawRoundRect(x0 - 8, 104, 360, 420, 8, 8, panelP);
                 c.DrawText("Write-All terminator (safety)", x0 + 8, 132, hdr);
-                c.DrawText("appended:  " + Hex4(appended), x0 + 8, 172, mono);
-                c.DrawText("Procs End  -> 00 00 00 00", x0 + 8, 206, note);
+                c.DrawText("appended:  " + Hex8(appended), x0 + 8, 172, mono);
+                c.DrawText("Procs End  -> 00 00 00 00 00 00 00 00", x0 + 8, 206, note);
                 c.DrawText("FE event term (rejected here):", x0 + 8, 246, warnP);
                 c.DrawText("  " + Hex4(eventTerm), x0 + 8, 268, warnP);
                 c.DrawText("Procs/AI Serialize appends the FAMILY", x0 + 8, 312, note);
@@ -198,6 +196,18 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static string Hex4(byte[] b) =>
             $"{b[0]:X2} {b[1]:X2} {b[2]:X2} {b[3]:X2}";
+
+        // The Procs End is 8 bytes — show the full terminator so the proof isn't truncated.
+        static string Hex8(byte[] b)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < 8 && i < b.Length; i++)
+            {
+                if (i > 0) sb.Append(' ');
+                sb.Append(b[i].ToString("X2"));
+            }
+            return sb.ToString();
+        }
 
         static string ResolveScreenshotOutputDir()
         {
