@@ -145,17 +145,32 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine($"  '{Literals[i]}' -> ja '{ja[i]}' | zh '{zh[i]}'");
         }
 
-        // Collect every `:key` line (the source-string keys) from a translate
-        // file, so a URL entry whose value equals its key can still be proven to
-        // exist. Mirrors the `:`-prefixed key format read by
-        // MyTranslateResource.LoadResource.
+        // Collect the source-string keys a translate file would ACTUALLY load,
+        // replicating MyTranslateResource.LoadResource's state machine VERBATIM so
+        // a URL entry whose value equals its key can still be proven to load.
+        //
+        // Critically, LoadResource only resets `src` to null on a BLANK line — it
+        // does NOT reset after consuming a value line. So a `:key` that follows a
+        // value line without a blank separator is swallowed as that prior entry's
+        // value (and corrupts it) instead of becoming a loadable key. This helper
+        // mirrors that exactly, so it reports only keys the runtime would really
+        // load; a missing blank separator therefore fails the existence assertion.
         static string[] ReadEntryKeys(string path)
         {
             var keys = new System.Collections.Generic.List<string>();
+            string? src = null;
             foreach (string line in File.ReadAllLines(path))
             {
-                if (line.Length > 0 && line[0] == ':')
-                    keys.Add(line.Substring(1).Replace("\\r\\n", "\r\n"));
+                if (line.Length == 0) { src = null; continue; }
+                if (src == null)
+                {
+                    if (line[0] != ':') continue;
+                    src = line.Substring(1).Replace("\\r\\n", "\r\n");
+                    keys.Add(src);
+                }
+                // else: value line for the current key. `src` is intentionally
+                // NOT reset here — only a blank line resets it (verbatim with
+                // MyTranslateResourceLow.LoadResource).
             }
             return keys.ToArray();
         }
