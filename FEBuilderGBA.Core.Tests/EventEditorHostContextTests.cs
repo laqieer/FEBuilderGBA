@@ -265,6 +265,38 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ClassifyContextKind_FamilyNameButPlaceholderFree_IsNone()
+        {
+            // A template that KEEPS a family marker in its name but carries NO active
+            // placeholder must classify as None (generatable host-free), not be gated as
+            // context-required (Copilot PR re-review).
+            var (baseDir, _) = StageTemplate("template_event_COND_NOPLACEHOLDER_FE8.txt",
+                "21030A00\t//a real command with no placeholder\n");
+            string dataDir = Path.Combine(baseDir, "config", "data");
+            string prevBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+                ROM rom = MakeFE8U();
+                string file = Path.Combine(dataDir, "template_event_COND_NOPLACEHOLDER_FE8.txt");
+                Assert.Equal(EventTemplateCore.ContextKind.None,
+                    EventTemplateCore.ClassifyContextKind(rom, file));
+
+                // And it generates WITHOUT a host (the gate must not trip).
+                var et = MakeTemplate("template_event_COND_NOPLACEHOLDER_FE8.txt");
+                et.RequiresContext = false;
+                var r = EventTemplateCore.TryGenerateBrowserTemplateWithContext(rom, et, null, out byte[] bytes);
+                Assert.Equal(EventTemplateCore.GenerateResult.Ok, r);
+                Assert.Equal(new byte[] { 0x21, 0x03, 0x0A, 0x00 }, bytes);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void ClassifyContextKind_UsesFileNameNotPath()
         {
             // A directory component containing a family marker must NOT misclassify the

@@ -633,9 +633,19 @@ namespace FEBuilderGBA
             {
                 return ContextKind.None;
             }
-            // Classify from the FILE NAME only — a directory component that happens to
-            // contain a family marker must not misclassify the template (Copilot PR
-            // review). WinForms keys off `et.Filename` (the bare config name).
+            // A template that carries NO active placeholder is ContextKind.None even when
+            // its name keeps a family marker — it can be generated host-free, so it must
+            // NOT be gated as context-required (Copilot PR re-review). Check the actual
+            // placeholder presence FIRST.
+            if (!RequiresEditorContext(rom, filename))
+            {
+                return ContextKind.None;
+            }
+
+            // It DOES carry a placeholder. Classify the substitution from the FILE NAME
+            // only — a directory component that happens to contain a family marker must
+            // not misclassify the template. WinForms keys off `et.Filename` (the bare
+            // config name).
             string name = Path.GetFileName(filename);
             if (name.IndexOf("template_event_CALL_END_EVENT", StringComparison.Ordinal) >= 0)
             {
@@ -649,12 +659,9 @@ namespace FEBuilderGBA
             {
                 return ContextKind.Cond;
             }
-            // No known family — but does it still carry a placeholder?
-            if (RequiresEditorContext(rom, filename))
-            {
-                return ContextKind.Unknown;
-            }
-            return ContextKind.None;
+            // Has a placeholder but matches no known family — refuse (we don't know how
+            // to substitute it).
+            return ContextKind.Unknown;
         }
 
         /// <summary>
