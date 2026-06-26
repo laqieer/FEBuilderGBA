@@ -117,7 +117,7 @@
         </Grid>
 
         <!-- #1455: reciprocal-support mirroring toggle (WinForms AutoCollectCheckbox, default on) -->
-        <CheckBox AutomationProperties.AutomationId="SupportUnitEditor_AutoCollect_CheckBox"
+        <CheckBox AutomationProperties.AutomationId="SupportUnitEditor_AutoCollect_Check"
                   Name="AutoCollectCheckBox"
                   IsChecked="True"
                   Content="Auto-adjust partner values (mirror initial/growth into the partner's reciprocal support)"
