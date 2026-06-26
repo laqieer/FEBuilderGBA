@@ -186,15 +186,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             var vm = env.LoadVmAt(body);
             vm.ReadByteCount = 16;
 
-            // Drive a REAL throw through the production code path: the base
-            // EventScript.DisAseemble does `CoreState.CommentCache.At(addr)`
-            // on a match, so nulling the comment cache makes DisAseemble
-            // throw a NullReferenceException. The VM loop must catch it,
-            // append a [Disassembly error] row, and terminate (no hang).
+            // Drive a REAL throw through the production code path: EventScript.DisAseemble
+            // calls `CoreState.CommentCache?.At(addr)` on a match. (#1585 made that call
+            // null-safe — a NULL cache no longer throws — so we install a comment cache
+            // whose At() THROWS instead, which still propagates a throw out of DisAseemble.)
+            // The VM loop must catch it, append a [Disassembly error] row, and terminate.
             IEtcCache? prev = CoreState.CommentCache;
             try
             {
-                CoreState.CommentCache = null;
+                CoreState.CommentCache = new ThrowingEtcCache();
                 IReadOnlyList<string> rows = vm.DisassembleScript();
                 Assert.Single(rows);
                 Assert.Contains("[Disassembly error]", rows[0]);
@@ -203,6 +203,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 CoreState.CommentCache = prev;
             }
+        }
+
+        /// <summary>An IEtcCache whose comment lookup throws, used to drive a real
+        /// DisAseemble throw through the production path now that a null CommentCache is
+        /// handled gracefully (#1585).</summary>
+        sealed class ThrowingEtcCache : IEtcCache
+        {
+            public void RemoveOverRange(uint range) { }
+            public void RemoveRange(uint start, uint end) { }
+            public bool CheckFast(uint num) => false;
+            public string At(uint num, string def = "") => throw new InvalidOperationException("boom");
+            public string S_At(uint num) => throw new InvalidOperationException("boom");
+            public bool TryGetValue(uint num, out string out_data) { out_data = ""; return false; }
+            public void Update(uint addr, string comment) { }
+            public void Remove(uint addr) { }
         }
 
         [Fact]

@@ -326,6 +326,125 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(4 + term.Length, data.Length);
         }
 
+        // ── #1585: script-type-aware terminator (Procs / AI) ───────────
+
+        // A Procs-style vocabulary: a generic 8-byte command + the 8-byte Procs `End`
+        // TERM (0000000000000000). Mirrors the shipped 6c_script_ALL.txt {TERM} command.
+        static EventScript ProcsEs()
+        {
+            return BuildEs(
+                EventScript.ParseScriptLine("1100XXXX00000000\tPROC1 [X:UNIT:Units]"),
+                EventScript.ParseScriptLine("0000000000000000\tEnd (Deletes Self) [TERM]"));
+        }
+
+        [Fact]
+        public void Serialize_Procs_AppendsProcsEnd_NotEventTerminator()
+        {
+            var es = ProcsEs();
+            var rom = MakeRom(es);
+            // Procs-typed editor: a terminal-less list must get the Procs `End`, NOT the
+            // FE event terminator 0A000000 (Copilot #1585 finding #1).
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[] { Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00) });
+
+            byte[] data = ed.Serialize(rom, false, false);
+
+            // 8 command bytes + 8-byte Procs End (NOT the 4-byte FE event term 0A000000).
+            Assert.Equal(16, data.Length);
+            // tail is the Procs End: all-zero 8 bytes.
+            for (int i = 8; i < 16; i++) Assert.Equal(0x00, data[i]);
+            // and it is NOT the event terminator byte 0x0A anywhere in the appended tail.
+            Assert.NotEqual(0x0A, data[8]);
+        }
+
+        [Fact]
+        public void Serialize_Procs_NoExtraTermWhenProcsEndPresent()
+        {
+            var es = ProcsEs();
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[]
+            {
+                Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00),
+                Code(es, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00),  // Procs End present
+            });
+
+            byte[] data = ed.Serialize(rom, false, false);
+            Assert.Equal(16, data.Length);  // no extra terminator appended
+        }
+
+        [Fact]
+        public void Serialize_Procs_NoTermInVocabulary_Throws()
+        {
+            // A Procs vocabulary with NO {TERM} command — refuse rather than invent an
+            // FE event terminator (#1585 finding #1).
+            var es = BuildEs(EventScript.ParseScriptLine("1100XXXX00000000\tPROC1 [X:UNIT:Units]"));
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[] { Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00) });
+
+            Assert.Throws<EventScriptEditorCore.MissingTerminatorException>(
+                () => ed.Serialize(rom, false, false));
+        }
+
+        [Fact]
+        public void WriteAll_Procs_NoTermInVocabulary_RefusesNoTerminator_RomUnchanged()
+        {
+            var es = BuildEs(EventScript.ParseScriptLine("1100XXXX00000000\tPROC1 [X:UNIT:Units]"));
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[] { Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00) });
+
+            byte[] before = (byte[])rom.Data.Clone();
+            var undo = new Undo.UndoData { name = "t", list = new List<Undo.UndoPostion>() };
+            var result = ed.WriteAll(rom, 0x1000, false, false, undo, out uint _);
+
+            Assert.Equal(EventScriptEditorCore.WriteResult.NoTerminator, result);
+            Assert.Equal(before, rom.Data);  // byte-identical, nothing written
+        }
+
+        [Fact]
+        public void Serialize_Procs_PicksConcreteEnd_NotPlaceholderEnd2End3()
+        {
+            // Copilot #1589: the shipped Procs vocabulary has multiple SAME-LENGTH TERM
+            // commands — End (0000000000000000), End2 (00001000ZZZZZZZZ), End3
+            // (00080000ZZZZZZZZ). EventScript.Load sorts by size with a NON-stable sort, so
+            // "first shortest TERM" is non-deterministic. FindFamilyTermBytes must
+            // DETERMINISTICALLY pick the concrete all-hex End (all-zero bytes), never the
+            // placeholder End2/End3 (non-zero leading bytes).
+            var es = BuildEs(
+                EventScript.ParseScriptLine("1100XXXX00000000\tPROC1 [X:UNIT:Units]"),
+                EventScript.ParseScriptLine("00001000ZZZZZZZZ\tEnd2 [ZZZZZZZZ::Unk1] (Deletes Self) [TERM]"),
+                EventScript.ParseScriptLine("00080000ZZZZZZZZ\tEnd3 [ZZZZZZZZ::Unk1] (Deletes Self) [TERM]"),
+                EventScript.ParseScriptLine("0000000000000000\tEnd (Deletes Self) [TERM]"));
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[] { Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00) });
+
+            byte[] data = ed.Serialize(rom, false, false);
+
+            // 8 command bytes + the canonical all-zero End (NOT End2 0x10 @ byte 2 or End3
+            // 0x08 @ byte 1).
+            Assert.Equal(16, data.Length);
+            for (int i = 8; i < 16; i++) Assert.Equal(0x00, data[i]);
+        }
+
+        [Fact]
+        public void Serialize_DefaultCtorStillEvent_AppendsEventTerminator()
+        {
+            // Regression guard: the legacy single-arg ctor remains an Event editor, so
+            // existing Event behavior (FE event terminator) is unchanged.
+            var es = StdEs();
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es); // default => Event
+            ed.SetCodes(new[] { Code(es, 0x01, 0x00, 0x01, 0x00) });
+
+            byte[] data = ed.Serialize(rom, false, false);
+            byte[] term = rom.RomInfo.Default_event_script_term_code;
+            Assert.Equal(4 + term.Length, data.Length);
+            Assert.Equal(0x0A, data[4]); // FE event terminator
+        }
+
         // ── WriteAll: in-place ─────────────────────────────────────────
 
         [Fact]

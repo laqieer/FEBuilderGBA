@@ -693,7 +693,10 @@ namespace FEBuilderGBA
                     code.ByteData    = U.getBinaryData(data, startaddr, script.Size);
                     code.Script      = script;
                     code.JisageCount = 0;
-                    code.Comment = CoreState.CommentCache.At(startaddr);
+                    // Null-guard CommentCache so the disassembler is genuinely headless-safe
+                    // (GUI-free Core callers like EventTemplateCore.DisassembleToCodes can run
+                    // without an EtcCache wired). Falls back to no comment (Copilot review #1589).
+                    code.Comment = CoreState.CommentCache?.At(startaddr) ?? "";
                     return code;
                 }
             }
@@ -712,7 +715,8 @@ namespace FEBuilderGBA
             }
             code.Script      = this.Unknown;
             code.JisageCount = 0;
-            code.Comment = CoreState.CommentCache.At(startaddr);
+            // Null-guard CommentCache (see above) — headless-safe for GUI-free Core callers.
+            code.Comment = CoreState.CommentCache?.At(startaddr) ?? "";
             return code;
         }
 

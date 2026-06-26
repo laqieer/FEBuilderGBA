@@ -33,6 +33,9 @@
           <Button AutomationProperties.AutomationId="EventScriptTemplate_CopyHex_Button"
                   Content="Copy generated hex" Click="CopyHex_Click"
                   IsEnabled="{Binding HasGenerated}" />
+          <Button AutomationProperties.AutomationId="EventScriptTemplate_SendToEditor_Button"
+                  Content="Send to Event Editor" Click="SendToEditor_Click"
+                  IsEnabled="{Binding HasGenerated}" />
         </StackPanel>
       </Grid>
     </ScrollViewer>

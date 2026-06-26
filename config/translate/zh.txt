@@ -26440,3 +26440,30 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Arena Enemy Weapon - Rank-up
 竞技场敌方武器 - 升级
+
+:Send to Event Editor
+发送到事件编辑器
+
+:Nothing to send: select a generatable (placeholder-free) template first.
+没有可发送的内容：请先选择一个可生成的（无占位符的）模板。
+
+:Could not open the Event Script editor.
+无法打开事件脚本编辑器。
+
+:Open the Event Script editor and Disassemble an event address first, then Send to Event Editor.
+请先打开事件脚本编辑器并反汇编一个事件地址，然后再发送到事件编辑器。
+
+:Inserted {0} command(s) into the Event Script editor. Review, then Write All.
+已向事件脚本编辑器插入 {0} 条命令。请检查后执行“全部写入”。
+
+:Insert failed: disassemble an event in the Event Script editor first.
+插入失败：请先在事件脚本编辑器中反汇编一个事件。
+
+:Send to editor failed.
+发送到编辑器失败。
+
+:Invalid address. Enter a hex value like 0x08001234 or 1234.
+地址无效。请输入十六进制值，例如 0x08001234 或 1234。
+
+:Write failed
+写入失败

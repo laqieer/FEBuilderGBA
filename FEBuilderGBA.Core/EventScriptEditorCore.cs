@@ -23,10 +23,28 @@ namespace FEBuilderGBA
     public sealed class EventScriptEditorCore
     {
         readonly EventScript _es;
+        readonly EventScript.EventScriptType _scriptType;
         readonly List<EventScript.OneCode> _codes = new List<EventScript.OneCode>();
 
         /// <summary>The disassembler/definition table this editor parses with.</summary>
         public EventScript Script => _es;
+
+        /// <summary>
+        /// Which script family this editor edits (Event / Procs / AI). Drives the
+        /// terminator <see cref="Serialize"/> appends when the edited list has no
+        /// trailing TERM: an Event editor appends the FE event/world-map/top-level
+        /// terminator, while a Procs editor appends ITS OWN <c>{TERM}</c> command (the
+        /// 8-byte Procs <c>End</c> <c>0000000000000000</c>), NOT an FE event terminator —
+        /// appending an event terminator to a Procs stream would corrupt it (Copilot plan
+        /// review #1585 finding #1).
+        /// <para>NOTE on AI: the shipped AI vocabularies (<c>config/data/aiscript_*.txt</c>)
+        /// define NO <c>[TERM]</c> command, so for <see cref="EventScript.EventScriptType.AI"/>
+        /// <see cref="Serialize"/> finds no family terminator and <see cref="WriteAll"/>
+        /// refuses with <see cref="WriteResult.NoTerminator"/> (ROM unchanged) — by design.
+        /// AI is edited through its own dedicated 16-byte-grid editor (AIScriptView), not this
+        /// engine, so this refusal is the correct safe fallback rather than a supported path.</para>
+        /// </summary>
+        public EventScript.EventScriptType ScriptType => _scriptType;
 
         /// <summary>The live editable command list. Callers may read it; use the
         /// Insert/Delete/Move helpers to mutate so indentation stays consistent.</summary>
@@ -36,8 +54,82 @@ namespace FEBuilderGBA
         public int Count => _codes.Count;
 
         public EventScriptEditorCore(EventScript es)
+            : this(es, EventScript.EventScriptType.Event)
+        {
+        }
+
+        /// <summary>
+        /// Construct an editor for a specific script family. Pass
+        /// <see cref="EventScript.EventScriptType.Procs"/> so a Write-All on a list whose
+        /// terminal command was deleted appends the Procs <c>End</c> family terminator
+        /// instead of an FE event terminator (#1585 finding #1). Defaults to
+        /// <see cref="EventScript.EventScriptType.Event"/> for the legacy ctor.
+        /// (<see cref="EventScript.EventScriptType.AI"/> has no <c>[TERM]</c> in its
+        /// vocabulary, so a terminator-less AI Write-All refuses with
+        /// <see cref="WriteResult.NoTerminator"/> by design — see <see cref="ScriptType"/>.)
+        /// </summary>
+        public EventScriptEditorCore(EventScript es, EventScript.EventScriptType scriptType)
         {
             _es = es ?? throw new ArgumentNullException(nameof(es));
+            _scriptType = scriptType;
+        }
+
+        /// <summary>
+        /// Thrown by <see cref="Serialize"/> when a non-Event (Procs / AI) script has no
+        /// trailing <c>{TERM}</c> command AND no <c>{TERM}</c> command exists in the script
+        /// vocabulary to append — so the editor refuses to invent an FE event terminator.
+        /// <see cref="WriteAll"/> catches this and returns
+        /// <see cref="WriteResult.NoTerminator"/> WITHOUT mutating the ROM.
+        /// </summary>
+        public sealed class MissingTerminatorException : Exception
+        {
+            public MissingTerminatorException(string message) : base(message) { }
+        }
+
+        /// <summary>
+        /// Find the bytes of this script family's canonical <c>{TERM}</c> command — for
+        /// Procs the 8-byte <c>End</c> <c>0000000000000000</c>. Returns null when the
+        /// vocabulary has no TERM command. PURE.
+        /// <para>Selection is DETERMINISTIC and placeholder-safe (Copilot PR review #1589):
+        /// the shipped Procs vocabulary defines several same-length TERM commands —
+        /// <c>End</c> (<c>0000000000000000</c>), <c>End2</c> (<c>00001000ZZZZZZZZ</c>),
+        /// <c>End3</c> (<c>00080000ZZZZZZZZ</c>) — and <c>EventScript.Load</c> sorts by size
+        /// with a NON-stable sort, so "first shortest TERM" could non-deterministically pick
+        /// <c>End2</c>/<c>End3</c> (non-zero leading bytes / placeholder args), writing the
+        /// WRONG terminator. So we prefer a TERM whose <c>LowCode</c> is fully concrete (only
+        /// hex digits — no <c>X</c>/<c>Y</c>/<c>Z</c> placeholder), shortest first; only if
+        /// none is fully concrete do we fall back to the shortest TERM by length.</para>
+        /// </summary>
+        byte[] FindFamilyTermBytes()
+        {
+            if (_es?.Scripts == null) return null;
+            EventScript.Script bestConcrete = null;  // all-hex LowCode (canonical End)
+            EventScript.Script bestAny = null;        // shortest TERM regardless
+            foreach (var sc in _es.Scripts)
+            {
+                if (sc == null || sc.Data == null) continue;
+                if (sc.Has != EventScript.ScriptHas.TERM) continue;
+
+                if (bestAny == null || sc.Data.Length < bestAny.Data.Length)
+                    bestAny = sc;
+
+                if (IsConcreteLowCode(sc.LowCode) &&
+                    (bestConcrete == null || sc.Data.Length < bestConcrete.Data.Length))
+                    bestConcrete = sc;
+            }
+            EventScript.Script best = bestConcrete ?? bestAny;
+            return best?.Data == null ? null : (byte[])best.Data.Clone();
+        }
+
+        /// <summary>True when <paramref name="lowCode"/> is a non-empty string of ONLY hex
+        /// digits — i.e. a concrete command with no <c>X</c>/<c>Y</c>/<c>Z</c> placeholder
+        /// argument (so its <c>Data</c> bytes are the exact terminator). PURE.</summary>
+        static bool IsConcreteLowCode(string lowCode)
+        {
+            if (string.IsNullOrEmpty(lowCode)) return false;
+            foreach (char ch in lowCode)
+                if (!U.ishex(ch)) return false;
+            return true;
         }
 
         /// <summary>
@@ -428,7 +520,22 @@ namespace FEBuilderGBA
 
             if (!hasTerm)
             {
-                if (isWorldMapEvent)
+                // Event scripts use the ROM's FE event/world-map/top-level terminator.
+                // Procs / AI scripts have a DIFFERENT terminator (the family's own {TERM}
+                // command, e.g. the 8-byte Procs `End` 0000000000000000) — appending an FE
+                // event terminator to a Procs stream would corrupt it (Copilot #1585 #1).
+                if (_scriptType == EventScript.EventScriptType.Procs ||
+                    _scriptType == EventScript.EventScriptType.AI)
+                {
+                    byte[] famTerm = FindFamilyTermBytes();
+                    if (famTerm == null)
+                        throw new MissingTerminatorException(
+                            $"{_scriptType} script has no trailing TERM command and the script " +
+                            "vocabulary defines no TERM command to append. Refusing to write an " +
+                            "FE event terminator into a non-event stream.");
+                    databyte.AddRange(famTerm);
+                }
+                else if (isWorldMapEvent)
                     databyte.AddRange(rom.RomInfo.Default_event_script_mapterm_code);
                 else if (isTopLevelEvent)
                     databyte.AddRange(rom.RomInfo.Default_event_script_toplevel_code);
@@ -467,6 +574,13 @@ namespace FEBuilderGBA
             /// <c>CheckPaddingALIGN4</c> gates that the All-Write path runs before mutating.)
             /// </summary>
             UnsafeAddress,
+            /// <summary>
+            /// A non-Event (Procs / AI) script had no trailing <c>{TERM}</c> command and the
+            /// script vocabulary defined no <c>{TERM}</c> command to append, so the write was
+            /// refused rather than corrupt the stream with an FE event terminator. ROM
+            /// unchanged. (Copilot plan review #1585 finding #1.)
+            /// </summary>
+            NoTerminator,
         }
 
         /// <summary>
@@ -520,7 +634,18 @@ namespace FEBuilderGBA
             if (!U.isSafetyOffset(offset, rom) || (offset & 3) != 0)
                 return WriteResult.UnsafeAddress;
 
-            byte[] databyte = Serialize(rom, isWorldMapEvent, isTopLevelEvent);
+            byte[] databyte;
+            try
+            {
+                databyte = Serialize(rom, isWorldMapEvent, isTopLevelEvent);
+            }
+            catch (MissingTerminatorException)
+            {
+                // No safe terminator for a Procs / AI stream — refuse before any mutation
+                // (nothing has been written yet; the undo scope is not even open). (#1585 #1)
+                newAddr = offset;
+                return WriteResult.NoTerminator;
+            }
 
             // Original region length (so we know whether the new bytes fit and how much
             // tail to zero-fill / how big the old region is when relocating). Drive off

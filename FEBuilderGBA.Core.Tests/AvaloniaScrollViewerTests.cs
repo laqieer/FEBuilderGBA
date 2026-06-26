@@ -37,6 +37,7 @@ namespace FEBuilderGBA.Core.Tests
             "NotifyPleaseWaitView.axaml",  // Simple progress indicator
             "EasyModePanel.axaml",          // UserControl, not Window
             "EventScriptView.axaml",        // Uses internal ListBox + TextBox with own scrolling
+            "ProcsScriptView.axaml",        // #1585: re-skinned to the EventScriptView layout (internal ListBox + TextBox own scrolling)
             "ToolProblemReportView.axaml",  // Fill multi-line TextBox scrolls internally + a few fixed controls
         };
 

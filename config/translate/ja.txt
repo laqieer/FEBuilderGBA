@@ -12606,3 +12606,30 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Arena Enemy Weapon - Rank-up
 闘技場敵武器 - ランクアップ
+
+:Send to Event Editor
+イベントエディタに送る
+
+:Nothing to send: select a generatable (placeholder-free) template first.
+送信できません。生成可能な（プレースホルダのない）テンプレートを先に選択してください。
+
+:Could not open the Event Script editor.
+イベントスクリプトエディタを開けませんでした。
+
+:Open the Event Script editor and Disassemble an event address first, then Send to Event Editor.
+先にイベントスクリプトエディタを開いてイベントアドレスを逆アセンブルしてから、イベントエディタに送ってください。
+
+:Inserted {0} command(s) into the Event Script editor. Review, then Write All.
+{0} 個のコマンドをイベントスクリプトエディタに挿入しました。確認してから「全て書き込み」を実行してください。
+
+:Insert failed: disassemble an event in the Event Script editor first.
+挿入に失敗しました。先にイベントスクリプトエディタでイベントを逆アセンブルしてください。
+
+:Send to editor failed.
+エディタへの送信に失敗しました。
+
+:Invalid address. Enter a hex value like 0x08001234 or 1234.
+アドレスが不正です。0x08001234 や 1234 のような16進数を入力してください。
+
+:Write failed
+書き込みに失敗しました

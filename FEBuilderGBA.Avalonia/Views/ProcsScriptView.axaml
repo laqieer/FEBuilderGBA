@@ -2,20 +2,64 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ProcsScriptView"
-        Title="Procs Script Editor" Width="1646" Height="874"
+        Title="Procs Script Editor" Width="1180" Height="780"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ProcsScript_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <DockPanel Margin="8">
+    <TextBlock DockPanel.Dock="Top" Text="Procs Script Editor" FontSize="18" FontWeight="Bold" Margin="8,4,8,8" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Procs Script Editor" FontSize="18" FontWeight="Bold" />
+    <!-- Address input bar -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8,0,8,8">
+      <TextBlock Text="Address:" VerticalAlignment="Center" />
+      <TextBox AutomationProperties.AutomationId="ProcsScript_Address_Input" Name="AddressBox" Width="200" Watermark="0x08XXXXXX or hex offset"
+               FontFamily="Consolas" FontSize="13" />
+      <Button AutomationProperties.AutomationId="ProcsScript_Disassemble_Button" Name="DisassembleButton" Content="Disassemble" Click="Disassemble_Click" />
+      <TextBlock AutomationProperties.AutomationId="ProcsScript_Status_Label" Name="StatusLabel" VerticalAlignment="Center" FontSize="12" Foreground="Gray" Margin="8,0,0,0" />
+    </StackPanel>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ProcsScript_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+    <!-- Structural-editing toolbar (shared engine: EventScriptEditorCore via EventScriptViewModel ScriptType=Procs, #1585) -->
+    <Border DockPanel.Dock="Top" BorderBrush="#40808080" BorderThickness="1" CornerRadius="4" Margin="8,0,8,8" Padding="6">
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Insert command:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="ProcsScript_Catalog_Combo" Name="CatalogCombo" Width="260" />
+          <Button AutomationProperties.AutomationId="ProcsScript_Insert_Button" Name="InsertButton" Content="Insert" Click="Insert_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <TextBox AutomationProperties.AutomationId="ProcsScript_InsertHex_Input" Name="InsertHexBox" Width="160" Watermark="hex e.g. 0100 4200" FontFamily="Consolas" />
+          <Button AutomationProperties.AutomationId="ProcsScript_InsertHex_Button" Name="InsertHexButton" Content="Insert (hex)" Click="InsertHex_Click" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button AutomationProperties.AutomationId="ProcsScript_Delete_Button" Name="DeleteButton" Content="Delete" Click="Delete_Click" />
+          <Button AutomationProperties.AutomationId="ProcsScript_MoveUp_Button" Name="MoveUpButton" Content="Move Up" Click="MoveUp_Click" />
+          <Button AutomationProperties.AutomationId="ProcsScript_MoveDown_Button" Name="MoveDownButton" Content="Move Down" Click="MoveDown_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <Button AutomationProperties.AutomationId="ProcsScript_ImportAppend_Button" Name="ImportAppendButton" Content="Import (append)" Click="ImportAppend_Click" />
+          <Button AutomationProperties.AutomationId="ProcsScript_ImportReplace_Button" Name="ImportReplaceButton" Content="Import (replace)" Click="ImportReplace_Click" />
+          <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
+          <Button AutomationProperties.AutomationId="ProcsScript_WriteAll_Button" Name="WriteAllButton" Content="Write All" Background="{DynamicResource WarningBackgroundBrush}" Click="WriteAll_Click" />
+        </StackPanel>
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    </Border>
+
+    <!-- Main content: split between command list and text display -->
+    <Grid ColumnDefinitions="*,8,*" Margin="8,0,8,8">
+      <!-- Left: Command list -->
+      <DockPanel Grid.Column="0">
+        <TextBlock DockPanel.Dock="Top" Text="Commands" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <ListBox AutomationProperties.AutomationId="ProcsScript_Commands_List" Name="CommandsList" FontFamily="Consolas" FontSize="12"
+                 SelectionMode="Single" SelectionChanged="CommandsList_SelectionChanged" />
+      </DockPanel>
+
+      <GridSplitter Grid.Column="1" Width="8" ResizeDirection="Columns" />
+
+      <!-- Right: import text + full disassembled text -->
+      <Grid Grid.Column="2" RowDefinitions="Auto,120,Auto,*">
+        <TextBlock Grid.Row="0" Text="Import text (one hex command per line)" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <TextBox Grid.Row="1" AutomationProperties.AutomationId="ProcsScript_Import_Input" Name="ImportBox" AcceptsReturn="True"
+                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" Watermark="01004200&#x0a;0A000000" />
+        <TextBlock Grid.Row="2" Text="Disassembled Script" FontWeight="SemiBold" Margin="0,8,0,4" />
+        <TextBox Grid.Row="3" AutomationProperties.AutomationId="ProcsScript_ScriptText_Input" Name="ScriptTextBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Consolas" FontSize="12" TextWrapping="NoWrap" />
+      </Grid>
+    </Grid>
+  </DockPanel>
 </Window>

@@ -265,6 +265,100 @@ namespace FEBuilderGBA
             return lines;
         }
 
+        /// <summary>
+        /// Disassemble a generated event-byte blob into a list of editable
+        /// <see cref="EventScript.OneCode"/> commands (one per command), the form the
+        /// Avalonia event editor's <c>InsertTemplate</c> consumes (#1585). GUI-free:
+        /// drives the cross-platform <see cref="EnsureEventScriptLoaded"/> disassembler,
+        /// no WinForms dependency. Returns an empty list for null/empty input.
+        /// <para>Round-trip: for WELL-FORMED input (a whole number of complete commands)
+        /// the concatenated <c>OneCode.ByteData</c> equals <paramref name="bin"/>. A
+        /// trailing partial command (fewer bytes than the decoded command's size) is
+        /// INTENTIONALLY DROPPED — the bounds guard refuses to emit a synthesized
+        /// zero-filled UNKNOWN that would fabricate bytes — so a short tail is not
+        /// round-tripped. Template generators (<see cref="TryGenerateButtonCodes"/> /
+        /// <see cref="TryGenerateBrowserTemplateCodes"/>) always produce whole commands,
+        /// so they round-trip exactly.</para>
+        /// </summary>
+        public static List<EventScript.OneCode> DisassembleToCodes(ROM rom, byte[] bin)
+        {
+            var codes = new List<EventScript.OneCode>();
+            if (rom == null || bin == null || bin.Length == 0)
+            {
+                return codes;
+            }
+            EventScript es = EnsureEventScriptLoaded();
+            if (es == null)
+            {
+                return codes;
+            }
+            uint addr = 0;
+            uint limit = (uint)bin.Length;
+            int guard = 0;
+            while (addr < limit && guard++ < 100000)
+            {
+                EventScript.OneCode code = es.DisAseemble(bin, addr);
+                if (code?.Script == null || code.Script.Size <= 0)
+                {
+                    break;
+                }
+                // BOUNDS GUARD (Copilot PR review): DisAseemble synthesizes a full 4-byte
+                // UNKNOWN even when fewer than Script.Size bytes remain in `bin` (a short
+                // tail), whose ByteData is zero-filled to 4 bytes — adding it would fabricate
+                // trailing bytes and break the round-trip guarantee. Stop when the decoded
+                // command would read past the end of the blob.
+                uint size = (uint)code.Script.Size;
+                if (addr + size > limit)
+                {
+                    break;
+                }
+                codes.Add(code);
+                addr += size;
+            }
+            return codes;
+        }
+
+        /// <summary>
+        /// Generate one numbered-template button and return it already disassembled
+        /// into editable <see cref="EventScript.OneCode"/> commands, ready to hand to
+        /// the Avalonia event editor's in-editor insert (#1585). Reuses
+        /// <see cref="TryGenerateButton"/> for the bytes, so the placeholder/context
+        /// gating is identical — context-required templates return
+        /// <see cref="GenerateResult.RequiresEditorContext"/> with an EMPTY list and
+        /// never partial bytes. <paramref name="codes"/> is non-empty only when result
+        /// is <see cref="GenerateResult.Ok"/>.
+        /// </summary>
+        public static GenerateResult TryGenerateButtonCodes(ROM rom, TemplateButton btn, out List<EventScript.OneCode> codes)
+        {
+            codes = new List<EventScript.OneCode>();
+            GenerateResult result = TryGenerateButton(rom, btn, out byte[] bin);
+            if (result != GenerateResult.Ok)
+            {
+                return result;
+            }
+            codes = DisassembleToCodes(rom, bin);
+            return result;
+        }
+
+        /// <summary>
+        /// Generate a browser template and return it already disassembled into editable
+        /// <see cref="EventScript.OneCode"/> commands for the Avalonia event editor's
+        /// in-editor insert (#1585). Same placeholder/context gating as
+        /// <see cref="TryGenerateBrowserTemplate"/>: context-required templates return
+        /// <see cref="GenerateResult.RequiresEditorContext"/> with an EMPTY list.
+        /// </summary>
+        public static GenerateResult TryGenerateBrowserTemplateCodes(ROM rom, BrowserTemplate et, out List<EventScript.OneCode> codes)
+        {
+            codes = new List<EventScript.OneCode>();
+            GenerateResult result = TryGenerateBrowserTemplate(rom, et, out byte[] bin);
+            if (result != GenerateResult.Ok)
+            {
+                return result;
+            }
+            codes = DisassembleToCodes(rom, bin);
+            return result;
+        }
+
         // --------------------------------------------------------------------
         // Per-template button definitions (ports the WinForms button sets)
         // --------------------------------------------------------------------

@@ -28,6 +28,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         readonly Undo? _prevUndo;
         readonly object? _prevComment;
         readonly EventScript? _prevEs;
+        readonly EventScript? _prevProcs;
         readonly ROM _rom;
 
         public EventScriptViewModelEditTests()
@@ -36,6 +37,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             _prevUndo = CoreState.Undo;
             _prevComment = CoreState.CommentCache;
             _prevEs = CoreState.EventScript;
+            _prevProcs = CoreState.ProcsScript;
 
             _rom = new ROM();
             // FE8U requires a >= 0x1000000 (16 MB) ROM in LoadLow; smaller and RomInfo
@@ -53,6 +55,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.Undo = _prevUndo;
             CoreState.CommentCache = (IEtcCache?)_prevComment;
             CoreState.EventScript = _prevEs;
+            CoreState.ProcsScript = _prevProcs;
         }
 
         static EventScript StdEs()
@@ -402,17 +405,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void ProcsScriptType_Disassembles_ViaSharedEngine()
         {
-            // The same VM engine drives Procs scripts by ScriptType — set up a synthetic
-            // Procs vocabulary and prove it disassembles + the catalog populates.
-            var procEs = new EventScript();
-            typeof(EventScript).GetProperty("Scripts")!.SetValue(procEs, new[]
-            {
-                EventScript.ParseScriptLine("0100XXXX\tPROC_CALL [X:UNIT:U]"),
-                EventScript.ParseScriptLine("00000000\tPROC_END [TERM]"),
-            });
+            // The same VM engine drives Procs scripts by ScriptType. Use the REAL Procs
+            // format: 8-byte commands + an 8-byte all-zero End [TERM] (matches the shipped
+            // config/data/6c_script_ALL.txt — Copilot review #1589).
+            var procEs = ProcsEs8();
             CoreState.ProcsScript = procEs;
 
-            PlantScript(0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+            // PROC_CALL (8) + End (8) = 16 bytes planted.
+            PlantScript(0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
             var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Procs };
             vm.AddressText = $"0x{ScriptOffset:X06}";
             Assert.True(vm.TryParseAddress(out uint addr));
@@ -420,6 +421,53 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.True(vm.CommandCount >= 1);
             Assert.Equal(2, vm.AvailableCommands.Count);
+        }
+
+        // Real-format synthetic Procs vocabulary: 8-byte PROC_CALL + an 8-byte all-zero
+        // End [TERM] (0000000000000000), mirroring config/data/6c_script_ALL.txt.
+        static EventScript ProcsEs8()
+        {
+            var procEs = new EventScript();
+            typeof(EventScript).GetProperty("Scripts")!.SetValue(procEs, new[]
+            {
+                EventScript.ParseScriptLine("0100XXXX00000000\tPROC_CALL [X:UNIT:U]"),
+                EventScript.ParseScriptLine("0000000000000000\tPROC_END (Deletes Self) [TERM]"),
+            });
+            return procEs;
+        }
+
+        [Fact]
+        public void ProcsScriptType_WriteAll_AppendsProcsEnd_NotEventTerminator()
+        {
+            // #1585 finding #1: a Procs editor whose terminal command was deleted must, on
+            // Write-All, append the Procs `End` (8-byte all-zero 0000000000000000), NOT the
+            // FE event terminator. This is the ROM-corruption risk Copilot flagged. Uses the
+            // REAL 8-byte Procs format (Copilot review #1589).
+            var procEs = ProcsEs8();
+            CoreState.ProcsScript = procEs;
+
+            // PROC_CALL (8) + End (8) = 16 bytes planted.
+            PlantScript(0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+            var vm = new EventScriptViewModel { ScriptType = EventScript.EventScriptType.Procs };
+            vm.AddressText = $"0x{ScriptOffset:X06}";
+            Assert.True(vm.TryParseAddress(out uint addr));
+            vm.DisassembleAt(addr);
+
+            // Delete the End so the list has no terminator; Write-All must append the
+            // 8-byte Procs End and NOT the FE event terminator.
+            vm.SelectedCommandIndex = vm.CommandCount - 1;
+            vm.DeleteSelected();
+            Assert.True(vm.WriteAll());
+
+            // After PROC_CALL (8 bytes) the appended terminator must be the 8-byte Procs End
+            // (all-zero), NOT the FE event terminator. On FE8U the event terminator is a
+            // non-zero multi-byte code (e.g. 40 05 02 ...), so asserting the full 8-byte tail
+            // is all-zero proves the Procs End — not the event terminator — was appended.
+            byte[] eventTerm = _rom.RomInfo.Default_event_script_term_code;
+            Assert.NotEqual(0x00, eventTerm[0]); // sanity: FE event term is non-zero on FE8U
+            for (uint i = 0; i < 8; i++)
+                Assert.Equal(0x00, _rom.Data[ScriptOffset + 8 + i]);
         }
     }
 }

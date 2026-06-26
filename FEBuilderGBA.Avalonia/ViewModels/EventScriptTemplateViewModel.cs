@@ -141,5 +141,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             GeneratedHex = hex.ToString().TrimEnd();
             Status = string.Format(R._("Generated {0} byte(s)."), bin.Length);
         }
+
+        /// <summary>
+        /// Generate the currently-selected template as a list of editable
+        /// <see cref="EventScript.OneCode"/> commands for the event editor's in-editor
+        /// insert (#1585). Returns an empty list for a context-required / not-found /
+        /// no-selection template (the same gating as the preview, so a placeholder-gated
+        /// template never produces partial bytes). GUI-free apart from CoreState.ROM.
+        /// </summary>
+        public List<EventScript.OneCode> GetGeneratedCodes()
+        {
+            var empty = new List<EventScript.OneCode>();
+            if (_selectedIndex < 0 || _selectedIndex >= _templates.Count)
+            {
+                return empty;
+            }
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                return empty;
+            }
+            try
+            {
+                var result = EventTemplateCore.TryGenerateBrowserTemplateCodes(
+                    rom, _templates[_selectedIndex], out var codes);
+                return result == EventTemplateCore.GenerateResult.Ok ? codes : empty;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventScriptTemplate.GetGeneratedCodes failed: " + ex.ToString());
+                return empty;
+            }
+        }
     }
 }
