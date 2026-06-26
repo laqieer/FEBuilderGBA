@@ -37,8 +37,12 @@ namespace FEBuilderGBA
 
             uint ptr = rom.RomInfo.arena_enemy_weapon_basic_pointer;
             if (ptr == 0) return result;
+            // Guard the full 4-byte pointer slot before p32 (u32 throws via
+            // check_safety when ptr is within the last 3 bytes of the ROM), and
+            // validate the resolved base against the PASSED rom (not CoreState.ROM).
+            if (ptr + 4 > (uint)rom.Data.Length) return result;
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return result;
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             for (uint i = 0; i < BasicCount; i++)
             {
@@ -64,8 +68,12 @@ namespace FEBuilderGBA
 
             uint ptr = rom.RomInfo.arena_enemy_weapon_rankup_pointer;
             if (ptr == 0) return result;
+            // Guard the full 4-byte pointer slot before p32 (u32 throws via
+            // check_safety when ptr is within the last 3 bytes of the ROM), and
+            // validate the resolved base against the PASSED rom (not CoreState.ROM).
+            if (ptr + 4 > (uint)rom.Data.Length) return result;
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return result;
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             for (uint i = 0; i < RankupCount; i++)
             {

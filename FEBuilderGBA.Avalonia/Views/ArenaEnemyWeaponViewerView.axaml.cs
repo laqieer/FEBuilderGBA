@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ArenaEnemyWeaponViewerView.LoadList failed: {0}", ex.Message);
+                Log.Error("ArenaEnemyWeaponViewerView.LoadList failed: " + ex);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ArenaEnemyWeaponViewerView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ArenaEnemyWeaponViewerView.OnSelected failed: " + ex);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -73,6 +73,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var info = _vm.GetBasicTypeInfo(index);
                 TypeLabel.Text = info.Label;
                 InfoLabel.Text = info.Guidance;
+            }
+            else
+            {
+                // No matching slot (reload race / SelectAddress to a non-present
+                // addr) — clear so the panel never shows a different slot's label.
+                TypeLabel.Text = string.Empty;
+                InfoLabel.Text = string.Empty;
             }
         }
 
@@ -89,7 +96,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReloadBasicListPreserve(_vm.CurrentAddr);
                 CoreState.Services?.ShowInfo("Arena Enemy Weapon data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.Write: " + ex); }
         }
 
         void ReloadBasicListPreserve(uint addr)
@@ -118,7 +125,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ArenaEnemyWeaponViewerView.OnRankupSelected failed: {0}", ex.Message);
+                Log.Error("ArenaEnemyWeaponViewerView.OnRankupSelected failed: " + ex);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -132,6 +139,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 var info = _vm.GetRankupTypeInfo(index);
                 RankupTypeLabel.Text = info.Label;
                 RankupInfoLabel.Text = info.Guidance;
+            }
+            else
+            {
+                // No matching slot — clear stale label/guidance (see UpdateUI).
+                RankupTypeLabel.Text = string.Empty;
+                RankupInfoLabel.Text = string.Empty;
             }
         }
 
@@ -148,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ReloadRankupListPreserve(_vm.RankupCurrentAddr);
                 CoreState.Services?.ShowInfo("Arena Enemy Weapon (Rank-up) data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.RankupWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.RankupWrite: " + ex); }
         }
 
         void ReloadRankupListPreserve(uint addr)

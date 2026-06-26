@@ -13,10 +13,17 @@ using Xunit;
 namespace FEBuilderGBA.Core.Tests;
 
 [Collection("SharedState")]
-public class ArenaEnemyWeaponCoreTests
+public class ArenaEnemyWeaponCoreTests : IDisposable
 {
     const uint BasicTableAddr = 0x00800000u;
     const uint RankupTableAddr = 0x00800100u;
+
+    // MakeFe8uWithArenaTables points the ambient CoreState.ROM at a synthetic
+    // ROM. Save/restore it so this synthetic ROM can't leak into other tests in
+    // the SharedState collection and cause order-dependent failures.
+    readonly ROM? _savedRom = CoreState.ROM;
+
+    public void Dispose() => CoreState.ROM = _savedRom;
 
     /// <summary>
     /// Build a synthetic FE8U ROM with both arena weapon tables parked at known
