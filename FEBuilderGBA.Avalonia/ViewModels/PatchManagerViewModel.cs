@@ -117,12 +117,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
             (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
 
-        /// <summary>True when a selected patch is installed and has a backup file for restore.</summary>
+        /// <summary>
+        /// True when a selected BIN patch is installed and can be uninstalled — either from a
+        /// per-patch backup file (fast path) OR via the clean-ROM-diff dialog (#1462) when no
+        /// backup exists (patch installed in a prior/WinForms session or already in the ROM).
+        /// </summary>
         public bool CanUninstall =>
             _selectedPatch != null &&
             _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed &&
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
-            PatchMetadataCore.HasBackup(_selectedPatch.PatchFilePath);
+            (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
 
         public ObservableCollection<PatchEntry> FilteredPatches => _filteredPatches;
 
@@ -277,6 +281,82 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             OnPropertyChanged(nameof(CanInstall));
             OnPropertyChanged(nameof(CanUninstall));
+            return StatusMessage;
+        }
+
+        /// <summary>
+        /// #1462: true when the selected patch CANNOT be uninstalled from a per-patch
+        /// backup file (installed in a prior/WinForms session or already present in the
+        /// loaded ROM) — the View must open the clean-ROM-diff dialog instead.
+        /// </summary>
+        public bool SelectedPatchNeedsCleanRom
+        {
+            get
+            {
+                if (_selectedPatch == null) return false;
+                return !PatchMetadataCore.HasBackup(_selectedPatch.PatchFilePath);
+            }
+        }
+
+        /// <summary>The currently selected patch's display name (for the dialog title).</summary>
+        public string SelectedPatchName => _selectedPatch?.Name ?? "";
+
+        /// <summary>
+        /// #1462: Uninstall the selected patch by diff-restoring its touched regions from a
+        /// user-supplied patch-free ("clean") ROM file. Used when no per-patch backup exists.
+        /// The actual ROM validation (GBA-header compatibility gate + patch-absence check, both
+        /// BEFORE any mutation) happens inside <see cref="PatchMetadataCore.UninstallPatchWithCleanRom"/>;
+        /// this method only reads the file and runs the restore under an undo scope, mirroring the
+        /// backup-based path's Push/Rollback discipline.
+        /// </summary>
+        public string UninstallPatchWithCleanRom(string cleanRomPath)
+        {
+            if (_selectedPatch == null)
+                return "No patch selected.";
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                return "No ROM loaded.";
+
+            if (string.IsNullOrEmpty(cleanRomPath) || !File.Exists(cleanRomPath))
+                return StatusMessage = "Uninstall failed: clean ROM file not found.";
+
+            byte[] cleanRomBytes;
+            try
+            {
+                cleanRomBytes = File.ReadAllBytes(cleanRomPath);
+            }
+            catch (Exception ex)
+            {
+                return StatusMessage = "Uninstall failed: could not read clean ROM. " + ex.Message;
+            }
+
+            Undo? undo = CoreState.Undo;
+            Undo.UndoData? undoData = null;
+            if (undo != null)
+                undoData = undo.NewUndoData("PatchUninstallCleanRom", _selectedPatch.Name);
+
+            var result = PatchMetadataCore.UninstallPatchWithCleanRom(
+                rom, _selectedPatch.PatchFilePath, cleanRomBytes, undoData);
+
+            if (result.Success)
+            {
+                if (undo != null && undoData != null && undoData.list.Count > 0)
+                    undo.Push(undoData);
+
+                RefreshSelectedPatchStatus();
+                StatusMessage = result.Message;
+            }
+            else
+            {
+                if (undo != null && undoData != null && undoData.list.Count > 0)
+                    undo.Rollback(undoData);
+                StatusMessage = "Uninstall failed: " + result.Message;
+            }
+
+            OnPropertyChanged(nameof(CanInstall));
+            OnPropertyChanged(nameof(CanUninstall));
+            OnPropertyChanged(nameof(SelectedPatchNeedsCleanRom));
             return StatusMessage;
         }
 

@@ -129,10 +129,42 @@ namespace FEBuilderGBA.Avalonia.Views
             PatchListBox.ItemsSource = _vm.FilteredPatches;
         }
 
-        void OnUninstallClick(object? sender, RoutedEventArgs e)
+        async void OnUninstallClick(object? sender, RoutedEventArgs e)
         {
-            string msg = _vm.UninstallPatch();
-            StatusMessageLabel.Text = msg;
+            // Fast path: a per-patch backup written by this/Avalonia session's install.
+            if (!_vm.SelectedPatchNeedsCleanRom)
+            {
+                StatusMessageLabel.Text = _vm.UninstallPatch();
+                return;
+            }
+
+            // #1462: no backup file (patch installed in a prior/WinForms session or already
+            // present in the loaded ROM) — open the clean-ROM-diff dialog to obtain a
+            // patch-free ROM, then diff-restore the patched regions.
+            try
+            {
+                var dialog = new PatchFormUninstallDialogView();
+                dialog.SeedPatchName(_vm.SelectedPatchName);
+                await dialog.ShowDialog(this);
+
+                if (!dialog.UserConfirmed)
+                {
+                    StatusMessageLabel.Text = "Uninstall cancelled.";
+                    return;
+                }
+                if (string.IsNullOrEmpty(dialog.OriginalFilename))
+                {
+                    StatusMessageLabel.Text = "Uninstall failed: no clean ROM selected.";
+                    return;
+                }
+
+                StatusMessageLabel.Text = _vm.UninstallPatchWithCleanRom(dialog.OriginalFilename);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PatchManagerView", ex.ToString());
+                StatusMessageLabel.Text = "Uninstall failed: " + ex.Message;
+            }
         }
 
         public void NavigateTo(uint address) { }

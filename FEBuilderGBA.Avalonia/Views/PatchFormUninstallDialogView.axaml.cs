@@ -23,6 +23,15 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
+        /// <summary>#1462: name of the patch being uninstalled (for the dialog title/labels).</summary>
+        public void SeedPatchName(string patchName) => _vm.PatchName = patchName ?? "";
+
+        /// <summary>True when the user pressed Uninstall (vs. closing the window).</summary>
+        public bool UserConfirmed => _vm.UserConfirmed;
+
+        /// <summary>The user-selected patch-free ("clean") ROM path.</summary>
+        public string OriginalFilename => _vm.OriginalFilename;
+
         async void SelectOriginal_Click(object? sender, RoutedEventArgs e)
         {
             try
