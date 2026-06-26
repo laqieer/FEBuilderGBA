@@ -35,9 +35,11 @@ namespace FEBuilderGBA
         public const uint BLOCK_SIZE = 24;
 
         /// <summary>
-        /// Count the non-zero entries of the 7 partner-id slots. Mirrors the
+        /// Count the non-zero entries of the partner-id slots. Mirrors the
         /// <c>support_count</c> tally in WinForms <c>AutoCollect</c> that becomes
-        /// B21 (partner count). Returns 0 for a null/short array (defensive).
+        /// B21 (partner count). Returns 0 for a null array; otherwise counts the
+        /// non-zero entries over the first <c>min(length, SUPPORT_LIMIT)</c> slots
+        /// (so a short array is counted, not rejected).
         /// </summary>
         public static uint RecomputePartnerCount(uint[] partners7)
         {
