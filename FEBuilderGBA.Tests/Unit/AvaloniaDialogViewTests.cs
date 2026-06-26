@@ -941,7 +941,7 @@ namespace FEBuilderGBA.Tests.Unit
         // brings AV control density to LOW; window dimensions changed
         // to 1280x900 (was 1645x935) to fit the new tab layout.
         [InlineData("MonsterItemViewerView.axaml", 1280, 900)]
-        [InlineData("MonsterWMapProbabilityViewerView.axaml", 1786, 847)]
+        [InlineData("MonsterWMapProbabilityViewerView.axaml", 1100, 760)]
         [InlineData("SummonUnitViewerView.axaml", 1214, 462)]
         [InlineData("SummonsDemonKingViewerView.axaml", 1237, 700)]
         [InlineData("SoundBossBGMViewerView.axaml", 1392, 722)]
