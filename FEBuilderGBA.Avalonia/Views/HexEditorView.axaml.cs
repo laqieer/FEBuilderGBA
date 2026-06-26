@@ -76,6 +76,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             _undoService.Begin("Edit Hex");
+            // UndoService.Begin() no-ops when CoreState.Undo is null. Never mutate
+            // ROM bytes without an active undo scope — refuse to write instead, so
+            // the Hex Editor is ALWAYS undo-tracked (Copilot PR review).
+            if (!_undoService.HasPendingUndo)
+            {
+                InfoLabel.Text = "Cannot write: undo system unavailable.";
+                return;
+            }
             try
             {
                 HexEditCore.WriteResult wr = _vm.Write(HexGrid.Text ?? string.Empty);

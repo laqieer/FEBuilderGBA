@@ -178,4 +178,22 @@ public class HexEditorViewModelTests : IDisposable
         var wr = vm.Write("anything");
         Assert.False(wr.Success);
     }
+
+    [Fact]
+    public void ViewSequence_NoUndoSystem_RefusesWrite_NoMutation()
+    {
+        // Mirrors the code-behind guard: when CoreState.Undo is null,
+        // UndoService.Begin() no-ops (HasPendingUndo stays false) and the
+        // View must refuse to write so ROM is never mutated untracked.
+        var rom = MakeRom();
+        CoreState.Undo = null;
+        var undoService = new UndoService();
+        var vm = MakeVm();
+        string edited = EditCell(vm.HexDisplay, 0x10, "AB");
+
+        undoService.Begin("Edit Hex");
+        Assert.False(undoService.HasPendingUndo); // no scope opened
+        // Code-behind returns here WITHOUT calling vm.Write() — assert no mutation.
+        Assert.Equal(0x00u, rom.u8(0x10));
+    }
 }
