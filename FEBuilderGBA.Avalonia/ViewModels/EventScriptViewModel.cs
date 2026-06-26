@@ -495,9 +495,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int CommandCount => _editor?.Count ?? 0;
 
         /// <summary>
-        /// The editor's current editable command list (read-only snapshot reference)
-        /// — the host context's label allocator scans it. Empty when no script is
-        /// loaded. (#1591)
+        /// The editor's current editable command list as a read-only view — the host
+        /// context's label allocator scans it. This is a LIVE reference to the engine's
+        /// list (it reflects subsequent edits), NOT an immutable snapshot; read it at
+        /// the moment you need it. Empty when no script is loaded. (#1591)
         /// </summary>
         public IReadOnlyList<EventScript.OneCode> LoadedCommands =>
             _editor?.Codes ?? (IReadOnlyList<EventScript.OneCode>)Array.Empty<EventScript.OneCode>();

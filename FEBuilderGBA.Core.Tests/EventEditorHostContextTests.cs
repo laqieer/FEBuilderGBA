@@ -265,6 +265,33 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ClassifyContextKind_UsesFileNameNotPath()
+        {
+            // A directory component containing a family marker must NOT misclassify the
+            // template — classification keys off the file NAME only (Copilot PR review).
+            string baseDir = Path.Combine(Path.GetTempPath(), "evt-pathcls-" + Guid.NewGuid().ToString("N"));
+            // The directory name contains "template_event_PREPARATION", but the FILE is a plain template.
+            string dir = Path.Combine(baseDir, "template_event_PREPARATION_dir");
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, "template_event_PLAIN_FE8.txt");
+            File.WriteAllText(file, "01020304\t//plain\n");
+            string prevBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+                ROM rom = MakeFE8U();
+                // Must be None (plain file), NOT Preparation (the dir name's marker).
+                Assert.Equal(EventTemplateCore.ContextKind.None,
+                    EventTemplateCore.ClassifyContextKind(rom, file));
+            }
+            finally
+            {
+                CoreState.BaseDirectory = prevBase;
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void ClassifyContextKind_MatchesFilenameFamilies()
         {
             var (baseDir, _) = StageTemplate("template_event_PLAIN_FE8.txt", "01020304\t//plain\n");

@@ -633,15 +633,19 @@ namespace FEBuilderGBA
             {
                 return ContextKind.None;
             }
-            if (filename.IndexOf("template_event_CALL_END_EVENT", StringComparison.Ordinal) >= 0)
+            // Classify from the FILE NAME only — a directory component that happens to
+            // contain a family marker must not misclassify the template (Copilot PR
+            // review). WinForms keys off `et.Filename` (the bare config name).
+            string name = Path.GetFileName(filename);
+            if (name.IndexOf("template_event_CALL_END_EVENT", StringComparison.Ordinal) >= 0)
             {
                 return ContextKind.CallEndEvent;
             }
-            if (filename.IndexOf("template_event_PREPARATION", StringComparison.Ordinal) >= 0)
+            if (name.IndexOf("template_event_PREPARATION", StringComparison.Ordinal) >= 0)
             {
                 return ContextKind.Preparation;
             }
-            if (filename.IndexOf("_COND_", StringComparison.Ordinal) >= 0)
+            if (name.IndexOf("_COND_", StringComparison.Ordinal) >= 0)
             {
                 return ContextKind.Cond;
             }
@@ -691,14 +695,17 @@ namespace FEBuilderGBA
         /// <summary>
         /// Generate a browser template WITH an open-editor host context, porting
         /// <c>EventTemplateImpl.GetCodes</c>'s XXXX/YYYY/XXXXXXXX substitution.
-        /// <para>SAFETY (never regress #1589):
+        /// <para>SAFETY (never regress #1589): on every non-Ok result
+        /// <paramref name="bytes"/> is left <c>null</c> (never partial/truncated bytes).
+        /// It returns <see cref="GenerateResult.RequiresEditorContext"/> (with
+        /// <paramref name="bytes"/> = null) when:
         /// <list type="bullet">
-        /// <item>host == null  -> <see cref="GenerateResult.RequiresEditorContext"/>, EMPTY.</item>
-        /// <item>map-required (Preparation / CallEndEvent) but the host cannot
-        /// resolve a map -> RequiresEditorContext, EMPTY (no map-0 substitution).</item>
-        /// <item>Unknown placeholder family -> RequiresEditorContext, EMPTY.</item>
-        /// <item>any placeholder survives substitution -> RequiresEditorContext,
-        /// EMPTY (no 'X' ever reaches the hex parser).</item>
+        /// <item>host == null,</item>
+        /// <item>a map-required template (Preparation / CallEndEvent) cannot resolve
+        /// a map (no map-0 substitution),</item>
+        /// <item>the placeholder family is Unknown,</item>
+        /// <item>any placeholder survives substitution (no 'X' ever reaches the hex
+        /// parser).</item>
         /// </list>
         /// For a placeholder-FREE template the host is ignored and it generates
         /// exactly as <see cref="TryGenerateBrowserTemplate"/>.</para>
