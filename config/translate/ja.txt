@@ -12432,3 +12432,9 @@ DPCM圧縮
 
 :Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
 相互反映はROM保存のみ有効です。decompモードではソースを編集して再ビルドしてください。
+:Save .road.bin
+.road.bin に保存
+
+:Load .road.bin
+.road.bin から読込
+
