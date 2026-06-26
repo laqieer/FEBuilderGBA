@@ -705,6 +705,248 @@ namespace FEBuilderGBA
             }
         }
 
+        // ------------------------------------------------------------------
+        // Clean-ROM-diff uninstall (#1462)
+        //
+        // Ports the WinForms PatchForm.UninstallPatchInner engine so a BIN
+        // patch installed in a PRIOR session (no per-patch backup file) — the
+        // common case for a freshly loaded ROM that already contains patches —
+        // can still be uninstalled by diffing against a user-supplied patch-free
+        // ("clean") ROM. Mirrors PatchForm.UnInstallPatch ->
+        // PatchFormUninstallDialogForm -> UninstallPatchInner.
+        //
+        // Scope: fixed-address BIN entries + JUMP injection points (the same
+        // regions the install path tracks for SaveBackup).
+        //
+        // CORRECTION-ONLY RESTORE (review #1462): the engine restores ONLY the
+        // bytes that actually DIFFER between the current (patched) ROM and the
+        // clean ROM inside each traced region. This is the key safety property —
+        // an over-estimated region/JUMP length never clobbers an adjacent unrelated
+        // patch, because bytes that already match the clean ROM are written as
+        // no-ops; and it faithfully removes exactly this patch's edits.
+        //
+        // HONEST PARTIAL REPORTING: entries we cannot trace from the patch text
+        // alone — $FREEAREA payloads, $GREP/$FGREP/$XGREP/pointer-deref address
+        // forms, and EA patches (TYPE=EA) — are surfaced as an untraceable count
+        // so the result is reported as a PARTIAL/incomplete uninstall, never an
+        // over-claimed success. WinForms' GREP/mask trace (TraceBINPatchedMapping)
+        // and CalcAutoLength/StripROM remain WF-only (documented non-goals).
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Collect the fixed-address regions a BIN patch touches (the same
+        /// (address, length) list the install path builds for <see cref="SaveBackup"/>)
+        /// and report how many entries could NOT be traced from the patch text alone
+        /// (EA patches, $FREEAREA payloads, $GREP/macro/pointer address forms).
+        /// Returns an empty list (never null) for non-BIN/EA patches or on parse failure.
+        /// </summary>
+        public static List<(uint address, int length)> CollectPatchRegions(
+            ROM rom, string patchFilePath, out int untraceableCount)
+        {
+            untraceableCount = 0;
+            var regions = new List<(uint address, int length)>();
+            if (rom == null || !File.Exists(patchFilePath)) return regions;
+
+            var allParams = ParsePatchParams(patchFilePath);
+            string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
+            // Only BIN patches have a portable fixed-address region map. EA tracing is WF-only.
+            if (!type.Equals("BIN", StringComparison.OrdinalIgnoreCase))
+            {
+                // Count every action-bearing line as untraceable so EA is reported as not supported.
+                untraceableCount = allParams.Count(p =>
+                    p.Keyword == "ORG" || p.Keyword == "ASM" || p.Keyword == "PROCS" || p.Keyword == "JUMP" ||
+                    p.Keyword == "BIN" || p.Keyword == "BINP" || p.Keyword == "BINAP" || p.Keyword == "BINF");
+                if (untraceableCount == 0) untraceableCount = 1; // unknown type: never claim a clean trace
+                return regions;
+            }
+
+            string patchDir = Path.GetDirectoryName(patchFilePath) ?? "";
+            var binKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "BIN", "BINP", "BINAP", "BINF" };
+            var binEntries = allParams.Where(p => binKeywords.Contains(p.Keyword)).ToList();
+            var jumpEntries = allParams.Where(p => p.Keyword == "JUMP").ToList();
+
+            // Count BIN entries we will NOT trace: $FREEAREA payloads and non-literal
+            // ($GREP/$FGREP/$XGREP/pointer-deref) address forms — these need the WF GREP/mask machinery.
+            foreach (var param in binEntries)
+            {
+                string addrPart = param.KeyParts.Length > 1 ? param.KeyParts[1] : "";
+                if (addrPart.StartsWith("$", StringComparison.OrdinalIgnoreCase))
+                    untraceableCount++;
+                else if (ParseHexAddress(addrPart) == U.NOT_FOUND)
+                    untraceableCount++;
+            }
+
+            CollectBinRegions(rom, patchDir, binEntries, regions);
+            CollectJumpRegions(rom, patchDir, jumpEntries, binEntries, regions);
+            return regions;
+        }
+
+        /// <summary>Overload without the untraceable-count out parameter.</summary>
+        public static List<(uint address, int length)> CollectPatchRegions(ROM rom, string patchFilePath)
+            => CollectPatchRegions(rom, patchFilePath, out _);
+
+        /// <summary>
+        /// Port of WinForms <c>PatchFormUninstallDialogForm.SearchContainThisPatchBy</c>:
+        /// returns <c>true</c> if <paramref name="candidateRomBytes"/> still holds the
+        /// CURRENT (patched) ROM's bytes at ANY of the patch's regions — i.e. the
+        /// candidate is NOT a clean pre-patch ROM and must be rejected.
+        /// Returns <c>false</c> when the candidate differs in at least one region
+        /// (a genuine pre-patch ROM, vanilla OR otherwise-modified).
+        /// </summary>
+        public static bool RomContainsPatch(ROM rom, List<(uint address, int length)> regions, byte[] candidateRomBytes)
+        {
+            if (rom == null || regions == null || candidateRomBytes == null) return false;
+            foreach (var (address, length) in regions)
+            {
+                if (length <= 0) continue;
+                if (address + length > rom.Data.Length) continue;
+                if (address + length > candidateRomBytes.Length) continue;
+
+                byte[] current = rom.getBinaryData(address, length);
+                bool match = true;
+                for (int i = 0; i < length; i++)
+                {
+                    if (candidateRomBytes[address + i] != current[i]) { match = false; break; }
+                }
+                if (match)
+                    return true; // candidate still contains the patch -> not clean
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="candidateRomBytes"/> matches the
+        /// ROM's pristine <c>orignal_crc32</c> (a vanilla, never-modified ROM).
+        /// Advisory only — a clean-but-otherwise-modified pre-patch ROM is also a
+        /// valid uninstall source (the real gate is <see cref="RomContainsPatch"/>).
+        /// </summary>
+        public static bool IsVanillaRom(ROM rom, byte[] candidateRomBytes)
+        {
+            if (rom == null || candidateRomBytes == null) return false;
+            uint orignalCrc32 = rom.RomInfo.orignal_crc32;
+            if (orignalCrc32 == 0) return false; // unknown baseline -> can't assert vanilla
+            var crc32 = new U.CRC32();
+            return crc32.Calc(candidateRomBytes) == orignalCrc32;
+        }
+
+        /// <summary>
+        /// Compatibility gate (review #1462): the candidate clean ROM must be the SAME
+        /// game/version family as the loaded ROM. Compares the 4-byte GBA header game
+        /// code at 0xAC and the 12-byte game title at 0xA0. A wrong game/version that
+        /// merely lacks the patch bytes must fail closed BEFORE any mutation.
+        /// </summary>
+        public static bool IsCompatibleRom(ROM rom, byte[] candidateRomBytes)
+        {
+            if (rom == null || candidateRomBytes == null) return false;
+            // GBA cartridge header: game title @0xA0 (12 bytes) + game code @0xAC (4 bytes).
+            const uint HEADER_END = 0xB0;
+            if (rom.Data.Length < HEADER_END || candidateRomBytes.Length < HEADER_END) return false;
+            for (uint a = 0xA0; a < HEADER_END; a++)
+            {
+                if (rom.Data[a] != candidateRomBytes[a]) return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Uninstall a BIN patch by diff-restoring its touched regions from a
+        /// user-supplied patch-free ("clean") ROM. Port of WinForms
+        /// <c>PatchForm.UninstallPatchInner</c> (correction-only restore).
+        ///
+        /// Validation (ALL before any mutation):
+        ///  * the patch must expose at least one fixed-address region;
+        ///  * the clean ROM must be header-compatible (<see cref="IsCompatibleRom"/>) —
+        ///    fail closed for a wrong game/version;
+        ///  * the clean ROM must NOT still contain the patch (<see cref="RomContainsPatch"/>).
+        ///
+        /// Only bytes that DIFFER between the current ROM and the clean ROM inside each
+        /// traced region are written (so an over-estimated length is a safe no-op).
+        /// When <paramref name="undoData"/> is supplied every restored region is recorded
+        /// so the caller can <c>Push</c> on success or <c>Rollback</c> to byte-identity on failure.
+        /// If the patch has untraceable entries the result is reported as PARTIAL, never
+        /// an over-claimed full success.
+        /// </summary>
+        public static PatchApplyResult UninstallPatchWithCleanRom(
+            ROM rom, string patchFilePath, byte[] cleanRomBytes, Undo.UndoData? undoData)
+        {
+            if (rom == null) return PatchApplyResult.Fail("No ROM loaded.");
+            if (!File.Exists(patchFilePath)) return PatchApplyResult.Fail("Patch file not found.");
+            if (cleanRomBytes == null || cleanRomBytes.Length == 0)
+                return PatchApplyResult.Fail("Clean ROM is empty or could not be read.");
+
+            var regions = CollectPatchRegions(rom, patchFilePath, out int untraceableCount);
+            if (regions.Count == 0)
+            {
+                return PatchApplyResult.Fail(
+                    "This patch exposes no fixed-address regions to uninstall via a clean ROM. " +
+                    "EA patches and patches that use only $FREEAREA/$GREP regions need the WinForms patch manager.");
+            }
+
+            // Compatibility gate: wrong game/version must fail closed before any mutation.
+            if (!IsCompatibleRom(rom, cleanRomBytes))
+            {
+                return PatchApplyResult.Fail(
+                    "The selected ROM is a different game or version (GBA header mismatch). " +
+                    "Choose the patch-free ROM that matches the loaded game.");
+            }
+
+            // Patch-absence check: the picked ROM must be a genuine pre-patch ROM.
+            if (RomContainsPatch(rom, regions, cleanRomBytes))
+            {
+                return PatchApplyResult.Fail(
+                    "The selected ROM still contains this patch. Choose the ROM from BEFORE the patch was installed.");
+            }
+
+            try
+            {
+                int totalBytes = 0;
+                foreach (var (address, length) in regions)
+                {
+                    if (length <= 0) continue;
+                    // Clamp to bytes that exist in BOTH ROMs.
+                    int safeLen = length;
+                    if (address + safeLen > rom.Data.Length)
+                        safeLen = (int)(rom.Data.Length - address);
+                    if (address + safeLen > cleanRomBytes.Length)
+                        safeLen = (int)(cleanRomBytes.Length - address);
+                    if (safeLen <= 0) continue;
+
+                    // CORRECTION-ONLY: restore only the bytes that actually differ. Identical
+                    // bytes are skipped, so an over-estimated length never clobbers neighbours.
+                    byte[] current = rom.getBinaryData(address, safeLen);
+                    for (int i = 0; i < safeLen; i++)
+                    {
+                        byte cleanByte = cleanRomBytes[address + i];
+                        if (cleanByte == current[i]) continue;
+                        uint a = address + (uint)i;
+                        if (undoData != null)
+                            rom.write_u8(a, cleanByte, undoData);
+                        else
+                            rom.write_u8(a, cleanByte);
+                        totalBytes++;
+                    }
+                }
+
+                if (untraceableCount > 0)
+                {
+                    return PatchApplyResult.Ok(
+                        $"Patch partially uninstalled (clean-ROM diff): {totalBytes} bytes restored. " +
+                        $"{untraceableCount} entr{(untraceableCount == 1 ? "y" : "ies")} could not be traced " +
+                        "(EA/$FREEAREA/$GREP); a few hundred bytes of residual data may remain. " +
+                        "Use the WinForms patch manager for a complete uninstall.",
+                        totalBytes);
+                }
+
+                return PatchApplyResult.Ok(
+                    $"Patch uninstalled successfully (clean-ROM diff). {totalBytes} bytes restored.",
+                    totalBytes);
+            }
+            catch (Exception ex)
+            {
+                return PatchApplyResult.Fail("Patch uninstall error: " + ex.Message);
+            }
+        }
+
         /// <summary>Process a single BIN: entry.</summary>
         static PatchApplyResult ApplyBinEntry(ROM rom, string patchDir, PatchParam param,
             Dictionary<string, uint> binBlocks, Undo.UndoData? undoData)
