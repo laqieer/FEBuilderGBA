@@ -26402,6 +26402,33 @@ R菜单表:
 :TEXT
 文本
 
+:e.g. 0x08000000
+例: 0x08000000
+
+:e.g. 0x08F00000
+例: 0x08F00000
+
+:e.g. 0x100
+例: 0x100
+
+:e.g. 0x01
+例: 0x01
+
+:e.g. 0x02000000
+例: 0x02000000
+
+:e.g. 0xFF
+例: 0xFF
+
+:https://github.com/laqieer/FEBuilderGBA-patch2.git
+https://github.com/laqieer/FEBuilderGBA-patch2.git
+
+:https://github.com/Klokinator/FE-Repo
+https://github.com/Klokinator/FE-Repo
+
+:https://github.com/laqieer/FE-Repo-Music-No-Preview
+https://github.com/laqieer/FE-Repo-Music-No-Preview
+
 :Basic Weapons
 基础武器
 
