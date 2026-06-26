@@ -670,18 +670,25 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Row-0 write guard (WF <c>CheckWriteProtectionID00</c>). Returns true (allowed)
-        /// unless a guard predicate is set AND the selected row is original-index 0 AND the
-        /// predicate (tested against the row's actual id, not merely the index) denies it.
+        /// Row-0 write guard for the currently selected row (WF
+        /// <c>CheckWriteProtectionID00</c>).
         /// </summary>
-        bool CheckWriteProtectionId00()
+        bool CheckWriteProtectionId00() => CheckWriteProtectionId00(SelectedOriginalIndex);
+
+        /// <summary>
+        /// Row-0 write guard for an arbitrary original (unfiltered) row index. Returns
+        /// true (allowed) unless a guard predicate is set AND the row is original-index 0
+        /// AND the predicate — tested against the row's ACTUAL id (first u16), not merely
+        /// the index (Copilot plan review #2) — denies it. Swap passes BOTH participating
+        /// rows so a guarded id-0 neighbour can't be clobbered by a swap from row 1
+        /// (Copilot PR review #2).
+        /// </summary>
+        bool CheckWriteProtectionId00(int originalIndex)
         {
             if (_writeProtectId00 == null) return true;
-            if (SelectedOriginalIndex != 0) return true;
-            var item = SelectedItem;
-            if (item == null) return true;
-            // Read the row's actual id (first u16) so the predicate tests id==0, not
-            // only the index (Copilot plan review #2).
+            if (originalIndex != 0) return true;
+            if (originalIndex < 0 || originalIndex >= _items.Count) return true;
+            var item = _items[originalIndex];
             var rom = CoreState.ROM;
             uint id = rom != null && U.isSafetyOffset(item.addr + 1) ? rom.u16(item.addr) : 0;
             if (_writeProtectId00(id)) return true;
@@ -783,7 +790,12 @@ namespace FEBuilderGBA.Avalonia.Controls
             // currently visible (display) so we never silently reorder rows the user
             // can't see under a filter.
             if (!IsOriginalIndexVisible(neighborIdx)) return;
-            if (!CheckWriteProtectionId00()) return;
+            // Guard BOTH participating rows: a swap WRITES into both the selected row
+            // and its neighbour, so a guarded id-0 row must block the swap whether it is
+            // the selection (row 0, swap down) or the neighbour (row 1, swap up)
+            // (Copilot PR review #2).
+            if (!CheckWriteProtectionId00(origIdx)) return;
+            if (!CheckWriteProtectionId00(neighborIdx)) return;
 
             AddrResult a = _items[origIdx];
             AddrResult b = _items[neighborIdx];

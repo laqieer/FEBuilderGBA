@@ -71,8 +71,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 .Where(h => h.Length > 0)
                 .ToList();
             _output.WriteLine("Live context-menu items: " + string.Join(" | ", headers));
-            // 3 copy items + Copy(block) + Paste + Swap Up + Swap Down + Invalidate.
-            Assert.True(headers.Count >= 7, $"expected >=7 menu items, got {headers.Count}");
+            // WF SoundRoomForm = MakeGeneralAddressListContextMenu(true) → useClear:false,
+            // so SoundRoom has 3 copy items + Copy(block) + Paste + Swap Up + Swap Down = 7
+            // and NO Invalidate (DEL).
+            Assert.Equal(7, headers.Count);
+            Assert.DoesNotContain(headers, h => h.Contains("無効化") || h.Contains("Invalidate"));
 
             // Build the menu-proof panel from the live headers.
             var menuPanel = new StackPanel { Spacing = 2, Margin = new Thickness(8) };

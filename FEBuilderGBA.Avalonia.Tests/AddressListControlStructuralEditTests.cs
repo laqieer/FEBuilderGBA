@@ -23,11 +23,29 @@ using Xunit;
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("SharedState")]
-public class AddressListControlStructuralEditTests
+public class AddressListControlStructuralEditTests : System.IDisposable
 {
     const int BlockSize = 4;
     // Base must clear the 0x0..0x200 danger zone that U.isSafetyOffset rejects.
     const uint Base = 0x300;
+
+    // These tests mutate the shared CoreState (ROM/Undo/Services) to drive the
+    // control against a tiny synthetic ROM. Snapshot CoreState on construction and
+    // restore it on Dispose (xUnit news up one instance per test) so later
+    // SharedState-collection tests are NOT polluted with our throwaway ROM — without
+    // this, downstream parity tests see an empty/synthetic ROM and fail ("Collection
+    // was empty" / NullReferenceException). Mirrors the Save/Restore pattern in
+    // SongInstrumentExpandTests.
+    readonly ROM? _prevRom = CoreState.ROM;
+    readonly Undo? _prevUndo = CoreState.Undo;
+    readonly IAppServices? _prevServices = CoreState.Services;
+
+    public void Dispose()
+    {
+        CoreState.ROM = _prevRom;
+        CoreState.Undo = _prevUndo;
+        CoreState.Services = _prevServices;
+    }
 
     /// <summary>A Yes-returning IAppServices so confirmation dialogs proceed in headless tests.</summary>
     sealed class YesServices : IAppServices
@@ -284,5 +302,67 @@ public class AddressListControlStructuralEditTests
         // so assert via the guard's ShowError side effect).
         var svc = (YesServices)CoreState.Services;
         Assert.True(svc.LastWasError);
+    }
+
+    /// <summary>Build a guarded control whose row 0 id (first u16) is 0 and rows 1/2
+    /// carry distinctive markers; the guard denies id == 0.</summary>
+    static (ROM rom, AddressListControl control, YesServices svc) MakeGuardedControl()
+    {
+        var data = new byte[0x1000];
+        // row 0 id == 0 (left zero); rows 1 and 2 get markers at their first byte.
+        data[Base + BlockSize] = 0x77;       // row 1 marker
+        data[Base + 2 * BlockSize] = 0x88;   // row 2 marker
+        var rom = new ROM();
+        rom.SwapNewROMDataDirect(data);
+        CoreState.ROM = rom;
+        CoreState.Undo = new Undo();
+        var svc = new YesServices();
+        CoreState.Services = svc;
+
+        var control = new AddressListControl();
+        control.SetItems(MakeItems(3));
+        control.EnableStructuralEdit(BlockSize, () => MakeItems(3),
+            writeProtectId00: id => id != 0, // deny when id == 0
+            useSwap: true, useClear: true,
+            clipboardListName: "AddressList", clipboardFormName: "SoundRoomForm");
+        return (rom, control, svc);
+    }
+
+    [AvaloniaFact]
+    public void RowZeroGuard_SwapDown_FromRow0_Blocked()
+    {
+        var (rom, control, svc) = MakeGuardedControl();
+        control.SelectByIndex(0);   // row 0 (id 0) swapping DOWN with row 1
+        control.SwapData(true);
+        // No mutation: row 1 marker untouched, guard fired.
+        Assert.Equal(0x77u, rom.u8(Base + BlockSize));
+        Assert.Equal(0u, rom.u8(Base)); // row 0 still id 0
+        Assert.True(svc.LastWasError);
+    }
+
+    [AvaloniaFact]
+    public void RowZeroGuard_SwapUp_FromRow1_Blocked()
+    {
+        // The bypass Copilot flagged: selecting row 1 and Ctrl+Up writes into the
+        // guarded row 0 as the NEIGHBOUR. Must be blocked.
+        var (rom, control, svc) = MakeGuardedControl();
+        control.SelectByIndex(1);   // row 1 swapping UP with the guarded row 0
+        control.SwapData(false);
+        // No mutation: row 1 marker and row 0 both untouched, guard fired.
+        Assert.Equal(0x77u, rom.u8(Base + BlockSize));
+        Assert.Equal(0u, rom.u8(Base));
+        Assert.True(svc.LastWasError);
+    }
+
+    [AvaloniaFact]
+    public void RowZeroGuard_SwapDown_FromRow1_Allowed()
+    {
+        // Swapping rows 1 and 2 does not touch the guarded row 0 — must proceed.
+        var (rom, control, _) = MakeGuardedControl();
+        control.SelectByIndex(1);   // row 1 <-> row 2 (neither is row 0)
+        control.SwapData(true);
+        // Markers crossed.
+        Assert.Equal(0x88u, rom.u8(Base + BlockSize));
+        Assert.Equal(0x77u, rom.u8(Base + 2 * BlockSize));
     }
 }

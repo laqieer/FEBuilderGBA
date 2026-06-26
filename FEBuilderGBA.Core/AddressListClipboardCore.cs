@@ -110,11 +110,13 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Apply the WinForms <c>SwapData</c> ROM mutation: write block <paramref name="b"/>'s
-        /// bytes over address <paramref name="addrA"/> and block <paramref name="a"/>'s bytes
-        /// over address <paramref name="addrB"/> (a crossed write of two equal-length blocks),
-        /// using the supplied write delegate so this stays GUI/ROM-agnostic and unit-testable.
-        /// Returns false (no writes) when the inputs are null/length-mismatched.
+        /// Compute the crossed blocks for the WinForms <c>SwapData</c> ROM mutation
+        /// (PURE — no writes): given the two rows' current bytes <paramref name="a"/> and
+        /// <paramref name="b"/>, returns <paramref name="newAtAddrA"/> = <paramref name="b"/>'s
+        /// bytes and <paramref name="newAtAddrB"/> = <paramref name="a"/>'s bytes (defensive
+        /// clones), which the caller then writes back to addrA / addrB respectively. Keeping
+        /// the crossover GUI/ROM-agnostic makes it unit-testable. Returns false (and empty
+        /// out arrays) when the inputs are null, empty, or length-mismatched.
         /// </summary>
         public static bool BuildSwap(byte[] a, byte[] b, out byte[] newAtAddrA, out byte[] newAtAddrB)
         {
