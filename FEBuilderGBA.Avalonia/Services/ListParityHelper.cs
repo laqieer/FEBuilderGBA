@@ -3002,32 +3002,15 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build image TSA anime list — uses tsaanime_ config resource file.</summary>
+        /// <summary>Build image TSA anime list — ALL FRAMECOUNT frames per category.</summary>
         static List<AddrResult> BuildImageTSAAnimeList(ROM rom)
         {
-            var tsaAnime = U.LoadTSVResource1(U.ConfigDataFilename("tsaanime_"), false);
+            // Enumerate ALL FRAMECOUNT frames per category via the shared Core helper,
+            // identical to ImageTSAAnimeViewModel.LoadList — the two surfaces must not
+            // drift back to the old frame-0-only / 20-cap enumeration (#1457).
+            var tsaAnime = U.LoadTSVResource(U.ConfigDataFilename("tsaanime_"), false);
             if (tsaAnime == null || tsaAnime.Count == 0) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            foreach (var pair in tsaAnime)
-            {
-                uint pointer = pair.Key;
-                uint ptrOff = U.toOffset(pointer);
-                if (!U.isSafetyOffset(ptrOff)) continue;
-
-                uint baseAddr = rom.p32(ptrOff);
-                if (!U.isSafetyOffset(baseAddr)) continue;
-
-                if (baseAddr + 12 > (uint)rom.Data.Length) continue;
-                uint img = rom.u32(baseAddr);
-                if (!U.isPointer(img)) continue;
-
-                string name = U.ToHexString(pointer) + " " + pair.Value;
-                result.Add(new AddrResult(baseAddr, name, (uint)result.Count));
-
-                if (result.Count >= 20) break;
-            }
-            return result;
+            return ImageTSAAnimeFrameEnumCore.EnumerateFrames(rom, tsaAnime);
         }
 
         /// <summary>Build BattleBGViewer list — 12-byte entries, validate img+tsa pointers. Index starts at 1.</summary>
