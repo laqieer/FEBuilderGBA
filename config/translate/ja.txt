@@ -12498,3 +12498,33 @@ Rメニューテーブル:
 
 :The new name is the same as the current name.
 新しい名前が現在の名前と同じです。
+
+:Find where a register is set up just before a call to the target function, and dump the argument-setup block.
+ターゲット関数を呼び出す直前にレジスタが設定される箇所を探し、引数設定ブロックをダンプします。
+
+:Target function:
+ターゲット関数:
+
+:Register to find:
+探すレジスタ:
+
+:Allowed rows:
+許容する行数:
+
+:Do not include the function-call line in the results
+検索結果に関数呼び出しは含めない
+
+:Show only calls whose argument purpose is unknown
+用途が判明していない関数呼び出しのみ表示
+
+:Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).
+ターゲット関数を入力してください (m4aSongNumStart のようなシンボル名、または D01FC のような16進アドレス)。
+
+:Searching... please wait.
+検索中... お待ちください。
+
+:No argument blocks found for "{0}" feeding register "{1}" within {2} rows.
+レジスタ "{1}" に値を設定して "{0}" を呼び出す引数ブロックは {2} 行以内に見つかりませんでした。
+
+:Error: No ROM loaded.
+エラー: ROMが読み込まれていません。
