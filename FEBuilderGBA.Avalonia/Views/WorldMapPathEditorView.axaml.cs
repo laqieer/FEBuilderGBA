@@ -1,8 +1,10 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -31,6 +33,9 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) => LoadList();
 
             WriteButton.Click += OnWrite;
+            // #1458: .road.bin file Save/Load (WF SaveAS/Load parity).
+            SaveBinButton.Click += OnSaveBin;
+            LoadBinButton.Click += OnLoadBin;
             // TUNNEL (Copilot PR #1228 review #3): GbaImageControl starts a
             // left-drag PAN at zoom>1 and marks the bubbling pointer event
             // Handled, so a bubbling subscription would stop painting once
@@ -52,6 +57,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 WriteButton.IsEnabled = _vm.CanEdit;
+                // #1458: Save/Load .road.bin are FE8-only (same gate as Write).
+                SaveBinButton.IsEnabled = _vm.CanEdit;
+                LoadBinButton.IsEnabled = _vm.CanEdit;
                 if (!_vm.CanEdit)
                 {
                     StatusLabel.Text = R._("World map roads are FE8-only.");
@@ -280,6 +288,89 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undo.Rollback();
                 Log.Error("WorldMapPathEditorView.OnWrite failed: " + ex.ToString());
                 CoreState.Services?.ShowError(R._("Write failed: {0}", ex.Message));
+            }
+        }
+
+        // ===================================================================
+        // #1458: .road.bin file Save / Load (WF WorldMapPathEditorForm
+        // SaveASbutton_Click / LoadButton_Click parity).
+        //
+        // Save  — export the RAW packed road stream from ROM at the selected
+        //         path's CurrentAddr (getBinaryData(addr, CalcPathDataLength)),
+        //         so a non-canonical-but-loadable stream round-trips byte-for-
+        //         byte. NOT a re-pack of the live buffer.
+        // Load  — decode the file bytes into a NEW chip buffer + re-render +
+        //         mark dirty so the user explicitly Writes it (the existing
+        //         undo-tracked ROM commit). Load mutates NO ROM — there is no
+        //         UndoService scope here (WF Load is a buffer replace too).
+        // ===================================================================
+
+        async void OnSaveBin(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanEdit)
+                {
+                    CoreState.Services?.ShowInfo(R._("World map roads are FE8-only."));
+                    return;
+                }
+                if (_vm.CurrentPathId < 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("No path selected."));
+                    return;
+                }
+
+                byte[]? bin = _vm.ExportPathBin(out string err);
+                if (bin == null)
+                {
+                    CoreState.Services?.ShowError(string.IsNullOrEmpty(err)
+                        ? R._("No road data to export.") : err);
+                    return;
+                }
+
+                string? path = await FileDialogHelper.SaveFile(
+                    this, R._("Save Road Data"), R._("Road.BIN"), "*.road.bin", "road.road.bin");
+                if (path == null) return; // cancelled
+
+                File.WriteAllBytes(path, bin);
+                StatusLabel.Text = R._("Saved.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapPathEditorView.OnSaveBin failed: " + ex.ToString());
+                CoreState.Services?.ShowError(R._("Save failed: {0}", ex.Message));
+            }
+        }
+
+        async void OnLoadBin(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanEdit)
+                {
+                    CoreState.Services?.ShowInfo(R._("World map roads are FE8-only."));
+                    return;
+                }
+
+                string? path = await FileDialogHelper.OpenFile(
+                    this, R._("Load Road Data"), "*.road.bin");
+                if (path == null) return; // cancelled
+
+                byte[] bin = File.ReadAllBytes(path);
+                string err = _vm.ImportPathBin(bin);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+
+                RenderComposite();
+                StatusLabel.Text = R._("Loaded (Write to apply).");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapPathEditorView.OnLoadBin failed: " + ex.ToString());
+                CoreState.Services?.ShowError(R._("Load failed: {0}", ex.Message));
             }
         }
 

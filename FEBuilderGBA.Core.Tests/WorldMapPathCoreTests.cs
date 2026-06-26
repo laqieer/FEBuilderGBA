@@ -270,6 +270,165 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // =================================================================
+        // ExportPathBinFromRom / DecodePathBin — *.road.bin file I/O (#1458)
+        // =================================================================
+
+        [Fact]
+        public void ExportPathBinFromRom_ReturnsRawStream_ThroughTerminator()
+        {
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                // Two contiguous chips on row y=2 + one on y=5, then terminator.
+                byte[] packed = BuildPacked(
+                    new[] {
+                        (x8:3, y8:2, chips: new[]{ (tile:1, flag:0), (tile:2, flag:4) }),
+                        (x8:7, y8:5, chips: new[]{ (tile:3, flag:8) }),
+                    });
+                PlantPathData(rom, 0, packed);
+
+                WorldMapPathCore.GetPathDataOffset(rom, 0, out uint off);
+                byte[] exported = WorldMapPathCore.ExportPathBinFromRom(rom, off, out string err);
+                Assert.Equal("", err);
+                // Byte-for-byte equal to the planted stream (incl. the 4-byte terminator).
+                Assert.Equal(packed, exported);
+            });
+        }
+
+        [Fact]
+        public void ExportPathBinFromRom_PreservesNonCanonicalStream()
+        {
+            // PARITY ANCHOR (Copilot review #4): WF SaveAS exports raw ROM bytes,
+            // so a non-canonical-but-loadable stream must round out byte-for-byte:
+            //   * header byte 3 is 0xAB (canonical is 1) — ignored on read
+            //   * an EXTRA padding chip whose tile/flag bytes are arbitrary
+            // PackPath would canonicalize these; ExportPathBinFromRom must NOT.
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                byte[] noncanon = new byte[]
+                {
+                    0x00, 0x00, 0x02, 0xAB, // header: x8=0,y8=0,count=2, byte3=0xAB (not 1)
+                    0x01, 0x00,             // chip 0: tile=1, flag=0
+                    0x02, 0x07,             // chip 1: tile=2, flag=7 (unknown flag -> variant 0)
+                    0xFF, 0x00, 0x00, 0x00, // terminator
+                };
+                PlantPathData(rom, 0, noncanon);
+
+                WorldMapPathCore.GetPathDataOffset(rom, 0, out uint off);
+                byte[] exported = WorldMapPathCore.ExportPathBinFromRom(rom, off, out string err);
+                Assert.Equal("", err);
+                Assert.Equal(noncanon, exported); // exact bytes, NOT canonicalized
+            });
+        }
+
+        [Fact]
+        public void ExportPathBinFromRom_NullRom_ReturnsError()
+        {
+            byte[] r = WorldMapPathCore.ExportPathBinFromRom(null, 0x2000, out string err);
+            Assert.Null(r);
+            Assert.False(string.IsNullOrEmpty(err));
+        }
+
+        [Fact]
+        public void ExportPathBinFromRom_NoDataAtOffset_ReturnsError()
+        {
+            // An immediate 0xFF terminator yields a 4-byte stream — that's still a
+            // valid (empty-road) export. A genuinely empty offset (length 0 only
+            // happens on an unsafe/out-of-range addr) returns an error.
+            WithRom((rom) =>
+            {
+                byte[] r = WorldMapPathCore.ExportPathBinFromRom(rom, 0x0, out string err);
+                Assert.Null(r); // 0x0 is in the danger zone -> unsafe -> error
+                Assert.False(string.IsNullOrEmpty(err));
+            });
+        }
+
+        [Fact]
+        public void DecodePathBin_RoundTripsWith_ExportPathBinFromRom()
+        {
+            WithRom((rom) =>
+            {
+                PlantRoadTable(rom);
+                byte[] packed = BuildPacked(
+                    new[] {
+                        (x8:3, y8:2, chips: new[]{ (tile:1, flag:0), (tile:2, flag:4) }),
+                        (x8:7, y8:5, chips: new[]{ (tile:3, flag:8) }),
+                    });
+                PlantPathData(rom, 0, packed);
+
+                WorldMapPathCore.GetPathDataOffset(rom, 0, out uint off);
+                byte[] exported = WorldMapPathCore.ExportPathBinFromRom(rom, off, out _);
+
+                var chips = WorldMapPathCore.DecodePathBin(exported, out string err);
+                Assert.Equal("", err);
+                Assert.NotNull(chips);
+                // Same decode result as LoadPath from ROM.
+                var fromRom = WorldMapPathCore.LoadPath(rom, 0);
+                Assert.Equal(fromRom.Count, chips.Count);
+                for (int i = 0; i < chips.Count; i++)
+                {
+                    Assert.Equal(fromRom[i].WorldX, chips[i].WorldX);
+                    Assert.Equal(fromRom[i].WorldY, chips[i].WorldY);
+                    Assert.Equal(fromRom[i].PathX, chips[i].PathX);
+                    Assert.Equal(fromRom[i].PathY, chips[i].PathY);
+                }
+            });
+        }
+
+        [Fact]
+        public void DecodePathBin_PackPath_RoundTrips_ByteIdentical()
+        {
+            // PackPath produces canonical bytes; DecodePathBin then re-PackPath
+            // must reproduce the SAME bytes (self-consistent canonical format).
+            var chips = new List<PathChip>
+            {
+                new PathChip(0, 0, 0, 0),
+                new PathChip(8, 0, 8, 8),
+                new PathChip(0, 16, 16, 16),
+            };
+            byte[] packed = WorldMapPathCore.PackPath(chips, out string perr);
+            Assert.Equal("", perr);
+
+            var decoded = WorldMapPathCore.DecodePathBin(packed, out string derr);
+            Assert.Equal("", derr);
+            Assert.NotNull(decoded);
+
+            byte[] repacked = WorldMapPathCore.PackPath(decoded, out string rerr);
+            Assert.Equal("", rerr);
+            Assert.Equal(packed, repacked);
+        }
+
+        [Fact]
+        public void DecodePathBin_EmptyTerminatorOnly_ReturnsEmptyList()
+        {
+            var chips = WorldMapPathCore.DecodePathBin(new byte[] { 0xFF, 0, 0, 0 }, out string err);
+            Assert.Equal("", err);
+            Assert.NotNull(chips);
+            Assert.Empty(chips);
+        }
+
+        [Theory]
+        [InlineData(new byte[] { 0x00, 0x00, 0x01, 0x01, 0x00, 0x00 })]            // no terminator
+        [InlineData(new byte[] { 0x00, 0x00, 0xFA, 0x01 })]                        // count 250 (>=200) corrupt
+        [InlineData(new byte[] { 0x00, 0x00, 0x02, 0x01, 0x00, 0x00 })]            // truncated mid-pairs
+        public void DecodePathBin_Corrupt_ReturnsNullAndError(byte[] bin)
+        {
+            var chips = WorldMapPathCore.DecodePathBin(bin, out string err);
+            Assert.Null(chips);
+            Assert.False(string.IsNullOrEmpty(err));
+        }
+
+        [Fact]
+        public void DecodePathBin_NullOrTooShort_ReturnsNullAndError()
+        {
+            Assert.Null(WorldMapPathCore.DecodePathBin(null, out string e1));
+            Assert.False(string.IsNullOrEmpty(e1));
+            Assert.Null(WorldMapPathCore.DecodePathBin(new byte[] { 0xFF, 0 }, out string e2));
+            Assert.False(string.IsNullOrEmpty(e2));
+        }
+
+        // =================================================================
         // WritePath — round-trip + ambient undo + zero-mutation on failure
         // =================================================================
 

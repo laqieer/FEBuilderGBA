@@ -16,6 +16,8 @@
           <TextBlock Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="WorldMapPathEditor_Write_Button" Name="WriteButton" Content="Write" />
+          <Button AutomationProperties.AutomationId="WorldMapPathEditor_SaveBin_Button" Name="SaveBinButton" Content="Save .road.bin" />
+          <Button AutomationProperties.AutomationId="WorldMapPathEditor_LoadBin_Button" Name="LoadBinButton" Content="Load .road.bin" />
           <TextBlock AutomationProperties.AutomationId="WorldMapPathEditor_Status_Label" Name="StatusLabel" VerticalAlignment="Center" />
         </StackPanel>
 
