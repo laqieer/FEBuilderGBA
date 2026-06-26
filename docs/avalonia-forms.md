@@ -280,7 +280,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 158 | ImageRomAnimeView | ImageRomAnimeViewModel | ROM-stored animation editor |
 | 159 | ImageTSAEditorView | ImageTSAEditorViewModel | Tile Screen Arrangement editor (palette write + raw-tilesheet import/export + per-cell TSA editing & TSA write-back for NON-header TSA, #1005; header-TSA per-cell editing deferred) |
 | 160 | ImageTSAAnimeView | ImageTSAAnimeViewModel | TSA animation editor |
-| 161 | ImageTSAAnime2View | ImageTSAAnime2ViewModel | TSA animation editor (type 2) |
+| 161 | ImageTSAAnime2View | ImageTSAAnime2ViewModel | TSA animation editor (type 2); two-level: per-category list enumerates EVERY 12-byte entry (walk dataAddr+20 stride 12 until u32(addr+8) is not pointer-shaped), HeaderBase keyed per entry so the shared IMAGE/PALETTE resolve for entry[i>0] (#1456) |
 | 162 | ImagePalletView | ImagePalletViewModel | Palette viewer/editor |
 | 163 | ImageMagicFEditorView | ImageMagicFEditorViewModel | Magic effect frame editor |
 | 164 | ImageMagicCSACreatorView | ImageMagicCSACreatorViewModel | Magic CSA (compressed sprite) creator — live 240×128 frame preview (`MagicEffectExportCore.RenderCsaFramePreview`, READ-ONLY; BG→OBJ-back→OBJ-front composite, honors `IsExpandsBG`) on entry-select / Frame spinner / Zoom; working "Find new resources online" → MoreData wiki link (#1021) |

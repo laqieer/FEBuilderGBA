@@ -14,6 +14,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unknown0, _unknown2, _unknown4, _unknown6;
         uint _tsaHeaderPointer;
 
+        // #1456: each per-category 12-byte entry maps to its category's SHARED
+        // header base (dataAddr). IMAGE/PALETTE live at headerBase+16/+4 (shared
+        // by every entry in the category); only the TSA pointer (entryAddr+8)
+        // varies per entry. Keyed on the entry address so HeaderBase resolves
+        // correctly for entry[i>0] without relying on stale "last loaded" state.
+        // Rebuilt on every LoadList; lookup falls back to the entry[0] formula
+        // for raw-navigation addresses not produced by LoadList.
+        readonly Dictionary<uint, uint> _entryHeaderBase = new Dictionary<uint, uint>();
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
@@ -28,8 +37,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // This mirrors WinForms ImageTSAAnime2Form.MakeAllDataLength.
         public const uint HEADER_SIZE = 20;
 
-        /// <summary>Shared-header base address for the selected v2 entry.</summary>
-        public uint HeaderBase => (CurrentAddr >= HEADER_SIZE) ? CurrentAddr - HEADER_SIZE : 0;
+        /// <summary>
+        /// Shared-header base address for the selected v2 entry.
+        /// <para>
+        /// #1456: a category exposes N 12-byte entries (entry[i] at
+        /// <c>headerBase + 20 + i*12</c>), all sharing one header. The IMAGE/
+        /// PALETTE pointers live in that header, so the base must come from the
+        /// per-entry map (keyed on <see cref="CurrentAddr"/>) — NOT the
+        /// <c>CurrentAddr - HEADER_SIZE</c> formula, which is only valid for
+        /// entry[0]. The formula remains the fallback for raw-navigation
+        /// addresses (e.g. <c>NavigateTo</c>) that LoadList never enumerated;
+        /// keying on <see cref="CurrentAddr"/> means a stale map entry can never
+        /// resolve the header for a different active entry.
+        /// </para>
+        /// </summary>
+        public uint HeaderBase
+        {
+            get
+            {
+                if (_entryHeaderBase.TryGetValue(CurrentAddr, out uint hb))
+                    return hb;
+                return (CurrentAddr >= HEADER_SIZE) ? CurrentAddr - HEADER_SIZE : 0;
+            }
+        }
         /// <summary>ROM offset of the header IMAGE (LZ77) pointer slot.</summary>
         public uint ImagePointerAddr => HeaderBase + 16;
         /// <summary>ROM offset of the header PALETTE (raw 0x20) pointer slot.</summary>
@@ -48,8 +78,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // D8: TSA header pointer
         public uint TSAHeaderPointer { get => _tsaHeaderPointer; set => SetField(ref _tsaHeaderPointer, value); }
 
+        /// <summary>
+        /// Count the 12-byte entries inside a v2 category header. Mirrors the
+        /// WinForms <c>ImageTSAAnime2Form</c> main <c>InputFormRef</c>
+        /// (BlockSize 12, count-callback <c>isPointer(u32(addr+8))</c>) walked by
+        /// <c>ROM.getBlockDataCount</c>: starting at <paramref name="entry0Addr"/>
+        /// (= dataAddr + 20), count entry <c>i</c> while the per-entry TSA pointer
+        /// slot (<c>addr + 8</c>) is pointer-shaped, stopping at the first entry
+        /// that is not (or that would read past EOF). #1456.
+        /// </summary>
+        internal static uint CountCategoryEntries(ROM rom, uint entry0Addr)
+        {
+            if (rom?.Data == null) return 0;
+            uint len = (uint)rom.Data.Length;
+            uint addr = entry0Addr;
+            uint i = 0;
+            // EOF-hard-bound: need the full 12-byte entry (the +8 pointer slot is
+            // the last 4 bytes) before reading it.
+            while (addr + SIZE <= len)
+            {
+                // List-time check is pointer SHAPE only (matches WinForms, which
+                // does NOT require the TSA target to be a safety offset here).
+                if (!U.isPointer(rom.u32(addr + 8))) break;
+                addr += SIZE;
+                i++;
+            }
+            return i;
+        }
+
         public List<AddrResult> LoadList()
         {
+            _entryHeaderBase.Clear();
+
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
@@ -62,20 +122,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             foreach (var pair in tsaAnime)
             {
                 uint pointer = pair.Key;
-                string name = U.ToHexString(pointer) + " " + pair.Value;
+                string catName = pair.Value;
 
-                // Resolve the pointer to get the actual data address
+                // Resolve the pointer to get the actual data address (category header base)
                 uint offset = U.toOffset(pointer);
                 if (!U.isSafetyOffset(offset, rom)) continue;
 
                 uint dataAddr = rom.p32(offset);
                 if (!U.isSafetyOffset(dataAddr, rom)) continue;
 
-                // The TSA data starts 20 bytes after the header
-                uint tsaDataAddr = dataAddr + 20;
-                if (tsaDataAddr + SIZE > (uint)rom.Data.Length) continue;
-
-                result.Add(new AddrResult(tsaDataAddr, name, pointer));
+                // #1456: enumerate EVERY 12-byte entry in this category, not just
+                // entry[0]. The per-entry list starts 20 bytes after the header
+                // (WinForms ReInit(addr + 20)); stride 12 == the loader record size
+                // read by LoadEntry (addr+0..+8), so list geometry == data geometry.
+                uint entry0Addr = dataAddr + 20;
+                uint count = CountCategoryEntries(rom, entry0Addr);
+                for (uint i = 0; i < count; i++)
+                {
+                    uint entryAddr = entry0Addr + i * SIZE;
+                    // Map every entry to its SHARED category header base so
+                    // HeaderBase (and thus IMAGE/PALETTE) resolves correctly for
+                    // entry[i>0].
+                    _entryHeaderBase[entryAddr] = dataAddr;
+                    string name = U.ToHexString(pointer) + " " + catName + " " + U.To0xHexString(i);
+                    result.Add(new AddrResult(entryAddr, name, pointer));
+                }
             }
             return result;
         }

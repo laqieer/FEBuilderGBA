@@ -135,10 +135,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 uint addr = _vm.CurrentAddr;
                 uint headerBase = _vm.HeaderBase;
-                // Range-check the header + first entry (image/palette slots live in
-                // the header; the TSA slot lives in the first 12-byte entry).
+                // Range-check the SHARED header + the selected entry. The image/
+                // palette slots live in the category header (shared across all
+                // entries); the TSA slot lives in the selected 12-byte entry
+                // (addr+8), which #1456 keeps correct for entry[i>0] because
+                // HeaderBase resolves the category base, not addr - HEADER_SIZE.
                 if (!U.isSafetyOffset(headerBase, rom) ||
-                    headerBase + ImageTSAAnime2ViewModel.HEADER_SIZE + 12 > (uint)rom.Data.Length)
+                    headerBase + ImageTSAAnime2ViewModel.HEADER_SIZE > (uint)rom.Data.Length ||
+                    addr + 12 > (uint)rom.Data.Length)
                 {
                     CoreState.Services.ShowError("Entry address is out of range.");
                     return;
@@ -152,9 +156,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 try
                 {
                     // Coupled trio (mirrors WinForms ImageTSAAnime2Form layout):
-                    //   image  (LZ77)            @ headerBase + 16
-                    //   palette(raw 0x20)        @ headerBase + 4
-                    //   TSA    (raw header-wrap)  @ addr + 8 (entry-0 TSA slot)
+                    //   image  (LZ77)            @ headerBase + 16 (shared)
+                    //   palette(raw 0x20)        @ headerBase + 4  (shared)
+                    //   TSA    (raw header-wrap)  @ addr + 8 (selected entry TSA slot)
                     var importResult = ImageImportCore.Import3PointerHeaderTSA(
                         rom, indexed, loadResult.GBAPalette,
                         IMPORT_WIDTH, IMPORT_HEIGHT,
