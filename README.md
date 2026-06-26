@@ -600,6 +600,15 @@ sibling.
   `promoHp`/`promoStr`/… ; map_settings: `Weather`/`FogLevel`/`PLISTObj`/`PLISTMap`/…/`BGM1`/…/
   `ChapterNumber`/`TextGoal`/`EscapeMarkerX`/… (pointers excluded). The View intersects these with
   the manifest owner's declared `fields`, so a manifest that omits a field simply skips it.
+- **Avalonia "UPS Apply" dialog** (`ToolUPSOpenSimpleView`, #1460) — now functional (was a dead
+  address-label stub). Mirrors WinForms `ToolUPSOpenSimpleForm`: pick a distributed `.ups` patch and a
+  clean (unmodified) original ROM — the original is **auto-detected by the UPS's recorded source CRC32**
+  (`UPSUtilCore.GetUPSSrcCRC32` + `ToolTranslateROMCore.FindOrignalROMByCRC32` over the UPS dir, the app
+  base directory and the loaded ROM's directory) — then **Apply** validates the original is an official
+  clean ROM (CRC32 vs `ToolTranslateROMCore.GetROMBaseTable`, mirroring WinForms `CheckOrignalROM`) and
+  applies the patch via the same Core `UPSUtilCore.ApplyUPS` pipeline used by CLI `--applyups` and the
+  main-window `.ups` drag-drop. The patched ROM is then loaded into the main window (optionally saved as
+  `.gba`); a non-fatal CRC warning prompts before committing, matching WinForms.
 - **CLI:** `--decomp-audit [--format=tsv|md] [--out=path]` prints the **round-trip
   coverage matrix** below (no ROM). `--nmm-to-manifest --in=x.nmm [--table=name]` parses a
   No$gba memory map into a manifest `tables[]` entry JSON — a **schema aid, not a

@@ -24803,6 +24803,57 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Create UPS patch…
 创建 UPS 补丁…
 
+:Apply UPS patch…
+应用 UPS 补丁…
+
+:Apply a distributed UPS patch to a clean (unmodified) original ROM, then open the patched ROM.
+将分发的 UPS 补丁应用到干净（未修改）的原始 ROM，然后打开打补丁后的 ROM。
+
+:UPS patch file:
+UPS 补丁文件：
+
+:Save the patched ROM as a .gba file
+将打补丁后的 ROM 保存为 .gba 文件
+
+:Path to the .ups patch
+.ups 补丁的路径
+
+:Path to the clean ROM (auto-detected by CRC32)
+干净 ROM 的路径（通过 CRC32 自动检测）
+
+:Please select a valid UPS patch file.
+请选择一个有效的 UPS 补丁文件。
+
+:The selected file is not a valid UPS patch.
+所选文件不是有效的 UPS 补丁。
+
+:The selected ROM is not an unmodified original (CRC32 mismatch). Select the official clean ROM the patch was made for.
+所选 ROM 不是未修改的原始 ROM（CRC32 不匹配）。请选择制作该补丁所用的官方干净 ROM。
+
+:This UPS patch was not made for the selected ROM (source CRC32 mismatch).
+此 UPS 补丁不是为所选 ROM 制作的（源 CRC32 不匹配）。
+
+:Failed to apply the UPS patch.
+无法应用 UPS 补丁。
+
+:UPS patch applied: {0}
+已应用 UPS 补丁：{0}
+
+:UPS patch applied and loaded.
+已应用 UPS 补丁并加载。
+
+:Failed to save the patched ROM:
+无法保存打补丁后的 ROM：
+
+:Failed to load the patched ROM.
+无法加载打补丁后的 ROM。
+
+:The UPS patch applied with a warning:
+UPS 补丁已应用，但有警告：
+
+:Apply it anyway?
+仍要应用吗？
+
 :Please select a valid original (unmodified) ROM.
 请选择一个有效的原始（未修改）ROM。
 

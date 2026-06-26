@@ -20120,6 +20120,57 @@ Select…
 :Create UPS patch…
 Create UPS patch…
 
+:Apply UPS patch…
+Apply UPS patch…
+
+:Apply a distributed UPS patch to a clean (unmodified) original ROM, then open the patched ROM.
+Apply a distributed UPS patch to a clean (unmodified) original ROM, then open the patched ROM.
+
+:UPS patch file:
+UPS patch file:
+
+:Save the patched ROM as a .gba file
+Save the patched ROM as a .gba file
+
+:Path to the .ups patch
+Path to the .ups patch
+
+:Path to the clean ROM (auto-detected by CRC32)
+Path to the clean ROM (auto-detected by CRC32)
+
+:Please select a valid UPS patch file.
+Please select a valid UPS patch file.
+
+:The selected file is not a valid UPS patch.
+The selected file is not a valid UPS patch.
+
+:The selected ROM is not an unmodified original (CRC32 mismatch). Select the official clean ROM the patch was made for.
+The selected ROM is not an unmodified original (CRC32 mismatch). Select the official clean ROM the patch was made for.
+
+:This UPS patch was not made for the selected ROM (source CRC32 mismatch).
+This UPS patch was not made for the selected ROM (source CRC32 mismatch).
+
+:Failed to apply the UPS patch.
+Failed to apply the UPS patch.
+
+:UPS patch applied: {0}
+UPS patch applied: {0}
+
+:UPS patch applied and loaded.
+UPS patch applied and loaded.
+
+:Failed to save the patched ROM:
+Failed to save the patched ROM:
+
+:Failed to load the patched ROM.
+Failed to load the patched ROM.
+
+:The UPS patch applied with a warning:
+The UPS patch applied with a warning:
+
+:Apply it anyway?
+Apply it anyway?
+
 :Please select a valid original (unmodified) ROM.
 Please select a valid original (unmodified) ROM.
 
