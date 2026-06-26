@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -11,6 +12,9 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ArenaEnemyWeaponViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        List<AddrResult> _basicItems = new();
+        List<AddrResult> _rankupItems = new();
+
         public string ViewTitle => "Arena Enemy Weapon";
         public bool IsLoaded => _vm.CanWrite;
 
@@ -18,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            RankupEntryList.SelectedAddressChanged += OnRankupSelected;
             Opened += (_, _) => LoadList();
         }
 
@@ -26,8 +31,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadArenaEnemyWeaponList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconFromAddrU8Loader(items, i));
+                _basicItems = _vm.LoadArenaEnemyWeaponList();
+                EntryList.SetItemsWithIcons(_basicItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_basicItems, i));
+
+                _rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
+                RankupEntryList.SetItemsWithIcons(_rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_rankupItems, i));
             }
             catch (Exception ex)
             {
@@ -36,13 +44,16 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
+        // ---------------- Basic list ----------------
+
         void OnSelected(uint addr)
         {
             _vm.IsLoading = true;
             try
             {
                 _vm.LoadArenaEnemyWeapon(addr);
-                UpdateUI();
+                int index = IndexOfAddr(_basicItems, addr);
+                UpdateUI(index);
             }
             catch (Exception ex)
             {
@@ -51,10 +62,16 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
-        void UpdateUI()
+        void UpdateUI(int index)
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             WeaponIdBox.Value = _vm.WeaponId;
+            if (index >= 0)
+            {
+                var info = _vm.GetBasicTypeInfo(index);
+                TypeLabel.Text = info.Label;
+                InfoLabel.Text = info.Guidance;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -67,9 +84,91 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.WriteArenaEnemyWeapon();
                 _undoService.Commit();
                 _vm.MarkClean();
+                ReloadBasicListPreserve(_vm.CurrentAddr);
                 CoreState.Services?.ShowInfo("Arena Enemy Weapon data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.Write: {0}", ex.Message); }
+        }
+
+        void ReloadBasicListPreserve(uint addr)
+        {
+            _vm.IsLoading = true;
+            try
+            {
+                _basicItems = _vm.LoadArenaEnemyWeaponList();
+                EntryList.SetItemsWithIcons(_basicItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_basicItems, i));
+                EntryList.SelectAddress(addr);
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        // ---------------- Rank-up list (#1465) ----------------
+
+        void OnRankupSelected(uint addr)
+        {
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadArenaEnemyWeaponRankup(addr);
+                int index = IndexOfAddr(_rankupItems, addr);
+                UpdateRankupUI(index);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ArenaEnemyWeaponViewerView.OnRankupSelected failed: {0}", ex.Message);
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void UpdateRankupUI(int index)
+        {
+            RankupAddrLabel.Text = $"0x{_vm.RankupCurrentAddr:X08}";
+            RankupWeaponIdBox.Value = _vm.RankupWeaponId;
+            if (index >= 0)
+            {
+                var info = _vm.GetRankupTypeInfo(index);
+                RankupTypeLabel.Text = info.Label;
+                RankupInfoLabel.Text = info.Guidance;
+            }
+        }
+
+        void RankupWrite_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.RankupCanWrite) return;
+            _undoService.Begin("Edit Arena Enemy Weapon (Rank-up)");
+            try
+            {
+                _vm.RankupWeaponId = (uint)(RankupWeaponIdBox.Value ?? 0);
+                _vm.WriteArenaEnemyWeaponRankup();
+                _undoService.Commit();
+                _vm.MarkClean();
+                ReloadRankupListPreserve(_vm.RankupCurrentAddr);
+                CoreState.Services?.ShowInfo("Arena Enemy Weapon (Rank-up) data written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaEnemyWeaponViewerView.RankupWrite: {0}", ex.Message); }
+        }
+
+        void ReloadRankupListPreserve(uint addr)
+        {
+            _vm.IsLoading = true;
+            try
+            {
+                _rankupItems = _vm.LoadArenaEnemyWeaponRankupList();
+                RankupEntryList.SetItemsWithIcons(_rankupItems, i => ListIconLoaders.ItemIconFromAddrU8Loader(_rankupItems, i));
+                RankupEntryList.SelectAddress(addr);
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        // ---------------- Helpers ----------------
+
+        static int IndexOfAddr(List<AddrResult> items, uint addr)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i].addr == addr) return i;
+            }
+            return -1;
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

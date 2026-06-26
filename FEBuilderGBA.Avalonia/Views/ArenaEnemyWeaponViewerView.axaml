@@ -4,25 +4,91 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ArenaEnemyWeaponViewerView"
         Title="Arena Enemy Weapon Editor" Width="1257" Height="809"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Two-list editor mirroring WinForms ArenaEnemyWeaponForm (#1465):
+       Basic tab   : arena_enemy_weapon_basic_pointer  - stride 1, 8 entries  (GetBasicTypeName)
+       Rank-up tab : arena_enemy_weapon_rankup_pointer - stride 1, 26 entries (GetRankupTypeName) -->
+  <TabControl AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_TabControl">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Arena Enemy Weapon Editor" FontSize="18" FontWeight="Bold" />
+    <!-- ============================================================
+         Tab 1 - Basic weapon list (WF left panel)
+         ============================================================ -->
+    <TabItem AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Basic_Tab" Header="Basic Weapons">
+      <Grid ColumnDefinitions="250,*">
+        <controls:AddressListControl AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Entry_List"
+                                     Grid.Column="0" Name="EntryList" Margin="4" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <ScrollViewer Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Arena Enemy Weapon - Basic" FontSize="18" FontWeight="Bold" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon ID:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_WeaponId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
-        </Grid>
+            <!-- WF J_0_ITEM: per-slot type name -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_TypeLabel"
+                         Name="TypeLabel" FontWeight="Bold" TextAlignment="Center" />
+            </Border>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+            <!-- WF X_INFO: per-slot guidance text -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6" MinHeight="80">
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Info"
+                         Name="InfoLabel" TextWrapping="Wrap" TextAlignment="Center"
+                         VerticalAlignment="Center" Foreground="Gray" />
+            </Border>
+
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon ID:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_WeaponId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WeaponIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Write_Button" Content="Write" Click="Write_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <!-- ============================================================
+         Tab 2 - Rank-up weapon list (WF right panel) (#1465)
+         ============================================================ -->
+    <TabItem AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Tab" Header="Rank-up Weapons">
+      <Grid ColumnDefinitions="250,*">
+        <controls:AddressListControl AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Entry_List"
+                                     Grid.Column="0" Name="RankupEntryList" Margin="4" />
+
+        <ScrollViewer Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Arena Enemy Weapon - Rank-up" FontSize="18" FontWeight="Bold" />
+
+            <!-- WF N_J_0_ITEM: per-slot type name -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_TypeLabel"
+                         Name="RankupTypeLabel" FontWeight="Bold" TextAlignment="Center" />
+            </Border>
+
+            <!-- WF N_X_INFO: per-slot guidance text -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6" MinHeight="80">
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Info"
+                         Name="RankupInfoLabel" TextWrapping="Wrap" TextAlignment="Center"
+                         VerticalAlignment="Center" Foreground="Gray" />
+            </Border>
+
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Addr_Label" Grid.Row="0" Grid.Column="1" Name="RankupAddrLabel" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Weapon ID:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_WeaponId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="RankupWeaponIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="ArenaEnemyWeaponViewer_Rankup_Write_Button" Content="Write" Click="RankupWrite_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+  </TabControl>
 </Window>

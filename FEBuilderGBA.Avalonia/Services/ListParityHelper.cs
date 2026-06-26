@@ -1578,25 +1578,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Build arena enemy weapon list matching ArenaEnemyWeaponViewerViewModel.</summary>
         static List<AddrResult> BuildArenaEnemyWeaponList(ROM rom)
         {
-            uint ptr = rom.RomInfo.arena_enemy_weapon_basic_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            const uint blockSize = 1;
-            var result = new List<AddrResult>();
-            // WinForms: fixed 8 entries
-            for (uint i = 0; i < 8; i++)
-            {
-                uint addr = baseAddr + i * blockSize;
-                if (addr + blockSize > (uint)rom.Data.Length) break;
-
-                uint weaponId = rom.u8(addr);
-                string itemName = NameResolver.GetItemName(weaponId);
-                string name = $"{U.ToHexString(i)} {itemName} (0x{weaponId:X02})";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            // Single source of truth with the Avalonia view + WinForms form (#1465):
+            // basic list = arena_enemy_weapon_basic_pointer, stride 1, 8 entries,
+            // display string includes the per-slot type label (GetBasicTypeName).
+            // The rank-up list (arena_enemy_weapon_rankup_pointer, 26 entries) is the
+            // editor's second AddressListControl; its parity is pinned by the
+            // dedicated ArenaEnemyWeaponRankupParityTests, since the registry is
+            // one-builder-per-view.
+            return ArenaEnemyWeaponCore.BuildBasicList(rom);
         }
 
         // ------------------------------------------------------------------
