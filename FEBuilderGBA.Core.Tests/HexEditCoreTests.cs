@@ -184,6 +184,50 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WithinRowDeleteAndAppend_Shift_Rejected()
+        {
+            // Copilot PR review: delete one byte token AND append another later in the
+            // same row. Token count stays 16, every token is 2 hex digits, but the
+            // columns no longer line up — the geometric parser must reject this.
+            var rom = MakeRom();
+            string page = RenderPage(rom, 0, 0x100);
+            page = DeleteFirstTokenAndAppendOne(page, 0);
+
+            var parsed = HexEditCore.ParseDisplay(page, 0, (uint)rom.Data.Length);
+            Assert.False(parsed.Ok);
+            Assert.Empty(parsed.Cells);
+        }
+
+        [Fact]
+        public void DeletedTrailingRow_Rejected()
+        {
+            // A deleted last data row must reject the whole write (not silently apply
+            // the surviving rows).
+            var rom = MakeRom();
+            string page = RenderPage(rom, 0, 0x100);
+            page = DeleteLastDataRow(page);
+
+            var parsed = HexEditCore.ParseDisplay(page, 0, (uint)rom.Data.Length);
+            Assert.False(parsed.Ok);
+            Assert.Empty(parsed.Cells);
+        }
+
+        [Fact]
+        public void AppendedRowBeyondPage_Rejected()
+        {
+            // Render only the first 0x100 of a larger ROM, then append a sequential
+            // data row (0x100) that is still within ROM. It is beyond the displayed
+            // page and must be rejected.
+            var rom = MakeRom(0x400);
+            string page = RenderPage(rom, 0, 0x100); // 16 rows: 0x00..0xF0
+            page = page.TrimEnd('\n') + "\n00000100 | 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 | ................\n";
+
+            var parsed = HexEditCore.ParseDisplay(page, 0, (uint)rom.Data.Length, 0x100);
+            Assert.False(parsed.Ok);
+            Assert.Empty(parsed.Cells);
+        }
+
+        [Fact]
         public void EditedAddressGutter_Rejected_NoMutation()
         {
             var rom = MakeRom();
@@ -408,6 +452,56 @@ namespace FEBuilderGBA.Core.Tests
                 return string.Join("\n", lines);
             }
             return page;
+        }
+
+        /// <summary>
+        /// Delete the first byte token of the given data row and append a 2-hex token
+        /// at the end of the hex region — keeps the token count at 16 but shifts the
+        /// column geometry (the exact within-row shift Copilot flagged).
+        /// </summary>
+        static string DeleteFirstTokenAndAppendOne(string page, int dataRowIndex)
+        {
+            string[] lines = page.Replace("\r\n", "\n").Split('\n');
+            int seen = -1;
+            for (int li = 0; li < lines.Length; li++)
+            {
+                string line = lines[li];
+                int bar1 = line.IndexOf('|');
+                if (bar1 < 0) continue;
+                string addrTok = line.Substring(0, bar1).Trim();
+                if (addrTok.Length != 8 || !uint.TryParse(addrTok, System.Globalization.NumberStyles.HexNumber, null, out _)) continue;
+                seen++;
+                if (seen != dataRowIndex) continue;
+
+                int bar2 = line.IndexOf('|', bar1 + 1);
+                string hexRegion = line.Substring(bar1 + 1, bar2 - bar1 - 1);
+                // Remove the first "XX " (3 chars) right after the leading space, then
+                // append "AA " before the trailing region so 16 tokens remain.
+                var starts = TokenStarts(hexRegion);
+                string shifted = hexRegion.Remove(starts[0], 3).TrimEnd() + " AA ";
+                lines[li] = line.Substring(0, bar1 + 1) + shifted + line.Substring(bar2);
+                return string.Join("\n", lines);
+            }
+            return page;
+        }
+
+        static string DeleteLastDataRow(string page)
+        {
+            string[] lines = page.Replace("\r\n", "\n").Split('\n');
+            int lastData = -1;
+            for (int li = 0; li < lines.Length; li++)
+            {
+                string line = lines[li];
+                int bar1 = line.IndexOf('|');
+                if (bar1 < 0) continue;
+                string addrTok = line.Substring(0, bar1).Trim();
+                if (addrTok.Length == 8 && uint.TryParse(addrTok, System.Globalization.NumberStyles.HexNumber, null, out _))
+                    lastData = li;
+            }
+            if (lastData < 0) return page;
+            var list = new System.Collections.Generic.List<string>(lines);
+            list.RemoveAt(lastData);
+            return string.Join("\n", list);
         }
 
         static string MangleAsciiGutter(string page)

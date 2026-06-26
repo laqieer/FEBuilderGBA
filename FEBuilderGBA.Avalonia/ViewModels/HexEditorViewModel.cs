@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return new HexEditCore.WriteResult { Success = false, Message = "ROM not loaded." };
             }
 
-            var parsed = HexEditCore.ParseDisplay(editedHexText, _baseAddress, (uint)rom.Data.Length);
+            var parsed = HexEditCore.ParseDisplay(editedHexText, _baseAddress, (uint)rom.Data.Length, _viewSize);
             if (!parsed.Ok)
             {
                 AddressInfo = parsed.Error ?? "Invalid hex input.";

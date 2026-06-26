@@ -62,22 +62,55 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Back-compat overload that infers the displayed page size from the ROM
+        /// length and base (used by tests that render a single sub-0x100 page). The
+        /// view always passes the real page size via the 4-arg overload.
+        /// </summary>
+        public static ParseResult ParseDisplay(string editedText, uint baseAddress, uint romLength)
+            => ParseDisplay(editedText, baseAddress, romLength, DefaultViewSize);
+
+        /// <summary>Default display page size (matches HexEditorViewModel.ViewSize).</summary>
+        public const uint DefaultViewSize = 0x100;
+
+        /// <summary>
         /// Parse the edited multiline hex display back into byte values, deriving each
         /// byte's address positionally from <paramref name="baseAddress"/>. Pure (no
         /// ROM mutation). Header/separator/blank lines are tolerated and skipped.
         /// On ANY malformed row the result carries an <see cref="ParseResult.Error"/>
         /// and an empty cell list (caller must not write).
+        ///
+        /// <para>Validation is geometric, not token-shift based (Copilot PR review):
+        /// the byte values are read from FIXED column positions matching the renderer
+        /// (each slot is "HH " plus one extra space after slot 7), so a within-row
+        /// delete+append that keeps the token count at 16 still fails because the
+        /// columns no longer line up. The displayed page is bounded to EXACTLY the
+        /// rows the renderer would have produced for <paramref name="viewSize"/>, so a
+        /// deleted trailing row (count short) or an appended sequential row beyond the
+        /// page (count long, even if within ROM) is rejected before any mutation.</para>
         /// </summary>
         /// <param name="editedText">The full HexGrid TextBox contents.</param>
         /// <param name="baseAddress">The page base address (offset) the display started at.</param>
-        /// <param name="romLength">Current ROM byte length (slots at/after this may be blank padding).</param>
-        public static ParseResult ParseDisplay(string editedText, uint baseAddress, uint romLength)
+        /// <param name="romLength">Current ROM byte length (slots at/after this are blank padding).</param>
+        /// <param name="viewSize">The displayed page size in bytes (HexEditorViewModel.ViewSize).</param>
+        public static ParseResult ParseDisplay(string editedText, uint baseAddress, uint romLength, uint viewSize)
         {
             var result = new ParseResult();
             if (editedText == null)
             {
                 result.Error = "No hex text to parse.";
                 return result;
+            }
+
+            // EXACT set of data rows the renderer would have produced: from baseAddress
+            // up to min(base+viewSize, romLength), stepping 16. Any other data-row count
+            // (deleted/appended row) is rejected.
+            uint pageEnd = romLength;
+            ulong wanted = (ulong)baseAddress + viewSize;
+            if (wanted < pageEnd) pageEnd = (uint)wanted;
+            int expectedRows = 0;
+            if (pageEnd > baseAddress)
+            {
+                expectedRows = (int)(((pageEnd - baseAddress) + (BytesPerRow - 1)) / BytesPerRow);
             }
 
             string[] lines = editedText.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
@@ -88,8 +121,7 @@ namespace FEBuilderGBA
                 string line = raw;
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                // Header / separator lines have no leading 8-hex address followed by " | ".
-                // Identify a data row by a leading 8-hex token followed by a '|'.
+                // Header / separator lines have no leading 8-hex address followed by '|'.
                 int bar1 = line.IndexOf('|');
                 if (bar1 < 0) continue; // not a data row
                 string addrToken = line.Substring(0, bar1).Trim();
@@ -97,6 +129,14 @@ namespace FEBuilderGBA
                 {
                     // header ("Address  | 00 01 ...") or separator ("---------|---")
                     continue;
+                }
+
+                // More data rows than the page should have ⇒ an appended row was added.
+                if (dataRow >= expectedRows)
+                {
+                    result.Cells.Clear();
+                    result.Error = $"More data rows than the displayed page ({expectedRows}). Do not add or remove rows.";
+                    return result;
                 }
 
                 uint rowBase = baseAddress + (uint)(dataRow * BytesPerRow);
@@ -111,9 +151,13 @@ namespace FEBuilderGBA
 
                 // Hex region lies between the first and second '|'.
                 int bar2 = line.IndexOf('|', bar1 + 1);
-                string hexRegion = bar2 >= 0
-                    ? line.Substring(bar1 + 1, bar2 - bar1 - 1)
-                    : line.Substring(bar1 + 1);
+                if (bar2 < 0)
+                {
+                    result.Cells.Clear();
+                    result.Error = $"Row at 0x{rowBase:X08} is missing the ASCII column separator. Do not delete the '|' columns.";
+                    return result;
+                }
+                string hexRegion = line.Substring(bar1 + 1, bar2 - bar1 - 1);
 
                 if (!ParseHexRegion(hexRegion, rowBase, romLength, result))
                 {
@@ -124,47 +168,104 @@ namespace FEBuilderGBA
                 dataRow++;
             }
 
+            // Fewer data rows than the page should have ⇒ a row was deleted.
+            if (dataRow != expectedRows)
+            {
+                result.Cells.Clear();
+                result.Error = $"Expected {expectedRows} data row(s) but found {dataRow}. Do not add or remove rows.";
+                return result;
+            }
+
             return result;
         }
 
         /// <summary>
-        /// Tokenize the hex region of one row into byte slots. (Copilot #2) Each
-        /// non-blank token must be EXACTLY two hex digits at its slot position; a
-        /// blank slot is only allowed when it falls at/after <paramref name="romLength"/>
-        /// (out-of-ROM display padding near EOF). Otherwise the whole parse is rejected.
+        /// Parse the hex region of one row by FIXED column geometry (Copilot PR review).
+        /// The renderer emits, for each of the 16 columns, two hex chars + one space,
+        /// with ONE EXTRA space after column 7 ("HH HH HH HH HH HH HH HH  HH ..."). We
+        /// reproduce that exact layout and read each in-ROM slot at its expected column,
+        /// requiring exactly two hex digits there. A within-row delete+append (which
+        /// keeps the whitespace-token count at 16 but shifts the columns) therefore
+        /// fails, and out-of-ROM slots near EOF must be blank.
         /// </summary>
         static bool ParseHexRegion(string hexRegion, uint rowBase, uint romLength, ParseResult result)
         {
-            // Split on whitespace; the renderer inserts an extra space between the two
-            // 8-byte halves, so consecutive whitespace is collapsed.
-            string[] tokens = hexRegion.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-
-            // The number of present tokens must equal the number of in-ROM slots for this
-            // row (so a deleted/extra token can NEVER shift bytes into wrong addresses).
-            int inRomSlots = 0;
-            for (int k = 0; k < BytesPerRow; k++)
-            {
-                if (rowBase + (uint)k < romLength) inRomSlots++;
-            }
-
-            if (tokens.Length != inRomSlots)
+            // The renderer prefixes the hex region with a single space (from "| ") and
+            // suffixes one (the trailing "HH " space before " |"). Work on the raw
+            // region but index columns from the first hex position. The deterministic
+            // layout from column 0 is: pos(k) = k*3 + (k >= 8 ? 1 : 0), measured from
+            // the first byte char. We locate that first byte char as the offset after
+            // the single leading separator space.
+            if (hexRegion.Length == 0 || hexRegion[0] != ' ')
             {
                 result.Cells.Clear();
-                result.Error = $"Row at 0x{rowBase:X08} has {tokens.Length} byte value(s) but expected {inRomSlots}. Do not add or remove byte columns.";
+                result.Error = $"Row at 0x{rowBase:X08} has a malformed byte column layout.";
                 return false;
             }
+            // Strip exactly ONE leading space (the "| " gap). Everything else is fixed.
+            string body = hexRegion.Substring(1);
 
-            for (int k = 0; k < tokens.Length; k++)
+            for (int k = 0; k < BytesPerRow; k++)
             {
-                string tok = tokens[k];
-                if (tok.Length != 2 || !IsHex(tok))
+                int pos = k * 3 + (k >= 8 ? 1 : 0);
+                uint addr = rowBase + (uint)k;
+                bool inRom = addr < romLength;
+
+                if (!inRom)
+                {
+                    // Out-of-ROM slot: the renderer wrote "   " (3 spaces). Require the
+                    // 2-char slot to be blank so a user can't smuggle bytes past EOF here.
+                    if (pos + 2 <= body.Length)
+                    {
+                        string slot = body.Substring(pos, 2);
+                        if (slot.Trim().Length != 0)
+                        {
+                            result.Cells.Clear();
+                            result.Error = $"Byte at 0x{addr:X08} is past end-of-ROM and must stay blank.";
+                            return false;
+                        }
+                    }
+                    continue;
+                }
+
+                if (pos + 2 > body.Length)
                 {
                     result.Cells.Clear();
-                    result.Error = $"Invalid byte '{tok}' at 0x{(rowBase + (uint)k):X08}. Each byte must be exactly two hex digits (00-FF).";
+                    result.Error = $"Row at 0x{rowBase:X08} is truncated at byte 0x{addr:X08}. Do not delete byte columns.";
                     return false;
                 }
-                byte value = (byte)((HexVal(tok[0]) << 4) | HexVal(tok[1]));
-                result.Cells.Add(new ByteEdit(rowBase + (uint)k, value));
+
+                // The character immediately after the slot must be the column separator
+                // space (or, after slot 7, the extra space) — enforces the fixed grid so
+                // a shifted token can't masquerade as a valid byte.
+                char c0 = body[pos], c1 = body[pos + 1];
+                if (!IsHexChar(c0) || !IsHexChar(c1))
+                {
+                    result.Cells.Clear();
+                    result.Error = $"Invalid byte '{c0}{c1}' at 0x{addr:X08}. Each byte must be exactly two hex digits (00-FF).";
+                    return false;
+                }
+                int sepPos = pos + 2;
+                if (sepPos < body.Length && body[sepPos] != ' ')
+                {
+                    result.Cells.Clear();
+                    result.Error = $"Byte at 0x{addr:X08} is not aligned to its column. Do not add or remove characters between byte columns.";
+                    return false;
+                }
+
+                byte value = (byte)((HexVal(c0) << 4) | HexVal(c1));
+                result.Cells.Add(new ByteEdit(addr, value));
+            }
+
+            // Nothing but whitespace may follow the last column (slot 15 ends at
+            // pos = 15*3+1 = 46, i.e. body[48..]). Trailing non-space content means an
+            // extra byte token was appended — reject it.
+            int afterLast = (BytesPerRow - 1) * 3 + 1 + 2; // end of slot 15's two hex chars
+            if (afterLast < body.Length && body.Substring(afterLast).Trim().Length != 0)
+            {
+                result.Cells.Clear();
+                result.Error = $"Row at 0x{rowBase:X08} has extra content after the last byte column. Do not add byte columns.";
+                return false;
             }
             return true;
         }
