@@ -357,9 +357,11 @@ namespace FEBuilderGBA
             switch (category)
             {
                 case MapEventUnitCore.CondType.Turn:
-                    // TURN N02 has the EVENT3 template; treat any non-zero TURN
-                    // type as an event-pointer surface (TURN records always carry
-                    // a real event pointer at +4).
+                    // TURN N02 ONLY: the WinForms EventCond editor attaches the
+                    // EVENT3 template button to N02_L_4_NEWALLOC_EVENT3 /
+                    // NFE702_L_4_NEWALLOC_EVENT3 (the only TURN NEWALLOC-EVENT
+                    // surfaces in EventCondForm.Designer.cs) — no other TURN
+                    // subtype exposes the Alloc-Event template.
                     return condType == 0x02;
                 case MapEventUnitCore.CondType.Talk:
                     return condType == 0x03 || condType == 0x04 || condType == 0x0D;

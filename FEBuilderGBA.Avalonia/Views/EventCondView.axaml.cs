@@ -910,7 +910,10 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.ApplyAllocCall failed: {0}", ex.Message);
+                // Log.Error takes params string[] (string.Join, NOT composite
+                // format) — a single interpolated string with the FULL exception
+                // keeps the stack trace (Avalonia Log.Error params-string trap).
+                Log.Error($"EventCondView.ApplyAllocCall failed: {ex}");
             }
         }
 
@@ -942,7 +945,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.AllocCounter_Click failed: {0}", ex.Message);
+                // Full exception via interpolation (Avalonia Log.Error params-string trap).
+                Log.Error($"EventCondView.AllocCounter_Click failed: {ex}");
             }
         }
 
