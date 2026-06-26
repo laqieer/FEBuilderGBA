@@ -26380,3 +26380,15 @@ R菜单表:
 
 :Skirmish Events (free map start / end)
 自由地图事件 (开始 / 结束)
+
+:Basic Weapons
+基础武器
+
+:Rank-up Weapons
+升级武器
+
+:Arena Enemy Weapon - Basic
+竞技场敌方武器 - 基础
+
+:Arena Enemy Weapon - Rank-up
+竞技场敌方武器 - 升级
