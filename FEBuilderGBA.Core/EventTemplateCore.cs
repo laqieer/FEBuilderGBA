@@ -270,9 +270,15 @@ namespace FEBuilderGBA
         /// <see cref="EventScript.OneCode"/> commands (one per command), the form the
         /// Avalonia event editor's <c>InsertTemplate</c> consumes (#1585). GUI-free:
         /// drives the cross-platform <see cref="EnsureEventScriptLoaded"/> disassembler,
-        /// no WinForms dependency. Returns an empty list for null/empty input. The
-        /// returned codes round-trip back to <paramref name="bin"/> (each
-        /// <c>OneCode.ByteData</c> is the original command's bytes).
+        /// no WinForms dependency. Returns an empty list for null/empty input.
+        /// <para>Round-trip: for WELL-FORMED input (a whole number of complete commands)
+        /// the concatenated <c>OneCode.ByteData</c> equals <paramref name="bin"/>. A
+        /// trailing partial command (fewer bytes than the decoded command's size) is
+        /// INTENTIONALLY DROPPED — the bounds guard refuses to emit a synthesized
+        /// zero-filled UNKNOWN that would fabricate bytes — so a short tail is not
+        /// round-tripped. Template generators (<see cref="TryGenerateButtonCodes"/> /
+        /// <see cref="TryGenerateBrowserTemplateCodes"/>) always produce whole commands,
+        /// so they round-trip exactly.</para>
         /// </summary>
         public static List<EventScript.OneCode> DisassembleToCodes(ROM rom, byte[] bin)
         {
