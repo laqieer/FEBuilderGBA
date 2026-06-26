@@ -199,8 +199,8 @@ public class ArenaEnemyWeaponRankupParityTests : IDisposable
         Assert.Contains("ArenaEnemyWeaponViewer_Rankup_Entry_List", text);
         Assert.Contains("ArenaEnemyWeaponViewer_Rankup_WeaponId_Input", text);
         Assert.Contains("ArenaEnemyWeaponViewer_Rankup_Write_Button", text);
-        Assert.Contains("ArenaEnemyWeaponViewer_Rankup_TypeLabel", text);
-        Assert.Contains("ArenaEnemyWeaponViewer_Rankup_Info", text);
+        Assert.Contains("ArenaEnemyWeaponViewer_Rankup_Type_Label", text);
+        Assert.Contains("ArenaEnemyWeaponViewer_Rankup_Info_Label", text);
     }
 
     static int CountOccurrences(string haystack, string needle)
