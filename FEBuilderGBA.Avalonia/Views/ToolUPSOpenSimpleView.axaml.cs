@@ -152,15 +152,21 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Load the patched ROM into the main window (re-inits caches/encoders for its
                 // version — implicit equivalent of WF ReOpenMainForm). Same seam used by
-                // ToolWorkSupportView after applying an update UPS.
-                if (WindowManager.Instance.MainWindow is MainWindow mw)
+                // ToolWorkSupportView after applying an update UPS. If there's no MainWindow host
+                // (e.g. a test/headless host), do NOT claim success — the patch wasn't loaded.
+                if (WindowManager.Instance.MainWindow is not MainWindow mw)
                 {
-                    bool ok = mw.LoadRomFile(savePath);
-                    if (!ok)
-                    {
-                        StatusText.Text = R._("Failed to load the patched ROM.");
-                        return;
-                    }
+                    if (isTemp) TryDeleteTemp(savePath);   // no consumer for the temp ROM
+                    StatusText.Text = R._("Failed to load the patched ROM.");
+                    return;
+                }
+
+                bool ok = mw.LoadRomFile(savePath);
+                if (!ok)
+                {
+                    if (isTemp) TryDeleteTemp(savePath);   // don't leave an orphan temp .gba
+                    StatusText.Text = R._("Failed to load the patched ROM.");
+                    return;
                 }
 
                 StatusText.Text = isTemp
@@ -175,6 +181,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("ToolUPSOpenSimpleView.Apply_Click failed: " + ex);
                 StatusText.Text = R._("Failed to apply the UPS patch.");
             }
+        }
+
+        static void TryDeleteTemp(string path)
+        {
+            try { if (File.Exists(path)) File.Delete(path); }
+            catch { /* best-effort temp cleanup */ }
         }
 
         public void NavigateTo(uint address) { }

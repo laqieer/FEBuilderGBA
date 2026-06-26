@@ -235,6 +235,29 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void ApplyUps_TruncatedUpsPastMagic_ReturnsUpsInvalidNotSourceCrcMismatch()
+        {
+            if (!_fixture.IsAvailable) { _output.WriteLine("SKIP: no ROM available"); return; }
+
+            // A file that PASSES IsUPSFile (has the 4-byte "UPS1" magic) but is too short for a
+            // real UPS (< 16 bytes) makes Core ApplyUPS return null with a "corrupted: below
+            // minimum size" message. The original is the real clean ROM (passes the clean gate),
+            // so the failure is the UPS itself — must report UpsInvalid, NOT SourceCrcMismatch
+            // (Copilot review thread #1).
+            string cleanPath = _fixture.RomPath;
+            string upsPath = Path.Combine(Path.GetTempPath(), "feb_trunc_ups_" + Guid.NewGuid().ToString("N") + ".ups");
+            try
+            {
+                File.WriteAllBytes(upsPath, new byte[] { (byte)'U', (byte)'P', (byte)'S', (byte)'1', 0x00, 0x00 });
+                var vm = new ToolUPSOpenSimpleViewModel();
+                var r = vm.ApplyUps(upsPath, cleanPath, out byte[] patched, out _);
+                Assert.Equal(ToolUPSOpenSimpleViewModel.ApplyResult.UpsInvalid, r);
+                Assert.Null(patched);
+            }
+            finally { try { File.Delete(upsPath); } catch { } }
+        }
+
+        [Fact]
         public void FindOriginalForUps_AutoDetectsCleanRomByCrc32_InUpsDir()
         {
             if (!_fixture.IsAvailable) { _output.WriteLine("SKIP: no ROM available"); return; }

@@ -149,8 +149,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] result = UPSUtilCore.ApplyUPS(src, patch, out string errorMessage);
                 if (result == null)
                 {
-                    // ApplyUPS returns null only for a hard mismatch (corrupt header / source CRC
-                    // mismatch). A source-CRC mismatch means this UPS isn't for this original ROM.
+                    // Core ApplyUPS returns null for two distinct hard failures: a corrupt UPS
+                    // (below 16 bytes / missing UPS1 header — its message contains "corrupted")
+                    // and a source-ROM CRC mismatch. IsUPSFile only checks the 4-byte magic, so a
+                    // truncated UPS reaches here; distinguish so the UI shows the right reason
+                    // (UpsInvalid vs SourceCrcMismatch) instead of always blaming the ROM CRC.
+                    if (!string.IsNullOrEmpty(errorMessage) &&
+                        errorMessage.IndexOf("corrupt", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return ApplyResult.UpsInvalid;
+                    }
                     return ApplyResult.SourceCrcMismatch;
                 }
 
