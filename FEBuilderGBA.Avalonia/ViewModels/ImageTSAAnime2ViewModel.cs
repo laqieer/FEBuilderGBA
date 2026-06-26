@@ -27,10 +27,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
 
-        // The list only exposes the FIRST v2 entry record, which lives 20 bytes
-        // after the shared header (see LoadList: tsaDataAddr = dataAddr + 20).
-        // So the header base = CurrentAddr - HEADER_SIZE, and the coupled
-        // image/palette pointers live at fixed header offsets:
+        // #1456: the list exposes EVERY 12-byte entry in a category, each living
+        // at headerBase + 20 + i*12 (see LoadList). All entries in a category
+        // share ONE header, so the IMAGE/PALETTE pointers are common while the
+        // TSA pointer varies per entry. The header base therefore comes from the
+        // per-entry map (HeaderBase, keyed on CurrentAddr), NOT an unconditional
+        // CurrentAddr - HEADER_SIZE (that formula is only valid for entry[0] and
+        // remains the fallback for raw-navigation addresses). The coupled
+        // pointers, relative to the resolved header base:
         //   palette pointer  @ headerBase + 4   (raw 0x20)
         //   image   pointer  @ headerBase + 16  (LZ77)
         //   per-entry TSA ptr @ CurrentAddr + 8 (raw header-wrapped TSA)
