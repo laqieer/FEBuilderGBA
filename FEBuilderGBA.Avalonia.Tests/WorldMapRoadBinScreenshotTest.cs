@@ -32,36 +32,29 @@ namespace FEBuilderGBA.Avalonia.Tests
             _output = output;
         }
 
-        [Fact]
+        // SkippableFact (not Fact) so true precondition gates report as SKIPPED,
+        // not a false PASS — the repo convention for ROM-gated integration tests
+        // (Copilot PR #1564 re-review). Assertions are reserved for invariants
+        // that must hold once the preconditions are met.
+        [SkippableFact]
         public void RenderRoadBinSaveLoadProof_FE8U()
         {
-            if (!_fixture.IsAvailable)
-            {
-                _output.WriteLine("SKIP: no ROM available");
-                return;
-            }
-            if (_fixture.Version != "FE8U")
-            {
-                _output.WriteLine($"SKIP: not FE8U (fixture loaded {_fixture.Version ?? "no ROM"}).");
-                return;
-            }
+            // Precondition gates -> SKIP (not PASS): the proof asserts FE8U-specific
+            // data, so it only runs when an FE8U ROM with a road pointer + at least
+            // one road entry is available.
+            Skip.IfNot(_fixture.IsAvailable, "no ROM available");
+            Skip.IfNot(_fixture.Version == "FE8U",
+                $"not FE8U (fixture loaded {_fixture.Version ?? "no ROM"}).");
             ROM rom = CoreState.ROM!;
-            if (rom.RomInfo == null || rom.RomInfo.worldmap_road_pointer == 0)
-            {
-                _output.WriteLine("SKIP: no world-map road pointer.");
-                return;
-            }
+            Skip.If(rom.RomInfo == null || rom.RomInfo.worldmap_road_pointer == 0,
+                "no world-map road pointer.");
             if (CoreState.ImageService == null)
                 CoreState.ImageService = new SkiaImageService();
 
             // Production VM: load Path 0, then exercise the new Save/Load helpers.
             var vm = new WorldMapPathEditorViewModel();
             var list = vm.LoadList();
-            if (list.Count == 0)
-            {
-                _output.WriteLine("SKIP: empty road list.");
-                return;
-            }
+            Skip.If(list.Count == 0, "empty road list.");
             vm.LoadEntry((int)list[0].tag);
             int originalCount = vm.Chips.Count;
 
