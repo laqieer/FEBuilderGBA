@@ -356,5 +356,165 @@ namespace FEBuilderGBA.Core.Tests
         // (RealRom_FE8U_BrowserCodesWithContext_*), because disassembling the substituted
         // bytes needs the real config-driven event vocabulary, which a synthetic all-zero
         // ROM does not provide.
+
+        // ================================================================
+        // EventCond-RECORD Alloc-Event side effects (#1592):
+        //   ResolveCallTemplate / CounterReinforcementSideEffects /
+        //   IsEventPointerSurface.
+        // ================================================================
+
+        // ---- ResolveCallTemplate: Call1 ------------------------------------
+
+        [Fact]
+        public void ResolveCallTemplate_Call1_WritesLiteralOne_NoFlag()
+        {
+            // CALL_1 is always resolvable and writes the literal value 1 into the
+            // event-pointer field with NO victory flag (WF EventTemplate*Form
+            // CALL_1_button_Click → src_object.Value = 1).
+            ROM rom = MakeFE8U();
+            var eff = EventEditorHostContext.ResolveCallTemplate(rom, U.NOT_FOUND,
+                EventEditorHostContext.AllocTemplateChoice.Call1);
+            Assert.True(eff.Resolvable);
+            Assert.True(eff.HasEventPtr);
+            Assert.Equal(1u, eff.EventPtr);
+            Assert.False(eff.SetFlag03);
+            Assert.False(eff.CounterReinforcement);
+        }
+
+        // ---- ResolveCallTemplate: CALL_EndEvent refuse gates ----------------
+
+        [Fact]
+        public void ResolveCallTemplate_CallEndEvent_InvalidMap_Refuses()
+        {
+            // Invalid-map guard (finding #4): mapid == NOT_FOUND must refuse
+            // BEFORE ResolveEndEvent — no wrapped/garbage map id is resolved.
+            ROM rom = MakeFE8U();
+            var eff = EventEditorHostContext.ResolveCallTemplate(rom, U.NOT_FOUND,
+                EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
+            Assert.False(eff.Resolvable);
+            Assert.False(eff.HasEventPtr);
+        }
+
+        [Fact]
+        public void ResolveCallTemplate_CallEndEvent_NoEndEvent_Refuses()
+        {
+            // A ROM with no resolvable chapter END_EVENT pointer must refuse
+            // (no silent garbage pointer). The all-zero synthetic ROM has no map
+            // chain, so ResolveEndEvent returns NOT_FOUND.
+            ROM rom = MakeFE8U();
+            var eff = EventEditorHostContext.ResolveCallTemplate(rom, 0,
+                EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
+            Assert.False(eff.Resolvable);
+            Assert.False(eff.HasEventPtr);
+        }
+
+        [Fact]
+        public void ResolveCallTemplate_NullRom_CallEndEvent_Refuses()
+        {
+            var eff = EventEditorHostContext.ResolveCallTemplate(null, 0,
+                EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
+            Assert.False(eff.Resolvable);
+        }
+
+        // ---- ResolveCallTemplate: CALL_EndEvent SUCCESS (full chain) --------
+
+        [Fact]
+        public void ResolveCallTemplate_CallEndEvent_Resolvable_WritesPointerAndFlag()
+        {
+            // Build the full map→plist→cond-block→END_EVENT chain so ResolveEndEvent
+            // returns a real address; the CALL_EndEvent template must then write
+            // U.toPointer(endAddr) into the event-pointer field AND set W2=0x03.
+            ROM rom = MakeFE8U();
+            const uint mapId = 0;
+            const uint endEventOff = 0x40000;   // the chapter end-event target
+            BuildEndEventChain(rom, mapId, plist: 1, condBlockOff: 0x30000, endEventOff: endEventOff);
+
+            // sanity: ResolveEndEvent sees the wired end-event.
+            Assert.Equal(endEventOff, EventEditorHostContext.ResolveEndEvent(rom, mapId));
+
+            var eff = EventEditorHostContext.ResolveCallTemplate(rom, mapId,
+                EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
+            Assert.True(eff.Resolvable);
+            Assert.True(eff.HasEventPtr);
+            Assert.Equal(U.toPointer(endEventOff), eff.EventPtr);
+            Assert.True(eff.SetFlag03);
+            Assert.False(eff.CounterReinforcement);
+        }
+
+        // ---- CounterReinforcementSideEffects --------------------------------
+
+        [Fact]
+        public void CounterReinforcementSideEffects_FlagsCounterOnly()
+        {
+            var eff = EventEditorHostContext.CounterReinforcementSideEffects();
+            Assert.True(eff.Resolvable);
+            Assert.True(eff.CounterReinforcement);
+            Assert.False(eff.HasEventPtr);
+            Assert.False(eff.SetFlag03);
+        }
+
+        // ---- IsEventPointerSurface gate (finding #3) ------------------------
+
+        [Theory]
+        // TURN N02
+        [InlineData(MapEventUnitCore.CondType.Turn, 0x02u, true)]
+        [InlineData(MapEventUnitCore.CondType.Turn, 0x00u, false)]
+        // TALK N03/N04/N0D
+        [InlineData(MapEventUnitCore.CondType.Talk, 0x03u, true)]
+        [InlineData(MapEventUnitCore.CondType.Talk, 0x04u, true)]
+        [InlineData(MapEventUnitCore.CondType.Talk, 0x0Du, true)]
+        [InlineData(MapEventUnitCore.CondType.Talk, 0x07u, false)]
+        // OBJECT N06/N08 yes; N05/N07 chest + N0A shop NO
+        [InlineData(MapEventUnitCore.CondType.Object, 0x06u, true)]
+        [InlineData(MapEventUnitCore.CondType.Object, 0x08u, true)]
+        [InlineData(MapEventUnitCore.CondType.Object, 0x05u, false)]
+        [InlineData(MapEventUnitCore.CondType.Object, 0x07u, false)]
+        [InlineData(MapEventUnitCore.CondType.Object, 0x0Au, false)]
+        // ALWAYS N01/N0B/N0D/N0E
+        [InlineData(MapEventUnitCore.CondType.Always, 0x01u, true)]
+        [InlineData(MapEventUnitCore.CondType.Always, 0x0Bu, true)]
+        [InlineData(MapEventUnitCore.CondType.Always, 0x0Du, true)]
+        [InlineData(MapEventUnitCore.CondType.Always, 0x0Eu, true)]
+        [InlineData(MapEventUnitCore.CondType.Always, 0x05u, false)]
+        // pointer-only / TRAP / TUTORIAL are never event-pointer surfaces
+        [InlineData(MapEventUnitCore.CondType.Trap, 0x01u, false)]
+        [InlineData(MapEventUnitCore.CondType.Tutorial, 0x01u, false)]
+        [InlineData(MapEventUnitCore.CondType.EndEvent, 0x00u, false)]
+        [InlineData(MapEventUnitCore.CondType.PlayerUnit, 0x00u, false)]
+        public void IsEventPointerSurface_MatchesNewAllocSurfaces(
+            MapEventUnitCore.CondType cat, uint condType, bool expected)
+        {
+            Assert.Equal(expected, EventEditorHostContext.IsEventPointerSurface(cat, condType));
+        }
+
+        // ---- helper: build the map→plist→cond→END_EVENT chain ---------------
+
+        // Wires a synthetic FE8 chain so ResolveEndEvent(rom, mapId) returns
+        // endEventOff. The cond block's EndEvent slot is index 19 on FE8.
+        static void BuildEndEventChain(ROM rom, uint mapId, uint plist, uint condBlockOff, uint endEventOff)
+        {
+            var ri = rom.RomInfo;
+
+            // 1) map setting table: map_setting_pointer -> base; map[mapId] at
+            //    +map_setting_event_plist_pos holds the plist byte.
+            uint mapBase = 0x10000;
+            U.write_u32(rom.Data, U.toOffset(ri.map_setting_pointer), U.toPointer(mapBase));
+            uint mapAddr = mapBase + mapId * ri.map_setting_datasize;
+            // MakeMapIDList / IsMapSettingValid walks rows; we only need GetMapAddr,
+            // which indexes directly. Write the event plist byte.
+            rom.Data[mapAddr + ri.map_setting_event_plist_pos] = (byte)plist;
+
+            // 2) event pointer table: map_event_pointer -> table base; table[plist]
+            //    holds the cond block address.
+            uint tableBase = 0x20000;
+            U.write_u32(rom.Data, U.toOffset(ri.map_event_pointer), U.toPointer(tableBase));
+            U.write_u32(rom.Data, tableBase + plist * 4, U.toPointer(condBlockOff));
+
+            // 3) cond block: slot 19 (FE8 EndEvent) holds the end-event pointer.
+            var slots = MapEventUnitCore.GetCondSlots(rom);
+            int endIdx = slots.FindIndex(s => s.Type == MapEventUnitCore.CondType.EndEvent);
+            Assert.True(endIdx >= 0);
+            U.write_u32(rom.Data, condBlockOff + (uint)(endIdx * 4), U.toPointer(endEventOff));
+        }
     }
 }

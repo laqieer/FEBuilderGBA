@@ -1534,6 +1534,233 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1592 — EventCond-record Alloc-Event side effects (numbered CALL
+    // buttons + W2/B8/B9 + counter reinforcement).
+    // -----------------------------------------------------------------
+
+    [Theory]
+    [InlineData("EventCond_AllocTemplate_Panel")]
+    [InlineData("EventCond_AllocCallEndEvent_Button")]
+    [InlineData("EventCond_AllocCall1_Button")]
+    [InlineData("EventCond_AllocCounter_Button")]
+    public void View_DeclaresAllocTemplateAutomationId(string automationId)
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml");
+        string content = File.ReadAllText(axamlPath);
+        Assert.Contains(automationId, content);
+    }
+
+    [Theory]
+    [InlineData("AllocCallEndEvent_Click")]
+    [InlineData("AllocCall1_Click")]
+    [InlineData("AllocCounter_Click")]
+    public void View_AllocHandlers_WrapInUndoScopeWithRollback(string handler)
+    {
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+        // The CALL handlers delegate to ApplyAllocCall; assert the shared
+        // helper + the counter handler each open/commit/rollback an undo scope.
+        if (handler == "AllocCounter_Click")
+        {
+            Assert.Matches(new Regex(@"void\s+AllocCounter_Click\([^)]*\)\s*\{[\s\S]*?_undoService\.Begin\(", RegexOptions.Singleline), source);
+            Assert.Matches(new Regex(@"void\s+AllocCounter_Click\([^)]*\)\s*\{[\s\S]*?_undoService\.Commit\(\)", RegexOptions.Singleline), source);
+            Assert.Matches(new Regex(@"void\s+AllocCounter_Click\([^)]*\)\s*\{[\s\S]*?_undoService\.Rollback\(\)", RegexOptions.Singleline), source);
+        }
+        else
+        {
+            // CALL handlers route through ApplyAllocCall — verify that helper
+            // wraps in begin/commit/rollback.
+            Assert.Contains(handler, source);
+            Assert.Matches(new Regex(@"void\s+ApplyAllocCall\([^)]*\)\s*\{[\s\S]*?_undoService\.Begin\(", RegexOptions.Singleline), source);
+            Assert.Matches(new Regex(@"void\s+ApplyAllocCall\([^)]*\)\s*\{[\s\S]*?_undoService\.Commit\(\)", RegexOptions.Singleline), source);
+            Assert.Matches(new Regex(@"void\s+ApplyAllocCall\([^)]*\)\s*\{[\s\S]*?_undoService\.Rollback\(\)", RegexOptions.Singleline), source);
+        }
+    }
+
+    // Load a TURN slot record into the VM so the alloc-template gate is open.
+    static EventCondViewModel MakeTurnRecordVm(ROM rom, uint recordAddr, uint condType = 0x02)
+    {
+        if (EventCondViewModel.SlotDefs.Count == 0)
+            EventCondViewModel.LoadSlotDefs();
+        // FE8 slot 0 is TURN.
+        int turnSlot = -1;
+        for (int i = 0; i < EventCondViewModel.SlotDefs.Count; i++)
+            if (EventCondViewModel.SlotDefs[i].Category == CondCategory.TURN) { turnSlot = i; break; }
+        Assert.True(turnSlot >= 0, "no TURN slot in defs");
+
+        var vm = new EventCondViewModel();
+        vm.SelectedSlotIndex = turnSlot;
+        vm.IsPointerSlot = false;
+        vm.CondRecordAddr = recordAddr;
+        vm.CondRecordSize = 12;
+        vm.CondType = condType;
+        return vm;
+    }
+
+    [Fact]
+    public void ViewModel_CanAllocCallTemplate_TrueForTurnN02_FalseForPointerSlot()
+    {
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = MakeTurnRecordVm(rom, 0x00010000, condType: 0x02);
+            Assert.True(vm.CanAllocCallTemplate);
+            Assert.True(vm.CanAllocCounterReinforcement);
+
+            // Pointer-only slot ⇒ gate closed.
+            vm.IsPointerSlot = true;
+            Assert.False(vm.CanAllocCallTemplate);
+            Assert.False(vm.CanAllocCounterReinforcement);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_CanAllocCallTemplate_FalseForChestObject()
+    {
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            if (EventCondViewModel.SlotDefs.Count == 0)
+                EventCondViewModel.LoadSlotDefs();
+            int objSlot = -1;
+            for (int i = 0; i < EventCondViewModel.SlotDefs.Count; i++)
+                if (EventCondViewModel.SlotDefs[i].Category == CondCategory.OBJECT) { objSlot = i; break; }
+            Assert.True(objSlot >= 0);
+
+            var vm = new EventCondViewModel();
+            vm.SelectedSlotIndex = objSlot;
+            vm.CondRecordAddr = 0x00010000;
+            vm.CondRecordSize = 12;
+            // OBJECT N07 (chest) packs +4 — NOT an event-pointer surface.
+            vm.CondType = 0x07;
+            Assert.False(vm.CanAllocCallTemplate);
+            // OBJECT N06 (Visit Village) IS an event-pointer surface.
+            vm.CondType = 0x06;
+            Assert.True(vm.CanAllocCallTemplate);
+            // Counter is TURN-only — never for OBJECT.
+            Assert.False(vm.CanAllocCounterReinforcement);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ApplyAllocCall_Call1_ThrowsWithoutUndoScope()
+    {
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = MakeTurnRecordVm(rom, 0x00010000, condType: 0x02);
+            // Resolvable (Call1) but no undo scope ⇒ WriteCondRecord throws.
+            Assert.Throws<InvalidOperationException>(() =>
+                vm.ApplyAllocCallTemplate(EventEditorHostContext.AllocTemplateChoice.Call1));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ApplyAllocCall_Call1_WritesLiteralOne_UnderScope()
+    {
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = MakeTurnRecordVm(rom, 0x00010000, condType: 0x02);
+            var undoData = new Undo.UndoData
+            {
+                time = DateTime.Now, name = "t",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+            {
+                ok = vm.ApplyAllocCallTemplate(EventEditorHostContext.AllocTemplateChoice.Call1);
+            }
+            Assert.True(ok);
+            // Event pointer field (+4) == literal 1.
+            Assert.Equal(1u, rom.u32(0x00010000 + 4));
+            // Call1 does NOT set the victory flag (W2 @ +2).
+            Assert.Equal(0u, rom.u16(0x00010000 + 2));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ApplyAllocCall_CallEndEvent_RefusesWhenUnresolvable()
+    {
+        // No map/end-event chain ⇒ ResolveCallTemplate refuses ⇒ no mutation,
+        // returns false (the caller rolls back).
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = MakeTurnRecordVm(rom, 0x00010000, condType: 0x02);
+            vm.SelectedMapId = U.NOT_FOUND; // explicit no-map
+            // Pre-seed +4 with a sentinel; refusal must leave it untouched.
+            rom.write_u32(0x00010000 + 4, 0xCAFEBABE);
+
+            var undoData = new Undo.UndoData
+            {
+                time = DateTime.Now, name = "t",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+            {
+                ok = vm.ApplyAllocCallTemplate(EventEditorHostContext.AllocTemplateChoice.CallEndEvent);
+            }
+            Assert.False(ok);
+            Assert.Equal(0xCAFEBABEu, rom.u32(0x00010000 + 4)); // untouched
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ApplyCounterReinforcement_SetsTurn1To255AndPointer()
+    {
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = MakeTurnRecordVm(rom, 0x00010000, condType: 0x02);
+            var undoData = new Undo.UndoData
+            {
+                time = DateTime.Now, name = "t",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+            {
+                ok = vm.ApplyCounterReinforcement();
+            }
+            Assert.True(ok);
+            // B8 (+8) = 1, B9 (+9) = 255 (TURN start/end).
+            Assert.Equal((byte)1, rom.u8(0x00010000 + 8));
+            Assert.Equal((byte)255, rom.u8(0x00010000 + 9));
+            // Event pointer (+4) points at the freshly-allocated counter event.
+            Assert.True(U.isPointer(rom.u32(0x00010000 + 4)),
+                "counter event pointer must be a valid GBA pointer");
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

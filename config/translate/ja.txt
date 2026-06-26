@@ -12642,3 +12642,24 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Write failed
 書き込みに失敗しました
+
+:Alloc Event (Template)
+イベント割り当て（テンプレート）
+
+:CALL EndEvent
+CALL EndEvent
+
+:CALL 1
+CALL 1
+
+:Counter Reinforcement
+カウンターによる増援
+
+:Call the chapter end-event and set the victory flag (W2=3)
+章の終了イベントを呼び出し、勝利フラグ（W2=3）を立てます
+
+:Write the literal event-pointer value 1
+イベントポインタに値1をそのまま書き込みます
+
+:Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)
+カウンター増援イベントを割り当て、このTURNを1-255に設定します（B8=1, B9=255）

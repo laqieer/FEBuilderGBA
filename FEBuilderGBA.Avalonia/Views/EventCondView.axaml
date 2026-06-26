@@ -344,6 +344,21 @@
           </StackPanel>
         </Border>
 
+        <!-- Alloc Event Template panel (#1592): the WinForms EventCond Alloc-Event
+             template record side effects — numbered CALL buttons + counter
+             reinforcement. Shown only for NEWALLOC-EVENT surfaces (TURN/TALK/
+             OBJECT/ALWAYS event-pointer records). -->
+        <Border AutomationProperties.AutomationId="EventCond_AllocTemplate_Panel" Name="AllocTemplatePanel" BorderBrush="Gray" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Alloc Event (Template)" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button AutomationProperties.AutomationId="EventCond_AllocCallEndEvent_Button" Content="CALL EndEvent" Name="AllocCallEndEventBtn" Click="AllocCallEndEvent_Click" ToolTip.Tip="Call the chapter end-event and set the victory flag (W2=3)" />
+              <Button AutomationProperties.AutomationId="EventCond_AllocCall1_Button" Content="CALL 1" Name="AllocCall1Btn" Click="AllocCall1_Click" ToolTip.Tip="Write the literal event-pointer value 1" />
+            </StackPanel>
+            <Button AutomationProperties.AutomationId="EventCond_AllocCounter_Button" Content="Counter Reinforcement" Name="AllocCounterBtn" Click="AllocCounter_Click" IsVisible="False" ToolTip.Tip="Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)" />
+          </StackPanel>
+        </Border>
+
         <!-- Raw hex dump for reference -->
         <TextBlock Text="Raw Hex:" FontWeight="Bold" Margin="0,16,0,4" />
         <TextBlock AutomationProperties.AutomationId="EventCond_RawHex_Label" Name="RawHexLabel" FontFamily="Consolas,Courier New,monospace" TextWrapping="Wrap" />

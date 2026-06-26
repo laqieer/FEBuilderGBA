@@ -26476,3 +26476,24 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Write failed
 写入失败
+
+:Alloc Event (Template)
+分配事件（模板）
+
+:CALL EndEvent
+CALL EndEvent
+
+:CALL 1
+CALL 1
+
+:Counter Reinforcement
+计数器增援
+
+:Call the chapter end-event and set the victory flag (W2=3)
+调用章节结束事件并设置胜利标志（W2=3）
+
+:Write the literal event-pointer value 1
+将事件指针直接写入值 1
+
+:Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)
+分配计数器增援事件并将此 TURN 设为 1-255（B8=1, B9=255）
