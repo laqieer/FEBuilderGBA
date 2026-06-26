@@ -579,17 +579,25 @@ namespace FEBuilderGBA.Avalonia.Controls
             string? clipboardListName = null,
             string? clipboardFormName = null)
         {
-            if (_structuralEditEnabled) return; // idempotent
             if (blockSize <= 0 || reload == null) return;
 
-            _structuralEditEnabled = true;
+            // ALWAYS refresh the stored mutation parameters: a host window can be reused
+            // across a ROM reload (desktop navigation reuses visible windows), so a later
+            // call must be able to update the block size / reload delegate / clipboard
+            // identity — otherwise a stale header or wrong block size could drive an
+            // incorrect write (Copilot review). Only the WIRING (menu items + KeyDown
+            // handler, and the useSwap/useClear menu shape) is one-shot.
             _blockSize = blockSize;
             _reload = reload;
             _writeProtectId00 = writeProtectId00;
-            _useSwap = useSwap;
-            _useClear = useClear;
             if (!string.IsNullOrEmpty(clipboardListName)) _clipboardListName = clipboardListName!;
             if (!string.IsNullOrEmpty(clipboardFormName)) _clipboardFormName = clipboardFormName!;
+
+            if (_structuralEditEnabled) return; // wiring already done — params refreshed above
+
+            _structuralEditEnabled = true;
+            _useSwap = useSwap;
+            _useClear = useClear;
 
             var menu = AddressList.ContextMenu;
             if (menu != null)
@@ -690,7 +698,11 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (originalIndex < 0 || originalIndex >= _items.Count) return true;
             var item = _items[originalIndex];
             var rom = CoreState.ROM;
-            uint id = rom != null && U.isSafetyOffset(item.addr + 1) ? rom.u16(item.addr) : 0;
+            // Validate BOTH bytes of the u16 read: at addr==0x1FF, addr+1==0x200 passes
+            // the >=0x200 check but the read still touches the unsafe 0x1FF byte, so guard
+            // the low byte too (Copilot review).
+            uint id = rom != null && U.isSafetyOffset(item.addr) && U.isSafetyOffset(item.addr + 1)
+                ? rom.u16(item.addr) : 0;
             if (_writeProtectId00(id)) return true;
             CoreState.Services?.ShowError(R._("00のデータの変更は許可されていません。"));
             return false;
@@ -839,7 +851,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (!U.isSafetyOffset(dest) || !U.isSafetyOffset((uint)(dest + _blockSize - 1))) return;
             if (!CheckWriteProtectionId00()) return;
 
-            if (CoreState.Services?.ShowYesNo(R._("このデータを消去してもよろしいですか？")) != true)
+            // Use the FULL WinForms ClearData prompt (WF InputFormRef.ClearData) so the
+            // user gets the "this row becomes the list terminator" warning AND the
+            // existing ja→en/zh translation for the complete key applies (Copilot review).
+            if (CoreState.Services?.ShowYesNo(R._("このデータを消去してもよろしいですか？\r\nこのデータが終端になり、このデータまでが有効なデータとなります。")) != true)
                 return;
 
             byte[] data = AddressListClipboardCore.BuildCleared(_blockSize);

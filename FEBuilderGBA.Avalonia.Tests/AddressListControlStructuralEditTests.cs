@@ -154,9 +154,39 @@ public class AddressListControlStructuralEditTests : System.IDisposable
     {
         var control = MakeEnabledControl(3, new YesServices());
         int after1 = MenuItemCount(control);
-        // Second call must be a no-op.
+        // Second call must NOT duplicate menu items (wiring is one-shot).
         control.EnableStructuralEdit(BlockSize, () => MakeItems(3), useSwap: true, useClear: true);
         Assert.Equal(after1, MenuItemCount(control));
+    }
+
+    [AvaloniaFact]
+    public void Enable_SecondCall_RefreshesClipboardIdentity_WithoutDuplicatingMenu()
+    {
+        // A reused window across a ROM reload must be able to update the clipboard
+        // identity / block size on a later EnableStructuralEdit call (Copilot review):
+        // the wiring stays one-shot, but the stored params refresh.
+        var rom = MakeRom(3);
+        var control = MakeEnabledControl(3, new YesServices()); // identity = AddressList@SoundRoomForm
+        int menuAfterFirst = MenuItemCount(control);
+
+        // Re-enable with a DIFFERENT form name (e.g. FE6 after a ROM swap).
+        control.EnableStructuralEdit(BlockSize, () => MakeItems(3),
+            useSwap: true, useClear: true,
+            clipboardListName: "AddressList", clipboardFormName: "SoundRoomFE6Form");
+
+        // Menu not duplicated.
+        Assert.Equal(menuAfterFirst, MenuItemCount(control));
+
+        // Paste now requires the NEW header; the OLD header is rejected.
+        control.SelectByIndex(1);
+        string oldHeaderText = AddressListClipboardCore.Serialize("AddressList", "SoundRoomForm",
+            new byte[] { 1, 2, 3, 4 });
+        Assert.False(control.PasteFromText(oldHeaderText));
+
+        string newHeaderText = AddressListClipboardCore.Serialize("AddressList", "SoundRoomFE6Form",
+            new byte[] { 0x55, 0x66, 0x77, 0x88 });
+        Assert.True(control.PasteFromText(newHeaderText));
+        Assert.Equal(0x55u, rom.u8(Base + 4));
     }
 
     // ---- Paste --------------------------------------------------------
