@@ -980,6 +980,15 @@ namespace FEBuilderGBA
             str = RegexCache.Replace(str, s_regexSearch, "_");
             return str;
         }
+        /// <summary>
+        /// True when <paramref name="str"/> contains characters that are not
+        /// valid in a filename (ports WinForms <c>U.IsBadFilename</c>: the name
+        /// is "bad" when escaping it changes it).
+        /// </summary>
+        public static bool IsBadFilename(string str)
+        {
+            return (escape_filename(str) != str);
+        }
         public static void WriteAllBytes(string path, byte[] bytes)
         {
             try

@@ -26326,3 +26326,9 @@ Boss对话 (16字节)
 :RMenu Table:
 R菜单表:
 
+
+:Please enter a new project name.
+请输入新的工程名称。
+
+:The new name is the same as the current name.
+新名称与当前名称相同。
