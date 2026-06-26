@@ -26398,3 +26398,6 @@ R菜单表:
 
 :Log folder not found
 未找到日志文件夹
+
+:TEXT
+文本
