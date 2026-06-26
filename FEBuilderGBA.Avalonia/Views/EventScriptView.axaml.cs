@@ -154,5 +154,25 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CommandsList.ItemCount > 0)
                 CommandsList.SelectedIndex = 0;
         }
+
+        /// <summary>True once a script has been disassembled into the editable list, so an
+        /// in-editor template insert has somewhere to land (#1585 — the template browser
+        /// gates "Send to Event Editor" on this).</summary>
+        public bool HasLoadedScript => _vm.CommandCount > 0;
+
+        /// <summary>
+        /// Insert a generated template (a list of editable commands) at the current
+        /// selection (#1585 in-editor template insert). Returns false when no script is
+        /// loaded yet (the user must disassemble an event first — InsertTemplate refuses
+        /// against an empty list) or when <paramref name="codes"/> is empty. On success
+        /// the list + read-only view + selection are refreshed and the script is marked
+        /// dirty (the user reviews then clicks Write All).
+        /// </summary>
+        public bool InsertCurrentTemplate(System.Collections.Generic.IList<EventScript.OneCode> codes)
+        {
+            bool ok = _vm.InsertTemplate(codes);
+            AfterEdit();
+            return ok;
+        }
     }
 }

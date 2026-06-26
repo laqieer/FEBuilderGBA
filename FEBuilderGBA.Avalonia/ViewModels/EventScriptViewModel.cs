@@ -236,7 +236,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _pendingWorldMap = false;
             _pendingTopLevel = false;
 
-            _editor = new EventScriptEditorCore(_es);
+            // Pass ScriptType so a Write-All on a list whose terminal command was deleted
+            // appends the correct family terminator (Procs `End`, not an FE event
+            // terminator — Copilot #1585 finding #1).
+            _editor = new EventScriptEditorCore(_es, ScriptType);
             _editor.BuildFromRom(rom, offset, IsWorldMapEvent);
 
             // Set CurrentAddr BEFORE RefreshDisplay — RefreshDisplay formats every command's
@@ -453,6 +456,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         StatusText = "Could not find free space for the grown script. ROM unchanged.";
                         return false;
 
+                    case EventScriptEditorCore.WriteResult.NoTerminator:
+                        // Procs/AI safety refusal (#1585): the terminal command was removed and
+                        // there is no family TERM to append — refuse rather than write an FE
+                        // event terminator into a non-event stream.
+                        StatusText = "Refused: this " + ScriptType + " script has no terminating command. " +
+                                     "Add the script's End/TERM command before writing. ROM unchanged.";
+                        return false;
+
                     case EventScriptEditorCore.WriteResult.UnsafeAddress:
                         StatusText = "Unsafe target address: must be 4-byte aligned and within the " +
                                      "safe ROM range (>= 0x200, not the header/BIOS). ROM unchanged.";
@@ -475,7 +486,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || _es == null) return;
-            _editor = new EventScriptEditorCore(_es);
+            _editor = new EventScriptEditorCore(_es, ScriptType);
             _editor.BuildFromRom(rom, newOffset, IsWorldMapEvent);
             RefreshDisplay();
         }

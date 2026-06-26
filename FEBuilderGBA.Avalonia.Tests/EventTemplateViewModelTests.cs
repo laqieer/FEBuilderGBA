@@ -110,6 +110,36 @@ public class EventTemplateViewModelTests : IClassFixture<RomFixture>
         Assert.False(vm.HasGenerated);            // never copyable
         Assert.True(string.IsNullOrEmpty(vm.GeneratedHex));
         Assert.False(string.IsNullOrEmpty(vm.Status)); // honest status shown
+
+        // #1585: context-required template yields NO codes for in-editor insert either.
+        var codes = vm.GetGeneratedCodes();
+        Assert.NotNull(codes);
+        Assert.Empty(codes);
+    }
+
+    [Fact]
+    public void Browser_GeneratableTemplate_GetGeneratedCodes_ReturnsCommands()
+    {
+        // #1585 in-editor template insert: a placeholder-free template must yield a
+        // non-empty list of editable commands for "Send to Event Editor".
+        if (Skip()) return;
+        var vm = new EventScriptTemplateViewModel();
+        vm.LoadList();
+
+        // Find a generatable (placeholder-free) entry: select each and stop on first
+        // that produced hex.
+        for (int i = 0; i < vm.TemplateInfos.Count; i++)
+        {
+            vm.SelectedIndex = i;
+            if (vm.HasGenerated)
+            {
+                var codes = vm.GetGeneratedCodes();
+                Assert.NotNull(codes);
+                Assert.NotEmpty(codes);
+                return;
+            }
+        }
+        _output.WriteLine("No generatable template in shipped list — skipping.");
     }
 
     static EventTemplateViewModelBase MakeVm(int n) => n switch

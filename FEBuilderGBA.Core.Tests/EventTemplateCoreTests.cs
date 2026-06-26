@@ -387,6 +387,113 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- #1585: codes-returning helpers (in-editor template insert) ----
+
+        [Fact]
+        public void TryGenerateButtonCodes_NoRom_ReturnsNoRom_EmptyCodes()
+        {
+            var btn = EventTemplateCore.GetTemplateButtons(1)[0];
+            var r = EventTemplateCore.TryGenerateButtonCodes(null, btn, out var codes);
+            Assert.Equal(EventTemplateCore.GenerateResult.NoRom, r);
+            Assert.NotNull(codes);
+            Assert.Empty(codes);
+        }
+
+        [Fact]
+        public void DisassembleToCodes_NullOrEmpty_ReturnsEmpty()
+        {
+            var rom = MakeFE8U();
+            Assert.Empty(EventTemplateCore.DisassembleToCodes(rom, null));
+            Assert.Empty(EventTemplateCore.DisassembleToCodes(rom, new byte[0]));
+            Assert.Empty(EventTemplateCore.DisassembleToCodes(null, new byte[] { 0, 0, 0, 0 }));
+        }
+
+        [Fact]
+        public void RealRom_FE8U_TryGenerateButtonCodes_ReturnsRoundTrippingCodes()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip when no ROM available
+
+            var savedRom = CoreState.ROM;
+            var savedEs = CoreState.EventScript;
+            var savedEnc = CoreState.SystemTextEncoder;
+            var savedComment = CoreState.CommentCache;
+            var savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = FindRepoConfigBase()
+                    ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                if (CoreState.CommentCache == null) CoreState.CommentCache = new HeadlessEtcCache();
+                CoreState.EventScript = null;
+
+                // VILLAGE_TALK is placeholder-free → Ok + non-empty disassembled codes.
+                var villageTalk = EventTemplateCore.GetTemplateButtons(1)[1];
+                var r = EventTemplateCore.TryGenerateButtonCodes(rom, villageTalk, out var codes);
+                Assert.Equal(EventTemplateCore.GenerateResult.Ok, r);
+                Assert.NotEmpty(codes);
+
+                // Codes round-trip back to the same bytes as TryGenerateButton (no loss).
+                EventTemplateCore.TryGenerateButton(rom, villageTalk, out byte[] bin);
+                var concat = new List<byte>();
+                foreach (var c in codes)
+                    if (c?.ByteData != null) concat.AddRange(c.ByteData);
+                Assert.Equal(bin, concat.ToArray());
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.EventScript = savedEs;
+                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.CommentCache = savedComment;
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
+        [Fact]
+        public void RealRom_FE8U_BrowserCodes_ContextRequired_ReturnsEmptyAndGated()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip
+
+            var savedRom = CoreState.ROM;
+            var savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = FindRepoConfigBase()
+                    ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+                CoreState.ROM = rom;
+
+                var templates = EventTemplateCore.LoadBrowserTemplates(rom);
+                Assert.NotEmpty(templates);
+
+                bool sawContextRequired = false;
+                foreach (var et in templates)
+                {
+                    var r = EventTemplateCore.TryGenerateBrowserTemplateCodes(rom, et, out var codes);
+                    Assert.NotNull(codes);
+                    if (et.RequiresContext)
+                    {
+                        sawContextRequired = true;
+                        // context-required NEVER yields partial codes.
+                        Assert.Equal(EventTemplateCore.GenerateResult.RequiresEditorContext, r);
+                        Assert.Empty(codes);
+                    }
+                }
+                Assert.True(sawContextRequired);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.BaseDirectory = savedBaseDir;
+            }
+        }
+
         // ---- helpers ------------------------------------------------------
 
         static string FindRom(string romName)

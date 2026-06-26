@@ -53,6 +53,50 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Insert the currently-generated (placeholder-free) template directly into the
+        /// open Event Script editor (#1585 in-editor template insert). Opens/activates
+        /// <see cref="EventScriptView"/> and calls its <c>InsertCurrentTemplate</c>. The
+        /// target editor must already have a script DISASSEMBLED — InsertTemplate refuses
+        /// against an empty list — so if no script is loaded we guide the user to
+        /// disassemble an event first rather than silently doing nothing (Copilot plan
+        /// review #1585 finding #2).
+        /// </summary>
+        void SendToEditor_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var codes = _vm.GetGeneratedCodes();
+                if (codes == null || codes.Count == 0)
+                {
+                    _vm.Status = R._("Nothing to send: select a generatable (placeholder-free) template first.");
+                    return;
+                }
+
+                var view = WindowManager.Instance.Open<EventScriptView>();
+                if (view == null)
+                {
+                    _vm.Status = R._("Could not open the Event Script editor.");
+                    return;
+                }
+                if (!view.HasLoadedScript)
+                {
+                    _vm.Status = R._("Open the Event Script editor and Disassemble an event address first, then Send to Event Editor.");
+                    return;
+                }
+
+                bool ok = view.InsertCurrentTemplate(codes);
+                _vm.Status = ok
+                    ? string.Format(R._("Inserted {0} command(s) into the Event Script editor. Review, then Write All."), codes.Count)
+                    : R._("Insert failed: disassemble an event in the Event Script editor first.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventScriptTemplateView.SendToEditor failed: " + ex.ToString());
+                _vm.Status = R._("Send to editor failed.");
+            }
+        }
+
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
     }
