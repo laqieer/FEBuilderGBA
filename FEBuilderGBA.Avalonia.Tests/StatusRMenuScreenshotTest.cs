@@ -71,15 +71,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 // After Opened: 6 table entries on FE8, EntryList has the 2 nodes.
                 Assert.Equal(6, combo!.ItemCount);
+                // Explicitly select NodeA so the assertion documents the intended
+                // selection dependency rather than relying on SetItems auto-select
+                // (Copilot PR #1566 review hardening note).
+                view.NavigateTo(NodeA);
                 Assert.True(view.IsLoaded);
-            }
-            finally
-            {
-                view.Close();
-            }
 
-            try
-            {
+                // Render the OPEN view (closing first yields a blank/throwing
+                // bitmap — Copilot PR #1566 review thread on line 95).
                 using var bitmap = new RenderTargetBitmap(new PixelSize(VW, VH));
                 bitmap.Render(view);
 
@@ -92,6 +91,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             catch (Exception ex)
             {
                 _output.WriteLine($"Headless PNG save no-op (UseHeadlessDrawing, not the #1459 fix): {ex.Message}");
+            }
+            finally
+            {
+                view.Close();
             }
         }
 

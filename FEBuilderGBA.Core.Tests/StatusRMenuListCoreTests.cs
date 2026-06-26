@@ -50,7 +50,13 @@ namespace FEBuilderGBA.Core.Tests
             var rom = new ROM();
             rom.LoadLow("rmenu.gba", new byte[RomSize], "NAZO");
             var info = new RMenuStubRomInfo(ver, r0, r1, r2, r3, r4, r5);
-            typeof(ROM).GetProperty("RomInfo")?.GetSetMethod(true)?.Invoke(rom, new object[] { info });
+            // Assert the non-public setter still exists so a future ROM.RomInfo
+            // refactor can't turn this injection into a silent no-op (Copilot
+            // PR #1566 review hardening note).
+            var setter = typeof(ROM).GetProperty("RomInfo")?.GetSetMethod(true);
+            Assert.NotNull(setter);
+            setter!.Invoke(rom, new object[] { info });
+            Assert.Same(info, rom.RomInfo);
             return rom;
         }
 

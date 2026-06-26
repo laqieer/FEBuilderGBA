@@ -145,7 +145,12 @@ namespace FEBuilderGBA
         /// <summary>
         /// Port of WF <c>StatusRMenuForm.GetMenuName</c>: the RMenu node's text id
         /// at +18; blank for <c>tid &lt;= 0x10</c>; the decoded name truncated at
-        /// the first CRLF. Safe / never throws.
+        /// the first CRLF (WF <c>U.cut(name, "\r\n")</c>). We decode via
+        /// <c>FETextDecode.Direct</c> (the Core port of the <c>TextForm.Direct</c>
+        /// decode), apply the first-line cut on the RAW decode so the `\r\n`
+        /// boundary is still present, then strip residual control/escape codes for
+        /// a clean single-line list label (the convention every Avalonia list
+        /// uses). Safe / never throws.
         /// </summary>
         public static string GetMenuName(ROM rom, uint addr)
         {
@@ -161,15 +166,19 @@ namespace FEBuilderGBA
                 return "";
             }
 
-            string name;
-            try { name = NameResolver.GetTextById(tid); }
-            catch { name = ""; }
+            string raw;
+            try { raw = FETextDecode.Direct(tid) ?? ""; }
+            catch { return ""; }
+            if (raw == null) return "";
 
-            if (name == null) return "";
-            // Match WF U.cut(name, "\r\n") — keep only the first line.
-            int idx = name.IndexOf("\r\n", StringComparison.Ordinal);
-            if (idx >= 0) name = name.Substring(0, idx);
-            return name;
+            // WF cuts at the first CRLF on the decoded (escape-bearing) text,
+            // BEFORE any control-code stripping would remove the newline.
+            int idx = raw.IndexOf("\r\n", StringComparison.Ordinal);
+            if (idx >= 0) raw = raw.Substring(0, idx);
+
+            // Clean single-line label (matches NameResolver.GetTextById's output
+            // shape used by every other Avalonia list).
+            return NameResolver.StripControlCodes(raw);
         }
     }
 }
