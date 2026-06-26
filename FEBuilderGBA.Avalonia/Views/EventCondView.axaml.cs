@@ -900,11 +900,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
 
-                // Refresh the editor so the new event-pointer + W2 flag show.
-                EventPtrBox.Value = _vm.EventPtr;
-                FlagIdBox.Value = _vm.FlagId;
-                UpdateRawHex();
-                UpdateNameHints();
+                // Refresh the WHOLE editor (not just EventPtr/W2) so the generic
+                // ExtraB8-B11 boxes + every category sub-panel re-sync from the
+                // now-current VM state — no stale values left in any field
+                // (Copilot re-review: same-byte fields must not diverge).
+                UpdateEditorUI();
                 CoreState.Services.ShowInfo("Alloc-Event template applied. Event pointer = 0x" + _vm.EventPtr.ToString("X08") + ".");
             }
             catch (Exception ex)
@@ -934,12 +934,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
 
-                // Refresh: event pointer + the TURN start/end (B8/B9).
-                EventPtrBox.Value = _vm.EventPtr;
-                TurnStartBox.Value = _vm.TurnStart;
-                TurnEndBox.Value = _vm.TurnEnd;
-                UpdateRawHex();
-                UpdateNameHints();
+                // Refresh the WHOLE editor so the TURN sub-panel (TurnStart/End)
+                // AND the generic ExtraB8/B9 boxes (same underlying bytes for a
+                // TURN record) re-sync together — no field shows a stale value
+                // (Copilot re-review #1595).
+                UpdateEditorUI();
                 CoreState.Services.ShowInfo("Counter-reinforcement event allocated at 0x" + _vm.EventPtr.ToString("X08") + " (turn 1-255).");
             }
             catch (Exception ex)
