@@ -107,8 +107,13 @@ namespace FEBuilderGBA.Avalonia.Views
             if (resolve.Status != WorkSupportUpdateDownloadCore.ResolveStatus.Ok
                 || string.IsNullOrEmpty(resolve.Url))
             {
-                _vm.AutoFeedbackStatus = string.Format(
-                    R._("Could not resolve the update URL ({0})."), resolve.Status);
+                // Surface the actionable reason (HttpError / regex failure detail),
+                // bounded so the status label is not overwhelmed (inline re-review #3).
+                string detail = resolve.Error ?? "";
+                if (detail.Length > 200) detail = detail.Substring(0, 200) + "…";
+                _vm.AutoFeedbackStatus = string.IsNullOrEmpty(detail)
+                    ? string.Format(R._("Could not resolve the update URL ({0})."), resolve.Status)
+                    : string.Format(R._("Could not resolve the update URL ({0}). {1}"), resolve.Status, detail);
                 return;
             }
 

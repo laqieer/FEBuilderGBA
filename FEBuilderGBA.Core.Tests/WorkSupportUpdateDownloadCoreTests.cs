@@ -440,6 +440,56 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CommitApply_SaveFailure_LeavesNoStrayTempFiles()
+        {
+            // After a failed commit (target2 blocked by a dir), no .tmp_* / .bak_*
+            // residue should remain in the dir (inline re-review #1).
+            byte[] original = new byte[16];
+            string origPath = Path.Combine(_root, "t1.gba");
+            File.WriteAllBytes(origPath, original);
+
+            string ups1 = Path.Combine(_root, "t1a.ups");
+            string ups2 = Path.Combine(_root, "t1b.ups");
+            File.WriteAllText(ups1, "x");
+            File.WriteAllText(ups2, "x");
+            Directory.CreateDirectory(Path.ChangeExtension(ups2, ".gba")); // block target2
+
+            var prep = WorkSupportUpdateDownloadCore.PrepareApply(
+                new List<string> { ups1, ups2 }, origPath,
+                applyOne: (orig, u) => (new byte[16], "", ""));
+            var apply = WorkSupportUpdateDownloadCore.CommitApply(prep);
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.ApplyStatus.SaveFailed, apply.Status);
+            string[] strays = Directory.GetFiles(_root, "*.tmp_*", SearchOption.AllDirectories);
+            Assert.Empty(strays);
+        }
+
+        [Fact]
+        public void Stage_ArchiveWithUnrelatedPreExistingUps_ReturnsOnlyExtracted()
+        {
+            // A hack folder already has an unrelated .ups; the archive extracts ONE new
+            // .ups. Staging must return ONLY the extracted one (deterministic mapping),
+            // never the pre-existing unrelated patch — independent of timestamps.
+            byte[] ups = MakeUpsBytes();
+            string romDir = Path.Combine(_root, "romdir_arc_pre");
+            Directory.CreateDirectory(romDir);
+            File.WriteAllBytes(Path.Combine(romDir, "unrelated.ups"), MakeUpsBytes());
+
+            var r = WorkSupportUpdateDownloadCore.DownloadAndStage(
+                "http://cdn/pack.zip", romDir, Path.Combine(romDir, "myrom.gba"),
+                downloadFile: (url, dest) => { File.WriteAllBytes(dest, new byte[1024]); return (true, ""); },
+                extract: (archive, destDir) =>
+                {
+                    File.WriteAllBytes(Path.Combine(destDir, "fresh.ups"), ups);
+                    return "";
+                });
+
+            Assert.Equal(WorkSupportUpdateDownloadCore.StageStatus.Ok, r.Status);
+            Assert.Single(r.UpsFiles);
+            Assert.Equal("fresh.ups", Path.GetFileName(r.UpsFiles[0]));
+        }
+
+        [Fact]
         public void CommitApply_RestoresDisplacedOriginalOnFailure()
         {
             // target1 pre-exists with sentinel bytes; target2 is blocked (directory).

@@ -199,11 +199,11 @@ namespace FEBuilderGBA
                     return StageResult.Fail(StageStatus.DownloadFailed, "ROM directory is empty.");
                 }
 
-                // Snapshot the UPS files (path + last-write time) that ALREADY exist in
-                // the ROM dir so we only return the ones THIS staging operation creates
-                // or overwrites (inline review): a hack folder often holds unrelated
-                // *.ups patches that must NOT be applied/written by this update.
-                var preExisting = SnapshotUps(romDir);
+                // The UPS files staged BY THIS operation, tracked DETERMINISTICALLY by
+                // destination path (inline re-review): no reliance on file mtimes (which
+                // copy/extract can preserve and filesystems round). A hack folder's
+                // pre-existing unrelated *.ups are therefore never applied/written.
+                var staged = new List<string>();
 
                 string tempfile = Path.GetTempFileName();
                 try
@@ -228,8 +228,10 @@ namespace FEBuilderGBA
                     // ---- raw UPS vs archive ----
                     if (UPSUtilCore.IsUPSFile(tempfile))
                     {
+                        // Destination is known EXPLICITLY — record it as staged.
                         string upsName = Path.Combine(romDir, RecommendUPSName(downloadUrl, recommendUpsName));
                         File.Copy(tempfile, upsName, true);
+                        staged.Add(upsName);
                     }
                     else
                     {
@@ -241,6 +243,18 @@ namespace FEBuilderGBA
                             {
                                 return StageResult.Fail(StageStatus.ExtractFailed, r);
                             }
+
+                            // Enumerate *.ups in the EXTRACTION tree, then map each to its
+                            // destination under romDir AFTER the same single-wrapper trim
+                            // CopyDirectory1Trim applies — so we return exactly the files
+                            // this extraction places, regardless of timestamps.
+                            string copyRoot = TrimSingleWrapperDir(tempDir);
+                            foreach (string srcUps in U.Directory_GetFiles_Safe(copyRoot, "*.ups", SearchOption.AllDirectories))
+                            {
+                                string rel = GetRelativePathSafe(copyRoot, srcUps);
+                                staged.Add(Path.Combine(romDir, rel));
+                            }
+
                             CopyDirectory1Trim(tempDir, romDir);
                         }
                         finally
@@ -254,29 +268,23 @@ namespace FEBuilderGBA
                     try { if (File.Exists(tempfile)) File.Delete(tempfile); } catch { /* best-effort */ }
                 }
 
-                // ---- enumerate ONLY the UPS this operation created/overwrote ----
-                string[] allUps = U.Directory_GetFiles_Safe(romDir, "*.ups", SearchOption.AllDirectories);
-                var staged = new List<string>();
-                foreach (string f in allUps)
+                // Keep only the staged destinations that actually landed on disk, and
+                // de-duplicate (a re-download of the same name appears once).
+                var present = new List<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string f in staged)
                 {
-                    // New (not in the pre-snapshot) OR overwritten (newer mtime) => ours.
-                    if (!preExisting.TryGetValue(f, out DateTime prevMtime))
+                    if (File.Exists(f) && seen.Add(f))
                     {
-                        staged.Add(f);
-                    }
-                    else
-                    {
-                        DateTime now;
-                        try { now = File.GetLastWriteTimeUtc(f); } catch { now = prevMtime; }
-                        if (now > prevMtime) staged.Add(f);
+                        present.Add(f);
                     }
                 }
-                if (staged.Count <= 0)
+                if (present.Count <= 0)
                 {
                     return StageResult.Fail(StageStatus.NoUpsFound);
                 }
 
-                return new StageResult { Status = StageStatus.Ok, UpsFiles = staged };
+                return new StageResult { Status = StageStatus.Ok, UpsFiles = present };
             }
             catch (Exception e)
             {
@@ -443,17 +451,30 @@ namespace FEBuilderGBA
                 {
                     string target = s.SaveGbaPath;
                     string tmp = target + ".tmp_" + Guid.NewGuid().ToString("N");
-                    File.WriteAllBytes(tmp, s.Bytes);
-
-                    // If the target already exists, back it up so we can restore on rollback.
-                    if (File.Exists(target))
+                    bool tmpConsumed = false;
+                    try
                     {
-                        string backup = target + ".bak_" + Guid.NewGuid().ToString("N");
-                        File.Move(target, backup);
-                        backups.Add((target, backup));
+                        File.WriteAllBytes(tmp, s.Bytes);
+
+                        // If the target already exists, back it up so we can restore on rollback.
+                        if (File.Exists(target))
+                        {
+                            string backup = target + ".bak_" + Guid.NewGuid().ToString("N");
+                            File.Move(target, backup);
+                            backups.Add((target, backup));
+                        }
+                        File.Move(tmp, target);
+                        tmpConsumed = true;
+                        written.Add(target);
                     }
-                    File.Move(tmp, target);
-                    written.Add(target);
+                    finally
+                    {
+                        // Never leave a stray temp file behind (inline re-review #1).
+                        if (!tmpConsumed)
+                        {
+                            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                        }
+                    }
                 }
 
                 // Success: drop the backups of displaced originals.
@@ -514,23 +535,36 @@ namespace FEBuilderGBA
         // ---- private directory/temp helpers (ported from WF U.cs) ---------------
 
         /// <summary>
-        /// Snapshot every <c>*.ups</c> already under <paramref name="romDir"/> with its
-        /// UTC last-write time, so the staging step can distinguish pre-existing
-        /// unrelated patches from the ones this download produced.
+        /// The directory <see cref="CopyDirectory1Trim"/> actually copies FROM: if the
+        /// extraction produced a single wrapper directory (no top-level files), that
+        /// inner directory; otherwise <paramref name="sourceDirName"/> itself. Used to
+        /// map extracted <c>*.ups</c> to their post-copy destination deterministically.
         /// </summary>
-        static Dictionary<string, DateTime> SnapshotUps(string romDir)
+        static string TrimSingleWrapperDir(string sourceDirName)
         {
-            var map = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                foreach (string f in U.Directory_GetFiles_Safe(romDir, "*.ups", SearchOption.AllDirectories))
+                string[] files = Directory.GetFiles(sourceDirName);
+                string[] dirs = Directory.GetDirectories(sourceDirName);
+                if (files.Length <= 0 && dirs.Length == 1)
                 {
-                    try { map[f] = File.GetLastWriteTimeUtc(f); }
-                    catch { map[f] = DateTime.MinValue; }
+                    return dirs[0];
                 }
             }
-            catch { /* best-effort */ }
-            return map;
+            catch { /* fall through to the un-trimmed dir */ }
+            return sourceDirName;
+        }
+
+        /// <summary>Relative path of <paramref name="full"/> under <paramref name="baseDir"/> (forward/back slashes ok).</summary>
+        static string GetRelativePathSafe(string baseDir, string full)
+        {
+            try
+            {
+                string rel = Path.GetRelativePath(baseDir, full);
+                if (!string.IsNullOrEmpty(rel) && rel != ".") return rel;
+            }
+            catch { /* fall through */ }
+            return Path.GetFileName(full);
         }
 
         static string MakeTempDir()
@@ -552,13 +586,7 @@ namespace FEBuilderGBA
         /// </summary>
         internal static void CopyDirectory1Trim(string sourceDirName, string destDirName)
         {
-            string[] files = Directory.GetFiles(sourceDirName);
-            string[] dirs = Directory.GetDirectories(sourceDirName);
-            if (files.Length <= 0 && dirs.Length == 1)
-            {
-                sourceDirName = dirs[0];
-            }
-            CopyDirectory(sourceDirName, destDirName);
+            CopyDirectory(TrimSingleWrapperDir(sourceDirName), destDirName);
         }
 
         /// <summary>Ports WF <c>U.CopyDirectory</c> (recursive, overwrite, skip empty dirs).</summary>
