@@ -26381,6 +26381,9 @@ R菜单表:
 :Skirmish Events (free map start / end)
 自由地图事件 (开始 / 结束)
 
+:Write edited bytes to the ROM (Ctrl+S)
+将编辑的字节写入ROM (Ctrl+S)
+
 :Basic Weapons
 基础武器
 
