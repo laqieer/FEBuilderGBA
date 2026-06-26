@@ -369,6 +369,113 @@ namespace FEBuilderGBA
         }
 
         // ==================================================================
+        // File export / import (*.road.bin) — #1458
+        //
+        // Mirrors WF WorldMapPathEditorForm.SaveASbutton_Click /
+        // LoadButton_Click. Save exports the RAW packed road stream straight
+        // from ROM (NOT a re-pack of the editor buffer), so a non-canonical-
+        // but-loadable stream round-trips byte-for-byte. Load decodes the
+        // FILE bytes into a chip buffer (the editor then Writes them to ROM
+        // through the existing undo-tracked Write path).
+        // ==================================================================
+
+        /// <summary>
+        /// Export the RAW packed road stream at <paramref name="dataOffset"/>
+        /// (a ROM file offset) into a <c>.road.bin</c> byte array — a faithful
+        /// port of WF <c>SaveASbutton_Click</c>
+        /// (<c>getBinaryData(addr, CalcPathDataLength(addr))</c>). The length is
+        /// measured through the <c>0xFF</c> terminator by the shared verbatim
+        /// walker <see cref="RebuildProducerCore.CalcPathDataLength(ROM,uint)"/>,
+        /// so the exported bytes are byte-for-byte identical to the ROM stream
+        /// for ANY loadable path — including non-canonical streams (a header
+        /// byte 3 that is not <c>1</c>, unusual run segmentation, otherwise-
+        /// ignored bytes). It does NOT re-pack / canonicalize / export unsaved
+        /// buffer edits. READ-ONLY; never throws; guards every read.
+        /// </summary>
+        /// <returns>The raw stream bytes, or <c>null</c> with a non-empty
+        /// <paramref name="error"/> on null ROM / unsafe offset / empty stream.</returns>
+        public static byte[] ExportPathBinFromRom(ROM rom, uint dataOffset, out string error)
+        {
+            error = "";
+            if (rom == null || rom.RomInfo == null || rom.Data == null) { error = R.Error("ROM not loaded."); return null; }
+            // FE8-only (Copilot PR #1564 review): the rest of WorldMapPathCore
+            // gates on FE8; honor the same contract here.
+            if (rom.RomInfo.version != VERSION_FE8) { error = R.Error("World map roads are FE8-only."); return null; }
+            if (!IsRegionSafe(rom, dataOffset, 4)) { error = R.Error("Road data offset is out of range."); return null; }
+            // "No road data" guard (mirrors LoadPath): a real path's first header
+            // byte is always >=1, so a u32==0 stream is null/empty. Without this,
+            // CalcPathDataLength would walk 4 bytes at a time to EOF (count==0,
+            // never hitting the 0xFF terminator) and Save would export a huge
+            // file (Copilot PR #1564 review).
+            if (rom.u32(dataOffset) == 0) { error = R.Error("No road data to export at this address."); return null; }
+
+            uint length = RebuildProducerCore.CalcPathDataLength(rom, dataOffset);
+            if (length == 0) { error = R.Error("No road data to export at this address."); return null; }
+            // Defensive: the walker should never exceed ROM bounds (it stops on
+            // an unsafe next header), but re-validate the full span before the
+            // copy so a corrupt length can never read past the end.
+            if (!IsRegionSafe(rom, dataOffset, (int)length)) { error = R.Error("Road data length is out of range."); return null; }
+
+            return rom.getBinaryData(dataOffset, length);
+        }
+
+        /// <summary>
+        /// Decode a <c>.road.bin</c> FILE buffer (read from offset 0) into a flat
+        /// <see cref="PathChip"/> list — a buffer port of WF
+        /// <c>LoadPathLow(bin, 0)</c>, reusing the SAME all-or-nothing corruption
+        /// guards as <see cref="LoadPath"/>.
+        ///
+        /// <para><b>Safety divergence from WF</b> (documented, deliberate): WF
+        /// <c>LoadPathLow</c> is permissive/partial on a malformed file (it keeps
+        /// whatever it decoded before the bad byte). Here, a clean <c>0xFF</c>
+        /// terminator yields the full list; ANY mid-decode corruption (out-of-
+        /// bounds header/pair, <c>count &gt;= 200</c>, or NO terminator before EOF)
+        /// yields <c>null</c> + a non-empty <paramref name="error"/>, so a
+        /// truncated/corrupt file can NEVER silently reach the editor and be
+        /// written back truncated. READ-ONLY; never throws.</para>
+        /// </summary>
+        /// <returns>The decoded chip list, or <c>null</c> with a non-empty
+        /// <paramref name="error"/> on any corruption.</returns>
+        public static List<PathChip> DecodePathBin(byte[] bin, out string error)
+        {
+            error = "";
+            if (bin == null) { error = R.Error("Road file is empty."); return null; }
+            // A real stream is at least the 4-byte terminator.
+            if (bin.Length < 4) { error = R.Error("Road file is too short."); return null; }
+
+            var list = new List<PathChip>();
+            uint p = 0;
+            while (true)
+            {
+                if (p + 4 > (uint)bin.Length) { error = R.Error("Road file is malformed (missing terminator)."); return null; }
+                uint x8 = U.u8(bin, p + 0);
+                uint y8 = U.u8(bin, p + 1);
+                uint count = U.u8(bin, p + 2);
+                // p + 3 (the constant 0x01 in canonical data) is unused on read.
+
+                if (x8 == 0xFF) return list;                  // clean terminator -> full list
+                if (count >= MAX_CHIPS_PER_ROW) { error = R.Error("Road file is corrupt (run count out of range)."); return null; }
+
+                p += 4;
+                for (uint ix = 0; ix < count; ix++)
+                {
+                    if (p + 2 > (uint)bin.Length) { error = R.Error("Road file is truncated."); return null; }
+                    uint tile = U.u8(bin, p + 0);
+                    uint flag = U.u8(bin, p + 1);
+                    p += 2;
+
+                    list.Add(new PathChip
+                    {
+                        WorldX = (int)(x8 * 8 + ix * 8),
+                        WorldY = (int)(y8 * 8),
+                        PathY = (int)tile * 8,
+                        PathX = FlagToPathX(flag),
+                    });
+                }
+            }
+        }
+
+        // ==================================================================
         // Write (ROM-mutating)
         // ==================================================================
 

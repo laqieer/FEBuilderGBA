@@ -209,6 +209,113 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // =================================================================
+        // *.road.bin file Export / Import (#1458 — WF SaveAS/Load parity)
+        // =================================================================
+
+        [Fact]
+        public void ExportPathBin_RoundTrips_ThroughImport_AndMarksDirty()
+        {
+            WithRom("BE8E01", 0x1000000, (rom) =>
+            {
+                PlantRoadTableAndPath(rom);
+
+                var vm = new WorldMapPathEditorViewModel();
+                vm.LoadEntry(0);
+                int origCount = vm.Chips.Count;
+                Assert.True(origCount >= 1); // planted path has chips
+
+                byte[] bin = vm.ExportPathBin(out string exErr);
+                Assert.Equal("", exErr);
+                Assert.NotNull(bin);
+
+                // Clear the buffer, then import the exported bytes back.
+                var vm2 = new WorldMapPathEditorViewModel();
+                vm2.LoadEntry(0);
+                vm2.MarkClean();
+                string imErr = vm2.ImportPathBin(bin);
+                Assert.Equal("", imErr);
+                Assert.Equal(origCount, vm2.Chips.Count);
+                Assert.True(vm2.IsDirty); // import dirties the editor (WF parity)
+
+                for (int i = 0; i < origCount; i++)
+                {
+                    Assert.Equal(vm.Chips[i].WorldX, vm2.Chips[i].WorldX);
+                    Assert.Equal(vm.Chips[i].WorldY, vm2.Chips[i].WorldY);
+                    Assert.Equal(vm.Chips[i].PathX, vm2.Chips[i].PathX);
+                    Assert.Equal(vm.Chips[i].PathY, vm2.Chips[i].PathY);
+                }
+            });
+        }
+
+        [Fact]
+        public void ExportPathBin_NoSelection_ReturnsError()
+        {
+            WithRom("BE8E01", 0x1000000, (_) =>
+            {
+                var vm = new WorldMapPathEditorViewModel();
+                // CurrentPathId defaults to -1.
+                byte[] bin = vm.ExportPathBin(out string err);
+                Assert.Null(bin);
+                Assert.False(string.IsNullOrEmpty(err));
+            });
+        }
+
+        [Fact]
+        public void ImportPathBin_Corrupt_LeavesBufferUnchanged()
+        {
+            WithRom("BE8E01", 0x1000000, (rom) =>
+            {
+                PlantRoadTableAndPath(rom);
+
+                var vm = new WorldMapPathEditorViewModel();
+                vm.LoadEntry(0);
+                int before = vm.Chips.Count;
+                Assert.True(before >= 1);
+                var snapshot = new List<PathChip>(vm.Chips);
+                vm.MarkClean();
+
+                // count=250 (>=200) is corrupt — DecodePathBin rejects it.
+                string err = vm.ImportPathBin(new byte[] { 0x00, 0x00, 0xFA, 0x01 });
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, vm.Chips.Count);     // unchanged
+                Assert.False(vm.IsDirty);                  // not dirtied
+                for (int i = 0; i < before; i++)
+                    Assert.Equal(snapshot[i].WorldX, vm.Chips[i].WorldX);
+            });
+        }
+
+        [Fact]
+        public void ImportPathBin_LeavesRomAndIdsUntouched()
+        {
+            WithRom("BE8E01", 0x1000000, (rom) =>
+            {
+                PlantRoadTableAndPath(rom);
+
+                var vm = new WorldMapPathEditorViewModel();
+                vm.LoadEntry(0);
+                byte[] romBefore = (byte[])rom.Data.Clone();
+                uint addrBefore = vm.CurrentAddr;
+                int idBefore = vm.CurrentPathId;
+
+                // A valid 2-chip stream.
+                byte[] bin = new byte[]
+                {
+                    0x00, 0x00, 0x02, 0x01,
+                    0x00, 0x00,
+                    0x01, 0x04,
+                    0xFF, 0x00, 0x00, 0x00,
+                };
+                string err = vm.ImportPathBin(bin);
+                Assert.Equal("", err);
+
+                // Load is a buffer replace — ROM + current path ids untouched.
+                Assert.Equal(romBefore, rom.Data);
+                Assert.Equal(addrBefore, vm.CurrentAddr);
+                Assert.Equal(idBefore, vm.CurrentPathId);
+            });
+        }
+
+        // =================================================================
         // Palette click mapping (Stretch=Fill fix — Copilot PR #1228 review)
         // =================================================================
 
@@ -260,6 +367,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             if (CoreState.ImageService == null)
                 CoreState.ImageService = new SkiaImageService();
+        }
+
+        // Plant the 12-byte road table + a packed path stream for entry 0 (so
+        // LoadEntry(0) has real chips + a resolvable CurrentAddr).
+        static void PlantRoadTableAndPath(ROM rom)
+        {
+            SetPtr(rom, rom.RomInfo.worldmap_road_pointer, ROAD_TABLE_OFFSET);
+            // Minimal point table so the list labels resolve.
+            SetPtr(rom, rom.RomInfo.worldmap_point_pointer, POINT_TABLE_OFFSET);
+            rom.write_u16(POINT_TABLE_OFFSET + 24, 10);
+            rom.write_u16(POINT_TABLE_OFFSET + 26, 20);
+
+            // Packed path: row y=0 with 2 chips, then terminator.
+            byte[] packed = new byte[]
+            {
+                0x00, 0x00, 0x02, 0x01,
+                0x01, 0x00, // tile 1, flag 0
+                0x02, 0x04, // tile 2, flag 4
+                0xFF, 0x00, 0x00, 0x00,
+            };
+            Array.Copy(packed, 0, rom.Data, PATH_DATA_OFFSET, packed.Length);
+            SetPtr(rom, ROAD_TABLE_OFFSET + 0, PATH_DATA_OFFSET); // entry 0 +0 path ptr
         }
 
         static void PlantRoadStrip(ROM rom)

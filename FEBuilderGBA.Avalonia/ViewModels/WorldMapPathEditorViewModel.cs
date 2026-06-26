@@ -152,6 +152,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return err;
         }
 
+        // =================================================================
+        // File export / import (*.road.bin) — #1458 (WF SaveAS / Load parity)
+        // =================================================================
+
+        /// <summary>
+        /// Export the selected path's RAW packed road stream from ROM as
+        /// <c>.road.bin</c> bytes (port of WF <c>SaveASbutton_Click</c>:
+        /// <c>getBinaryData(addr, CalcPathDataLength(addr))</c>). Reads the ROM
+        /// stream at <see cref="CurrentAddr"/> directly — NOT a re-pack of the
+        /// live edit buffer — so a non-canonical stream round-trips byte-for-byte.
+        /// Returns <c>null</c> + a non-empty <paramref name="error"/> on no
+        /// selection / unsafe address / empty stream.
+        /// </summary>
+        public byte[] ExportPathBin(out string error)
+        {
+            error = "";
+            if (CurrentPathId < 0) { error = R._("No path selected."); return null; }
+            return WorldMapPathCore.ExportPathBinFromRom(CoreState.ROM, CurrentAddr, out error);
+        }
+
+        /// <summary>
+        /// Import a <c>.road.bin</c> file buffer (port of WF
+        /// <c>LoadButton_Click</c>: <c>LoadPathLow(bin, 0)</c>). Decodes the file
+        /// bytes into a new chip buffer; on success REPLACES <see cref="Chips"/>
+        /// and marks the editor dirty so the user can Write it to ROM (the
+        /// undo-tracked commit). Mutates NO ROM (WF parity — Load is a buffer
+        /// replace). On any corruption the existing buffer is left UNCHANGED and a
+        /// non-empty error is returned.
+        /// </summary>
+        /// <returns>Empty string on success; a non-empty error otherwise.</returns>
+        public string ImportPathBin(byte[] bin)
+        {
+            var decoded = WorldMapPathCore.DecodePathBin(bin, out string error);
+            if (decoded == null) return error;
+            Chips = decoded;
+            MarkDirtyEdit();
+            return "";
+        }
+
         // A user paint/erase is a genuine edit. SetField on a list-content change
         // would not fire (the List reference is unchanged), so dirty explicitly
         // via a sentinel property toggle that respects IsLoading.

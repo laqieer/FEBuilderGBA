@@ -332,7 +332,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | Form Pair | Completeness | Key Missing Features |
 |-----------|:---:|---|
 | WorldMapPoint | **50%** | ~~Name text missing~~ **FIXED** — point names in list via text ID. Missing: map preview, coordinate validation |
-| WorldMapPath | **45%** | ~~Generic list~~ **FIXED** — start/end point IDs in list. Missing: map preview, path rendering |
+| WorldMapPath | **70%** | ~~Generic list~~ **FIXED** — start/end point IDs in list; visual road painter (#1185); `.road.bin` Save/Load file export/import (#1458). Missing: per-buffer undo |
 | WorldMapPathMoveEditor | **50%** | ~~Non-functional (no path selector)~~ **FIXED** — BuildList from base address, node display with T/X/Y, null-terminator detection |
 | WorldMapEventPointer | 35% | Missing dual list (before/after), no opening/ending events |
 | WorldMapBGM | **62%** | ~~Song names~~ **FIXED**, ~~Jump to Song~~ **FIXED** — song names + Jump buttons. Near parity |

@@ -26266,3 +26266,9 @@ Boss对话 (16字节)
 
 :Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
 互相镜像仅适用于 ROM 保存。在 decomp 模式下，请编辑源码并重新构建。
+:Save .road.bin
+保存为 .road.bin
+
+:Load .road.bin
+从 .road.bin 读取
+
