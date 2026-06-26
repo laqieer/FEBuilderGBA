@@ -464,7 +464,13 @@ namespace FEBuilderGBA.Tests.Unit
         public void DisASMDumpAllArgGrep_Axaml_HasSearchAndResults()
         {
             var src = ReadAxaml("DisASMDumpAllArgGrepView.axaml");
-            Assert.Contains("GrepPatternInput", src);
+            // #1463: the view now surfaces the 5 register-flow options (was a flat
+            // substring-grep stub with a single GrepPatternInput TextBox).
+            Assert.Contains("TargetFunctionInput", src);
+            Assert.Contains("SearchRegisterCombo", src);
+            Assert.Contains("AllowedRowsInput", src);
+            Assert.Contains("HideFunctionCallsCheck", src);
+            Assert.Contains("HideUnknownArgsCheck", src);
             Assert.Contains("ResultsBox", src);
             Assert.Contains("Click=\"Search_Click\"", src);
             Assert.DoesNotContain("not yet implemented", src);
