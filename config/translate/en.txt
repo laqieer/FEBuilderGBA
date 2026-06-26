@@ -20925,3 +20925,9 @@ Auto-adjust partner values (mirror initial/growth into the partner's reciprocal 
 
 :Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
 Reciprocal mirroring applies to ROM saves only. In decomp mode, edit the source and rebuild.
+
+:Please enter a new project name.
+Please enter a new project name.
+
+:The new name is the same as the current name.
+The new name is the same as the current name.

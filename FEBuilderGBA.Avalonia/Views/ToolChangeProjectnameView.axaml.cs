@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -24,16 +25,25 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OK_Click(object? sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(_vm.NewName))
+            // Perform the real project-file rename (ROM + backups + etc dir),
+            // mirroring WinForms ToolChangeProjectnameForm.ChangeName (#1461).
+            // TryRename validates (modified/virtual/bad-name/same-name) and sets
+            // StatusMessage on failure; a non-null result is the new ROM path.
+            string newPath = _vm.TryRename();
+            if (newPath == null)
             {
-                _vm.StatusMessage = "Please enter a new project name.";
+                // Validation or IO failure — keep the dialog open so the user
+                // can read the status message and correct the name.
                 return;
             }
-            if (_vm.CurrentName == _vm.NewName)
+
+            // Reload the renamed ROM in the main window, mirroring the WinForms
+            // ReOpenMainForm() + LoadROM(newROMPath) tail.
+            if (WindowManager.Instance.MainWindow is MainWindow mw && File.Exists(newPath))
             {
-                _vm.StatusMessage = "The new name is the same as the current name.";
-                return;
+                mw.LoadRomFile(newPath);
             }
+
             Close("OK");
         }
 

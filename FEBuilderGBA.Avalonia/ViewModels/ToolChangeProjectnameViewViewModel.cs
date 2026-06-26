@@ -1,4 +1,5 @@
 using System.IO;
+using FEBuilderGBA;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -46,6 +47,78 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Map a Core <see cref="ProjectRenameCore.ValidateResult"/> to a
+        /// user-facing message (mirrors the WinForms <c>R.ShowStopError</c>
+        /// strings). Pure — used by both the GUI and tests.
+        /// </summary>
+        public static string DescribeValidate(ProjectRenameCore.ValidateResult result)
+        {
+            switch (result)
+            {
+                // Reuse the exact WinForms keys (already translated in en/ja/zh)
+                // so the messages match ToolChangeProjectnameForm verbatim.
+                case ProjectRenameCore.ValidateResult.ModifiedRom:
+                    return R._("変更したデータが保存されていません。\r\n名前を変更する前に、データを保存してください。");
+                case ProjectRenameCore.ValidateResult.VirtualRom:
+                    return R._("仮想ROMの名前を変更することはできません。");
+                case ProjectRenameCore.ValidateResult.BadFilename:
+                    return R._("ファイル名として利用できない文字が含まれています");
+                case ProjectRenameCore.ValidateResult.EmptyName:
+                    return R._("Please enter a new project name.");
+                case ProjectRenameCore.ValidateResult.SameName:
+                    return R._("The new name is the same as the current name.");
+                case ProjectRenameCore.ValidateResult.NoRomFilename:
+                    return R._("No ROM is loaded.");
+                default:
+                    return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Perform the project rename against the live ROM. Returns the new ROM
+        /// path on success (caller reloads it), or null on validation/IO failure
+        /// with <see cref="StatusMessage"/> set.
+        /// </summary>
+        /// <param name="fs">
+        /// Filesystem to use; null = real disk. Tests inject a fake.
+        /// </param>
+        public string TryRename(ProjectRenameCore.IProjectRenameFileSystem fs = null)
+        {
+            ROM rom = CoreState.ROM;
+            ProjectRenameCore.ValidateResult result =
+                ProjectRenameCore.Validate(rom, CurrentName, NewName);
+            if (result != ProjectRenameCore.ValidateResult.Ok)
+            {
+                StatusMessage = DescribeValidate(result);
+                return null;
+            }
+
+            try
+            {
+                string newPath = ProjectRenameCore.Rename(
+                    rom, CurrentName, NewName, fs, out result);
+                if (newPath == null)
+                {
+                    StatusMessage = DescribeValidate(result);
+                    return null;
+                }
+                return newPath;
+            }
+            catch (System.IO.IOException ee)
+            {
+                StatusMessage = ee.Message;
+                Log.Error(ee.ToString());
+                return null;
+            }
+            catch (System.Exception ee)
+            {
+                StatusMessage = ee.Message;
+                Log.Error(ee.ToString());
+                return null;
+            }
         }
     }
 }

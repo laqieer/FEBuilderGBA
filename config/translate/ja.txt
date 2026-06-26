@@ -12492,3 +12492,9 @@ DPCM圧縮
 :RMenu Table:
 Rメニューテーブル:
 
+
+:Please enter a new project name.
+新しいプロジェクト名を入力してください。
+
+:The new name is the same as the current name.
+新しい名前が現在の名前と同じです。
