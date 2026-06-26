@@ -235,5 +235,27 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0u, MonsterWMapProbabilityCore.ReadStageMapId(rom, (uint)rom.Data.Length + 10));
             Assert.Equal(0u, MonsterWMapProbabilityCore.ReadStageMapId(rom, 0));
         }
+
+        // Overflow-safe bounds: an addr near uint.MaxValue must not wrap the
+        // length check and reach a throwing rom.u8/write_u8 (#1464 Copilot round 2).
+        [Fact]
+        public void ReadProbabilityRow_NearMaxAddr_NoThrow_ReturnsZeros()
+        {
+            var rom = MakeFe8uRom();
+            byte[] row = MonsterWMapProbabilityCore.ReadProbabilityRow(rom, 0xFFFFFFFFu);
+            Assert.Equal(new byte[MonsterWMapProbabilityCore.ProbabilityWidth], row);
+        }
+
+        [Fact]
+        public void WriteProbabilityRow_NearMaxAddr_NoThrow_NoMutation()
+        {
+            var rom = MakeFe8uRom();
+            // Must not throw and must not write anywhere in-bounds.
+            MonsterWMapProbabilityCore.WriteProbabilityRow(rom, 0xFFFFFFFFu, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            // A near-EOF addr whose row would straddle the end is also refused.
+            uint nearEof = (uint)rom.Data.Length - 3;
+            MonsterWMapProbabilityCore.WriteProbabilityRow(rom, nearEof, new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+            Assert.Equal((uint)0, rom.u8(nearEof));
+        }
     }
 }

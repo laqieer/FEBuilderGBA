@@ -52,8 +52,19 @@ namespace FEBuilderGBA
         static uint SafeP32(ROM rom, uint slot)
         {
             if (rom == null || slot == 0) return 0;
-            if ((ulong)slot + 4 > (ulong)rom.Data.Length) return 0;
+            if (!FitsInRom(rom, slot, 4)) return 0;
             return rom.p32(slot);
+        }
+
+        /// <summary>
+        /// Overflow-safe range check: are <paramref name="len"/> bytes at
+        /// <paramref name="addr"/> fully inside the ROM? Uses <c>ulong</c> math so a large
+        /// <paramref name="addr"/> can't wrap a <c>uint</c> sum past the length test.
+        /// </summary>
+        static bool FitsInRom(ROM rom, uint addr, uint len)
+        {
+            if (rom == null) return false;
+            return (ulong)addr + len <= (ulong)rom.Data.Length;
         }
 
         // ----------------------------------------------------------------------------
@@ -146,7 +157,7 @@ namespace FEBuilderGBA
             for (uint i = 0; i < ProbabilityCount; i++)
             {
                 uint addr = (uint)(baseAddr + i * ProbabilityWidth);
-                if (addr + ProbabilityWidth > (uint)rom.Data.Length) break;
+                if (!FitsInRom(rom, addr, ProbabilityWidth)) break;
 
                 string name = U.ToHexString(i);
                 result.Add(new AddrResult(addr, name, i));
@@ -159,7 +170,7 @@ namespace FEBuilderGBA
         {
             var row = new byte[ProbabilityWidth];
             if (rom == null) return row;
-            if (addr == 0 || addr + ProbabilityWidth > (uint)rom.Data.Length) return row;
+            if (addr == 0 || !FitsInRom(rom, addr, ProbabilityWidth)) return row;
             for (int k = 0; k < ProbabilityWidth; k++)
             {
                 row[k] = (byte)rom.u8((uint)(addr + k));
@@ -175,7 +186,7 @@ namespace FEBuilderGBA
         public static void WriteProbabilityRow(ROM rom, uint addr, byte[] row)
         {
             if (rom == null || row == null) return;
-            if (addr == 0 || addr + ProbabilityWidth > (uint)rom.Data.Length) return;
+            if (addr == 0 || !FitsInRom(rom, addr, ProbabilityWidth)) return;
             for (int k = 0; k < ProbabilityWidth; k++)
             {
                 byte v = k < row.Length ? row[k] : (byte)0;
@@ -272,8 +283,10 @@ namespace FEBuilderGBA
             if (rom?.RomInfo == null) return;
             uint startSlot = rom.RomInfo.worldmap_skirmish_startevent_pointer;
             uint endSlot = rom.RomInfo.worldmap_skirmish_endevent_pointer;
-            if (startSlot != 0) rom.write_p32(startSlot, startEvent);
-            if (endSlot != 0) rom.write_p32(endSlot, endEvent);
+            // Guard the slots fully fit in the ROM before writing — write_p32→U.write_u32
+            // throws on a slot within the last 3 bytes (truncated/corrupt ROM).
+            if (startSlot != 0 && FitsInRom(rom, startSlot, 4)) rom.write_p32(startSlot, startEvent);
+            if (endSlot != 0 && FitsInRom(rom, endSlot, 4)) rom.write_p32(endSlot, endEvent);
         }
     }
 }
