@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "B0" });
 
+        // ---- Basic weapon list state (arena_enemy_weapon_basic_pointer, 8 entries) ----
         uint _currentAddr;
         bool _canWrite;
         uint _weaponId;
@@ -17,29 +18,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint WeaponId { get => _weaponId; set => SetField(ref _weaponId, value); }
 
+        // ---- Rank-up weapon list state (arena_enemy_weapon_rankup_pointer, 26 entries) (#1465) ----
+        uint _rankupCurrentAddr;
+        bool _rankupCanWrite;
+        uint _rankupWeaponId;
+
+        public uint RankupCurrentAddr { get => _rankupCurrentAddr; set => SetField(ref _rankupCurrentAddr, value); }
+        public bool RankupCanWrite { get => _rankupCanWrite; set => SetField(ref _rankupCanWrite, value); }
+        public uint RankupWeaponId { get => _rankupWeaponId; set => SetField(ref _rankupWeaponId, value); }
+
+        // ---------------------------------------------------------------
+        // Basic list
+        // ---------------------------------------------------------------
+
         public List<AddrResult> LoadArenaEnemyWeaponList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            uint ptr = rom.RomInfo.arena_enemy_weapon_basic_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 8; i++)
-            {
-                uint addr = (uint)(baseAddr + i * 1);
-                if (addr >= (uint)rom.Data.Length) break;
-
-                uint weaponId = rom.u8(addr);
-                string itemName = NameResolver.GetItemName(weaponId);
-                string name = $"{U.ToHexString(i)} {itemName} (0x{weaponId:X02})";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            return ArenaEnemyWeaponCore.BuildBasicList(rom);
         }
 
         public void LoadArenaEnemyWeapon(uint addr)
@@ -63,7 +59,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EditorFormRef.WriteFields(rom, addr, values, _fields);
         }
 
+        /// <summary>Per-slot label + guidance + icon-type for the basic list (WF GetBasicTypeName).</summary>
+        public (string Label, string Guidance, uint IconType) GetBasicTypeInfo(int index)
+        {
+            string label = ArenaEnemyWeaponCore.GetBasicTypeName(index, out string disp, out uint icon);
+            return (label, disp, icon);
+        }
+
+        // ---------------------------------------------------------------
+        // Rank-up list (#1465)
+        // ---------------------------------------------------------------
+
+        public List<AddrResult> LoadArenaEnemyWeaponRankupList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+            return ArenaEnemyWeaponCore.BuildRankupList(rom);
+        }
+
+        public void LoadArenaEnemyWeaponRankup(uint addr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (addr >= (uint)rom.Data.Length) return;
+
+            RankupCurrentAddr = addr;
+            var values = EditorFormRef.ReadFields(rom, addr, _fields);
+            RankupWeaponId = values["B0"];
+            RankupCanWrite = true;
+        }
+
+        public void WriteArenaEnemyWeaponRankup()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || RankupCurrentAddr == 0) return;
+            uint addr = RankupCurrentAddr;
+            var values = new Dictionary<string, uint> { ["B0"] = RankupWeaponId };
+            EditorFormRef.WriteFields(rom, addr, values, _fields);
+        }
+
+        /// <summary>Per-slot label + guidance + icon-type for the rank-up list (WF GetRankupTypeName).</summary>
+        public (string Label, string Guidance, uint IconType) GetRankupTypeInfo(int index)
+        {
+            string label = ArenaEnemyWeaponCore.GetRankupTypeName(index, out string disp, out uint icon);
+            return (label, disp, icon);
+        }
+
         public int GetListCount() => LoadArenaEnemyWeaponList().Count;
+        public int GetRankupListCount() => LoadArenaEnemyWeaponRankupList().Count;
 
         public Dictionary<string, string> GetDataReport()
         {
@@ -71,6 +114,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["WeaponId"] = $"0x{WeaponId:X02}",
+                ["rankupAddr"] = $"0x{RankupCurrentAddr:X08}",
+                ["RankupWeaponId"] = $"0x{RankupWeaponId:X02}",
+                ["rankupCount"] = GetRankupListCount().ToString(),
             };
         }
 

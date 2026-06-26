@@ -12567,3 +12567,15 @@ Rメニューテーブル:
 
 :TEXT
 テキスト
+
+:Basic Weapons
+基本武器
+
+:Rank-up Weapons
+ランクアップ武器
+
+:Arena Enemy Weapon - Basic
+闘技場敵武器 - 基本
+
+:Arena Enemy Weapon - Rank-up
+闘技場敵武器 - ランクアップ
