@@ -90,11 +90,11 @@ namespace FEBuilderGBA
         /// (<paramref name="targetUid"/>, 1-based) support row, scan its 7 partner
         /// slots for the one equal to <paramref name="uid"/>, and write
         /// <paramref name="initValue"/> at <c>+SUPPORT_LIMIT</c> and
-        /// <paramref name="addValue"/> at <c>+2*SUPPORT_LIMIT</c>. Full target-row
+        /// <paramref name="growthValue"/> at <c>+2*SUPPORT_LIMIT</c>. Full target-row
         /// range is bounds-checked before any scan/write (#1455 review). Returns
         /// true when a reciprocal slot was written.
         /// </summary>
-        public static bool AutoCollectByTargetSupport(ROM rom, uint uid, uint targetUid, uint initValue, uint addValue)
+        public static bool AutoCollectByTargetSupport(ROM rom, uint uid, uint targetUid, uint initValue, uint growthValue)
         {
             if (rom == null) return false;
             if (targetUid == 0) return false;
@@ -103,12 +103,13 @@ namespace FEBuilderGBA
             if (targetAddrN == null) return false;
             uint targetAddr = targetAddrN.Value;
 
-            // Full-row safety: the highest byte we ever touch is
-            // targetAddr + 2*SUPPORT_LIMIT (the growth byte of the last slot).
-            // Guard that AND the whole FE7/8 row (overflow-safe 64-bit) so a
-            // malformed/near-EOF partner pointer can never read or write OOB.
+            // Full-row safety. The highest byte we ever touch is the LAST slot's
+            // growth byte: targetAddr + (SUPPORT_LIMIT-1) + 2*SUPPORT_LIMIT (the
+            // scan reaches slot SUPPORT_LIMIT-1, whose growth is at +2*SUPPORT_LIMIT).
+            // Guard that exact max AND the whole FE7/8 row (overflow-safe 64-bit) so
+            // a malformed/near-EOF partner pointer can never read or write OOB.
             // (WinForms only guarded the base address — #1455 review finding 2.)
-            if (!U.isSafetyOffset(targetAddr + 2 * SUPPORT_LIMIT, rom)) return false;
+            if (!U.isSafetyOffset(targetAddr + (SUPPORT_LIMIT - 1) + 2 * SUPPORT_LIMIT, rom)) return false;
             if ((ulong)targetAddr + BLOCK_SIZE > (ulong)rom.Data.Length) return false;
 
             uint limit = targetAddr + SUPPORT_LIMIT;
@@ -120,7 +121,7 @@ namespace FEBuilderGBA
                     continue;
                 }
                 rom.write_u8(scan + SUPPORT_LIMIT, initValue);
-                rom.write_u8(scan + SUPPORT_LIMIT + SUPPORT_LIMIT, addValue);
+                rom.write_u8(scan + SUPPORT_LIMIT + SUPPORT_LIMIT, growthValue);
                 return true;
             }
             return false;
