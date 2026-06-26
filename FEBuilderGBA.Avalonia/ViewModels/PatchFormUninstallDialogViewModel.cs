@@ -28,5 +28,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
+
+        /// <summary>#1462: seed the dialog with the patch being uninstalled.</summary>
+        public void Initialize(string patchName)
+        {
+            PatchName = patchName ?? "";
+            IsLoaded = true;
+        }
     }
 }

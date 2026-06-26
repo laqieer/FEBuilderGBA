@@ -12516,3 +12516,15 @@ Rメニューテーブル:
 
 :Show only calls whose argument purpose is unknown
 用途が判明していない関数呼び出しのみ表示
+
+:Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).
+ターゲット関数を入力してください (m4aSongNumStart のようなシンボル名、または D01FC のような16進アドレス)。
+
+:Searching... please wait.
+検索中... お待ちください。
+
+:No argument blocks found for "{0}" feeding register "{1}" within {2} rows.
+レジスタ "{1}" に値を設定して "{0}" を呼び出す引数ブロックは {2} 行以内に見つかりませんでした。
+
+:Error: No ROM loaded.
+エラー: ROMが読み込まれていません。

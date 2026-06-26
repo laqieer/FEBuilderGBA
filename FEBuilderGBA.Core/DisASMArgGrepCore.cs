@@ -94,8 +94,10 @@ namespace FEBuilderGBA
         /// <param name="allowNumber">Allowed-rows window (WinForms 1..20, default 5).</param>
         /// <param name="hideFunctionCall">Drop the call line from each emitted block.</param>
         /// <param name="hideUnknownArg">
-        /// Skip register-set lines that contain a <c>'('</c> (unknown-arg comment),
-        /// matching the WinForms "show only calls whose purpose is unknown" filter.
+        /// WinForms "show only function calls whose purpose is unknown" filter:
+        /// skip register-set lines that contain a <c>'('</c>. A <c>'('</c> marks a
+        /// call the disassembler already annotated (a known/resolved purpose), so
+        /// dropping those anchors leaves only the calls whose purpose is unknown.
         /// </param>
         /// <returns>The concatenated argument-setup blocks, blank-line separated.</returns>
         public static string Grep(

@@ -31,8 +31,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Search_Click(object? sender, RoutedEventArgs e)
         {
-            // Pull the live option values from the controls into the VM.
-            _vm.TargetFunctionAddress = TargetFunctionInput.Text ?? string.Empty;
+            // TargetFunctionAddress is two-way bound to TargetFunctionInput; the
+            // remaining option controls are read into the VM here.
             _vm.SearchRegisterIndex = SearchRegisterCombo.SelectedIndex < 0 ? 0 : SearchRegisterCombo.SelectedIndex;
             _vm.AllowedRows = (int)(AllowedRowsInput.Value ?? _vm.AllowedRows);
             _vm.HideFunctionCalls = HideFunctionCallsCheck.IsChecked == true;
@@ -40,19 +40,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (string.IsNullOrWhiteSpace(_vm.TargetFunctionAddress))
             {
-                _vm.Results = "Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).";
+                _vm.Results = R._("Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).");
                 ResultsBox.Text = _vm.Results;
                 return;
             }
 
             if (CoreState.ROM == null)
             {
-                _vm.Results = "Error: No ROM loaded.";
+                _vm.Results = R._("Error: No ROM loaded.");
                 ResultsBox.Text = _vm.Results;
                 return;
             }
 
-            _vm.Results = "Searching... please wait.";
+            _vm.Results = R._("Searching... please wait.");
             ResultsBox.Text = _vm.Results;
 
             // Normalize the target function (hex address -> 0x pointer string; symbol name pass-through).
@@ -89,7 +89,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     if (string.IsNullOrEmpty(grep))
                     {
-                        resultText = $"No argument blocks found for \"{searchFunction}\" feeding register \"{registerText}\" within {allowNumber} rows.";
+                        resultText = R._("No argument blocks found for \"{0}\" feeding register \"{1}\" within {2} rows.",
+                            searchFunction, registerText, allowNumber);
                     }
                     else
                     {
@@ -98,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    error = $"Error: {ex.Message}";
+                    error = R._("Error: {0}", ex.Message);
                 }
             });
 

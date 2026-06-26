@@ -26350,3 +26350,15 @@ R菜单表:
 
 :Show only calls whose argument purpose is unknown
 仅显示用途未知的函数调用
+
+:Please enter a target function (a symbol name such as m4aSongNumStart, or a hex address such as D01FC).
+请输入目标函数 (例如符号名 m4aSongNumStart，或十六进制地址 D01FC)。
+
+:Searching... please wait.
+正在搜索... 请稍候。
+
+:No argument blocks found for "{0}" feeding register "{1}" within {2} rows.
+在 {2} 行以内未找到为寄存器 "{1}" 赋值并调用 "{0}" 的参数代码块。
+
+:Error: No ROM loaded.
+错误: 未加载 ROM。
