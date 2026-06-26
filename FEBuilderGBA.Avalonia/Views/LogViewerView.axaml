@@ -1,21 +1,48 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:vm="clr-namespace:FEBuilderGBA.Avalonia.ViewModels"
         x:Class="FEBuilderGBA.Avalonia.Views.LogViewerView"
-        Title="Log Viewer" Width="800" Height="500"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="LogViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        x:DataType="vm:LogViewerViewModel"
+        Title="Log Viewer" Width="800" Height="560"
+        SizeToContent="Manual">
+  <DockPanel Margin="8" LastChildFill="True">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Log Viewer" FontSize="18" FontWeight="Bold" />
+    <TextBlock DockPanel.Dock="Top" Text="Log Viewer" FontSize="18" FontWeight="Bold" Margin="0,0,0,4" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="LogViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
+    <TextBlock DockPanel.Dock="Top"
+               Text="The most recent application log lines. Read-only; refreshes live as new messages are logged."
+               TextWrapping="Wrap" Foreground="Gray" Margin="0,0,0,8" />
+
+    <!-- Buttons mirror WinForms LogForm: Save, Copy, Open-log-dir, plus Refresh. -->
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+      <Button AutomationProperties.AutomationId="LogViewer_Refresh_Button" Name="RefreshButton" Content="Refresh" MinWidth="100" />
+      <Button AutomationProperties.AutomationId="LogViewer_Save_Button" Name="SaveButton" Content="Save" MinWidth="100" />
+      <Button AutomationProperties.AutomationId="LogViewer_Copy_Button" Name="CopyButton" Content="Copy to clipboard" MinWidth="120" />
+      <Button AutomationProperties.AutomationId="LogViewer_OpenDir_Button" Name="OpenDirButton" Content="Open log folder" MinWidth="120" />
+    </StackPanel>
+
+    <TextBlock DockPanel.Dock="Bottom"
+               AutomationProperties.AutomationId="LogViewer_Status_Label"
+               Name="StatusLabel" Foreground="DarkSlateGray" TextWrapping="Wrap" Margin="0,6,0,0" />
+
+    <!-- The log lines. The read-only multiline TextBox scrolls internally; the
+         outer ScrollViewer satisfies the repo-wide no-clipping contract
+         (AvaloniaScrollViewerTests) and guards the description/button chrome on
+         very small windows. -->
+    <ScrollViewer Name="LogScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <Border BorderBrush="Gray" BorderThickness="1">
+        <TextBox AutomationProperties.AutomationId="LogViewer_Log_Input"
+                 Name="LogTextBox"
+                 Text="{Binding LogText, Mode=OneWay}"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 FontFamily="Consolas,Menlo,Monospace"
+                 MinHeight="320"
+                 VerticalAlignment="Stretch"
+                 HorizontalAlignment="Stretch"
+                 VerticalContentAlignment="Top" />
+      </Border>
     </ScrollViewer>
-  </Grid>
+  </DockPanel>
 </Window>

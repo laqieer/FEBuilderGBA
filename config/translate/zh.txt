@@ -26384,6 +26384,24 @@ R菜单表:
 :Write edited bytes to the ROM (Ctrl+S)
 将编辑的字节写入ROM (Ctrl+S)
 
+:Copy to clipboard
+复制到剪贴板
+
+:Open log folder
+打开日志文件夹
+
+:The most recent application log lines. Read-only; refreshes live as new messages are logged.
+最近的应用程序日志行。只读；当记录新消息时实时刷新。
+
+:Copied to clipboard
+已复制到剪贴板
+
+:Log folder not found
+未找到日志文件夹
+
+:TEXT
+文本
+
 :Basic Weapons
 基础武器
 

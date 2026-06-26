@@ -34,6 +34,18 @@ namespace FEBuilderGBA.Avalonia
         public static string? RenderMainViewPath { get; set; }
 
         /// <summary>
+        /// #1467 screenshot proof: when set (via <c>--screenshot-window=&lt;ViewName&gt;</c>
+        /// plus <c>--screenshot-out=&lt;path&gt;</c>), the desktop app constructs that
+        /// single editor Window, lets its <c>Opened</c> handler load (e.g. the Log
+        /// Viewer reads the application log — no ROM required), renders it to a PNG
+        /// with the real desktop Skia platform, then exits. Lets a no-ROM / locked
+        /// environment capture a real PNG of a ROM-independent view.
+        /// </summary>
+        public static string? ScreenshotWindowName { get; set; }
+        /// <summary>Output PNG path for <see cref="ScreenshotWindowName"/>.</summary>
+        public static string? ScreenshotWindowOut { get; set; }
+
+        /// <summary>
         /// Overrides the base directory used to resolve <c>config/</c> (#1123, Android).
         /// When non-null, <see cref="OnFrameworkInitializationCompleted"/> sets
         /// <see cref="CoreState.BaseDirectory"/> to this instead of
@@ -255,6 +267,14 @@ namespace FEBuilderGBA.Avalonia
                     return;
                 }
 
+                // #1467: render a single ROM-independent editor Window to a PNG.
+                if (!string.IsNullOrEmpty(ScreenshotWindowName) && !string.IsNullOrEmpty(ScreenshotWindowOut))
+                {
+                    int code = RenderEditorWindowToPng(ScreenshotWindowName!, ScreenshotWindowOut!);
+                    Environment.Exit(code);
+                    return;
+                }
+
                 desktop.MainWindow = new Views.MainWindow();
             }
             // #1122: Android single-activity / single-view lifetime. The desktop
@@ -342,6 +362,52 @@ namespace FEBuilderGBA.Avalonia
                 new global::Avalonia.PixelSize(360, 640), new global::Avalonia.Vector(96, 96));
             rtb.Render(view);
             rtb.Save(outPath);
+        }
+
+        /// <summary>
+        /// #1467: construct a named editor Window, show it off-screen so its
+        /// <c>Opened</c> handler runs (the Log Viewer loads the application log;
+        /// no ROM required) and the FluentTheme + a full layout pass apply, then
+        /// render it to a PNG with the real desktop Skia rasterizer and exit.
+        /// </summary>
+        static int RenderEditorWindowToPng(string viewName, string outPath)
+        {
+            try
+            {
+                global::Avalonia.Controls.Window window = viewName switch
+                {
+                    "LogViewerView" => new Views.LogViewerView(),
+                    _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
+                };
+
+                window.SystemDecorations = global::Avalonia.Controls.SystemDecorations.None;
+                window.ShowInTaskbar = false;
+                window.Position = new global::Avalonia.PixelPoint(-4000, -4000);
+                window.Show(); // raises Opened → the view loads the log
+                window.UpdateLayout();
+
+                string fullPath = Path.GetFullPath(outPath);
+                string? dir = Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+                int w = (int)Math.Max(window.Width, 400);
+                int h = (int)Math.Max(window.Height, 300);
+                window.Measure(new global::Avalonia.Size(w, h));
+                window.Arrange(new global::Avalonia.Rect(0, 0, w, h));
+                using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
+                    new global::Avalonia.PixelSize(w, h), new global::Avalonia.Vector(96, 96));
+                rtb.Render(window);
+                rtb.Save(fullPath);
+
+                window.Close();
+                Log.Notify("Rendered editor window to ", outPath);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("RenderEditorWindowToPng failed: ", ex.ToString());
+                return 1;
+            }
         }
 
         /// <summary>Toggle between light and dark mode, updating dynamic resources and persisting the choice.</summary>
@@ -587,6 +653,14 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--screenshot-select-combo="))
                 {
                     ScreenshotSelectComboSpec = args[i].Substring("--screenshot-select-combo=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-window="))
+                {
+                    ScreenshotWindowName = args[i].Substring("--screenshot-window=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-out="))
+                {
+                    ScreenshotWindowOut = args[i].Substring("--screenshot-out=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {

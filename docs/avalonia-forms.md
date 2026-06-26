@@ -76,7 +76,7 @@ The main application window and supporting startup/settings views.
 | 3 | VersionView | VersionViewModel | Version info dialog |
 | 4 | OptionsView | OptionsViewModel | Application settings editor |
 | 5 | OpenLastSelectedFileView | OpenLastSelectedFileViewModel | Recently opened file picker |
-| 6 | LogViewerView | LogViewerViewModel | Application log viewer |
+| 6 | LogViewerView | LogViewerViewModel | Application log viewer — shows the live `Log.LogToString()` content (read-only multiline), refreshes on `Log.UpdateEvent`, with Refresh / Save / Copy-to-clipboard / Open-log-folder, mirroring WinForms `LogForm` (#1467) |
 | 7 | ErrorUnknownROMView | ErrorUnknownROMViewModel | Unknown ROM detection dialog |
 | 8 | ErorrUnknownROMView | ErorrUnknownROMViewModel | Legacy unknown ROM dialog (typo preserved) |
 

@@ -54,6 +54,18 @@ namespace FEBuilderGBA
             return Path.Combine(CoreState.BaseDirectory ?? ".", "config", "log", "log.txt");
         }
 
+        /// <summary>
+        /// #1467: Public accessor for the on-disk log file path
+        /// (<c>config/log/log.txt</c> under <see cref="CoreState.BaseDirectory"/>).
+        /// Lets platform UIs (Avalonia Log Viewer) offer Save / Open-log-folder
+        /// without owning the path-resolution logic. The WinForms <c>Log.ToFile</c>
+        /// / <c>Log.OpenLogDir</c> use the same path.
+        /// </summary>
+        public static string GetLogFilePath()
+        {
+            return GetLogFilename();
+        }
+
         public static void SyncLog()
         {
             lock (thisLock)
