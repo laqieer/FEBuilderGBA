@@ -9,9 +9,16 @@
 // against a synthetic FE8U ROM with a synthetic Procs vocabulary.
 //
 // It proves the feature AND the #1585 finding-#1 safety fix: when the terminal
-// command is removed, Write-All appends the Procs `End` (00000000), NOT the FE
+// command is removed, Write-All appends the Procs family `{TERM}` command, NOT the FE
 // event terminator — so a Procs stream is never corrupted with an event terminator.
 // Every byte and list line is sourced from the real VM state.
+//
+// NOTE: this test uses a SIMPLIFIED SYNTHETIC Procs vocabulary (4-byte commands and a
+// 4-byte all-zero `End [TERM]`) so the in-place geometry is easy to assert. The shipped
+// production Procs vocabulary (config/data/6c_script_ALL.txt) defines 8-byte commands
+// and an 8-byte `End` {TERM} (0000000000000000); the engine logic under test is
+// identical — it always appends the FAMILY {TERM} from the loaded vocabulary, whatever
+// its width.
 //
 // Set FEBUILDERGBA_SCREENSHOT_DIR to the repo's pr-screenshots/.
 using System;
@@ -72,10 +79,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void RenderProcsScriptEditorProof_FE8U()
         {
-            // Plant a Procs script: PROC_CALL + PROC_MOVE + End (12 bytes). Deleting the
-            // terminal End leaves PROC_CALL + PROC_MOVE (8 bytes); Write-All re-appends the
-            // Procs End (4 bytes) = 12 bytes, which FITS the original region → an in-place
-            // write whose appended terminator lands predictably at ScriptOffset+8.
+            // SIMPLIFIED SYNTHETIC layout (see file header): this vocabulary uses 4-byte
+            // commands + a 4-byte End [TERM]. (Production Procs in 6c_script_ALL.txt is
+            // 8 bytes per command/TERM; the engine behaviour is the same.) Plant a Procs
+            // script: PROC_CALL + PROC_MOVE + End (12 bytes). Deleting the terminal End
+            // leaves PROC_CALL + PROC_MOVE (8 bytes); Write-All re-appends the Procs End
+            // (4 bytes) = 12 bytes, which FITS the original region → an in-place write
+            // whose appended terminator lands predictably at ScriptOffset+8.
             byte[] original =
             {
                 0x01, 0x00, 0x00, 0x00, // PROC_CALL
