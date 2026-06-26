@@ -12627,3 +12627,9 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Send to editor failed.
 エディタへの送信に失敗しました。
+
+:Invalid address. Enter a hex value like 0x08001234 or 1234.
+アドレスが不正です。0x08001234 や 1234 のような16進数を入力してください。
+
+:Write failed
+書き込みに失敗しました

@@ -296,8 +296,18 @@ namespace FEBuilderGBA
                 {
                     break;
                 }
+                // BOUNDS GUARD (Copilot PR review): DisAseemble synthesizes a full 4-byte
+                // UNKNOWN even when fewer than Script.Size bytes remain in `bin` (a short
+                // tail), whose ByteData is zero-filled to 4 bytes — adding it would fabricate
+                // trailing bytes and break the round-trip guarantee. Stop when the decoded
+                // command would read past the end of the blob.
+                uint size = (uint)code.Script.Size;
+                if (addr + size > limit)
+                {
+                    break;
+                }
                 codes.Add(code);
-                addr += (uint)code.Script.Size;
+                addr += size;
             }
             return codes;
         }

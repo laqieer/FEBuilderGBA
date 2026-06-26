@@ -26461,3 +26461,9 @@ https://github.com/laqieer/FE-Repo-Music-No-Preview
 
 :Send to editor failed.
 发送到编辑器失败。
+
+:Invalid address. Enter a hex value like 0x08001234 or 1234.
+地址无效。请输入十六进制值，例如 0x08001234 或 1234。
+
+:Write failed
+写入失败

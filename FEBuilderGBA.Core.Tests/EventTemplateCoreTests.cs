@@ -409,6 +409,47 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void DisassembleToCodes_ShortTail_DoesNotFabricateBytes()
+        {
+            // Copilot PR review: DisAseemble synthesizes a full 4-byte UNKNOWN even when
+            // fewer than Script.Size bytes remain (a 2-byte tail), whose ByteData is
+            // zero-filled to 4 bytes. The bounds guard must stop before adding such a
+            // command so the concatenated OneCode bytes never exceed the input length.
+            var rom = MakeFE8U();
+            var savedEs = CoreState.EventScript;
+            var savedComment = CoreState.CommentCache;
+            try
+            {
+                // DisAseemble dereferences CoreState.CommentCache for each command comment.
+                if (CoreState.CommentCache == null)
+                    CoreState.CommentCache = new HeadlessEtcCache();
+
+                // Build a minimal vocabulary with one 4-byte command so the rest decodes as
+                // 4-byte UNKNOWNs; a 6-byte blob = one 4-byte command + a 2-byte short tail.
+                var es = new EventScript();
+                typeof(EventScript).GetProperty("Scripts")!.SetValue(es, new[]
+                {
+                    EventScript.ParseScriptLine("0100XXXX\tCMD [X:UNIT:Units]"),
+                });
+                CoreState.EventScript = es;
+
+                byte[] blob = { 0x01, 0x00, 0x00, 0x00, 0xAB, 0xCD }; // CMD + 2 stray bytes
+                var codes = EventTemplateCore.DisassembleToCodes(rom, blob);
+
+                // Concatenated bytes must NOT exceed the 6-byte input (no fabricated tail).
+                int total = 0;
+                foreach (var c in codes) total += c.ByteData?.Length ?? 0;
+                Assert.True(total <= blob.Length,
+                    $"DisassembleToCodes fabricated bytes: {total} > {blob.Length}");
+            }
+            finally
+            {
+                CoreState.EventScript = savedEs;
+                CoreState.CommentCache = savedComment;
+            }
+        }
+
+        [Fact]
         public void RealRom_FE8U_TryGenerateButtonCodes_ReturnsRoundTrippingCodes()
         {
             string romPath = FindRom("FE8U.gba");

@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             else
             {
-                StatusLabel.Text = "Invalid address. Enter a hex value like 0x08001234 or 1234.";
+                StatusLabel.Text = R._("Invalid address. Enter a hex value like 0x08001234 or 1234.");
             }
         }
 
@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ProcsScriptView.WriteAll failed: " + ex.ToString());
-                StatusLabel.Text = $"Write failed: {ex.Message}";
+                StatusLabel.Text = R._("Write failed") + ": " + ex.Message;
             }
         }
 
