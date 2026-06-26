@@ -87,23 +87,49 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Find the bytes of this script family's canonical <c>{TERM}</c> command — the
-        /// SHORTEST command in the vocabulary marked <see cref="EventScript.ScriptHas.TERM"/>
-        /// (for Procs that is the 8-byte <c>End</c> <c>0000000000000000</c>). Returns null
-        /// when the vocabulary has no TERM command. PURE.
+        /// Find the bytes of this script family's canonical <c>{TERM}</c> command — for
+        /// Procs the 8-byte <c>End</c> <c>0000000000000000</c>. Returns null when the
+        /// vocabulary has no TERM command. PURE.
+        /// <para>Selection is DETERMINISTIC and placeholder-safe (Copilot PR review #1589):
+        /// the shipped Procs vocabulary defines several same-length TERM commands —
+        /// <c>End</c> (<c>0000000000000000</c>), <c>End2</c> (<c>00001000ZZZZZZZZ</c>),
+        /// <c>End3</c> (<c>00080000ZZZZZZZZ</c>) — and <c>EventScript.Load</c> sorts by size
+        /// with a NON-stable sort, so "first shortest TERM" could non-deterministically pick
+        /// <c>End2</c>/<c>End3</c> (non-zero leading bytes / placeholder args), writing the
+        /// WRONG terminator. So we prefer a TERM whose <c>LowCode</c> is fully concrete (only
+        /// hex digits — no <c>X</c>/<c>Y</c>/<c>Z</c> placeholder), shortest first; only if
+        /// none is fully concrete do we fall back to the shortest TERM by length.</para>
         /// </summary>
         byte[] FindFamilyTermBytes()
         {
             if (_es?.Scripts == null) return null;
-            EventScript.Script best = null;
+            EventScript.Script bestConcrete = null;  // all-hex LowCode (canonical End)
+            EventScript.Script bestAny = null;        // shortest TERM regardless
             foreach (var sc in _es.Scripts)
             {
                 if (sc == null || sc.Data == null) continue;
                 if (sc.Has != EventScript.ScriptHas.TERM) continue;
-                if (best == null || sc.Data.Length < best.Data.Length)
-                    best = sc;
+
+                if (bestAny == null || sc.Data.Length < bestAny.Data.Length)
+                    bestAny = sc;
+
+                if (IsConcreteLowCode(sc.LowCode) &&
+                    (bestConcrete == null || sc.Data.Length < bestConcrete.Data.Length))
+                    bestConcrete = sc;
             }
+            EventScript.Script best = bestConcrete ?? bestAny;
             return best?.Data == null ? null : (byte[])best.Data.Clone();
+        }
+
+        /// <summary>True when <paramref name="lowCode"/> is a non-empty string of ONLY hex
+        /// digits — i.e. a concrete command with no <c>X</c>/<c>Y</c>/<c>Z</c> placeholder
+        /// argument (so its <c>Data</c> bytes are the exact terminator). PURE.</summary>
+        static bool IsConcreteLowCode(string lowCode)
+        {
+            if (string.IsNullOrEmpty(lowCode)) return false;
+            foreach (char ch in lowCode)
+                if (!U.ishex(ch)) return false;
+            return true;
         }
 
         /// <summary>

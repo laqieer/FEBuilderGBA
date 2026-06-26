@@ -404,6 +404,32 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Serialize_Procs_PicksConcreteEnd_NotPlaceholderEnd2End3()
+        {
+            // Copilot #1589: the shipped Procs vocabulary has multiple SAME-LENGTH TERM
+            // commands — End (0000000000000000), End2 (00001000ZZZZZZZZ), End3
+            // (00080000ZZZZZZZZ). EventScript.Load sorts by size with a NON-stable sort, so
+            // "first shortest TERM" is non-deterministic. FindFamilyTermBytes must
+            // DETERMINISTICALLY pick the concrete all-hex End (all-zero bytes), never the
+            // placeholder End2/End3 (non-zero leading bytes).
+            var es = BuildEs(
+                EventScript.ParseScriptLine("1100XXXX00000000\tPROC1 [X:UNIT:Units]"),
+                EventScript.ParseScriptLine("00001000ZZZZZZZZ\tEnd2 [ZZZZZZZZ::Unk1] (Deletes Self) [TERM]"),
+                EventScript.ParseScriptLine("00080000ZZZZZZZZ\tEnd3 [ZZZZZZZZ::Unk1] (Deletes Self) [TERM]"),
+                EventScript.ParseScriptLine("0000000000000000\tEnd (Deletes Self) [TERM]"));
+            var rom = MakeRom(es);
+            var ed = new EventScriptEditorCore(es, EventScript.EventScriptType.Procs);
+            ed.SetCodes(new[] { Code(es, 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00) });
+
+            byte[] data = ed.Serialize(rom, false, false);
+
+            // 8 command bytes + the canonical all-zero End (NOT End2 0x10 @ byte 2 or End3
+            // 0x08 @ byte 1).
+            Assert.Equal(16, data.Length);
+            for (int i = 8; i < 16; i++) Assert.Equal(0x00, data[i]);
+        }
+
+        [Fact]
         public void Serialize_DefaultCtorStillEvent_AppendsEventTerminator()
         {
             // Regression guard: the legacy single-arg ctor remains an Event editor, so

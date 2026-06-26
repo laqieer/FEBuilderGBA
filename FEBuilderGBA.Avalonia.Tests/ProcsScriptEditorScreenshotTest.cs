@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1585 PR proof image. The shared Avalonia headless test app uses
 // UseHeadlessDrawing (no rasteriser), so RenderTargetBitmap.Save produces no real
-// PNG. This test renders a faithful, NON-fabricated picture of the Procs Script
-// editor's NEW structural-editing surface — the toolbar re-skinned from a
-// placeholder shell onto the SAME cross-platform EventScriptEditorCore engine as
-// the Event editor (EventScriptViewModel ScriptType=Procs) — populated entirely by
-// driving the production VM (Disassemble -> Insert -> delete terminal -> Write-All)
-// against a synthetic FE8U ROM with a synthetic Procs vocabulary.
+// PNG of the actual visual tree. So this test draws a VM-DRIVEN SYNTHETIC ILLUSTRATION
+// with SkiaSharp: it is NOT a capture of the rendered Avalonia control tree and does NOT
+// validate UI layout/styling — but every value it depicts (the command-list rows, the
+// appended terminator bytes, the status line) is sourced from the REAL production VM
+// state, so the BEHAVIOUR it shows is not fabricated.
 //
-// It proves the feature AND the #1585 finding-#1 safety fix: when the terminal
-// command is removed, Write-All appends the Procs family `{TERM}` command, NOT the FE
-// event terminator — so a Procs stream is never corrupted with an event terminator.
-// Every byte and list line is sourced from the real VM state.
+// It illustrates the Procs Script editor's NEW structural-editing surface — the toolbar
+// re-skinned from a placeholder shell onto the SAME cross-platform EventScriptEditorCore
+// engine as the Event editor (EventScriptViewModel ScriptType=Procs) — by driving the
+// production VM (Disassemble -> Insert -> delete terminal -> Write-All) against a synthetic
+// FE8U ROM with a synthetic Procs vocabulary.
+//
+// It exercises the feature AND the #1585 finding-#1 safety fix: when the terminal command
+// is removed, Write-All appends the Procs family `{TERM}` command, NOT the FE event
+// terminator — so a Procs stream is never corrupted with an event terminator. (The actual
+// UI layout is covered by the AutomationId / binding / smoke tests over ProcsScriptView.)
 //
 // The synthetic vocabulary matches the REAL Procs format: 8-byte commands and an 8-byte
 // all-zero `End [TERM]` (0000000000000000), mirroring config/data/6c_script_ALL.txt, so
