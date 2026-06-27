@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -6,10 +7,15 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    // #1598: a PathType selector picks one of the 12-byte path records, and the
+    // movement nodes are loaded from p32(record+8) — NOT the record table. The
+    // list stays EMPTY (and Write disabled) until a path is selected, and Write
+    // only ever targets a validated movement node (record/terminator-safe).
     public partial class WorldMapPathMoveEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly WorldMapPathMoveEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppressPathChange;
 
         public string ViewTitle => "Path Movement Editor";
         public bool IsLoaded => _vm.IsLoaded;
@@ -18,7 +24,63 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            PathTypeCombo.SelectionChanged += OnPathChanged;
+            Opened += (_, _) => LoadPaths();
+        }
+
+        void LoadPaths()
+        {
+            try
+            {
+                _vm.IsLoading = true;
+                _suppressPathChange = true;
+                PathTypeCombo.Items.Clear();
+                var paths = _vm.LoadPathList();
+                foreach (var p in paths)
+                    PathTypeCombo.Items.Add(new ComboBoxItem { Content = p.name });
+                _suppressPathChange = false;
+
+                if (PathTypeCombo.Items.Count > 0)
+                {
+                    // Triggers OnPathChanged -> SelectPath(0) -> LoadList().
+                    PathTypeCombo.SelectedIndex = 0;
+                }
+                else
+                {
+                    EntryList.SetItems(new List<AddrResult>());
+                }
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+                UpdateWriteEnabled();
+            }
+            catch (Exception ex)
+            {
+                _suppressPathChange = false;
+                _vm.IsLoading = false;
+                Log.Error($"WorldMapPathMoveEditorView.LoadPaths failed: {ex.Message}");
+            }
+        }
+
+        void OnPathChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressPathChange) return;
+            try
+            {
+                _vm.IsLoading = true;
+                _vm.SelectPath(PathTypeCombo.SelectedIndex);
+                LoadList();
+                // SelectPath dropped any loaded node; if the new list didn't auto-load one,
+                // clear the editor display so no stale node values remain on screen.
+                if (!_vm.IsLoaded) ClearEditorDisplay();
+                _vm.IsLoading = false;
+                _vm.MarkClean();
+                UpdateWriteEnabled();
+            }
+            catch (Exception ex)
+            {
+                _vm.IsLoading = false;
+                Log.Error($"WorldMapPathMoveEditorView.OnPathChanged failed: {ex.Message}");
+            }
         }
 
         void LoadList()
@@ -30,11 +92,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItems(items);
                 _vm.IsLoading = false;
                 _vm.MarkClean();
+                UpdateWriteEnabled();
             }
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.LoadList failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.LoadList failed: {ex.Message}");
             }
         }
 
@@ -47,11 +110,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
+                UpdateWriteEnabled();
             }
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.OnSelected failed: {ex.Message}");
             }
         }
 
@@ -63,9 +127,24 @@ namespace FEBuilderGBA.Avalonia.Views
             CoordinateYBox.Value = _vm.CoordinateY;
         }
 
+        // Blank the editor fields when no node is loaded (e.g. after switching to a
+        // path whose movement list is empty) so stale node values never linger.
+        void ClearEditorDisplay()
+        {
+            AddrLabel.Text = "";
+            ElapsedTimeBox.Value = 0;
+            CoordinateXBox.Value = 0;
+            CoordinateYBox.Value = 0;
+        }
+
+        void UpdateWriteEnabled()
+        {
+            WriteButton.IsEnabled = _vm.CanWrite;
+        }
+
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            if (!_vm.IsLoaded) return;
+            if (!_vm.CanWrite) return;
             _vm.ElapsedTime = (uint)(ElapsedTimeBox.Value ?? 0);
             _vm.CoordinateX = (uint)(CoordinateXBox.Value ?? 0);
             _vm.CoordinateY = (uint)(CoordinateYBox.Value ?? 0);
@@ -73,7 +152,14 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Path Movement");
             try
             {
-                _vm.Write();
+                string err = _vm.Write();
+                if (!string.IsNullOrEmpty(err))
+                {
+                    // Validate-before-mutate Core path already wrote nothing.
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Path movement data written.");
@@ -81,11 +167,42 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapPathMoveEditorView.Write failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.Write failed: {ex.Message}");
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        // Mirrors WF JumpTo(pathid): select the path by id (record tag), then the
+        // first movement node — NOT EntryList.SelectAddress(pathId).
+        public void NavigateTo(uint pathId)
+        {
+            try
+            {
+                // NavigateTo may be called immediately after Window.Show(), BEFORE the
+                // Opened handler runs LoadPaths() (DesktopNavigationService.Navigate). If the
+                // combo isn't populated yet, load the path list first so the jump resolves.
+                if (PathTypeCombo.Items.Count == 0 || _vm.PathList.Count == 0)
+                    LoadPaths();
+
+                int index = -1;
+                for (int i = 0; i < _vm.PathList.Count; i++)
+                {
+                    if (_vm.PathList[i].tag == pathId) { index = i; break; }
+                }
+                if (index < 0 && pathId < (uint)PathTypeCombo.Items.Count)
+                    index = (int)pathId; // fall back to positional index
+
+                if (index >= 0 && index < PathTypeCombo.Items.Count)
+                {
+                    PathTypeCombo.SelectedIndex = index; // loads that path's nodes
+                    EntryList.SelectFirst();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapPathMoveEditorView.NavigateTo failed: {ex.Message}");
+            }
+        }
+
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }

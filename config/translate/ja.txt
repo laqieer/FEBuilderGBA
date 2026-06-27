@@ -12663,3 +12663,6 @@ CALL 1
 
 :Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)
 カウンター増援イベントを割り当て、このTURNを1-255に設定します（B8=1, B9=255）
+
+:パス
+パス
