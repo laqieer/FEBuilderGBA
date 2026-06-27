@@ -120,18 +120,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // so raw report must also use p32 to match.
                 ["p32@0x00"] = $"0x{rom.p32(a + 0):X08}",
             };
-            // The editable FLAG byte lives at a SEPARATE absolute address
-            // (i*0x14 + 0x37E10), NOT an offset within the 4-byte P0 row. The key is
-            // anchored on the flag TABLE BASE (0x37E10) so it is honest about the
-            // region and not mistaken for a CurrentAddr-relative offset.
+            // The editable FLAG byte lives at a SEPARATE, ROW-SPECIFIC absolute
+            // address: GetFlagAddr(i) = i*0x14 + 0x37E10 (0x37E10 for row 0, 0x37E24
+            // for row 1, ...) — NOT an offset within the 4-byte P0 row. The key is
+            // anchored on the flag TABLE BASE (0x37E10, a regex-matchable literal the
+            // data-verify completeness meta-test counts), while the VALUE carries the
+            // EXACT per-row absolute address actually read so the report is accurate
+            // for every entry, not just row 0.
             if (U.isSafetyOffset(flagAddr))
-                report["u8@0x37E10"] = $"0x{rom.u8(flagAddr):X02}";
+                report["u8@0x37E10_FlagId"] = $"0x{rom.u8(flagAddr):X02} (@0x{flagAddr:X08})";
             return report;
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
-            ["FlagId"] = "u8@0x37E10",
+            ["FlagId"] = "u8@0x37E10_FlagId",
             ["P0"] = "p32@0x00",
         };
     }

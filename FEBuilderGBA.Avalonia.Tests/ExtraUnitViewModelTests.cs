@@ -8,6 +8,7 @@
 // new editable Flag field and assert P0 is never mutated.
 //
 // Marked [Collection("SharedState")] because the ViewModel reads CoreState.ROM.
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
