@@ -9,7 +9,6 @@
 //
 // Marked [Collection("SharedState")] because the ViewModel reads CoreState.ROM.
 using FEBuilderGBA;
-using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using Xunit;
 
