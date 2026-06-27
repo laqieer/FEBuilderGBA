@@ -191,3 +191,5 @@ jobs:
           config/
           tools/bin/
           README*.md
+          LICENSE
+          THIRD-PARTY-NOTICES.md

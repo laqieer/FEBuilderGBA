@@ -114,6 +114,17 @@ jobs:
           done
         fi
 
+    - name: Bundle LICENSE and third-party notices into CLI and Avalonia artifacts
+      shell: bash
+      # GPLv3 requires the license text to accompany every binary distribution,
+      # and the bundled ColorzCore / lyn.exe are themselves GPLv3. Ship LICENSE +
+      # THIRD-PARTY-NOTICES.md inside each artifact (GPLv3 compliance, issue #1633).
+      run: |
+        for target in cli avalonia; do
+          cp LICENSE "publish/${target}-${{ matrix.rid }}/LICENSE"
+          cp THIRD-PARTY-NOTICES.md "publish/${target}-${{ matrix.rid }}/THIRD-PARTY-NOTICES.md"
+        done
+
     - name: Upload CLI artifact
       uses: actions/upload-artifact@v4
       with:

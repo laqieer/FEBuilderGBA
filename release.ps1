@@ -130,9 +130,20 @@ if ($ConfigDir -and (Test-Path $ConfigDir)) {
     Write-Warning "No config directory found to stage (looked in build output and repo root)."
 }
 
-# --- Stage docs ------------------------------------------------------------
+# --- Stage docs + license --------------------------------------------------
 # Copy the repo-root docs (resolved against the script location).
 Copy-Item -Force (Join-Path $repoRoot "*.md") $OutputDir -ErrorAction SilentlyContinue
+
+# GPLv3 (sections 4-6) requires the license text to accompany every binary
+# distribution. The LICENSE file is extensionless, so the "*.md" glob above
+# does NOT catch it -- copy it explicitly. THIRD-PARTY-NOTICES.md is already
+# matched by the "*.md" glob.
+$licenseFile = Join-Path $repoRoot "LICENSE"
+if (Test-Path $licenseFile) {
+    Copy-Item -Force $licenseFile $OutputDir
+} else {
+    Write-Warning "LICENSE file not found at repo root -- release artifact will be missing required GPLv3 license text."
+}
 
 # --- Best-effort: stage CLI / Avalonia publish output if present -----------
 # These come from `dotnet publish ... -o publish/cli-{rid}` /

@@ -162,6 +162,7 @@ No action is required to invoke it: creating the GitHub release in Section 4.3 (
 - [ ] Tag name follows `ver_YYYYMMDD.NN` and does not already exist.
 - [ ] `config/patch2/version.txt` is current if patches changed (see [DEPLOYMENT.md](DEPLOYMENT.md#patch2-version-management)).
 - [ ] All four platform assets collected (WinForms zip, 3× CLI, 3× Avalonia, Android APK).
+- [ ] `LICENSE` + `THIRD-PARTY-NOTICES.md` present inside every artifact (the WinForms zip via `release.ps1`, the CLI/Avalonia bundles via `crossplatform.yml` — GPLv3 compliance, [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633)).
 - [ ] Release notes / changelog drafted (changelog automation tracked by [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632)).
 - [ ] `gh release create` run with every asset attached.
 - [ ] GitHub release verified, then Gitee mirror verified.
@@ -176,7 +177,6 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | patch2 not bundled into CLI/Avalonia artifacts | [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
-| LICENSE + third-party notices in every artifact (GPLv3) | [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633) |
 | Code-sign / notarize Windows + macOS artifacts | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
 
 ---
