@@ -45,7 +45,7 @@ pulls in `Core` + `SkiaSharp`). The WinForms project is explicitly out of scope.
 
 ## 2. Avalonia-on-Android specifics (lifetime & windowing)
 
-> **Status: implemented (#1122) — build-only validated, not yet device-validated.**
+> **Status: implemented (#1122) — single-view BOOT is emulator-smoke-validated (#1640); interactive touch UX / per-editor attached-Window dialogs remain on-device-unvalidated (preview).**
 
 Avalonia 11 ships a real Android target: the `Avalonia.Android` package, an
 `[Activity]`-attributed `MainActivity : AvaloniaMainActivity<App>` entry point,
@@ -215,7 +215,7 @@ which write beside the exe / ROM — to **app-private storage** (`Context.FilesD
 
 ## 5. `config/` packaging for an APK
 
-> **Status: implemented (#1123) — build-only validated, not yet device-validated.**
+> **Status: implemented (#1123) — config first-run extraction is emulator-smoke-validated (#1640): it runs during the boot-smoke and a broken extract surfaces as a boot crash the test catches.**
 
 The `config/` directory (game data, scripts, names, translations) is **required
 at runtime**: `FEBuilderGBA.Core/PathUtil.cs:39` resolves `config/<subpath>`
@@ -262,14 +262,17 @@ head therefore ships + extracts config:
 > (e.g. an on-demand download into `FilesDir`) is tracked under the epic #1070,
 > not this issue. The issue explicitly accepts "deferred / not bundled."
 
-> **Validation note (#1123).** No device/emulator was available, so this was
-> **desktop/build-only validated**: the extraction logic is unit-tested on desktop
+> **Validation note (#1123).** This note was originally authored without a
+> device/emulator (desktop/build-only): the extraction logic is unit-tested on desktop
 > (`FEBuilderGBA.Core.Tests/AndroidConfigExtractorCoreTests.cs` — fresh extract,
 > version-stamp skip, version-bump re-extract, partial/corrupt re-extract,
 > crash-before-stamp recovery, manifest-completeness, nested paths,
 > path-traversal rejection, unrelated-dir isolation) and the APK is verified to
 > contain `assets/config/...` while excluding `assets/config/patch2/` (unzip +
-> grep). On-device first-run extraction runtime is tracked under #1070.
+> grep). The first-run extraction is **now emulator-validated via #1640's
+> boot-smoke**: `MainActivity.OnCreate` runs the extraction and rethrows on
+> failure (fail-fast), so a bad extract surfaces as a boot crash the boot-smoke
+> test catches.
 
 ---
 
@@ -476,7 +479,7 @@ linked under #1070 as its checklist:
 1. ~~**Android: multi-target `FEBuilderGBA.Avalonia` (or split a shared UI library)
    so the Android head can be packaged into an APK.**~~ **DONE (#1121)** — the
    shared project conditionally multi-targets `net9.0;net9.0-android`; the head
-   builds a real APK (build-only — not yet device-validated). *(prerequisite —
+   builds a real APK (now emulator-boot-validated via #1640; the interactive ROM-editing flow remains preview). *(prerequisite —
    unblocked everything below; see §7.)*
 2. ~~**Android: single-activity navigation model for the multi-window editors**
    (`WindowManager` page/view-stack rework + `ISingleViewApplicationLifetime`
@@ -484,12 +487,12 @@ linked under #1070 as its checklist:
    (`DesktopNavigationService` behavior-identical + `AndroidNavigationService`
    single-view nav host over the pure `NavigationStack`), `WindowManager` kept as
    a stable facade (~356 call sites untouched), `App` single-view branch +
-   `Views/MainView` shell. Build-only validated (no device); per-editor
+   `Views/MainView` shell. Single-view boot emulator-validated via #1640 (no device for interactive UX); per-editor
    attached-`Window` dialog flows + touch-UX polish carved to #1070. *(was the
    largest item; see §2.)*
 3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
    first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
-   build-only validated (no device); `config/patch2` deferred / not bundled.
+   config extraction emulator-validated via #1640's boot-smoke; `config/patch2` deferred / not bundled.
    *(see §5.)*
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
@@ -526,7 +529,7 @@ not promise Android from "Avalonia supports Android" alone.
 1. ~~**Phase A — make it packageable.**~~ **DONE (#1121)** — the shared UI is
    conditionally multi-targeted and the Android head builds an APK.
 2. **Phase B — make it run.** Single-view lifetime + a minimal navigation host
-   (#2), config extraction (#3 — **DONE (#1123)**, build-only), and SAF ROM I/O
+   (#2), config extraction (#3 — **DONE (#1123)**, emulator-boot-validated via #1640), and SAF ROM I/O
    (#4) — enough to open a ROM and show one editor on a device.
 3. **Phase C — make it usable.** Touch UX adaptation (larger hit targets,
    phone/tablet layouts, touch-friendly numeric entry replacing the ~2,300
