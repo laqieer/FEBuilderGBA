@@ -393,9 +393,21 @@ namespace FEBuilderGBA
                     try
                     {
                         int w = img.Width, h = img.Height;
-                        byte[] rgba = img.IsIndexed
-                            ? GifEncoderCore.IndexedToRgba(img.GetPixelData(), img.GetPaletteRGBA(), w, h)
-                            : img.GetPixelData();
+                        byte[] rgba;
+                        if (img.IsIndexed)
+                        {
+                            // IndexedToRgba always allocates a fresh RGBA buffer.
+                            rgba = GifEncoderCore.IndexedToRgba(img.GetPixelData(), img.GetPaletteRGBA(), w, h);
+                        }
+                        else
+                        {
+                            // Defensive copy before the IImage is disposed (Copilot
+                            // plan-review guardrail): never hand a GifFrame a buffer
+                            // that could alias image-backed memory freed by Dispose.
+                            byte[] live = img.GetPixelData();
+                            rgba = new byte[live.Length];
+                            Array.Copy(live, rgba, live.Length);
+                        }
                         frames.Add(new GifEncoderCore.GifFrame
                         {
                             Width = w,
