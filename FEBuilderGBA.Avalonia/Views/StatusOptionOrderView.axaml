@@ -21,6 +21,7 @@
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="StatusOptionOrder_Write_Button" Content="Write" Click="Write_Click" />
+          <Button AutomationProperties.AutomationId="StatusOptionOrder_Expand_Button" Name="ExpandListButton" Content="Expand List" Click="ExpandList_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
