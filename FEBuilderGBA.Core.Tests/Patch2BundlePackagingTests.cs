@@ -56,6 +56,23 @@ namespace FEBuilderGBA.Core.Tests
                 });
         }
 
+        /// <summary>
+        /// Asserts that the config Content Exclude metadata strips BOTH the submodule
+        /// <c>.git</c> pointer file AND the recursive <c>.git\**</c> tree — so that even
+        /// when an initialized submodule materializes a real <c>.git</c> directory (instead
+        /// of the usual gitdir pointer file), none of it ships in the artifact. A weaker
+        /// "only the pointer file" exclusion would silently package a stale <c>.git</c>
+        /// directory; this guards against that regression.
+        /// </summary>
+        static void AssertExcludesGitPlumbing(string excludeNormalizedToBackslash)
+        {
+            // The .git pointer file itself.
+            Assert.Contains(@"config\patch2\.git", excludeNormalizedToBackslash);
+            // The recursive .git directory tree (a separate glob token, not just a prefix
+            // of the pointer-file token).
+            Assert.Contains(@"config\patch2\.git\**", excludeNormalizedToBackslash);
+        }
+
         [Fact]
         public void Cli_Csproj_Bundles_Patch2_And_Excludes_Only_Git()
         {
@@ -68,8 +85,10 @@ namespace FEBuilderGBA.Core.Tests
             // #1630: the patch2 directory MUST NOT be excluded wholesale any more.
             Assert.DoesNotContain(@"config\patch2\**", exclude);
 
-            // Copilot finding 1 / WinForms parity: the submodule .git plumbing IS excluded.
-            Assert.Contains(@"config\patch2\.git", exclude);
+            // Copilot finding 1 / WinForms parity: BOTH the submodule .git pointer file
+            // AND the recursive .git tree are excluded, so no git plumbing ships even if
+            // an initialized submodule materializes a real .git directory.
+            AssertExcludesGitPlumbing(exclude);
 
             // Sanity: content is actually copied to output.
             Assert.Equal("PreserveNewest", (string)content.Attribute("CopyToOutputDirectory"));
@@ -87,8 +106,9 @@ namespace FEBuilderGBA.Core.Tests
             // #1630: patch2 ships on the desktop TFM.
             Assert.DoesNotContain(@"config\patch2\**", exclude);
 
-            // Copilot finding 1 / WinForms parity: only the submodule .git plumbing is excluded.
-            Assert.Contains(@"config\patch2\.git", exclude);
+            // Copilot finding 1 / WinForms parity: BOTH the submodule .git pointer file
+            // AND the recursive .git tree are excluded.
+            AssertExcludesGitPlumbing(exclude);
 
             Assert.Equal("PreserveNewest", (string)content.Attribute("CopyToOutputDirectory"));
         }
