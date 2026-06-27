@@ -174,4 +174,3 @@ Known WF parity gap in `ExpandTable`/`ExpandTableTo` (documented in XML doc, no
 follow-up issue filed): forward-only cache repoint (rollback does NOT reverse it
 — matches WF). The LDR-pointer rescan gap is now closed via the opt-in
 `RepointAllReferences` helper (#781).
-

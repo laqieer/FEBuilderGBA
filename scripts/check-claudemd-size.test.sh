@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Self-tests for check-claudemd-size.sh — runs in CI before the real gate.
-# No external dependencies (no PyYAML, no .NET); pure POSIX shell + coreutils.
+# No external tooling dependencies (no PyYAML, no .NET); just Bash + coreutils.
+# Bash (not /bin/sh): uses BASH_SOURCE and `set -o pipefail`.
 
 set -uo pipefail
 

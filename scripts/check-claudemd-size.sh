@@ -39,7 +39,10 @@ fi
 SIZE="$(wc -c < "$TARGET" | tr -d '[:space:]')"
 
 if [ "$SIZE" -ge "$LIMIT" ]; then
-  echo "FAIL: $TARGET is $SIZE bytes, at or over the $LIMIT-byte harness limit." >&2
+  echo "FAIL: $TARGET is $SIZE bytes, at or over the $LIMIT-byte gate." >&2
+  echo "      (Gate is a conservative byte proxy for the harness's ~40,000-CHAR" >&2
+  echo "      truncation limit; a multi-byte UTF-8 char is >=1 byte, so staying" >&2
+  echo "      under $LIMIT bytes guarantees under $LIMIT chars.)" >&2
   echo "      Relocate verbose per-file Core-seam notes into docs/CORE-SEAMS.md" >&2
   echo "      (see issue #1645) and keep CLAUDE.md to high-value guidance + a pointer." >&2
   exit 1
