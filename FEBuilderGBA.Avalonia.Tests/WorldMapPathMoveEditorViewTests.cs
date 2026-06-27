@@ -24,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     {
         const uint ROAD_TABLE_OFFSET = 0x001000;
         const uint MOVE_OFFSET       = 0x004000;
+        const uint MOVE2_OFFSET      = 0x005000; // record 1's movement list (immediate terminator -> empty)
         const uint POINT_TABLE_OFFSET = 0x003000;
         const int ROM_SIZE = 0x1000000;
 
@@ -55,6 +56,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             rom.write_u16(MOVE_OFFSET + 1 * 8 + 4, 33);
             rom.write_u16(MOVE_OFFSET + 1 * 8 + 6, 44);
             rom.write_u32(MOVE_OFFSET + 2 * 8, 0xFFFFFFFF);
+
+            // Record 1: a second selectable path whose movement list is EMPTY
+            // (immediate 0xFFFFFFFF terminator). +0 must be a pointer so it is listed.
+            rom.write_u32(ROAD_TABLE_OFFSET + 12 + 0, U.toPointer(0x002800)); // path-data ptr
+            rom.write_u32(ROAD_TABLE_OFFSET + 12 + 8, U.toPointer(MOVE2_OFFSET)); // movement ptr
+            rom.write_u32(MOVE2_OFFSET + 0, 0xFFFFFFFF); // empty movement list
         }
 
         [Fact]
@@ -99,6 +106,39 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(11u, vm.CoordinateX);
                 Assert.Equal(22u, vm.CoordinateY);
                 Assert.True(vm.CanWrite);
+            });
+        }
+
+        // Copilot PR #1618 review #1: selecting a node on path A then switching to a
+        // path B whose movement list is empty must DROP the loaded node, so a later
+        // Write can never silently edit path A's node while path B is shown.
+        [Fact]
+        public void Vm_SwitchToEmptyPath_DropsStaleNode_NoWrite()
+        {
+            WithRom((rom) =>
+            {
+                var vm = new WorldMapPathMoveEditorViewModel();
+                vm.LoadPathList();
+
+                // Path 0: select + load a node -> writable.
+                vm.SelectPath(0);
+                vm.LoadEntry(MOVE_OFFSET + 0 * 8);
+                Assert.True(vm.CanWrite);
+                Assert.Equal(MOVE_OFFSET + 0 * 8, vm.CurrentAddr);
+
+                // Switch to path 1 (empty movement list). SelectPath must clear the
+                // stale node so CanWrite is false and CurrentAddr is reset.
+                vm.SelectPath(1);
+                Assert.True(vm.HasPath);          // a (empty) movement base still resolved
+                Assert.Empty(vm.LoadList());      // no nodes
+                Assert.False(vm.CanWrite);        // not writable
+                Assert.Equal(0u, vm.CurrentAddr); // stale node dropped
+
+                // A Write now refuses (CurrentAddr == 0) with zero mutation.
+                byte[] before = (byte[])rom.Data.Clone();
+                string err = vm.Write();
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, rom.Data);
             });
         }
 

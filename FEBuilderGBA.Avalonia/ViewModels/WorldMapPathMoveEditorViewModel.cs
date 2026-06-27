@@ -49,9 +49,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return PathList;
         }
 
-        /// <summary>Resolve the movement base for the given path id; returns HasPath.</summary>
+        /// <summary>Drop any loaded node so a path switch can never Write to a stale node
+        /// of the previously-selected path (Copilot PR #1618 review #1). Switching to a path
+        /// whose movement list is empty / re-selects nothing does NOT fire SelectedAddressChanged,
+        /// so without this reset IsLoaded/CurrentAddr would keep pointing at the old node and a
+        /// subsequent Write would silently edit the wrong path (the Core membership guard accepts
+        /// the old node because it is a real node of the previous path).</summary>
+        public void ClearLoaded()
+        {
+            IsLoading = true;
+            CurrentAddr = 0;
+            IsLoaded = false;
+            ElapsedTime = 0;
+            CoordinateX = 0;
+            CoordinateY = 0;
+            IsLoading = false;
+            MarkClean();
+        }
+
+        /// <summary>Resolve the movement base for the given path id; returns HasPath.
+        /// Always drops the previously-loaded node first (corruption guard at the UI layer).</summary>
         public bool SelectPath(int pathId)
         {
+            ClearLoaded();
             ROM rom = CoreState.ROM;
             WorldMapPathMoveCore.ResolveMovementBase(rom, pathId, out _movementBase);
             return HasPath;

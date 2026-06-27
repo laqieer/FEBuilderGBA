@@ -12,7 +12,7 @@
         <TextBlock Text="Path Movement Editor" FontSize="18" FontWeight="Bold" />
 
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="Path:" VerticalAlignment="Center" />
+          <TextBlock Text="Path" VerticalAlignment="Center" />
           <ComboBox AutomationProperties.AutomationId="WorldMapPathMoveEditor_PathType_Combo" Name="PathTypeCombo" MinWidth="240" />
         </StackPanel>
 

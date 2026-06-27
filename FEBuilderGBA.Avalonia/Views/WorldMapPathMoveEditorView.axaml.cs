@@ -57,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _suppressPathChange = false;
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.LoadPaths failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.LoadPaths failed: {ex.Message}");
             }
         }
 
@@ -69,6 +69,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 _vm.SelectPath(PathTypeCombo.SelectedIndex);
                 LoadList();
+                // SelectPath dropped any loaded node; if the new list didn't auto-load one,
+                // clear the editor display so no stale node values remain on screen.
+                if (!_vm.IsLoaded) ClearEditorDisplay();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
                 UpdateWriteEnabled();
@@ -76,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.OnPathChanged failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.OnPathChanged failed: {ex.Message}");
             }
         }
 
@@ -94,7 +97,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.LoadList failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.LoadList failed: {ex.Message}");
             }
         }
 
@@ -112,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPathMoveEditorView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.OnSelected failed: {ex.Message}");
             }
         }
 
@@ -122,6 +125,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ElapsedTimeBox.Value = _vm.ElapsedTime;
             CoordinateXBox.Value = _vm.CoordinateX;
             CoordinateYBox.Value = _vm.CoordinateY;
+        }
+
+        // Blank the editor fields when no node is loaded (e.g. after switching to a
+        // path whose movement list is empty) so stale node values never linger.
+        void ClearEditorDisplay()
+        {
+            AddrLabel.Text = "";
+            ElapsedTimeBox.Value = 0;
+            CoordinateXBox.Value = 0;
+            CoordinateYBox.Value = 0;
         }
 
         void UpdateWriteEnabled()
@@ -154,7 +167,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapPathMoveEditorView.Write failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.Write failed: {ex.Message}");
             }
         }
 
@@ -164,6 +177,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // NavigateTo may be called immediately after Window.Show(), BEFORE the
+                // Opened handler runs LoadPaths() (DesktopNavigationService.Navigate). If the
+                // combo isn't populated yet, load the path list first so the jump resolves.
+                if (PathTypeCombo.Items.Count == 0 || _vm.PathList.Count == 0)
+                    LoadPaths();
+
                 int index = -1;
                 for (int i = 0; i < _vm.PathList.Count; i++)
                 {
@@ -180,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapPathMoveEditorView.NavigateTo failed: {0}", ex.Message);
+                Log.Error($"WorldMapPathMoveEditorView.NavigateTo failed: {ex.Message}");
             }
         }
 
