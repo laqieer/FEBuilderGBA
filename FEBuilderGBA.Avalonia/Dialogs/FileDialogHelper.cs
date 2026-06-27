@@ -232,14 +232,19 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>Save a UPS patch file (#1194 Save-as-UPS tool).</summary>
         public static async Task<string?> SaveUpsFile(Window owner, string? suggestedName = null)
         {
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var file = await SaveUpsFilePick(owner, suggestedName);
+            return file?.TryGetLocalPath();
+        }
+
+        /// <summary>Save a UPS patch file and return the picked IStorageFile handle (#1639).</summary>
+        public static async Task<IStorageFile?> SaveUpsFilePick(Window owner, string? suggestedName = null)
+        {
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save UPS Patch"),
                 SuggestedFileName = suggestedName ?? "patch.ups",
                 FileTypeChoices = new[] { MakeUpsFileType(), MakeAllFileType() },
             });
-
-            return file?.TryGetLocalPath();
         }
 
         /// <summary>

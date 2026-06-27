@@ -50,9 +50,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Save_Click(object? sender, RoutedEventArgs e)
         {
-            var path = await FileDialogHelper.SaveRomFile(this, "merged.gba");
-            if (path != null)
-                _vm.SaveMerged(path);
+            // #1639: the merged ROM is a single-file output → pick the handle and
+            // write through the SAF bridge so Android content:// targets work.
+            var file = await FileDialogHelper.SaveRomFilePick(this, "merged.gba");
+            if (file == null) return;
+            await FileDialogHelper.WriteViaAsync(file, p => _vm.SaveMerged(p));
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
