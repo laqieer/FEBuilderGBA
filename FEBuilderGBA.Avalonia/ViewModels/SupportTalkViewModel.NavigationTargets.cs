@@ -13,8 +13,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         // ----------------------------------------------------------------
         // INavigationTargetSource — Phase 4 (#374). Mirror navigation callsites
-        // in SupportTalkView.axaml.cs and flag the missing unit-id jumps from
-        // issue #360 ("Add jump, pick, and preview for all id/address fields").
+        // in SupportTalkView.axaml.cs. The unit-id jumps from issue #360
+        // ("Add jump, pick, and preview for all id/address fields") are now
+        // wired (Fixed in #360 / PR #638), so the IssueRef tags are dropped.
         // ----------------------------------------------------------------
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
@@ -34,19 +35,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     TargetViewType: typeof(TextViewerView),
                     TargetAddress: null),
 
-                // Known-broken (#360): Support Partner 1 / Partner 2 unit-id
-                // fields have no jump-to-unit button (the WinForms
-                // SupportTalkForm wires both to UnitForm via InputFormRef).
+                // Fixed in #360 (PR #638): Support Partner 1 / Partner 2 unit-id
+                // fields now have a jump-to-unit button (the WinForms
+                // SupportTalkForm wires both to UnitForm via InputFormRef;
+                // the Avalonia view wires SupportPartner1/2_Jump → UnitEditorView).
                 new NavigationTarget(
                     CommandName: "JumpToPartner1",
                     TargetViewType: typeof(UnitEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#360"),
+                    TargetAddress: null),
                 new NavigationTarget(
                     CommandName: "JumpToPartner2",
                     TargetViewType: typeof(UnitEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#360"),
+                    TargetAddress: null),
             };
         }
     }

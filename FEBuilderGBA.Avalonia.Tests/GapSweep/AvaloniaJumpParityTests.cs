@@ -200,19 +200,40 @@ public class AvaloniaJumpParityTests
         }
     }
 
-    [Fact(Skip = "Tracked in #360 — id/address fields need jump/pick/preview.")]
+    [Fact]
     [Trait("KnownGap", "360")]
     public void Issue360_SupportTalk_UnitIdJumpsImplemented()
     {
-        // When fixed: SupportTalk's Partner1/Partner2 unit-id fields will
-        // each have a working Jump-to-Unit button.
+        // Fixed in #360 (PR #638): SupportTalk's Partner1/Partner2 unit-id
+        // fields each have a working Jump-to-Unit button (the Avalonia view
+        // wires SupportPartner1/2_Jump → UnitEditorView). This test asserts
+        // both invariants (mirroring the #359 case):
+        //   (1) no SupportTalk Partner row still carries IssueRef = "#360"
+        //   (2) both Partner commands exist and target UnitEditorView, so a
+        //       regression that drops the tag but removes/retargets the row
+        //       still fails.
         var manifests = JumpParityScanner.ScanAvManifests(typeof(INavigationTargetSource).Assembly);
-        var stillBroken = manifests.Where(m =>
-                m.SourceVm == "SupportTalkViewModel"
-                && (m.Command == "JumpToPartner1" || m.Command == "JumpToPartner2")
-                && m.IssueRef == "#360")
+        var partnerEntries = manifests
+            .Where(m => m.SourceVm == "SupportTalkViewModel"
+                && (m.Command == "JumpToPartner1" || m.Command == "JumpToPartner2"))
             .ToList();
+
+        // (1) No remaining IssueRef = "#360".
+        var stillBroken = partnerEntries.Where(e => e.IssueRef == "#360").ToList();
         Assert.Empty(stillBroken);
+
+        // (2) Both Partner jump commands exist and land in UnitEditorView.
+        var expected = new[]
+        {
+            ("JumpToPartner1", "UnitEditorView"),
+            ("JumpToPartner2", "UnitEditorView"),
+        };
+        foreach (var (command, expectedView) in expected)
+        {
+            var entry = partnerEntries.SingleOrDefault(e => e.Command == command);
+            Assert.True(entry != null, $"Manifest missing entry for command {command}");
+            Assert.Equal(expectedView, entry!.TargetView);
+        }
     }
 
     [Fact]
@@ -234,34 +255,66 @@ public class AvaloniaJumpParityTests
         Assert.Empty(stillBroken);
     }
 
-    [Fact(Skip = "Tracked in #363 — Item Effectiveness jump uses wrong address + preview icons.")]
+    [Fact]
     [Trait("KnownGap", "363")]
     public void Issue363_ItemEditor_EffectivenessAddressAndIcons()
     {
-        // When fixed: the vanilla Item Effectiveness jump will compute the
-        // correct address and the class preview icons will render correctly.
+        // Fixed in #363 (PR #461/#466): the vanilla Item Effectiveness jump
+        // computes the correct address (the receiver enumerates items by their
+        // P16 pointer) and the class preview icons render correctly. This test
+        // asserts both invariants (mirroring the #359 case):
+        //   (1) the vanilla Effectiveness row no longer carries IssueRef = "#363"
+        //   (2) the JumpToEffectivenessVanilla command exists and targets
+        //       ItemEffectivenessViewerView.
         var manifests = JumpParityScanner.ScanAvManifests(typeof(INavigationTargetSource).Assembly);
-        var stillBroken = manifests.Where(m =>
-                m.SourceVm == "ItemEditorViewModel"
-                && m.Command == "JumpToEffectivenessVanilla"
-                && m.IssueRef == "#363")
+        var vanillaEntries = manifests
+            .Where(m => m.SourceVm == "ItemEditorViewModel"
+                && m.Command == "JumpToEffectivenessVanilla")
             .ToList();
+
+        // (1) No remaining IssueRef = "#363".
+        var stillBroken = vanillaEntries.Where(e => e.IssueRef == "#363").ToList();
         Assert.Empty(stillBroken);
+
+        // (2) The vanilla Effectiveness jump exists and lands in the viewer.
+        var entry = vanillaEntries.SingleOrDefault();
+        Assert.True(entry != null, "Manifest missing entry for command JumpToEffectivenessVanilla");
+        Assert.Equal("ItemEffectivenessViewerView", entry!.TargetView);
     }
 
-    [Fact(Skip = "Tracked in #365 — CC Branch Editor shows wrong Upstream Chain.")]
+    [Fact]
     [Trait("KnownGap", "365")]
     public void Issue365_CCBranchEditor_UpstreamChainCorrect()
     {
-        // When fixed: the Upstream Chain panel will compute the correct
-        // before-promotion list AND the Promotion Class fields will gain
-        // jump buttons.
+        // Fixed in #365 (PR #460): the Upstream Chain panel computes the
+        // correct before-promotion list AND the Promotion Class fields gained
+        // jump buttons (Promo1/2_Jump → ClassEditorView). This test asserts
+        // both invariants (mirroring the #359 case):
+        //   (1) no CCBranch row still carries IssueRef = "#365"
+        //   (2) both Promotion-class commands exist and target ClassEditorView,
+        //       so a regression that drops the tag but removes/retargets the
+        //       row still fails.
         var manifests = JumpParityScanner.ScanAvManifests(typeof(INavigationTargetSource).Assembly);
-        var stillBroken = manifests.Where(m =>
-                m.SourceVm == "CCBranchEditorViewModel"
-                && m.IssueRef == "#365")
+        var ccBranchEntries = manifests
+            .Where(m => m.SourceVm == "CCBranchEditorViewModel")
             .ToList();
+
+        // (1) No remaining IssueRef = "#365".
+        var stillBroken = ccBranchEntries.Where(e => e.IssueRef == "#365").ToList();
         Assert.Empty(stillBroken);
+
+        // (2) Both Promotion-class jump commands exist and land in ClassEditorView.
+        var expected = new[]
+        {
+            ("JumpToPromotionClass1", "ClassEditorView"),
+            ("JumpToPromotionClass2", "ClassEditorView"),
+        };
+        foreach (var (command, expectedView) in expected)
+        {
+            var entry = ccBranchEntries.SingleOrDefault(e => e.Command == command);
+            Assert.True(entry != null, $"Manifest missing entry for command {command}");
+            Assert.Equal(expectedView, entry!.TargetView);
+        }
     }
 
     static string? FindRepoRoot()
