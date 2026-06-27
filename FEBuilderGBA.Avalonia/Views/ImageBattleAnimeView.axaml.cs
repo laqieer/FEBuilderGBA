@@ -190,6 +190,81 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // Full-animation import (#1638): pick a .txt script or FEditor .bin and
+        // delegate to the SAME Core path the CLI uses, under ONE UndoService scope.
+        async void ImportAnime_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.HasAnimeDetails || _vm.AnimeDataAddr == 0)
+            {
+                CoreState.Services.ShowError(R._("Select an animation with a valid data record first."));
+                return;
+            }
+
+            string? path = await Dialogs.FileDialogHelper.OpenFile(
+                this, R._("Import Battle Animation"), new[] { "*.txt", "*.bin" });
+            if (string.IsNullOrEmpty(path)) return;
+
+            StopAnimation();
+            _undoService.Begin("Import Battle Animation");
+            try
+            {
+                string error = _vm.ImportAnimation(path);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(R._("Import failed: {0}", error));
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Refresh details + preview so the new animation shows immediately.
+                _vm.LoadAnimationDetails(_vm.AnimationNumber);
+                UpdateUI();
+                CoreState.Services.ShowInfo(R._("Battle animation imported from {0}.",
+                    System.IO.Path.GetFileName(path)));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageBattleAnimeView.ImportAnime_Click failed: " + ex.ToString());
+                CoreState.Services.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+        }
+
+        // Full-animation export (#1638): write a .txt script + per-frame PNGs via
+        // the SAME Core path the CLI uses (BattleAnimeExportCore.ExportBattleAnime).
+        async void ExportAnime_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.HasAnimeDetails || _vm.AnimeDataAddr == 0)
+            {
+                CoreState.Services.ShowError(R._("Select an animation with a valid data record first."));
+                return;
+            }
+
+            string name = _vm.AnimeName.Replace("\0", "").Trim();
+            if (string.IsNullOrEmpty(name)) name = "battle_anime";
+            string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(this, $"{name}.txt");
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                string error = _vm.ExportAnimation(path);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    CoreState.Services.ShowError(R._("Export failed: {0}", error));
+                    return;
+                }
+                CoreState.Services.ShowInfo(R._("Battle animation exported to {0} (+ per-frame PNGs).",
+                    System.IO.Path.GetFileName(path)));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimeView.ExportAnime_Click failed: " + ex.ToString());
+                CoreState.Services.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
         void SectionCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             StopAnimation();

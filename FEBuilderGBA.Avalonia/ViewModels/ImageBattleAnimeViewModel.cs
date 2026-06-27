@@ -472,6 +472,78 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u16(addr + 2, AnimationNumber);
         }
 
+        /// <summary>
+        /// Import a full battle animation from a <c>.txt</c> script or an FEditor
+        /// <c>.bin</c> into the currently-loaded 32-byte animation record
+        /// (<see cref="AnimeDataAddr"/>). This is a THIN delegate to the SAME Core
+        /// path the CLI uses (<see cref="BattleAnimeImportCore.ImportBattleAnime"/>
+        /// for .txt / <see cref="BattleAnimeImportCore.ImportFEditorBin"/> for the
+        /// FEditor serialization) — no parse/write logic lives here. The format is
+        /// detected by the FEditor header (<c>0x5C 0x78</c>, matching the CLI), not
+        /// by extension alone, so a mis-named <c>.txt</c> still imports correctly.
+        /// The caller MUST wrap this in a single <c>UndoService</c> scope; the Core
+        /// path writes via <c>rom.write_*</c> which the ambient undo scope tracks.
+        /// </summary>
+        /// <param name="path">Path to the <c>.txt</c> script or FEditor <c>.bin</c>.</param>
+        /// <returns>Error message (empty/<c>null</c> on success).</returns>
+        public string ImportAnimation(string path)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "No ROM loaded.";
+            if (!HasAnimeDetails || AnimeDataAddr == 0)
+                return "No animation record selected to import into.";
+            if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path))
+                return "Import file not found: " + path;
+
+            // Image loader using the shared image service (identical to the CLI's
+            // RunImportBattleAnime). Dispose each IImage after extracting pixels.
+            Func<string, (byte[] rgba, int w, int h)?> imageLoader = (p) =>
+            {
+                if (!System.IO.File.Exists(p)) return null;
+                using var img = CoreState.ImageService?.LoadImage(p);
+                if (img == null) return null;
+                return (img.GetPixelData(), img.Width, img.Height);
+            };
+
+            // Detect FEditor .bin by header (5C 78 ...), matching the CLI; fall back
+            // to the .txt script importer otherwise.
+            bool isFEditorBin = false;
+            string ext = System.IO.Path.GetExtension(path).ToUpperInvariant();
+            if (ext == ".BIN" || ext == "")
+            {
+                // FEditor serialization signature = 5C 78 ...; read exactly 2 bytes
+                // (ReadByte returns -1 at EOF, so tiny files can't false-positive).
+                using var fs = System.IO.File.OpenRead(path);
+                int b0 = fs.ReadByte();
+                int b1 = fs.ReadByte();
+                isFEditorBin = (b0 == 0x5C && b1 == 0x78);
+            }
+
+            return isFEditorBin
+                ? BattleAnimeImportCore.ImportFEditorBin(path, AnimeDataAddr, imageLoader)
+                : BattleAnimeImportCore.ImportBattleAnime(path, AnimeDataAddr, imageLoader);
+        }
+
+        /// <summary>
+        /// Export the currently-loaded battle animation to a <c>.txt</c> script
+        /// plus per-frame PNG files (written alongside the .txt). THIN delegate to
+        /// the SAME Core path the CLI uses
+        /// (<see cref="BattleAnimeExportCore.ExportBattleAnime"/>).
+        /// </summary>
+        /// <param name="txtPath">Destination <c>.txt</c> path; PNGs are written in its directory.</param>
+        /// <returns>Error message (empty/<c>null</c> on success).</returns>
+        public string ExportAnimation(string txtPath)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "No ROM loaded.";
+            if (!HasAnimeDetails || AnimeDataAddr == 0)
+                return "No animation record selected to export.";
+            if (string.IsNullOrEmpty(txtPath))
+                return "No output path specified.";
+
+            return BattleAnimeExportCore.ExportBattleAnime(rom, AnimeDataAddr, txtPath);
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()

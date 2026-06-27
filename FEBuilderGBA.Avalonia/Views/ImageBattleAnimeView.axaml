@@ -76,6 +76,17 @@
               <TextBlock Grid.Row="8" Grid.Column="0" Text="OAM Data:" VerticalAlignment="Center" />
               <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_OamLZ77_Label" Grid.Row="8" Grid.Column="1" Name="OamLZ77Label" Foreground="DarkGreen" VerticalAlignment="Center" />
             </Grid>
+
+            <!-- Full-animation Import / Export (.txt script or FEditor .bin), parity with WinForms + CLI -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+              <Button AutomationProperties.AutomationId="ImageBattleAnime_ImportAnime_Button" Name="ImportAnimeButton"
+                      Content="Import Animation..." Click="ImportAnime_Click" />
+              <Button AutomationProperties.AutomationId="ImageBattleAnime_ExportAnime_Button" Name="ExportAnimeButton"
+                      Content="Export Animation..." Click="ExportAnime_Click" />
+            </StackPanel>
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnime_ImportExportHint_Label"
+                       Text="Import replaces this animation from a .txt script or FEditor .bin. Export writes a .txt script + per-frame PNGs."
+                       FontStyle="Italic" Foreground="Gray" TextWrapping="Wrap" />
           </StackPanel>
         </Border>
 
