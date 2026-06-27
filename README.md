@@ -26,12 +26,16 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net9.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
-| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (67 commands — UPS/patch, lint, rebuild, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
+| `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (67 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 356 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, and decomp-project mode. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
-| `FEBuilderGBA.Tests` | net9.0-windows | Unit and integration tests |
+| `FEBuilderGBA.Tests` | net9.0-windows | WinForms unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (Linux/macOS/Windows), including the SkiaSharp native-version guard and render byte-parity smoke tests. |
+| `FEBuilderGBA.Avalonia.Tests` | net9.0 | Avalonia GUI / ViewModel unit tests (data verification, navigation, field completeness). |
+| `FEBuilderGBA.Android.Tests` | net9.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
+
+<a id="cli-command-count">†</a> **CLI command count = 67**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
 
 ### Cloning the Repository
 
@@ -268,7 +272,7 @@ FEBuilderGBA.sln
 
 ## Testing & Coverage
 
-- ✅ **11,000+ unit/integration tests** passing across five test projects — `FEBuilderGBA.Core.Tests` (~5.5k, cross-platform), `FEBuilderGBA.Avalonia.Tests` (~4.6k, GUI/ViewModel), `FEBuilderGBA.Tests` (~1.3k, WinForms), `FEBuilderGBA.E2ETests` (E2E), and `FEBuilderGBA.Android.Tests` (on-device parity/version-guard head). `[Theory]` cases expand at runtime, so the authoritative live total is the one reported by `dotnet test` / [CI](https://github.com/laqieer/FEBuilderGBA/actions).
+- ✅ **11,000+ unit/integration tests** passing across the four desktop test projects — `FEBuilderGBA.Core.Tests` (~5.5k, cross-platform), `FEBuilderGBA.Avalonia.Tests` (~4.6k, GUI/ViewModel), `FEBuilderGBA.Tests` (~1.3k, WinForms), and `FEBuilderGBA.E2ETests` (E2E). `[Theory]` cases expand at runtime, so the authoritative live total for these is the one reported by `dotnet test` / [CI](https://github.com/laqieer/FEBuilderGBA/actions). The fifth project, `FEBuilderGBA.Android.Tests`, is an Android **instrumentation** head (not run by `dotnet test`) — its on-device SkiaSharp byte-parity/version-guard results come from the [Android Emulator Parity workflow](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml).
 - ✅ **E2E suite** (`FEBuilderGBA.E2ETests`) covers CLI + GUI automation + output-log capture: a no-ROM subset runs on every PR, and the full suite (including the 325-editor Avalonia smoke test, screenshot capture for both GUIs, and CLI output-log capture for both the new CLI and WinForms executables) runs with all 5 ROMs. See the [E2E CI workflows](https://github.com/laqieer/FEBuilderGBA/actions) for the live pass/skip counts.
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)

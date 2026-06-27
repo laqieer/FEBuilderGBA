@@ -22,7 +22,10 @@ FEBuilderGBA.sln
 ```
 
 > Test counts above are rounded approximations of declared `[Fact]`/`[Theory]` methods; `[Theory]`
-> cases expand at runtime, so the authoritative live total is the one reported by `dotnet test` / CI.
+> cases expand at runtime, so the authoritative live total for the four **desktop** projects (Core,
+> Avalonia, WinForms, E2E) is the one reported by `dotnet test` / CI. `FEBuilderGBA.Android.Tests` is
+> an Android **instrumentation** head (not run by `dotnet test`) — its results come from the
+> `android-emulator-parity.yml` workflow.
 
 **FEBuilderGBA.Core** contains platform-independent logic: ROM manipulation (`Rom.cs`, `ROMFE*.cs`), undo system (`Undo.cs`), utility functions (`U.cs`), logging (`Log.cs`), and shared state (`CoreState.cs`). It defines abstraction interfaces (`IAppServices`, `IEtcCache`, `ISystemTextEncoder`, `IAsmMapCache`) so Core code can call platform-specific services without depending on WinForms.
 
@@ -71,7 +74,9 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ### Command-Line Tools
 
 > The examples below are a **representative subset**. The canonical full CLI reference (all 67
-> commands) lives in **[docs/cli-reference.md](docs/cli-reference.md)**; the argument table is in
+> commands — distinct top-level dispatch-table branches in `FEBuilderGBA.CLI/Program.cs`, collapsing
+> the `--help`/`-h` and `--test`/`--testonly` aliases) lives in
+> **[docs/cli-reference.md](docs/cli-reference.md)**; the argument table is in
 > **[docs/cli-args.md](docs/cli-args.md)**.
 
 ```bash
