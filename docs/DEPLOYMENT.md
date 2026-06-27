@@ -71,14 +71,18 @@ release asset:
 
 (`<rid>` = `linux-x64`, `osx-arm64`, `win-x64`.)
 
-**Gitee mirror:** publishing the release fires the existing
-`sync-release-to-gitee.yml` (`on: release: published`), so the full asset set is
-mirrored to Gitee. Because a release created with the default `GITHUB_TOKEN`
-does **not** trigger downstream workflows, set a repo secret `RELEASE_TOKEN` (a
-PAT with `contents: write`) for the sync to auto-fire — the workflow uses it when
-present and falls back to `GITHUB_TOKEN` otherwise. With only `GITHUB_TOKEN`,
-run `sync-release-to-gitee.yml` manually via its `workflow_dispatch` trigger
-after the release is published.
+All four build jobs are **required** — if any platform build fails, the release
+is **not** published (no partial release missing a platform download). A
+preflight step also verifies every expected zip is present before publishing.
+
+**Gitee mirror (`RELEASE_TOKEN` required):** publishing the release fires the
+existing `sync-release-to-gitee.yml` (`on: release: published`), so the full
+asset set is mirrored to Gitee. Because a release created with the default
+`GITHUB_TOKEN` does **not** trigger downstream workflows, the workflow
+**requires** a repo secret `RELEASE_TOKEN` (a PAT with `contents: write`) and
+fails before creating the release if it is absent — guaranteeing the Gitee sync
+auto-fires. (If you ever publish a release without `RELEASE_TOKEN`, run
+`sync-release-to-gitee.yml` manually via its `workflow_dispatch` trigger.)
 
 **Dry run:** triggering the workflow via `workflow_dispatch` (the "Run workflow"
 button) runs the build jobs only and does **not** create a release — the

@@ -77,8 +77,10 @@ jobs:
         run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore .
 
       - name: Post Build (assemble desktop package)
-        # Verbatim from msbuild.yml "Post Build": collect exe/dll/json + config
+        # Based on msbuild.yml's "Post Build" step: collect exe/dll/json + config
         # (patch2 stripped, empty version dirs kept), bundle ColorzCore + lyn.
+        # NOTE: msbuild.yml's trailing build_time/README stamping lines are
+        # intentionally omitted here (a release uses the tag for versioning).
         shell: pwsh
         run: |
           mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
@@ -201,15 +203,14 @@ jobs:
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
-  # Android APK (mirrors android.yml). Marked continue-on-error so a flaky
-  # Android workload build can never block publishing the desktop/CLI assets;
-  # the release job gates on the desktop+crossplatform jobs and attaches the APK
-  # only if this job produced it.
+  # Android APK (mirrors android.yml). REQUIRED for the release: #1629 AC1/AC2
+  # mandate the Android APK as one of the attached platform downloads, so the
+  # release job gates on this job succeeding and verifies the APK zip is present
+  # before publishing (no release missing a required platform asset).
   # ---------------------------------------------------------------------------
   android:
     name: Android APK
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -246,14 +247,10 @@ jobs:
   # ---------------------------------------------------------------------------
   release:
     name: Create GitHub Release
+    # All build jobs are required: #1629 AC1/AC2 mandate every platform package
+    # (WinForms, CLI, Avalonia, Android) be built and attached, so a failure in
+    # ANY build job must block the release rather than publish a partial set.
     needs: [ winforms, crossplatform, android ]
-    # Run even if Android failed (it is optional / continue-on-error), but only
-    # when the desktop + cross-platform builds succeeded so we never publish a
-    # release missing the core platform assets.
-    if: >-
-      always() &&
-      needs.winforms.result == 'success' &&
-      needs.crossplatform.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -267,6 +264,50 @@ jobs:
       - name: List collected assets
         run: ls -la release-artifacts
 
+      - name: Verify expected platform assets are present (AC1/AC2)
+        # Fail BEFORE publishing if any required platform zip is missing, so the
+        # release page can never list fewer than every platform download.
+        run: |
+          set -euo pipefail
+          missing=0
+          require() {
+            if ! ls release-artifacts/$1 >/dev/null 2>&1; then
+              echo "::error::Missing required release asset: $1"
+              missing=1
+            fi
+          }
+          require "FEBuilderGBA_${{ github.ref_name }}.zip"
+          require "FEBuilderGBA-cli-linux-x64.zip"
+          require "FEBuilderGBA-cli-osx-arm64.zip"
+          require "FEBuilderGBA-cli-win-x64.zip"
+          require "FEBuilderGBA-avalonia-linux-x64.zip"
+          require "FEBuilderGBA-avalonia-osx-arm64.zip"
+          require "FEBuilderGBA-avalonia-win-x64.zip"
+          require "FEBuilderGBA-android-apk.zip"
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::One or more required platform assets are missing; refusing to publish a partial release."
+            exit 1
+          fi
+          echo "All required platform assets present."
+
+      - name: Require RELEASE_TOKEN for auto-sync to Gitee (AC3)
+        # Only enforced for a real ver_* tag release (workflow_dispatch is a
+        # build-only dry run that never publishes, so it does not need the PAT).
+        # #1629 AC3 requires publishing the release to AUTO-FIRE
+        # sync-release-to-gitee.yml. A release created with the default
+        # GITHUB_TOKEN does NOT trigger downstream workflows, so we require a PAT
+        # (RELEASE_TOKEN) and fail with a clear message if it is absent rather
+        # than silently publishing a release that needs a manual Gitee sync.
+        if: startsWith(github.ref, 'refs/tags/ver_')
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "::error::Secret RELEASE_TOKEN is not set. A release created with the default GITHUB_TOKEN will NOT trigger sync-release-to-gitee.yml (GitHub suppresses workflow events from GITHUB_TOKEN). Add a repo secret RELEASE_TOKEN (a PAT with contents: write) so the Gitee mirror auto-syncs, or run sync-release-to-gitee.yml manually after publishing."
+            exit 1
+          fi
+          echo "RELEASE_TOKEN is configured; the published release will auto-fire sync-release-to-gitee.yml."
+
       - name: Create GitHub Release with all platform assets
         # Only create a release for a real ver_* tag push. On manual
         # workflow_dispatch (branch ref) this step is skipped, so dispatch is a
@@ -279,7 +320,7 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: release-artifacts/**/*.zip
-          # Prefer a PAT (RELEASE_TOKEN) so publishing fires
-          # sync-release-to-gitee.yml; fall back to GITHUB_TOKEN if unset (in
-          # which case the Gitee sync must be dispatched manually).
-          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          # Use the PAT (RELEASE_TOKEN) so publishing fires
+          # sync-release-to-gitee.yml (the preceding step guarantees it is set).
+          # github.token is the built-in default fallback (always populated).
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
