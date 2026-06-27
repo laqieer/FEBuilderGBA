@@ -337,15 +337,26 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>Save an Animation Creator script file (.txt).</summary>
         public static async Task<string?> SaveAnimationScriptFile(Window owner, string? suggestedName = null)
         {
+            var file = await SaveAnimationScriptFilePick(owner, suggestedName);
+            return file?.TryGetLocalPath();
+        }
+
+        /// <summary>
+        /// Pick an Animation Creator script (.txt) save target and return the
+        /// <see cref="IStorageFile"/> handle (not collapsed), so a SINGLE-FILE
+        /// script writer can route through <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>
+        /// (#1639). NOTE: callers whose export ALSO writes sibling PNGs must NOT
+        /// bridge — they require a local path and Android-disable.
+        /// </summary>
+        public static async Task<IStorageFile?> SaveAnimationScriptFilePick(Window owner, string? suggestedName = null)
+        {
             var fileType = new FilePickerFileType(R._("Animation Script (.txt)")) { Patterns = TxtPatterns };
-            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save Animation Script"),
                 SuggestedFileName = suggestedName ?? "anim.txt",
                 FileTypeChoices = new[] { fileType, MakeAllFileType() },
             });
-
-            return file?.TryGetLocalPath();
         }
 
         /// <summary>Open any file with custom filter.</summary>

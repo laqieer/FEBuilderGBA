@@ -176,9 +176,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No animation entry selected."));
                     return;
                 }
+                // #1639: ExportScript writes per-frame sibling PNGs next to the
+                // script, so it needs a real local path. SaveAnimationScriptFile
+                // returns null on Android SAF (no local path) → disable with a
+                // clear message instead of silently returning. (Use Export GIF for
+                // a single-file animation export on Android.)
                 string? path = await FileDialogHelper.SaveAnimationScriptFile(this,
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".txt");
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Exporting an animation script writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device."));
+                    return;
+                }
 
                 string err = _vm.ExportScript(path);
                 if (!string.IsNullOrEmpty(err)) { CoreState.Services?.ShowError(err); return; }

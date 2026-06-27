@@ -742,9 +742,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
+                // #1639: the .instrument index resolves nested/sibling files from
+                // its OWN directory (dir below), so require a real local path; a
+                // one-file SAF temp copy would break sibling resolution → message
+                // on Android, never silent.
                 string? path = await FileDialogHelper.OpenFile(
-                    this, R._("Import Instrument"), "*.instrument");
-                if (string.IsNullOrEmpty(path)) return;
+                    this, R._("Import Instrument"), "*.instrument", requireLocalPath: true);
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Importing an instrument set reads sibling files and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 string dir = Path.GetDirectoryName(path) ?? ".";
                 string indexName = Path.GetFileName(path);
