@@ -221,6 +221,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 txtPath, savePng);
         }
 
+        /// <summary>Export every anime1 frame as an animated GIF, compositing each
+        /// frame onto the rendered chapter map that uses the selected PLIST (the
+        /// deferred half of #1602 — WF MapTileAnimation1Form.ExportGif). READ-ONLY.
+        /// Delegates unconditionally to the Core helper, which returns the
+        /// appropriate localized error for a null ROM (CoreState.ROM is null) or an
+        /// unselected PLIST (passed as 0).</summary>
+        public string ExportGif(string gifPath)
+        {
+            return MapTileAnimation1ImageCore.ExportGif(CoreState.ROM, SelectedPlist ?? 0, gifPath);
+        }
+
         /// <summary>Re-import a .mapanime1.txt manifest into the selected PLIST.
         /// Returns "" on success or a localized error. Caller owns the undo
         /// scope.</summary>

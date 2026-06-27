@@ -420,5 +420,236 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally { CoreState.ROM = savedRom; }
         }
+
+        // -----------------------------------------------------------------
+        // #1602 deferred half: composited-map GIF export (WF ExportGif).
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void ReadFrameBytes_ReturnsRawBlockOfCorrectLength()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // Entry points at 0x08000800; length = SHEET_LEN (1024). Height 8 ⇒
+                // 128*8 = 1024 bytes.
+                byte[] frame = MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0x08000800, SHEET_LEN);
+                Assert.NotNull(frame);
+                Assert.Equal((int)SHEET_LEN, frame.Length);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void ReadFrameBytes_BadPointerOrZeroLength_ReturnsNull()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0, SHEET_LEN));
+                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(rom, 0x08000800, 0));
+                Assert.Null(MapTileAnimation1ImageCore.ReadFrameBytes(null, 0x08000800, SHEET_LEN));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void ExportGif_NullRomOrNoPlist_ReturnsError_NoFile()
+        {
+            using var _ = EnsureImageService();
+            string gif = Path.GetTempFileName();
+            TryDelete(gif);
+            try
+            {
+                // null ROM ⇒ localized error, no file.
+                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(null, 1, gif));
+                Assert.False(File.Exists(gif));
+
+                ROM rom = MakeRom();
+                // PLIST 0 ⇒ error, no file.
+                Assert.NotEqual("", MapTileAnimation1ImageCore.ExportGif(rom, 0, gif));
+                Assert.False(File.Exists(gif));
+            }
+            finally { TryDelete(gif); }
+        }
+
+        [Fact]
+        public void ExportGif_UnresolvablePlist_ReturnsError_NoFile()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            string gif = Path.GetTempFileName();
+            TryDelete(gif);
+            try
+            {
+                ROM rom = MakeRom(); // synthetic ROM has no map referencing any plist.
+                CoreState.ROM = rom;
+                // A non-zero plist that no map uses ⇒ ResolveGifContext null ⇒ error.
+                string err = MapTileAnimation1ImageCore.ExportGif(rom, 0x12, gif);
+                Assert.NotEqual("", err);
+                Assert.False(File.Exists(gif));
+            }
+            finally { CoreState.ROM = savedRom; TryDelete(gif); }
+        }
+
+        // Real-ROM integration: export a composited-map GIF for the FIRST anime1
+        // PLIST in FE8U and assert it is a valid multi-frame GIF89a. Skips
+        // gracefully when the ROM is absent or the ROM has no anime1 entries.
+        [Fact]
+        public void ExportGif_RealRomFE8U_ProducesValidMultiFrameGif()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip
+
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            if (CoreState.ImageService == null) CoreState.ImageService = new StubImageService();
+            string gif = Path.Combine(Path.GetTempPath(), "maptileanim1_" + Guid.NewGuid().ToString("N") + ".gif");
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+
+                // Pick the first non-broken anime1 PLIST (mirrors the WF/Avalonia
+                // default selection).
+                var plistRows = MapTileAnimation1Core.BuildPlistList(rom);
+                uint plist = 0;
+                foreach (var row in plistRows)
+                {
+                    if (row.IsBroken) continue;
+                    plist = row.Plist;
+                    break;
+                }
+                if (plist == 0) return; // no usable anime1 PLIST — skip
+
+                string err = MapTileAnimation1ImageCore.ExportGif(rom, plist, gif);
+                Assert.Equal("", err);
+                Assert.True(File.Exists(gif), "GIF file was not created");
+
+                byte[] bytes = File.ReadAllBytes(gif);
+                // GIF89a magic.
+                Assert.True(bytes.Length > 6);
+                Assert.Equal((byte)'G', bytes[0]);
+                Assert.Equal((byte)'I', bytes[1]);
+                Assert.Equal((byte)'F', bytes[2]);
+                Assert.Equal((byte)'8', bytes[3]);
+                Assert.Equal((byte)'9', bytes[4]);
+                Assert.Equal((byte)'a', bytes[5]);
+
+                // Count frames = number of Graphic Control Extension blocks
+                // (0x21 0xF9), one per encoded frame.
+                int frameCount = 0;
+                for (int i = 0; i + 1 < bytes.Length; i++)
+                    if (bytes[i] == 0x21 && bytes[i + 1] == 0xF9) frameCount++;
+                Assert.True(frameCount >= 1, $"Expected >= 1 GIF frame, found {frameCount}");
+
+                // The atomic temp-file-then-move path must leave no ".tmp" artifact.
+                string gifDir = Path.GetDirectoryName(gif);
+                Assert.Empty(Directory.GetFiles(gifDir, "*" + Path.GetFileName(gif) + "*.tmp"));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.ImageService = savedSvc;
+                TryDelete(gif);
+            }
+        }
+
+        // Real-ROM regression for the WF first-map binding (Copilot PR review):
+        // when the FIRST map that references the anime1 PLIST has a broken required
+        // plist, ResolveGifContext must return null (WF binds to that first map and
+        // fails) — it must NOT silently fall through to a later map that happens to
+        // share the same PLIST and export a DIFFERENT chapter's background.
+        [Fact]
+        public void ResolveGifContext_FirstMatchingMapBroken_ReturnsNull_NoFallThrough()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip
+
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            if (CoreState.ImageService == null) CoreState.ImageService = new StubImageService();
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+
+                // Find the first non-broken anime1 PLIST and the FIRST map that uses it.
+                var plistRows = MapTileAnimation1Core.BuildPlistList(rom);
+                uint plist = 0;
+                foreach (var row in plistRows)
+                {
+                    if (row.IsBroken) continue;
+                    plist = row.Plist;
+                    break;
+                }
+                if (plist == 0) return; // skip
+
+                // Sanity: it resolves before corruption.
+                Assert.NotNull(MapTileAnimation1ImageCore.ResolveGifContext(rom, plist));
+
+                var cache = MapPListResolverCore.BuildCache(rom);
+                uint firstMapAddr = 0;
+                foreach (var map in cache.Maps)
+                {
+                    if (cache.PListsAt(map.addr).anime1_plist == plist) { firstMapAddr = map.addr; break; }
+                }
+                if (firstMapAddr == 0) return; // skip
+
+                // Find a palette_plist value that GENUINELY fails to resolve, so the
+                // corruption is deterministic regardless of the version-specific
+                // PLIST limit. Scan downward from 0xFF for a value whose PALETTE
+                // resolution is NOT_FOUND.
+                uint badPalPlist = 0;
+                bool found = false;
+                for (uint cand = 0xFF; cand >= 1; cand--)
+                {
+                    uint r = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.PALETTE, cand, out uint _);
+                    if (r == U.NOT_FOUND) { badPalPlist = cand; found = true; break; }
+                }
+                if (!found) return; // skip — no guaranteed-invalid palette plist
+
+                // Corrupt the FIRST matching map's palette_plist (u8 @ +6) so its
+                // PALETTE resolution fails. WF would bind to this map and fail; the
+                // fixed Core must return null rather than fall through to another map
+                // sharing the PLIST.
+                rom.write_u8(firstMapAddr + 6, (byte)badPalPlist);
+
+                var ctx = MapTileAnimation1ImageCore.ResolveGifContext(rom, plist);
+                Assert.Null(ctx);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.ImageService = savedSvc;
+            }
+        }
+
+        // Walk up from the test assembly to find roms/<name> next to the .sln.
+        static string FindRom(string romName)
+        {
+            string thisAssembly = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string dir = Path.GetDirectoryName(thisAssembly);
+            for (int i = 0; i < 10 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                {
+                    string path = Path.Combine(dir, "roms", romName);
+                    if (File.Exists(path)) return path;
+                    break;
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
     }
 }

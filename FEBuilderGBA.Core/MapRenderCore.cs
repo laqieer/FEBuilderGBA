@@ -132,11 +132,13 @@ namespace FEBuilderGBA
         /// in the implementation body.
         /// </returns>
         public static IImage RenderMapImage(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint mapOffset, uint obj2Offset = 0)
+            uint configOffset, uint mapOffset, uint obj2Offset = 0,
+            byte[] animeOverlayBytes = null, int animeOverlayDestOffset = 0)
         {
             try
             {
-                return RenderMapImageCore(rom, objOffset, paletteOffset, configOffset, mapOffset, obj2Offset);
+                return RenderMapImageCore(rom, objOffset, paletteOffset, configOffset, mapOffset,
+                    obj2Offset, animeOverlayBytes, animeOverlayDestOffset);
             }
             catch (Exception ex)
             {
@@ -144,6 +146,19 @@ namespace FEBuilderGBA
                 return null;
             }
         }
+
+        /// <summary>
+        /// Byte offset within the decompressed OBJ tile buffer where a Map Tile
+        /// Animation Type 1 frame is patched in, mirroring WinForms
+        /// <c>ImageUtilMap.DrawMapChipOnly</c> (~L72,
+        /// <c>U.ArrayPatch(anime.change_bitmap_bytes, 0, objUZ, 32 * (8 / 2) * 4 * 16)</c>).
+        /// <c>32 * (8 / 2) * 4 * 16 = 8192</c> bytes = 256 tiles × 32 bytes/tile (each
+        /// 8×8 4bpp tile is 32 bytes), i.e. the anime tile region begins right after
+        /// the first 256 OBJ tiles (32 tiles/row × 8 rows). Exposed so the anime1 GIF
+        /// export (#1602) and tests use the same constant as the renderer rather than
+        /// a magic number.
+        /// </summary>
+        public const int ANIME1_OBJ_PATCH_OFFSET = 32 * (8 / 2) * 4 * 16; // = 8192 = 256 tiles × 32 bytes
 
         /// <summary>
         /// Composite a change-map overlay image from its already-resolved ROM offsets
@@ -219,7 +234,8 @@ namespace FEBuilderGBA
         // =====================================================================
 
         static IImage RenderMapImageCore(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint mapOffset, uint obj2Offset)
+            uint configOffset, uint mapOffset, uint obj2Offset,
+            byte[] animeOverlayBytes = null, int animeOverlayDestOffset = 0)
         {
             // --- Guard 1: null checks ---
             // rom.RomInfo is intentionally NOT checked: RenderMapImage only uses
@@ -231,6 +247,13 @@ namespace FEBuilderGBA
             // --- Step 2 (MR3): OBJ tiles — LZ77 raw bytes (+ FE7 obj2 append, MR4) ---
             byte[] objBytes = DecodeObjBytesWithObj2(rom, objOffset, obj2Offset);
             if (objBytes == null || objBytes.Length == 0) return null;
+
+            // --- Step 2b (#1602): Map Tile Animation Type 1 overlay ---
+            // Patch the anime1 frame's RAW 4bpp bytes into the decompressed OBJ
+            // buffer, mirroring WF DrawMapChipOnly (~L72). Bounded copy: never
+            // grows objBytes and clamps to the buffer end (the WF U.ArrayPatch
+            // semantic).
+            ApplyAnimeOverlay(objBytes, animeOverlayBytes, animeOverlayDestOffset);
 
             // --- Step 3: Palette — RAW 512 bytes ---
             byte[] palette = ReadRawPalette(rom, paletteOffset);
@@ -424,6 +447,26 @@ namespace FEBuilderGBA
         // =====================================================================
         // Private helpers
         // =====================================================================
+
+        /// <summary>
+        /// Patch the Map Tile Animation Type 1 frame bytes
+        /// (<paramref name="overlay"/>) into the decompressed OBJ tile buffer at
+        /// <paramref name="destOffset"/>, mirroring WinForms
+        /// <c>U.ArrayPatch(anime.change_bitmap_bytes, 0, objUZ, ...)</c> in
+        /// <c>ImageUtilMap.DrawMapChipOnly</c> (~L72). A null/empty overlay or a
+        /// destination offset at/after the buffer end is a no-op (leaves the base
+        /// OBJ tiles untouched). The copy length is clamped so it never grows
+        /// <paramref name="objBytes"/> and never reads past the overlay end —
+        /// matching the WF bounded <c>Array.Copy</c> behaviour.
+        /// </summary>
+        static void ApplyAnimeOverlay(byte[] objBytes, byte[] overlay, int destOffset)
+        {
+            if (objBytes == null || overlay == null || overlay.Length == 0) return;
+            if (destOffset < 0 || destOffset >= objBytes.Length) return;
+            int copyLength = Math.Min(overlay.Length, objBytes.Length - destOffset);
+            if (copyLength <= 0) return;
+            Array.Copy(overlay, 0, objBytes, destOffset, copyLength);
+        }
 
         /// <summary>
         /// Decompress the primary OBJ tile stream at <paramref name="objOffset"/>

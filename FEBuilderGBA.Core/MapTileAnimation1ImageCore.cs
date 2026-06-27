@@ -240,6 +240,238 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolved chapter-map render offsets + the anime1 entry table base for a
+        /// given anime1 PLIST, mirroring how WF <c>MapTileAnimation1Form.ExportGif</c>
+        /// loads the FIRST map that references the PLIST and reads its OBJ / palette
+        /// / config / map-pointer plists.
+        /// </summary>
+        public sealed class GifRenderContext
+        {
+            /// <summary>ROM offset of the LZ77 OBJ tile stream (primary tileset).</summary>
+            public uint ObjOffset;
+            /// <summary>ROM offset of the FE7 secondary OBJ tileset, or 0 (none).</summary>
+            public uint Obj2Offset;
+            /// <summary>ROM offset of the RAW 512-byte palette block.</summary>
+            public uint PaletteOffset;
+            /// <summary>ROM offset of the LZ77 config (chipset) stream.</summary>
+            public uint ConfigOffset;
+            /// <summary>ROM offset of the LZ77 map arrangement stream.</summary>
+            public uint MapOffset;
+            /// <summary>ROM offset of the anime1 8-byte entry table.</summary>
+            public uint EntryBaseAddr;
+        }
+
+        /// <summary>
+        /// Resolve every offset needed to composite the chapter map that uses an
+        /// anime1 PLIST, mirroring WF <c>MapTileAnimation1Form</c>
+        /// (<c>FilterComboBox_SelectedIndexChanged</c> lines 110-120 +
+        /// <c>ExportGif</c> lines 416-426: load the FIRST map whose
+        /// <c>anime1_plist</c> equals the selected PLIST and use THAT specific map's
+        /// OBJ/palette/config/map-pointer plists).
+        ///
+        /// <para><b>WF-faithful first-map semantics (Copilot PR review):</b> once the
+        /// first matching map is found, its required PLISTs are resolved and a
+        /// failure returns <c>null</c> — the search does NOT fall through to a later
+        /// map that happens to share the PLIST. WF binds to the first matching map
+        /// and fails (no GIF) when its data is broken; falling through would silently
+        /// export a DIFFERENT chapter's background and hide the broken first map.</para>
+        ///
+        /// READ-ONLY, never throws; returns <c>null</c> when no map references the
+        /// PLIST or the first matching map's required plists fail to resolve.
+        /// </summary>
+        public static GifRenderContext ResolveGifContext(ROM rom, uint anime1Plist)
+        {
+            try
+            {
+                if (rom?.RomInfo == null || anime1Plist == 0) return null;
+
+                var cache = MapPListResolverCore.BuildCache(rom);
+                foreach (AddrResult map in cache.Maps)
+                {
+                    var plists = cache.PListsAt(map.addr);
+                    if (plists.anime1_plist != anime1Plist) continue;
+
+                    // FIRST matching map found — bind to THIS map (WF semantics).
+                    // Any required-plist failure now returns null instead of falling
+                    // through to a later map that shares the PLIST.
+
+                    // OBJ: low byte = primary tileset, high byte = FE7 secondary.
+                    uint objLow = plists.obj_plist & 0xFF;
+                    uint objHigh = (plists.obj_plist >> 8) & 0xFF;
+                    uint objOffset = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.OBJECT, objLow, out uint _);
+                    if (objOffset == U.NOT_FOUND || !U.isSafetyOffset(objOffset, rom)) return null;
+
+                    uint obj2Offset = 0;
+                    if (objHigh > 0)
+                    {
+                        obj2Offset = MapChangeCore.PlistToOffsetAddr(
+                            rom, MapChangeCore.PlistType.OBJECT, objHigh, out uint _);
+                        // A broken obj2 plist makes WF DrawMapChipOnly bail.
+                        if (obj2Offset == U.NOT_FOUND || !U.isSafetyOffset(obj2Offset, rom)) return null;
+                    }
+
+                    uint palOffset = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.PALETTE, plists.palette_plist, out uint _);
+                    if (palOffset == U.NOT_FOUND || !U.isSafetyOffset(palOffset, rom)) return null;
+
+                    uint cfgOffset = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.CONFIG, plists.config_plist, out uint _);
+                    if (cfgOffset == U.NOT_FOUND || !U.isSafetyOffset(cfgOffset, rom)) return null;
+
+                    uint mapOffset = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.MAP, plists.mappointer_plist, out uint _);
+                    if (mapOffset == U.NOT_FOUND || !U.isSafetyOffset(mapOffset, rom)) return null;
+
+                    uint entryBase = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.ANIMATION, anime1Plist, out uint _);
+                    if (entryBase == U.NOT_FOUND || !U.isSafetyOffset(entryBase, rom)) return null;
+
+                    return new GifRenderContext
+                    {
+                        ObjOffset = objOffset,
+                        Obj2Offset = obj2Offset,
+                        PaletteOffset = palOffset,
+                        ConfigOffset = cfgOffset,
+                        MapOffset = mapOffset,
+                        EntryBaseAddr = entryBase,
+                    };
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// Read the RAW (uncompressed) 4bpp graphics block for one anime1 entry —
+        /// the WF <c>GetTileAnime1(p4, length)</c> byte path used as
+        /// <c>MapAnimations.change_bitmap_bytes</c> (WF reads
+        /// <c>32 * 8 / 2 * CalcHeight(256, length)</c> = <c>128 * height</c> bytes,
+        /// the row-aligned 256-wide sheet size — NOT the raw <c>length</c>). This
+        /// helper is byte-for-byte WF-faithful: a non-row-aligned <c>length</c>
+        /// rounds up to the next 8-row block (<see cref="CalcEntryHeight"/>) exactly
+        /// as WF, so the OBJ overlay patch matches WinForms' rendered frame. The
+        /// returned bytes are only ever copied into the OBJ buffer by
+        /// <see cref="MapRenderCore"/>, which clamps to that buffer's bounds; and
+        /// the read itself is bounded by the ROM end (<c>imgOffset + need</c> guard
+        /// below), so there is no out-of-bounds read even when an entry's declared
+        /// block is shorter than the padded size. Returns null on a bad pointer /
+        /// zero length / past-ROM-end. READ-ONLY.
+        /// </summary>
+        public static byte[] ReadFrameBytes(ROM rom, uint p4Pointer, uint length)
+        {
+            if (rom?.Data == null) return null;
+            uint imgOffset = U.toOffset(p4Pointer);
+            if (!U.isSafetyOffset(imgOffset, rom)) return null;
+            int height = CalcEntryHeight((int)length);
+            if (height <= 0) return null;
+            long need = (long)(IMAGE_WIDTH / 2) * height; // 128 * height (WF GetTileAnime1)
+            if (need <= 0 || imgOffset + need > (uint)rom.Data.Length) return null;
+            return rom.getBinaryData(imgOffset, (uint)need);
+        }
+
+        /// <summary>
+        /// Export every anime1 frame for <paramref name="anime1Plist"/> as an
+        /// animated GIF, compositing each frame onto the rendered chapter map that
+        /// uses this PLIST — the deferred half of #1602 (WF
+        /// <c>MapTileAnimation1Form.ExportGif</c>). For each 8-byte entry the
+        /// frame's RAW 4bpp bytes are patched into the map's OBJ tiles (via
+        /// <see cref="MapRenderCore.RenderMapImage"/>'s anime-overlay parameter at
+        /// <see cref="MapRenderCore.ANIME1_OBJ_PATCH_OFFSET"/>) and the resulting
+        /// composited map image becomes one GIF frame with a delay of
+        /// <see cref="U.GameFrameSecToGifFrameSec"/>(wait). READ-ONLY (never mutates
+        /// the ROM). Each rendered <see cref="IImage"/> is disposed after its RGBA
+        /// pixels are copied out (the documented frame-leak trap). Returns "" on
+        /// success or a localized error string.
+        /// </summary>
+        public static string ExportGif(ROM rom, uint anime1Plist, string gifPath)
+        {
+            if (rom?.Data == null) return R._("ROM is not loaded.");
+            if (CoreState.ImageService == null) return R._("Image service is not available.");
+            if (anime1Plist == 0) return R._("No PLIST selected.");
+
+            GifRenderContext ctx = ResolveGifContext(rom, anime1Plist);
+            if (ctx == null)
+                return R._("Cannot resolve the chapter map for this tile animation PLIST.");
+
+            var entries = MapTileAnimation1Core.ScanEntries(rom, ctx.EntryBaseAddr, maxRows: 256);
+            if (entries.Count == 0)
+                return R._("This tile animation PLIST has no frames to export.");
+
+            var frames = new List<GifEncoderCore.GifFrame>();
+            try
+            {
+                foreach (var e in entries)
+                {
+                    byte[] frameBytes = ReadFrameBytes(rom, e.P4, e.Length);
+                    if (frameBytes == null) continue;
+
+                    IImage img = MapRenderCore.RenderMapImage(
+                        rom, ctx.ObjOffset, ctx.PaletteOffset, ctx.ConfigOffset, ctx.MapOffset,
+                        ctx.Obj2Offset, frameBytes, MapRenderCore.ANIME1_OBJ_PATCH_OFFSET);
+                    if (img == null) continue;
+
+                    try
+                    {
+                        int w = img.Width, h = img.Height;
+                        byte[] rgba;
+                        if (img.IsIndexed)
+                        {
+                            // IndexedToRgba always allocates a fresh RGBA buffer.
+                            rgba = GifEncoderCore.IndexedToRgba(img.GetPixelData(), img.GetPaletteRGBA(), w, h);
+                        }
+                        else
+                        {
+                            // Defensive copy before the IImage is disposed (Copilot
+                            // plan-review guardrail): never hand a GifFrame a buffer
+                            // that could alias image-backed memory freed by Dispose.
+                            byte[] live = img.GetPixelData();
+                            rgba = new byte[live.Length];
+                            Array.Copy(live, rgba, live.Length);
+                        }
+                        frames.Add(new GifEncoderCore.GifFrame
+                        {
+                            Width = w,
+                            Height = h,
+                            RgbaPixels = rgba,
+                            DelayCs = U.GameFrameSecToGifFrameSec(e.Wait),
+                        });
+                    }
+                    finally { img.Dispose(); }
+                }
+
+                if (frames.Count == 0)
+                    return R._("Failed to render any tile animation frame for the chapter map.");
+
+                // Encode to a temp file in the SAME directory and only move it into
+                // place on success, so a mid-encode IO failure (disk-full, etc.)
+                // can never leave a partial/empty GIF at gifPath (Copilot review).
+                string dir = Path.GetDirectoryName(gifPath);
+                if (string.IsNullOrEmpty(dir)) dir = ".";
+                string tmp = Path.Combine(dir, "." + Path.GetFileName(gifPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+                try
+                {
+                    GifEncoderCore.Encode(frames, tmp);
+                    // Atomic-ish replace (delete-then-move; same volume since tmp is
+                    // in the target dir, so Move is a rename).
+                    if (File.Exists(gifPath)) File.Delete(gifPath);
+                    File.Move(tmp, gifPath);
+                    return "";
+                }
+                finally
+                {
+                    // On any failure (or if Move already consumed it) ensure no
+                    // stray temp file is left behind.
+                    try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                return R._("Tile animation GIF export failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Re-import a <c>.mapanime1.txt</c> manifest (WF <c>ImportAll</c> parity).
         /// Each <c>wait\tfilename[\tlength]</c> line loads a PNG (via the injected
         /// <paramref name="loadRgba"/> delegate so Core stays decoder-free), remaps
