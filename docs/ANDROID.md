@@ -401,7 +401,7 @@ release keystore to the repository's GitHub Actions secrets. The four secrets ar
 
 | Secret | Meaning |
 | --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore (`.keystore` / `.jks`) — e.g. `base64 -w0 release.keystore` |
+| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore (`.keystore` / `.jks`) — Linux: `base64 -w0 release.keystore`; macOS/BSD: `base64 -i release.keystore` (the `-w0` flag is GNU-only) |
 | `ANDROID_KEY_ALIAS` | the key alias inside the keystore |
 | `ANDROID_KEYSTORE_PASSWORD` | the keystore (store) password |
 | `ANDROID_KEY_PASSWORD` | the key password |

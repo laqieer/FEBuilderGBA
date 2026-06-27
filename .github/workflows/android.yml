@@ -120,7 +120,9 @@ jobs:
           set_count=0
           missing=""
           for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
-            eval "val=\${$name}"
+            # Safe bash indirect expansion (NOT eval — never re-evaluates a secret
+            # value, so shell metacharacters in a secret can't be executed).
+            val="${!name}"
             if [ -n "$val" ]; then
               set_count=$((set_count + 1))
             else
@@ -185,8 +187,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: febuildergba-android-apk
-          # Both paths land a *-Signed.apk at the well-known net9.0-android
-          # output path; the release-signing path additionally emits an .aab.
+          # Cover BOTH output layouts:
+          #   * debug fallback (`dotnet build`) writes the *-Signed.apk to
+          #     bin/Release/net9.0-android/.
+          #   * release signing (`dotnet publish`) writes the signed *-Signed.apk
+          #     AND the .aab to bin/Release/net9.0-android/publish/.
+          # Globbing both directories means the upload captures the right
+          # artifact for whichever path ran (and never an empty set).
           # if-no-files-found: error so a run that produced NO apk (a path /
           # packaging regression) fails VISIBLY rather than passing green with
           # an empty artifact — meaningful precisely because the job is NOT
@@ -196,4 +203,6 @@ jobs:
           path: |
             FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk
             FEBuilderGBA.Android/bin/Release/net9.0-android/*.aab
+            FEBuilderGBA.Android/bin/Release/net9.0-android/publish/*-Signed.apk
+            FEBuilderGBA.Android/bin/Release/net9.0-android/publish/*.aab
           if-no-files-found: error

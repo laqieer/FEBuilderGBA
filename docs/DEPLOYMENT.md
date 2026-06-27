@@ -272,7 +272,7 @@ Required secrets (set ALL four together, or none):
 
 | Secret | Meaning |
 | --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore — `base64 -w0 release.keystore` |
+| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore — Linux `base64 -w0 release.keystore`, macOS/BSD `base64 -i release.keystore` (`-w0` is GNU-only) |
 | `ANDROID_KEY_ALIAS` | the key alias inside the keystore |
 | `ANDROID_KEYSTORE_PASSWORD` | the keystore (store) password |
 | `ANDROID_KEY_PASSWORD` | the key password |
