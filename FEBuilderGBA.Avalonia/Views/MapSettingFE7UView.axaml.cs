@@ -47,6 +47,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                // The list-expand UI caps the new count at 255 (WF convention). When the
+                // table is already at/over that cap there is no valid larger value to pick,
+                // and passing min=current to NumberInputDialog with max=255 would build an
+                // invalid (min > max) range. Bail out with an explanatory message instead
+                // of presenting a no-op/invalid prompt. (Copilot PR #1615 review.)
+                if (current >= 255)
+                {
+                    CoreState.Services?.ShowInfo(R._("The map setting list is already at the maximum of 255 entries; it cannot be expanded further."));
+                    return;
+                }
+
                 uint defaultCount = current + 1;
                 if (defaultCount > 255) defaultCount = 255;
                 uint? chosen = await NumberInputDialog.Show(

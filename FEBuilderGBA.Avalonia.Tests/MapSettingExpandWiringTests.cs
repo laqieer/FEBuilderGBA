@@ -87,6 +87,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("using FEBuilderGBA.Avalonia.Dialogs;", code);
         }
 
+        // The list-expand UI caps the new count at 255 (WF convention). When the
+        // table is already at/over that cap, the handler must bail BEFORE opening
+        // NumberInputDialog -- otherwise it would build an invalid (min > max)
+        // numeric range (min=current, max=255). (Copilot PR #1615 review.) The
+        // early guard must sit before the NumberInputDialog.Show call.
+        [Theory]
+        [InlineData("MapSettingFE7View.axaml.cs")]
+        [InlineData("MapSettingFE7UView.axaml.cs")]
+        [InlineData("MapSettingView.axaml.cs")]
+        public void CodeBehind_GuardsAgainstMaxCount_BeforeDialog(string codeFile)
+        {
+            string code = ReadCode(codeFile);
+            Assert.Contains("if (current >= 255)", code);
+            int guardIdx = code.IndexOf("if (current >= 255)", StringComparison.Ordinal);
+            int dialogIdx = code.IndexOf("NumberInputDialog.Show", StringComparison.Ordinal);
+            Assert.True(guardIdx >= 0 && dialogIdx >= 0,
+                "Both the max-count guard and the NumberInputDialog.Show call must be present.");
+            Assert.True(guardIdx < dialogIdx,
+                "The current >= 255 guard must come BEFORE NumberInputDialog.Show so an " +
+                "invalid (min > max) range is never constructed.");
+        }
+
         [Theory]
         [InlineData("MapSettingFE7View.axaml.cs")]
         [InlineData("MapSettingFE7UView.axaml.cs")]
