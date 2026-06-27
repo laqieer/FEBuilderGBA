@@ -7,7 +7,7 @@
     into a single output folder so it can be zipped and attached to a GitHub
     release. When CLI / Avalonia publish output is present it is staged too
     (best-effort), so a single local run can mirror the full-suite asset set
-    that the tag-triggered release workflow produces.
+    that the planned tag-triggered release workflow (#1629) would produce.
 
     This script is part of the CURRENT live release flow: the release process
     is manual today (build -> stage with this script -> `gh release create`),
