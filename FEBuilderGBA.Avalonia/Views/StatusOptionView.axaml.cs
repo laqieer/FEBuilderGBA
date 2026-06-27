@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -20,12 +21,94 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            ExpandListButton.Click += OnExpandListClick;
             IdTextIdBox.ValueChanged += OnIdTextIdChanged;
             NameTextIdBox.ValueChanged += OnNameTextIdChanged;
             HelpTextIdBox.ValueChanged += OnHelpTextIdChanged;
             DefaultTextIdBox.ValueChanged += OnDefaultTextIdChanged;
             YesTextIdBox.ValueChanged += OnYesTextIdChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        // リストの拡張 — expand the 44-byte status_game_option (game option) table
+        // by a prompted count, mirroring WinForms StatusOptionForm's
+        // AddressListExpandsButton + OnPreGameOptionExtendsWarningHandler (#1607).
+        // The whole expand runs under one UndoService scope with a byte-identical
+        // fault restore inside StatusGameOptionCore.ExpandGameOptionTable. On a
+        // cancel / declined warning / malformed / zero / same count this is a no-op.
+        async void OnExpandListClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+
+                uint current = StatusGameOptionCore.CountGameOptions(CoreState.ROM);
+                if (current == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: the game option list is empty."));
+                    return;
+                }
+
+                // Default = current + 1; max = 255 (WF list-expand convention).
+                uint defaultCount = current + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new game option entry count (current: {0}, max: 255).", current),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    255);
+                if (chosen == null) return; // user cancelled
+
+                uint newCount = chosen.Value;
+                if (newCount <= current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count must be greater than the current count."));
+                    return;
+                }
+                uint addCount = newCount - current;
+
+                // Pre-expand repoint warning — faithful port of WinForms
+                // StatusOptionForm.OnPreGameOptionExtendsWarningHandler. Declining
+                // aborts with ZERO mutation.
+                if (CoreState.Services?.ShowYesNo(
+                        R._("ゲームオプションの拡張はROMの破壊につながることがあります。\r\nゲームオプションの拡張は、新しいゲームオプションを実現する時にのみにやるべきです。\r\nゲームオプションの順番や非表示をやりたいだけであれば、ゲームオプションの順番の方で行ってください。\r\n\r\n上記を理解した上で、それでもリポイント処理を実行してもいいですか？\r\n")) != true)
+                    return;
+
+                _undoService.Begin("Expand Game Options");
+                try
+                {
+                    var result = StatusGameOptionCore.ExpandGameOptionTable(
+                        CoreState.ROM, addCount, _undoService.GetActiveUndoData(), out string err);
+                    if (!result.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(string.IsNullOrEmpty(err)
+                            ? R._("Game option list expansion failed.") : err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded game option list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("StatusOptionView.OnExpandListClick inner failed: {0}", inner.ToString());
+                    CoreState.Services?.ShowError(R._("Game option list expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("StatusOptionView.OnExpandListClick failed: {0}", ex.ToString());
+            }
         }
 
         void OnIdTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
