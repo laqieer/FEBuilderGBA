@@ -43,14 +43,16 @@ namespace FEBuilderGBA.Avalonia.Tests
             "ImageUnitPaletteView.axaml.cs",
         };
 
-        // Matches a CoreState.Services(?)?.Show{Info,Error,Warning,YesNo}( ... )
-        // call and captures the FIRST argument expression up to the matching
-        // close-paren / comma. We deliberately scan the raw source (multi-line
-        // tolerant via Singleline) so concatenations and interpolations are
-        // caught even when they span lines.
-        static readonly Regex ShowCall = new(
-            @"CoreState\.Services\??\.Show(?:Info|Error|Warning|YesNo)\s*\(\s*(?<arg>.*?)(?:,\s*[A-Za-z_]|\)\s*;|\)\s*\?\?)",
-            RegexOptions.Singleline | RegexOptions.Compiled);
+        // Locates the START of a CoreState.Services(?)?.Show{Info,Error,Warning,
+        // YesNo}( call. The FULL argument expression is then captured by a
+        // balanced-paren scanner (CaptureShowArgs) — NOT by the regex — so a
+        // comma inside the expression (e.g. R._("{0}", x) or a trailing
+        // + " literal") never truncates the captured argument (Copilot bot
+        // review on PR #1627). The Avalonia IAppServices Show* methods all take
+        // exactly one string argument, so the entire `( ... )` is the message.
+        static readonly Regex ShowCallStart = new(
+            @"CoreState\.Services\??\.Show(?:Info|Error|Warning|YesNo)\s*\(",
+            RegexOptions.Compiled);
 
         [Fact]
         public void ScopedViews_HaveNoBareDialogLiterals()
@@ -64,9 +66,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(File.Exists(path), $"Scoped view not found: {path}");
                 string src = File.ReadAllText(path);
 
-                foreach (Match m in ShowCall.Matches(src))
+                foreach (Match m in ShowCallStart.Matches(src))
                 {
-                    string arg = m.Groups["arg"].Value.Trim();
+                    int openParen = m.Index + m.Length - 1; // index of the '('
+                    string arg = CaptureCallArgument(src, openParen).Trim();
                     if (arg.Length == 0) continue;
                     if (IsLocalized(arg)) continue;
 
@@ -80,6 +83,38 @@ namespace FEBuilderGBA.Avalonia.Tests
                 "Bare (un-R._()) dialog message argument(s) found in scoped editor views. " +
                 "Wrap each user-facing message in R._(\"...\"):\n  " +
                 string.Join("\n  ", offenders));
+        }
+
+        /// <summary>
+        /// Capture the ENTIRE argument expression of a call, given the index of
+        /// its opening '('. Scans to the matching close-paren, honouring nested
+        /// parentheses and skipping over string / interpolated-string literals so
+        /// a '(' or ')' inside a string never miscounts depth. Returns the text
+        /// between the outer parens (the full message expression, commas and all).
+        /// </summary>
+        static string CaptureCallArgument(string src, int openParenIndex)
+        {
+            int i = openParenIndex + 1;
+            int start = i;
+            int depth = 1;
+            bool inStr = false;
+            while (i < src.Length && depth > 0)
+            {
+                char c = src[i];
+                if (inStr)
+                {
+                    if (c == '\\') { i += 2; continue; }
+                    if (c == '"') inStr = false;
+                }
+                else
+                {
+                    if (c == '"') inStr = true;
+                    else if (c == '(') depth++;
+                    else if (c == ')') { depth--; if (depth == 0) break; }
+                }
+                i++;
+            }
+            return i <= src.Length && i > start ? src.Substring(start, i - start) : string.Empty;
         }
 
         // Strips every R._( "literal" [, args] ) call from an expression by
@@ -204,11 +239,26 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("R._(\"Map style data written.\")", true)]                    // wrapped
         [InlineData("R._(\"Imported {0} bytes.\", count)", true)]                 // wrapped w/ format arg
         [InlineData("$\"{R._(\"Import failed:\")} {ex.Message}\"", true)]         // every word wrapped
+        [InlineData("R._(\"{0}\", x) + \" extra\"", false)]                       // unwrapped tail after R._ (Copilot #1627)
         [InlineData("err", true)]                                                 // pre-localized variable
         [InlineData("refuseMessage", true)]                                       // pre-localized variable
         public void IsLocalized_ClassifiesExpressions(string expr, bool expected)
         {
             Assert.Equal(expected, IsLocalized(expr));
+        }
+
+        // Proves the full-argument capture (CaptureCallArgument) does NOT
+        // truncate at a comma inside the Show* expression, so an unlocalized tail
+        // appended after an R._(...) call is still detected (Copilot bot review,
+        // PR #1627).
+        [Fact]
+        public void CaptureCallArgument_CapturesFullExpressionPastCommas()
+        {
+            const string src = "CoreState.Services.ShowError(R._(\"{0}\", x) + \" extra\");";
+            int open = src.IndexOf('(');
+            string arg = CaptureCallArgument(src, open);
+            Assert.Equal("R._(\"{0}\", x) + \" extra\"", arg);
+            Assert.False(IsLocalized(arg)); // the " extra" tail is unlocalized
         }
 
         [Fact]
