@@ -58,8 +58,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint itemPtr = rom.RomInfo.item_pointer;
+            if (itemPtr == 0) return new List<AddrResult>();
+
+            // Bound the full 4-byte pointer read so p32() cannot throw on a
+            // truncated/corrupt ROM whose item_pointer slot falls within the
+            // last 3 bytes (#1597 review).
+            if (itemPtr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
+            uint itemBase = rom.p32(itemPtr);
+            if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
+
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Stat Bonuses (Skill Systems)", 0));
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint itemAddr = (uint)(itemBase + i * dataSize);
+                if (itemAddr + dataSize > (uint)rom.Data.Length) break;
+
+                // Validity: offsets 12 and 16 should be pointer or null (matches WinForms Init)
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 12))) break;
+                if (!U.isPointerOrNULL(rom.u32(itemAddr + 16))) break;
+
+                uint statBoosterPtr = rom.u32(itemAddr + 12);
+                if (!U.isPointer(statBoosterPtr)) continue;
+
+                uint boosterAddr = U.toOffset(statBoosterPtr);
+                if (!U.isSafetyOffset(boosterAddr)) continue;
+
+                string itemName = NameResolver.GetItemName(i);
+                string name = $"{U.ToHexString(i)} {itemName}";
+                result.Add(new AddrResult(boosterAddr, name, i));
+            }
             return result;
         }
 

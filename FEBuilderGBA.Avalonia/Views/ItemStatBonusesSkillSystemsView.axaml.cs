@@ -27,10 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                // #939: the single row is a synthetic section label, NOT an
-                // item — the prefix is not an item id, so the old item-icon
-                // loader showed a spurious icon. Drop the icon column entirely.
-                EntryList.SetItems(items);
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
             }
             catch (Exception ex)
             {

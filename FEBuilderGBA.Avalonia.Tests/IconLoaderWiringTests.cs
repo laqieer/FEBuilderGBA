@@ -130,8 +130,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             "OPClassFontFE8UView.axaml.cs",
             "OPClassAlphaNameFE6View.axaml.cs",
             "ItemEffectivenessMainView.axaml.cs",
-            "ItemStatBonusesVennoView.axaml.cs",
-            "ItemStatBonusesSkillSystemsView.axaml.cs",
+            // #1597: ItemStatBonusesVennoView / ItemStatBonusesSkillSystemsView
+            // were Category-B (synthetic section-label row, no real item id) but
+            // now walk the item table and prefix the REAL item id, so they are
+            // canonical index==id editors. Moved to TwoArgAllowList.
             "FE8SpellMenuExtendsView.axaml.cs",
             "OPClassAlphaNameFE6ExtraView.axaml.cs",
         };
@@ -165,6 +167,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             "ItemEffectivenessViewerView.axaml.cs",
             "ItemEffectivenessSkillSystemsReworkView.axaml.cs",
             "ItemStatBonusesViewerView.axaml.cs",
+            // #1597 — patched-ROM stat-bonus editors now walk the item table and
+            // prefix the REAL item id (identical list to ItemStatBonusesViewerView).
+            "ItemStatBonusesSkillSystemsView.axaml.cs",
+            "ItemStatBonusesVennoView.axaml.cs",
             "ItemWeaponEffectViewerView.axaml.cs",
             "ItemRandomChestView.axaml.cs",
             "ItemUsagePointerViewerView.axaml.cs",
