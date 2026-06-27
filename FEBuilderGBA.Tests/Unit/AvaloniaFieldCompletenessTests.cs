@@ -28,6 +28,24 @@ namespace FEBuilderGBA.Tests.Unit
         private static string WinFormsDir => Path.Combine(SolutionDir, "FEBuilderGBA");
         private static string AvaloniaVmDir => Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "ViewModels");
 
+        /// <summary>
+        /// Known-correct intentional divergences from the WinForms Designer field
+        /// width, keyed by "{ViewName}:{Field}". The Avalonia VM deliberately reads
+        /// a different width than the WinForms designer control because the
+        /// designer width is itself wrong vs the verified ROM ground truth.
+        ///
+        /// #1598 — WorldMapPathMoveEditorView ElapsedTime: the WinForms
+        /// WorldMapPathMoveEditorForm.Designer declares D0 (u32) at offset 0, but
+        /// the movement-node ElapsedTime is a u16 (verified against FE8U.gba:
+        /// values 0x547/0x800/0xA8F &lt; 0x10000, bytes +2/+3 are 0 padding). The
+        /// VM correctly reads u16(addr+0); the WinForms form is not modified
+        /// (mirror-only), so this narrower read is an accepted divergence.
+        /// </summary>
+        private static readonly HashSet<string> KnownFieldWidthDivergences = new(StringComparer.Ordinal)
+        {
+            "WorldMapPathMoveEditorView:D0",
+        };
+
         // Maps ScreenshotFormRegistry view names to (WinForms form class, Avalonia ViewModel class)
         // Only forms with InputFormRef ROM data fields are listed.
         private static readonly (string ViewName, string WinFormsType, string AvaloniaVmType)[] FormMappings = new[]
@@ -474,6 +492,17 @@ namespace FEBuilderGBA.Tests.Unit
                         else if (field[0] == 'D')
                             found = avaloniaFields.Contains("P" + field.Substring(1));
                     }
+                    if (!found && KnownFieldWidthDivergences.Contains($"{viewName}:{field}"))
+                    {
+                        // #1598: the VM intentionally reads a narrower (correct)
+                        // width at the same offset as a wrong-width designer field.
+                        // Treat it as covered when the VM reads at that offset.
+                        string suffix = field.Substring(1);
+                        found = avaloniaFields.Contains("B" + suffix)
+                            || avaloniaFields.Contains("W" + suffix)
+                            || avaloniaFields.Contains("D" + suffix)
+                            || avaloniaFields.Contains("P" + suffix);
+                    }
                     if (!found)
                         missing.Add(field);
                 }
@@ -721,6 +750,11 @@ namespace FEBuilderGBA.Tests.Unit
                         typeMatch = types.Contains("u16") || types.Contains("u32") || types.Contains("p32");
                     if (!typeMatch && expectedType == "u16")
                         typeMatch = types.Contains("u32") || types.Contains("p32");
+
+                    // #1598: an intentional narrower-than-designer read where the
+                    // designer width is wrong vs the verified ROM ground truth.
+                    if (!typeMatch && KnownFieldWidthDivergences.Contains($"{viewName}:{field}"))
+                        typeMatch = true;
 
                     if (!typeMatch)
                     {
