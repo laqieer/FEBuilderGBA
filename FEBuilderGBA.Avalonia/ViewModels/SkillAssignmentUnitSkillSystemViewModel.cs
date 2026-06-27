@@ -334,18 +334,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Allocate (when the per-unit pointer is 0) or grow the selected unit's
         /// 0x0000-terminated level-up list by one entry, then repoint ONLY this
         /// unit's <c>LEVELUP+4</c> slot. Mirrors WF
-        /// <c>SkillAssignmentUnitSkillSystemForm.N1_InputFormRef_AddressListExpandsEvent</c>
-        /// and the sibling Class VM's <c>ExpandLevelUpList</c>.
+        /// <c>SkillAssignmentUnitSkillSystemForm.N1_InputFormRef_AddressListExpandsEvent</c>.
         ///
-        /// CRITICAL (single-slot): the grow path uses
-        /// <see cref="DataExpansionCore.ExpandTableTo"/> with
-        /// <c>Repoint = PointerSlotOnly</c> (the default) so ONLY this unit's
-        /// pointer is repointed — units that share the same base intentionally
-        /// stay on the intact original table (the inverse of an all-reference
-        /// repoint). The terminator-row OOB write in a naive <c>ExpandTable</c>
-        /// grow is avoided by reserving a FULL zero terminator row
-        /// (<c>FullZeroTerminatorRow = true</c>) so the <c>0x0000</c> terminator
-        /// lands inside the allocation (Copilot plan-review finding #1).
+        /// CRITICAL (sharing-safe, single-slot): the grow path COPIES the existing
+        /// rows + a new sentinel row + a 0x0000 terminator into FRESH free space,
+        /// repoints ONLY this unit's pointer slot, and DELIBERATELY LEAVES THE OLD
+        /// TABLE BYTES INTACT — so any other unit that shares the same level-up
+        /// table keeps its data (it is NOT a move-and-wipe). This is why the grow
+        /// path does NOT use <see cref="DataExpansionCore.ExpandTableTo"/> /
+        /// <see cref="DataExpansionCore.ExpandTable"/>, both of which zero/0xFF-wipe
+        /// the old region and would corrupt a sharing sibling
+        /// (Copilot PR-review finding #1). The new last row is seeded 0x01/0x01
+        /// (a 0x0000 pair would read as a terminator and hide the grown row),
+        /// matching WF. All writes route through the ambient undo scope opened by
+        /// the View's <c>UndoService.Begin</c>.
         /// </summary>
         public LevelUpExpandResult ExpandLevelUpList()
         {
@@ -378,27 +380,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return new LevelUpExpandResult { Success = true, NewBaseAddress = newBase, NewDataCount = INITIAL_ENTRIES };
             }
 
-            uint baseAddr2 = U.toOffset(gbaPtr);
-            uint oldCount = CountLevelUpEntries(rom, baseAddr2);
+            uint oldBase = U.toOffset(gbaPtr);
+            uint oldCount = CountLevelUpEntries(rom, oldBase);
             uint newCount = oldCount + 1;
 
-            // Grow with a reserved FULL zero terminator row so the 0x0000
-            // terminator never lands one row past the allocation.
-            var expandResult = DataExpansionCore.ExpandTableTo(
-                rom, pointerAddr, LEVELUP_BLOCK_SIZE, oldCount, newCount, fullZeroTerminatorRow: true);
-            if (!expandResult.Success)
-                return new LevelUpExpandResult { Success = false, Error = expandResult.Error };
+            // COPY (never move-and-wipe): allocate (newCount + 1) rows so the
+            // existing rows, one fresh sentinel row, AND the 0x0000 terminator
+            // all fit. The old table is left untouched so sharing units keep it.
+            uint allocBytes = (newCount + 1) * LEVELUP_BLOCK_SIZE;
+            uint oldBytes = oldCount * LEVELUP_BLOCK_SIZE;
+            if (oldBase + oldBytes > (uint)rom.Data.Length)
+                return new LevelUpExpandResult { Success = false, Error = "Existing level-up table extends beyond ROM bounds." };
 
-            uint newBaseAddr = expandResult.NewBaseAddress;
-            // The new (last) data row was zero-filled by ExpandTableTo; a 0x0000
-            // pair reads as a terminator, so seed it with a sentinel level/skill
-            // (0x01/0x01) exactly like WF so the grown row stays visible.
-            uint newEntryAddr = newBaseAddr + oldCount * LEVELUP_BLOCK_SIZE;
-            if (U.isSafetyOffset(newEntryAddr + 1, rom))
+            uint newBaseAddr = DataExpansionCore.FindFreeSpace(rom, allocBytes);
+            if (newBaseAddr == U.NOT_FOUND)
+                return new LevelUpExpandResult { Success = false, Error = "No free space for the expanded level-up table." };
+
+            // Copy the existing rows verbatim (ambient undo captures the pre-copy
+            // bytes at newBaseAddr).
+            if (oldBytes > 0)
             {
-                rom.write_u8(newEntryAddr + 0, 0x01);
-                rom.write_u8(newEntryAddr + 1, 0x01);
+                byte[] existing = rom.getBinaryData(oldBase, oldBytes);
+                rom.write_range(newBaseAddr, existing);
             }
+            // New (last) data row: 0x01/0x01 so it is not mistaken for a terminator.
+            uint newEntryAddr = newBaseAddr + oldBytes;
+            rom.write_u8(newEntryAddr + 0, 0x01);
+            rom.write_u8(newEntryAddr + 1, 0x01);
+            // 0x0000 terminator right after the new row.
+            rom.write_u16(newBaseAddr + newCount * LEVELUP_BLOCK_SIZE, (ushort)LEVELUP_TERMINATOR);
+            // Repoint ONLY this unit's slot; the old table is left intact.
+            rom.write_p32(pointerAddr, newBaseAddr);
+
             XLevelUpAddr = U.toPointer(newBaseAddr);
             RecomputeVisibilityFlags(rom);
             LoadLevelUpList(rom);

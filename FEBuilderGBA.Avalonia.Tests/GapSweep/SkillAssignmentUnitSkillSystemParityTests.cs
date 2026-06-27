@@ -422,6 +422,9 @@ public class SkillAssignmentUnitSkillSystemParityTests
             uint slotA = PlantedLevelUpBase + unitA * 4;
             uint slotB = PlantedLevelUpBase + unitB * 4;
             uint origGbaPtr = rom.u32(slotA);
+            // Snapshot the SHARED table bytes so we can prove they survive (the
+            // grow must NOT move-and-wipe a shared table — Copilot finding #1).
+            byte[] sharedBefore = rom.getBinaryData(sharedBase, 4);
 
             var undodata = CoreState.Undo.NewUndoData("unit expand test");
             SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult result;
@@ -436,6 +439,12 @@ public class SkillAssignmentUnitSkillSystemParityTests
             // SLOT A repointed to the new clone; SLOT B untouched (single-slot).
             Assert.NotEqual(origGbaPtr, rom.u32(slotA));
             Assert.Equal(origGbaPtr, rom.u32(slotB));
+            // The SHARED table B still references is byte-for-byte intact (NOT
+            // wiped) — sibling unit B keeps its level-up skill.
+            byte[] sharedAfter = rom.getBinaryData(sharedBase, 4);
+            Assert.Equal(sharedBefore, sharedAfter);
+            Assert.Equal((byte)0x05, rom.u8(sharedBase + 0));
+            Assert.Equal((byte)0x02, rom.u8(sharedBase + 1));
 
             // Rollback restores slot A byte-identically.
             CoreState.Undo.Push(undodata);
