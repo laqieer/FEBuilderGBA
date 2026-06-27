@@ -53,6 +53,31 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void PatchManager_AndroidNotice_IsClearedWhenConditionNoLongerHolds()
+        {
+            var savedSeam = AndroidResourceNoticeCore.IsAndroidOverride;
+            try
+            {
+                var vm = new PatchManagerViewModel();
+                ClearAllPatches(vm);
+
+                AndroidResourceNoticeCore.IsAndroidOverride = () => true;  // Android + empty
+                vm.ApplyAndroidEmptyStateNotice();
+                Assert.Equal(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, vm.StatusMessage);
+
+                // Condition flips false (e.g. VM reuse on desktop / future on-device delivery):
+                // the stale Android notice must be cleared, not stick around.
+                AndroidResourceNoticeCore.IsAndroidOverride = () => false;
+                vm.ApplyAndroidEmptyStateNotice();
+                Assert.Equal("", vm.StatusMessage);
+            }
+            finally
+            {
+                AndroidResourceNoticeCore.IsAndroidOverride = savedSeam;
+            }
+        }
+
+        [Fact]
         public void PatchManager_OnDesktop_WithNoPatches_DoesNotShowAndroidNotice()
         {
             var savedSeam = AndroidResourceNoticeCore.IsAndroidOverride;

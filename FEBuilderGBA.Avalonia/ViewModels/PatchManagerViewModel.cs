@@ -171,8 +171,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public void ApplyAndroidEmptyStateNotice()
         {
-            if (!AndroidResourceNoticeCore.IsResourceDeliverySupported && _allPatches.Count == 0)
+            bool shouldShow = !AndroidResourceNoticeCore.IsResourceDeliverySupported && _allPatches.Count == 0;
+            if (shouldShow)
+            {
                 StatusMessage = AndroidResourceNoticeCore.PatchLibraryUnavailableMessage;
+            }
+            else if (StatusMessage == AndroidResourceNoticeCore.PatchLibraryUnavailableMessage)
+            {
+                // Idempotent: if the condition no longer holds (e.g. the VM is reused, or a future
+                // on-device delivery populates the list), clear our own stale notice so it cannot
+                // stick around. Only clears the Android notice — never clobbers an unrelated status.
+                StatusMessage = "";
+            }
         }
 
         /// <summary>

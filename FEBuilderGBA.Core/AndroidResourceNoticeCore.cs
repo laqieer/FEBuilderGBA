@@ -38,7 +38,7 @@ namespace FEBuilderGBA
         /// <see cref="FERepoUnavailableMessage"/> instead of the desktop "run git submodule …" hint,
         /// which cannot work on a device.
         /// </summary>
-        public static bool IsResourceDeliverySupported => !IsAndroidOverride();
+        public static bool IsResourceDeliverySupported => !(IsAndroidOverride ?? OperatingSystem.IsAndroid)();
 
         /// <summary>
         /// In-app empty-state message for the Patch Manager when running on Android (no patch2 on device).

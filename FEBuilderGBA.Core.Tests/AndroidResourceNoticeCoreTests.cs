@@ -54,5 +54,23 @@ namespace FEBuilderGBA.Core.Tests
             // so the default seam must report resource delivery as supported.
             Assert.True(AndroidResourceNoticeCore.IsResourceDeliverySupported);
         }
+
+        [Fact]
+        public void IsResourceDeliverySupported_DoesNotThrow_WhenOverrideIsNull()
+        {
+            // A null override (accidental assignment / failed test) must not NRE — it
+            // falls back to the real OS check (desktop test host => supported).
+            var saved = AndroidResourceNoticeCore.IsAndroidOverride;
+            try
+            {
+                AndroidResourceNoticeCore.IsAndroidOverride = null;
+                bool supported = AndroidResourceNoticeCore.IsResourceDeliverySupported; // must not throw
+                Assert.True(supported); // desktop test runner
+            }
+            finally
+            {
+                AndroidResourceNoticeCore.IsAndroidOverride = saved;
+            }
+        }
     }
 }
