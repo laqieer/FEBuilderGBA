@@ -1,0 +1,73 @@
+# GitHub native release-notes configuration (#1632).
+#
+# This file groups the auto-generated release notes that the Release workflow
+# (`.github/workflows/release.yml`, #1629) produces via
+# `softprops/action-gh-release` with `generate_release_notes: true`. Without
+# this file GitHub emits a single flat list of merged PRs; with it, the notes
+# are split into the labelled sections below (and a catch-all so nothing is
+# dropped).
+#
+# HOW ENTRIES ARE GROUPED
+#   GitHub categorises each merged PR by its LABELS. This repo's PR *titles*
+#   follow Conventional Commits (feat/fix/docs/... — enforced by
+#   `.github/workflows/pr-title-lint.yml`, #1647), so for the richest grouping
+#   apply the matching label to a PR before merge:
+#     feat   -> enhancement      fix      -> bug
+#     docs   -> documentation    ci/build -> ci
+#   The `*` catch-all category below guarantees any PR without one of these
+#   labels still appears under "Other Changes", so the notes are never lossy.
+#
+# A human-curated, type-grouped log of the full backlog lives in the top-level
+# `CHANGELOG.md`; see docs/DEPLOYMENT.md for the release procedure.
+
+changelog:
+  exclude:
+    # Drop automation noise from the release notes.
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - github-actions[bot]
+    # Opt a PR out of the notes entirely by labelling it `ignore-for-release`.
+    labels:
+      - ignore-for-release
+      - duplicate
+      - invalid
+
+  categories:
+    - title: "🚀 Features"
+      labels:
+        - enhancement
+        - feature
+        - feat
+
+    - title: "🐛 Bug Fixes"
+      labels:
+        - bug
+        - fix
+
+    - title: "📖 Documentation"
+      labels:
+        - documentation
+        - docs
+
+    - title: "🤖 CI / Build / Packaging"
+      labels:
+        - ci
+        - build
+        - packaging
+        - release
+
+    - title: "🧰 Maintenance & Refactoring"
+      labels:
+        - chore
+        - refactor
+        - tech-debt
+        - test
+        - test-debt
+
+    # Catch-all: any merged PR without one of the labels above still appears,
+    # so the generated notes never silently omit a change.
+    - title: "🔧 Other Changes"
+      labels:
+        - "*"

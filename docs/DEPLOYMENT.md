@@ -63,6 +63,15 @@ git tag "$TAG"
 git push origin "$TAG"
 ```
 
+The release body is **auto-generated** — no hand-typing. A workflow step runs
+[`scripts/generate-changelog.sh`](../scripts/generate-changelog.sh) (#1632) to
+build type-grouped notes (🚀 Features / 🐛 Bug Fixes / 📖 Documentation / 🤖 CI
+/ 🧰 Maintenance / 🔧 Other) from the conventional-commit subjects between the
+previous `ver_*` tag and the new one, and passes it as the release body;
+GitHub's native auto-notes (grouped by PR label via
+[`.github/release.yml`](../.github/release.yml)) are appended after it. The
+full backlog log lives in the top-level [`CHANGELOG.md`](../CHANGELOG.md).
+
 Pushing the tag runs four jobs and uploads each platform package as a zipped
 release asset:
 
@@ -105,12 +114,20 @@ and populate the release page, push a real test `ver_*` tag.
    - Go to https://github.com/laqieer/FEBuilderGBA/releases/new
    - Tag version: Use build date format `YYYYMMDD.HH` (e.g., `20260226.00`)
    - Release title: Descriptive name (e.g., "Build 20260226.00 - Split Package Support")
-   - Description: Changelog and what's new. The commit history is kept clean by
-     conventional-commit linting (see
-     [Commit & PR Title Convention](#commit--pr-title-convention)), so the
-     changelog can be derived from the conventional-commit subjects since the
-     previous tag (e.g. `git log <prev-tag>..HEAD --pretty='%s'` grouped by
-     `feat` / `fix` / etc.). Automating this generation is tracked by #1632.
+   - Description: Changelog and what's new. **Do not hand-type this** — generate
+     it from the conventional-commit history (kept clean by the linting in
+     [Commit & PR Title Convention](#commit--pr-title-convention)):
+
+     ```bash
+     # Type-grouped notes since the previous ver_* tag (auto-detected):
+     scripts/generate-changelog.sh > notes.md
+     # ...or an explicit range:
+     scripts/generate-changelog.sh ver_20260204.22 ver_20260601.00 > notes.md
+     ```
+
+     Paste `notes.md` into the description (or pass `--notes-file notes.md` to
+     `gh release create`). The tag-triggered workflow (Option 0) runs this same
+     script automatically. See also [`CHANGELOG.md`](../CHANGELOG.md).
    - Attach all three packages:
      - `FEBuilderGBA_FULL_{coreVersion}_{patch2Version}.7z`
      - `FEBuilderGBA_CORE_{coreVersion}.7z`
@@ -127,12 +144,17 @@ and populate the release page, push a real test `ver_*` tag.
 ```bash
 # Set variables
 BUILD_TIME=$(date +%Y%m%d.%H)
+TAG="ver_${BUILD_TIME}"   # tag the project's ver_YYYYMMDD.HH convention
 PATCH2_VERSION=$(cat config/patch2/version.txt)
 
-# Create release with all packages
-gh release create "$BUILD_TIME" \
+# Generate type-grouped release notes from conventional commits (#1632)
+scripts/generate-changelog.sh > notes.md
+
+# Create release with all packages (the ver_* tag also matches the tag-triggered
+# automation in Option 0, so prefer that workflow for the full platform set).
+gh release create "$TAG" \
   --title "Build $BUILD_TIME" \
-  --notes "Automated release with split packages" \
+  --notes-file notes.md \
   FEBuilderGBA_FULL_${BUILD_TIME}_${PATCH2_VERSION}.7z \
   FEBuilderGBA_CORE_${BUILD_TIME}.7z \
   FEBuilderGBA_PATCH2_${PATCH2_VERSION}.7z
@@ -345,10 +367,12 @@ Future improvements for CI/CD:
 
 - [x] Auto-create GitHub release on pushed `ver_*` tag (`.github/workflows/release.yml`, #1629)
 - [ ] Auto-create GitHub release on successful master build
-- [ ] Auto-generate changelog from commits — the conventional-commit prerequisite
-      is now enforced in CI (see [Commit & PR Title Convention](#commit--pr-title-convention)
-      and `.github/workflows/pr-title-lint.yml`); the generator itself is tracked
-      by #1632.
+- [x] Auto-generate changelog from commits — `scripts/generate-changelog.sh`
+      builds type-grouped notes from conventional-commit subjects; wired into
+      `.github/workflows/release.yml` (release body) and seeded into
+      [`CHANGELOG.md`](../CHANGELOG.md). The conventional-commit prerequisite is
+      enforced in CI (see [Commit & PR Title Convention](#commit--pr-title-convention)
+      and `.github/workflows/pr-title-lint.yml`). (#1632)
 - [ ] Auto-test packages before publishing
 - [ ] CDN upload for faster downloads
 - [ ] Update notification system
@@ -360,6 +384,7 @@ Future improvements for CI/CD:
 - PowerShell Script: `scripts/create-split-packages.ps1`
 - CI/CD Workflows: `.github/workflows/msbuild.yml`, `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
 - Tag-triggered Release Workflow: `.github/workflows/release.yml` (#1629)
+- Changelog Generator: `scripts/generate-changelog.sh` + `CHANGELOG.md` + `.github/release.yml` (#1632)
 - Gitee Mirror Sync: `.github/workflows/sync-release-to-gitee.yml`
 - Update Logic: `FEBuilderGBA/UpdateCheckSplitPackage.cs`
 

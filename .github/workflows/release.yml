@@ -255,6 +255,13 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Checkout with full history+tags so the changelog generator can read the
+      # commit range between the previous ver_* tag and this one (#1632).
+      - name: Checkout (full history for changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download all release artifacts
         uses: actions/download-artifact@v4
         with:
@@ -308,6 +315,29 @@ jobs:
           fi
           echo "RELEASE_TOKEN is configured; the published release will auto-fire sync-release-to-gitee.yml."
 
+      - name: Generate grouped release notes from conventional commits (#1632)
+        # Build a type-grouped (feat/fix/docs/...) release body from the commit
+        # subjects between the previous ver_* tag and this one. GitHub's native
+        # generated notes (generate_release_notes below) group by PR LABEL and
+        # cannot read the conventional prefix from a title, so this script
+        # supplies the title-derived grouping. Output goes to the release body;
+        # the native notes are appended after it.
+        if: startsWith(github.ref, 'refs/tags/ver_')
+        run: |
+          set -euo pipefail
+          chmod +x scripts/generate-changelog.sh
+          {
+            echo "## ${{ github.ref_name }}"
+            echo
+            scripts/generate-changelog.sh "" "${{ github.ref_name }}"
+          } > release-notes.md
+          # The full body goes to the release; only preview the head in the log
+          # so a large tag range cannot bloat the Actions log / hit size limits.
+          lines=$(wc -l < release-notes.md)
+          echo "Generated release notes (${lines} lines; previewing first 60):"
+          head -n 60 release-notes.md
+          if [ "${lines}" -gt 60 ]; then echo "... (${lines} lines total; full body written to release-notes.md)"; fi
+
       - name: Create GitHub Release with all platform assets
         # Only create a release for a real ver_* tag push. On manual
         # workflow_dispatch (branch ref) this step is skipped, so dispatch is a
@@ -317,6 +347,10 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
+          # Conventional-commit grouped notes (title-derived). When both
+          # body_path and generate_release_notes are set, action-gh-release
+          # appends GitHub's native auto-notes after this body.
+          body_path: release-notes.md
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: release-artifacts/**/*.zip

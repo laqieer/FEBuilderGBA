@@ -60,6 +60,10 @@ jobs:
       shell: bash
       run: bash scripts/validate-pr-screenshots.test.sh
 
+    - name: Run changelog generator self-tests (#1632)
+      shell: bash
+      run: bash scripts/generate-changelog.test.sh
+
     - name: Run CLAUDE.md size-gate self-tests
       shell: bash
       run: bash scripts/check-claudemd-size.test.sh
