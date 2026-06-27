@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core; // SongInstrumentSetCore (#1609)
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -353,6 +354,65 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (System.Exception ex)
             {
                 return $"MIDI export failed: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Export the current song's instrument set (voicegroup) to a
+        /// <c>.instrument</c> TSV index + per-voice side files (#1609). Mirrors
+        /// WinForms <c>SongTrackForm.cs:459-466</c> → <c>SongUtil.ExportInstrument</c>
+        /// (which dispatches to <c>SongInstrumentForm.ExportAllLow</c>) and reuses
+        /// the SAME Core seam (<see cref="SongInstrumentSetCore.ExportAll"/>) the
+        /// Song Instrument editor already calls. READ-ONLY — no ROM mutation, no undo.
+        ///
+        /// The instrument-set pointer is <see cref="InstrumentAddr"/>, i.e.
+        /// <c>rom.u32(songHeader + 4)</c> = WinForms <c>P4.Value</c>.
+        /// Returns null on success, or an error message on failure (never throws).
+        /// </summary>
+        public string? ExportInstrumentSet(string indexPath)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !IsLoaded || CurrentAddr == 0)
+                return "No song loaded.";
+            if (string.IsNullOrEmpty(indexPath))
+                return "No output path chosen.";
+            if (InstrumentAddr == 0)
+                return "This song has no instrument set (P4 is null).";
+
+            // (Copilot plan review pt 1) SongInstrumentSetCore.ExportAll is a void
+            // API that SILENTLY no-ops on an unsafe base offset
+            // (SongInstrumentSetCore.cs:117-121). An edited/stale nonzero P4 would
+            // otherwise produce a false-success toast with no file written —
+            // prevalidate the pointer here and reject explicitly.
+            if (!U.isSafetyOffset(U.toOffset(InstrumentAddr), rom))
+                return $"Instrument set pointer 0x{InstrumentAddr:X08} is out of range.";
+
+            try
+            {
+                string dir = Path.GetDirectoryName(indexPath) ?? ".";
+                string baseName = Path.GetFileNameWithoutExtension(indexPath);
+
+                // The Core emits RELATIVE filename tokens; resolve each against the
+                // chosen index file's directory so all side + nested files land next
+                // to the .instrument index (verbatim mirror of
+                // SongInstrumentView.axaml.cs:682-689).
+                SongInstrumentSetCore.ExportAll(
+                    rom, InstrumentAddr, baseName,
+                    (name, bytes) => File.WriteAllBytes(Path.Combine(dir, name), bytes),
+                    (name, lines) => File.WriteAllLines(Path.Combine(dir, name), lines));
+
+                // (Copilot plan review pt 1, defense-in-depth) Verify the index file
+                // Core emits (baseName + ".instrument") actually exists before
+                // reporting success — guards against any remaining silent no-op.
+                string emitted = Path.Combine(dir, baseName + ".instrument");
+                if (!File.Exists(emitted))
+                    return "Instrument set export produced no file (the song's instrument set may be empty or invalid).";
+
+                return null; // success
+            }
+            catch (System.Exception ex)
+            {
+                return $"Instrument set export failed: {ex.Message}";
             }
         }
 
