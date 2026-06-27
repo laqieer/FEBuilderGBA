@@ -27926,3 +27926,28 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :This setting configures an external tool path and requires desktop file-system access; it is not available on this device.
 此设置用于配置外部工具路径，需要桌面文件系统访问权限；本设备不可用。
+
+:Import Animation...
+导入动画...
+
+:Export Animation...
+导出动画...
+
+:Import replaces this animation from a .txt script or FEditor .bin. Export writes a .txt script + per-frame PNGs.
+导入会从 .txt 脚本或 FEditor .bin 替换此动画。导出会写出 .txt 脚本及每帧 PNG。
+
+:Import Battle Animation
+导入战斗动画
+
+:Select an animation with a valid data record first.
+请先选择一个具有有效数据记录的动画。
+
+:Battle animation imported from {0}.
+已从 {0} 导入战斗动画。
+
+:Battle animation exported to {0} (+ per-frame PNGs).
+战斗动画已导出到 {0}（含每帧 PNG）。
+
+:Exporting a battle animation script writes sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导出战斗动画脚本会在同级目录写出每帧 PNG，需要桌面文件系统访问权限。本设备不可用。
+

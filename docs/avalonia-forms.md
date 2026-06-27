@@ -265,7 +265,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 143 | ImagePortraitImporterView | ImagePortraitImporterViewModel | Portrait import tool |
 | 144 | ImageBGView | ImageBGViewModel | Background image editor |
 | 145 | ImageBGSelectPopupView | ImageBGSelectPopupViewModel | Background selection popup |
-| 146 | ImageBattleAnimeView | ImageBattleAnimeViewModel | Battle animation editor |
+| 146 | ImageBattleAnimeView | ImageBattleAnimeViewModel | Battle animation editor (full-script Import/Export parity with WinForms + CLI: import a `.txt` script or FEditor `.bin` under one UndoService scope, export a `.txt` script + per-frame PNGs — delegates to `BattleAnimeImportCore`/`BattleAnimeExportCore`, the same Core path the CLI uses, #1638) |
 | 147 | ImageBattleAnimePalletView | ImageBattleAnimePalletViewModel | Battle animation palette editor |
 | 148 | ImageBattleBGView | ImageBattleBGViewModel | Battle background editor |
 | 149 | ImageBattleScreenView | ImageBattleScreenViewModel | Battle screen editor |
