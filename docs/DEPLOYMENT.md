@@ -2,6 +2,8 @@
 
 > **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + Gitee sync), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers only the WinForms split-package (FULL/CORE/PATCH2) update system.
 >
+> **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §7.1 Code-signing & notarization](RELEASE.md#71-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround.
+>
 > **⚠️ Design / historical reference — not currently runnable as written.** The split-package `.7z` generator (`scripts/create-split-packages.ps1`) and the `split-packages_{buildTime}` CI artifact described throughout this page are **not present in the current tree**; `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact. Read the rest of this document as the design of the in-app split-package updater, **not** a sequence you can run today. For the **live** artifact set and the steps that actually work, follow [RELEASE.md → CI artifact inventory](RELEASE.md#2-ci-artifact-inventory-what-each-workflow-produces) and [RELEASE.md → Manual release](RELEASE.md#4-manual-release-the-live-path).
 
 This guide explains how to create GitHub releases with the split package update system.

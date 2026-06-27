@@ -177,7 +177,77 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | patch2 not bundled into CLI/Avalonia artifacts | [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
-| Code-sign / notarize Windows + macOS artifacts | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
+| Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§7.1](#71-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
+
+---
+
+## 7.1. Code-signing & notarization (#1634)
+
+Code-signing (Windows Authenticode) and macOS codesign + notarization are wired
+into the build workflows but are **conditional**: they activate **only when the
+maintainer adds the relevant certificate secrets** to **Settings → Secrets and
+variables → Actions**. This mirrors the conditional Android release signing
+([#1654](https://github.com/laqieer/FEBuilderGBA/pull/1654)).
+
+> **Default (no-secret) behaviour — the fork's current state:** with the secrets
+> absent, **every signing step is skipped** and the workflows produce the same
+> **unsigned** artifacts as before, so CI stays green. Unsigned artifacts still
+> trigger **SmartScreen "unknown publisher"** (Windows) and **Gatekeeper
+> "unidentified developer"** (macOS) — see the workaround below. This row stays a
+> caveat in the gaps table until the secrets are configured and a download is
+> verified to open without a hard block.
+
+### Required secrets (set ALL of a platform's secrets, or NONE)
+
+A **partial** set **fails the workflow fast** (clear `::error::`), so a
+half-configured maintainer never gets a silent unsigned build or a confusing
+publish failure.
+
+**Windows — Authenticode** (signs `FEBuilderGBA.exe` in `msbuild.yml`, and the
+`win-x64` CLI/Avalonia `.exe` in `crossplatform.yml`):
+
+| Secret | Meaning / how to produce |
+| --- | --- |
+| `WINDOWS_CERT_BASE64` | base64 of the code-signing certificate `.pfx`/`.p12` — `base64 -w0 cert.pfx` (or `certutil -encode` on Windows, stripped of header/footer) |
+| `WINDOWS_CERT_PASSWORD` | the `.pfx` export password |
+
+The exe is signed with **SHA-256** + an **RFC-3161 timestamp**
+(`http://timestamp.digicert.com`) so the signature outlives the certificate. The
+PFX is imported into the runner's `CurrentUser\My` store and signed **by
+thumbprint** with `signtool` (located from the Windows SDK), so the password is
+never passed on a command line; the cert is removed afterwards.
+
+**macOS — Developer ID codesign + notarization** (signs the `osx-arm64`
+CLI/Avalonia bundles in `crossplatform.yml`):
+
+| Secret | Meaning / how to produce |
+| --- | --- |
+| `APPLE_CERT_BASE64` | base64 of the **Developer ID Application** certificate `.p12` — `base64 -i cert.p12 -o -` |
+| `APPLE_CERT_PASSWORD` | the `.p12` export password |
+| `APPLE_ID` | the Apple ID (email) used for notarization |
+| `APPLE_TEAM_ID` | the 10-character Apple Developer Team ID |
+| `APPLE_APP_PASSWORD` | an **app-specific password** for that Apple ID (appleid.apple.com → Sign-In and Security) |
+| `APPLE_SIGN_IDENTITY` *(optional)* | explicit signing-identity string; auto-detected from the imported cert when omitted |
+
+The `.p12` is imported into a throwaway keychain; **every Mach-O payload** is
+codesigned with the hardened runtime (**libraries first, the executable last**),
+then a `ditto` zip of each bundle is submitted to `notarytool submit --wait`.
+
+> **Stapling note (honest framing):** the artifacts are raw `dotnet publish`
+> **directories**, not `.app`/`.pkg`/`.dmg` bundles, so a directory/CLI binary
+> **cannot be stapled**. Notarization still attaches the ticket to Apple's online
+> service, so a notarized binary passes Gatekeeper via **online validation**. The
+> workflow staples only if a real `.app` bundle is present in the output.
+> Shipping a stapled `.dmg`/`.pkg` installer is a possible future enhancement.
+
+### Workaround for the unsigned (no-secret) artifacts
+
+- **Windows:** on the SmartScreen prompt choose **More info → Run anyway**.
+- **macOS:** clear the quarantine attribute after download —
+  ```bash
+  xattr -dr com.apple.quarantine /path/to/FEBuilderGBA-avalonia-osx-arm64
+  ```
+  (or right-click → Open once to add a Gatekeeper exception).
 
 ---
 
