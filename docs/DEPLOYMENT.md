@@ -10,7 +10,7 @@ This guide explains how to create GitHub releases with the split package update 
 
 - Push access to the repository
 - GitHub CLI (`gh`) installed (optional, for automation)
-- Understanding of the split package system (see SPLIT-PACKAGE-FINAL-STATUS.md)
+- Understanding of the split package system (see archive/SPLIT-PACKAGE-FINAL-STATUS.md)
 
 ## Package Types
 
@@ -380,7 +380,7 @@ Future improvements for CI/CD:
 
 ## References
 
-- Split Package Status: `SPLIT-PACKAGE-FINAL-STATUS.md`
+- Split Package Status: `archive/SPLIT-PACKAGE-FINAL-STATUS.md`
 - PowerShell Script: `scripts/create-split-packages.ps1`
 - CI/CD Workflows: `.github/workflows/msbuild.yml`, `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
 - Tag-triggered Release Workflow: `.github/workflows/release.yml` (#1629)
