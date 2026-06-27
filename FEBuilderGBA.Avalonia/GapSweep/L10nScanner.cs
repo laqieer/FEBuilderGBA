@@ -687,11 +687,19 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                     {
                         if (line[0] != ':')
                             continue;
-                        src = line.Substring(1).Replace("\\r\\n", "\r\n");
+                        // Decode the literal `\r\n` escape AND XML char/entity refs
+                        // (`&#10;`, `&#x0a;`, `&amp;`, `&lt;`, …) so the audit map is
+                        // keyed by the same decoded form the AXAML parser emits at
+                        // runtime — matching MyTranslateResourceLow.LoadResource and
+                        // avoiding false "untranslated" verdicts for entity-keyed rows
+                        // that some translate files still ship (issue #1636).
+                        src = MyTranslateResourceLow.DecodeXmlEntities(
+                            line.Substring(1).Replace("\\r\\n", "\r\n"));
                     }
                     else
                     {
-                        string value = line.Replace("\\r\\n", "\r\n");
+                        string value = MyTranslateResourceLow.DecodeXmlEntities(
+                            line.Replace("\\r\\n", "\r\n"));
                         onPair(src, value);
                         src = null;
                     }
