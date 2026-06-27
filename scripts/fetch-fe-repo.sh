@@ -34,22 +34,44 @@ MUSIC_URL="https://github.com/laqieer/FE-Repo-Music-No-Preview"
 GRAPHICS_PATH="resources/FE-Repo"
 MUSIC_PATH="resources/FE-Repo-Music-No-Preview"
 
-do_graphics=1
-do_music=1
+graphics_only=0
+music_only=0
 dest=""
 
-usage() { sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; }
+# Print the leading comment block (the header docs) as help text. Skip the
+# shebang + SPDX lines, then emit every `#`-prefixed line and STOP at the first
+# line that is not a comment (so script code/constants never leak into --help).
+usage() {
+  awk '
+    NR <= 2 { next }                 # shebang + SPDX
+    /^#/    { sub(/^# ?/, ""); print; next }
+    { exit }                         # first non-comment line ends the header
+  ' "$0"
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --graphics-only) do_music=0 ;;
-    --music-only)    do_graphics=0 ;;
+    --graphics-only) graphics_only=1 ;;
+    --music-only)    music_only=1 ;;
     --dest)          shift; dest="${1:-}" ;;
     -h|--help)       usage; exit 0 ;;
     *) echo "fetch-fe-repo: unknown argument: $1" >&2; usage; exit 2 ;;
   esac
   shift
 done
+
+# --graphics-only and --music-only are mutually exclusive: selecting both would
+# fetch nothing and exit successfully, which is a silent no-op (#1669 review).
+if [ "$graphics_only" -eq 1 ] && [ "$music_only" -eq 1 ]; then
+  echo "fetch-fe-repo: --graphics-only and --music-only are mutually exclusive." >&2
+  usage
+  exit 2
+fi
+
+do_graphics=1
+do_music=1
+[ "$music_only" -eq 1 ] && do_graphics=0
+[ "$graphics_only" -eq 1 ] && do_music=0
 
 if ! command -v git >/dev/null 2>&1; then
   echo "fetch-fe-repo: git is required but was not found on PATH." >&2

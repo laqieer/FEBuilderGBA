@@ -140,10 +140,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // submodule while released-zip users (no git repo / no submodule)
                 // shallow-clone the public repo into the expected resources/
                 // folder — offer both so every desktop build type has an
-                // actionable path (#1644). Keeping the submodule command as a
-                // leading substring preserves the #1380 NotFound assertions.
+                // actionable path (#1644). The repo name is mode-aware so music
+                // mode does not say "FE-Repo" when it searched for FE-Repo-Music
+                // (#1669 review). Keeping the submodule command as a leading
+                // substring preserves the #1380 NotFound assertions.
+                string repoName = _musicMode ? "FE-Repo-Music" : "FE-Repo";
                 StatusText = AndroidResourceNoticeCore.IsResourceDeliverySupported
-                    ? "FE-Repo not found. Source build: " + EffectiveInitCommand
+                    ? repoName + " not found. Source build: " + EffectiveInitCommand
                         + "  |  Released build: " + ReleaseFetchCommand
                     : AndroidResourceNoticeCore.FERepoUnavailableMessage;
                 return;

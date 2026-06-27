@@ -29,13 +29,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# -GraphicsOnly and -MusicOnly are mutually exclusive: selecting both would
+# fetch nothing and exit successfully, which is a silent no-op (#1669 review).
+# Use the host error stream + an explicit exit 2 (not Write-Error, which under
+# $ErrorActionPreference='Stop' terminates before the exit and loses the code).
+if ($GraphicsOnly -and $MusicOnly) {
+    [Console]::Error.WriteLine('fetch-fe-repo: -GraphicsOnly and -MusicOnly are mutually exclusive.')
+    exit 2
+}
+
 $GraphicsUrl  = 'https://github.com/Klokinator/FE-Repo'
 $MusicUrl     = 'https://github.com/laqieer/FE-Repo-Music-No-Preview'
 $GraphicsPath = 'resources/FE-Repo'
 $MusicPath    = 'resources/FE-Repo-Music-No-Preview'
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Error 'fetch-fe-repo: git is required but was not found on PATH.'
+    [Console]::Error.WriteLine('fetch-fe-repo: git is required but was not found on PATH.')
     exit 1
 }
 
@@ -81,7 +90,7 @@ function Invoke-FetchOne([string]$name, [string]$url, [string]$rel) {
         if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
         & git clone --depth 1 $url $target
     }
-    if ($LASTEXITCODE -ne 0) { Write-Error "fetch-fe-repo: failed to fetch $name."; exit 1 }
+    if ($LASTEXITCODE -ne 0) { [Console]::Error.WriteLine("fetch-fe-repo: failed to fetch $name."); exit 1 }
     Write-Host "fetch-fe-repo: $name ready."
 }
 
