@@ -30,6 +30,15 @@ for RID in "${RIDS[@]}"; do
         -c Release -r "$RID" --self-contained true \
         -o "$REPO_DIR/publish/avalonia-$RID"
 
+    # GPLv3 requires the license text to accompany every binary distribution,
+    # and the bundled ColorzCore / lyn.exe are themselves GPLv3. Ship LICENSE +
+    # THIRD-PARTY-NOTICES.md inside each bundle (GPLv3 compliance, issue #1633).
+    echo "--- Bundling LICENSE + third-party notices for $RID ---"
+    for target in cli avalonia; do
+        cp "$REPO_DIR/LICENSE" "$REPO_DIR/publish/$target-$RID/LICENSE"
+        cp "$REPO_DIR/THIRD-PARTY-NOTICES.md" "$REPO_DIR/publish/$target-$RID/THIRD-PARTY-NOTICES.md"
+    done
+
     echo "--- Creating archive for $RID ---"
     cd "$REPO_DIR/publish"
     if command -v tar &>/dev/null; then
