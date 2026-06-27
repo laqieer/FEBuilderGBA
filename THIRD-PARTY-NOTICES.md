@@ -5,9 +5,15 @@ FEBuilderGBA is licensed under the **GNU General Public License v3.0** (see the
 
 This file lists third-party components that are **bundled into** the published
 release artifacts (the WinForms zip, the `cli-{rid}` / `avalonia-{rid}` bundles,
-and the Android package). Each component remains under its own license. Where a
-component is licensed under the GPLv3 or LGPL, the full GPLv3 text in the
-accompanying `LICENSE` file also serves as that component's license text.
+and the Android APK). Each component remains under its own license, as listed in
+the tables below.
+
+The accompanying `LICENSE` file contains the full **GPLv3** text, which covers
+FEBuilderGBA itself and the bundled GPLv3 components (ColorzCore, Event
+Assembler / `lyn.exe`). The **LGPL-2.1** `7-zip32.dll` is governed by its own
+license — the GNU LGPL v2.1 — whose canonical text is available at
+<https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt> (and from the upstream
+listed below); the GPLv3 text in `LICENSE` does **not** substitute for it.
 
 ## Bundled binaries
 
@@ -39,16 +45,21 @@ distribution**. The `LICENSE` file is therefore copied into:
 
 - the WinForms release zip (`release.ps1`),
 - the `cli-{rid}` and `avalonia-{rid}` artifacts (`.github/workflows/crossplatform.yml`),
+- the Android APK, where `LICENSE` and `THIRD-PARTY-NOTICES.md` are embedded as
+  `AndroidAsset`s (`FEBuilderGBA.Android/FEBuilderGBA.Android.csproj`), so they
+  ship inside the `assets/` tree of the packaged APK,
 
 alongside this `THIRD-PARTY-NOTICES.md`.
 
 ### Android
 
-The Android package (APK/AAB) embeds application assets differently from a flat
-zip, but the same GPLv3 license obligations apply. The Android build is owned by
-the Android release workflow; the `LICENSE` and this notices file are part of
-the repository root and are bundled into the source/release the same way. See
-`docs/ANDROID.md` for Android packaging specifics.
+Unlike a flat zip, the Android APK embeds files as application assets rather
+than as loose files next to an executable. The `android.yml` workflow uploads
+only the built `*-Signed.apk`, so the license text must travel **inside** the
+APK: `LICENSE` and this notices file are declared as `<AndroidAsset>` entries in
+`FEBuilderGBA.Android/FEBuilderGBA.Android.csproj` and are therefore packaged in
+the APK's `assets/` directory. See `docs/ANDROID.md` for Android packaging
+specifics.
 
 ## Corresponding source
 
