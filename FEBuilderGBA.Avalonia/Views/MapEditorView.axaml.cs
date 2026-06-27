@@ -406,7 +406,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (no local path) are written through OpenWriteAsync.
                 string? written = await FileDialogHelper.WriteViaAsync(file, p => File.WriteAllText(p, csv));
                 if (written == null) return;
-                CoreState.Services?.ShowInfo(string.Format(R._("Exported map to {0} ({1} chars)."), file.Name, csv.Length));
+                // Use the bridge's returned label (local filename on desktop, SAF
+                // display name on Android) for a consistent, provider-safe message.
+                CoreState.Services?.ShowInfo(string.Format(R._("Exported map to {0} ({1} chars)."), Path.GetFileName(written), csv.Length));
             }
             catch (Exception ex)
             {
