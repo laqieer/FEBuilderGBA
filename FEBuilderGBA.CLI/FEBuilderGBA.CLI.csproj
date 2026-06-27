@@ -19,6 +19,6 @@
        initialized at publish time (git submodule update for config/patch2). -->
 
   <ItemGroup>
-    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

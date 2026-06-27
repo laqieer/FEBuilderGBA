@@ -68,6 +68,6 @@
        second copy of the config tree. The whole ItemGroup is gated off net9.0-android,
        so patch2 is automatically kept out of the APK. -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net9.0-android'">
-    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

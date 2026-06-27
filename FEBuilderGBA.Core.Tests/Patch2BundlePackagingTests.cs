@@ -68,9 +68,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             // The .git pointer file itself.
             Assert.Contains(@"config\patch2\.git", excludeNormalizedToBackslash);
-            // The recursive .git directory tree (a separate glob token, not just a prefix
-            // of the pointer-file token).
-            Assert.Contains(@"config\patch2\.git\**", excludeNormalizedToBackslash);
+            // The recursive .git directory CONTENTS. MSBuild item globs use `**` as a
+            // recursive *directory* wildcard that must be paired with a trailing file
+            // wildcard (`\*.*`) to actually match files, so a materialized `.git`
+            // directory's contents are excluded. This mirrors the WinForms
+            // CopyConfigDirectories exclusion (FEBuilderGBA/FEBuilderGBA.csproj):
+            //   $(Patch2SubmodulePath)\.git;$(Patch2SubmodulePath)\.git\**\*.*
+            Assert.Contains(@"config\patch2\.git\**\*.*", excludeNormalizedToBackslash);
         }
 
         [Fact]
