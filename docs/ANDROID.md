@@ -417,6 +417,45 @@ non-blocking) red check instead of a misleading green one; the
 produced no APK (e.g. a path regression) fails visibly rather than passing green
 with an empty artifact.
 
+**Conditional release signing (#1631 — DONE):** the same workflow now produces a
+**release-signed** APK **and** AAB *when, and only when,* the maintainer adds a
+release keystore to the repository's GitHub Actions secrets. The four secrets are:
+
+| Secret | Meaning |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore (`.keystore` / `.jks`) — Linux: `base64 -w0 release.keystore`; macOS/BSD: `base64 -i release.keystore` (the `-w0` flag is GNU-only) |
+| `ANDROID_KEY_ALIAS` | the key alias inside the keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore (store) password |
+| `ANDROID_KEY_PASSWORD` | the key password |
+
+Behaviour by secret state:
+
+- **All four secrets set →** the job decodes the keystore to a runner-temp file
+  (`chmod 600`, never logged) and runs `dotnet publish …
+  -p:AndroidPackageFormats='apk;aab' -p:AndroidKeyStore=true
+  -p:AndroidSigningKeyStore=… -p:AndroidSigningKeyAlias=…
+  -p:AndroidSigningStorePass=… -p:AndroidSigningKeyPass=…`, passing the passwords
+  via `env:` so they never appear in the logged command line. The upload step
+  attaches the release-signed `*-Signed.apk` **and** the `*.aab` to the
+  `febuildergba-android-apk` artifact. The `.aab` is the format Google Play
+  requires; the signed APK is for direct sideload / non-Play distribution.
+- **No secrets set (the state on this fork's CI) →** the job falls back to the
+  original `dotnet build … -p:EnableAndroidTarget=true` and uploads the
+  **debug-keystore** `*-Signed.apk`, exactly as before — the existing
+  (non-required) CI is unchanged.
+- **A partial set →** the detect step fails fast with a clear
+  `::error::Partial Android signing secrets configured …` so a half-configured
+  maintainer never gets a confusing publish failure or a silent debug fallback.
+
+No production signing key is committed to the repo — only the maintainer adds it,
+as a secret. This mirrors how #1126 left the work: the implementation lands now;
+activation requires the maintainer to add the keystore secret. `secrets.*` cannot
+appear in a step-level `if:` (GitHub forbids it), so secret presence is classified
+once into a step output (`haskeystore.outputs.present`) that the signing / fallback
+steps gate on. **Attaching the signed artifact to a GitHub release is the separate
+tag-triggered release workflow ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629));**
+this workflow only produces the signed build.
+
 **On-device byte-parity CI (#1125 — DONE, GREEN):**
 `.github/workflows/android-emulator-parity.yml` runs `SkiaRenderByteParityTests`
 + `SkiaSharpVersionGuardTests` on an API-34 Android emulator for `x86_64`
@@ -512,8 +551,14 @@ linked under #1070 as its checklist:
    not the desktop `.sln` build).~~ **DONE (#1126)** — `.github/workflows/android.yml`
    builds the APK on `ubuntu-latest` and uploads the debug-keystore `*-Signed.apk`
    as a workflow artifact; kept off the required `build` check (separate workflow +
-   `android-build` context, non-required). Signed-release-key packaging and the
-   emulator byte-parity run (#1125) are deferred. *(see §7.)*
+   `android-build` context, non-required). ~~Signed-release-key packaging~~ is now
+   **DONE (#1631)** — the same workflow conditionally produces a release-signed APK
+   **+ AAB** when the maintainer adds the `ANDROID_KEYSTORE_BASE64` /
+   `ANDROID_KEY_ALIAS` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_PASSWORD`
+   secrets, and falls back to the debug-keystore `*-Signed.apk` when they are
+   absent (see §7); attaching the signed artifact to a GitHub release is the
+   tag-triggered release workflow ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)).
+   The emulator byte-parity run (#1125) is **DONE** (see item 5). *(see §7.)*
 
 ---
 
