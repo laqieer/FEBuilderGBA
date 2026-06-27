@@ -101,6 +101,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
             // ---- Item sub-editors (batch 3) ----
             Register("ItemStatBonusesViewerView", "ItemStatBonusesForm", BuildItemStatBonusesList);
+            // #1597: the SkillSystems/Venno patched editors walk the same item
+            // table (deref each item's +12 stat-booster pointer), so they reuse
+            // the vanilla list builder. They are no longer context-dependent.
+            Register("ItemStatBonusesSkillSystemsView", "ItemStatBonusesSkillSystemsForm", BuildItemStatBonusesList);
+            Register("ItemStatBonusesVennoView", "ItemStatBonusesVennoForm", BuildItemStatBonusesList);
             Register("ItemEffectivenessViewerView", "ItemEffectivenessForm", BuildItemEffectivenessList);
             Register("ItemPromotionViewerView", "ItemPromotionForm", BuildItemPromotionList);
             Register("ItemShopViewerView", "ItemShopForm", BuildItemShopList);
@@ -443,8 +448,6 @@ namespace FEBuilderGBA.Avalonia.Services
             "FE8SpellMenuExtendsView",
             // Image sub-editors (need parent context or specific address)
             "ImageBattleAnimePalletView",
-            // Patch-dependent stat bonuses editors (need SkillSystem/Venno patch installed)
-            "ItemStatBonusesSkillSystemsView", "ItemStatBonusesVennoView",
             // FE7 event sub-editors (context-dependent, find address from event scripts at runtime)
             "EventMoveDataFE7View", "EventTalkGroupFE7View", "EventBattleDataFE7View",
         };
