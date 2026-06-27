@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SMEPromoListView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SMEPromoListView.Write_Click failed: {0}", ex.Message);
             }
         }
 

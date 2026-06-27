@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WelcomeView.LoadRecentFiles failed: {0}", ex.Message);
+                Log.ErrorF("WelcomeView.LoadRecentFiles failed: {0}", ex.Message);
                 NoRecentFilesLabel.IsVisible = true;
             }
         }

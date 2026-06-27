@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicCSACreatorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicCSACreatorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -186,7 +186,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicCSACreatorView.RenderPreview: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.RenderPreview: {0}", ex.Message);
                 MagicFramePreview.SetImage(null);
             }
         }
@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicCSACreatorView.LinkInternet: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.LinkInternet: {0}", ex.Message);
             }
         }
 
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 img.SetPixelData(new byte[width * height * 4]);
                 img.Save(path);
             }
-            catch (Exception ex) { Log.Error("CSA SaveDummyPng: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("CSA SaveDummyPng: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageMagicCSACreatorView.Write failed: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.Write failed: {0}", ex.Message);
                 // Surface the error to the user so it's actionable instead
                 // of silently logged (Copilot bot inline review #2 round 2).
                 CoreState.Services?.ShowError($"Write failed: {ex.Message}");
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageMagicCSACreatorView.ListExpand: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.ListExpand: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
             }
         }
@@ -526,7 +526,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicCSACreatorView.LoadIndexedImage: {0}", ex.Message);
+                Log.ErrorF("ImageMagicCSACreatorView.LoadIndexedImage: {0}", ex.Message);
                 return null;
             }
         }
@@ -701,7 +701,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("CSAExport: {0}", ex.Message);
+                Log.ErrorF("CSAExport: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
                 return ex.Message;
             }
@@ -728,7 +728,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImageMagicCSACreatorView.OpenSource: {0}", ex.Message);
+                    Log.ErrorF("ImageMagicCSACreatorView.OpenSource: {0}", ex.Message);
                     CoreState.Services?.ShowError(R._("Cannot open file: {0}", ex.Message));
                 }
             }
@@ -763,7 +763,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImageMagicCSACreatorView.SelectSource: {0}", ex.Message);
+                    Log.ErrorF("ImageMagicCSACreatorView.SelectSource: {0}", ex.Message);
                     CoreState.Services?.ShowError(R._("Cannot open folder: {0}", ex.Message));
                 }
             }

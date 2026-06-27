@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventFunctionPointerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventFunctionPointerView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventFunctionPointerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventFunctionPointerView.OnSelected failed: {0}", ex.Message);
             }
         }
 

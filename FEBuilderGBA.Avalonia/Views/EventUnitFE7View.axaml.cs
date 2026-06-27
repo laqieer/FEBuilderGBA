@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.LoadMapList failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.LoadMapList failed: {0}", ex.Message);
             }
         }
 
@@ -164,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.MapListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.MapListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.GroupListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.GroupListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.UnitListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.UnitListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = U.atoh(text);
                 if (addr == 0 || !U.isSafetyOffset(addr))
                 {
-                    Log.Error("EventUnitFE7View: Invalid address {0}", text);
+                    Log.ErrorF("EventUnitFE7View: Invalid address {0}", text);
                     return;
                 }
                 TopAddrBox.Text = string.Format("0x{0:X08}", addr);
@@ -230,7 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.LoadAddr_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.LoadAddr_Click failed: {0}", ex.Message);
             }
         }
 
@@ -334,7 +334,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventUnitFE7View.Write failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.Write failed: {0}", ex.Message);
             }
         }
 
@@ -420,7 +420,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.JumpBattleTalk_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.JumpBattleTalk_Click failed: {0}", ex.Message);
             }
         }
 
@@ -441,7 +441,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.JumpBattleBGM_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.JumpBattleBGM_Click failed: {0}", ex.Message);
             }
         }
 
@@ -463,7 +463,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.JumpHaiku_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.JumpHaiku_Click failed: {0}", ex.Message);
             }
         }
 
@@ -521,7 +521,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.NewAlloc_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.NewAlloc_Click failed: {0}", ex.Message);
             }
         }
 
@@ -604,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE7View.ExpandList_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE7View.ExpandList_Click failed: {0}", ex.Message);
             }
         }
 

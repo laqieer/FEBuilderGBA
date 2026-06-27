@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Auto-save failed: {0}", ex.Message);
+                    Log.ErrorF("Auto-save failed: {0}", ex.Message);
                 }
                 finally
                 {

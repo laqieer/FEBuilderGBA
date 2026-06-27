@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.LoadMapList failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.LoadMapList failed: {0}", ex.Message);
             }
         }
 
@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.MapListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.MapListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.GroupListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.GroupListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.UnitListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.UnitListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = U.atoh(text);
                 if (addr == 0 || !U.isSafetyOffset(addr))
                 {
-                    Log.Error("EventUnitView: Invalid address {0}", text);
+                    Log.ErrorF("EventUnitView: Invalid address {0}", text);
                     return;
                 }
                 TopAddrBox.Text = string.Format("0x{0:X08}", addr);
@@ -216,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.LoadAddr_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.LoadAddr_Click failed: {0}", ex.Message);
             }
         }
 
@@ -339,7 +339,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventUnitView.Write failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.Write failed: {0}", ex.Message);
             }
         }
 
@@ -361,7 +361,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.AddCoord_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.AddCoord_Click failed: {0}", ex.Message);
             }
         }
 
@@ -377,7 +377,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.RemoveCoord_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.RemoveCoord_Click failed: {0}", ex.Message);
             }
         }
 
@@ -533,7 +533,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.JumpBattleTalk_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.JumpBattleTalk_Click failed: {0}", ex.Message);
             }
         }
 
@@ -554,7 +554,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.JumpBattleBGM_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.JumpBattleBGM_Click failed: {0}", ex.Message);
             }
         }
 
@@ -576,7 +576,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.JumpHaiku_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.JumpHaiku_Click failed: {0}", ex.Message);
             }
         }
 
@@ -606,7 +606,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.JumpMonsterProb_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.JumpMonsterProb_Click failed: {0}", ex.Message);
             }
         }
 
@@ -622,7 +622,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.ItemDropDialog_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.ItemDropDialog_Click failed: {0}", ex.Message);
             }
         }
 
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.NewAlloc_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.NewAlloc_Click failed: {0}", ex.Message);
             }
         }
 
@@ -755,7 +755,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitView.ExpandList_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitView.ExpandList_Click failed: {0}", ex.Message);
             }
         }
 

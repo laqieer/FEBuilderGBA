@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectToTextDialogView.Save failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectToTextDialogView.Save failed: {0}", ex.Message);
             }
         }
 

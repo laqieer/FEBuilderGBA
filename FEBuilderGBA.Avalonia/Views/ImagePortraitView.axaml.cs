@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitView.UpdatePatchGatedVisibility failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitView.UpdatePatchGatedVisibility failed: {0}", ex.Message);
             }
         }
 
@@ -156,7 +156,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -238,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitView.UpdateImages show-example failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitView.UpdateImages show-example failed: {0}", ex.Message);
                 ShowExampleImage.SetImage(null);
             }
         }
@@ -712,7 +712,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 window.JumpTo(_vm.PalettePtr, maxPaletteCount: 1, defaultSelectPalette: 0, paletteNames: null,
                     renderPreview: block => PortraitRendererCore.DrawPortraitMap(mapFacePtr, block));
             }
-            catch (Exception ex) { Log.Error("JumpToPalette failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPalette failed: {0}", ex.Message); }
         }
 
         void JumpToImporter_Click(object? sender, RoutedEventArgs e)
@@ -723,7 +723,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.CurrentAddr != 0)
                     view.NavigateTo(_vm.CurrentAddr);   // position the importer at the portrait being edited (right target + its B20-B23)
             }
-            catch (Exception ex) { Log.Error("JumpToImporter failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToImporter failed: {0}", ex.Message); }
         }
 
         void JumpToStatusHeight_Click(object? sender, RoutedEventArgs e)
@@ -736,7 +736,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // leaves the default first row selected — no error (#1019).
                 view.NavigateToId(_vm.GetSelectedPortraitId());
             }
-            catch (Exception ex) { Log.Error("JumpToStatusHeight failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToStatusHeight failed: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

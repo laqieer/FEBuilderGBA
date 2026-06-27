@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMCoordinateView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCoordinateView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMCoordinateView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCoordinateView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIASMCoordinateView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCoordinateView.Write failed: {0}", ex.Message);
             }
         }
 

@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusRMenuView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("StatusRMenuView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusRMenuView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("StatusRMenuView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Status R-Menu data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusRMenuView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("StatusRMenuView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MoveCostEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MoveCostEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     catch (Exception ex)
                     {
-                        Log.Error("MoveCostEditorView.OnCostTypeChanged failed: {0}", ex.Message);
+                        Log.ErrorF("MoveCostEditorView.OnCostTypeChanged failed: {0}", ex.Message);
                     }
                 }
             }
@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MoveCostEditorView.OnClassSelected failed: {0}", ex.Message);
+                Log.ErrorF("MoveCostEditorView.OnClassSelected failed: {0}", ex.Message);
             }
         }
 
@@ -268,7 +268,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MoveCostEditorView.OnWriteClick failed: {0}", ex.Message);
+                Log.ErrorF("MoveCostEditorView.OnWriteClick failed: {0}", ex.Message);
             }
         }
 

@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapLoadFunctionView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapLoadFunctionView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapLoadFunctionView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapLoadFunctionView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapLoadFunctionView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapLoadFunctionView.Write_Click failed: {0}", ex.Message);
             }
         }
 

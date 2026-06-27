@@ -990,7 +990,7 @@ namespace FEBuilderGBA
             {
                 if (addr + 8 + 4 > rom_length)
                 {
-                    Log.Error("ROM Broken! Address after allocation is out of range. {0}+8+4/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
+                    Log.ErrorF("ROM Broken! Address after allocation is out of range. {0}+8+4/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
                     break;
                 }
 
@@ -1005,7 +1005,7 @@ namespace FEBuilderGBA
             {
                 if (addr + 8 + 4 > rom_length)
                 {
-                    Log.Error("ROM Broken! Address after allocation is out of range. {0}+8+4/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
+                    Log.ErrorF("ROM Broken! Address after allocation is out of range. {0}+8+4/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
                     break;
                 }
                 if (Program.ROM.u8(addr + 0) == 0)

@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageCGView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageCGView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -108,7 +108,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageCGView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageCGView.OnSelected failed: {0}", ex.Message);
             }
         }
 

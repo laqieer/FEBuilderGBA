@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportAttributeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SupportAttributeView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportAttributeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SupportAttributeView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SupportAttributeView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SupportAttributeView.Write_Click failed: {0}", ex.Message);
             }
         }
 

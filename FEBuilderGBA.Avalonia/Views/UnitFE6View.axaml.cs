@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE6View.JumpToSupportUnit failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.JumpToSupportUnit failed: {0}", ex.Message);
             }
         }
 
@@ -97,7 +97,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE6View.TryShowPortrait failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.TryShowPortrait failed: {0}", ex.Message);
                 PortraitImage.SetImage(null);
             }
         }
@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<ClassFE6View>(addr);
             }
-            catch (Exception ex) { Log.Error("UnitFE6View.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE6View.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -372,7 +372,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     // NameText refresh via ValueChanged.
                 }
             }
-            catch (Exception ex) { Log.Error("UnitFE6View.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE6View.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -395,7 +395,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = baseAddr + portraitId * dataSize;
                 WindowManager.Instance.Navigate<PortraitViewerView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnPortraitLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OnPortraitLinkClick failed: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -412,7 +412,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("UnitFE6View.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -494,7 +494,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 if (TopBar != null) TopBar.StartAddressText = $"0x{baseAddr:X8}";
             }
-            catch (Exception ex) { Log.Error("UnitFE6View.UpdateAddressBarInfra failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE6View.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         /// <summary>
@@ -532,7 +532,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE6View.RefreshHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE6View.RefreshHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLabel.IsVisible = false;
             }
         }
@@ -551,7 +551,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var pv = WindowManager.Instance.Open<PatchManagerView>();
                 pv.JumpTo($"HARDCODING_UNIT={unitId:X2}", 0);
             }
-            catch (Exception ex) { Log.Error("UnitFE6View.HardCodingWarning_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE6View.HardCodingWarning_Click failed: {0}", ex.Message); }
         }
 
         // ---- #407: Weapon-rank letter labels -------------------------------
@@ -617,7 +617,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 SimLCKLabel.Text = sim.sim_luck.ToString();
                 SimTotalLabel.Text = sim.sim_sum_grow_rate.ToString();
             }
-            catch (Exception ex) { Log.Error("UnitFE6View.RefreshGrowthSim failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE6View.RefreshGrowthSim failed: {0}", ex.Message); }
         }
     }
 }

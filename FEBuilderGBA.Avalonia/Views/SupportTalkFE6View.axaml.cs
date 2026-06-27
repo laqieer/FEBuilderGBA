@@ -39,7 +39,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportTalkFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SupportTalkFE6View.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportTalkFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SupportTalkFE6View.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SupportTalkFE6View.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SupportTalkFE6View.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -237,7 +237,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void SupportPartner1_Jump(object? sender, RoutedEventArgs e)
         {
             try { uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner1Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.SupportPartner1_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.SupportPartner1_Jump failed: {0}", ex.Message); }
         }
 
         async void SupportPartner1_Pick(object? sender, RoutedEventArgs e)
@@ -249,7 +249,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // PickResult.Index is 0-based; SupportPartner is 1-based (#937).
                 if (result != null) SupportPartner1Nud.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.SupportPartner1_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.SupportPartner1_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -261,7 +261,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void SupportPartner2_Jump(object? sender, RoutedEventArgs e)
         {
             try { uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner2Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.SupportPartner2_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.SupportPartner2_Jump failed: {0}", ex.Message); }
         }
 
         async void SupportPartner2_Pick(object? sender, RoutedEventArgs e)
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // PickResult.Index is 0-based; SupportPartner is 1-based (#937).
                 if (result != null) SupportPartner2Nud.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.SupportPartner2_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.SupportPartner2_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void TextC_Jump(object? sender, RoutedEventArgs e)
         {
             try { uint addr = TextAddrFor(TextCNud.Value); if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr); }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.TextC_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.TextC_Jump failed: {0}", ex.Message); }
         }
 
         void TextC_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -296,7 +296,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void TextB_Jump(object? sender, RoutedEventArgs e)
         {
             try { uint addr = TextAddrFor(TextBNud.Value); if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr); }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.TextB_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.TextB_Jump failed: {0}", ex.Message); }
         }
 
         void TextB_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -307,7 +307,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void TextA_Jump(object? sender, RoutedEventArgs e)
         {
             try { uint addr = TextAddrFor(TextANud.Value); if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr); }
-            catch (Exception ex) { Log.Error("SupportTalkFE6View.TextA_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SupportTalkFE6View.TextA_Jump failed: {0}", ex.Message); }
         }
 
         void TextA_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("TextDicView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("TextDicView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnUnitIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OnUnitIdLinkClick failed: {0}", ex.Message); }
         }
 
         void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
@@ -112,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OnClassIdLinkClick failed: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

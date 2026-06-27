@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.Init failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.Init failed: {0}", ex.Message);
             }
 
             // Populate the 16x3 R/G/B grid from the existing ROM palette so
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.ReloadPaletteIntoGrid failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.ReloadPaletteIntoGrid failed: {0}", ex.Message);
             }
         }
 
@@ -332,7 +332,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -347,7 +347,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -383,7 +383,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 BattlePreview.SetImage(null);
                 _vm.CanExportBattle = false;
-                Log.Error("ImageTSAEditorView.RefreshBattleCanvas failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.RefreshBattleCanvas failed: {0}", ex.Message);
             }
         }
 
@@ -407,7 +407,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 ChipListPreview.SetImage(null);
-                Log.Error("ImageTSAEditorView.RefreshChipList failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.RefreshChipList failed: {0}", ex.Message);
             }
         }
 
@@ -645,7 +645,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.PaletteClipboard failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.PaletteClipboard failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Palette to clipboard failed: {0}", ex.Message));
             }
         }
@@ -786,7 +786,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.MainImageExport failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.MainImageExport failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("TSA Image Export failed: {0}", ex.Message));
             }
         }
@@ -804,7 +804,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAEditorView.BattleExportPng failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAEditorView.BattleExportPng failed: {0}", ex.Message);
             }
         }
     }

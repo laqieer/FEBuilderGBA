@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -212,7 +212,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("MapStyleEditorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -362,7 +362,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapStyleEditorView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -407,7 +407,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapStyleEditorView.PaletteWrite_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.PaletteWrite_Click failed: {0}", ex.Message);
             }
         }
 
@@ -721,7 +721,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapStyleEditorView.ConfigWrite_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.ConfigWrite_Click failed: {0}", ex.Message);
             }
         }
 
@@ -841,7 +841,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.PaletteExport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.PaletteExport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Export palette failed: {0}", ex.Message));
             }
         }
@@ -886,7 +886,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.PaletteImport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.PaletteImport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Import palette failed: {0}", ex.Message));
             }
         }
@@ -945,7 +945,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.PaletteClipboard_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.PaletteClipboard_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Clipboard operation failed: {0}", ex.Message));
             }
         }
@@ -976,7 +976,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.ObjExport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.ObjExport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("OBJ export failed: {0}", ex.Message));
             }
         }
@@ -1016,7 +1016,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.Undo_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.Undo_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Undo failed: {0}", ex.Message));
             }
         }
@@ -1063,7 +1063,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.Redo_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.Redo_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Redo failed: {0}", ex.Message));
             }
         }
@@ -1107,7 +1107,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Map Chip export failed: {0}", ex.Message));
             }
         }
@@ -1260,7 +1260,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("MapStyleEditorView.ObjImport_Click decode failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.ObjImport_Click decode failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Image decode error: {0}", ex.Message));
                     return;
                 }
@@ -1280,7 +1280,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("MapStyleEditorView.ObjImport_Click write failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.ObjImport_Click write failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("OBJ image import error: {0}", ex.Message));
                     return;
                 }
@@ -1299,14 +1299,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("MapStyleEditorView.ObjImport_Click UI refresh failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.ObjImport_Click UI refresh failed: {0}", ex.Message);
                     CoreState.Services.ShowError(
                         R._("OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.", ex.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.ObjImport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.ObjImport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("OBJ image import failed: {0}", ex.Message));
             }
         }
@@ -1358,7 +1358,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("MapStyleEditorView.MapChipImport_Click read failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.MapChipImport_Click read failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Failed to read file: {0}", ex.Message));
                     return;
                 }
@@ -1383,7 +1383,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Import error: {0}", ex.Message));
                     return;
                 }
@@ -1415,14 +1415,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     // Import succeeded but UI refresh failed — tell the user
                     // their data is safe and ask them to reload.
-                    Log.Error("MapStyleEditorView.MapChipImport_Click UI refresh failed: {0}", ex.Message);
+                    Log.ErrorF("MapStyleEditorView.MapChipImport_Click UI refresh failed: {0}", ex.Message);
                     CoreState.Services.ShowError(
                         R._("Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.", data.Length, ex.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.MapChipImport_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorView.MapChipImport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Map chip import failed: {0}", ex.Message));
             }
         }

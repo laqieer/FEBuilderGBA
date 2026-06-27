@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.InitialLoad: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.InitialLoad: {0}", ex.Message);
             }
             finally
             {
@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.LoadListForFilter: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.LoadListForFilter: {0}", ex.Message);
             }
         }
 
@@ -200,7 +200,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.OnSelected: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.OnSelected: {0}", ex.Message);
             }
             finally
             {
@@ -271,7 +271,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ItemUsagePointerViewerView.Write_Click: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.Write_Click: {0}", ex.Message);
             }
         }
 
@@ -320,7 +320,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ItemUsagePointerViewerView.SwitchListExpands_Click: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.SwitchListExpands_Click: {0}", ex.Message);
             }
         }
 
@@ -364,7 +364,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.PromotionItemLink_Click: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.PromotionItemLink_Click: {0}", ex.Message);
             }
         }
 
@@ -377,7 +377,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.StatBoosterItemLink_Click: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.StatBoosterItemLink_Click: {0}", ex.Message);
             }
         }
 
@@ -389,7 +389,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemUsagePointerViewerView.IerPatch_Click: {0}", ex.Message);
+                Log.ErrorF("ItemUsagePointerViewerView.IerPatch_Click: {0}", ex.Message);
             }
         }
 

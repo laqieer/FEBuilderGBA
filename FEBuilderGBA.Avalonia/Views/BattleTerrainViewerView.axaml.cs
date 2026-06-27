@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true;
             try { var items = _vm.LoadBattleTerrainList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("BattleTerrainViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BattleTerrainViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("BattleTerrainViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BattleTerrainViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 

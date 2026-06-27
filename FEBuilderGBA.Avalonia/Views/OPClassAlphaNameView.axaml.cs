@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassAlphaNameView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("OPClassAlphaNameView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassAlphaNameView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("OPClassAlphaNameView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("OP Class Alpha Name data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassAlphaNameView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("OPClassAlphaNameView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

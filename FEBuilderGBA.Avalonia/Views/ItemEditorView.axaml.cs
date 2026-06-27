@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemEditorView.OnItemSelected failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.OnItemSelected failed: {0}", ex.Message);
             }
         }
 
@@ -164,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.UpdateHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.UpdateHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLink.IsVisible = false;
             }
         }
@@ -184,7 +184,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.OnHardCodingLink_Click failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.OnHardCodingLink_Click failed: {0}", ex.Message);
             }
         }
 
@@ -210,7 +210,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.JumpToWeaponEffect_Click failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.JumpToWeaponEffect_Click failed: {0}", ex.Message);
             }
         }
 
@@ -269,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.UpdateWeaponDebuffsLink failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.UpdateWeaponDebuffsLink failed: {0}", ex.Message);
                 WeaponDebuffsLink.IsVisible = false;
             }
         }
@@ -284,7 +284,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEditorView.OnWeaponDebuffsLink_Click failed: {0}", ex.Message);
+                Log.ErrorF("ItemEditorView.OnWeaponDebuffsLink_Click failed: {0}", ex.Message);
             }
         }
 
@@ -482,7 +482,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 
@@ -574,7 +574,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AllocStatBonuses failed: {0}", ex.Message);
+                Log.ErrorF("AllocStatBonuses failed: {0}", ex.Message);
             }
         }
 
@@ -603,7 +603,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AllocEffectiveness failed: {0}", ex.Message);
+                Log.ErrorF("AllocEffectiveness failed: {0}", ex.Message);
             }
         }
 
@@ -625,7 +625,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToStatBonuses failed: {0}", ex.Message);
+                Log.ErrorF("JumpToStatBonuses failed: {0}", ex.Message);
             }
         }
 
@@ -644,7 +644,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToEffectiveness failed: {0}", ex.Message);
+                Log.ErrorF("JumpToEffectiveness failed: {0}", ex.Message);
             }
         }
 
@@ -694,7 +694,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EditSkillConfig_Click failed: {0}", ex.Message);
+                Log.ErrorF("EditSkillConfig_Click failed: {0}", ex.Message);
             }
         }
 

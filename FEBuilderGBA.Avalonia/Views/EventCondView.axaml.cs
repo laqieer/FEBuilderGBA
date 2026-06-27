@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventCondView.LoadAll failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.LoadAll failed: {0}", ex.Message);
             }
             finally
             {
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventCondView.OnMapSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.OnMapSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventCondView.OnSlotChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.OnSlotChanged failed: {0}", ex.Message);
             }
             finally
             {
@@ -223,7 +223,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventCondView.OnRecordSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.OnRecordSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -718,7 +718,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -836,7 +836,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.ExpandList_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.ExpandList_Click failed: {0}", ex.Message);
             }
         }
 
@@ -863,7 +863,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.NewAlloc_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.NewAlloc_Click failed: {0}", ex.Message);
             }
         }
 
@@ -998,7 +998,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventCondView.PreciseAlloc_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.PreciseAlloc_Click failed: {0}", ex.Message);
             }
         }
 
@@ -1053,7 +1053,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventCondView.Reload_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventCondView.Reload_Click failed: {0}", ex.Message);
             }
         }
 
@@ -1090,7 +1090,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EventCondView.JumpToUnitEditor failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EventCondView.JumpToUnitEditor failed: {0}", ex.Message); }
         }
 
         async System.Threading.Tasks.Task PickUnitInto(IdFieldControl box)
@@ -1102,7 +1102,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null)
                     box.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
-            catch (Exception ex) { Log.Error("EventCondView.PickUnitInto failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EventCondView.PickUnitInto failed: {0}", ex.Message); }
         }
 
         void Unit1_Jump(object? sender, RoutedEventArgs e) => JumpToUnitEditor(Unit1Box);
@@ -1140,7 +1140,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ItemEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EventCondView.ChestItem_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EventCondView.ChestItem_Jump failed: {0}", ex.Message); }
         }
 
         async void ChestItem_Pick(object? sender, RoutedEventArgs e)
@@ -1155,7 +1155,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
                 if (result != null) ChestItemBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("EventCondView.ChestItem_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EventCondView.ChestItem_Pick failed: {0}", ex.Message); }
         }
 
         void ChestItem_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -1180,7 +1180,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = EditorJumpAddressHelper.TextRowAddrFor(CoreState.ROM, TextIdBox.Value);
                 if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr);
             }
-            catch (Exception ex) { Log.Error("EventCondView.TutorialTextId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EventCondView.TutorialTextId_Jump failed: {0}", ex.Message); }
         }
 
         void TutorialTextId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

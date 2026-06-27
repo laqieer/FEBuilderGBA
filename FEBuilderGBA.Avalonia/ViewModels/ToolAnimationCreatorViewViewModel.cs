@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
                 catch (System.IO.FileNotFoundException ex)
                 {
-                    Log.Error("ToolAnimationCreator.InitFromFile: file not found: {0}", ex.FileName ?? filename);
+                    Log.ErrorF("ToolAnimationCreator.InitFromFile: file not found: {0}", ex.FileName ?? filename);
                     // Leave VM in a partially-initialised state: AnimationKind /
                     // AnimationId / FileHint are set but Frames is empty.
                     // IsLoaded still flips true so the standalone-open path is

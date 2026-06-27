@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MainSimpleMenuImageSubView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MainSimpleMenuImageSubView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MainSimpleMenuImageSubView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MainSimpleMenuImageSubView.OnSelected failed: {0}", ex.Message);
             }
         }
 

@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEffectivenessMainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ItemEffectivenessMainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEffectivenessMainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ItemEffectivenessMainView.OnSelected failed: {0}", ex.Message);
             }
         }
 

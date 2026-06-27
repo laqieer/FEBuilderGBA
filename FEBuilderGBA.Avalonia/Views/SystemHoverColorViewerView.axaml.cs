@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 GBAColorBox.Value = _vm.GBAColor;
                 RefreshSwatch();
             }
-            catch (Exception ex) { Log.Error("SystemHoverColorViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SystemHoverColorViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SystemHoverColorViewerView.Write_Click: {0}", ex.Message);
+                Log.ErrorF("SystemHoverColorViewerView.Write_Click: {0}", ex.Message);
             }
         }
 

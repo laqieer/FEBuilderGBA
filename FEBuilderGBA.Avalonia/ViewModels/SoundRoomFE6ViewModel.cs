@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (textId > 0 && textId < 0xFFFF)
                     return NameResolver.GetTextById(textId);
             }
-            catch (Exception ex) { Log.Error("SoundRoomFE6ViewModel.GetSongName text resolve: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SoundRoomFE6ViewModel.GetSongName text resolve: {0}", ex.Message); }
             return $"Song {rom.u32(addr):X}";
         }
 

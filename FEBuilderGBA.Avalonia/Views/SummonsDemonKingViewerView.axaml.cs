@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SummonsDemonKingViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SummonsDemonKingViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -229,7 +229,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.UnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonsDemonKingViewerView.UnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void UnitId_Pick(object? sender, RoutedEventArgs e)
@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null) UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
-            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.UnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonsDemonKingViewerView.UnitId_Pick failed: {0}", ex.Message); }
         }
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -262,7 +262,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonsDemonKingViewerView.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -277,7 +277,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonsDemonKingViewerView.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

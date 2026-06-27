@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitNewAllocView.OK_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitNewAllocView.OK_Click failed: {0}", ex.Message);
                 Close((uint?)null);
             }
         }

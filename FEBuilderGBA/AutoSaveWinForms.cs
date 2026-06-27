@@ -110,7 +110,7 @@ namespace FEBuilderGBA
                 catch (Exception ex)
                 {
                     if (ctx != null)
-                        ctx.Post(_ => Log.Error("Auto-save failed: {0}", ex.Message), null);
+                        ctx.Post(_ => Log.ErrorF("Auto-save failed: {0}", ex.Message), null);
                 }
                 finally
                 {

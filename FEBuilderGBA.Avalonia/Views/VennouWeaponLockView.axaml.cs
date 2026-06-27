@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry(address);
                 UpdateUI();
             }
-            catch (Exception ex) { Log.Error("VennouWeaponLockView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("VennouWeaponLockView.OnSelected: {0}", ex.Message); }
         }
 
         void UpdateUI()
@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadList(); // Refresh list after write
                 CoreState.Services?.ShowInfo("Weapon lock data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("VennouWeaponLockView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("VennouWeaponLockView.Write: {0}", ex.Message); }
         }
     }
 }

@@ -168,7 +168,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.OnSelectedEntry failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.OnSelectedEntry failed: {0}", ex.Message);
             }
         }
 
@@ -215,7 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.RefreshSamplePreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.RefreshSamplePreview failed: {0}", ex.Message);
                 SamplePreview.SetImage(null);
             }
             // #828: gate the Export Image button on a successful render.
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.Export_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.Export_Click failed: {0}", ex.Message);
             }
         }
 
@@ -280,7 +280,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.PaletteIndexCombo_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.PaletteIndexCombo_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.Write threw: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.Write threw: {0}", ex.Message);
                 _undoService.Rollback();
                 return;
             }
@@ -407,7 +407,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.RefreshListPreservingSelection failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleAnimePalletView.RefreshListPreservingSelection failed: {0}", ex.Message);
             }
         }
 
@@ -464,7 +464,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (loadResult == null || !loadResult.Success)
             {
                 string err = loadResult?.Error ?? "Unknown error";
-                Log.Error("Import_Click: image load/quantize failed: {0}", err);
+                Log.ErrorF("Import_Click: image load/quantize failed: {0}", err);
                 return;
             }
 
@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Import_Click: Write threw: {0}", ex.Message);
+                Log.ErrorF("Import_Click: Write threw: {0}", ex.Message);
                 _undoService.Rollback();
                 // FIX 2: restore pre-import VM state so the UI matches the rolled-back ROM.
                 RestorePaletteSnapshot(rSnap, gSnap, bSnap);
@@ -582,7 +582,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Clipboard_Click failed: {0}", ex.Message);
+                Log.ErrorF("Clipboard_Click failed: {0}", ex.Message);
             }
         }
 
@@ -604,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Undo_Click failed: {0}", ex.Message);
+                Log.ErrorF("Undo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -629,7 +629,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Redo_Click failed: {0}", ex.Message);
+                Log.ErrorF("Redo_Click failed: {0}", ex.Message);
             }
         }
 

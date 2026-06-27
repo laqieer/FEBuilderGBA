@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorMarSizeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorMarSizeView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorMarSizeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorMarSizeView.OnSelected failed: {0}", ex.Message);
             }
         }
 

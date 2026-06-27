@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassDemoFE7View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("OPClassDemoFE7View.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassDemoFE7View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("OPClassDemoFE7View.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -273,7 +273,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 CoreState.Services?.ShowInfo("OP Class Demo (FE7) data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassDemoFE7View.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("OPClassDemoFE7View.Write: {0}", ex.Message); }
         }
 
         void NWrite_Click(object? sender, RoutedEventArgs e)
@@ -297,7 +297,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 RebuildN2ListBox();
                 CoreState.Services?.ShowInfo("Animation command written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassDemoFE7View.NWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("OPClassDemoFE7View.NWrite: {0}", ex.Message); }
         }
 
         // -- IdFieldControl handlers (#360 final) ---------------------------
@@ -329,7 +329,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OPClassDemoFE7View.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OPClassDemoFE7View.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -344,7 +344,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("OPClassDemoFE7View.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OPClassDemoFE7View.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

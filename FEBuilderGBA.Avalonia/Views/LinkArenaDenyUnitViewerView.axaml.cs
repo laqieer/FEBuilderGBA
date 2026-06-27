@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("LinkArenaDenyUnitViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("LinkArenaDenyUnitViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("LinkArenaDenyUnitViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("LinkArenaDenyUnitViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Link Arena Deny Unit data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("LinkArenaDenyUnitViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("LinkArenaDenyUnitViewerView.Write: {0}", ex.Message); }
         }
 
         // -- IdFieldControl handlers (#360) ----------------------------------
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("LinkArenaDenyUnitViewerView.UnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("LinkArenaDenyUnitViewerView.UnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void UnitId_Pick(object? sender, RoutedEventArgs e)
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
                 }
             }
-            catch (Exception ex) { Log.Error("LinkArenaDenyUnitViewerView.UnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("LinkArenaDenyUnitViewerView.UnitId_Pick failed: {0}", ex.Message); }
         }
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

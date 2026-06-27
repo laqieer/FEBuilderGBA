@@ -912,7 +912,7 @@ namespace FEBuilderGBA
                 || instrumentCode == 0x0B
                 )
             {
-                Log.Debug("This is WaveMemory({0})", U.To0xHexString(instrumentCode));
+                Log.DebugF("This is WaveMemory({0})", U.To0xHexString(instrumentCode));
                 return true;
             }
             return false;
@@ -925,7 +925,7 @@ namespace FEBuilderGBA
                 || instrumentCode == 0x18
                 )
             {
-                Log.Debug("This is DirectSound({0})", U.To0xHexString(instrumentCode));
+                Log.DebugF("This is DirectSound({0})", U.To0xHexString(instrumentCode));
                 return true;
             }
             return false;

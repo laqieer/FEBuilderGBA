@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMRangeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIASMRangeView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMRangeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIASMRangeView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIASMRangeView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIASMRangeView.Write failed: {0}", ex.Message);
             }
         }
 

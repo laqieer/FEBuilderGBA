@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
                 catch (System.Exception ex)
                 {
-                    Log.Error("ImagePortraitImporterViewModel.LoadList portrait name resolve: {0}", ex.Message);
+                    Log.ErrorF("ImagePortraitImporterViewModel.LoadList portrait name resolve: {0}", ex.Message);
                 }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }

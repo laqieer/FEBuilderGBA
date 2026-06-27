@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackAllChangeTrackView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackAllChangeTrackView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackAllChangeTrackView.Apply_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackAllChangeTrackView.Apply_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Apply failed: {0}", ex.Message));
             }
         }

@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitEditor.JumpToSupportUnit failed: {0}", ex.Message);
+                Log.ErrorF("UnitEditor.JumpToSupportUnit failed: {0}", ex.Message);
             }
         }
 
@@ -258,7 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("UnitEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -284,7 +284,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitEditorView.OnUnitSelected failed: {0}", ex.Message);
+                Log.ErrorF("UnitEditorView.OnUnitSelected failed: {0}", ex.Message);
             }
         }
 
@@ -468,7 +468,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitEditorView.TryShowPortrait failed: {0}", ex.Message);
+                Log.ErrorF("UnitEditorView.TryShowPortrait failed: {0}", ex.Message);
                 PortraitImage.SetImage(null);
             }
         }
@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 
@@ -602,7 +602,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToClass failed: {0}", ex.Message);
+                Log.ErrorF("JumpToClass failed: {0}", ex.Message);
             }
         }
 
@@ -622,7 +622,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToPortrait failed: {0}", ex.Message);
+                Log.ErrorF("JumpToPortrait failed: {0}", ex.Message);
             }
         }
 
@@ -654,7 +654,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PickClass failed: {0}", ex.Message);
+                Log.ErrorF("PickClass failed: {0}", ex.Message);
             }
         }
 
@@ -681,7 +681,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PickPortrait failed: {0}", ex.Message);
+                Log.ErrorF("PickPortrait failed: {0}", ex.Message);
             }
         }
 
@@ -838,7 +838,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("GetAllUnitAddresses failed: {0}", ex.Message);
+                Log.ErrorF("GetAllUnitAddresses failed: {0}", ex.Message);
                 return Array.Empty<uint>();
             }
         }
@@ -853,7 +853,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addrs.Length == 0) return;
                 await MakeCsvManager().ExportAllAsync(this, rom, addrs);
             }
-            catch (Exception ex) { Log.Error("ExportAll_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ExportAll_Click failed: {0}", ex.Message); }
         }
 
         async void ExportSelected_Click(object? sender, RoutedEventArgs e)
@@ -871,7 +871,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint uid = idx >= 0 ? (uint)idx : 0u;
                 await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
             }
-            catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ExportSelected_Click failed: {0}", ex.Message); }
         }
 
         async void ImportAll_Click(object? sender, RoutedEventArgs e)
@@ -903,7 +903,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     UpdateUI();
                 }
             }
-            catch (Exception ex) { Log.Error("ImportAll_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImportAll_Click failed: {0}", ex.Message); }
         }
 
         async void ImportSelected_Click(object? sender, RoutedEventArgs e)
@@ -936,7 +936,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     UpdateUI();
                 }
             }
-            catch (Exception ex) { Log.Error("ImportSelected_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImportSelected_Click failed: {0}", ex.Message); }
         }
 
         // ---- #413: Address-bar infrastructure ----
@@ -967,7 +967,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (SizeLabel != null)
                     SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
             }
-            catch (Exception ex) { Log.Error("UnitEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         // #649: routed event from the unified EditorTopBar Reload button.
@@ -1001,7 +1001,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("UnitEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLabel.IsVisible = false;
             }
         }
@@ -1016,7 +1016,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var pv = WindowManager.Instance.Open<PatchManagerView>();
                 pv.JumpTo($"HARDCODING_UNIT={unitId:X2}", 0);
             }
-            catch (Exception ex) { Log.Error("UnitEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
         }
 
         public void EnablePickMode() => UnitList.EnablePickMode();

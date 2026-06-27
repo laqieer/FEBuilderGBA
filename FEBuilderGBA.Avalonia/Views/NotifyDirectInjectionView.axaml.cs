@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("NotifyDirectInjectionView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("NotifyDirectInjectionView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("NotifyDirectInjectionView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("NotifyDirectInjectionView.OnSelected failed: {0}", ex.Message);
             }
         }
 

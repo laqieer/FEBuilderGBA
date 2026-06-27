@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PatchManagerView.LoadPatches failed: {0}", ex.Message);
+                Log.ErrorF("PatchManagerView.LoadPatches failed: {0}", ex.Message);
             }
         }
 
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PatchManagerView.JumpTo failed: {0}", ex.Message);
+                Log.ErrorF("PatchManagerView.JumpTo failed: {0}", ex.Message);
             }
         }
     }

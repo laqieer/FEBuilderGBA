@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextMainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("TextMainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextMainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("TextMainView.OnSelected failed: {0}", ex.Message);
             }
         }
 

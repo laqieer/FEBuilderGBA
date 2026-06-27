@@ -1012,7 +1012,7 @@ namespace FEBuilderGBA
 
                 if (! U.isAsciiString(eq[0]))
                 {//トップが非アスキーなので危険.
-                    Log.Error("file;{0} {1} is not acsii",filename,eq[0]);
+                    Log.ErrorF("file;{0} {1} is not ascii",filename,eq[0]);
                     //全部書き換えましょう.
                     WriteDataFileALL(filename, langfilename);
                     return;

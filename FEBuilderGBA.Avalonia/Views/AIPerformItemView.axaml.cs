@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIPerformItemView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformItemView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIPerformItemView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformItemView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIPerformItemView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformItemView.Write failed: {0}", ex.Message);
             }
         }
 

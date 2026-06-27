@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.OnSelected failed: {0}", ex.Message);
                 MapInfoLabel.Text = "Error: " + ex.Message;
             }
         }
@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.UpdateTilePalette failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.UpdateTilePalette failed: {0}", ex.Message);
             }
         }
 
@@ -243,7 +243,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.OnMapImageClick failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.OnMapImageClick failed: {0}", ex.Message);
             }
         }
 
@@ -264,7 +264,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.OnTilePaletteClick failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.OnTilePaletteClick failed: {0}", ex.Message);
             }
         }
 
@@ -294,7 +294,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.PatchPaintedTileIntoCache failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.PatchPaintedTileIntoCache failed: {0}", ex.Message);
             }
         }
 
@@ -340,7 +340,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undo.Rollback();
-                Log.Error("MapEditorView.OnWriteTile failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.OnWriteTile failed: {0}", ex.Message);
                 TileInfoLabel.Text = "ERROR: " + ex.Message;
             }
         }
@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.OnRefreshMap failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.OnRefreshMap failed: {0}", ex.Message);
             }
         }
 
@@ -412,7 +412,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapEditorView.ExportCsv_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapEditorView.ExportCsv_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Export failed: {0}"), ex.Message));
             }
         }

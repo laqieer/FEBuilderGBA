@@ -248,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolAnimationCreatorView.BrowseImage_Click failed: {0}", ex.Message);
+                Log.ErrorF("ToolAnimationCreatorView.BrowseImage_Click failed: {0}", ex.Message);
             }
         }
 
@@ -283,7 +283,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolAnimationCreatorView.Create_Click failed: {0}", ex.Message);
+                Log.ErrorF("ToolAnimationCreatorView.Create_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Save failed: {0}", ex.Message));
             }
         }
@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolAnimationCreatorView.DoWriteToFile picker: {0}", ex.Message);
+                Log.ErrorF("ToolAnimationCreatorView.DoWriteToFile picker: {0}", ex.Message);
             }
             if (string.IsNullOrEmpty(saveTo)) return;
 

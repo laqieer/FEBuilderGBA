@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("GrowSimulatorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("GrowSimulatorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("GrowSimulatorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("GrowSimulatorView.OnSelected failed: {0}", ex.Message);
             }
         }
 

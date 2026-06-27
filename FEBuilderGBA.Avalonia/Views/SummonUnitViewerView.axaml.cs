@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SummonUnitViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SummonUnitViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
 
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SummonUnitViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SummonUnitViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Summon unit data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonUnitViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("SummonUnitViewerView.Write: {0}", ex.Message); }
         }
 
         // リストの拡張 — expand the 2-byte summon_unit_pointer table by a prompted
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("SummonUnitViewerView.UnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonUnitViewerView.UnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void UnitId_Pick(object? sender, RoutedEventArgs e)
@@ -218,7 +218,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
                 }
             }
-            catch (Exception ex) { Log.Error("SummonUnitViewerView.UnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonUnitViewerView.UnitId_Pick failed: {0}", ex.Message); }
         }
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("SummonUnitViewerView.SummonedUnit_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonUnitViewerView.SummonedUnit_Jump failed: {0}", ex.Message); }
         }
 
         async void SummonedUnit_Pick(object? sender, RoutedEventArgs e)
@@ -255,7 +255,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     UnknownBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
                 }
             }
-            catch (Exception ex) { Log.Error("SummonUnitViewerView.SummonedUnit_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SummonUnitViewerView.SummonedUnit_Pick failed: {0}", ex.Message); }
         }
 
         void SummonedUnit_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

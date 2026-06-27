@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainFloorLookupView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainFloorLookupView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainFloorLookupView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainFloorLookupView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -69,7 +69,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapTerrainFloorLookupView.Write failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainFloorLookupView.Write failed: {0}", ex.Message);
             }
         }
 

@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -212,7 +212,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.OnTopBarReloadRequested failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.OnTopBarReloadRequested failed: {0}", ex.Message);
             }
         }
 
@@ -242,7 +242,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -261,7 +261,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.SongExchange_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.SongExchange_Click failed: {0}", ex.Message);
             }
         }
 
@@ -282,7 +282,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.AllTracks_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.AllTracks_Click failed: {0}", ex.Message);
             }
         }
 
@@ -319,7 +319,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.TrackLabel_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.TrackLabel_Click failed: {0}", ex.Message);
             }
         }
 
@@ -551,7 +551,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception exPick)
                 {
-                    Log.Error("SongTrackView.ImportMidi_Click pick failed: {0}", exPick.Message);
+                    Log.ErrorF("SongTrackView.ImportMidi_Click pick failed: {0}", exPick.Message);
                     CoreState.Services.ShowError(R._("MIDI import failed: {0}", exPick.Message));
                     return;
                 }
@@ -671,7 +671,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // File read can throw (permissions / missing) BEFORE any undo
                 // scope is open — surface the error, no Rollback needed.
-                Log.Error("SongTrackView.ImportWaveAsSong read failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.ImportWaveAsSong read failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
                 return;
             }
@@ -709,7 +709,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackView.ImportWaveAsSong failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.ImportWaveAsSong failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
             }
         }
@@ -806,7 +806,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackView.ImportInstrumentSet failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.ImportInstrumentSet failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Instrument set import failed: {0}", ex.Message));
             }
         }
@@ -862,7 +862,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.ImportSondFontSource pick failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.ImportSondFontSource pick failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._(".s import failed: {0}", ex.Message));
                 return;
             }
@@ -911,7 +911,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackView.ImportSondFontSource failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.ImportSondFontSource failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._(".s import failed: {0}", ex.Message));
             }
         }
@@ -980,7 +980,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.OpenSource_Click: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.OpenSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
             }
         }
@@ -1019,7 +1019,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.SelectSource_Click: {0}", ex.Message);
+                Log.ErrorF("SongTrackView.SelectSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
             }
         }

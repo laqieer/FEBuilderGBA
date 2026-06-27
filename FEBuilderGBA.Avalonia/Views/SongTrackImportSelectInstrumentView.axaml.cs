@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackImportSelectInstrumentView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackImportSelectInstrumentView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackImportSelectInstrumentView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackImportSelectInstrumentView.OnSelected failed: {0}", ex.Message);
             }
         }
 

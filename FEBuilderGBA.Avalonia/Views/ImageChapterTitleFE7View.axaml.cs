@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             try { var items = _vm.LoadList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("ImageChapterTitleFE7View.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImageChapterTitleFE7View.LoadList: {0}", ex.Message); }
         }
 
         void OnSelected(uint addr)
@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("ImageChapterTitleFE7View.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImageChapterTitleFE7View.OnSelected: {0}", ex.Message); }
         }
 
         void UpdateUI()
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageChapterTitleFE7View.Write failed: {0}", ex.Message);
+                Log.ErrorF("ImageChapterTitleFE7View.Write failed: {0}", ex.Message);
             }
         }
 

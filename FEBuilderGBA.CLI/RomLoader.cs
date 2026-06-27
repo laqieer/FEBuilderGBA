@@ -155,7 +155,7 @@ namespace FEBuilderGBA.CLI
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
+                    Log.ErrorF("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
                     // Use ROM-aware fallback so JP ROMs get Shift_JIS, not ISO-8859-1
                     CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(CoreState.ROM);
                 }
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.CLI
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Failed to init FETextEncode (Huffman tree): {0}", ex.Message);
+                    Log.ErrorF("Failed to init FETextEncode (Huffman tree): {0}", ex.Message);
                 }
             }
 
@@ -187,7 +187,7 @@ namespace FEBuilderGBA.CLI
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Failed to init FlagCache: {0}", ex.Message);
+                    Log.ErrorF("Failed to init FlagCache: {0}", ex.Message);
                 }
             }
 
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.CLI
             }
             catch (Exception ex)
             {
-                Log.Error("Failed to init EventScripts: {0}", ex.Message);
+                Log.ErrorF("Failed to init EventScripts: {0}", ex.Message);
             }
 
             // #1035: wire the patch-scan hardcode cache (replacing the no-op
