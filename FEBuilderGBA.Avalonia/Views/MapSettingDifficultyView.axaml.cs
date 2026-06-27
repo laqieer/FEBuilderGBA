@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsSupported)
             {
-                CoreState.Services?.ShowError("Difficulty Settings: current ROM is not supported (FE6 has a different layout).");
+                CoreState.Services?.ShowError(R._("Difficulty Settings: current ROM is not supported (FE6 has a different layout)."));
                 return;
             }
 
@@ -111,7 +111,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!_vm.Write())
                 {
                     _undoService.Rollback();
-                    CoreState.Services?.ShowError("Difficulty Settings: write was rejected by ROM/version guard.");
+                    CoreState.Services?.ShowError(R._("Difficulty Settings: write was rejected by ROM/version guard."));
                     return;
                 }
                 _undoService.Commit();
@@ -120,13 +120,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reload to confirm write
                 _vm.LoadEntry(_vm.CurrentAddr);
                 UpdateUI();
-                CoreState.Services?.ShowInfo("Difficulty Settings written.");
+                CoreState.Services?.ShowInfo(R._("Difficulty Settings written."));
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.Error("MapSettingDifficultyView.Write failed: {0}", ex.Message);
-                CoreState.Services?.ShowError($"Difficulty Settings write failed: {ex.Message}");
+                CoreState.Services?.ShowError(R._("Difficulty Settings write failed: {0}", ex.Message));
             }
         }
 

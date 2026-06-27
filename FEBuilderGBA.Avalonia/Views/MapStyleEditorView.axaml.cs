@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
-                CoreState.Services.ShowInfo("Map style data written.");
+                CoreState.Services.ShowInfo(R._("Map style data written."));
             }
             catch (Exception ex)
             {
@@ -382,7 +382,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (_vm.PaletteAddress == 0)
             {
-                CoreState.Services.ShowError("Palette address not resolved -- select a map style first.");
+                CoreState.Services.ShowError(R._("Palette address not resolved -- select a map style first."));
                 return;
             }
 
@@ -393,7 +393,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!ok)
                 {
                     _undoService.Rollback();
-                    CoreState.Services.ShowError("Palette write refused (invalid address or out of bounds).");
+                    CoreState.Services.ShowError(R._("Palette write refused (invalid address or out of bounds)."));
                     return;
                 }
                 _undoService.Commit();
@@ -402,7 +402,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // immediately reflects the just-written values (#670).
                 _vm.RefreshCachedPaletteBytes();
                 RefreshChipPreview();
-                CoreState.Services.ShowInfo("Palette written.");
+                CoreState.Services.ShowInfo(R._("Palette written."));
             }
             catch (Exception ex)
             {
@@ -655,14 +655,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.CanEditChipsetConfig) return;
             _vm.CopyChipset();
-            CoreState.Services.ShowInfo("Chipset tile data copied.");
+            CoreState.Services.ShowInfo(R._("Chipset tile data copied."));
         }
 
         void CopyType_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanEditChipsetConfig) return;
             _vm.CopyTerrain();
-            CoreState.Services.ShowInfo("Terrain type copied.");
+            CoreState.Services.ShowInfo(R._("Terrain type copied."));
         }
 
         /// <summary>
@@ -685,7 +685,7 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = false; }
             if (!applied)
             {
-                CoreState.Services.ShowError("Nothing to paste — copy a chipset or terrain first.");
+                CoreState.Services.ShowError(R._("Nothing to paste — copy a chipset or terrain first."));
                 return;
             }
             ConfigWrite_Click(sender, e);
@@ -699,7 +699,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (!_vm.CanEditChipsetConfig)
             {
-                CoreState.Services.ShowError("CONFIG PLIST not resolved — select a map style first.");
+                CoreState.Services.ShowError(R._("CONFIG PLIST not resolved — select a map style first."));
                 return;
             }
             _undoService.Begin("Edit Chipset Config");
@@ -709,14 +709,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!ok)
                 {
                     _undoService.Rollback();
-                    CoreState.Services.ShowError($"Config write refused ({err}).");
+                    CoreState.Services.ShowError(R._("Config write refused ({0}).", err));
                     return;
                 }
                 _undoService.Commit();
                 _vm.MarkClean();
                 ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
                 RefreshChipPreview();
-                CoreState.Services.ShowInfo("Chipset config written.");
+                CoreState.Services.ShowInfo(R._("Chipset config written."));
             }
             catch (Exception ex)
             {
@@ -837,12 +837,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
                 byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
                 File.WriteAllBytes(path, output);
-                CoreState.Services.ShowInfo($"Palette exported to {System.IO.Path.GetFileName(path)}.");
+                CoreState.Services.ShowInfo(R._("Palette exported to {0}.", System.IO.Path.GetFileName(path)));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.PaletteExport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Export palette failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Export palette failed: {0}", ex.Message));
             }
         }
 
@@ -864,7 +864,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[]? staged = NormalizeImportedPalette(palData);
                 if (staged == null)
                 {
-                    CoreState.Services.ShowError("Palette file must contain at least 16 colors (32 bytes).");
+                    CoreState.Services.ShowError(R._("Palette file must contain at least 16 colors (32 bytes)."));
                     return;
                 }
 
@@ -873,8 +873,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // user can cancel after seeing the source filename.
                 string filename = System.IO.Path.GetFileName(path);
                 bool confirm = CoreState.Services.ShowYesNo(
-                    $"Import 16 colors from {filename} into current palette? " +
-                    "You can still cancel before clicking Palette Write.");
+                    R._("Import 16 colors from {0} into current palette? You can still cancel before clicking Palette Write.", filename));
                 if (!confirm) return;
 
                 _vm.IsLoading = true;
@@ -883,12 +882,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     UnpackPaletteBytesIntoUI(staged);
                 }
                 finally { _vm.IsLoading = false; }
-                CoreState.Services.ShowInfo($"Imported palette from {filename}. Click Palette Write to persist.");
+                CoreState.Services.ShowInfo(R._("Imported palette from {0}. Click Palette Write to persist.", filename));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.PaletteImport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Import palette failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Import palette failed: {0}", ex.Message));
             }
         }
 
@@ -907,7 +906,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var topLevel = TopLevel.GetTopLevel(this);
                 if (topLevel?.Clipboard == null)
                 {
-                    CoreState.Services.ShowError("Clipboard not available.");
+                    CoreState.Services.ShowError(R._("Clipboard not available."));
                     return;
                 }
 
@@ -926,14 +925,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
 
                     bool confirm = CoreState.Services.ShowYesNo(
-                        "Paste 16 colors from clipboard into current palette? " +
-                        "You can still cancel before clicking Palette Write.");
+                        R._("Paste 16 colors from clipboard into current palette? You can still cancel before clicking Palette Write."));
                     if (!confirm) return;
 
                     _vm.IsLoading = true;
                     try { UnpackPaletteBytesIntoUI(staged); }
                     finally { _vm.IsLoading = false; }
-                    CoreState.Services.ShowInfo("Palette pasted from clipboard. Click Palette Write to persist.");
+                    CoreState.Services.ShowInfo(R._("Palette pasted from clipboard. Click Palette Write to persist."));
                 }
                 else
                 {
@@ -942,13 +940,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     var sb = new StringBuilder(64);
                     foreach (byte b in bytes) sb.AppendFormat("{0:X2}", b);
                     await topLevel.Clipboard.SetTextAsync(sb.ToString());
-                    CoreState.Services.ShowInfo("Palette copied to clipboard.");
+                    CoreState.Services.ShowInfo(R._("Palette copied to clipboard."));
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.PaletteClipboard_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Clipboard operation failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Clipboard operation failed: {0}", ex.Message));
             }
         }
 
@@ -958,7 +956,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!_vm.TryRenderObjTileSheet(out byte[] rgba, out int w, out int h))
                 {
-                    CoreState.Services.ShowError("No OBJ tile sheet available to export.");
+                    CoreState.Services.ShowError(R._("No OBJ tile sheet available to export."));
                     return;
                 }
                 string? path = await FileDialogHelper.SaveImageFile(this, $"map_style_obj_{_vm.ConfigNo}.png");
@@ -967,19 +965,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 var bitmap = IconBitmapBuilder.FromRgba(rgba, w, h);
                 if (bitmap == null)
                 {
-                    CoreState.Services.ShowError("Failed to build bitmap from OBJ tile sheet.");
+                    CoreState.Services.ShowError(R._("Failed to build bitmap from OBJ tile sheet."));
                     return;
                 }
                 using (var stream = File.Create(path))
                 {
                     bitmap.Save(stream);
                 }
-                CoreState.Services.ShowInfo($"OBJ tile sheet exported to {System.IO.Path.GetFileName(path)}.");
+                CoreState.Services.ShowInfo(R._("OBJ tile sheet exported to {0}.", System.IO.Path.GetFileName(path)));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.ObjExport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"OBJ export failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("OBJ export failed: {0}", ex.Message));
             }
         }
 
@@ -997,7 +995,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (CoreState.Undo == null || CoreState.Undo.Postion <= 0)
                 {
-                    CoreState.Services.ShowInfo("Nothing to undo.");
+                    CoreState.Services.ShowInfo(R._("Nothing to undo."));
                     return;
                 }
                 CoreState.Undo.RunUndo();
@@ -1014,12 +1012,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     finally { _vm.IsLoading = false; }
                     RefreshChipPreview();
                 }
-                CoreState.Services.ShowInfo("Undo applied.");
+                CoreState.Services.ShowInfo(R._("Undo applied."));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.Undo_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Undo failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Undo failed: {0}", ex.Message));
             }
         }
 
@@ -1040,12 +1038,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
                 {
-                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    CoreState.Services.ShowInfo(R._("Nothing to redo."));
                     return;
                 }
                 if (!CoreState.Undo.RunRedo())
                 {
-                    CoreState.Services.ShowError("Redo failed.");
+                    CoreState.Services.ShowError(R._("Redo failed."));
                     return;
                 }
                 // Reload the current entry so palette / chipset / preview
@@ -1061,12 +1059,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     finally { _vm.IsLoading = false; }
                     RefreshChipPreview();
                 }
-                CoreState.Services.ShowInfo("Redo applied.");
+                CoreState.Services.ShowInfo(R._("Redo applied."));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.Redo_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Redo failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Redo failed: {0}", ex.Message));
             }
         }
 
@@ -1087,7 +1085,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (configClone == null || configClone.Length == 0)
                 {
                     CoreState.Services.ShowError(
-                        "No chipset config loaded — select a Map Style entry first.");
+                        R._("No chipset config loaded — select a Map Style entry first."));
                     return;
                 }
                 string? path = await FileDialogHelper.SaveFile(
@@ -1105,12 +1103,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 File.WriteAllBytes(path, configClone);
                 CoreState.Services.ShowInfo(
-                    $"Exported {configClone.Length} bytes to {System.IO.Path.GetFileName(path)}.");
+                    R._("Exported {0} bytes to {1}.", configClone.Length, System.IO.Path.GetFileName(path)));
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Map Chip export failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Map Chip export failed: {0}", ex.Message));
             }
         }
 
@@ -1206,7 +1204,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!_vm.CanImportObj)
                 {
-                    CoreState.Services.ShowError("OBJ image import requires a Map Style entry with a valid OBJ PLIST.");
+                    CoreState.Services.ShowError(R._("OBJ image import requires a Map Style entry with a valid OBJ PLIST."));
                     return;
                 }
 
@@ -1228,7 +1226,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     var imgService = CoreState.ImageService;
                     if (imgService == null)
                     {
-                        CoreState.Services.ShowError("Image service not initialized.");
+                        CoreState.Services.ShowError(R._("Image service not initialized."));
                         return;
                     }
                     using var image = imgService.LoadImage(path);
@@ -1250,7 +1248,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         byte[]? decoded = ConvertIndexedToRgba(indexData, palRgba, w, h, out string decErr);
                         if (decoded == null)
                         {
-                            CoreState.Services.ShowError($"Image decode error: {decErr}");
+                            CoreState.Services.ShowError(R._("Image decode error: {0}", decErr));
                             return;
                         }
                         rgba = decoded;
@@ -1263,7 +1261,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     Log.Error("MapStyleEditorView.ObjImport_Click decode failed: {0}", ex.Message);
-                    CoreState.Services.ShowError($"Image decode error: {ex.Message}");
+                    CoreState.Services.ShowError(R._("Image decode error: {0}", ex.Message));
                     return;
                 }
 
@@ -1273,7 +1271,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (!_vm.TryImportObjImage(rgba, w, h, out string err))
                     {
                         _undoService.Rollback();
-                        CoreState.Services.ShowError($"OBJ image import failed: {err}");
+                        CoreState.Services.ShowError(R._("OBJ image import failed: {0}", err));
                         return;
                     }
                     _undoService.Commit();
@@ -1283,7 +1281,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     Log.Error("MapStyleEditorView.ObjImport_Click write failed: {0}", ex.Message);
-                    CoreState.Services.ShowError($"OBJ image import error: {ex.Message}");
+                    CoreState.Services.ShowError(R._("OBJ image import error: {0}", ex.Message));
                     return;
                 }
 
@@ -1297,20 +1295,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     ObjPtrBox.Text = $"0x{_vm.ObjPointer:X08}";
                     ObjAddress2Label.Text = _vm.ObjAddress2 != 0 ? $"0x{_vm.ObjAddress2:X08}" : "(none)";
                     RefreshChipPreview();
-                    CoreState.Services.ShowInfo($"OBJ image imported ({w}x{h}).");
+                    CoreState.Services.ShowInfo(R._("OBJ image imported ({0}x{1}).", w, h));
                 }
                 catch (Exception ex)
                 {
                     Log.Error("MapStyleEditorView.ObjImport_Click UI refresh failed: {0}", ex.Message);
                     CoreState.Services.ShowError(
-                        $"OBJ image imported but UI refresh failed: {ex.Message}. " +
-                        "Re-select the Map Style entry to refresh the view.");
+                        R._("OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.", ex.Message));
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.ObjImport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"OBJ image import failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("OBJ image import failed: {0}", ex.Message));
             }
         }
 
@@ -1332,7 +1329,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var topLevel = TopLevel.GetTopLevel(this);
                 if (topLevel?.StorageProvider == null)
                 {
-                    CoreState.Services.ShowError("Storage provider not available.");
+                    CoreState.Services.ShowError(R._("Storage provider not available."));
                     return;
                 }
                 var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -1362,7 +1359,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     Log.Error("MapStyleEditorView.MapChipImport_Click read failed: {0}", ex.Message);
-                    CoreState.Services.ShowError($"Failed to read file: {ex.Message}");
+                    CoreState.Services.ShowError(R._("Failed to read file: {0}", ex.Message));
                     return;
                 }
 
@@ -1377,7 +1374,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (!_vm.TryWriteConfigBuffer(data, out string err))
                     {
                         _undoService.Rollback();
-                        CoreState.Services.ShowError($"Import failed: {err}");
+                        CoreState.Services.ShowError(R._("Import failed: {0}", err));
                         return;
                     }
                     _undoService.Commit();
@@ -1387,7 +1384,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
-                    CoreState.Services.ShowError($"Import error: {ex.Message}");
+                    CoreState.Services.ShowError(R._("Import error: {0}", ex.Message));
                     return;
                 }
 
@@ -1412,7 +1409,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally { _vm.IsLoading = false; }
                     RefreshChipPreview();
-                    CoreState.Services.ShowInfo($"Imported {data.Length} bytes of map chip config.");
+                    CoreState.Services.ShowInfo(R._("Imported {0} bytes of map chip config.", data.Length));
                 }
                 catch (Exception ex)
                 {
@@ -1420,14 +1417,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     // their data is safe and ask them to reload.
                     Log.Error("MapStyleEditorView.MapChipImport_Click UI refresh failed: {0}", ex.Message);
                     CoreState.Services.ShowError(
-                        $"Import succeeded ({data.Length} bytes) but UI refresh failed: {ex.Message}. " +
-                        "Re-select the Map Style entry to refresh the view.");
+                        R._("Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.", data.Length, ex.Message));
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("MapStyleEditorView.MapChipImport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Map chip import failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Map chip import failed: {0}", ex.Message));
             }
         }
     }

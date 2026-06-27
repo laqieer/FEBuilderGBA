@@ -750,14 +750,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
 
                 var cb = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
-                if (cb == null) { CoreState.Services?.ShowError("Clipboard is not available."); return; }
+                if (cb == null) { CoreState.Services?.ShowError(R._("Clipboard is not available.")); return; }
                 await cb.SetTextAsync(hex);
                 Log.Notify($"ImageUnitPalette: palette copied to clipboard ({hex}).");
             }
             catch (Exception ex)
             {
                 Log.Error("ImageUnitPaletteView.Clipboard_Click failed: {0}", ex.Message);
-                CoreState.Services?.ShowError("Failed to copy palette to clipboard.");
+                CoreState.Services?.ShowError(R._("Failed to copy palette to clipboard."));
             }
         }
 

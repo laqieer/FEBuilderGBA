@@ -713,7 +713,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateNameHints();
                 CondTypeNameLabel.Text = EventCondViewModel.GetCondTypeName((byte)_vm.CondType);
 
-                CoreState.Services.ShowInfo("Event condition data written.");
+                CoreState.Services.ShowInfo(R._("Event condition data written."));
             }
             catch (Exception ex)
             {
@@ -826,11 +826,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (newPtr != 0)
                 {
                     ReloadRecordList();
-                    CoreState.Services.ShowInfo($"Record list expanded. New base pointer: 0x{newPtr:X08}");
+                    CoreState.Services.ShowInfo(R._("Record list expanded. New base pointer: 0x{0}", newPtr.ToString("X08")));
                 }
                 else
                 {
-                    CoreState.Services.ShowInfo("Cannot expand this slot type (pointer-only or no allocator wired).");
+                    CoreState.Services.ShowInfo(R._("Cannot expand this slot type (pointer-only or no allocator wired)."));
                 }
             }
             catch (Exception ex)
@@ -853,11 +853,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     EventPtrBox.Value = newPtr;
                     _vm.EventPtr = newPtr;
-                    CoreState.Services.ShowInfo($"New event allocated at: 0x{newPtr:X08}");
+                    CoreState.Services.ShowInfo(R._("New event allocated at: 0x{0}", newPtr.ToString("X08")));
                 }
                 else
                 {
-                    CoreState.Services.ShowInfo("Cannot allocate new event (no allocator wired).");
+                    CoreState.Services.ShowInfo(R._("Cannot allocate new event (no allocator wired)."));
                 }
             }
             catch (Exception ex)
@@ -877,11 +877,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void AllocCallEndEvent_Click(object? sender, RoutedEventArgs e)
             => ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice.CallEndEvent,
-                              "Could not resolve the chapter end-event for this map (no end-event or no map selected).");
+                              R._("Could not resolve the chapter end-event for this map (no end-event or no map selected)."));
 
         void AllocCall1_Click(object? sender, RoutedEventArgs e)
             => ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice.Call1,
-                              "Cannot apply the CALL 1 template to this record.");
+                              R._("Cannot apply the CALL 1 template to this record."));
 
         void ApplyAllocCall(EventEditorHostContext.AllocTemplateChoice choice, string refuseMessage)
         {
@@ -905,7 +905,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // now-current VM state — no stale values left in any field
                 // (Copilot re-review: same-byte fields must not diverge).
                 UpdateEditorUI();
-                CoreState.Services.ShowInfo("Alloc-Event template applied. Event pointer = 0x" + _vm.EventPtr.ToString("X08") + ".");
+                CoreState.Services.ShowInfo(R._("Alloc-Event template applied. Event pointer = 0x{0}.", _vm.EventPtr.ToString("X08")));
             }
             catch (Exception ex)
             {
@@ -928,7 +928,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!ok)
                 {
                     _undoService.Rollback();
-                    CoreState.Services.ShowInfo("Could not allocate the counter-reinforcement event.");
+                    CoreState.Services.ShowInfo(R._("Could not allocate the counter-reinforcement event."));
                     return;
                 }
                 _undoService.Commit();
@@ -939,7 +939,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // TURN record) re-sync together — no field shows a stale value
                 // (Copilot re-review #1595).
                 UpdateEditorUI();
-                CoreState.Services.ShowInfo("Counter-reinforcement event allocated at 0x" + _vm.EventPtr.ToString("X08") + " (turn 1-255).");
+                CoreState.Services.ShowInfo(R._("Counter-reinforcement event allocated at 0x{0} (turn 1-255).", _vm.EventPtr.ToString("X08")));
             }
             catch (Exception ex)
             {
@@ -973,14 +973,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (off == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
-                    CoreState.Services.ShowInfo("Could not allocate free space for the event condition block.");
+                    CoreState.Services.ShowInfo(R._("Could not allocate free space for the event condition block."));
                     return;
                 }
 
                 if (!EventCondCore.WriteEventPLIST(rom, plist.Value, off))
                 {
                     _undoService.Rollback();
-                    CoreState.Services.ShowInfo("Could not write the event PLIST slot (plist=0 or slot unsafe).");
+                    CoreState.Services.ShowInfo(R._("Could not write the event PLIST slot (plist=0 or slot unsafe)."));
                     return;
                 }
 
@@ -993,7 +993,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateTopBar();
                 ReloadRecordList();
                 _undoService.Commit();
-                CoreState.Services.ShowInfo("Precise event condition area allocated at 0x" + off.ToString("X08") + " and wired to PLIST " + plist.Value + ".");
+                CoreState.Services.ShowInfo(R._("Precise event condition area allocated at 0x{0} and wired to PLIST {1}.", off.ToString("X08"), plist.Value));
             }
             catch (Exception ex)
             {
@@ -1008,7 +1008,7 @@ namespace FEBuilderGBA.Avalonia.Views
             uint ptr = (uint)(EventPtrBox.Value ?? 0);
             if (!U.isPointer(ptr))
             {
-                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                CoreState.Services.ShowInfo(R._("Event pointer is not a valid ROM address."));
                 return;
             }
             uint addr = U.toOffset(ptr);
@@ -1030,7 +1030,7 @@ namespace FEBuilderGBA.Avalonia.Views
             uint ptr = (uint)(EventPtrBox.Value ?? 0);
             if (!U.isPointer(ptr))
             {
-                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                CoreState.Services.ShowInfo(R._("Event pointer is not a valid ROM address."));
                 return;
             }
             uint addr = U.toOffset(ptr);

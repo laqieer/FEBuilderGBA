@@ -20931,3 +20931,266 @@ Please enter a new project name.
 
 :The new name is the same as the current name.
 The new name is the same as the current name.
+:AI script written.
+AI script written.
+
+:Alloc-Event template applied. Event pointer = 0x{0}.
+Alloc-Event template applied. Event pointer = 0x{0}.
+
+:Cannot allocate new event (no allocator wired).
+Cannot allocate new event (no allocator wired).
+
+:Cannot apply the CALL 1 template to this record.
+Cannot apply the CALL 1 template to this record.
+
+:Cannot expand this slot type (pointer-only or no allocator wired).
+Cannot expand this slot type (pointer-only or no allocator wired).
+
+:Cannot remove the last instruction.
+Cannot remove the last instruction.
+
+:Chipset config written.
+Chipset config written.
+
+:Chipset tile data copied.
+Chipset tile data copied.
+
+:Clipboard is not available.
+Clipboard is not available.
+
+:Clipboard not available.
+Clipboard not available.
+
+:Clipboard operation failed: {0}
+Clipboard operation failed: {0}
+
+:CONFIG PLIST not resolved — select a map style first.
+CONFIG PLIST not resolved — select a map style first.
+
+:Config write refused ({0}).
+Config write refused ({0}).
+
+:Could not allocate free space for the event condition block.
+Could not allocate free space for the event condition block.
+
+:Could not allocate the counter-reinforcement event.
+Could not allocate the counter-reinforcement event.
+
+:Could not resolve the chapter end-event for this map (no end-event or no map selected).
+Could not resolve the chapter end-event for this map (no end-event or no map selected).
+
+:Could not write (out of range or the AI pointer slot is unsafe).
+Could not write (out of range or the AI pointer slot is unsafe).
+
+:Could not write the event PLIST slot (plist=0 or slot unsafe).
+Could not write the event PLIST slot (plist=0 or slot unsafe).
+
+:Counter-reinforcement event allocated at 0x{0} (turn 1-255).
+Counter-reinforcement event allocated at 0x{0} (turn 1-255).
+
+:Difficulty Settings write failed: {0}
+Difficulty Settings write failed: {0}
+
+:Difficulty Settings written.
+Difficulty Settings written.
+
+:Difficulty Settings: current ROM is not supported (FE6 has a different layout).
+Difficulty Settings: current ROM is not supported (FE6 has a different layout).
+
+:Difficulty Settings: write was rejected by ROM/version guard.
+Difficulty Settings: write was rejected by ROM/version guard.
+
+:Enter instruction bytes in Binary Code first.
+Enter instruction bytes in Binary Code first.
+
+:Event condition data written.
+Event condition data written.
+
+:Event pointer is not a valid ROM address.
+Event pointer is not a valid ROM address.
+
+:Exported {0} bytes to {1}.
+Exported {0} bytes to {1}.
+
+:Failed to build bitmap from OBJ tile sheet.
+Failed to build bitmap from OBJ tile sheet.
+
+:Failed to copy palette to clipboard.
+Failed to copy palette to clipboard.
+
+:Failed to read file: {0}
+Failed to read file: {0}
+
+:Image decode error: {0}
+Image decode error: {0}
+
+:Import 16 colors from {0} into current palette? You can still cancel before clicking Palette Write.
+Import 16 colors from {0} into current palette? You can still cancel before clicking Palette Write.
+
+:Import error: {0}
+Import error: {0}
+
+:Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.
+Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.
+
+:Imported {0} bytes of map chip config.
+Imported {0} bytes of map chip config.
+
+:Imported palette from {0}. Click Palette Write to persist.
+Imported palette from {0}. Click Palette Write to persist.
+
+:Invalid instruction bytes (must be one 16-byte hex instruction).
+Invalid instruction bytes (must be one 16-byte hex instruction).
+
+:Invalid instruction bytes (one 16-byte hex instruction).
+Invalid instruction bytes (one 16-byte hex instruction).
+
+:Map Chip export failed: {0}
+Map Chip export failed: {0}
+
+:Map chip import failed: {0}
+Map chip import failed: {0}
+
+:Map style data written.
+Map style data written.
+
+:New event allocated at: 0x{0}
+New event allocated at: 0x{0}
+
+:No chipset config loaded — select a Map Style entry first.
+No chipset config loaded — select a Map Style entry first.
+
+:No OBJ tile sheet available to export.
+No OBJ tile sheet available to export.
+
+:Nothing to paste — copy a chipset or terrain first.
+Nothing to paste — copy a chipset or terrain first.
+
+:Nothing to redo.
+Nothing to redo.
+
+:Nothing to undo.
+Nothing to undo.
+
+:OBJ export failed: {0}
+OBJ export failed: {0}
+
+:OBJ image import error: {0}
+OBJ image import error: {0}
+
+:OBJ image import failed: {0}
+OBJ image import failed: {0}
+
+:OBJ image import requires a Map Style entry with a valid OBJ PLIST.
+OBJ image import requires a Map Style entry with a valid OBJ PLIST.
+
+:OBJ image imported ({0}x{1}).
+OBJ image imported ({0}x{1}).
+
+:OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.
+OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.
+
+:OBJ tile sheet exported to {0}.
+OBJ tile sheet exported to {0}.
+
+:Palette address not resolved -- select a map style first.
+Palette address not resolved -- select a map style first.
+
+:Palette copied to clipboard.
+Palette copied to clipboard.
+
+:Palette exported to {0}.
+Palette exported to {0}.
+
+:Palette file must contain at least 16 colors (32 bytes).
+Palette file must contain at least 16 colors (32 bytes).
+
+:Palette pasted from clipboard. Click Palette Write to persist.
+Palette pasted from clipboard. Click Palette Write to persist.
+
+:Palette to clipboard failed: {0}
+Palette to clipboard failed: {0}
+
+:Palette Write failed: {0}
+Palette Write failed: {0}
+
+:Palette write refused (invalid address or out of bounds).
+Palette write refused (invalid address or out of bounds).
+
+:Palette written.
+Palette written.
+
+:Paste 16 colors from clipboard into current palette? You can still cancel before clicking Palette Write.
+Paste 16 colors from clipboard into current palette? You can still cancel before clicking Palette Write.
+
+:Precise event condition area allocated at 0x{0} and wired to PLIST {1}.
+Precise event condition area allocated at 0x{0} and wired to PLIST {1}.
+
+:Record list expanded. New base pointer: 0x{0}
+Record list expanded. New base pointer: 0x{0}
+
+:Redo applied.
+Redo applied.
+
+:Redo failed.
+Redo failed.
+
+:Redo failed: {0}
+Redo failed: {0}
+
+:Re-read the AI script before inserting an instruction.
+Re-read the AI script before inserting an instruction.
+
+:Re-read the AI script before writing.
+Re-read the AI script before writing.
+
+:Select an instruction first.
+Select an instruction first.
+
+:Select an instruction to remove.
+Select an instruction to remove.
+
+:Storage provider not available.
+Storage provider not available.
+
+:Terrain type copied.
+Terrain type copied.
+
+:TSA Image Export failed: {0}
+TSA Image Export failed: {0}
+
+:TSA Image Export: could not decode the main tilesheet.
+TSA Image Export: could not decode the main tilesheet.
+
+:TSA Main Image Import failed: {0}
+TSA Main Image Import failed: {0}
+
+:TSA Main Image Import: could not determine the existing tilesheet size.
+TSA Main Image Import: could not determine the existing tilesheet size.
+
+:TSA Main Image Import: could not read the active palette.
+TSA Main Image Import: could not read the active palette.
+
+:TSA Write failed: {0}
+TSA Write failed: {0}
+
+:Undo applied.
+Undo applied.
+
+:Undo failed: {0}
+Undo failed: {0}
+
+:Unknown error
+Unknown error
+
+:Export AI Script
+Export AI Script
+
+:Import AI Script
+Import AI Script
+
+:Expanded AI pointer table to {0} entries.
+Expanded AI pointer table to {0} entries.
+
+:Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
+Enter the new entry count for the AI pointer table (current: {0}, max: {1}).

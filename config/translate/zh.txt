@@ -26524,3 +26524,266 @@ CALL 1
 
 :Import a .mapanime1.txt manifest into the current PLIST
 将 .mapanime1.txt 清单导入当前 PLIST
+:AI script written.
+AI脚本已写入。
+
+:Alloc-Event template applied. Event pointer = 0x{0}.
+已应用 Alloc-Event 模板。事件指针 = 0x{0}。
+
+:Cannot allocate new event (no allocator wired).
+无法分配新事件（未接入分配器）。
+
+:Cannot apply the CALL 1 template to this record.
+无法对此记录应用 CALL 1 模板。
+
+:Cannot expand this slot type (pointer-only or no allocator wired).
+无法扩展此槽位类型（仅指针或未接入分配器）。
+
+:Cannot remove the last instruction.
+无法删除最后一条指令。
+
+:Chipset config written.
+图块集配置已写入。
+
+:Chipset tile data copied.
+图块集瓦片数据已复制。
+
+:Clipboard is not available.
+剪贴板不可用。
+
+:Clipboard not available.
+剪贴板不可用。
+
+:Clipboard operation failed: {0}
+剪贴板操作失败：{0}
+
+:CONFIG PLIST not resolved — select a map style first.
+未解析 CONFIG PLIST — 请先选择一个地图样式。
+
+:Config write refused ({0}).
+配置写入被拒绝（{0}）。
+
+:Could not allocate free space for the event condition block.
+无法为事件条件块分配空闲空间。
+
+:Could not allocate the counter-reinforcement event.
+无法分配反击增援事件。
+
+:Could not resolve the chapter end-event for this map (no end-event or no map selected).
+无法解析此地图的章节结束事件（无结束事件或未选择地图）。
+
+:Could not write (out of range or the AI pointer slot is unsafe).
+无法写入（超出范围或 AI 指针槽不安全）。
+
+:Could not write the event PLIST slot (plist=0 or slot unsafe).
+无法写入事件 PLIST 槽（plist=0 或槽不安全）。
+
+:Counter-reinforcement event allocated at 0x{0} (turn 1-255).
+已在 0x{0} 分配反击增援事件（回合 1-255）。
+
+:Difficulty Settings write failed: {0}
+难度设置写入失败：{0}
+
+:Difficulty Settings written.
+难度设置已写入。
+
+:Difficulty Settings: current ROM is not supported (FE6 has a different layout).
+难度设置：当前 ROM 不受支持（FE6 的布局不同）。
+
+:Difficulty Settings: write was rejected by ROM/version guard.
+难度设置：写入被 ROM/版本保护拒绝。
+
+:Enter instruction bytes in Binary Code first.
+请先在二进制代码中输入指令字节。
+
+:Event condition data written.
+事件条件数据已写入。
+
+:Event pointer is not a valid ROM address.
+事件指针不是有效的 ROM 地址。
+
+:Exported {0} bytes to {1}.
+已将 {0} 字节导出到 {1}。
+
+:Failed to build bitmap from OBJ tile sheet.
+无法从 OBJ 瓦片表构建位图。
+
+:Failed to copy palette to clipboard.
+无法将调色板复制到剪贴板。
+
+:Failed to read file: {0}
+读取文件失败：{0}
+
+:Image decode error: {0}
+图像解码错误：{0}
+
+:Import 16 colors from {0} into current palette? You can still cancel before clicking Palette Write.
+要从 {0} 导入 16 种颜色到当前调色板吗？在点击“调色板写入”之前仍可取消。
+
+:Import error: {0}
+导入错误：{0}
+
+:Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.
+导入成功（{0} 字节），但界面刷新失败：{1}。请重新选择该地图样式项以刷新视图。
+
+:Imported {0} bytes of map chip config.
+已导入 {0} 字节的地图图块配置。
+
+:Imported palette from {0}. Click Palette Write to persist.
+已从 {0} 导入调色板。点击“调色板写入”以保存。
+
+:Invalid instruction bytes (must be one 16-byte hex instruction).
+无效的指令字节（必须为一条 16 字节十六进制指令）。
+
+:Invalid instruction bytes (one 16-byte hex instruction).
+无效的指令字节（一条 16 字节十六进制指令）。
+
+:Map Chip export failed: {0}
+地图图块导出失败：{0}
+
+:Map chip import failed: {0}
+地图图块导入失败：{0}
+
+:Map style data written.
+地图样式数据已写入。
+
+:New event allocated at: 0x{0}
+已在 0x{0} 分配新事件
+
+:No chipset config loaded — select a Map Style entry first.
+未加载图块集配置 — 请先选择一个地图样式项。
+
+:No OBJ tile sheet available to export.
+没有可导出的 OBJ 瓦片表。
+
+:Nothing to paste — copy a chipset or terrain first.
+没有可粘贴的内容 — 请先复制图块集或地形。
+
+:Nothing to redo.
+没有可重做的操作。
+
+:Nothing to undo.
+没有可撤销的操作。
+
+:OBJ export failed: {0}
+OBJ 导出失败：{0}
+
+:OBJ image import error: {0}
+OBJ 图像导入错误：{0}
+
+:OBJ image import failed: {0}
+OBJ 图像导入失败：{0}
+
+:OBJ image import requires a Map Style entry with a valid OBJ PLIST.
+OBJ 图像导入需要一个具有有效 OBJ PLIST 的地图样式项。
+
+:OBJ image imported ({0}x{1}).
+已导入 OBJ 图像（{0}x{1}）。
+
+:OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.
+OBJ 图像已导入，但界面刷新失败：{0}。请重新选择该地图样式项以刷新视图。
+
+:OBJ tile sheet exported to {0}.
+已将 OBJ 瓦片表导出到 {0}。
+
+:Palette address not resolved -- select a map style first.
+未解析调色板地址 -- 请先选择一个地图样式。
+
+:Palette copied to clipboard.
+调色板已复制到剪贴板。
+
+:Palette exported to {0}.
+已将调色板导出到 {0}。
+
+:Palette file must contain at least 16 colors (32 bytes).
+调色板文件至少需要 16 种颜色（32 字节）。
+
+:Palette pasted from clipboard. Click Palette Write to persist.
+已从剪贴板粘贴调色板。点击“调色板写入”以保存。
+
+:Palette to clipboard failed: {0}
+将调色板复制到剪贴板失败：{0}
+
+:Palette Write failed: {0}
+调色板写入失败：{0}
+
+:Palette write refused (invalid address or out of bounds).
+调色板写入被拒绝（地址无效或越界）。
+
+:Palette written.
+调色板已写入。
+
+:Paste 16 colors from clipboard into current palette? You can still cancel before clicking Palette Write.
+要从剪贴板粘贴 16 种颜色到当前调色板吗？在点击“调色板写入”之前仍可取消。
+
+:Precise event condition area allocated at 0x{0} and wired to PLIST {1}.
+已在 0x{0} 精确分配事件条件区域并接入 PLIST {1}。
+
+:Record list expanded. New base pointer: 0x{0}
+记录列表已扩展。新基址指针：0x{0}
+
+:Redo applied.
+已应用重做。
+
+:Redo failed.
+重做失败。
+
+:Redo failed: {0}
+重做失败：{0}
+
+:Re-read the AI script before inserting an instruction.
+插入指令前请重新读取 AI 脚本。
+
+:Re-read the AI script before writing.
+写入前请重新读取 AI 脚本。
+
+:Select an instruction first.
+请先选择一条指令。
+
+:Select an instruction to remove.
+请选择要删除的指令。
+
+:Storage provider not available.
+存储提供程序不可用。
+
+:Terrain type copied.
+地形类型已复制。
+
+:TSA Image Export failed: {0}
+TSA 图像导出失败：{0}
+
+:TSA Image Export: could not decode the main tilesheet.
+TSA 图像导出：无法解码主瓦片表。
+
+:TSA Main Image Import failed: {0}
+TSA 主图像导入失败：{0}
+
+:TSA Main Image Import: could not determine the existing tilesheet size.
+TSA 主图像导入：无法确定现有瓦片表的尺寸。
+
+:TSA Main Image Import: could not read the active palette.
+TSA 主图像导入：无法读取当前调色板。
+
+:TSA Write failed: {0}
+TSA 写入失败：{0}
+
+:Undo applied.
+已应用撤销。
+
+:Undo failed: {0}
+撤销失败：{0}
+
+:Unknown error
+未知错误
+
+:Export AI Script
+导出 AI 脚本
+
+:Import AI Script
+导入 AI 脚本
+
+:Expanded AI pointer table to {0} entries.
+已将 AI 指针表扩展到 {0} 个条目。
+
+:Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
+请输入 AI 指针表的新条目数（当前：{0}，最大：{1}）。
