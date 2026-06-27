@@ -249,5 +249,5 @@ git push
 
 - [Git Submodules Book](https://git-scm.com/book/en/v2/Git-Tools-Submodules)
 - [GitHub Submodules Guide](https://github.blog/2016-02-01-working-with-submodules/)
-- Phase 0 Migration Guide: `docs/phase0-migration-guide.md`
-- Design Document: `DESIGN-split-package-updates.md`
+- Phase 0 Migration Guide (archived): `docs/archive/phase0-migration-guide.md`
+- Design Document (archived): `docs/archive/DESIGN-split-package-updates.md`
