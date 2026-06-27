@@ -163,6 +163,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // list shows the right opcodes and a later New/Remove/Write
                 // operates on the loaded entry (not a stale one).
                 DisassemblyList.ItemsSource = _vm.DisassembleScript();
+                // Auto-select the first opcode (#1600) so the detail-panel
+                // parameter rows populate immediately — otherwise the 5 param
+                // rows (and their POINTER_AI* jump affordance) stay blank until
+                // the user clicks a disassembly row. SelectionChanged ->
+                // UpdateParamRows fills them.
+                if (DisassemblyList.ItemCount > 0)
+                    DisassemblyList.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
@@ -364,10 +371,154 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = DisassemblyList.SelectedIndex;
                 AsmBox.Text = _vm.GetRowHex(idx) ?? "";
                 ScriptCodeNameLabel.Text = _vm.GetRowOpcodeName(idx) ?? "";
+                UpdateParamRows(idx);
             }
             catch (Exception ex)
             {
                 Log.Error("AIScriptView.DisassemblyList_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Parameter rows + POINTER_AI* jump (#1600). Populate the 5 detail
+        // param rows from the selected opcode's non-FIXED args, and make an
+        // AI-pointer param label jump to the matching sub-editor (allocating a
+        // 4-byte ASM block on null/broken for Coordinate/Range/CallTalk).
+        // Mirrors WF AIScriptForm.ParamLabel_Clicked.
+        // -----------------------------------------------------------------
+
+        TextBlock[] ParamLabels => new[] { Param1Label, Param2Label, Param3Label, Param4Label, Param5Label };
+        NumericUpDown[] ParamBoxes => new[] { Param1Box, Param2Box, Param3Box, Param4Box, Param5Box };
+        TextBox[] ParamValues => new[] { Param1Value, Param2Value, Param3Value, Param4Value, Param5Value };
+
+        void UpdateParamRows(int rowIdx)
+        {
+            int count = rowIdx < 0 ? 0 : _vm.GetParamCount(rowIdx);
+            TextBlock[] labels = ParamLabels;
+            NumericUpDown[] boxes = ParamBoxes;
+            TextBox[] values = ParamValues;
+            for (int row = 1; row <= 5; row++)
+            {
+                int i = row - 1;
+                if (row <= count && _vm.TryGetParamArg(rowIdx, row, out _, out _, out uint value))
+                {
+                    AiPointerKind kind = _vm.ClassifyParam(rowIdx, row);
+                    string label = _vm.GetParamLabel(rowIdx, row);
+                    // Hint that an AI-pointer label is clickable.
+                    labels[i].Text = kind != AiPointerKind.None ? $"→ {label}" : label;
+                    labels[i].IsEnabled = true;
+                    boxes[i].Value = value;
+                    boxes[i].IsEnabled = true;
+                    values[i].Text = _vm.GetParamValueText(rowIdx, row);
+                    values[i].IsVisible = true;
+                    boxes[i].IsVisible = true;
+                    labels[i].IsVisible = true;
+                }
+                else
+                {
+                    labels[i].Text = $"Parameter {row}";
+                    boxes[i].Value = 0;
+                    values[i].Text = "";
+                    // Keep the rows present (stable layout) but clear/disable unused ones.
+                    boxes[i].IsEnabled = false;
+                    labels[i].IsEnabled = false;
+                }
+            }
+        }
+
+        void ParamLabel_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                if (sender is not Control ctrl || ctrl.Tag is not string tagStr
+                    || !int.TryParse(tagStr, out int paramRow))
+                    return;
+
+                int rowIdx = DisassemblyList.SelectedIndex;
+                if (rowIdx < 0) return;
+
+                AiPointerKind kind = _vm.ClassifyParam(rowIdx, paramRow);
+                if (kind == AiPointerKind.None) return; // not an AI-pointer param — no jump
+
+                // WF AllocIfNeed parity: prompt before allocating a fresh ASM
+                // block for a null/broken Coordinate/Range/CallTalk pointer.
+                if (_vm.ParamNeedsAlloc(rowIdx, paramRow))
+                {
+                    // Match WinForms' per-form prompt wording (both keys already
+                    // translated en/zh/ja — no new translate entry):
+                    //   Coordinate/Range -> "新規に座標データを作成しますか？"
+                    //   (AIASMCoordinateForm/AIASMRangeForm.AllocIfNeed)
+                    //   CallTalk          -> "新規にデータを作成しますか？"
+                    //   (AIASMCALLTALKForm.AllocIfNeed)
+                    string promptKey = kind == AiPointerKind.CallTalk
+                        ? "新規にデータを作成しますか？"
+                        : "新規に座標データを作成しますか？";
+                    bool proceed = CoreState.Services?.ShowYesNo(R._(promptKey)) ?? false;
+                    if (!proceed) return;
+                }
+
+                AiPointerKind resolvedKind;
+                uint pointerValue;
+                bool allocated;
+                _undoService.Begin("AIScript pointer jump");
+                try
+                {
+                    if (!_vm.ApplyPointerJump(rowIdx, paramRow,
+                            _undoService.GetActiveUndoData(),
+                            out resolvedKind, out pointerValue, out allocated))
+                    {
+                        _undoService.Rollback();
+                        return;
+                    }
+                    _undoService.Commit();
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"AIScriptView.ParamLabel_Click apply failed: {inner}");
+                    return;
+                }
+
+                // Refresh the disassembly + param rows from the IN-MEMORY model so
+                // the (possibly newly-allocated) pointer shows without a ROM
+                // re-read (which would discard pending row edits).
+                DisassemblyList.ItemsSource = _vm.GetDisplayLines();
+                if (rowIdx >= 0 && rowIdx < _vm.RowCount)
+                    DisassemblyList.SelectedIndex = rowIdx;
+                UpdateParamRows(rowIdx);
+
+                OpenAiSubEditor(resolvedKind, pointerValue);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"AIScriptView.ParamLabel_Click failed: {ex}");
+            }
+        }
+
+        // Open the AI sub-editor matching the pointer kind, seeded at the
+        // (possibly newly-allocated) pointer. Mirrors WF JumpFormLow + JumpTo.
+        // Uses the Open<T>().NavigateTo(addr) pattern; each sub-View's
+        // NavigateTo direct-loads the supplied non-placeholder address (#1414).
+        void OpenAiSubEditor(AiPointerKind kind, uint pointerValue)
+        {
+            uint addr = U.toOffset(pointerValue);
+            switch (kind)
+            {
+                case AiPointerKind.Units:
+                    WindowManager.Instance.Navigate<AIUnitsView>(addr);
+                    break;
+                case AiPointerKind.Tiles:
+                    WindowManager.Instance.Navigate<AITilesView>(addr);
+                    break;
+                case AiPointerKind.Coordinate:
+                    WindowManager.Instance.Navigate<AIASMCoordinateView>(addr);
+                    break;
+                case AiPointerKind.Range:
+                    WindowManager.Instance.Navigate<AIASMRangeView>(addr);
+                    break;
+                case AiPointerKind.CallTalk:
+                    WindowManager.Instance.Navigate<AIASMCALLTALKView>(addr);
+                    break;
             }
         }
 

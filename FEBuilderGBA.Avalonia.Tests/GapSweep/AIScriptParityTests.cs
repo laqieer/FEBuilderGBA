@@ -164,14 +164,12 @@ public class AIScriptParityTests
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Per Copilot CLI plan-review v1 #1 AND PR #571 Copilot CLI review #2:
-    /// manifest only contains rows for `WindowManager.Navigate<>` callsites
-    /// that this PR ACTUALLY wires in the view code-behind. The deferred
-    /// Unit / Class / DisASM jumps (param-label dispatch) and AI sub-editor
-    /// modals stay `MissingAvManifest` per JumpParityScanner — that's the
-    /// truthful state until the WF EventScript.DisAssemble pipeline gets
-    /// extracted to Core (which is what makes per-arg ArgType jump
-    /// dispatch possible in Avalonia).
+    /// The manifest contains rows for `WindowManager.Navigate<>` callsites that
+    /// the view code-behind ACTUALLY wires. #1600 wired the 5 POINTER_AI*
+    /// parameter jumps (ParamLabel_Click), so the manifest now carries the 5 AI
+    /// sub-editor rows alongside the address-double-click PointerToolCopyTo row.
+    /// The Unit / Class / DisASM param jumps remain deferred (different
+    /// ArgTypes, not part of this slice) and stay out of the manifest.
     /// </summary>
     [Fact]
     public void NavigationManifest_HasExpectedRows()
@@ -179,9 +177,15 @@ public class AIScriptParityTests
         var vm = new AIScriptViewModel();
         IReadOnlyList<NavigationTarget> targets = vm.GetNavigationTargets();
 
-        // PR #571 Copilot CLI review #2: shrunk to exactly the one wired
-        // callsite — DetailAddress_Click -> PointerToolCopyToView.
-        var expected = new HashSet<string> { "JumpToPointerToolCopyTo" };
+        var expected = new HashSet<string>
+        {
+            "JumpToPointerToolCopyTo",
+            "JumpToAIUnits",
+            "JumpToAITiles",
+            "JumpToAIASMCoordinate",
+            "JumpToAIASMRange",
+            "JumpToAIASMCALLTALK",
+        };
         var actual = new HashSet<string>(targets.Select(t => t.CommandName));
         Assert.Equal(expected, actual);
     }
@@ -202,25 +206,35 @@ public class AIScriptParityTests
     }
 
     /// <summary>
-    /// Per Copilot CLI plan-review v1 #1 AND PR #571 Copilot CLI review #2:
-    /// the deferred jump targets (Unit / Class / DisASM via param-label
-    /// dispatch + AI sub-editor modals) must NOT appear in the manifest —
-    /// they remain MissingAvManifest in the JumpParityScanner output.
-    /// This is the truthful state until the WF EventScript.DisAssemble
-    /// pipeline is extracted to Core.
+    /// #1600 wired the 5 POINTER_AI* parameter jumps, so the AI sub-editors are
+    /// NOW in the manifest. The remaining deferred targets (Unit / Class /
+    /// DisASM via the param-label dispatch for OTHER ArgTypes, and the
+    /// AIScriptCategorySelect picker opened via ScriptChangeButton) still must
+    /// NOT appear in the manifest — they stay MissingAvManifest in the
+    /// JumpParityScanner output.
     /// </summary>
     [Fact]
-    public void NavigationManifest_DeferredAISubEditors_NotInManifest()
+    public void NavigationManifest_WiredAISubEditors_InManifest()
     {
         var vm = new AIScriptViewModel();
         IReadOnlyList<NavigationTarget> targets = vm.GetNavigationTargets();
 
-        // None of these deferred targets must be present in the manifest.
-        // Unit / Class / DisASM dispatch happens in WF via the parameter
-        // labels' click handler; AIUnits / AITiles / AIASMCoordinate /
-        // AIASMRange / AIASMCALLTALK / AIScriptCategorySelect open via
-        // ParamLabel_Click or ScriptChangeButton — none of those are wired
-        // in the current Avalonia code-behind.
+        // The 5 AI sub-editors wired by #1600 ARE present.
+        Type[] wiredAiSubEditors = new[]
+        {
+            typeof(AIUnitsView),
+            typeof(AITilesView),
+            typeof(AIASMCoordinateView),
+            typeof(AIASMRangeView),
+            typeof(AIASMCALLTALKView),
+        };
+        foreach (var t in wiredAiSubEditors)
+        {
+            Assert.Contains(targets, n => n.TargetViewType == t);
+        }
+
+        // These remain deferred (different ArgTypes / opened via the opcode
+        // picker), so they must NOT appear in the manifest.
         Type[] deferredTargets = new[]
         {
             typeof(UnitEditorView),
@@ -229,11 +243,6 @@ public class AIScriptParityTests
             typeof(ClassEditorView),
             typeof(ClassFE6View),
             typeof(DisASMView),
-            typeof(AIUnitsView),
-            typeof(AITilesView),
-            typeof(AIASMCoordinateView),
-            typeof(AIASMRangeView),
-            typeof(AIASMCALLTALKView),
             typeof(AIScriptCategorySelectView),
         };
         foreach (var t in deferredTargets)

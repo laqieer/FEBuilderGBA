@@ -139,7 +139,8 @@
               <!-- 5 parameter rows -->
               <Grid ColumnDefinitions="130,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,8,0,0">
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param1_Label"
-                           Grid.Row="0" Grid.Column="0" Name="Param1Label" Text="Parameter 1" VerticalAlignment="Center" />
+                           Grid.Row="0" Grid.Column="0" Name="Param1Label" Text="Parameter 1" VerticalAlignment="Center"
+                           Tag="1" Cursor="Hand" PointerPressed="ParamLabel_Click" />
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param1_Input"
                                Grid.Row="0" Grid.Column="1" Name="Param1Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
@@ -147,7 +148,8 @@
                          Grid.Row="0" Grid.Column="2" Name="Param1Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param2_Label"
-                           Grid.Row="1" Grid.Column="0" Name="Param2Label" Text="Parameter 2" VerticalAlignment="Center" />
+                           Grid.Row="1" Grid.Column="0" Name="Param2Label" Text="Parameter 2" VerticalAlignment="Center"
+                           Tag="2" Cursor="Hand" PointerPressed="ParamLabel_Click" />
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param2_Input"
                                Grid.Row="1" Grid.Column="1" Name="Param2Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
@@ -155,7 +157,8 @@
                          Grid.Row="1" Grid.Column="2" Name="Param2Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param3_Label"
-                           Grid.Row="2" Grid.Column="0" Name="Param3Label" Text="Parameter 3" VerticalAlignment="Center" />
+                           Grid.Row="2" Grid.Column="0" Name="Param3Label" Text="Parameter 3" VerticalAlignment="Center"
+                           Tag="3" Cursor="Hand" PointerPressed="ParamLabel_Click" />
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param3_Input"
                                Grid.Row="2" Grid.Column="1" Name="Param3Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
@@ -163,7 +166,8 @@
                          Grid.Row="2" Grid.Column="2" Name="Param3Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param4_Label"
-                           Grid.Row="3" Grid.Column="0" Name="Param4Label" Text="Parameter 4" VerticalAlignment="Center" />
+                           Grid.Row="3" Grid.Column="0" Name="Param4Label" Text="Parameter 4" VerticalAlignment="Center"
+                           Tag="4" Cursor="Hand" PointerPressed="ParamLabel_Click" />
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param4_Input"
                                Grid.Row="3" Grid.Column="1" Name="Param4Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
@@ -171,7 +175,8 @@
                          Grid.Row="3" Grid.Column="2" Name="Param4Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param5_Label"
-                           Grid.Row="4" Grid.Column="0" Name="Param5Label" Text="Parameter 5" VerticalAlignment="Center" />
+                           Grid.Row="4" Grid.Column="0" Name="Param5Label" Text="Parameter 5" VerticalAlignment="Center"
+                           Tag="5" Cursor="Hand" PointerPressed="ParamLabel_Click" />
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param5_Input"
                                Grid.Row="4" Grid.Column="1" Name="Param5Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
