@@ -11,6 +11,40 @@ namespace FEBuilderGBA
     /// </summary>
     public static class FERepoResourceBrowser
     {
+        // -----------------------------------------------------------------
+        // #1644 — on-demand resource delivery for RELEASED (non-git) builds.
+        //
+        // The FE-Repo / FE-Repo-Music submodules are intentionally NOT bundled
+        // into shipped artifacts (their payload is too large to attach to every
+        // release). A source clone fetches them with `git submodule update`, but
+        // a user of a released .zip has no git repo and no `scripts/` folder, so
+        // the empty-state must offer a self-contained instruction that needs
+        // neither: a shallow `git clone` of the public repo straight into the
+        // expected `resources/` folder next to the executable.
+        // -----------------------------------------------------------------
+
+        /// <summary>Public upstream URL of the FE-Repo graphics repository.</summary>
+        public const string GraphicsRepoUrl = "https://github.com/Klokinator/FE-Repo";
+
+        /// <summary>Public upstream URL of the FE-Repo-Music (no-preview) repository.</summary>
+        public const string MusicRepoUrl = "https://github.com/laqieer/FE-Repo-Music-No-Preview";
+
+        /// <summary>
+        /// Self-contained fetch command for a RELEASED build (no git repo / no
+        /// submodule / no <c>scripts/</c> folder required): shallow-clone the
+        /// public graphics repo directly into the <c>resources/FE-Repo</c> folder
+        /// the Resource Browser searches. Works from any extracted release zip.
+        /// </summary>
+        public const string GraphicsCloneCommand =
+            "git clone --depth 1 " + GraphicsRepoUrl + " resources/FE-Repo";
+
+        /// <summary>
+        /// Self-contained fetch command for a RELEASED build — music repo
+        /// counterpart of <see cref="GraphicsCloneCommand"/>.
+        /// </summary>
+        public const string MusicCloneCommand =
+            "git clone --depth 1 " + MusicRepoUrl + " resources/FE-Repo-Music-No-Preview";
+
         /// <summary>
         /// A single resource file entry from FE-Repo.
         /// </summary>

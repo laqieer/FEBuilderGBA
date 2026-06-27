@@ -198,7 +198,11 @@ namespace FEBuilderGBA
             repoRoot = FERepoResourceBrowser.FindRepoRoot(baseDir);
             if (repoRoot == null)
             {
+                // Source clones init the submodule. Released-zip users (no git
+                // repo / no submodule / no scripts/ folder) shallow-clone the
+                // public repo straight into resources/ next to the exe (#1644).
                 categoryTree.Nodes.Add(R._("FE-Repo not found. Run: git submodule update --init resources/FE-Repo"));
+                categoryTree.Nodes.Add(R._("Released build (no git repo)? Run: ") + FERepoResourceBrowser.GraphicsCloneCommand);
                 return;
             }
 

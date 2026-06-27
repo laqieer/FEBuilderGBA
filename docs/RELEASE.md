@@ -49,6 +49,20 @@ Every push to `master` runs the build workflows and uploads artifacts via `actio
 
 > **patch2 in cross-platform bundles:** the `cli-{rid}` / `avalonia-{rid}` bundles **do** embed the `config/patch2/` patch database ([#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) — the CLI and Avalonia projects copy `config/patch2/**` into their output (only the submodule `.git` plumbing is excluded), so the Patch Manager is populated and `--list-patches` works on a fresh extract. This requires the patch2 submodule to be initialized at publish time (`git submodule update --init config/patch2`); the cross-platform build inits it before publishing.
 
+### FE-Repo / FE-Repo-Music resources (on demand)
+
+The **FE-Repo** (graphics) and **FE-Repo-Music-No-Preview** (music) public asset repositories are wired into the in-app **FE-Repo Resource Browser** (portrait / icon / background / CG / battle-background / skill-icon / song editors, WinForms + Avalonia). They are git submodules under `resources/`, but their payload is too large to attach to every release, so **no artifact bundles them** — `release.ps1`, `release.yml`, and `msbuild.yml` all stage only exe/dll/json/config/tools/README/LICENSE. As a result the Resource Browser is **empty out of the box** until the user fetches the resources on demand ([#1644](https://github.com/laqieer/FEBuilderGBA/issues/1644); the graceful empty-state is [#1380](https://github.com/laqieer/FEBuilderGBA/issues/1380)).
+
+**Release-note text (paste into release notes):**
+
+> The FE-Repo Resource Browser needs the public graphics/music asset repos, which are not bundled in this download. To populate it, run **one** of the following next to the executable:
+> - Released `.zip` (no git repo): `git clone --depth 1 https://github.com/Klokinator/FE-Repo resources/FE-Repo` (and `git clone --depth 1 https://github.com/laqieer/FE-Repo-Music-No-Preview resources/FE-Repo-Music-No-Preview` for music).
+> - Source clone: `git submodule update --init resources/FE-Repo` (and `resources/FE-Repo-Music-No-Preview`), or the helper `scripts/fetch-fe-repo.sh` / `pwsh scripts/fetch-fe-repo.ps1`.
+>
+> Until then the browser shows an actionable empty-state with both commands and a **Copy git command** button.
+
+> **Note:** the `git clone` form is the **released-build path** — it needs neither a git repo nor the `scripts/` folder (which shipped artifacts do not include), only `git` on PATH, and it clones straight into the `resources/` folder the browser searches. `scripts/fetch-fe-repo.{sh,ps1}` are **source-tree convenience helpers** that auto-detect a clone (submodule init) vs. a non-git tree (shallow clone); they are not referenced from the shipped-zip UX because they are not part of the release artifacts.
+
 ---
 
 ## 3. Building the cross-platform bundles locally
@@ -174,6 +188,7 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | Gap | Issue |
 |-----|-------|
 | Tag-triggered release workflow (automate Sections 4–5) | [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629) |
+| FE-Repo / FE-Repo-Music resources not bundled — fetch on demand (see [§2 → FE-Repo / FE-Repo-Music resources](#fe-repo--fe-repo-music-resources-on-demand)) | [#1644](https://github.com/laqieer/FEBuilderGBA/issues/1644) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
 | Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§7.1](#71-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |

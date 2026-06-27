@@ -26,10 +26,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public const string MusicSubmoduleInitCommand = "git submodule update --init resources/FE-Repo-Music-No-Preview";
 
         /// <summary>
+        /// Released-build (non-git, no submodule) self-contained fetch command
+        /// for THIS browser's mode. A user of a shipped .zip has no submodule to
+        /// init, so the empty-state also offers a shallow git clone straight into
+        /// the expected <c>resources/</c> folder next to the executable (#1644).
+        /// </summary>
+        public string ReleaseFetchCommand => _musicMode
+            ? FERepoResourceBrowser.MusicCloneCommand
+            : FERepoResourceBrowser.GraphicsCloneCommand;
+
+        /// <summary>
         /// The init command for THIS browser's mode (graphics vs music). The
-        /// status text, copy button, and tooltip all use this so a missing
-        /// music submodule shows the music init command, not the graphics one
-        /// (#1380 Copilot review).
+        /// copy button and tooltip use this so a missing music submodule shows
+        /// the music init command, not the graphics one (#1380 Copilot review).
         /// </summary>
         public string EffectiveInitCommand => _musicMode ? MusicSubmoduleInitCommand : SubmoduleInitCommand;
 
@@ -125,11 +134,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_repoRoot == null)
             {
                 NotFound = true;
-                // On Android FE-Repo is not delivered on-device and the desktop "git submodule"
-                // command cannot work there, so show the canonical Android limitation instead
-                // (#1641). Desktop keeps the actionable init-command hint (#1380).
+                // On Android FE-Repo is not delivered on-device and the desktop
+                // git commands cannot work there, so show the canonical Android
+                // limitation instead (#1641). On desktop, source clones init the
+                // submodule while released-zip users (no git repo / no submodule)
+                // shallow-clone the public repo into the expected resources/
+                // folder — offer both so every desktop build type has an
+                // actionable path (#1644). Keeping the submodule command as a
+                // leading substring preserves the #1380 NotFound assertions.
                 StatusText = AndroidResourceNoticeCore.IsResourceDeliverySupported
-                    ? "FE-Repo not found. Run: " + EffectiveInitCommand
+                    ? "FE-Repo not found. Source build: " + EffectiveInitCommand
+                        + "  |  Released build: " + ReleaseFetchCommand
                     : AndroidResourceNoticeCore.FERepoUnavailableMessage;
                 return;
             }
