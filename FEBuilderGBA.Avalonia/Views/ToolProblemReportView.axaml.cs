@@ -71,8 +71,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
                 if (file == null) return;
 
-                string path = file.Path.LocalPath;
-
                 // Mirror the WinForms show-on-empty flow (CollectSaveData L350 /
                 // CollectOldUPSs L263): only surface a picker when auto-discovery
                 // found nothing — do NOT pop both modals on every report.
@@ -105,8 +103,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 CreateButton.IsEnabled = false;
                 StatusLabel.Text = R._("Creating report...");
 
-                string err = await System.Threading.Tasks.Task.Run(
-                    () => _vm.CreateReport(path, cleanRomPath, savFilePath));
+                // #1639: CreateReport writes the report archive by path → route
+                // through the SAF bridge so Android content:// targets work.
+                string err = "";
+                string? written = await FileDialogHelper.WriteViaAsync(file, async p =>
+                {
+                    err = await System.Threading.Tasks.Task.Run(
+                        () => _vm.CreateReport(p, cleanRomPath, savFilePath));
+                });
+                if (written == null) return;
 
                 if (!string.IsNullOrEmpty(err))
                 {
@@ -115,9 +120,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                StatusLabel.Text = R._("Report created:") + " " + path;
+                StatusLabel.Text = R._("Report created:") + " " + written;
                 await MessageBoxWindow.Show(this,
-                    R._("Report created:") + "\r\n" + path, R._("Problem Reporter"), MessageBoxMode.Ok);
+                    R._("Report created:") + "\r\n" + written, R._("Problem Reporter"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
             {

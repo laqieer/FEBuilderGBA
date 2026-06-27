@@ -362,9 +362,18 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null || !_vm.IsLoaded) return;
 
+            // #1639: bulk import derives per-skill anime* directories from the
+            // chosen TSV's OWN directory, so require a real local path; a SAF pick
+            // (no local path) cannot resolve those sibling dirs → message on
+            // Android, never silent.
             string? path = await FileDialogHelper.OpenFile(this,
-                R._("Bulk Import Skill Config"), "*.SkillConfig.tsv");
-            if (string.IsNullOrEmpty(path)) return;
+                R._("Bulk Import Skill Config"), "*.SkillConfig.tsv", requireLocalPath: true);
+            if (string.IsNullOrEmpty(path))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Bulk skill-config import reads sibling animation directories and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             try
             {
@@ -451,11 +460,19 @@ namespace FEBuilderGBA.Avalonia.Views
             if (rom == null || rom.RomInfo == null || !_vm.IsLoaded) return;
 
             string suggested = "skills.SkillConfig.tsv";
+            // #1639: bulk export writes per-skill anime* directories next to the
+            // TSV, so require a real local path; a SAF pick (no local path) cannot
+            // place those siblings → message on Android, never silent.
             string? path = await FileDialogHelper.SaveFile(this,
                 R._("Bulk Export Skill Config"),
                 new[] { (R._("Skill Config TSV"), "*.SkillConfig.tsv") },
                 suggested);
-            if (string.IsNullOrEmpty(path)) return;
+            if (string.IsNullOrEmpty(path))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Bulk skill-config export writes sibling animation directories and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             try
             {

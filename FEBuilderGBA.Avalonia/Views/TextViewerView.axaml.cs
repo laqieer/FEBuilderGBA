@@ -506,8 +506,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     SuggestedFileName = "texts.tsv",
                     FileTypeChoices = new[] { tsvType, allType },
                 });
-                string? path = file?.TryGetLocalPath();
-                if (path == null) return;
+                if (file == null) return;
 
                 // #1028 Slice C: thread the "Include AI Hints" checkbox state
                 // into the export so per-entry face translate-info lines are
@@ -516,7 +515,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1028 Slice B: thread the Export Filter category. SelectedIndex
                 // maps 1:1 to the WF filter value (0 = All).
                 int filterIndex = ExportFilterCombo.SelectedIndex;
-                int count = _vm.ExportAllTexts(path, includeAIHints, filterIndex);
+                // #1639: ExportAllTexts writes by path, so route through the SAF
+                // bridge (temp + write-back on Android). Capture the count in the
+                // closure since WriteViaAsync only returns the written label.
+                int count = 0;
+                string? written = await FileDialogHelper.WriteViaAsync(file,
+                    path => { count = _vm.ExportAllTexts(path, includeAIHints, filterIndex); });
+                if (written == null) return;
                 await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)

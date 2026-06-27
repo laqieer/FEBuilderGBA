@@ -92,12 +92,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (files.Count > 0)
                 {
+                    // #1639: the build target is executed by an external process
+                    // (CUSTOM_BUILD.cmd / Event Assembler) that needs a REAL
+                    // filesystem path and resolves sibling files — it cannot run
+                    // from a SAF stream. On Android (no local path) disable with a
+                    // clear message instead of silently failing.
                     string? path = files[0].TryGetLocalPath();
                     if (!string.IsNullOrEmpty(path))
                     {
                         _vm.TargetPath = path;
                         return true;
                     }
+                    _vm.StatusMessage = R._("Custom build runs an external tool and needs desktop file-system access; it is not available on this device.");
                 }
             }
             catch (Exception ex)
@@ -129,9 +135,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (files.Count > 0)
                 {
+                    // #1639: the base ROM is consumed by the same external build
+                    // workflow (diff/patch), which needs desktop file-system
+                    // access. On Android (no local path) message instead of
+                    // silently failing.
                     string? path = files[0].TryGetLocalPath();
                     if (!string.IsNullOrEmpty(path))
                         _vm.OriginalRomPath = path;
+                    else
+                        _vm.StatusMessage = R._("Custom build runs an external tool and needs desktop file-system access; it is not available on this device.");
                 }
             }
             catch (Exception ex)

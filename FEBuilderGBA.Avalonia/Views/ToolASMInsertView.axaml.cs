@@ -130,12 +130,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (files.Count > 0)
                 {
+                    // #1639: the source is compiled by an external assembler
+                    // (devkitARM / GoldRoad) that needs a REAL filesystem path and
+                    // resolves sibling includes — it cannot run from a SAF stream.
+                    // On Android (no local path) disable with a clear message
+                    // instead of silently failing.
                     string? path = files[0].TryGetLocalPath();
                     if (!string.IsNullOrEmpty(path))
                     {
                         _vm.SourcePath = path;
                         return true;
                     }
+                    _vm.StatusMessage = R._("The assembler needs desktop file-system access and is not available on this device.");
                 }
             }
             catch (Exception ex)

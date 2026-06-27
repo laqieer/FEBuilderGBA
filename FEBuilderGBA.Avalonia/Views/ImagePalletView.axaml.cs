@@ -746,10 +746,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!_vm.IsLoaded) return;
                 // Pack the 16 displayed colors (incl. unsaved NUD edits).
                 byte[] gbaBytes = ComputeExportBytes();
-                string? path = await FileDialogHelper.SavePaletteFile(this, "palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(gbaBytes, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(gbaBytes, fmt));
+                });
                 CoreState.Services?.ShowInfo(R._("Palette exported."));
             }
             catch (Exception ex)

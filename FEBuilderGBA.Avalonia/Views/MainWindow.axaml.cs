@@ -2603,8 +2603,17 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         private async void OpenDecompProject_Click(object? sender, RoutedEventArgs e)
         {
+            // #1639: a decomp project is a directory TREE the app walks by path,
+            // so it needs a real local folder. OpenProjectFolder returns null on
+            // Android SAF (no local path) → show a clear message instead of
+            // silently doing nothing.
             var dir = await FileDialogHelper.OpenProjectFolder(this);
-            if (string.IsNullOrEmpty(dir)) return;
+            if (string.IsNullOrEmpty(dir))
+            {
+                if (OperatingSystem.IsAndroid())
+                    await MessageBoxWindow.Show(this, R._("Opening a decomp project reads a folder tree and requires desktop file-system access; it is not available on this device."), R._("Decomp Project"), MessageBoxMode.Ok);
+                return;
+            }
 
             var project = DecompProjectDetector.Detect(dir);
             if (project == null)

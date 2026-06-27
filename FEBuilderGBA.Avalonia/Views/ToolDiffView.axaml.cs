@@ -43,9 +43,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
                 },
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.RunMakeBinPatch(path);
+            // #1639: RunMakeBinPatch writes the patch by path → route through the
+            // SAF bridge (temp + write-back on Android). On a SAF target the VM's
+            // success status would show the temp filename, so rewrite it with the
+            // chosen document name once the bridge has written it.
+            string? written = await FileDialogHelper.WriteViaAsync(file, p => _vm.RunMakeBinPatch(p));
+            if (written != null && file != null && string.IsNullOrEmpty(file.TryGetLocalPath()))
+                _vm.StatusText = R._("2-ROM Diff: wrote patch file {0}.", file.Name ?? written);
         }
 
         // ---------- 3-ROM Diff tab ----------
@@ -76,9 +80,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
                 },
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.RunMakeBinPatch3(path);
+            // #1639: RunMakeBinPatch3 writes the patch by path → route through the
+            // SAF bridge (temp + write-back on Android). Rewrite the SAF success
+            // status with the chosen document name (not the temp filename).
+            string? written = await FileDialogHelper.WriteViaAsync(file, p => _vm.RunMakeBinPatch3(p));
+            if (written != null && file != null && string.IsNullOrEmpty(file.TryGetLocalPath()))
+                _vm.StatusText = R._("3-ROM Diff: wrote patch file {0}.", file.Name ?? written);
         }
 
         public void NavigateTo(uint address) { }

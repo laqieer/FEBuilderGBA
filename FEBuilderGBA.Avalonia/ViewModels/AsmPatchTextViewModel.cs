@@ -41,14 +41,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// it sets <see cref="StatusMessage"/> and returns false (never throws — the
         /// caller already wraps this, but the VM stays fault-safe on its own).
         /// </summary>
-        public bool Save(string outputPath)
+        public bool Save(string outputPath) => Save(outputPath, outputPath);
+
+        /// <summary>
+        /// #1639 SAF overload: write the patch to <paramref name="outputPath"/>
+        /// (which may be a temp file on Android) while deriving the patch NAME
+        /// from <paramref name="nameSourceFileName"/> — the file name the user
+        /// actually chose. On desktop both arguments are the same path.
+        /// </summary>
+        public bool Save(string outputPath, string nameSourceFileName)
         {
             if (string.IsNullOrEmpty(outputPath)) return false;
 
             // Derive the patch name from the file the user picked. WF strips a leading
             // "PATCH_" from the stem so "PATCH_MyHack.txt" → "MyHack"; a file without
             // that prefix keeps its full stem.
-            string stem = Path.GetFileNameWithoutExtension(outputPath);
+            string stem = Path.GetFileNameWithoutExtension(nameSourceFileName);
             string name = stem.StartsWith("PATCH_", System.StringComparison.Ordinal)
                 ? stem.Substring("PATCH_".Length)
                 : stem;

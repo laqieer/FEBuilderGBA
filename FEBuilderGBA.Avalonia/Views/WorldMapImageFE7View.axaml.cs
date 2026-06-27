@@ -272,9 +272,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     try
                     {
-                        string? path = await FileDialogHelper.SaveImageFile(this, "worldmap_fe7_event");
-                        if (string.IsNullOrEmpty(path)) return;
-                        cropped.Save(path);
+                        // #1639: write via the SAF bridge so Android content:// targets work.
+                        await FileDialogHelper.SaveImageFileVia(this, "worldmap_fe7_event", p => cropped.Save(p));
                     }
                     finally { cropped.Dispose(); }
                 }

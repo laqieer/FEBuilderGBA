@@ -47,9 +47,22 @@ namespace FEBuilderGBA.Avalonia.Services
                 return false;
             }
 
+            // #1639: this import reads frame PNGs from the script's OWN directory
+            // (Path.GetDirectoryName below). A one-file SAF temp copy would break
+            // the sibling resolution, so require a real local path — a SAF pick
+            // (no local path) shows a clear Android message instead of silently
+            // importing from the wrong directory.
             string? path = await FileDialogHelper.OpenFile(owner,
-                R._("Import Skill Animation Script"), "*.txt");
-            if (string.IsNullOrEmpty(path)) return false;
+                R._("Import Skill Animation Script"), "*.txt", requireLocalPath: true);
+            if (string.IsNullOrEmpty(path))
+            {
+                // On Android a null here means the SAF pick had no local path
+                // (sibling resolution impossible); on desktop it means the user
+                // cancelled. Only surface the explanatory message on Android.
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Importing an animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return false;
+            }
 
             string[] lines;
             try

@@ -49,7 +49,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                return await FileDialogHelper.OpenProjectFolder(this);
+                // #1639: the Dev Translate source is a folder TREE walked by path,
+                // so it needs a real local directory. OpenProjectFolder returns
+                // null on Android SAF (no local path) → surface a clear message
+                // instead of silently doing nothing.
+                string? folder = await FileDialogHelper.OpenProjectFolder(this);
+                if (string.IsNullOrEmpty(folder) && OperatingSystem.IsAndroid())
+                    _vm.StatusMessage = R._("Dev Translate reads a folder tree and requires desktop file-system access; it is not available on this device.");
+                return folder;
             }
             catch (Exception ex)
             {

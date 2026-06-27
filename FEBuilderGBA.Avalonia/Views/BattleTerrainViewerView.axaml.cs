@@ -151,10 +151,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // BattleTerrain palette is stored RAW (0x20 bytes), NOT LZ77.
                 byte[] pal = _vm.ExportPaletteBytes();
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                string? path = await FileDialogHelper.SavePaletteFile(this, "battle_terrain_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "battle_terrain_palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                });
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

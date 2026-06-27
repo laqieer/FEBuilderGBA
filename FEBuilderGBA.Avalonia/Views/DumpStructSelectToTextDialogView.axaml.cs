@@ -3,6 +3,7 @@ using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -54,12 +55,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
                 if (file != null)
                 {
-                    string? path = file.TryGetLocalPath();
-                    if (path != null)
-                    {
-                        File.WriteAllText(path, _vm.TextContent);
-                        CoreState.Services.ShowInfo($"Saved to {path}");
-                    }
+                    // #1639: write via the SAF bridge so Android content:// targets
+                    // (no local path) are written through OpenWriteAsync.
+                    string content = _vm.TextContent;
+                    string? written = await FileDialogHelper.WriteViaAsync(file, p => File.WriteAllText(p, content));
+                    if (written != null)
+                        CoreState.Services.ShowInfo($"Saved to {written}");
                 }
             }
             catch (Exception ex)

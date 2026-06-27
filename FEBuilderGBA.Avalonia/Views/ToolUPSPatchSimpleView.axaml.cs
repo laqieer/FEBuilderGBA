@@ -55,11 +55,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string suggested = ToolUPSPatchSimpleViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
-                string? output = await FileDialogHelper.SaveUpsFile(this, suggested);
-                if (string.IsNullOrEmpty(output))
+                // #1639: the .ups patch is a single-file output → pick the handle
+                // and write through the SAF bridge so Android content:// targets work.
+                var file = await FileDialogHelper.SaveUpsFilePick(this, suggested);
+                if (file == null)
                     return;   // user cancelled
 
-                var result = _vm.MakeUps(original, output);
+                ToolUPSPatchSimpleViewModel.MakeResult result = ToolUPSPatchSimpleViewModel.MakeResult.Ok;
+                string? output = await FileDialogHelper.WriteViaAsync(file, p => { result = _vm.MakeUps(original, p); });
+                if (output == null) return;
                 StatusText.Text = result switch
                 {
                     ToolUPSPatchSimpleViewModel.MakeResult.Ok => R._("UPS patch created: {0}", output),

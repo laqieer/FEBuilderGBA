@@ -5,6 +5,7 @@ using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -123,15 +124,32 @@ namespace FEBuilderGBA.Avalonia.Views
                 // temp path in recent/last-ROM/autosave, unlike WF LoadVirtualROM's
                 // "<ups>.VIRTUAL" marker; saving (default, checked) avoids the temp entirely and
                 // is the recommended path, so this is an explicit, documented parity break.
+                // #1639: the patched ROM is read back by LoadRomFile(savePath), so
+                // savePath must be a real local path. When the user wants to KEEP
+                // the .gba, pick the handle; write the bytes to a local temp (used
+                // for the reload), then stream that temp back into the SAF document
+                // via the bridge. The reload always runs off the local temp.
                 string savePath;
                 bool isTemp = false;
+                global::Avalonia.Platform.Storage.IStorageFile? saveFile = null;
                 if (SaveAsGbaCheck.IsChecked == true)
                 {
                     string suggested = Path.GetFileNameWithoutExtension(ups) + ".gba";
-                    string? chosen = await FileDialogHelper.SaveRomFile(this, suggested);
-                    if (string.IsNullOrEmpty(chosen))
+                    saveFile = await FileDialogHelper.SaveRomFilePick(this, suggested);
+                    if (saveFile == null)
                         return;   // user cancelled
-                    savePath = chosen;
+                    string? local = saveFile.TryGetLocalPath();
+                    if (!string.IsNullOrEmpty(local))
+                    {
+                        savePath = local;        // desktop: write directly
+                        saveFile = null;         // no write-back needed
+                    }
+                    else
+                    {
+                        savePath = Path.Combine(Path.GetTempPath(),
+                            "feb_ups_applied_" + Guid.NewGuid().ToString("N") + ".gba");
+                        isTemp = true;           // SAF: reload off the temp, write back below
+                    }
                 }
                 else
                 {
@@ -143,6 +161,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 try
                 {
                     File.WriteAllBytes(savePath, patched);
+                    // SAF "Save as .gba": stream the patched bytes into the picked
+                    // content:// document (the local temp is still used for reload).
+                    if (saveFile != null)
+                        await FileDialogHelper.WriteViaAsync(saveFile, p => File.WriteAllBytes(p, patched));
                 }
                 catch (Exception ex)
                 {

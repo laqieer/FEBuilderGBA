@@ -7,6 +7,7 @@ using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -130,10 +131,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint rebuildAddress = validated.Value;
 
                 string suggested = "rebuilt_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".gba";
-                string? output = await FileDialogHelper.SaveFile(this,
-                    R._("Save rebuilt ROM"), R._("GBA ROM"), "*.gba", suggested);
+                // #1639: ROM rebuild compares the output path against the original
+                // ROM, reveals it in the file explorer, and is a desktop power
+                // flow — it needs a real local path. Pick the handle so we can tell
+                // a genuine CANCEL (null handle → silent return) apart from a SAF
+                // pick with no local path (→ explicit Android message).
+                var outFile = await FileDialogHelper.SaveRomFilePick(this, suggested);
+                if (outFile == null) return;   // user cancelled
+                string? output = outFile.TryGetLocalPath();
                 if (string.IsNullOrEmpty(output))
-                    return;   // user cancelled
+                {
+                    StatusText.Text = R._("ROM rebuild needs desktop file-system access and is not available on this device.");
+                    return;
+                }
 
                 MakeButton.IsEnabled = false;
                 RebuildButton.IsEnabled = false;
@@ -197,10 +207,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint rebuildAddress = validated.Value;
 
                 string suggested = ToolROMRebuildViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
-                string? output = await FileDialogHelper.SaveFile(this,
+                // #1639: the ROMRebuild report is part of the desktop rebuild flow
+                // (path-based, revealed in the explorer). Pick the handle so a
+                // genuine CANCEL (null handle) is distinguished from a SAF pick
+                // with no local path (→ explicit Android message).
+                var outFile = await FileDialogHelper.SaveFilePick(this,
                     R._("Save ROMRebuild report"), R._("ROMRebuild report"), "*.rebuild", suggested);
+                if (outFile == null) return;   // user cancelled
+                string? output = outFile.TryGetLocalPath();
                 if (string.IsNullOrEmpty(output))
-                    return;   // user cancelled
+                {
+                    StatusText.Text = R._("ROM rebuild needs desktop file-system access and is not available on this device.");
+                    return;
+                }
 
                 MakeButton.IsEnabled = false;
                 RebuildButton.IsEnabled = false;

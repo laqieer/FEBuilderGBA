@@ -4,6 +4,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -59,10 +60,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     },
                 });
 
-                string? path = file?.TryGetLocalPath();
-                if (!string.IsNullOrEmpty(path))
+                if (file != null)
                 {
-                    if (_vm.Save(path))
+                    // #1639: write via the SAF bridge so Android content:// targets
+                    // (no local path) are written through OpenWriteAsync. The patch
+                    // NAME is derived from the file the user chose (file.Name), not
+                    // the temp path, so the PATCH_ stem logic still works.
+                    string nameSource = file.Name ?? "PATCH.txt";
+                    bool ok = false;
+                    string? written = await FileDialogHelper.WriteViaAsync(file, p => { ok = _vm.Save(p, nameSource); });
+                    if (written != null && ok)
                         Close();
                 }
             }

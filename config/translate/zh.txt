@@ -27858,3 +27858,71 @@ wave已导入。采样指针现在是 0x{0:X08}。
 :{1} Version:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\nThis software is open-source free software.\r\nPlease use it freely under GPLv3.
 {1} 版本:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\n本软件是开源的自由软件。\r\n请在 GPLv3 下自由使用。
 
+:Batch portrait import reads a folder of files and requires desktop file-system access; it is not available on this device.
+批量肖像导入需读取文件夹中的文件，需要桌面文件系统访问权限；本设备不可用。
+
+:Bulk skill-config export writes sibling animation directories and requires desktop file-system access; it is not available on this device.
+批量技能配置导出会写入同级动画目录，需要桌面文件系统访问权限；本设备不可用。
+
+:Bulk skill-config import reads sibling animation directories and requires desktop file-system access; it is not available on this device.
+批量技能配置导入需读取同级动画目录，需要桌面文件系统访问权限；本设备不可用。
+
+:Custom build runs an external tool and needs desktop file-system access; it is not available on this device.
+自定义构建需运行外部工具，需要桌面文件系统访问权限；本设备不可用。
+
+:Dev Translate reads a folder tree and requires desktop file-system access; it is not available on this device.
+开发翻译需读取文件夹树，需要桌面文件系统访问权限；本设备不可用。
+
+:Event Assembler needs desktop file-system access and is not available on this device.
+Event Assembler 需要桌面文件系统访问权限，本设备不可用。
+
+:Exporting a magic animation script writes sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导出魔法动画脚本会写入同级PNG帧，需要桌面文件系统访问权限；本设备不可用。
+
+:Exporting all fonts writes sibling glyph PNGs and requires desktop file-system access; it is not available on this device.
+导出全部字体会写入同级字形PNG，需要桌面文件系统访问权限；本设备不可用。
+
+:Exporting an animation script writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device.
+导出动画脚本会写入同级PNG帧，需要桌面文件系统访问权限；请改为导出GIF，或使用桌面设备。
+
+:Exporting the .mapanime1.txt batch writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device.
+导出 .mapanime1.txt 批处理会写入同级PNG帧，需要桌面文件系统访问权限；请改为导出GIF，或使用桌面设备。
+
+:Importing a magic animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导入魔法动画脚本需读取同级PNG帧，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing a map-action-animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导入地图动作动画脚本需读取同级PNG帧，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing a tile-animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导入图块动画脚本需读取同级PNG帧，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing all fonts reads sibling glyph PNGs and requires desktop file-system access; it is not available on this device.
+导入全部字体需读取同级字形PNG，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing an animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device.
+导入动画脚本需读取同级PNG帧，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing an instrument set reads sibling files and requires desktop file-system access; it is not available on this device.
+导入乐器组需读取同级文件，需要桌面文件系统访问权限；本设备不可用。
+
+:Importing this format reads multiple files and requires desktop file-system access; it is not available on this device.
+导入此格式需读取多个文件，需要桌面文件系统访问权限；本设备不可用。
+
+:Instrument-set export writes multiple files and requires desktop file-system access; it is not available on this device.
+乐器组导出会写入多个文件，需要桌面文件系统访问权限；本设备不可用。
+
+:Opening a decomp project reads a folder tree and requires desktop file-system access; it is not available on this device.
+打开反编译工程需读取文件夹树，需要桌面文件系统访问权限；本设备不可用。
+
+:ROM rebuild needs desktop file-system access and is not available on this device.
+ROM 重建需要桌面文件系统访问权限，本设备不可用。
+
+:The assembler needs desktop file-system access and is not available on this device.
+汇编器需要桌面文件系统访问权限，本设备不可用。
+
+:This setting configures an external tool directory and requires desktop file-system access; it is not available on this device.
+此设置用于配置外部工具目录，需要桌面文件系统访问权限；本设备不可用。
+
+:This setting configures an external tool path and requires desktop file-system access; it is not available on this device.
+此设置用于配置外部工具路径，需要桌面文件系统访问权限；本设备不可用。

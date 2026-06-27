@@ -5,6 +5,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
 using FEBuilderGBA.Avalonia.Dialogs;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -421,7 +422,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // round 1, inline #1) — the user can pick the .txt script or the
             // .gif export directly from the dropdown instead of having to
             // type the extension manually under "All Files".
-            string? path = await FileDialogHelper.SaveFile(this,
+            // #1639: pick the handle so we can branch by format — the single-file
+            // .gif export routes through the SAF bridge, while the .txt script
+            // (which writes sibling PNGs) requires a real local path.
+            var file = await FileDialogHelper.SaveFilePick(this,
                 R._("Save Map Action Animation"),
                 new[]
                 {
@@ -429,24 +433,34 @@ namespace FEBuilderGBA.Avalonia.Views
                     (R._("Animated GIF"), "*.gif"),
                 },
                 suggested);
-            if (string.IsNullOrEmpty(path)) return;
+            if (file == null) return;
+            bool isGif = (file.Name ?? "").EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+            string? localPath = file.TryGetLocalPath();
+            if (!isGif && string.IsNullOrEmpty(localPath))
+            {
+                CoreState.Services?.ShowError(R._("Exporting an animation script writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device."));
+                return;
+            }
             try
             {
-                string err;
-                if (path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                string err = "";
+                string? written;
+                if (isGif)
                 {
-                    err = _vm.ExportGif(path);
+                    written = await FileDialogHelper.WriteViaAsync(file, p => { err = _vm.ExportGif(p); });
                 }
                 else
                 {
-                    err = _vm.ExportScript(path);
+                    err = _vm.ExportScript(localPath);
+                    written = localPath;
                 }
+                if (written == null) return;
                 if (!string.IsNullOrEmpty(err))
                 {
                     CoreState.Services?.ShowError(err);
                     return;
                 }
-                CoreState.Services?.ShowInfo(R._("Exported to: {0}", path));
+                CoreState.Services?.ShowInfo(R._("Exported to: {0}", written));
             }
             catch (Exception ex)
             {
@@ -461,10 +475,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowError(R._("Select a non-empty entry first."));
                 return;
             }
+            // #1639: ImportScript resolves sibling frame PNGs from the script's
+            // own directory, so require a real local path; a SAF pick (no local
+            // path) cannot resolve siblings → message on Android, never silent.
             string? path = await FileDialogHelper.OpenFile(this,
                 R._("Open Map Action Animation Script"),
-                "*.MapActionAnimation.txt");
-            if (string.IsNullOrEmpty(path)) return;
+                "*.MapActionAnimation.txt", requireLocalPath: true);
+            if (string.IsNullOrEmpty(path))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Importing a map-action-animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             _undoService.Begin("Import Map Action Animation");
             try

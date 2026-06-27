@@ -176,9 +176,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No animation entry selected."));
                     return;
                 }
+                // #1639: ExportScript writes per-frame sibling PNGs next to the
+                // script, so it needs a real local path. SaveAnimationScriptFile
+                // returns null on Android SAF (no local path) → disable with a
+                // clear message instead of silently returning. (Use Export GIF for
+                // a single-file animation export on Android.)
                 string? path = await FileDialogHelper.SaveAnimationScriptFile(this,
                     "romanime_" + U.ToHexString(_vm.CurrentId) + ".txt");
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Exporting an animation script writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device."));
+                    return;
+                }
 
                 string err = _vm.ExportScript(path);
                 if (!string.IsNullOrEmpty(err)) { CoreState.Services?.ShowError(err); return; }
@@ -200,12 +210,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No animation entry selected."));
                     return;
                 }
-                string? path = await FileDialogHelper.SaveFile(this,
+                // #1639: single-file GIF export → SAF bridge.
+                string err = "";
+                string? written = await FileDialogHelper.SaveFileVia(this,
                     R._("Save Animation GIF"), R._("Animated GIF (.gif)"), "*.gif",
-                    "romanime_" + U.ToHexString(_vm.CurrentId) + ".gif");
-                if (string.IsNullOrEmpty(path)) return;
-
-                string err = _vm.ExportGif(path);
+                    "romanime_" + U.ToHexString(_vm.CurrentId) + ".gif",
+                    p => { err = _vm.ExportGif(p); });
+                if (written == null) return;
                 if (!string.IsNullOrEmpty(err)) { CoreState.Services?.ShowError(err); return; }
                 CoreState.Services?.ShowInfo(R._("Animation GIF exported successfully."));
             }
@@ -225,9 +236,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("No animation entry selected."));
                     return;
                 }
+                // #1639: ImportScript resolves sibling frame PNGs from the
+                // script's own directory, so require a real local path; a SAF pick
+                // (no local path) cannot resolve siblings → message on Android.
                 string? path = await FileDialogHelper.OpenFile(this,
-                    R._("Open Animation Script"), "*.txt");
-                if (string.IsNullOrEmpty(path)) return;
+                    R._("Open Animation Script"), "*.txt", requireLocalPath: true);
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Importing an animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 int width = _vm.FrameWidthPx;
                 // Per-PNG loader: quantize each frame image to <=16 colors (the per-frame

@@ -14,6 +14,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -379,27 +380,40 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeChoices = new[] { midiType, instType, allType },
                 });
 
-                string? path = file?.TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
+                if (file == null) return;
 
                 // Dispatch by the chosen extension (mirrors WF
                 // SongTrackForm.cs:436-471: .MID/.MIDI vs .INSTRUMENT).
-                string ext = U.GetFilenameExt(path);
+                string ext = U.GetFilenameExt(file.Name ?? "");
                 if (ext == ".INSTRUMENT")
                 {
-                    string? instError = _vm.ExportInstrumentSet(path);
+                    // #1639: .instrument export writes SIBLING files next to the
+                    // chosen path (relative index), so it needs a real local
+                    // directory. On Android SAF there is no local path → disable
+                    // with a clear message instead of silently failing.
+                    string? local = file.TryGetLocalPath();
+                    if (string.IsNullOrEmpty(local))
+                    {
+                        CoreState.Services.ShowError(R._("Instrument-set export writes multiple files and requires desktop file-system access; it is not available on this device."));
+                        return;
+                    }
+                    string? instError = _vm.ExportInstrumentSet(local);
                     if (instError != null)
                         CoreState.Services.ShowError(instError);
                     else
-                        CoreState.Services.ShowInfo($"Instrument set exported to {path}");
+                        CoreState.Services.ShowInfo($"Instrument set exported to {local}");
                 }
                 else
                 {
-                    string? error = _vm.ExportMidi(path);
+                    // .mid/.midi is a single file → route through the SAF bridge
+                    // (temp + write-back on Android).
+                    string? error = null;
+                    string? written = await FileDialogHelper.WriteViaAsync(file, p => { error = _vm.ExportMidi(p); });
+                    if (written == null) return;
                     if (error != null)
                         CoreState.Services.ShowError(error);
                     else
-                        CoreState.Services.ShowInfo($"MIDI exported to {path}");
+                        CoreState.Services.ShowInfo($"MIDI exported to {written}");
                 }
             }
             catch (Exception ex)
@@ -440,8 +454,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
 
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
+
+                // #1639: .mid/.midi and .wav imports are SINGLE files (bridge to a
+                // temp on Android). .instrument and .s resolve SIBLING files
+                // relative to the chosen path, so they need a real local
+                // directory — disable those on SAF with a clear message.
+                string ext = U.GetFilenameExt(files[0].Name ?? "");
+                string? path;
+                if (ext == ".INSTRUMENT" || ext == ".S")
+                {
+                    path = files[0].TryGetLocalPath();
+                    if (string.IsNullOrEmpty(path))
+                    {
+                        CoreState.Services.ShowError(R._("Importing this format reads multiple files and requires desktop file-system access; it is not available on this device."));
+                        return;
+                    }
+                }
+                else
+                {
+                    path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
+                    if (string.IsNullOrEmpty(path)) return;
+                }
 
                 // ONE import path: both the file-picker Import and the
                 // FE-Repo-Music button route the chosen path through the same

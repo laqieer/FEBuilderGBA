@@ -192,9 +192,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
+                // #1639: ExportAll writes sibling glyph PNGs next to the manifest,
+                // so require a real local path; a SAF pick (no local path) cannot
+                // place siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.SaveFile(this,
                     R._("Export All Fonts"), "fontall.txt", "*.fontall.txt", "font.fontall.txt");
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Exporting all fonts writes sibling glyph PNGs and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 string? dir = Path.GetDirectoryName(path);
                 if (string.IsNullOrEmpty(dir)) { CoreState.Services?.ShowError(R._("Invalid output folder.")); return; }
@@ -221,9 +229,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
 
+                // #1639: ImportAll resolves sibling glyph PNGs from the manifest's
+                // own directory, so require a real local path; a SAF pick (no local
+                // path) cannot resolve siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.OpenFile(this,
-                    R._("Import All Fonts"), "*.fontall.txt");
-                if (string.IsNullOrEmpty(path)) return;
+                    R._("Import All Fonts"), "*.fontall.txt", requireLocalPath: true);
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Importing all fonts reads sibling glyph PNGs and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 string? dir = Path.GetDirectoryName(path);
                 if (string.IsNullOrEmpty(dir)) { CoreState.Services?.ShowError(R._("Invalid input folder.")); return; }

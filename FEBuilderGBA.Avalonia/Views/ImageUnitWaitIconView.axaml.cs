@@ -230,21 +230,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError("No wait icon selected."); return; }
 
                 string suggested = $"wait_icon_{_vm.CurrentIndex:X02}.png";
-                string? path = await FileDialogHelper.SaveFile(this, "Export Wait Icon",
+                // #1639: both .png and .gif are single-file → SAF bridge.
+                bool ok = false;
+                string? written = await FileDialogHelper.SaveFileVia(this, "Export Wait Icon",
                     new[]
                     {
                         ("PNG Image", "*.png"),
                         ("Animated GIF", "*.gif"),
                     },
-                    suggested);
-                if (string.IsNullOrEmpty(path)) return;
-
-                bool ok = path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)
-                    ? _vm.ExportGif(path)
-                    : _vm.ExportPng(path);
-
+                    suggested,
+                    (p, _) => { ok = p.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? _vm.ExportGif(p) : _vm.ExportPng(p); return System.Threading.Tasks.Task.CompletedTask; });
+                if (written == null) return;
                 if (!ok) { CoreState.Services?.ShowError("Failed to render wait icon for export."); return; }
-                CoreState.Services?.ShowInfo($"Exported to: {path}");
+                CoreState.Services?.ShowInfo($"Exported to: {written}");
             }
             catch (Exception ex)
             {

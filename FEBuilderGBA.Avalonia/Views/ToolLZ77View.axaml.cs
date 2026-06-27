@@ -13,6 +13,12 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ToolLZ77ViewModel _vm = new();
 
+        // #1639: the dest browse stores a TARGET that the Fire button writes to
+        // LATER. On Android SAF there is no local path, so retain the picked
+        // handle and write the produced bytes back through it on Fire.
+        IStorageFile? _decompressDestFile;
+        IStorageFile? _compressDestFile;
+
         public string ViewTitle => "LZ77 Compression Tool";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -37,12 +43,41 @@ namespace FEBuilderGBA.Avalonia.Views
                 Title = R._("Save Decompressed File"),
                 SuggestedFileName = "decompressed.bin",
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.DecompressDestPath = path;
+            if (file == null) return;
+            // #1639: retain the handle; show the local path (desktop) or the SAF
+            // display name so the user sees their chosen target.
+            _decompressDestFile = file;
+            _vm.DecompressDestPath = file.TryGetLocalPath() ?? file.Name ?? "decompressed.bin";
         }
 
-        void DecompressFire_Click(object? sender, RoutedEventArgs e) => _vm.RunDecompress();
+        async void DecompressFire_Click(object? sender, RoutedEventArgs e)
+        {
+            // #1639: when the target is a SAF document, write the produced bytes
+            // through its handle via the bridge (the VM writes to a temp path).
+            // DecompressDestPath holds the user-facing display label; swap in the
+            // temp path only for the write, then RESTORE the label so the textbox
+            // keeps showing the chosen target, not the temp path.
+            if (_decompressDestFile != null && string.IsNullOrEmpty(_decompressDestFile.TryGetLocalPath()))
+            {
+                string displayLabel = _vm.DecompressDestPath;
+                string tempName = "";
+                // The bridge's missing-output guard returns null if RunDecompress
+                // validated and never wrote — then nothing is streamed back.
+                string? written = await FileDialogHelper.WriteViaAsync(_decompressDestFile, p =>
+                {
+                    tempName = System.IO.Path.GetFileName(p);
+                    _vm.DecompressDestPath = p;
+                    _vm.RunDecompress();
+                });
+                _vm.DecompressDestPath = displayLabel;
+                // The VM's success status embeds the temp filename — swap it for the
+                // chosen document name when the bridge actually wrote the file.
+                if (written != null && tempName.Length > 0)
+                    _vm.StatusText = _vm.StatusText.Replace(tempName, displayLabel);
+            }
+            else
+                _vm.RunDecompress();
+        }
 
         async void CompressSrcBrowse_Click(object? sender, RoutedEventArgs e)
         {
@@ -58,12 +93,32 @@ namespace FEBuilderGBA.Avalonia.Views
                 Title = R._("Save Compressed File"),
                 SuggestedFileName = "compressed.bin",
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.CompressDestPath = path;
+            if (file == null) return;
+            _compressDestFile = file;
+            _vm.CompressDestPath = file.TryGetLocalPath() ?? file.Name ?? "compressed.bin";
         }
 
-        void CompressFire_Click(object? sender, RoutedEventArgs e) => _vm.RunCompress();
+        async void CompressFire_Click(object? sender, RoutedEventArgs e)
+        {
+            // #1639: same as DecompressFire — swap in the temp path only for the
+            // bridged write, then RESTORE the display label.
+            if (_compressDestFile != null && string.IsNullOrEmpty(_compressDestFile.TryGetLocalPath()))
+            {
+                string displayLabel = _vm.CompressDestPath;
+                string tempName = "";
+                string? written = await FileDialogHelper.WriteViaAsync(_compressDestFile, p =>
+                {
+                    tempName = System.IO.Path.GetFileName(p);
+                    _vm.CompressDestPath = p;
+                    _vm.RunCompress();
+                });
+                _vm.CompressDestPath = displayLabel;
+                if (written != null && tempName.Length > 0)
+                    _vm.StatusText = _vm.StatusText.Replace(tempName, displayLabel);
+            }
+            else
+                _vm.RunCompress();
+        }
 
         async void ZeroClear_Click(object? sender, RoutedEventArgs e)
         {
@@ -101,9 +156,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 Title = R._("Save Decoded File"),
                 SuggestedFileName = "decoded.bin",
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.RunBase64TextToFile(path);
+            // #1639: immediate write → route through the SAF bridge (temp +
+            // write-back on Android).
+            await FileDialogHelper.WriteViaAsync(file, p => _vm.RunBase64TextToFile(p));
         }
 
         async void FileToBase64Text_Click(object? sender, RoutedEventArgs e)

@@ -328,11 +328,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                string? path = await FileDialogHelper.SaveFile(
-                    this, R._("Save Road Data"), R._("Road.BIN"), "*.road.bin", "road.road.bin");
-                if (path == null) return; // cancelled
-
-                File.WriteAllBytes(path, bin);
+                // #1639: single-file BIN export → SAF bridge.
+                string? written = await FileDialogHelper.SaveFileVia(
+                    this, R._("Save Road Data"), R._("Road.BIN"), "*.road.bin", "road.road.bin",
+                    p => File.WriteAllBytes(p, bin));
+                if (written == null) return; // cancelled
                 StatusLabel.Text = R._("Saved.");
             }
             catch (Exception ex)

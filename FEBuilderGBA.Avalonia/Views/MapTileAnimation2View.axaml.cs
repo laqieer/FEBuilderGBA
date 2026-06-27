@@ -4,6 +4,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -433,7 +434,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeFilter = new[] { txtType, allType },
                 });
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
+                // #1639: BulkImport reads the .txt by path → bridge a SAF source
+                // (no local path) to a temp file on Android.
+                string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
                 if (string.IsNullOrEmpty(path)) return;
 
                 _undoService.Begin("Bulk Import Tile Animation Type 2");
@@ -480,16 +483,19 @@ namespace FEBuilderGBA.Avalonia.Views
                         $"maptileanim2_plist{_vm.SelectedPlist:X2}.mapanime2.txt",
                     FileTypeChoices = new[] { txtType, allType },
                 });
-                string? path = file?.TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
+                if (file == null) return;
 
-                string err = _vm.BulkExport(path);
+                // #1639: BulkExport writes the .txt by path → route through the
+                // SAF bridge (temp + write-back on Android).
+                string err = "";
+                string? written = await FileDialogHelper.WriteViaAsync(file, p => { err = _vm.BulkExport(p); });
+                if (written == null) return;
                 if (err != "")
                 {
                     CoreState.Services?.ShowError(err);
                     return;
                 }
-                CoreState.Services?.ShowInfo($"Exported to {path}.");
+                CoreState.Services?.ShowInfo($"Exported to {written}.");
             }
             catch (Exception ex)
             {

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -42,8 +43,6 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (file == null) return;
 
-            var path = file.Path.LocalPath;
-
             try
             {
                 var table = StructExportCore.GetTable(tableName);
@@ -70,8 +69,13 @@ namespace FEBuilderGBA.Avalonia.Services
                         headers.Select(h => row.TryGetValue(h, out var v) ? v : "")));
                 }
 
-                await File.WriteAllTextAsync(path, sb.ToString(), Encoding.UTF8);
-                CoreState.Services.ShowInfo($"Exported {rows.Count} entries to {Path.GetFileName(path)}");
+                // #1639: write via the SAF bridge so Android content:// targets
+                // (no local path) are written through OpenWriteAsync.
+                string content = sb.ToString();
+                string? written = await FileDialogHelper.WriteViaAsync(file,
+                    path => File.WriteAllTextAsync(path, content, Encoding.UTF8));
+                if (written == null) return;
+                CoreState.Services.ShowInfo($"Exported {rows.Count} entries to {Path.GetFileName(written)}");
             }
             catch (Exception ex)
             {
@@ -141,9 +145,6 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (file == null) return false;
 
-            var path = file.TryGetLocalPath();
-            if (path == null) return false;
-
             try
             {
                 // NO 0-entries guard: an empty-but-valid table must still export a
@@ -152,21 +153,27 @@ namespace FEBuilderGBA.Avalonia.Services
                 // case is already handled above via ResolveTableAt == null.
                 var entries = StructExportCore.ExportTable(rom, table, structDef);
 
-                switch (fmt)
+                // #1639: StructExportCore writes by path, so route the path-based
+                // export through the SAF bridge (temp + write-back on Android).
+                string? written = await FileDialogHelper.WriteViaAsync(file, path =>
                 {
-                    case "CSV":
-                        StructExportCore.ExportToCSV(entries, structDef, path);
-                        break;
-                    case "EA":
-                        StructExportCore.ExportToEA(entries, structDef, path);
-                        break;
-                    default:
-                        StructExportCore.ExportToTSV(entries, structDef, path);
-                        break;
-                }
+                    switch (fmt)
+                    {
+                        case "CSV":
+                            StructExportCore.ExportToCSV(entries, structDef, path);
+                            break;
+                        case "EA":
+                            StructExportCore.ExportToEA(entries, structDef, path);
+                            break;
+                        default:
+                            StructExportCore.ExportToTSV(entries, structDef, path);
+                            break;
+                    }
+                });
+                if (written == null) return false;
 
                 CoreState.Services.ShowInfo(string.Format(
-                    R._("Exported {0} entries to {1}"), entries.Count, Path.GetFileName(path)));
+                    R._("Exported {0} entries to {1}"), entries.Count, Path.GetFileName(written)));
                 return true;
             }
             catch (Exception ex)
@@ -230,7 +237,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (files.Count == 0) return false;
 
-            var importPath = files[0].TryGetLocalPath();
+            // #1639: StructExportCore.ImportFromTSV reads by path, so bridge a
+            // SAF source (no local path) to a temp file on Android.
+            var importPath = await FileDialogHelper.ResolveReadPathAsync(files[0]);
             if (importPath == null) return false;
 
             undoService.Begin($"Import {table.Name}");
@@ -283,7 +292,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (files.Count == 0) return;
 
-            var importPath = files[0].Path.LocalPath;
+            // #1639: bridge a SAF source (no local path) to a temp file on Android.
+            var importPath = await FileDialogHelper.ResolveReadPathAsync(files[0]);
+            if (importPath == null) return;
 
             undoService.Begin($"Import {tableName}");
             try

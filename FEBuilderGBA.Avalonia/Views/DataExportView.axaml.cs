@@ -9,6 +9,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -55,10 +56,15 @@ namespace FEBuilderGBA.Avalonia.Views
             if (file == null) return;
 
             var tableName = _vm.SelectedTable;
-            var path = file.Path.LocalPath;
 
             try
             {
+                // #1639: route the export through the SAF bridge so Android
+                // content:// targets (no local path) are written via OpenWriteAsync.
+                // The path handed to the closure is the real local path on desktop
+                // or a temp file that is streamed back into the SAF document.
+                string? exportedTo = await FileDialogHelper.WriteViaAsync(file, async path =>
+                {
                 await ProgressDialogService.RunWithProgress(this, "Exporting Data...",
                     async (progress, ct) =>
                 {
@@ -135,8 +141,10 @@ namespace FEBuilderGBA.Avalonia.Views
                         PercentComplete = 100
                     });
                 });
+                });
 
-                _vm.StatusMessage = $"Exported to {Path.GetFileName(path)}";
+                if (exportedTo == null) return;
+                _vm.StatusMessage = $"Exported to {Path.GetFileName(exportedTo)}";
             }
             catch (InvalidOperationException ex) when (ex.InnerException != null)
             {
@@ -184,7 +192,9 @@ namespace FEBuilderGBA.Avalonia.Views
             if (files.Count == 0) return;
 
             var tableName = _vm.SelectedTable;
-            var importPath = files[0].Path.LocalPath;
+            // #1639: bridge a SAF source (no local path) to a temp file on Android.
+            var importPath = await FileDialogHelper.ResolveReadPathAsync(files[0]);
+            if (importPath == null) return;
 
             _undoService.Begin("Import Data");
             try

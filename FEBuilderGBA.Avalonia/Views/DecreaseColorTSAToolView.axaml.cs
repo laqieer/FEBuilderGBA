@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -18,6 +19,11 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class DecreaseColorTSAToolView : TranslatedWindow, IEditorView
     {
         readonly DecreaseColorTSAToolViewModel _vm = new();
+
+        // #1639: the output browse stores a TARGET the Reduce button writes LATER.
+        // On Android SAF retain the handle and write the produced image back
+        // through it on Reduce.
+        IStorageFile? _outputFile;
 
         public string ViewTitle => "Color Reduction Tool";
         public bool IsLoaded => true;
@@ -94,7 +100,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (files.Count > 0)
                 {
-                    string? path = files[0].TryGetLocalPath();
+                    // #1639: ReduceColorFile reads the input image by path → bridge
+                    // a SAF source (no local path) to a temp file that survives
+                    // until the deferred Reduce run.
+                    string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
                     if (!string.IsNullOrEmpty(path))
                         _vm.InputPath = path;
                     else
@@ -130,11 +139,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (file != null)
                 {
-                    string? path = file.TryGetLocalPath();
-                    if (!string.IsNullOrEmpty(path))
-                        _vm.OutputPath = path;
-                    else
-                        _vm.StatusMessage = R._("Please select a valid input and output file.");
+                    // #1639: retain the handle; show the local path (desktop) or the
+                    // SAF display name. The actual write happens on Reduce.
+                    _outputFile = file;
+                    _vm.OutputPath = file.TryGetLocalPath() ?? file.Name ?? "reduced.png";
                 }
             }
             catch (Exception ex)
@@ -154,7 +162,29 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.StatusMessage = R._("Reducing colors...");
             try
             {
-                int code = await Task.Run(() => _vm.RunReduce());
+                int code;
+                // #1639: on Android SAF the output is a content:// document with no
+                // local path — run the reducer into a temp file and stream it back
+                // through the handle.
+                if (_outputFile != null && string.IsNullOrEmpty(_outputFile.TryGetLocalPath()))
+                {
+                    // OutputPath holds the user-facing display name; swap in the
+                    // temp path only for the Core write, then RESTORE it so the
+                    // status message shows the chosen name, not the temp path.
+                    string displayLabel = _vm.OutputPath;
+                    int c = -1;
+                    await FileDialogHelper.WriteViaAsync(_outputFile, async p =>
+                    {
+                        _vm.OutputPath = p;
+                        c = await Task.Run(() => _vm.RunReduce());
+                    });
+                    _vm.OutputPath = displayLabel;
+                    code = c;
+                }
+                else
+                {
+                    code = await Task.Run(() => _vm.RunReduce());
+                }
                 _vm.SetReduceStatus(code);
             }
             catch (Exception ex)

@@ -319,22 +319,27 @@ namespace FEBuilderGBA.Avalonia.Views
             string suggestedName = string.IsNullOrEmpty(suggested)
                 ? "anim.txt"
                 : System.IO.Path.GetFileName(suggested);
-            string? saveTo = null;
+            global::Avalonia.Platform.Storage.IStorageFile? file = null;
             try
             {
-                saveTo = await FileDialogHelper.SaveAnimationScriptFile(this, suggestedName);
+                file = await FileDialogHelper.SaveAnimationScriptFilePick(this, suggestedName);
             }
             catch (Exception ex)
             {
                 Log.ErrorF("ToolAnimationCreatorView.DoWriteToFile picker: {0}", ex.Message);
             }
-            if (string.IsNullOrEmpty(saveTo)) return;
+            if (file == null) return;
 
             var projected = _vm.ProjectFrames();
             string? nameHeader = string.IsNullOrEmpty(_vm.AnimationName) ? null : _vm.AnimationName;
-            ToolAnimationCreatorCore.WriteMapActionScript(saveTo, nameHeader, projected);
+            // #1639: WriteMapActionScript writes ONLY the .txt (it references frame
+            // PNGs by name but does not write them), so it is single-file → route
+            // through the SAF bridge so Android content:// targets work.
+            string? written = await FileDialogHelper.WriteViaAsync(file,
+                p => ToolAnimationCreatorCore.WriteMapActionScript(p, nameHeader, projected));
+            if (written == null) return;
             _vm.MarkClean();
-            CoreState.Services.ShowInfo(R._("Wrote {0} frames to {1}.", projected.Count, saveTo));
+            CoreState.Services.ShowInfo(R._("Wrote {0} frames to {1}.", projected.Count, written));
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
