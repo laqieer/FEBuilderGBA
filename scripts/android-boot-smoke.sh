@@ -172,7 +172,7 @@ if app_crashed; then
   FAILED=1
 fi
 
-# (c) RESUMED must have been reached.
+# (b) RESUMED must have been reached.
 if [ "${RESUMED}" != "1" ]; then
   echo "FAIL: ${PKG} never reached the RESUMED (foreground) state within the poll window."
   echo "--- last dumpsys snapshot (head) ---"
