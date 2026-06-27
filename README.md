@@ -893,6 +893,8 @@ The step lists every zip entry with its uncompressed size before extraction, so 
 
 ## 🔄 Update System
 
+> **Cutting a release?** See the full-suite release runbook in **[docs/RELEASE.md](docs/RELEASE.md)** — it covers tagging (`ver_YYYYMMDD.NN`), the per-platform artifacts (WinForms / CLI / Avalonia / Android), the GitHub-release step, and the automatic Gitee mirror.
+
 FEBuilderGBA uses a two-track update model that keeps the application and patch data independent:
 
 ### How It Works

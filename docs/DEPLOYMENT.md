@@ -1,5 +1,7 @@
 # Deployment Guide for Split Package Releases
 
+> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + Gitee sync), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers only the WinForms split-package (FULL/CORE/PATCH2) update system. Note: the split-package `.7z` generator (`scripts/create-split-packages.ps1`) referenced below is **not currently present in the tree** and `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact — see [RELEASE.md → CI artifact inventory](RELEASE.md#2-ci-artifact-inventory-what-each-workflow-produces) for the live artifact set.
+
 This guide explains how to create GitHub releases with the split package update system.
 
 ## Prerequisites
