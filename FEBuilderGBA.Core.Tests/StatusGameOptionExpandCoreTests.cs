@@ -320,6 +320,55 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(before, rom.Data);
         }
 
+        // Copilot PR #1612 inline review: newCount must be capped at MaxRows
+        // (0x100). A target beyond the editor's enumeration cap would not be
+        // visible, so the expand is refused with ZERO net change.
+        [Fact]
+        public void ExpandGameOptionTable_PastMaxRows_Fails_NoMutation()
+        {
+            ROM rom = MakeFe8uRom();
+            uint current = (uint)StatusGameOptionCore.MaxRows - 1; // 255 valid rows
+            PlantValidRows(rom, current);
+            PlantFreeRegion(rom, FreeRegion, FreeRegionSize);
+
+            Assert.Equal(current, StatusGameOptionCore.CountGameOptions(rom));
+
+            byte[] before = (byte[])rom.Data.Clone();
+            int lenBefore = rom.Data.Length;
+
+            // current (255) + 2 = 257 > MaxRows (256) → refuse.
+            var undo = new Undo();
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(undo.NewUndoData("expand-overcap")))
+            {
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 2, null, out string err);
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(err));
+            }
+
+            Assert.Equal(lenBefore, rom.Data.Length);
+            Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void ExpandGameOptionTable_ExactlyToMaxRows_Succeeds()
+        {
+            ROM rom = MakeFe8uRom();
+            uint current = (uint)StatusGameOptionCore.MaxRows - 4; // 252
+            PlantValidRows(rom, current);
+            PlantFreeRegion(rom, FreeRegion, FreeRegionSize);
+
+            // current (252) + 4 = 256 == MaxRows → allowed (boundary).
+            var undo = new Undo();
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(undo.NewUndoData("expand-tocap")))
+            {
+                result = StatusGameOptionCore.ExpandGameOptionTable(rom, 4, null, out string err);
+                Assert.True(result.Success, err);
+            }
+            Assert.Equal((uint)StatusGameOptionCore.MaxRows, result.NewCount);
+        }
+
         // ════════════════════════════════════════════════════════════════
         // Atomic restore — forced mid-expand fault
         // ════════════════════════════════════════════════════════════════

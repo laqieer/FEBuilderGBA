@@ -127,6 +127,14 @@ namespace FEBuilderGBA
                 error = R._("Game option table is not available for this ROM.");
                 return new DataExpansionCore.ExpandResult { Success = false, Error = error };
             }
+            // 4-byte extent guard BEFORE any rom.p32(pointerAddr) read (p32 only
+            // checks `addr >= Length` then reads a u32) so a truncated/corrupt
+            // ROM can never throw inside the no-partial-commit guarantee.
+            if (pointerAddr + 4 > (uint)rom.Data.Length)
+            {
+                error = R._("Game option table is not available for this ROM.");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
 
             // currentCount = the editor's enumerated visible row count.
             uint currentCount = CountGameOptions(rom);
@@ -145,6 +153,15 @@ namespace FEBuilderGBA
                 return new DataExpansionCore.ExpandResult { Success = false, Error = error };
             }
             uint newCount = currentCount + addCount;
+
+            // Cap at MaxRows (0x100) — the editor / StructExportCore enumerate at
+            // most 0x100 rows, so a target beyond that would not be visible and is
+            // refused (no silent over-expand past the supported cap).
+            if (newCount > MaxRows)
+            {
+                error = R._("Cannot expand: the new game option count ({0}) exceeds the maximum of {1}.", newCount, MaxRows);
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
 
             uint oldBase = rom.p32(pointerAddr);
 

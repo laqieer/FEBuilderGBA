@@ -53,16 +53,26 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Default = current + 1; max = 255 (WF list-expand convention).
+                // Max = the Core/editor enumeration cap (StatusGameOptionCore.MaxRows
+                // == 0x100). Refuse when already at the cap so the dialog never gets
+                // an invalid min>max range (Copilot PR #1612 inline review).
+                uint maxCount = StatusGameOptionCore.MaxRows;
+                if (current >= maxCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: the game option list is already at the maximum of {0} entries.", maxCount));
+                    return;
+                }
+
+                // Default = current + 1, clamped to the cap.
                 uint defaultCount = current + 1;
-                if (defaultCount > 255) defaultCount = 255;
+                if (defaultCount > maxCount) defaultCount = maxCount;
                 uint? chosen = await NumberInputDialog.Show(
                     this,
-                    R._("Enter the new game option entry count (current: {0}, max: 255).", current),
+                    R._("Enter the new game option entry count (current: {0}, max: {1}).", current, maxCount),
                     R._("List Expansion"),
                     defaultCount,
                     current,
-                    255);
+                    maxCount);
                 if (chosen == null) return; // user cancelled
 
                 uint newCount = chosen.Value;
