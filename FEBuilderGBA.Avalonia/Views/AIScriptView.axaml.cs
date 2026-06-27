@@ -163,6 +163,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // list shows the right opcodes and a later New/Remove/Write
                 // operates on the loaded entry (not a stale one).
                 DisassemblyList.ItemsSource = _vm.DisassembleScript();
+                // Auto-select the first opcode (#1600) so the detail-panel
+                // parameter rows populate immediately — otherwise the 5 param
+                // rows (and their POINTER_AI* jump affordance) stay blank until
+                // the user clicks a disassembly row. SelectionChanged ->
+                // UpdateParamRows fills them.
+                if (DisassemblyList.ItemCount > 0)
+                    DisassemblyList.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
