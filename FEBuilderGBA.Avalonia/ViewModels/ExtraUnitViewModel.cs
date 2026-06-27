@@ -124,11 +124,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // address: GetFlagAddr(i) = i*0x14 + 0x37E10 (0x37E10 for row 0, 0x37E24
             // for row 1, ...) — NOT an offset within the 4-byte P0 row. The key is
             // anchored on the flag TABLE BASE (0x37E10, a regex-matchable literal the
-            // data-verify completeness meta-test counts), while the VALUE carries the
-            // EXACT per-row absolute address actually read so the report is accurate
-            // for every entry, not just row 0.
+            // data-verify completeness meta-test counts). The VALUE stays a BARE byte
+            // (0xNN) so the --data-verify-full FieldLevelCrossCheck against
+            // GetDataReport["FlagId"] is byte-equal; the EXACT per-row absolute
+            // address actually read is surfaced in a SEPARATE "flagaddr" key so the
+            // report is accurate (and diagnosable) for every entry, not just row 0.
             if (U.isSafetyOffset(flagAddr))
-                report["u8@0x37E10_FlagId"] = $"0x{rom.u8(flagAddr):X02} (@0x{flagAddr:X08})";
+            {
+                report["u8@0x37E10_FlagId"] = $"0x{rom.u8(flagAddr):X02}";
+                report["flagaddr"] = $"0x{flagAddr:X08}";
+            }
             return report;
         }
 
