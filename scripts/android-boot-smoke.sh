@@ -80,7 +80,7 @@ adb shell monkey -p "${PKG}" -c android.intent.category.LAUNCHER 1 || true
 # ---------------------------------------------------------------
 APP_PID=""
 for _ in $(seq 1 10); do
-  APP_PID=$(adb shell pidof "${PKG}" 2>/dev/null | tr -d '\r' | awk '{print $1}')
+  APP_PID=$( { adb shell pidof "${PKG}" 2>/dev/null || true; } | tr -d '\r' | awk '{print $1}' || true)
   if [ -n "${APP_PID}" ]; then
     echo "App PID for ${PKG}: ${APP_PID}"
     break
