@@ -54,13 +54,20 @@
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
   </ItemGroup>
-  <!-- Copy config/ directory to output, excluding patch2 (installed separately via git).
-       On net9.0 (desktop) this lands beside the exe and Core reads it via
-       CoreState.BaseDirectory. The android TFM is EXCLUDED (#1123): the APK ships
-       config/ as <AndroidAsset> (FEBuilderGBA.Android.csproj) extracted to
-       Context.FilesDir on first run, so the loose Content here would only bloat
-       the APK with a redundant second copy of the ~7.5 MB config tree. -->
+  <!-- Copy config/ directory to output, INCLUDING the config/patch2 binary-patch
+       library (#1630) so the published desktop Avalonia Patch Manager is populated
+       on Linux/macOS/Windows-portable. On net9.0 (desktop) this lands beside the exe
+       and Core reads it via CoreState.BaseDirectory. Only the git submodule plumbing
+       (config/patch2/.git pointer file + any stale .git tree) is excluded — mirrors
+       the WinForms CopyConfigDirectories target. patch2 must be initialized at publish
+       time (git submodule update for config/patch2).
+
+       The android TFM is EXCLUDED entirely (#1123): the APK ships config/ as
+       <AndroidAsset> (FEBuilderGBA.Android.csproj) extracted to Context.FilesDir on
+       first run, so the loose Content here would only bloat the APK with a redundant
+       second copy of the config tree. The whole ItemGroup is gated off net9.0-android,
+       so patch2 is automatically kept out of the APK. -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net9.0-android'">
-    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

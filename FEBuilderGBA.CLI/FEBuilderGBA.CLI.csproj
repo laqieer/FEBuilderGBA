@@ -11,8 +11,14 @@
   <ItemGroup>
     <InternalsVisibleTo Include="FEBuilderGBA.Tests" />
   </ItemGroup>
-  <!-- Copy config/ directory to output, excluding patch2 (installed separately via git) -->
+  <!-- Copy config/ directory to output, INCLUDING the config/patch2 binary-patch
+       library (#1630) so published CLI artifacts present a populated Patch Manager
+       and the list-patches command works on Linux/macOS/Windows-portable. Only the
+       git submodule plumbing (config/patch2/.git pointer file + any stale .git tree)
+       is excluded — mirrors the WinForms CopyConfigDirectories target. patch2 must be
+       initialized at publish time (git submodule update for config/patch2). -->
+
   <ItemGroup>
-    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
