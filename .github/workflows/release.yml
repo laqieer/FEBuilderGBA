@@ -1,0 +1,285 @@
+# Tag-triggered release workflow (#1629).
+#
+# WHAT IT DOES
+#   On a pushed `ver_*` tag (the project's existing tag convention,
+#   `ver_YYYYMMDD.HH` — see `git tag` / docs/DEPLOYMENT.md) this workflow builds
+#   every shipping platform, then creates a single GitHub Release for that tag
+#   and attaches every platform package as a zipped release asset:
+#     * WinForms desktop package        (FEBuilderGBA_<tag>.zip)
+#     * self-contained CLI bundles      (FEBuilderGBA-cli-<rid>.zip)
+#     * self-contained Avalonia bundles (FEBuilderGBA-avalonia-<rid>.zip)
+#     * Android APK                     (FEBuilderGBA-android-apk.zip)
+#
+#   Each build job mirrors the conventions of the existing workflow it is based
+#   on so packaging stays consistent:
+#     * `winforms`      -> msbuild.yml  ("Post Build" packaging step, verbatim)
+#     * `crossplatform` -> crossplatform.yml (publish job, per-RID)
+#     * `android`       -> android.yml  (workload build + *-Signed.apk)
+#
+# GITEE MIRROR (AC3)
+#   Publishing the release fires the existing `sync-release-to-gitee.yml`
+#   (`on: release: types: [published]`), which mirrors the full asset set to
+#   Gitee. NOTE: a release created with the default `GITHUB_TOKEN` does NOT
+#   trigger other workflows. To make the Gitee sync auto-fire, set a repo
+#   secret `RELEASE_TOKEN` (a PAT with `contents: write`); this workflow uses it
+#   when present and falls back to `GITHUB_TOKEN` otherwise. If only
+#   `GITHUB_TOKEN` is available, run `sync-release-to-gitee.yml` manually via its
+#   `workflow_dispatch` trigger after the release is published.
+#
+# DRY RUN (AC4)
+#   `workflow_dispatch` runs the build jobs only and does NOT create a release
+#   (the release job's create step is gated on `refs/tags/ver_*`). Pushing a real
+#   test `ver_*` tag exercises the full path and populates the release page with
+#   every platform download.
+
+name: Release
+
+on:
+  push:
+    tags: [ 'ver_*' ]
+  workflow_dispatch:
+
+# Read-only by default; the release job opts up to contents: write locally.
+permissions:
+  contents: read
+
+env:
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # WinForms desktop package (mirrors msbuild.yml: x86 build + "Post Build").
+  # ---------------------------------------------------------------------------
+  winforms:
+    name: WinForms package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install x86 .NET 9 runtimes (windows-latest image dropped x86 9.0)
+        # Same as msbuild.yml: the hosted image ships x86 8.0/10.0 but not 9.0.
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1"
+          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime dotnet         -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime windowsdesktop -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+
+      - name: Publish ColorzCore (self-contained Windows x86)
+        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r win-x86 --self-contained true -o tools/publish
+
+      - name: Build
+        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore .
+
+      - name: Post Build (assemble desktop package)
+        # Verbatim from msbuild.yml "Post Build": collect exe/dll/json + config
+        # (patch2 stripped, empty version dirs kept), bundle ColorzCore + lyn.
+        shell: pwsh
+        run: |
+          mv FEBuilderGBA/bin/Release/FEBuilderGBA.exe .
+          mv FEBuilderGBA/bin/Release/*.dll .
+          mv FEBuilderGBA/bin/Release/*.json .
+          if (Test-Path "FEBuilderGBA/bin/Release/config") {
+            if (Test-Path "config") {
+              Remove-Item -Path "config" -Recurse -Force
+            }
+            mv FEBuilderGBA/bin/Release/config .
+          }
+          if (Test-Path "config/patch2") {
+            Remove-Item "config/patch2" -Recurse -Force
+          }
+          $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE6"
+          $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7J"
+          $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE7U"
+          $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8J"
+          $null = New-Item -ItemType Directory -Force -Path "config/patch2/FE8U"
+          $colorzSrc = "tools/publish"
+          if (Test-Path "$colorzSrc/ColorzCore.exe") {
+            $null = New-Item -ItemType Directory -Force -Path "tools/bin"
+            Copy-Item "$colorzSrc/*" "tools/bin/" -Recurse -Force
+            Write-Host "Self-contained ColorzCore copied to tools/bin/"
+          } else {
+            Write-Host "##[error]ColorzCore publish output not found at tools/publish/"
+            exit 1
+          }
+          $lynSrc = "tools/Event-Assembler/Event Assembler/Tools/lyn.exe"
+          if (Test-Path $lynSrc) {
+            $null = New-Item -ItemType Directory -Force -Path "tools/bin/Tools"
+            Copy-Item $lynSrc "tools/bin/Tools/lyn.exe" -Force
+            Write-Host "Bundled lyn.exe copied to tools/bin/Tools/"
+          }
+
+      - name: Zip desktop package
+        shell: pwsh
+        run: |
+          $staging = "FEBuilderGBA_${{ github.ref_name }}"
+          $null = New-Item -ItemType Directory -Force -Path $staging
+          Copy-Item *.exe $staging -Force -ErrorAction SilentlyContinue
+          Copy-Item *.dll $staging -Force -ErrorAction SilentlyContinue
+          Copy-Item *.json $staging -Force -ErrorAction SilentlyContinue
+          Copy-Item README*.md $staging -Force -ErrorAction SilentlyContinue
+          Copy-Item config $staging -Recurse -Force
+          Copy-Item tools/bin "$staging/tools/bin" -Recurse -Force
+          Compress-Archive -Path "$staging/*" -DestinationPath "FEBuilderGBA_${{ github.ref_name }}.zip" -Force
+
+      - name: Upload WinForms artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-winforms
+          path: FEBuilderGBA_${{ github.ref_name }}.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Per-RID self-contained CLI + Avalonia bundles (mirrors crossplatform.yml).
+  # ---------------------------------------------------------------------------
+  crossplatform:
+    name: CLI + Avalonia (${{ matrix.rid }})
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Publish ColorzCore (self-contained per-RID)
+        run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
+
+      - name: Publish CLI
+        run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }}
+
+      - name: Publish Avalonia
+        run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }}
+
+      - name: Bundle ColorzCore into CLI and Avalonia artifacts
+        shell: bash
+        run: |
+          for target in cli avalonia; do
+            mkdir -p "publish/${target}-${{ matrix.rid }}/tools/bin"
+            cp -r publish/tools-${{ matrix.rid }}/* "publish/${target}-${{ matrix.rid }}/tools/bin/"
+          done
+          if [ -f "tools/Event-Assembler/Event Assembler/Tools/lyn.exe" ]; then
+            for target in cli avalonia; do
+              mkdir -p "publish/${target}-${{ matrix.rid }}/tools/bin/Tools"
+              cp "tools/Event-Assembler/Event Assembler/Tools/lyn.exe" "publish/${target}-${{ matrix.rid }}/tools/bin/Tools/lyn.exe"
+            done
+          fi
+
+      - name: Zip CLI + Avalonia bundles
+        shell: bash
+        run: |
+          ( cd publish/cli-${{ matrix.rid }}      && zip -r "$GITHUB_WORKSPACE/FEBuilderGBA-cli-${{ matrix.rid }}.zip" . )
+          ( cd publish/avalonia-${{ matrix.rid }} && zip -r "$GITHUB_WORKSPACE/FEBuilderGBA-avalonia-${{ matrix.rid }}.zip" . )
+
+      - name: Upload CLI + Avalonia artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-crossplatform-${{ matrix.rid }}
+          path: |
+            FEBuilderGBA-cli-${{ matrix.rid }}.zip
+            FEBuilderGBA-avalonia-${{ matrix.rid }}.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Android APK (mirrors android.yml). Marked continue-on-error so a flaky
+  # Android workload build can never block publishing the desktop/CLI assets;
+  # the release job gates on the desktop+crossplatform jobs and attaches the APK
+  # only if this job produced it.
+  # ---------------------------------------------------------------------------
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install android workload
+        run: dotnet workload install android
+
+      - name: Build Android APK
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c ${{ env.BUILD_CONFIGURATION }} -p:EnableAndroidTarget=true
+
+      - name: Zip Android APK
+        shell: bash
+        run: |
+          apk=$(ls FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk | head -n 1)
+          zip -j "$GITHUB_WORKSPACE/FEBuilderGBA-android-apk.zip" "$apk"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: FEBuilderGBA-android-apk.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Create the GitHub Release and attach every platform zip.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: [ winforms, crossplatform, android ]
+    # Run even if Android failed (it is optional / continue-on-error), but only
+    # when the desktop + cross-platform builds succeeded so we never publish a
+    # release missing the core platform assets.
+    if: >-
+      always() &&
+      needs.winforms.result == 'success' &&
+      needs.crossplatform.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: List collected assets
+        run: ls -la release-artifacts
+
+      - name: Create GitHub Release with all platform assets
+        # Only create a release for a real ver_* tag push. On manual
+        # workflow_dispatch (branch ref) this step is skipped, so dispatch is a
+        # build-only dry run that never creates a release for a branch name.
+        if: startsWith(github.ref, 'refs/tags/ver_')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: release-artifacts/**/*.zip
+          # Prefer a PAT (RELEASE_TOKEN) so publishing fires
+          # sync-release-to-gitee.yml; fall back to GITHUB_TOKEN if unset (in
+          # which case the Gitee sync must be dispatched manually).
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
