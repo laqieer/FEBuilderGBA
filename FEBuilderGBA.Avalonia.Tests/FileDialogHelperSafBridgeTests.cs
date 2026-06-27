@@ -162,5 +162,71 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Null(written);
             Assert.False(writerRan);
         }
+
+        // #1639 review: the new Android-disable R._() messages must be LOADABLE by
+        // the runtime translate loader, which only resets the pending key on a
+        // BLANK line — so each :key/value pair needs a blank-line separator. This
+        // replicates MyTranslateResourceLow.LoadResource's state machine verbatim
+        // (a key swallowed as a prior entry's value is NOT reported), proving the
+        // separators are present in both ja.txt and zh.txt.
+        static System.Collections.Generic.HashSet<string> LoadableKeys(string path)
+        {
+            var keys = new System.Collections.Generic.HashSet<string>();
+            string? src = null;
+            foreach (string line in File.ReadAllLines(path))
+            {
+                if (line.Length == 0) { src = null; continue; }
+                if (src == null)
+                {
+                    if (line[0] != ':') continue;
+                    src = line.Substring(1);
+                    keys.Add(src);
+                }
+                // value line — src is NOT reset (only a blank line resets it).
+            }
+            return keys;
+        }
+
+        static readonly string[] AndroidDisableKeys =
+        {
+            "Event Assembler needs desktop file-system access and is not available on this device.",
+            "The assembler needs desktop file-system access and is not available on this device.",
+            "Custom build runs an external tool and needs desktop file-system access; it is not available on this device.",
+            "ROM rebuild needs desktop file-system access and is not available on this device.",
+            "Opening a decomp project reads a folder tree and requires desktop file-system access; it is not available on this device.",
+            "Dev Translate reads a folder tree and requires desktop file-system access; it is not available on this device.",
+            "Importing an instrument set reads sibling files and requires desktop file-system access; it is not available on this device.",
+            "Instrument-set export writes multiple files and requires desktop file-system access; it is not available on this device.",
+            "Exporting all fonts writes sibling glyph PNGs and requires desktop file-system access; it is not available on this device.",
+            "Importing all fonts reads sibling glyph PNGs and requires desktop file-system access; it is not available on this device.",
+            "This setting configures an external tool path and requires desktop file-system access; it is not available on this device.",
+            "This setting configures an external tool directory and requires desktop file-system access; it is not available on this device.",
+        };
+
+        [Theory]
+        [InlineData("ja")]
+        [InlineData("zh")]
+        public void NewAndroidDisableMessages_AreLoadableFromTranslateFile(string lang)
+        {
+            string repoRoot = FindRepoRoot();
+            string path = Path.Combine(repoRoot, "config", "translate", lang + ".txt");
+            Assert.True(File.Exists(path), $"missing {path}");
+
+            var keys = LoadableKeys(path);
+            foreach (string k in AndroidDisableKeys)
+                Assert.True(keys.Contains(k),
+                    $"'{k}' is not a LOADABLE key in {lang}.txt — likely missing the blank-line separator after the previous entry.");
+        }
+
+        static string FindRepoRoot()
+        {
+            for (var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
+                 dir != null; dir = dir.Parent)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
+            }
+            throw new InvalidOperationException("Could not find FEBuilderGBA.sln");
+        }
     }
 }
