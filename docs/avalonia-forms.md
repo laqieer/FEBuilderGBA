@@ -153,7 +153,7 @@ Editors for map settings, tiles, terrain, and map style.
 | 59 | MapPointerNewPLISTView | MapPointerNewPLISTViewModel | New PLIST entry creator |
 | 60 | MapPointerNewPLISTPopupView | MapPointerNewPLISTPopupViewModel | New PLIST popup dialog |
 | 61 | MapTileAnimationView | MapTileAnimationViewModel | Map tile animation editor |
-| 62 | MapTileAnimation1View | MapTileAnimation1ViewModel | Tile animation type 1 |
+| 62 | MapTileAnimation1View | MapTileAnimation1ViewModel | Tile animation type 1 (image preview + PNG Import/Export + .mapanime1.txt batch — #1602) |
 | 63 | MapTileAnimation2View | MapTileAnimation2ViewModel | Tile animation type 2 |
 | 64 | MapEditorView | MapEditorViewModel | Visual map tile editor (chipset palette + click-to-paint + CSV map export, see #658) |
 | 65 | MapEditorAddMapChangeDialogView | MapEditorAddMapChangeDialogViewModel | Add map change dialog |

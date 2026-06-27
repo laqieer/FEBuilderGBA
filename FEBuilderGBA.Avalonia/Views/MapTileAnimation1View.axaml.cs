@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -20,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MapTileAnimation1ViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressFilterChange;
+        bool _suppressPaletteChange;
 
         public string ViewTitle => "Map Tile Animation Type 1";
         public bool IsLoaded => _vm.IsLoaded;
@@ -29,7 +33,40 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            // Sample-palette combo: 16 sub-palettes (0..15), like the WF
+            // SamplePaletteComboBox. Default selection 0.
+            _suppressPaletteChange = true;
+            try
+            {
+                var palItems = new List<string>(16);
+                for (int i = 0; i < 16; i++) palItems.Add(i.ToString());
+                SamplePaletteComboBox.ItemsSource = palItems;
+                SamplePaletteComboBox.SelectedIndex = 0;
+            }
+            finally { _suppressPaletteChange = false; }
             Opened += (_, _) => LoadList();
+        }
+
+        void SamplePalette_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressPaletteChange) return;
+            _vm.SelectedPaletteIndex = Math.Max(0, SamplePaletteComboBox.SelectedIndex);
+            RefreshPreview();
+        }
+
+        /// <summary>Render the current entry's image into the preview control.
+        /// Null render → clear surface. Never throws.</summary>
+        void RefreshPreview()
+        {
+            try
+            {
+                PreviewImage.SetImage(_vm.RenderPreview());
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTileAnimation1View.RefreshPreview failed: {ex.Message}");
+                PreviewImage.SetImage(null);
+            }
         }
 
         void LoadList()
@@ -155,6 +192,7 @@ namespace FEBuilderGBA.Avalonia.Views
             AnimIntervalBox.Value = _vm.AnimInterval;
             DataCountBox.Value = _vm.DataCount;
             MapTileDataPointerBox.Text = string.Format("0x{0:X08}", _vm.MapTileDataPointer);
+            RefreshPreview();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -172,6 +210,207 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Tile Animation Type 1 data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimation1View.Write: {0}", ex.Message); }
+        }
+
+        // -----------------------------------------------------------------
+        // Image Import/Export (#1602). Single PNG Export/Import target the
+        // current entry's +4 RAW 4bpp image (the +2 length stays authoritative
+        // on import). Export All / Import All round-trip the whole PLIST via a
+        // .mapanime1.txt manifest. All ROM mutations run under _undoService with
+        // a byte-identical fault restore inside the Core helper.
+        // -----------------------------------------------------------------
+
+        async void Export_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
+                {
+                    CoreState.Services?.ShowError("No entry selected.");
+                    return;
+                }
+                var img = _vm.RenderPreview();
+                if (img == null)
+                {
+                    CoreState.Services?.ShowError("Cannot render the tile animation image for this entry.");
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveImageFile(
+                    this, $"maptileanim1_{_vm.CurrentAddr:X08}.png");
+                if (string.IsNullOrEmpty(path)) return;
+
+                var bmp = IconBitmapBuilder.FromImage(img);
+                if (bmp == null)
+                {
+                    CoreState.Services?.ShowError("Failed to build the image bitmap.");
+                    return;
+                }
+                using (var stream = File.Create(path)) bmp.Save(stream);
+                CoreState.Services?.ShowInfo($"Exported to {path}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTileAnimation1View.Export_Click failed: {ex.Message}");
+                CoreState.Services?.ShowError($"Export failed: {ex.Message}");
+            }
+        }
+
+        async void Import_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
+                {
+                    CoreState.Services?.ShowError("No entry selected.");
+                    return;
+                }
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+
+                var img = CoreState.ImageService?.LoadImage(path);
+                if (img == null)
+                {
+                    CoreState.Services?.ShowError($"Failed to load image from: {path}");
+                    return;
+                }
+                try
+                {
+                    int w = img.Width, h = img.Height;
+                    byte[] rgba = img.GetPixelData();
+                    _undoService.Begin("Import Tile Animation Type 1 Image");
+                    try
+                    {
+                        string err = _vm.ImportImage(rgba, w, h);
+                        if (err != "")
+                        {
+                            _undoService.Rollback();
+                            CoreState.Services?.ShowError(err);
+                            return;
+                        }
+                        _undoService.Commit();
+                        _vm.MarkClean();
+                        UpdateUI();
+                        CoreState.Services?.ShowInfo($"Imported {path}.");
+                    }
+                    catch (Exception inner)
+                    {
+                        _undoService.Rollback();
+                        Log.Error($"MapTileAnimation1View.Import write failed: {inner.Message}");
+                        CoreState.Services?.ShowError($"Import failed: {inner.Message}");
+                    }
+                }
+                finally { img.Dispose(); }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTileAnimation1View.Import_Click failed: {ex.Message}");
+            }
+        }
+
+        async void ExportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_vm.ReadStartAddress == 0)
+                {
+                    CoreState.Services?.ShowError("No PLIST selected.");
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveFile(
+                    this, "Export Map Tile Animation Type 1",
+                    "Map Tile Animation 1", "*.mapanime1.txt",
+                    $"maptileanim1_plist{_vm.SelectedPlist:X2}.mapanime1.txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string err = _vm.ExportBatch(path, SavePngFile);
+                if (err != "")
+                {
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                CoreState.Services?.ShowInfo($"Exported to {path}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTileAnimation1View.ExportAll_Click failed: {ex.Message}");
+                CoreState.Services?.ShowError($"Export failed: {ex.Message}");
+            }
+        }
+
+        async void ImportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_vm.SelectedPlist == null)
+                {
+                    CoreState.Services?.ShowError("No PLIST selected.");
+                    return;
+                }
+                string? path = await FileDialogHelper.OpenFile(
+                    this, "Import Map Tile Animation Type 1", "*.mapanime1.txt");
+                if (string.IsNullOrEmpty(path)) return;
+
+                _undoService.Begin("Import All Tile Animation Type 1");
+                try
+                {
+                    string err = _vm.ImportBatch(path, LoadRgbaFile);
+                    if (err != "")
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo($"Imported from {path}.");
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"MapTileAnimation1View.ImportAll write failed: {inner.Message}");
+                    CoreState.Services?.ShowError($"Import failed: {inner.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapTileAnimation1View.ImportAll_Click failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>Write a Core IImage to a PNG file (batch export sink).</summary>
+        static void SavePngFile(IImage img, string path)
+        {
+            var bmp = IconBitmapBuilder.FromImage(img);
+            if (bmp == null) return;
+            using var stream = File.Create(path);
+            bmp.Save(stream);
+        }
+
+        /// <summary>Load a PNG/BMP file into RGBA pixels + dims (batch import
+        /// source). Returns false on any failure.</summary>
+        static bool LoadRgbaFile(string path, out byte[] rgba, out int width, out int height)
+        {
+            rgba = Array.Empty<byte>();
+            width = 0;
+            height = 0;
+            try
+            {
+                var img = CoreState.ImageService?.LoadImage(path);
+                if (img == null) return false;
+                try
+                {
+                    width = img.Width;
+                    height = img.Height;
+                    rgba = img.GetPixelData();
+                    return rgba != null && width > 0 && height > 0;
+                }
+                finally { img.Dispose(); }
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         static uint ParseHexText(string? text)
