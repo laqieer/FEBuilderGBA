@@ -562,6 +562,78 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // Real-ROM regression for the WF first-map binding (Copilot PR review):
+        // when the FIRST map that references the anime1 PLIST has a broken required
+        // plist, ResolveGifContext must return null (WF binds to that first map and
+        // fails) — it must NOT silently fall through to a later map that happens to
+        // share the same PLIST and export a DIFFERENT chapter's background.
+        [Fact]
+        public void ResolveGifContext_FirstMatchingMapBroken_ReturnsNull_NoFallThrough()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip
+
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            if (CoreState.ImageService == null) CoreState.ImageService = new StubImageService();
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+
+                // Find the first non-broken anime1 PLIST and the FIRST map that uses it.
+                var plistRows = MapTileAnimation1Core.BuildPlistList(rom);
+                uint plist = 0;
+                foreach (var row in plistRows)
+                {
+                    if (row.IsBroken) continue;
+                    plist = row.Plist;
+                    break;
+                }
+                if (plist == 0) return; // skip
+
+                // Sanity: it resolves before corruption.
+                Assert.NotNull(MapTileAnimation1ImageCore.ResolveGifContext(rom, plist));
+
+                var cache = MapPListResolverCore.BuildCache(rom);
+                uint firstMapAddr = 0;
+                foreach (var map in cache.Maps)
+                {
+                    if (cache.PListsAt(map.addr).anime1_plist == plist) { firstMapAddr = map.addr; break; }
+                }
+                if (firstMapAddr == 0) return; // skip
+
+                // Find a palette_plist value that GENUINELY fails to resolve, so the
+                // corruption is deterministic regardless of the version-specific
+                // PLIST limit. Scan downward from 0xFF for a value whose PALETTE
+                // resolution is NOT_FOUND.
+                uint badPalPlist = 0;
+                bool found = false;
+                for (uint cand = 0xFF; cand >= 1; cand--)
+                {
+                    uint r = MapChangeCore.PlistToOffsetAddr(
+                        rom, MapChangeCore.PlistType.PALETTE, cand, out uint _);
+                    if (r == U.NOT_FOUND) { badPalPlist = cand; found = true; break; }
+                }
+                if (!found) return; // skip — no guaranteed-invalid palette plist
+
+                // Corrupt the FIRST matching map's palette_plist (u8 @ +6) so its
+                // PALETTE resolution fails. WF would bind to this map and fail; the
+                // fixed Core must return null rather than fall through to another map
+                // sharing the PLIST.
+                rom.write_u8(firstMapAddr + 6, (byte)badPalPlist);
+
+                var ctx = MapTileAnimation1ImageCore.ResolveGifContext(rom, plist);
+                Assert.Null(ctx);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.ImageService = savedSvc;
+            }
+        }
+
         // Walk up from the test assembly to find roms/<name> next to the .sln.
         static string FindRom(string romName)
         {

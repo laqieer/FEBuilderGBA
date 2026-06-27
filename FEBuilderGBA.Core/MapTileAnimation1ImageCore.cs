@@ -263,12 +263,21 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Resolve every offset needed to composite the chapter map that uses an
-        /// anime1 PLIST, mirroring WF <c>MapTileAnimation1Form.ExportGif</c>
-        /// (lines 416-426: pick the FIRST map whose <c>anime1_plist</c> equals the
-        /// selected PLIST, then read its OBJ/palette/config/map-pointer plists and
-        /// resolve them through the standard PLIST tables). READ-ONLY, never
-        /// throws; returns null when no map references the PLIST or any required
-        /// plist fails to resolve.
+        /// anime1 PLIST, mirroring WF <c>MapTileAnimation1Form</c>
+        /// (<c>FilterComboBox_SelectedIndexChanged</c> lines 110-120 +
+        /// <c>ExportGif</c> lines 416-426: load the FIRST map whose
+        /// <c>anime1_plist</c> equals the selected PLIST and use THAT specific map's
+        /// OBJ/palette/config/map-pointer plists).
+        ///
+        /// <para><b>WF-faithful first-map semantics (Copilot PR review):</b> once the
+        /// first matching map is found, its required PLISTs are resolved and a
+        /// failure returns <c>null</c> — the search does NOT fall through to a later
+        /// map that happens to share the PLIST. WF binds to the first matching map
+        /// and fails (no GIF) when its data is broken; falling through would silently
+        /// export a DIFFERENT chapter's background and hide the broken first map.</para>
+        ///
+        /// READ-ONLY, never throws; returns <c>null</c> when no map references the
+        /// PLIST or the first matching map's required plists fail to resolve.
         /// </summary>
         public static GifRenderContext ResolveGifContext(ROM rom, uint anime1Plist)
         {
@@ -282,38 +291,41 @@ namespace FEBuilderGBA
                     var plists = cache.PListsAt(map.addr);
                     if (plists.anime1_plist != anime1Plist) continue;
 
+                    // FIRST matching map found — bind to THIS map (WF semantics).
+                    // Any required-plist failure now returns null instead of falling
+                    // through to a later map that shares the PLIST.
+
                     // OBJ: low byte = primary tileset, high byte = FE7 secondary.
                     uint objLow = plists.obj_plist & 0xFF;
                     uint objHigh = (plists.obj_plist >> 8) & 0xFF;
                     uint objOffset = MapChangeCore.PlistToOffsetAddr(
                         rom, MapChangeCore.PlistType.OBJECT, objLow, out uint _);
-                    if (objOffset == U.NOT_FOUND || !U.isSafetyOffset(objOffset, rom)) continue;
+                    if (objOffset == U.NOT_FOUND || !U.isSafetyOffset(objOffset, rom)) return null;
 
                     uint obj2Offset = 0;
                     if (objHigh > 0)
                     {
                         obj2Offset = MapChangeCore.PlistToOffsetAddr(
                             rom, MapChangeCore.PlistType.OBJECT, objHigh, out uint _);
-                        // A broken obj2 plist makes WF DrawMapChipOnly bail; skip
-                        // this map and keep searching for a renderable one.
-                        if (obj2Offset == U.NOT_FOUND || !U.isSafetyOffset(obj2Offset, rom)) continue;
+                        // A broken obj2 plist makes WF DrawMapChipOnly bail.
+                        if (obj2Offset == U.NOT_FOUND || !U.isSafetyOffset(obj2Offset, rom)) return null;
                     }
 
                     uint palOffset = MapChangeCore.PlistToOffsetAddr(
                         rom, MapChangeCore.PlistType.PALETTE, plists.palette_plist, out uint _);
-                    if (palOffset == U.NOT_FOUND || !U.isSafetyOffset(palOffset, rom)) continue;
+                    if (palOffset == U.NOT_FOUND || !U.isSafetyOffset(palOffset, rom)) return null;
 
                     uint cfgOffset = MapChangeCore.PlistToOffsetAddr(
                         rom, MapChangeCore.PlistType.CONFIG, plists.config_plist, out uint _);
-                    if (cfgOffset == U.NOT_FOUND || !U.isSafetyOffset(cfgOffset, rom)) continue;
+                    if (cfgOffset == U.NOT_FOUND || !U.isSafetyOffset(cfgOffset, rom)) return null;
 
                     uint mapOffset = MapChangeCore.PlistToOffsetAddr(
                         rom, MapChangeCore.PlistType.MAP, plists.mappointer_plist, out uint _);
-                    if (mapOffset == U.NOT_FOUND || !U.isSafetyOffset(mapOffset, rom)) continue;
+                    if (mapOffset == U.NOT_FOUND || !U.isSafetyOffset(mapOffset, rom)) return null;
 
                     uint entryBase = MapChangeCore.PlistToOffsetAddr(
                         rom, MapChangeCore.PlistType.ANIMATION, anime1Plist, out uint _);
-                    if (entryBase == U.NOT_FOUND || !U.isSafetyOffset(entryBase, rom)) continue;
+                    if (entryBase == U.NOT_FOUND || !U.isSafetyOffset(entryBase, rom)) return null;
 
                     return new GifRenderContext
                     {
