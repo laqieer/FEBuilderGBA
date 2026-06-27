@@ -66,6 +66,31 @@ Every PR reviewer (human or automated) should verify:
 
 See [DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md) for the mandatory development workflow including plan review, implementation, and PR review gates.
 
+## Commit & PR Title Convention
+
+Commit subjects and pull-request titles follow the
+[Conventional Commits](https://www.conventionalcommits.org/) format so that
+release changelogs can be generated reliably from the history:
+
+```
+<type>(<optional scope>): <subject>
+```
+
+**Allowed types:** `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`,
+`refactor`, `revert`, `style`, `test`. **Scopes** are free-form and optional
+(e.g. `avalonia`, `core`, `cli`, `gap-sweep`).
+
+Examples: `feat(avalonia): add path-move editor`, `fix(core): guard EOF`,
+`docs: update deployment guide`, `ci: lint PR titles`.
+
+This is enforced **in CI only** (no local git hooks — you are never blocked
+offline). On every pull request, `.github/workflows/pr-title-lint.yml` lints the
+PR title (covers squash merges) and every commit in the PR
+(covers merge / rebase merges, via `commitlint.config.mjs`). If a check fails,
+edit the offending PR title or commit message to add a valid `<type>:` prefix.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#commit--pr-title-convention) for
+details and the link to the auto-changelog work (#1632).
+
 ## Commit Identity
 
 When using Claude Code automation, commit as `laqieer <laqieer@126.com>`. Human contributors use their own identity.

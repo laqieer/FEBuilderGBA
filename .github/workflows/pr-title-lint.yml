@@ -1,0 +1,81 @@
+# Conventional-commit linting for PRs.
+#
+# Keeps the commit/PR-title corpus clean so the future tag-triggered changelog
+# generator (#1632) produces reliable output. See issue #1647 and
+# docs/DEPLOYMENT.md ("Commit & PR Title Convention").
+#
+# This workflow uses third-party actions that are NOT certified by GitHub.
+# They are provided by third parties and are governed by separate terms of
+# service, privacy policy, and support documentation.
+#
+# Two jobs guarantee the corpus is clean regardless of merge strategy:
+#   - pr-title : lints the PR title  -> covers SQUASH merges (title becomes the
+#                commit subject) and the human-readable headline.
+#   - commits  : lints every commit in the PR -> covers MERGE / REBASE merges,
+#                where individual commit subjects land on master.
+#
+# Allowed types are kept in sync with commitlint.config.mjs at the repo root.
+
+name: Lint PR / Commits
+
+on:
+  pull_request:
+    # `synchronize` re-runs the commit-range lint when new commits are pushed.
+    # `edited` re-runs the title lint when the PR title is changed.
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# Only the most recent run per PR needs to pass.
+concurrency:
+  group: pr-title-lint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: Lint PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate conventional PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Keep this list in sync with commitlint.config.mjs.
+          types: |
+            build
+            chore
+            ci
+            docs
+            feat
+            fix
+            perf
+            refactor
+            revert
+            style
+            test
+          # Scopes are free-form in this repo (avalonia, core, gap-sweep, ...).
+          requireScope: false
+          # Do not enforce subject case; matches existing commit style.
+          subjectPattern: '.+'
+
+  commits:
+    name: Lint commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # commitlint needs the full PR commit range to validate every commit.
+          fetch-depth: 0
+
+      - name: Validate conventional commit messages
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: commitlint.config.mjs
