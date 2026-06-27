@@ -152,11 +152,13 @@ namespace FEBuilderGBA
         /// Animation Type 1 frame is patched in, mirroring WinForms
         /// <c>ImageUtilMap.DrawMapChipOnly</c> (~L72,
         /// <c>U.ArrayPatch(anime.change_bitmap_bytes, 0, objUZ, 32 * (8 / 2) * 4 * 16)</c>).
-        /// = 32 tiles/row × 4 bytes/row-of-pixels × 4 (8×8 = 4 rows of 4bpp) × 16 rows
-        /// = 8192. Exposed so the anime1 GIF export (#1602) and tests use the same
-        /// constant as the renderer rather than a magic number.
+        /// <c>32 * (8 / 2) * 4 * 16 = 8192</c> bytes = 256 tiles × 32 bytes/tile (each
+        /// 8×8 4bpp tile is 32 bytes), i.e. the anime tile region begins right after
+        /// the first 256 OBJ tiles (32 tiles/row × 8 rows). Exposed so the anime1 GIF
+        /// export (#1602) and tests use the same constant as the renderer rather than
+        /// a magic number.
         /// </summary>
-        public const int ANIME1_OBJ_PATCH_OFFSET = 32 * (8 / 2) * 4 * 16; // = 8192
+        public const int ANIME1_OBJ_PATCH_OFFSET = 32 * (8 / 2) * 4 * 16; // = 8192 = 256 tiles × 32 bytes
 
         /// <summary>
         /// Composite a change-map overlay image from its already-resolved ROM offsets

@@ -224,12 +224,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Export every anime1 frame as an animated GIF, compositing each
         /// frame onto the rendered chapter map that uses the selected PLIST (the
         /// deferred half of #1602 — WF MapTileAnimation1Form.ExportGif). READ-ONLY.
-        /// Returns "" on success or a localized error.</summary>
+        /// Delegates unconditionally to the Core helper, which returns the
+        /// appropriate localized error for a null ROM (CoreState.ROM is null) or an
+        /// unselected PLIST (passed as 0).</summary>
         public string ExportGif(string gifPath)
         {
-            var rom = CoreState.ROM;
-            if (rom == null || SelectedPlist == null) return "No PLIST selected.";
-            return MapTileAnimation1ImageCore.ExportGif(rom, SelectedPlist.Value, gifPath);
+            return MapTileAnimation1ImageCore.ExportGif(CoreState.ROM, SelectedPlist ?? 0, gifPath);
         }
 
         /// <summary>Re-import a .mapanime1.txt manifest into the selected PLIST.

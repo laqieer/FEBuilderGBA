@@ -333,9 +333,18 @@ namespace FEBuilderGBA
         /// <summary>
         /// Read the RAW (uncompressed) 4bpp graphics block for one anime1 entry —
         /// the WF <c>GetTileAnime1(p4, length)</c> byte path used as
-        /// <c>MapAnimations.change_bitmap_bytes</c>: 256-wide, height =
-        /// <see cref="CalcEntryHeight"/>, so <c>128 * height</c> bytes. Returns
-        /// null on a bad pointer / out-of-bounds. READ-ONLY.
+        /// <c>MapAnimations.change_bitmap_bytes</c> (WF reads
+        /// <c>32 * 8 / 2 * CalcHeight(256, length)</c> = <c>128 * height</c> bytes,
+        /// the row-aligned 256-wide sheet size — NOT the raw <c>length</c>). This
+        /// helper is byte-for-byte WF-faithful: a non-row-aligned <c>length</c>
+        /// rounds up to the next 8-row block (<see cref="CalcEntryHeight"/>) exactly
+        /// as WF, so the OBJ overlay patch matches WinForms' rendered frame. The
+        /// returned bytes are only ever copied into the OBJ buffer by
+        /// <see cref="MapRenderCore"/>, which clamps to that buffer's bounds; and
+        /// the read itself is bounded by the ROM end (<c>imgOffset + need</c> guard
+        /// below), so there is no out-of-bounds read even when an entry's declared
+        /// block is shorter than the padded size. Returns null on a bad pointer /
+        /// zero length / past-ROM-end. READ-ONLY.
         /// </summary>
         public static byte[] ReadFrameBytes(ROM rom, uint p4Pointer, uint length)
         {
@@ -344,7 +353,7 @@ namespace FEBuilderGBA
             if (!U.isSafetyOffset(imgOffset, rom)) return null;
             int height = CalcEntryHeight((int)length);
             if (height <= 0) return null;
-            long need = (long)(IMAGE_WIDTH / 2) * height; // 128 * height
+            long need = (long)(IMAGE_WIDTH / 2) * height; // 128 * height (WF GetTileAnime1)
             if (need <= 0 || imgOffset + need > (uint)rom.Data.Length) return null;
             return rom.getBinaryData(imgOffset, (uint)need);
         }
@@ -422,8 +431,27 @@ namespace FEBuilderGBA
                 if (frames.Count == 0)
                     return R._("Failed to render any tile animation frame for the chapter map.");
 
-                GifEncoderCore.Encode(frames, gifPath);
-                return "";
+                // Encode to a temp file in the SAME directory and only move it into
+                // place on success, so a mid-encode IO failure (disk-full, etc.)
+                // can never leave a partial/empty GIF at gifPath (Copilot review).
+                string dir = Path.GetDirectoryName(gifPath);
+                if (string.IsNullOrEmpty(dir)) dir = ".";
+                string tmp = Path.Combine(dir, "." + Path.GetFileName(gifPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+                try
+                {
+                    GifEncoderCore.Encode(frames, tmp);
+                    // Atomic-ish replace (delete-then-move; same volume since tmp is
+                    // in the target dir, so Move is a rename).
+                    if (File.Exists(gifPath)) File.Delete(gifPath);
+                    File.Move(tmp, gifPath);
+                    return "";
+                }
+                finally
+                {
+                    // On any failure (or if Move already consumed it) ensure no
+                    // stray temp file is left behind.
+                    try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
+                }
             }
             catch (Exception ex)
             {

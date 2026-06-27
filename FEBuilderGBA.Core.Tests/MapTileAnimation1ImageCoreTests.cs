@@ -549,6 +549,10 @@ namespace FEBuilderGBA.Core.Tests
                 for (int i = 0; i + 1 < bytes.Length; i++)
                     if (bytes[i] == 0x21 && bytes[i + 1] == 0xF9) frameCount++;
                 Assert.True(frameCount >= 1, $"Expected >= 1 GIF frame, found {frameCount}");
+
+                // The atomic temp-file-then-move path must leave no ".tmp" artifact.
+                string gifDir = Path.GetDirectoryName(gif);
+                Assert.Empty(Directory.GetFiles(gifDir, "*" + Path.GetFileName(gif) + "*.tmp"));
             }
             finally
             {
