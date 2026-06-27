@@ -5,7 +5,10 @@
         Title="Map Settings (FE7U)" Width="1773" Height="1038"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE7U_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+    <DockPanel Grid.Column="0" Margin="4">
+      <Button AutomationProperties.AutomationId="MapSettingFE7U_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="リストの拡張" Margin="2" />
+      <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE7U_Entry_List" Name="EntryList" />
+    </DockPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="4" Margin="8">
