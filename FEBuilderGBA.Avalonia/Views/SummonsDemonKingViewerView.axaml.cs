@@ -183,13 +183,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("SummonsDemonKingViewerView.Expand inner failed: {0}", inner.Message);
+                    // Log.Error joins string[] args verbatim (no composite-format
+                    // {0} substitution), so use interpolation + ex.ToString() for
+                    // actionable detail.
+                    Log.Error($"SummonsDemonKingViewerView.Expand inner failed: {inner}");
                     CoreState.Services?.ShowError(R._("Demon King Summon table expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("SummonsDemonKingViewerView.Expand failed: {0}", ex.Message);
+                Log.Error($"SummonsDemonKingViewerView.Expand failed: {ex}");
             }
         }
 

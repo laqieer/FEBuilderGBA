@@ -68,6 +68,11 @@ namespace FEBuilderGBA
                 return false;
             if (!U.isSafetyOffset(ptr, rom) || !U.isSafetyOffset(countAddr, rom))
                 return false;
+            // isSafetyOffset only checks addr < Length; p32 reads 4 bytes, so a
+            // pointer in the last 3 bytes of the ROM would read out of bounds.
+            // Guard the full 4-byte span before resolving the table base.
+            if (ptr + 4 > (uint)rom.Data.Length)
+                return false;
             // The pointer slot must resolve to a safe table base.
             uint baseAddr = rom.p32(ptr);
             return U.isSafetyOffset(baseAddr, rom);

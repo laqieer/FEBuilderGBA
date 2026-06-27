@@ -61,7 +61,8 @@ public class SummonsDemonKingExpandCoreTests
     static ROM MakeRom(string code)
     {
         var rom = new ROM();
-        rom.LoadLow("synth-1606.gba", new byte[0x01000000], code);
+        bool ok = rom.LoadLow("synth-1606.gba", new byte[0x01000000], code);
+        Assert.True(ok, $"Synthetic ROM ({code}) must be recognized by LoadLow");
         return rom;
     }
 
@@ -85,7 +86,8 @@ public class SummonsDemonKingExpandCoreTests
         Assert.True(ptr != 0, "FE8J must define summons_demon_king_pointer");
         var bytes = rom.Data;
         BitConverter.GetBytes(TableBase | 0x08000000u).CopyTo(bytes, (int)ptr);
-        rom.LoadLow("synth-fe8j-1606.gba", bytes, FE8J_CODE);
+        Assert.True(rom.LoadLow("synth-fe8j-1606.gba", bytes, FE8J_CODE),
+            "Synthetic FE8J ROM must be recognized by LoadLow");
         Assert.True(SummonsDemonKingExpandCore.IsEnabled(rom));
     }
 

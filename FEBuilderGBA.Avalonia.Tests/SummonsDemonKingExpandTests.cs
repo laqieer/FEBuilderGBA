@@ -59,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         static ROM MakeFe6()
         {
             var rom = new ROM();
-            rom.LoadLow("synth-fe6-1606.gba", new byte[0x01000000], FE6_CODE);
+            Assert.True(rom.LoadLow("synth-fe6-1606.gba", new byte[0x01000000], FE6_CODE),
+                "Synthetic FE6 ROM must be recognized by LoadLow");
             return rom;
         }
 
