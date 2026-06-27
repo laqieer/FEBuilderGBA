@@ -1,0 +1,3 @@
+# Keep shell scripts LF-only so they run on the Linux CI runners regardless of
+# a contributor's core.autocrlf setting (a CRLF shebang breaks /bin/sh). (#1632)
+*.sh text eol=lf

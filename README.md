@@ -908,7 +908,10 @@ When you check for updates the app compares the remote version against the local
 > **Publishing a release (maintainers):** pushing a `ver_YYYYMMDD.HH` tag triggers
 > [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the WinForms desktop package,
 > the per-RID self-contained CLI and Avalonia bundles, and the Android APK, then creates the GitHub Release with
-> every platform package attached as a zipped asset. Publishing the release auto-fires
+> every platform package attached as a zipped asset. The release body is **auto-generated** from the
+> conventional-commit history by [`scripts/generate-changelog.sh`](scripts/generate-changelog.sh) — grouped into
+> Features / Bug Fixes / Documentation / CI / Maintenance sections (#1632); the full backlog log lives in
+> [`CHANGELOG.md`](CHANGELOG.md). Publishing the release auto-fires
 > [`sync-release-to-gitee.yml`](.github/workflows/sync-release-to-gitee.yml) so the Gitee mirror gets the full
 > asset set. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#option-0-automated-tag-triggered-release-recommended) for details.
 
