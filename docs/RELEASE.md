@@ -39,15 +39,15 @@ Every push to `master` runs the build workflows and uploads artifacts via `actio
 | Workflow | Artifact name | Contents |
 |----------|---------------|----------|
 | `msbuild.yml` | `FEBuilderGBA_{build_time}` | `FEBuilderGBA.exe`, `*.dll`, `*.json`, `config/` (with empty `patch2/{FE6,FE7J,FE7U,FE8J,FE8U}` placeholders — patch2 ships via git), `tools/bin/` (self-contained ColorzCore + `lyn.exe`), `README*.md` |
-| `crossplatform.yml` | `cli-linux-x64`, `cli-osx-arm64`, `cli-win-x64` | Self-contained CLI per RID + `tools/bin/` ColorzCore |
-| `crossplatform.yml` | `avalonia-linux-x64`, `avalonia-osx-arm64`, `avalonia-win-x64` | Self-contained Avalonia desktop per RID + `tools/bin/` ColorzCore |
+| `crossplatform.yml` | `cli-linux-x64`, `cli-osx-arm64`, `cli-win-x64` | Self-contained CLI per RID + `config/` (incl. the `config/patch2/` patch database — [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) + `tools/bin/` ColorzCore |
+| `crossplatform.yml` | `avalonia-linux-x64`, `avalonia-osx-arm64`, `avalonia-win-x64` | Self-contained Avalonia desktop per RID + `config/` (incl. the `config/patch2/` patch database — [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) + `tools/bin/` ColorzCore |
 | `android.yml` | `febuildergba-android-apk` | `*-Signed.apk` (debug keystore) — **advisory / non-required** check (`android-build`), so a flaky Android build can never block a merge |
 
 **RIDs published:** `linux-x64`, `osx-arm64`, `win-x64`.
 
 > **Android signing caveat:** `android.yml` produces a **debug-keystore**-signed APK only. A production-signed (release) APK/AAB is **not** yet produced — tracked by [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631). Do not publish the debug APK as a trusted production download without flagging it.
 
-> **patch2 in cross-platform bundles:** the `cli-{rid}` / `avalonia-{rid}` bundles do **not** embed the `config/patch2/` patch database, so the Patch Manager is empty in those builds until the user fetches patch2 via git. Tracked by [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630).
+> **patch2 in cross-platform bundles:** the `cli-{rid}` / `avalonia-{rid}` bundles **do** embed the `config/patch2/` patch database ([#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630)) — the CLI and Avalonia projects copy `config/patch2/**` into their output (only the submodule `.git` plumbing is excluded), so the Patch Manager is populated and `--list-patches` works on a fresh extract. This requires the patch2 submodule to be initialized at publish time (`git submodule update --init config/patch2`); the cross-platform build inits it before publishing.
 
 ---
 
@@ -174,7 +174,6 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | Gap | Issue |
 |-----|-------|
 | Tag-triggered release workflow (automate Sections 4–5) | [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629) |
-| patch2 not bundled into CLI/Avalonia artifacts | [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
 | Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§7.1](#71-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
