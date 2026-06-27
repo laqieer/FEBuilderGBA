@@ -1,38 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Navigation manifest for AIScriptViewModel (#410 / #374 Phase 4).
+// Navigation manifest for AIScriptViewModel (#410 / #374 Phase 4 / #1600).
 //
 // Mirrors the wired WF `AIScriptForm` cross-editor jump callsites that the
-// Avalonia view actually triggers after PR #410. Per Copilot CLI plan-review
-// v2 #1 AND PR #571 Copilot CLI review #2 (strict reading of
-// `INavigationTargetSource`), manifest rows correspond ONLY to working
-// `WindowManager.Navigate<>` callsites that this PR ACTUALLY wires in the
-// view code-behind.
+// Avalonia view actually triggers.
 //
-// The Unit / Class / DisASM jumps from WF AIScriptForm originate from the
-// per-parameter `ParamLabel_Click` handler (which dispatches on the
-// runtime ArgType of the selected opcode). That dispatch path requires the
-// live opcode disassembly + per-arg ArgType resolution, which is
-// WinForms-coupled today via EventScript.DisAssemble. Until that Core
-// extraction lands, none of those Unit/Class/DisASM jumps actually fire in
-// Avalonia — so this manifest deliberately omits them. The
-// JumpParityScanner correctly reports them as `MissingAvManifest`, which
-// is the truthful state.
+// #1600 wired the per-parameter `POINTER_AI*` jump dispatch (WF
+// `AIScriptForm.ParamLabel_Clicked`): clicking an AI-pointer parameter row in
+// the AIScript detail panel opens the matching AI sub-editor seeded at the
+// opcode-arg pointer (allocating a 4-byte ASM block on null/broken for the 3
+// ASM types), via `WindowManager.Navigate<TView>(addr)`. The five sub-editors
+// are now reachable for real ROM data, so they appear in the manifest. The
+// remaining WF Unit/Class/DisASM param jumps still originate from the same
+// per-arg dispatch and are tracked separately (their ArgTypes are not the AI
+// pointer types this slice covers).
 //
-// Same rationale applies to the heavy AI sub-editors (AIUnits, AITiles,
-// AIASMCoordinate, AIASMRange, AIASMCALLTALK, AIScriptCategorySelect) —
-// they are reachable in WF only via the same param-label dispatch.
-//
-// This matches the SongTrack PR #412 precedent (3 import-dispatch flows
-// deliberately absent from the manifest until their underlying Core
-// extraction lands) and is documented in `INavigationTargetSource.cs` as
-// the contract for manifest entries.
-//
-// Wired callsite (matches AIScriptView.axaml.cs):
+// Wired callsites (match AIScriptView.axaml.cs):
 //   - JumpToPointerToolCopyTo -> PointerToolCopyToView (DetailAddress_Click)
+//   - JumpToAIUnits           -> AIUnitsView           (ParamLabel_Click, POINTER_AIUNIT)
+//   - JumpToAITiles           -> AITilesView           (ParamLabel_Click, POINTER_AITILE)
+//   - JumpToAIASMCoordinate   -> AIASMCoordinateView   (ParamLabel_Click, POINTER_AICOORDINATE)
+//   - JumpToAIASMRange        -> AIASMRangeView        (ParamLabel_Click, POINTER_AIRANGE)
+//   - JumpToAIASMCALLTALK     -> AIASMCALLTALKView     (ParamLabel_Click, POINTER_AICALLTALK)
 //
-// `TargetAddress: null` is the sentinel for "manifest declares the jump but
-// the runtime address is determined at click time" — matches the precedent
-// used by SongTrackViewModel.NavigationTargets.cs and EventUnitViewModel.
+// `TargetAddress: null` is the sentinel for "manifest declares the jump but the
+// runtime address is determined at click time" (the param's resolved/allocated
+// pointer) — matches the precedent used by SongTrackViewModel.NavigationTargets
+// and EventUnitViewModel.
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
@@ -46,10 +39,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new[]
             {
                 // ---------------- Address-double-click pointer copy ----------------
-                // The ONLY wired Navigate<> callsite in AIScriptView.axaml.cs.
                 new NavigationTarget(
                     CommandName: "JumpToPointerToolCopyTo",
                     TargetViewType: typeof(PointerToolCopyToView),
+                    TargetAddress: null),
+
+                // ---------------- POINTER_AI* parameter jumps (#1600) ----------------
+                new NavigationTarget(
+                    CommandName: "JumpToAIUnits",
+                    TargetViewType: typeof(AIUnitsView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToAITiles",
+                    TargetViewType: typeof(AITilesView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToAIASMCoordinate",
+                    TargetViewType: typeof(AIASMCoordinateView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToAIASMRange",
+                    TargetViewType: typeof(AIASMRangeView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToAIASMCALLTALK",
+                    TargetViewType: typeof(AIASMCALLTALKView),
                     TargetAddress: null),
             };
         }

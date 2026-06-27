@@ -1137,5 +1137,203 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             IsLoaded = true;
         }
+
+        // ----------------------------------------------------------------
+        // POINTER_AI* parameter jump (#1600). Mirrors WF
+        // AIScriptForm.ParamLabel_Clicked dispatch for the 5 AI sub-editors
+        // (POINTER_AIUNIT/AITILE/AICOORDINATE/AIRANGE/AICALLTALK). The View
+        // surfaces the per-opcode parameters as 5 rows; clicking an AI-pointer
+        // row jumps to the matching sub-editor seeded at the pointer (allocating
+        // a 4-byte ASM block when null/broken for the 3 ASM types).
+        //
+        // CONSISTENCY (Copilot plan-review #1600): the resolved/allocated pointer
+        // is written into the selected row's IN-MEMORY OneCode.ByteData — NOT
+        // into ROM at the row's offset (which is virtual after Update/New/Remove).
+        // WriteScript() serializes that model on Write, so the jump composes with
+        // pending row edits and a later Write persists the pointer correctly.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Resolve the Nth (1-based) NON-FIXED argument of the disassembled
+        /// opcode at <paramref name="rowIdx"/> — the parameter shown on the View's
+        /// param row <paramref name="paramRow"/> (1..5). Returns false when the
+        /// row/param is out of range. Mirrors how FormatAiRow enumerates args
+        /// (skipping FIXED), so the param-row order matches the displayed args.
+        /// </summary>
+        public bool TryGetParamArg(int rowIdx, int paramRow,
+            out EventScript.OneCode code, out EventScript.Arg arg, out uint value)
+        {
+            code = null!;
+            arg = null!;
+            value = 0;
+            if (rowIdx < 0 || rowIdx >= _disassembled.Count) return false;
+            if (paramRow < 1) return false;
+
+            EventScript.OneCode c = _disassembled[rowIdx];
+            if (c?.Script?.Args == null) return false;
+
+            int seen = 0;
+            for (int i = 0; i < c.Script.Args.Length; i++)
+            {
+                EventScript.Arg a = c.Script.Args[i];
+                if (a.Type == EventScript.ArgType.FIXED) continue;
+                seen++;
+                if (seen == paramRow)
+                {
+                    code = c;
+                    arg = a;
+                    value = EventScript.GetArgValue(c, a);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Number of non-FIXED parameters the opcode at <paramref name="rowIdx"/>
+        /// exposes (the count of populated param rows the View should show).
+        /// </summary>
+        public int GetParamCount(int rowIdx)
+        {
+            if (rowIdx < 0 || rowIdx >= _disassembled.Count) return 0;
+            EventScript.OneCode c = _disassembled[rowIdx];
+            if (c?.Script?.Args == null) return 0;
+            int seen = 0;
+            for (int i = 0; i < c.Script.Args.Length; i++)
+                if (c.Script.Args[i].Type != EventScript.ArgType.FIXED) seen++;
+            return seen;
+        }
+
+        /// <summary>Display label (arg name) for a param row, or "" when absent.</summary>
+        public string GetParamLabel(int rowIdx, int paramRow)
+        {
+            if (!TryGetParamArg(rowIdx, paramRow, out _, out var arg, out _)) return "";
+            return arg.Name ?? arg.Symbol.ToString();
+        }
+
+        /// <summary>Decoded preview text for a param row, or "" when absent.</summary>
+        public string GetParamValueText(int rowIdx, int paramRow)
+        {
+            if (rowIdx < 0 || rowIdx >= _disassembled.Count) return "";
+            // Reuse EventScript.GetArg for the decoded textual form. Resolve the
+            // raw arg index that maps to this param row first.
+            EventScript.OneCode c = _disassembled[rowIdx];
+            if (c?.Script?.Args == null) return "";
+            int seen = 0;
+            for (int i = 0; i < c.Script.Args.Length; i++)
+            {
+                if (c.Script.Args[i].Type == EventScript.ArgType.FIXED) continue;
+                seen++;
+                if (seen == paramRow)
+                    return EventScript.GetArg(c, i, out _);
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// Classify the param row's argument as an AI sub-editor pointer.
+        /// Returns <see cref="AiPointerKind.None"/> when the row is out of range
+        /// or the arg is not a POINTER_AI* type. The View uses this to decide
+        /// whether the param-label click should jump.
+        /// </summary>
+        public AiPointerKind ClassifyParam(int rowIdx, int paramRow)
+        {
+            if (!TryGetParamArg(rowIdx, paramRow, out _, out var arg, out _))
+                return AiPointerKind.None;
+            return AIScriptPointerJumpCore.ClassifyArg(arg);
+        }
+
+        /// <summary>
+        /// True when the param row holds a Coordinate/Range/CallTalk pointer that
+        /// is currently null or broken (so a jump would allocate). The View uses
+        /// this to prompt before allocation (WF AllocIfNeed parity).
+        /// </summary>
+        public bool ParamNeedsAlloc(int rowIdx, int paramRow)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (!TryGetParamArg(rowIdx, paramRow, out _, out var arg, out uint value))
+                return false;
+            AiPointerKind kind = AIScriptPointerJumpCore.ClassifyArg(arg);
+            if (!AIScriptPointerJumpCore.IsAllocKind(kind)) return false;
+            bool isNull = value == 0 || value == U.NOT_FOUND;
+            return isNull || AIScriptPointerJumpCore.IsBrokenData(rom, kind, value);
+        }
+
+        /// <summary>
+        /// Apply the POINTER_AI* jump for a param row: classify the arg, allocate
+        /// a fresh 4-byte ASM block when the Coordinate/Range/CallTalk pointer is
+        /// null/broken (undo-tracked append), and write the resolved/allocated
+        /// pointer into the selected row's IN-MEMORY OneCode.ByteData (clone-
+        /// replace, like UpdateRow). Returns the sub-editor kind + the pointer the
+        /// View should open the sub-editor at, and whether an allocation happened.
+        ///
+        /// Returns false (kind=None) when the row is not an AI-pointer param, or
+        /// when an allocation was needed but failed (out of free space) — in which
+        /// case nothing is mutated and the View aborts the jump.
+        /// </summary>
+        public bool ApplyPointerJump(int rowIdx, int paramRow, Undo.UndoData? undodata,
+            out AiPointerKind kind, out uint pointerValue, out bool allocated)
+        {
+            kind = AiPointerKind.None;
+            pointerValue = 0;
+            allocated = false;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (!TryGetParamArg(rowIdx, paramRow, out EventScript.OneCode code,
+                    out EventScript.Arg arg, out uint value))
+                return false;
+
+            kind = AIScriptPointerJumpCore.ClassifyArg(arg);
+            if (kind == AiPointerKind.None) return false;
+
+            if (!AIScriptPointerJumpCore.AllocIfNeed(rom, kind, value, undodata,
+                    out pointerValue, out allocated))
+            {
+                // Allocation was required (null/broken ASM block) but failed.
+                kind = AiPointerKind.None;
+                return false;
+            }
+
+            // Write the resolved/allocated pointer into a CLONE of the row's
+            // ByteData and clone-replace the row, mirroring UpdateRow's
+            // _disassembled[index] = code so pending edits on OTHER rows are
+            // untouched. Only a 4-byte arg is written (WritePointerIntoBytes
+            // guards Size != 4). For Units/Tiles (which are never reallocated) the
+            // pointer is unchanged, so this is a faithful no-op rewrite.
+            byte[] src = code.ByteData ?? Array.Empty<byte>();
+            byte[] newBytes = (byte[])src.Clone();
+            AIScriptPointerJumpCore.WritePointerIntoBytes(newBytes, arg, pointerValue);
+
+            EventScript es = CoreState.AIScript;
+            if (es != null)
+            {
+                try
+                {
+                    string origComment = code.Comment;
+                    EventScript.OneCode rebuilt = es.DisAseemble(newBytes, 0);
+                    if (rebuilt != null && rebuilt.ByteData != null)
+                    {
+                        rebuilt.Comment = origComment;
+                        _disassembled[rowIdx] = rebuilt;
+                    }
+                    else
+                    {
+                        code.ByteData = newBytes; // fall back to in-place byte swap
+                    }
+                }
+                catch
+                {
+                    code.ByteData = newBytes;
+                }
+            }
+            else
+            {
+                code.ByteData = newBytes;
+            }
+
+            return true;
+        }
     }
 }
