@@ -54,12 +54,16 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            FlagIdBox.Text = string.Format("0x{0:X02}", _vm.FlagId);
             P0Box.Text = string.Format("0x{0:X08}", _vm.P0);
         }
 
         void ReadFromUI()
         {
-            _vm.P0 = U.atoh(P0Box.Text ?? "");
+            // The FLAG byte is the only editable field; P0 is read-only display.
+            // Clamp to a single byte at parse time so the VM state matches what
+            // WriteEntry actually persists (WriteEntry masks with & 0xFF).
+            _vm.FlagId = U.atoh(FlagIdBox.Text ?? "") & 0xFF;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
