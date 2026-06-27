@@ -140,13 +140,15 @@ and populate the release page, push a real test `ver_*` tag.
 ```bash
 # Set variables
 BUILD_TIME=$(date +%Y%m%d.%H)
+TAG="ver_${BUILD_TIME}"   # tag the project's ver_YYYYMMDD.HH convention
 PATCH2_VERSION=$(cat config/patch2/version.txt)
 
 # Generate type-grouped release notes from conventional commits (#1632)
 scripts/generate-changelog.sh > notes.md
 
-# Create release with all packages
-gh release create "$BUILD_TIME" \
+# Create release with all packages (the ver_* tag also matches the tag-triggered
+# automation in Option 0, so prefer that workflow for the full platform set).
+gh release create "$TAG" \
   --title "Build $BUILD_TIME" \
   --notes-file notes.md \
   FEBuilderGBA_FULL_${BUILD_TIME}_${PATCH2_VERSION}.7z \

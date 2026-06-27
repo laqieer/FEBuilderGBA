@@ -331,8 +331,12 @@ jobs:
             echo
             scripts/generate-changelog.sh "" "${{ github.ref_name }}"
           } > release-notes.md
-          echo "Generated release notes:"
-          cat release-notes.md
+          # The full body goes to the release; only preview the head in the log
+          # so a large tag range cannot bloat the Actions log / hit size limits.
+          lines=$(wc -l < release-notes.md)
+          echo "Generated release notes (${lines} lines; previewing first 60):"
+          head -n 60 release-notes.md
+          if [ "${lines}" -gt 60 ]; then echo "... (${lines} lines total; full body written to release-notes.md)"; fi
 
       - name: Create GitHub Release with all platform assets
         # Only create a release for a real ver_* tag push. On manual

@@ -60,6 +60,10 @@ jobs:
       shell: bash
       run: bash scripts/validate-pr-screenshots.test.sh
 
+    - name: Run changelog generator self-tests (#1632)
+      shell: bash
+      run: bash scripts/generate-changelog.test.sh
+
     - name: Validate PR screenshot URLs
       if: github.event_name == 'pull_request'
       shell: bash

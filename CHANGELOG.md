@@ -44,20 +44,21 @@ To refresh the `[Unreleased]` section below, regenerate it with
 
 ## [Unreleased] — backlog since `ver_20260204.22` (2026-02-04)
 
-`origin/master` is **2293 non-merge commits** ahead of the last release tag
-`ver_20260204.22` (≈2830 including merges). This is the first time the full
-delta has been reviewed for changelog completeness (issue #1632, AC3). Grouped
-by conventional-commit type:
+`origin/master` is **~2294 non-merge commits** ahead of the last release tag
+`ver_20260204.22` (≈2831 including merges; the exact count grows as `master`
+advances — regenerate with the script for the live total). This is the first
+time the full delta has been reviewed for changelog completeness (issue #1632,
+AC3). Grouped by conventional-commit type:
 
 | Type | Section | Count |
 |------|---------|------:|
 | `feat`                         | 🚀 Features                  | 585 |
 | `fix`                          | 🐛 Bug Fixes                 | 999 |
 | `docs`                         | 📖 Documentation             | 408 |
-| `ci` / `build`                 | 🤖 CI / Build / Packaging    |  40 |
+| `ci` / `build`                 | 🤖 CI / Build / Packaging    |  41 |
 | `chore`/`refactor`/`test`/`perf`/`style`/`revert` | 🧰 Maintenance & Refactoring | 132 |
 | other (non-conforming / `i18n` / legacy pre-convention) | 🔧 Other Changes | 129 |
-| **Total (non-merge)** | | **2293** |
+| **Total (non-merge)** | | **~2294** |
 
 > **Completeness note:** the 129 "Other Changes" are commits whose subject does
 > not match a single conventional type — chiefly compound prefixes

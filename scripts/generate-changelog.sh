@@ -1,9 +1,11 @@
 #!/bin/sh
 # generate-changelog.sh — conventional-commit release-notes generator (#1632).
 #
-# Parses `git log FROM..TO` subjects, strips the Conventional Commits prefix
-# (feat/fix/docs/... — enforced repo-wide by .github/workflows/pr-title-lint.yml,
-# #1647), and prints grouped Markdown release notes to stdout. This is the
+# Reads `git log FROM..TO` subjects and groups them by their Conventional
+# Commits type (feat/fix/docs/... — enforced repo-wide by
+# .github/workflows/pr-title-lint.yml, #1647), printing grouped Markdown release
+# notes to stdout. The leading type is used only for ROUTING; each subject line
+# is printed VERBATIM (prefix kept) so the bullet is self-describing. This is the
 # title-derived grouping mechanism the release flow uses: GitHub's native
 # `.github/release.yml` categories are label-based and cannot read the
 # conventional prefix from a commit/PR title, so we derive the grouping here.
@@ -21,12 +23,14 @@
 #
 # OUTPUT
 #   Markdown with one "## <section>" per non-empty conventional type, each item
-#   `- <subject>`. Merge commits and non-conforming subjects are routed to
-#   "Other Changes" so the notes are never lossy. Exit status is always 0 on a
-#   readable repo (an empty range prints a "no changes" line).
+#   `- <subject>`. Merge commits are EXCLUDED (`git log --no-merges`); any
+#   non-merge subject that does not match a single conventional type is routed
+#   to "Other Changes" so the notes are never lossy. Exit status is 0 on success
+#   (an empty range prints a "no changes" line); a real git failure (e.g. a bad
+#   range or unfetched tags) is NOT swallowed and fails the script.
 #
 # DEPENDENCIES: POSIX sh + git only (no Node/jq/python) — runs as-is on the
-# ubuntu release runner and on any contributor machine.
+# ubuntu release runner and on any contributor machine (GNU or BSD/macOS).
 
 set -eu
 
@@ -49,11 +53,15 @@ else
 fi
 
 # Pull subjects (one per line). %s is the subject only — body is ignored so a
-# multi-paragraph commit contributes a single entry.
-SUBJECTS="$(git log --no-merges --pretty=format:'%s' "${RANGE}" 2>/dev/null || true)"
+# multi-paragraph commit contributes a single entry. A real git failure (bad
+# range, unfetched tags) is NOT swallowed: `set -e` lets it fail the script so
+# the release step never publishes an empty body from a broken range. An empty
+# but valid range simply yields no output (handled as "no changes" below).
+SUBJECTS="$(git log --no-merges --pretty=format:'%s' "${RANGE}")"
 
-# Temp files per bucket (portable; avoids bash arrays).
-TMPDIR_CL="$(mktemp -d)"
+# Temp files per bucket (portable; avoids bash arrays). `mktemp -d` with no
+# template is GNU-only; fall back to an explicit template for BSD/macOS mktemp.
+TMPDIR_CL="$(mktemp -d 2>/dev/null || mktemp -d -t changelog.XXXXXX)"
 trap 'rm -rf "${TMPDIR_CL}"' EXIT INT TERM
 : > "${TMPDIR_CL}/feat"
 : > "${TMPDIR_CL}/fix"
