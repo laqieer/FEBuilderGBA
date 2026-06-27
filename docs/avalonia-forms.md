@@ -381,7 +381,7 @@ Editors for arena, monster, and summon data.
 | 224 | MonsterItemViewerView | MonsterItemViewerViewModel | Monster item drop viewer |
 | 225 | MonsterWMapProbabilityViewerView | MonsterWMapProbabilityViewerViewModel | World map monster probability viewer |
 | 226 | SummonUnitViewerView | SummonUnitViewerViewModel | Summoned unit table viewer |
-| 227 | SummonsDemonKingViewerView | SummonsDemonKingViewerViewModel | Demon King summon table viewer |
+| 227 | SummonsDemonKingViewerView | SummonsDemonKingViewerViewModel | Demon King summon table viewer + list-expand (grow table + count byte, #1606) |
 
 ## 14. Menu Editors
 
