@@ -478,11 +478,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// (<see cref="AnimeDataAddr"/>). This is a THIN delegate to the SAME Core
         /// path the CLI uses (<see cref="BattleAnimeImportCore.ImportBattleAnime"/>
         /// for .txt / <see cref="BattleAnimeImportCore.ImportFEditorBin"/> for the
-        /// FEditor serialization) — no parse/write logic lives here. The format is
-        /// detected by the FEditor header (<c>0x5C 0x78</c>, matching the CLI), not
-        /// by extension alone, so a mis-named <c>.txt</c> still imports correctly.
-        /// The caller MUST wrap this in a single <c>UndoService</c> scope; the Core
-        /// path writes via <c>rom.write_*</c> which the ambient undo scope tracks.
+        /// FEditor serialization) — no parse/write logic lives here. Format
+        /// detection matches the CLI: a <c>.bin</c> (or extension-less) file is
+        /// treated as an FEditor serialization only when its header is
+        /// <c>0x5C 0x78</c>; any other extension (e.g. <c>.txt</c>) always takes the
+        /// script-import path. The caller MUST wrap this in a single
+        /// <c>UndoService</c> scope; the Core path writes via <c>rom.write_*</c>
+        /// which the ambient undo scope tracks.
         /// </summary>
         /// <param name="path">Path to the <c>.txt</c> script or FEditor <c>.bin</c>.</param>
         /// <returns>Error message (empty/<c>null</c> on success).</returns>
@@ -505,8 +507,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return (img.GetPixelData(), img.Width, img.Height);
             };
 
-            // Detect FEditor .bin by header (5C 78 ...), matching the CLI; fall back
-            // to the .txt script importer otherwise.
+            // Matching the CLI: only a .bin (or extension-less) file is header-
+            // sniffed for the FEditor signature (5C 78 ...); every other extension
+            // (e.g. .txt) goes straight to the script importer.
             bool isFEditorBin = false;
             string ext = System.IO.Path.GetExtension(path).ToUpperInvariant();
             if (ext == ".BIN" || ext == "")
