@@ -352,10 +352,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // -----------------------------------------------------------------
         // Export (dispatch-by-extension). MIDI export + .instrument (#1609)
-        // instrument-set export are wired; .s (SondFont source) and .sf2
-        // (external GBAMusRiper) stay out of scope. The single "Export Music
-        // File" button routes by the chosen extension, mirroring WinForms
-        // SongTrackForm.ExportButton_Click (.MID/.MIDI vs .INSTRUMENT).
+        // instrument-set export are wired; .s (MPlay assembly source produced
+        // by SongUtil.ExportSFile, e.g. includes MPlayDef.s) and .sf2
+        // (SoundFont via external GBAMusRiper) stay out of scope. The single
+        // "Export Music File" button routes by the chosen extension, mirroring
+        // WinForms SongTrackForm.ExportButton_Click (.MID/.MIDI vs .INSTRUMENT).
         // -----------------------------------------------------------------
 
         async void ExportMidi_Click(object? sender, RoutedEventArgs e)
@@ -403,7 +404,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ExportMidi_Click failed: {0}", ex.Message);
+                // Core Log.Error is params string[] (joined with spaces, NOT
+                // composite formatting) — pass the message and the full exception
+                // (stack + inner) as separate args, never a "{0}" placeholder
+                // (matches LinkInternet_Click above).
+                Log.Error("SongTrackView.ExportMidi_Click failed:", ex.ToString());
             }
         }
 
