@@ -562,6 +562,165 @@ public class L10nScannerTests
             Verdict: verdict);
     }
 
+    // =====================================================================
+    // ScanCodeLiterals / ScanCsString — R._("literal") code-literal sweep (#1635)
+    // =====================================================================
+
+    [Fact]
+    public void ScanCsString_FindsRUnderscoreLiteral_AndJoinsTranslation()
+    {
+        var (rev, langs) = BuildMaps(new[]
+        {
+            ("ジャンプ", "Jump", "ジャンプ", "跳转", "점프"),
+        });
+        const string src = "void M(){ var s = R._(\"Jump\"); }";
+        var findings = L10nScanner.ScanCsString(src, "X.cs", rev, langs);
+        Assert.Single(findings);
+        Assert.Equal("Jump", findings[0].Literal);
+        Assert.Equal(L10nVerdict.Translated, findings[0].Verdict);
+    }
+
+    [Fact]
+    public void ScanCsString_DirectForwardMapKey_Resolves()
+    {
+        // ja.txt keys many entries by the English literal directly (e.g.
+        // ":Characters" -> "キャラクター"). The direct forward-map lookup must hit.
+        var langs = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+        {
+            ["ja"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Save failed: {0}"] = "保存に失敗しました: {0}" },
+            ["zh"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Save failed: {0}"] = "保存失败: {0}" },
+        };
+        const string src = "ShowError(R._(\"Save failed: {0}\", ex));";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), langs);
+        Assert.Single(f);
+        Assert.Equal(L10nVerdict.Translated, f[0].Verdict);
+    }
+
+    [Fact]
+    public void ScanCsString_Untranslated_WhenNoEntry()
+    {
+        const string src = "ShowError(R._(\"2-ROM Diff: no ROM loaded.\"));";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), EmptyLangs("ja", "zh"));
+        Assert.Single(f);
+        Assert.Equal(L10nVerdict.Untranslated, f[0].Verdict);
+    }
+
+    [Fact]
+    public void ScanCsString_PartiallyTranslated_WhenOnlyOneLang()
+    {
+        var langs = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+        {
+            ["ja"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Update failed: {0}"] = "更新に失敗しました: {0}" },
+            ["zh"] = new Dictionary<string, string>(StringComparer.Ordinal), // missing zh
+        };
+        const string src = "R._(\"Update failed: {0}\", e);";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), langs);
+        Assert.Single(f);
+        Assert.Equal(L10nVerdict.PartiallyTranslated, f[0].Verdict);
+    }
+
+    [Fact]
+    public void ScanCsString_CjkSourceLiteral_IsNonEnglish()
+    {
+        // A WinForms Japanese-source literal reused verbatim is already localized
+        // in JP mode — classify as NonEnglish (out of scope), not a gap.
+        const string src = "R._(\"コピー(&C)\");";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), EmptyLangs("ja", "zh"));
+        Assert.Single(f);
+        Assert.Equal(L10nVerdict.NonEnglish, f[0].Verdict);
+    }
+
+    [Fact]
+    public void ScanCsString_IgnoresLiteralsInLineComments()
+    {
+        const string src = "// example: R._(\"Commented out string\")\nint x = 1;";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), EmptyLangs("ja", "zh"));
+        Assert.Empty(f);
+    }
+
+    [Fact]
+    public void ScanCsString_IgnoresLiteralsInBlockComments()
+    {
+        const string src = "/* R._(\"Block comment string\") */\nint x = 1;";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), EmptyLangs("ja", "zh"));
+        Assert.Empty(f);
+    }
+
+    [Fact]
+    public void ScanCsString_DocCommentExampleIsIgnored_RealCallIsFound()
+    {
+        // Mirrors THIS scanner file's own situation: a `///` doc comment that
+        // mentions R._("literal") must NOT count, but a real call on the next
+        // line MUST.
+        var langs = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal)
+        {
+            ["ja"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Home"] = "ホーム" },
+            ["zh"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Home"] = "主页" },
+        };
+        const string src = "/// Matches R._(\"literal\") calls.\nvar t = R._(\"Home\");";
+        var f = L10nScanner.ScanCsString(src, "X.cs", EmptyReverse(), langs);
+        Assert.Single(f);
+        Assert.Equal("Home", f[0].Literal);
+        Assert.Equal(2, f[0].LineNumber); // comment on line 1, real call on line 2
+    }
+
+    [Fact]
+    public void ReadCsStringLiteral_DecodesEscapes()
+    {
+        const string src = "R._(\"a\\r\\nb\\\"c\")";
+        int q = src.IndexOf('"');
+        Assert.True(L10nScanner.ReadCsStringLiteral(src, q, verbatim: false, out string v));
+        Assert.Equal("a\r\nb\"c", v);
+    }
+
+    [Fact]
+    public void ReadCsStringLiteral_HandlesVerbatim()
+    {
+        const string src = "R._(@\"path\\to\\\"\"file\"\"\")";
+        int q = src.IndexOf('"');
+        Assert.True(L10nScanner.ReadCsStringLiteral(src, q, verbatim: true, out string v));
+        Assert.Equal("path\\to\\\"file\"", v);
+    }
+
+    [Fact]
+    public void StripComments_PreservesStringsAndLayout()
+    {
+        const string src = "var url = \"http://x\"; // comment\nint y;";
+        string stripped = L10nScanner.StripCommentsPreservingLayout(src);
+        // The URL string survives (the // inside it is NOT a comment).
+        Assert.Contains("\"http://x\"", stripped);
+        // The trailing // comment body is blanked.
+        Assert.DoesNotContain("comment", stripped);
+        // Length and newline count are unchanged.
+        Assert.Equal(src.Length, stripped.Length);
+        Assert.Equal(src.Count(c => c == '\n'), stripped.Count(c => c == '\n'));
+    }
+
+    [Fact]
+    public void ScanCodeLiterals_OverRepo_FindsTranslatedToolDiffLiteral()
+    {
+        // End-to-end against the real repo + shipped translate files: the #1635
+        // example literal must now resolve as Translated (no Partial/Untranslated
+        // for it).
+        string repoRoot = FindRepoRootForTest();
+        var findings = L10nScanner.ScanCodeLiterals(repoRoot, new[] { "ja", "zh" });
+        Assert.NotEmpty(findings);
+        var diff = findings.FirstOrDefault(f => f.Literal == "2-ROM Diff: no ROM loaded.");
+        Assert.NotNull(diff);
+        Assert.Equal(L10nVerdict.Translated, diff!.Verdict);
+    }
+
+    static string FindRepoRootForTest()
+    {
+        string start = AppContext.BaseDirectory;
+        for (var dir = new DirectoryInfo(start); dir != null; dir = dir.Parent)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                return dir.FullName;
+        }
+        throw new InvalidOperationException("Could not locate FEBuilderGBA.sln");
+    }
+
     static IReadOnlyDictionary<string, string> EmptyReverse()
         => new Dictionary<string, string>(StringComparer.Ordinal);
 

@@ -12956,3 +12956,1077 @@ AIポインタテーブルを{0}エントリに拡張しました。
 
 :Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 AIポインタテーブルの新しいエントリ数を入力してください（現在: {0}、最大: {1}）。
+:(No ROM loaded)
+(ROMが読み込まれていません)
+
+:.s assembled into the song at 0x{0:X08}.
+.sを 0x{0:X08} のソングにアセンブルしました。
+
+:.s import failed.
+.sのインポートに失敗しました。
+
+:.s import failed: {0}
+.sのインポートに失敗しました: {0}
+
+:2-ROM Diff failed: {0}
+2-ROM 差分に失敗しました: {0}
+
+:2-ROM Diff: 'other ROM' file not found.
+2-ROM 差分: 'other ROM' ファイルが見つかりません。
+
+:2-ROM Diff: 'other ROM' path required.
+2-ROM 差分: 'other ROM' のパスを指定してください。
+
+:2-ROM Diff: no ROM loaded.
+2-ROM 差分: ROMが読み込まれていません。
+
+:2-ROM Diff: output path required.
+2-ROM 差分: 出力先のパスを指定してください。
+
+:2-ROM Diff: wrote patch file {0}.
+2-ROM 差分: パッチファイル {0} を書き出しました。
+
+:3-ROM Diff failed: {0}
+3-ROM 差分に失敗しました: {0}
+
+:3-ROM Diff: ROM A file not found.
+3-ROM 差分: ROM A のファイルが見つかりません。
+
+:3-ROM Diff: ROM B file not found.
+3-ROM 差分: ROM B のファイルが見つかりません。
+
+:3-ROM Diff: both A and B paths required.
+3-ROM 差分: A と B 両方のパスを指定してください。
+
+:3-ROM Diff: no ROM loaded.
+3-ROM 差分: ROMが読み込まれていません。
+
+:3-ROM Diff: output path required.
+3-ROM 差分: 出力先のパスを指定してください。
+
+:3-ROM Diff: wrote patch file {0}.
+3-ROM 差分: パッチファイル {0} を書き出しました。
+
+:A virtual ROM cannot be updated.
+仮想ROMは更新できません。
+
+:AI pointer table not found.
+AIポインタテーブルが見つかりません。
+
+:Adobe ACT (Photoshop)
+Adobe ACT (Photoshop)
+
+:Already at the maximum Demon King Summon count ({0}).
+既に魔王の召喚数の最大値 ({0}) に達しています。
+
+:Already at the maximum of {0} entries.
+既に最大の {0} 件に達しています。
+
+:Animated GIF
+アニメーションGIF
+
+:Animation @ 0x{0:X08}
+アニメ @ 0x{0:X08}
+
+:Animation Creator{0}
+アニメーションクリエイター{0}
+
+:Animation Script (.txt)
+アニメーションスクリプト (.txt)
+
+:Animation pointer 0x{0:X} is outside the ROM.
+アニメポインタ 0x{0:X} はROMの範囲外です。
+
+:Applying UPS patch...
+UPSパッチを適用しています...
+
+:Assemble this .s source into the selected song using the chosen 
+選択したソングに、この .s ソースを指定の設定でアセンブルします 
+
+:BLANK
+空白
+
+:Back
+戻る
+
+:Base64 read failed: {0}
+Base64の読み込みに失敗しました: {0}
+
+:Base64 write failed: {0}
+Base64の書き込みに失敗しました: {0}
+
+:Base64: could not decode (invalid base64).
+Base64: デコードできませんでした (不正なBase64)。
+
+:Base64: encoded {0} bytes.
+Base64: {0} バイトをエンコードしました。
+
+:Base64: enter base64 text first.
+Base64: 先にBase64テキストを入力してください。
+
+:Base64: output path required.
+Base64: 出力先のパスを指定してください。
+
+:Base64: source file not found.
+Base64: 入力ファイルが見つかりません。
+
+:Base64: source path required.
+Base64: 入力ファイルのパスを指定してください。
+
+:Base64: wrote {0} bytes to {1}.
+Base64: {0} バイトを {1} に書き出しました。
+
+:Battle-screen bulk import supports a single palette bank (max {0} colors). Reduce the image to {0} colors first.
+戦闘画面の一括インポートは1つのパレットバンク (最大 {0} 色) のみ対応しています。先に画像を {0} 色に減色してください。
+
+:Bulk Import Skill Config
+スキル設定を一括インポート
+
+:Bulk import failed: {0}
+一括インポートに失敗しました: {0}
+
+:Bulk imported from: {0}
+{0} から一括インポートしました。
+
+:CSA animation scan failed — bad frame-data pointer.
+CSAアニメのスキャンに失敗しました — フレームデータのポインタが不正です。
+
+:Cannot expand: change list has 0 records.
+拡張できません: 変更リストのレコードが0件です。
+
+:Cannot expand: change list is empty (first byte is 0xFF).
+拡張できません: 変更リストが空です (先頭バイトが 0xFF)。
+
+:Cannot expand: change list is empty.
+拡張できません: 変更リストが空です。
+
+:Cannot expand: the CHANGE PLIST slot could not be resolved.
+拡張できません: CHANGE PLIST スロットを解決できませんでした。
+
+:Cannot expand: the change list appears unterminated (no 0xFF within 256 rows). 
+拡張できません: 変更リストが終端していないようです (256行以内に 0xFF がありません)。 
+
+:Cannot expand: the game option list is already at the maximum of {0} entries.
+拡張できません: ゲームオプションリストは既に最大の {0} 件に達しています。
+
+:Cannot expand: the game option list is empty.
+拡張できません: ゲームオプションリストが空です。
+
+:Cannot expand: the game option order list is empty.
+拡張できません: ゲームオプションの順番リストが空です。
+
+:Cannot expand: the map setting list is empty.
+拡張できません: マップ設定リストが空です。
+
+:Cannot expand: the sound room list is empty (no row 0 to copy).
+拡張できません: サウンドルームリストが空です (コピー元の行0がありません)。
+
+:Cannot expand: the summon list is empty.
+拡張できません: 召喚リストが空です。
+
+:Cannot open file: {0}
+ファイルを開けません: {0}
+
+:Cannot open folder: {0}
+フォルダを開けません: {0}
+
+:Cannot resolve the song-table entry for the selected song.
+選択したソングのソングテーブルエントリを解決できません。
+
+:Cannot write to SongID 0x0.
+SongID 0x0 には書き込めません。
+
+:Compress failed: {0}
+圧縮に失敗しました: {0}
+
+:Compress: destination path required.
+圧縮: 出力先のパスを指定してください。
+
+:Compress: source file not found.
+圧縮: 入力ファイルが見つかりません。
+
+:Compress: source path required.
+圧縮: 入力ファイルのパスを指定してください。
+
+:Compress: wrote {0} bytes to {1}.
+圧縮: {0} バイトを {1} に書き出しました。
+
+:Confirm Move
+移動の確認
+
+:Confirm Multi-Pointer Move
+複数ポインタ移動の確認
+
+:Confirm Raw Pointer Fallback
+生ポインタフォールバックの確認
+
+:Confirm Recompress
+再圧縮の確認
+
+:Confirm Zero Clear
+ゼロクリアの確認
+
+:Convert failed: {0}
+変換に失敗しました: {0}
+
+:Copied generated hex to clipboard.
+生成したHexをクリップボードにコピーしました。
+
+:Could not install the ChapterNameToText patch.
+ChapterNameToText パッチをインストールできませんでした。
+
+:Could not read the skill palette; aborting import.
+スキルパレットを読み込めませんでした。インポートを中止します。
+
+:Could not resolve a local file path for export.
+エクスポート用のローカルファイルパスを解決できませんでした。
+
+:Could not resolve the update URL ({0}).
+更新URL ({0}) を解決できませんでした。
+
+:Could not resolve the update URL ({0}). {1}
+更新URL ({0}) を解決できませんでした。{1}
+
+:Could not select the destination song for import.
+インポート先のソングを選択できませんでした。
+
+:DPCM compression is available (m4a HQ mixer patch detected).
+DPCM圧縮が利用可能です (m4a HQ ミキサーパッチを検出)。
+
+:DPCM compression requires the m4a HQ mixer patch (not installed); raw 8-bit PCM will be used.
+DPCM圧縮には m4a HQ ミキサーパッチが必要です (未インストール)。生の8bit PCMを使用します。
+
+:Dark field map is not available (FE8 only).
+ダークフィールドマップは利用できません (FE8専用)。
+
+:Decompress failed: {0}
+解凍に失敗しました: {0}
+
+:Decompress: SRC address is not a valid hex value.
+解凍: SRCアドレスが正しいHex値ではありません。
+
+:Decompress: address out of range.
+解凍: アドレスが範囲外です。
+
+:Decompress: destination path required.
+解凍: 出力先のパスを指定してください。
+
+:Decompress: no ROM loaded.
+解凍: ROMが読み込まれていません。
+
+:Decompress: source file not found.
+解凍: 入力ファイルが見つかりません。
+
+:Decompress: wrote {0} bytes to {1}.
+解凍: {0} バイトを {1} に書き出しました。
+
+:Demon King Summon table expansion failed.
+魔王の召喚テーブルの拡張に失敗しました。
+
+:Demon King Summon table expansion failed: {0}
+魔王の召喚テーブルの拡張に失敗しました: {0}
+
+:Demon King Summon table is not available for this ROM.
+このROMでは魔王の召喚テーブルを利用できません。
+
+:Download/extract failed ({0}). {1}
+ダウンロード/展開に失敗しました ({0})。{1}
+
+:Downloading and extracting...
+ダウンロードして展開しています...
+
+:EA Event Files
+EAイベントファイル
+
+:Edit Battle Data (FE7)
+戦闘データの編集 (FE7)
+
+:Edit Event Function Pointer
+イベント関数ポインタの編集
+
+:Edit Move Data (FE7)
+移動データの編集 (FE7)
+
+:Edit Palette
+パレットの編集
+
+:Edit Talk Group (FE7)
+会話グループの編集 (FE7)
+
+:Enemy Escape Point
+敵の離脱ポイント
+
+:Enter the new Demon King Summon count (current: {0}, max: {1}).
+新しい魔王の召喚数を入力してください (現在: {0}, 最大: {1})。
+
+:Enter the new entry count for the event map-change list (current: {0}, max: 255).
+イベントマップ変更リストの新しい件数を入力してください (現在: {0}, 最大: 255)。
+
+:Enter the new entry count for the map action animation list (current: {0}, max: 255).
+マップアクションアニメリストの新しい件数を入力してください (現在: {0}, 最大: 255)。
+
+:Enter the new game option entry count (current: {0}, max: {1}).
+ゲームオプションの新しい件数を入力してください (現在: {0}, 最大: {1})。
+
+:Enter the new game option order slot count (current: {0}, max: 255).
+ゲームオプションの順番の新しいスロット数を入力してください (現在: {0}, 最大: 255)。
+
+:Enter the new map setting entry count (current: {0}, max: 255).
+マップ設定の新しい件数を入力してください (現在: {0}, 最大: 255)。
+
+:Enter the new spell-list entry count for this unit (current: {0}, max: {1}).
+このユニットのスペルリストの新しい件数を入力してください (現在: {0}, 最大: {1})。
+
+:Enter the new summon entry count (current: {0}, max: {1}).
+新しい召喚の件数を入力してください (現在: {0}, 最大: {1})。
+
+:Expanded Demon King Summon list to {0} entries.
+魔王の召喚リストを {0} 件に拡張しました。
+
+:Expanded event map-change list to {0} entries.
+イベントマップ変更リストを {0} 件に拡張しました。
+
+:Expanded game option list to {0} entries.
+ゲームオプションリストを {0} 件に拡張しました。
+
+:Expanded game option order list to {0} slots.
+ゲームオプションの順番リストを {0} スロットに拡張しました。
+
+:Expanded map action animation list to {0} entries.
+マップアクションアニメリストを {0} 件に拡張しました。
+
+:Expanded map setting list to {0} entries.
+マップ設定リストを {0} 件に拡張しました。
+
+:Expanded summon list to {0} entries.
+召喚リストを {0} 件に拡張しました。
+
+:Expanded the spell list to {0} entries.
+スペルリストを {0} 件に拡張しました。
+
+:Export Complete
+エクスポート完了
+
+:Export EA Event
+EAイベントのエクスポート
+
+:Export Texts
+テキストのエクスポート
+
+:Exported map to {0} ({1} chars).
+マップを {0} にエクスポートしました ({1} 文字)。
+
+:Exported to: {0}
+{0} にエクスポートしました。
+
+:Exported {0} OBJ + {1} BG frames to {2}
+{0} 個のOBJと {1} 個のBGフレームを {2} にエクスポートしました。
+
+:FE-Repo-Music import failed: {0}
+FE-Repo-Music のインポートに失敗しました: {0}
+
+:FE8N Ver1 skills are render-only and have no animation to edit in the Animation Creator.
+FE8N Ver1 のスキルは表示専用で、アニメーションクリエイターで編集できるアニメはありません。
+
+:FEditor / SCA_Creator magic-system patch not detected.
+FEditor / SCA_Creator のマジックシステムパッチが検出されませんでした。
+
+:Failed to apply UPS patch ({0}). {1}
+UPSパッチの適用に失敗しました ({0})。{1}
+
+:Failed to convert dark map image to bitmap.
+ダークマップ画像のビットマップ変換に失敗しました。
+
+:Failed to encode the icon tile data.
+アイコンのタイルデータのエンコードに失敗しました。
+
+:Failed to load image from: {0}
+{0} から画像を読み込めませんでした。
+
+:Failed to load the border image.
+枠画像の読み込みに失敗しました。
+
+:Failed to load the border name image.
+枠の名前画像の読み込みに失敗しました。
+
+:Failed to open ROM: {0}
+ROMを開けませんでした: {0}
+
+:Failed to save patched ROM ({0}). {1}
+パッチ適用済みROMの保存に失敗しました ({0})。{1}
+
+:Failed to write the icon to ROM; rolled back.
+アイコンのROMへの書き込みに失敗しました。ロールバックしました。
+
+:File size {0} -> {1} ({2}%)\r\nDPCM quality SNR: {3}dB (higher is better; below 20dB you may not want compression).
+ファイルサイズ {0} -> {1} ({2}%)\r\nDPCM品質 SNR: {3}dB (高いほど良い。20dB未満では圧縮しない方が良い場合があります)。
+
+:File size {0} -> {1} ({2}%) (raw 8-bit PCM)
+ファイルサイズ {0} -> {1} ({2}%) (生の8bit PCM)
+
+:Frame-data pointer 0x{0:X} is outside the ROM.
+フレームデータのポインタ 0x{0:X} はROMの範囲外です。
+
+:Free area: cannot scan (text-reference data not ready)
+空き領域: スキャンできません (テキスト参照データが未準備)
+
+:GBA ROMs
+GBA ROM
+
+:Game option list expansion failed.
+ゲームオプションリストの拡張に失敗しました。
+
+:Game option list expansion failed: {0}
+ゲームオプションリストの拡張に失敗しました: {0}
+
+:Game option order count address is unset for this ROM version.
+このROMバージョンではゲームオプションの順番の件数アドレスが未設定です。
+
+:Game option order count is a single byte; the maximum is 255.
+ゲームオプションの順番の件数は1バイトのため、最大は255です。
+
+:Game option order list expansion failed: {0}
+ゲームオプションの順番リストの拡張に失敗しました: {0}
+
+:Game option order list pointer is unset for this ROM version.
+このROMバージョンではゲームオプションの順番リストのポインタが未設定です。
+
+:Generated {0} byte(s).
+{0} バイトを生成しました。
+
+:Generation failed.
+生成に失敗しました。
+
+:Home
+ホーム
+
+:ID 0 is reserved as null data.
+ID 0 はnullデータとして予約されています。
+
+:Icon address is out of range; aborting import.
+アイコンのアドレスが範囲外です。インポートを中止します。
+
+:Image loader is null.
+画像ローダーがnullです。
+
+:Image must be 16x16 pixels.
+画像は16x16ピクセルである必要があります。
+
+:Image pixel data is missing or too short.
+画像のピクセルデータがないか短すぎます。
+
+:Import Class CSV
+クラスCSVのインポート
+
+:Import Classes CSV
+クラスCSVのインポート
+
+:Import Complete
+インポート完了
+
+:Import magic animation script
+マジックアニメスクリプトのインポート
+
+:Import this WAV as a new one-track song? This appends a sample, a 
+このWAVを新しい1トラックのソングとしてインポートしますか? これによりサンプルが1つ追加されます 
+
+:Import this instrument set and point the selected song at it? This 
+この音色セットをインポートして、選択したソングをそれに向けますか? これにより 
+
+:Imported map from {0} ({1}x{2} tiles).
+{0} からマップをインポートしました ({1}x{2} タイル)。
+
+:Imported: {0}
+インポートしました: {0}
+
+:Instrument Set
+音色セット
+
+:Instrument selection failed: {0}
+音色の選択に失敗しました: {0}
+
+:Instrument set import failed.
+音色セットのインポートに失敗しました。
+
+:Instrument set import failed: {0}
+音色セットのインポートに失敗しました: {0}
+
+:Instrument set imported at 0x{0:X08}.
+音色セットを 0x{0:X08} にインポートしました。
+
+:Internal error: missing ROM or editor context.
+内部エラー: ROMまたはエディタのコンテキストがありません。
+
+:Invalid palette address
+不正なパレットアドレス
+
+:Item source updated. Project needs rebuild.
+アイテムのソースを更新しました。プロジェクトの再ビルドが必要です。
+
+:JASC-PAL (Aseprite/GIMP)
+JASC-PAL (Aseprite/GIMP)
+
+:LDR pointer search returned no hits. Falling back to a raw 4-byte binary pointer scan (may match unrelated bytes). Continue?
+LDRポインタ検索で該当がありませんでした。生の4バイトバイナリポインタスキャンにフォールバックします (無関係なバイトに一致する可能性があります)。続行しますか?
+
+:List expansion failed (out of free space?).
+リストの拡張に失敗しました (空き領域不足?)。
+
+:Load Road Data
+道路データの読み込み
+
+:Loaded (Write to apply).
+読み込みました (適用するには書き込んでください)。
+
+:MIDI Files
+MIDIファイル
+
+:MIDI import failed: {0}
+MIDIのインポートに失敗しました: {0}
+
+:Magic Animation (CSA) #{0:X2}
+マジックアニメ (CSA) #{0:X2}
+
+:Magic Animation (FEditor) #{0:X2}
+マジックアニメ (FEditor) #{0:X2}
+
+:Magic Animation (no comments)
+マジックアニメ (コメントなし)
+
+:Magic Animation (with comments)
+マジックアニメ (コメントあり)
+
+:Magic animation import failed: {0}
+マジックアニメのインポートに失敗しました: {0}
+
+:Magic animation imported successfully.
+マジックアニメのインポートに成功しました。
+
+:Magic animation scan failed — bad frame-data pointer.
+マジックアニメのスキャンに失敗しました — フレームデータのポインタが不正です。
+
+:Magic system not detected.
+マジックシステムが検出されませんでした。
+
+:Map Action Animation Script
+マップアクションアニメスクリプト
+
+:Map action animation table not found in this ROM.
+このROMにはマップアクションアニメテーブルが見つかりません。
+
+:Map data is invalid or too small.
+マップデータが不正か小さすぎます。
+
+:Map setting list expansion failed.
+マップ設定リストの拡張に失敗しました。
+
+:Map setting list expansion failed: {0}
+マップ設定リストの拡張に失敗しました: {0}
+
+:Move 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8}{3}?
+0x{0:X} バイトを 0x{1:X8} から 0x{2:X8} へ移動しますか?{3}
+
+:Move failed: {0}
+移動に失敗しました: {0}
+
+:Move: FROM is not a valid hex value.
+移動: FROM が正しいHex値ではありません。
+
+:Move: LENGTH 0x{0:X} exceeds 2 MB limit.
+移動: LENGTH 0x{0:X} は 2 MB の上限を超えています。
+
+:Move: LENGTH is 0 (cannot auto-detect length).
+移動: LENGTH が 0 です (長さを自動検出できません)。
+
+:Move: LENGTH is not a valid hex value.
+移動: LENGTH が正しいHex値ではありません。
+
+:Move: TO is not a valid hex value.
+移動: TO が正しいHex値ではありません。
+
+:Move: canceled at final prompt.
+移動: 最終確認でキャンセルされました。
+
+:Move: canceled at pointer-count prompt.
+移動: ポインタ数の確認でキャンセルされました。
+
+:Move: canceled at raw-fallback prompt.
+移動: 生フォールバックの確認でキャンセルされました。
+
+:Move: destination range 0x{0:X8}+0x{1:X} exceeds ROM end.
+移動: 移動先の範囲 0x{0:X8}+0x{1:X} がROMの末尾を超えています。
+
+:Move: moved 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8} ({3} pointers rewritten{4}).
+移動: 0x{0:X} バイトを 0x{1:X8} から 0x{2:X8} へ移動しました ({3} 個のポインタを書き換え{4})。
+
+:Move: no ROM loaded.
+移動: ROMが読み込まれていません。
+
+:Move: pending user confirmation — see prompt.
+移動: ユーザーの確認待ちです — 確認ダイアログを参照してください。
+
+:Move: source 0x{0:X8}+0x{1:X} and destination 0x{2:X8}+0x{1:X} overlap (not supported).
+移動: 移動元 0x{0:X8}+0x{1:X} と移動先 0x{2:X8}+0x{1:X} が重なっています (非対応)。
+
+:Move: source address is 0 (bad base address).
+移動: 移動元アドレスが 0 です (不正なベースアドレス)。
+
+:Move: source range 0x{0:X8}+0x{1:X} exceeds ROM end.
+移動: 移動元の範囲 0x{0:X8}+0x{1:X} がROMの末尾を超えています。
+
+:Move: {0}
+移動: {0}
+
+:NPC Escape Point
+NPCの離脱ポイント
+
+:New Block Talk Group (FE7)
+新規ブロック会話グループ (FE7)
+
+:New count ({0}) exceeds the maximum ({1}).
+新しい件数 ({0}) が最大値 ({1}) を超えています。
+
+:New count ({0}) must be >= current count ({1}).
+新しい件数 ({0}) は現在の件数 ({1}) 以上である必要があります。
+
+:No .updateinfo.txt found for this ROM.
+このROMの .updateinfo.txt が見つかりません。
+
+:No animation context loaded.
+アニメーションのコンテキストが読み込まれていません。
+
+:No animation frames to export.
+エクスポートするアニメフレームがありません。
+
+:No animation is set for this skill.
+このスキルにはアニメが設定されていません。
+
+:No change-data for the selected map (plist 0/0xFF or resolution failed).
+選択したマップの変更データがありません (plist 0/0xFF または解決失敗)。
+
+:No change: new count must be greater than the current count.
+変更なし: 新しい件数は現在の件数より大きい必要があります。
+
+:No entry selected.
+エントリが選択されていません。
+
+:No instrument set (voicegroup) is loaded to import into.
+インポート先となる音色セット (voicegroup) が読み込まれていません。
+
+:No magic frames found at 0x{0:X}.
+0x{0:X} にマジックフレームが見つかりません。
+
+:No magic-animation entry selected.
+マジックアニメのエントリが選択されていません。
+
+:No map data loaded — select a map first.
+マップデータが読み込まれていません — 先にマップを選択してください。
+
+:No map selected.
+マップが選択されていません。
+
+:No renderable animation frames found for this skill at 0x{0:X}.
+このスキルの描画可能なアニメフレームが 0x{0:X} に見つかりません。
+
+:No road data to export.
+エクスポートする道路データがありません。
+
+:No song selected to export.
+エクスポートするソングが選択されていません。
+
+:No song selected to import.
+インポートするソングが選択されていません。
+
+:No source loaded.
+ソースが読み込まれていません。
+
+:No spell list is allocated for this unit.\r\nUse Expand List to allocate one.
+このユニットにはスペルリストが確保されていません。\r\n「リスト拡張」で確保してください。
+
+:No template selected.
+テンプレートが選択されていません。
+
+:No texts were imported. Check the file format.
+テキストがインポートされませんでした。ファイル形式を確認してください。
+
+:No unit is selected.\r\nOpen this editor from the Unit Editor's "Edit Skills" button to assign a unit's scroll/mastery skills.
+ユニットが選択されていません。\r\nユニットエディタの「スキル編集」ボタンからこのエディタを開いて、ユニットのスクロール/マスタリースキルを設定してください。
+
+:No valid animation selected to export.
+エクスポートする有効なアニメが選択されていません。
+
+:No vanilla ROM selected.
+無改造ROMが選択されていません。
+
+:No wave file is loaded.
+WAVEファイルが読み込まれていません。
+
+:Nothing to export.
+エクスポートするものがありません。
+
+:Open Map Action Animation Script
+マップアクションアニメスクリプトを開く
+
+:Open file to encode as base64
+base64としてエンコードするファイルを開く
+
+:Open folder failed: {0}
+フォルダを開けませんでした: {0}
+
+:Open source failed: {0}
+ソースを開けませんでした: {0}
+
+:Open translation file
+翻訳ファイルを開く
+
+:Override JP Font: the Japanese font tables were wiped 
+JPフォントの上書き: 日本語フォントテーブルが消去されました 
+
+:PLIST Split\r\nPLIST tables pack several purposes into one shared array, 
+PLISTの分割\r\nPLISTテーブルは複数の用途を1つの共有配列にまとめています 
+
+:Per-cell TSA editing is not available.
+セル単位のTSA編集は利用できません。
+
+:Pick a destination song from the list first.
+先にリストから対象のソングを選択してください。
+
+:Press Preview to see the conversion result.
+変換結果を確認するにはプレビューを押してください。
+
+:ROM changed during import; aborting.
+インポート中にROMが変更されました。中止します。
+
+:ROM has unsaved modifications. Save first before recompressing? (Pressing No will proceed anyway, which is risky.)
+ROMに未保存の変更があります。再圧縮の前に保存しますか? (いいえを押すとそのまま続行しますが危険です。)
+
+:Recompress failed: {0}
+再圧縮に失敗しました: {0}
+
+:Recompress: canceled by user.
+再圧縮: ユーザーによりキャンセルされました。
+
+:Recompress: no ROM loaded.
+再圧縮: ROMが読み込まれていません。
+
+:Recompress: no savings — all entries already optimally compressed.
+再圧縮: 削減できませんでした — すべてのエントリが既に最適に圧縮されています。
+
+:Recompress: pending user confirmation — see prompt.
+再圧縮: ユーザーの確認待ちです — 確認ダイアログを参照してください。
+
+:Recompress: running (this may take several minutes)...
+再圧縮: 実行中です (数分かかる場合があります)...
+
+:Recompress: save ROM and retry.
+再圧縮: ROMを保存してから再試行してください。
+
+:Recompress: {0} entries recompressed, {1} bytes saved. Heuristic scan — may miss entries WinForms catches.
+再圧縮: {0} 件のエントリを再圧縮し、{1} バイト削減しました。ヒューリスティックなスキャンのため、WinForms版が検出するエントリを見逃す場合があります。
+
+:Reference: {0}
+参照: {0}
+
+:Referenced (event/menu/patch/symbol)
+参照あり (イベント/メニュー/パッチ/シンボル)
+
+:Resolving download URL...
+ダウンロードURLを解決しています...
+
+:Road.BIN
+Road.BIN
+
+:Run LZ77 recompress? This walks the entire ROM (slow) and rewrites any entries that compress smaller. Heuristic scan — may miss entries WinForms catches.
+LZ77の再圧縮を実行しますか? ROM全体を走査し (低速)、より小さく圧縮できるエントリを書き換えます。ヒューリスティックなスキャンのため、WinForms版が検出するエントリを見逃す場合があります。
+
+:Save 3-Way Binary Patch File
+3-Way バイナリパッチファイルの保存
+
+:Save Animation Script
+アニメーションスクリプトの保存
+
+:Save Binary Patch File
+バイナリパッチファイルの保存
+
+:Save CSA magic animation script
+CSAマジックアニメスクリプトの保存
+
+:Save Compressed File
+圧縮ファイルの保存
+
+:Save Decoded File
+デコード済みファイルの保存
+
+:Save Decompressed File
+解凍済みファイルの保存
+
+:Save Graphics Patch
+グラフィックパッチの保存
+
+:Save Map Action Animation
+マップアクションアニメの保存
+
+:Save Road Data
+道路データの保存
+
+:Save Skill Animation
+スキルアニメの保存
+
+:Save Text Dump
+テキストダンプの保存
+
+:Save failed: {0}
+保存に失敗しました: {0}
+
+:Save magic animation script
+マジックアニメスクリプトの保存
+
+:Save the patched ROM anyway?
+それでもパッチ適用済みROMを保存しますか?
+
+:Save translation file
+翻訳ファイルの保存
+
+:Script file is empty or contains no recognized commands.
+スクリプトファイルが空か、認識できるコマンドが含まれていません。
+
+:Select Backup File
+バックアップファイルの選択
+
+:Select Directory
+ディレクトリの選択
+
+:Select MIDI File
+MIDIファイルの選択
+
+:Select SAV File
+SAVファイルの選択
+
+:Select Translation Data File
+翻訳データファイルの選択
+
+:Select a ROM to import a song from
+ソングのインポート元となるROMを選択してください
+
+:Select a map with change-data before expanding.
+拡張する前に、変更データを持つマップを選択してください。
+
+:Select a non-empty entry first.
+先に空でないエントリを選択してください。
+
+:Select a unit first.
+先にユニットを選択してください。
+
+:Skill Animation #{0:X2}
+スキルアニメ #{0:X2}
+
+:Song ID 0 is write-protected (silence song).
+Song ID 0 は書き込み禁止です (無音ソング)。
+
+:Song address is invalid.
+ソングのアドレスが不正です。
+
+:Song conversion failed.
+ソングの変換に失敗しました。
+
+:Song import complete.
+ソングのインポートが完了しました。
+
+:Song track data is corrupt or truncated.
+ソングのトラックデータが破損または途中で切れています。
+
+:Song track table runs past ROM end.
+ソングのトラックテーブルがROMの末尾を超えています。
+
+:Sound room expand aborted: no references were repointed (expected at least the canonical pointer slot).
+サウンドルームの拡張を中止しました: リポイントされた参照がありません (少なくとも正規のポインタスロットが必要です)。
+
+:Sound room expand aborted: the canonical pointer slot (0x{0:X}) was not among the repointed references.
+サウンドルームの拡張を中止しました: 正規のポインタスロット (0x{0:X}) がリポイントされた参照に含まれていませんでした。
+
+:Sound room expand aborted: {0} references would be repointed, exceeding the plausible maximum ({1}) — likely a false-positive match.
+サウンドルームの拡張を中止しました: {0} 個の参照がリポイントされ、妥当な最大値 ({1}) を超えています — 誤検出の可能性があります。
+
+:Sound room table expansion failed.
+サウンドルームテーブルの拡張に失敗しました。
+
+:Sound room table expansion failed: {0}
+サウンドルームテーブルの拡張に失敗しました: {0}
+
+:Source file not found.
+入力ファイルが見つかりません。
+
+:Source file not recorded or not found.
+入力ファイルが記録されていないか見つかりません。
+
+:Split the PLIST tables?\r\n
+PLISTテーブルを分割しますか?\r\n
+
+:Summon list expansion failed.
+召喚リストの拡張に失敗しました。
+
+:Summon list expansion failed: {0}
+召喚リストの拡張に失敗しました: {0}
+
+:Summon unit table is only available on FE8.
+召喚ユニットテーブルはFE8でのみ利用できます。
+
+:TSV Files
+TSVファイル
+
+:Text Patch File
+テキストパッチファイル
+
+:The TSA pointer is not set.
+TSAポインタが設定されていません。
+
+:The UPS patch produced CRC warnings:
+UPSパッチでCRC警告が発生しました:
+
+:The companion name image is missing.\r\nExpected: {0}
+対応する名前画像がありません。\r\n想定: {0}
+
+:The current Demon King Summon count byte (0x{0:X}) is corrupt — cannot expand.
+現在の魔王の召喚数バイト (0x{0:X}) が破損しています — 拡張できません。
+
+:The destination song could not be loaded for import.
+インポート先のソングを読み込めませんでした。
+
+:The downloaded programs will be placed under the app folder.\r\n\r\nContinue?
+ダウンロードしたプログラムはアプリのフォルダ内に配置されます。\r\n\r\n続行しますか?
+
+:The map setting list is already at the maximum of 255 entries; it cannot be expanded further.
+マップ設定リストは既に最大の255件に達しており、これ以上拡張できません。
+
+:The other ROM has not been loaded.
+もう一方のROMが読み込まれていません。
+
+:The selected instrument set address is invalid.
+選択した音色セットのアドレスが不正です。
+
+:The song table has no song header.
+ソングテーブルにソングヘッダがありません。
+
+:The world map border palette is invalid.
+ワールドマップの枠パレットが不正です。
+
+:This AP pattern is not present in this ROM. Import the AP data, or enter the AP pointer manually.
+このAPパターンはこのROMに存在しません。APデータをインポートするか、APポインタを手動で入力してください。
+
+:This ROM has no sound room table.
+このROMにはサウンドルームテーブルがありません。
+
+:This entry has no valid animation pointer.
+このエントリには有効なアニメポインタがありません。
+
+:This item is ROM-only in decomp mode. Edit the source manually and rebuild.
+このアイテムは decomp モードではROM専用です。ソースを手動で編集して再ビルドしてください。
+
+:This item table is ROM-only in decomp mode.
+このアイテムテーブルは decomp モードではROM専用です。
+
+:This template requires the event editor context (map/label) and is not available here.
+このテンプレートはイベントエディタのコンテキスト (マップ/ラベル) を必要とするため、ここでは利用できません。
+
+:This template requires the event editor context and is not available here.
+このテンプレートはイベントエディタのコンテキストを必要とするため、ここでは利用できません。
+
+:This will download an executable from:\r\n{0}\r\n\r\nThe downloaded program will be placed under the app folder.\r\n\r\nContinue?
+以下から実行ファイルをダウンロードします:\r\n{0}\r\n\r\nダウンロードしたプログラムはアプリのフォルダ内に配置されます。\r\n\r\n続行しますか?
+
+:This will download the official Git for Windows installer from:\r\n{0}\r\n\r\nIt will RUN the installer, which may request administrator (UAC) elevation.\r\n\r\nContinue?
+以下から公式の Git for Windows インストーラーをダウンロードします:\r\n{0}\r\n\r\nインストーラーを実行します。管理者 (UAC) 昇格を要求する場合があります。\r\n\r\n続行しますか?
+
+:To display chapter titles as text (required before wiping the Japanese 
+章タイトルをテキストとして表示するため (日本語を消去する前に必要) 
+
+:Track is invalid.
+トラックが不正です。
+
+:Transplant this song (#{0}) from the other ROM into the current ROM (#{1})?
+このソング (#{0}) をもう一方のROMから現在のROM (#{1}) に移植しますか?
+
+:Update cancelled (CRC warning declined). No ROM written.
+更新をキャンセルしました (CRC警告を拒否)。ROMは書き込まれていません。
+
+:Update cancelled.
+更新をキャンセルしました。
+
+:Update check failed (missing CHECK_URL/CHECK_REGEX or unreachable).
+更新チェックに失敗しました (CHECK_URL/CHECK_REGEX がないか、接続できません)。
+
+:Update complete.
+更新が完了しました。
+
+:Update complete. Reopening ROM...
+更新が完了しました。ROMを再度開いています...
+
+:Update failed: {0}
+更新に失敗しました: {0}
+
+:Warning: unsaved changes are not stored in the ROM. Update anyway?
+警告: 未保存の変更はROMに保存されていません。それでも更新しますか?
+
+:Wave conversion failed.
+WAVEの変換に失敗しました。
+
+:Wave conversion failed: {0}
+WAVEの変換に失敗しました: {0}
+
+:Wave export failed: {0}
+WAVEのエクスポートに失敗しました: {0}
+
+:Wave exported to {0}
+WAVEを {0} にエクスポートしました。
+
+:Wave imported as a new song at 0x{0:X08}.
+WAVEを新しいソングとして 0x{0:X08} にインポートしました。
+
+:Wave imported. The sample pointer is now 0x{0:X08}.
+WAVEをインポートしました。サンプルポインタは 0x{0:X08} になりました。
+
+:World map table pointer not found in this ROM.
+このROMにはワールドマップテーブルのポインタが見つかりません。
+
+:Wrote {0} frames to ROM at 0x{1:X}.
+{0} フレームをROMの 0x{1:X} に書き込みました。
+
+:Wrote {0} frames to {1}.
+{0} フレームを {1} に書き出しました。
+
+:You are up to date.
+最新の状態です。
+
+:ZeroClear failed: {0}
+ゼロクリアに失敗しました: {0}
+
+:ZeroClear: FROM is not a valid hex value.
+ゼロクリア: FROM が正しいHex値ではありません。
+
+:ZeroClear: TO is not a valid hex value.
+ゼロクリア: TO が正しいHex値ではありません。
+
+:ZeroClear: address out of ROM bounds.
+ゼロクリア: アドレスがROMの範囲外です。
+
+:ZeroClear: canceled by user.
+ゼロクリア: ユーザーによりキャンセルされました。
+
+:ZeroClear: low address requires confirmation — set ZeroClearConfirmed=true to proceed.
+ゼロクリア: 低位アドレスには確認が必要です — 続行するには ZeroClearConfirmed=true を設定してください。
+
+:ZeroClear: no ROM loaded.
+ゼロクリア: ROMが読み込まれていません。
+
+:ZeroClear: wrote 0 to 0x{0:X8}..0x{1:X8} ({2} bytes).
+ゼロクリア: 0x{0:X8}..0x{1:X8} に 0 を書き込みました ({2} バイト)。
+
+:Zeroing 0x{0:X8}..0x{1:X8} hits a dangerous low-address region (ROM header, fixed tables). Continue?
+0x{0:X8}..0x{1:X8} のゼロ化は危険な低位アドレス領域 (ROMヘッダ、固定テーブル) にかかります。続行しますか?
+
+:{0} pointer reference(s) will be rewritten. Continue?
+{0} 個のポインタ参照が書き換えられます。続行しますか?
+
+:{1} Version:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\nThis software is open-source free software.\r\nPlease use it freely under GPLv3.
+{1} バージョン:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\nこのソフトウェアはオープンソースのフリーソフトウェアです。\r\nGPLv3 のもとで自由にお使いください。
+

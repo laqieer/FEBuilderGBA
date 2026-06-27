@@ -353,6 +353,36 @@ the report. Top files by untranslated count: `ClassEditorView.axaml`,
 `ItemEditorView.axaml`, `UnitEditorView.axaml` — the same three editors
 where the original issue #356 screenshot showed the symptom.
 
+### Code-literal gate (`R._("...")` in `.cs`) — #1635
+
+The AXAML sweep above only sees attribute values. A large class of user-facing
+status / error / dialog strings instead live as `R._("literal")` calls inside
+Avalonia ViewModels and `.axaml.cs` code-behind (Tool Diff, LZ77 / Base64,
+list-expansion, magic / skill anime import, MIDI / instrument import,
+move-to-free-space prompts, etc.). The AXAML scanner is blind to them, so before
+#1635 ~334 such strings rendered in English under the Japanese / Chinese UI while
+CI stayed green.
+
+`L10nScanner.ScanCodeLiterals(repoRoot, languages)` closes that gap. It:
+
+- Enumerates every `R._("...")` first-string-argument across
+  `FEBuilderGBA.Avalonia/**/*.cs` (skipping `bin/` / `obj/`), decoding C# string
+  escapes (`\r\n`, `\"`, verbatim `@"…"`).
+- Blanks `//`, `///` and `/* */` comments first (`StripCommentsPreservingLayout`)
+  so doc-comment examples and commented-out code never count.
+- Joins each distinct literal against `config/translate/{ja,zh}.txt` via the SAME
+  reverse-English chain the runtime uses, bucketing it
+  Translated / PartiallyTranslated / Untranslated / NonEnglish (a literal that
+  already contains CJK / Hangul — a WinForms Japanese-source string reused
+  verbatim — is NonEnglish, i.e. out of scope).
+
+The blocking gate is `CodeLiteralL10nCoverageTest` in `FEBuilderGBA.Avalonia.Tests`
+(mirrors the AXAML `L10nCoverageTest`): it asserts **0 PartiallyTranslated** and
+that every **Untranslated** literal is in a small, justified allowlist
+(URL / format-brand placeholders only). This runs under the project's `dotnet test`
+in `check.yml` + `crossplatform.yml`, so a new untranslated `R._()` string now
+fails CI instead of silently shipping in English.
+
 ## Implementation entry points
 
 | File | Role |
@@ -365,7 +395,8 @@ where the original issue #356 screenshot showed the symptom.
 | `FEBuilderGBA.Avalonia/GapSweep/JumpParityScanner.cs` | Phase 4 scanner |
 | `FEBuilderGBA.Avalonia/Services/INavigationTargetSource.cs` | Phase 4 manifest seam |
 | `FEBuilderGBA.Avalonia/GapSweep/UndoCoverageScanner.cs` | Phase 5 scanner |
-| `FEBuilderGBA.Avalonia/GapSweep/L10nScanner.cs` | Phase 6 scanner |
+| `FEBuilderGBA.Avalonia/GapSweep/L10nScanner.cs` | Phase 6 scanner (AXAML literals + `ScanCodeLiterals` `R._()` `.cs` sweep, #1635) |
+| `FEBuilderGBA.Avalonia.Tests/CodeLiteralL10nCoverageTest.cs` | Blocking gate for `R._()` `.cs` literals (#1635) |
 | `FEBuilderGBA.Avalonia/App.axaml.cs` | CLI flag plumbing (see `RunGapSweep`) |
 | `scripts/make-screenshots.ps1` | Phase 3 wrapper — drives both `--screenshot-all` runners then `--gap-sweep-gallery` |
 | `FEBuilderGBA.Avalonia.Tests/GapSweep/` | xunit coverage |
