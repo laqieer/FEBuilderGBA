@@ -7519,11 +7519,20 @@ Hex アドレス
 :No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
 領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
 
+:No level-up table is allocated for this unit.\r\nPress List Expand to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
 :This level-up table is referenced by multiple classes.
 このテーブルは、複数のクラスで参照されています。
 
 :Make Selected Class Independent
 選択クラスの分離独立
+
+:This level-up table is referenced by multiple units.
+このテーブルは、複数のユニットで参照されています。
+
+:Make Selected Unit Independent
+選択ユニットの分離独立
 
 :The list is empty. Separating an empty list has no effect. Make it independent anyway?
 リストが0件です。空のリストを分離させても意味がないのですが、それでも分離独立させますか？

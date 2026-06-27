@@ -386,6 +386,285 @@ public class SkillAssignmentUnitSkillSystemParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1604 ViewModel functional — N1 list expand (grow), SINGLE-slot
+    // repoint, and byte-identical rollback.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_ExpandLevelUpList_Grows_RepointsOnlyThisUnit_RollbackByteIdentical()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom(); // all 0xFF == all free space
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            // unit 1 and unit 2 SHARE the same 1-row level-up table.
+            const uint unitA = 1, unitB = 2;
+            const uint sharedBase = 0xC0000u;
+            WriteU32(rom, PlantedLevelUpBase + unitA * 4, sharedBase | 0x08000000u);
+            WriteU32(rom, PlantedLevelUpBase + unitB * 4, sharedBase | 0x08000000u);
+            rom.write_u8(sharedBase + 0, 0x05); // row 0: lv
+            rom.write_u8(sharedBase + 1, 0x02); // row 0: skill
+            rom.write_u16(sharedBase + 2, 0x0000); // terminator
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+            vm.LoadEntry(PlantedUnitBase + unitA);
+            Assert.Equal(1, vm.LevelUpEntries.Count);
+
+            uint slotA = PlantedLevelUpBase + unitA * 4;
+            uint slotB = PlantedLevelUpBase + unitB * 4;
+            uint origGbaPtr = rom.u32(slotA);
+            // Snapshot the SHARED table bytes so we can prove they survive (the
+            // grow must NOT move-and-wipe a shared table — Copilot finding #1).
+            byte[] sharedBefore = rom.getBinaryData(sharedBase, 4);
+
+            var undodata = CoreState.Undo.NewUndoData("unit expand test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult result;
+            using (ROM.BeginUndoScope(undodata))
+            {
+                result = vm.ExpandLevelUpList();
+            }
+            Assert.True(result.Success, result.Error);
+
+            // Grew to 2 visible entries.
+            Assert.Equal(2, vm.LevelUpEntries.Count);
+            // SLOT A repointed to the new clone; SLOT B untouched (single-slot).
+            Assert.NotEqual(origGbaPtr, rom.u32(slotA));
+            Assert.Equal(origGbaPtr, rom.u32(slotB));
+            // The SHARED table B still references is byte-for-byte intact (NOT
+            // wiped) — sibling unit B keeps its level-up skill.
+            byte[] sharedAfter = rom.getBinaryData(sharedBase, 4);
+            Assert.Equal(sharedBefore, sharedAfter);
+            Assert.Equal((byte)0x05, rom.u8(sharedBase + 0));
+            Assert.Equal((byte)0x02, rom.u8(sharedBase + 1));
+
+            // Rollback restores slot A byte-identically.
+            CoreState.Undo.Push(undodata);
+            CoreState.Undo.RunUndo();
+            Assert.Equal(origGbaPtr, rom.u32(slotA));
+            Assert.Equal(origGbaPtr, rom.u32(slotB));
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandLevelUpList_RefusesSentinelUnit_AndMaxRows()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+
+            // Sentinel unit 0 must be refused (no mutation of slot 0).
+            vm.LoadEntry(PlantedUnitBase + 0);
+            uint slot0 = PlantedLevelUpBase + 0;
+            uint before0 = rom.u32(slot0);
+            var undodata0 = CoreState.Undo.NewUndoData("sentinel test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult r0;
+            using (ROM.BeginUndoScope(undodata0)) { r0 = vm.ExpandLevelUpList(); }
+            Assert.False(r0.Success);
+            Assert.Equal(before0, rom.u32(slot0));
+
+            // A unit whose list is already at LEVELUP_MAX_ROWS must be refused.
+            const uint unitId = 4;
+            const uint fullBase = 0xD0000u;
+            WriteU32(rom, PlantedLevelUpBase + unitId * 4, fullBase | 0x08000000u);
+            for (uint n = 0; n < SkillAssignmentUnitSkillSystemViewModel.LEVELUP_MAX_ROWS; n++)
+            {
+                rom.write_u8(fullBase + n * 2 + 0, 0x05);
+                rom.write_u8(fullBase + n * 2 + 1, 0x02);
+            }
+            rom.write_u16(fullBase + SkillAssignmentUnitSkillSystemViewModel.LEVELUP_MAX_ROWS * 2, 0x0000);
+
+            vm.LoadEntry(PlantedUnitBase + unitId);
+            uint slotFull = PlantedLevelUpBase + unitId * 4;
+            uint beforeFull = rom.u32(slotFull);
+            var undodataF = CoreState.Undo.NewUndoData("maxrows test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult rF;
+            using (ROM.BeginUndoScope(undodataF)) { rF = vm.ExpandLevelUpList(); }
+            Assert.False(rF.Success);
+            Assert.Equal(beforeFull, rom.u32(slotFull)); // pointer not repointed
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandLevelUpList_AllocatesOnNullPointer()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            // unit 5 has a NULL level-up pointer.
+            const uint unitId = 5;
+            WriteU32(rom, PlantedLevelUpBase + unitId * 4, 0u);
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+            vm.LoadEntry(PlantedUnitBase + unitId);
+            Assert.Empty(vm.LevelUpEntries);
+
+            var undodata = CoreState.Undo.NewUndoData("unit alloc test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult result;
+            using (ROM.BeginUndoScope(undodata))
+            {
+                result = vm.ExpandLevelUpList();
+            }
+            Assert.True(result.Success, result.Error);
+            Assert.NotEqual(0u, result.NewBaseAddress);
+            // Pointer now non-null and the list has exactly 1 row.
+            Assert.NotEqual(0u, rom.u32(PlantedLevelUpBase + unitId * 4));
+            Assert.Equal(1, vm.LevelUpEntries.Count);
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    // -----------------------------------------------------------------
+    // #1604 ViewModel functional — Make-Independent clones + repoints ONLY
+    // this unit, leaving a SHARED sibling unit UNTOUCHED.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_MakeIndependent_RepointsOnlyThisUnit_SiblingUntouched()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            const uint unitA = 1, unitB = 2;
+            const uint sharedBase = 0xC0000u;
+            WriteU32(rom, PlantedLevelUpBase + unitA * 4, sharedBase | 0x08000000u);
+            WriteU32(rom, PlantedLevelUpBase + unitB * 4, sharedBase | 0x08000000u);
+            rom.write_u8(sharedBase + 0, 0x05);
+            rom.write_u8(sharedBase + 1, 0x22);
+            rom.write_u8(sharedBase + 2, 0x0A);
+            rom.write_u8(sharedBase + 3, 0x33);
+            rom.write_u16(sharedBase + 4, 0x0000);
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+            vm.LoadEntry(PlantedUnitBase + unitA);
+
+            uint slotA = PlantedLevelUpBase + unitA * 4;
+            uint slotB = PlantedLevelUpBase + unitB * 4;
+            uint sharedGbaPtr = rom.u32(slotA);
+            // The table is shared, so the panel must be visible.
+            Assert.True(vm.IsIndependenceVisible);
+            Assert.False(vm.IsSelectedLevelUpListEmpty());
+
+            var undodata = CoreState.Undo.NewUndoData("unit independence test");
+            uint newPointer;
+            using (ROM.BeginUndoScope(undodata))
+            {
+                newPointer = vm.MakeIndependent(undodata);
+            }
+            Assert.NotEqual(0u, newPointer);
+
+            // Slot A moved to the clone; slot B untouched (the inverse of an
+            // all-reference repoint).
+            Assert.Equal(newPointer, rom.u32(slotA));
+            Assert.NotEqual(sharedGbaPtr, rom.u32(slotA));
+            Assert.Equal(sharedGbaPtr, rom.u32(slotB));
+
+            // The clone is byte-verbatim (rows + terminator).
+            uint cloneBase = newPointer & 0x01FFFFFFu;
+            Assert.Equal((byte)0x05, rom.u8(cloneBase + 0));
+            Assert.Equal((byte)0x22, rom.u8(cloneBase + 1));
+            Assert.Equal((byte)0x0A, rom.u8(cloneBase + 2));
+            Assert.Equal((byte)0x33, rom.u8(cloneBase + 3));
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    // -----------------------------------------------------------------
+    // #1604 ViewModel functional — bulk TSV Export/Import round-trip.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TsvExportImport_RoundTrip()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            // Give a couple of units distinct B0 skill bytes + one level-up table.
+            rom.write_u8(PlantedUnitBase + 1, 0x10);
+            rom.write_u8(PlantedUnitBase + 2, 0x11);
+            const uint listBase = 0xC0000u;
+            WriteU32(rom, PlantedLevelUpBase + 1 * 4, listBase | 0x08000000u);
+            rom.write_u8(listBase + 0, 0x05);
+            rom.write_u8(listBase + 1, 0x02);
+            rom.write_u16(listBase + 2, 0x0000);
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+
+            string path = Path.GetTempFileName();
+            try
+            {
+                Assert.True(vm.ExportAllData(path));
+                string[] lines = File.ReadAllLines(path);
+                Assert.True(lines.Length > 2);
+                Assert.Equal("10", lines[1].Split('\t')[0]);
+
+                // Mutate the ROM, then re-import the exported TSV and confirm the
+                // original B0 byte + level-up row are restored.
+                rom.write_u8(PlantedUnitBase + 1, 0x77);
+                rom.write_u8(listBase + 0, 0x44);
+                Assert.True(vm.ImportAllData(path));
+
+                Assert.Equal((byte)0x10, rom.u8(PlantedUnitBase + 1));
+                Assert.Equal((byte)0x05, rom.u8(listBase + 0));
+                Assert.Equal((byte)0x02, rom.u8(listBase + 1));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    // -----------------------------------------------------------------
     // View — static source assertions
     // -----------------------------------------------------------------
 
@@ -462,23 +741,76 @@ public class SkillAssignmentUnitSkillSystemParityTests
         Assert.Contains("IsVisible=\"{Binding HasLevelUpTable}\"", axaml);
     }
 
+    // -----------------------------------------------------------------
+    // #1604: the 3 new features (parity with the sibling Class editor) —
+    // N1 list-expand, Make-Independent, bulk TSV Export/Import — must be
+    // wired (mirror SkillAssignmentClassSkillSystemParityTests).
+    // -----------------------------------------------------------------
+
     [Fact]
-    public void View_NoDisabledStubButtons()
+    public void View_HasN1ListExpandButton_Wired()
     {
-        // The Unit form must NOT have expand/independence/TSV stub buttons (disabled or otherwise).
-        // Read-only display fields (NumericUpDown address/blocksize boxes) may carry IsEnabled="False",
-        // but there must be no disabled Button elements (no stub buttons).
         string axaml = ReadAxaml();
-        // No expand button
-        Assert.DoesNotContain("ListExpand", axaml);
-        // No independence button
-        Assert.DoesNotContain("Independence", axaml);
-        // No TSV / bulk-import / bulk-export buttons
-        Assert.DoesNotContain("BulkImport", axaml);
-        Assert.DoesNotContain("BulkExport", axaml);
-        // No "Pending Core extraction" or "#500" stale markers
-        Assert.DoesNotContain("Pending Core extraction", axaml);
-        Assert.DoesNotContain("tracked by #500", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentUnitSkillSystem_N1ListExpand_Button\"", axaml);
+        Assert.Contains("Click=\"N1ListExpand_Click\"", axaml);
+    }
+
+    [Fact]
+    public void View_HasIndependenceButton_Wired()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentUnitSkillSystem_Independence_Button\"", axaml);
+        Assert.Contains("Click=\"Independence_Click\"", axaml);
+    }
+
+    [Fact]
+    public void View_HasIndependencePanel()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("Name=\"IndependencePanel\"", axaml);
+    }
+
+    [Fact]
+    public void View_HasBulkImportButton_Wired()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentUnitSkillSystem_BulkImport_Button\"", axaml);
+        Assert.Contains("Click=\"BulkImport_Click\"", axaml);
+    }
+
+    [Fact]
+    public void View_HasBulkExportButton_Wired()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentUnitSkillSystem_BulkExport_Button\"", axaml);
+        Assert.Contains("Click=\"BulkExport_Click\"", axaml);
+    }
+
+    [Fact]
+    public void View_N1ListExpandHandler_WrapsInUndoScope()
+    {
+        string source = ReadCodeBehind();
+        Assert.Contains("void N1ListExpand_Click", source);
+        Assert.Contains("_undoService.Begin(\"Expand Skill Assignment Unit Level-up Table\")", source);
+        Assert.Contains("_vm.ExpandLevelUpList()", source);
+    }
+
+    [Fact]
+    public void View_IndependenceHandler_WrapsInUndoScope()
+    {
+        string source = ReadCodeBehind();
+        Assert.Contains("void Independence_Click", source);
+        Assert.Contains("_undoService.Begin(\"Make Skill Assignment Unit Independent\")", source);
+        Assert.Contains("_vm.MakeIndependent(", source);
+    }
+
+    [Fact]
+    public void View_BulkImportHandler_WrapsInUndoScope()
+    {
+        string source = ReadCodeBehind();
+        Assert.Contains("void BulkImport_Click", source);
+        Assert.Contains("_undoService.Begin(\"Bulk Import Skill Assignment (Unit) data\")", source);
+        Assert.Contains("_vm.ImportAllData(", source);
     }
 
     [Fact]
@@ -502,6 +834,13 @@ public class SkillAssignmentUnitSkillSystemParityTests
     }
 
     static string ReadAxaml() => File.ReadAllText(AxamlPath());
+
+    static string ReadCodeBehind()
+    {
+        string repoRoot = FindRepoRoot();
+        return File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "SkillAssignmentUnitSkillSystemView.axaml.cs"));
+    }
 
     static string FindRepoRoot()
     {

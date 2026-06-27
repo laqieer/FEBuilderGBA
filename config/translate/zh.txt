@@ -21421,11 +21421,20 @@ to:
 :No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
 此职业没有分配等级提升表。\n请按下「列表扩展」按钮以分配。
 
+:No level-up table is allocated for this unit.\r\nPress List Expand to allocate one.
+此单位没有分配等级提升表。\n请按下「列表扩展」按钮以分配。
+
 :This level-up table is referenced by multiple classes.
 此表被多个职业引用。
 
 :Make Selected Class Independent
 分离独立所选职业
+
+:This level-up table is referenced by multiple units.
+此表被多个单位引用。
+
+:Make Selected Unit Independent
+分离独立所选单位
 
 :The list is empty. Separating an empty list has no effect. Make it independent anyway?
 列表为空。分离一个空列表没有意义，仍要分离独立吗？

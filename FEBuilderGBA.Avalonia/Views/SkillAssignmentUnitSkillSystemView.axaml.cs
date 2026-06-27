@@ -3,6 +3,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -140,8 +141,9 @@ namespace FEBuilderGBA.Avalonia.Views
             ZeroPointerPanel.IsVisible = _vm.IsZeroPointer;
             if (string.IsNullOrEmpty(ZeroPointerText.Text))
             {
-                ZeroPointerText.Text = R._("No level-up table is allocated for this unit.\nPress Reload to refresh after editing the address.");
+                ZeroPointerText.Text = R._("No level-up table is allocated for this unit.\nPress List Expand to allocate one.");
             }
+            IndependencePanel.IsVisible = _vm.IsIndependenceVisible;
         }
 
         void RefreshUnitIcon()
@@ -292,6 +294,160 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SkillAssignmentUnitSkillSystemView.N1ReloadList failed: {0}", ex.Message);
+            }
+        }
+
+        // #1604: N1 level-up list-expand — allocate-on-null OR grow. Mirrors WF
+        // SkillAssignmentUnitSkillSystemForm.N1_InputFormRef_AddressListExpandsEvent
+        // and the sibling Class view's N1ListExpand_Click. SINGLE-slot repoint
+        // (this unit's LEVELUP+4 only) so sharing units stay on their table.
+        void N1ListExpand_Click(object sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Expand Skill Assignment Unit Level-up Table");
+            try
+            {
+                var result = _vm.ExpandLevelUpList();
+                if (!result.Success)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(result.Error ?? "Expand failed.");
+                    return;
+                }
+                _undoService.Commit();
+                N1ReadCountBox.Value = (uint)_vm.LevelUpEntries.Count;
+                XLevelUpAddrBox.Value = _vm.XLevelUpAddr;
+                UpdateMasterPanelVisibility();
+                CoreState.Services?.ShowInfo($"Level-up table expanded. New base: 0x{result.NewBaseAddress:X08}, count: {result.NewDataCount}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error($"SkillAssignmentUnitSkillSystemView.N1ListExpand failed: {ex}");
+            }
+        }
+
+        // #1604: "Make Selected Unit Independent" — mirrors WF
+        // SkillAssignmentUnitSkillSystemForm.IndependenceButton_Click ->
+        // PatchUtil.WriteIndependence. Clones the SHARED level-up table into a
+        // fresh free-space block and repoints ONLY this unit's pointer slot (a
+        // SINGLE write_p32, NOT RepointAllReferences), so every other sharing
+        // unit stays on the intact original table. Mirror the WF empty-list
+        // confirm + ReloadList + reselect.
+        void Independence_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            // WF: when the list is empty, confirm before separating an empty
+            // table. A "No" aborts.
+            if (_vm.IsSelectedLevelUpListEmpty())
+            {
+                bool yes = CoreState.Services?.ShowYesNo(R._(
+                    "The list is empty. Separating an empty list has no effect. Make it independent anyway?")) == true;
+                if (!yes) return;
+            }
+
+            _undoService.Begin("Make Skill Assignment Unit Independent");
+            try
+            {
+                uint newPointer = _vm.MakeIndependent(_undoService.GetActiveUndoData());
+                if (newPointer == 0)
+                {
+                    _undoService.Rollback();
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Mirror WF ReloadList + reselect the same unit so the now-
+                // independent table is shown.
+                uint unitId = _vm.SelectedId;
+                LoadList();
+                EntryList.SelectAddress(_vm.AssignUnitBaseAddress + unitId * _vm.MasterBlockSize);
+
+                CoreState.Services?.ShowInfo($"Unit is now independent. New table: 0x{newPointer:X08}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error($"SkillAssignmentUnitSkillSystemView.Independence failed: {ex}");
+            }
+        }
+
+        async void BulkExport_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var sp = StorageProvider;
+                if (sp == null) return;
+                var file = await sp.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export Skill Assignment (Unit) data",
+                    SuggestedFileName = "SkillAssignmentUnit.tsv",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("TSV") { Patterns = new[] { "*.tsv", "*.SkillAssignmentUnit.tsv" } },
+                    },
+                });
+                if (file == null) return;
+                string path = file.Path.LocalPath;
+                if (string.IsNullOrEmpty(path)) return;
+                bool ok = _vm.ExportAllData(path);
+                if (ok) CoreState.Services?.ShowInfo("Exported.");
+                else CoreState.Services?.ShowError("Export failed.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkExport failed: {ex}");
+            }
+        }
+
+        async void BulkImport_Click(object sender, RoutedEventArgs e)
+        {
+            // Pick the file BEFORE opening the undo scope — the file picker is
+            // async and keeping the ambient-undo scope open across the await
+            // would inadvertently record ROM writes from other UI actions while
+            // the picker is showing.
+            try
+            {
+                var sp = StorageProvider;
+                if (sp == null) return;
+                var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import Skill Assignment (Unit) data",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("TSV") { Patterns = new[] { "*.tsv", "*.SkillAssignmentUnit.tsv" } },
+                    },
+                });
+                if (files == null || files.Count == 0) return;
+                string path = files[0].Path.LocalPath;
+                if (string.IsNullOrEmpty(path)) return;
+
+                // Now open the undo scope and perform the actual import.
+                _undoService.Begin("Bulk Import Skill Assignment (Unit) data");
+                try
+                {
+                    bool ok = _vm.ImportAllData(path);
+                    if (!ok)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError("Import failed.");
+                        return;
+                    }
+                    _undoService.Commit();
+                    LoadList();
+                    CoreState.Services?.ShowInfo("Imported.");
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport failed: {ex}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport file picker failed: {ex}");
             }
         }
 
