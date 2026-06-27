@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SummonUnitViewerView.LoadList expand-gate failed: {0}", ex.Message);
+                Log.Error($"SummonUnitViewerView.LoadList expand-gate failed: {ex.Message}");
             }
         }
 
