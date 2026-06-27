@@ -12693,3 +12693,267 @@ CALL 1
 
 :Import a .mapanime1.txt manifest into the current PLIST
 .mapanime1.txt マニフェストを現在の PLIST にインポート
+:AI script written.
+AIスクリプトを書き込みました。
+
+:Alloc-Event template applied. Event pointer = 0x{0}.
+Alloc-Eventテンプレートを適用しました。イベントポインタ = 0x{0}。
+
+:Cannot allocate new event (no allocator wired).
+新しいイベントを割り当てできません（アロケータが接続されていません）。
+
+:Cannot apply the CALL 1 template to this record.
+このレコードにCALL 1テンプレートを適用できません。
+
+:Cannot expand this slot type (pointer-only or no allocator wired).
+このスロット種別は拡張できません（ポインタのみ、またはアロケータ未接続）。
+
+:Cannot remove the last instruction.
+最後の命令は削除できません。
+
+:Chipset config written.
+チップセット設定を書き込みました。
+
+:Chipset tile data copied.
+チップセットのタイルデータをコピーしました。
+
+:Clipboard is not available.
+クリップボードが利用できません。
+
+:Clipboard not available.
+クリップボードが利用できません。
+
+:Clipboard operation failed: {0}
+クリップボード操作に失敗しました: {0}
+
+:CONFIG PLIST not resolved — select a map style first.
+CONFIG PLISTが解決できません — 先にマップスタイルを選択してください。
+
+:Config write refused ({0}).
+設定の書き込みが拒否されました（{0}）。
+
+:Could not allocate free space for the event condition block.
+イベント条件ブロック用の空き領域を割り当てできませんでした。
+
+:Could not allocate the counter-reinforcement event.
+迎撃増援イベントを割り当てできませんでした。
+
+:Could not resolve the chapter end-event for this map (no end-event or no map selected).
+このマップの章エンドイベントを解決できませんでした（エンドイベントがない、またはマップ未選択）。
+
+:Could not write (out of range or the AI pointer slot is unsafe).
+書き込めませんでした（範囲外、またはAIポインタスロットが安全ではありません）。
+
+:Could not write the event PLIST slot (plist=0 or slot unsafe).
+イベントPLISTスロットを書き込めませんでした（plist=0、またはスロットが安全ではありません）。
+
+:Counter-reinforcement event allocated at 0x{0} (turn 1-255).
+迎撃増援イベントを0x{0}に割り当てました（ターン1-255）。
+
+:Difficulty Settings write failed: {0}
+難易度設定の書き込みに失敗しました: {0}
+
+:Difficulty Settings written.
+難易度設定を書き込みました。
+
+:Difficulty Settings: current ROM is not supported (FE6 has a different layout).
+難易度設定: 現在のROMはサポートされていません（FE6はレイアウトが異なります）。
+
+:Difficulty Settings: write was rejected by ROM/version guard.
+難易度設定: ROM/バージョンガードにより書き込みが拒否されました。
+
+:Enter instruction bytes in Binary Code first.
+先にバイナリコードに命令バイトを入力してください。
+
+:Event condition data written.
+イベント条件データを書き込みました。
+
+:Event pointer is not a valid ROM address.
+イベントポインタが有効なROMアドレスではありません。
+
+:Exported {0} bytes to {1}.
+{0}バイトを{1}にエクスポートしました。
+
+:Failed to build bitmap from OBJ tile sheet.
+OBJタイルシートからビットマップを作成できませんでした。
+
+:Failed to copy palette to clipboard.
+パレットをクリップボードにコピーできませんでした。
+
+:Failed to read file: {0}
+ファイルの読み込みに失敗しました: {0}
+
+:Image decode error: {0}
+画像のデコードエラー: {0}
+
+:Import 16 colors from {0} into current palette? You can still cancel before clicking Palette Write.
+{0}から16色を現在のパレットにインポートしますか？ パレット書き込みをクリックする前であればキャンセルできます。
+
+:Import error: {0}
+インポートエラー: {0}
+
+:Import succeeded ({0} bytes) but UI refresh failed: {1}. Re-select the Map Style entry to refresh the view.
+インポートは成功しました（{0}バイト）が、UIの更新に失敗しました: {1}。マップスタイルの項目を選び直して表示を更新してください。
+
+:Imported {0} bytes of map chip config.
+マップチップ設定を{0}バイトインポートしました。
+
+:Imported palette from {0}. Click Palette Write to persist.
+{0}からパレットをインポートしました。永続化するにはパレット書き込みをクリックしてください。
+
+:Invalid instruction bytes (must be one 16-byte hex instruction).
+無効な命令バイトです（16バイトの16進命令1つである必要があります）。
+
+:Invalid instruction bytes (one 16-byte hex instruction).
+無効な命令バイトです（16バイトの16進命令1つ）。
+
+:Map Chip export failed: {0}
+マップチップのエクスポートに失敗しました: {0}
+
+:Map chip import failed: {0}
+マップチップのインポートに失敗しました: {0}
+
+:Map style data written.
+マップスタイルデータを書き込みました。
+
+:New event allocated at: 0x{0}
+新しいイベントを0x{0}に割り当てました
+
+:No chipset config loaded — select a Map Style entry first.
+チップセット設定が読み込まれていません — 先にマップスタイルの項目を選択してください。
+
+:No OBJ tile sheet available to export.
+エクスポートできるOBJタイルシートがありません。
+
+:Nothing to paste — copy a chipset or terrain first.
+貼り付けるものがありません — 先にチップセットまたは地形をコピーしてください。
+
+:Nothing to redo.
+やり直す操作がありません。
+
+:Nothing to undo.
+元に戻す操作がありません。
+
+:OBJ export failed: {0}
+OBJのエクスポートに失敗しました: {0}
+
+:OBJ image import error: {0}
+OBJ画像のインポートエラー: {0}
+
+:OBJ image import failed: {0}
+OBJ画像のインポートに失敗しました: {0}
+
+:OBJ image import requires a Map Style entry with a valid OBJ PLIST.
+OBJ画像のインポートには有効なOBJ PLISTを持つマップスタイル項目が必要です。
+
+:OBJ image imported ({0}x{1}).
+OBJ画像をインポートしました（{0}x{1}）。
+
+:OBJ image imported but UI refresh failed: {0}. Re-select the Map Style entry to refresh the view.
+OBJ画像はインポートされましたが、UIの更新に失敗しました: {0}。マップスタイルの項目を選び直して表示を更新してください。
+
+:OBJ tile sheet exported to {0}.
+OBJタイルシートを{0}にエクスポートしました。
+
+:Palette address not resolved -- select a map style first.
+パレットアドレスが解決できません -- 先にマップスタイルを選択してください。
+
+:Palette copied to clipboard.
+パレットをクリップボードにコピーしました。
+
+:Palette exported to {0}.
+パレットを{0}にエクスポートしました。
+
+:Palette file must contain at least 16 colors (32 bytes).
+パレットファイルには少なくとも16色（32バイト）が必要です。
+
+:Palette pasted from clipboard. Click Palette Write to persist.
+クリップボードからパレットを貼り付けました。永続化するにはパレット書き込みをクリックしてください。
+
+:Palette to clipboard failed: {0}
+パレットのクリップボードへのコピーに失敗しました: {0}
+
+:Palette Write failed: {0}
+パレットの書き込みに失敗しました: {0}
+
+:Palette write refused (invalid address or out of bounds).
+パレットの書き込みが拒否されました（無効なアドレスまたは範囲外）。
+
+:Palette written.
+パレットを書き込みました。
+
+:Paste 16 colors from clipboard into current palette? You can still cancel before clicking Palette Write.
+クリップボードから16色を現在のパレットに貼り付けますか？ パレット書き込みをクリックする前であればキャンセルできます。
+
+:Precise event condition area allocated at 0x{0} and wired to PLIST {1}.
+イベント条件領域を0x{0}に正確に割り当て、PLIST {1}に接続しました。
+
+:Record list expanded. New base pointer: 0x{0}
+レコードリストを拡張しました。新しいベースポインタ: 0x{0}
+
+:Redo applied.
+やり直しを適用しました。
+
+:Redo failed.
+やり直しに失敗しました。
+
+:Redo failed: {0}
+やり直しに失敗しました: {0}
+
+:Re-read the AI script before inserting an instruction.
+命令を挿入する前にAIスクリプトを再読み込みしてください。
+
+:Re-read the AI script before writing.
+書き込む前にAIスクリプトを再読み込みしてください。
+
+:Select an instruction first.
+先に命令を選択してください。
+
+:Select an instruction to remove.
+削除する命令を選択してください。
+
+:Storage provider not available.
+ストレージプロバイダが利用できません。
+
+:Terrain type copied.
+地形タイプをコピーしました。
+
+:TSA Image Export failed: {0}
+TSA画像のエクスポートに失敗しました: {0}
+
+:TSA Image Export: could not decode the main tilesheet.
+TSA画像エクスポート: メインのタイルシートをデコードできませんでした。
+
+:TSA Main Image Import failed: {0}
+TSAメイン画像のインポートに失敗しました: {0}
+
+:TSA Main Image Import: could not determine the existing tilesheet size.
+TSAメイン画像インポート: 既存のタイルシートサイズを特定できませんでした。
+
+:TSA Main Image Import: could not read the active palette.
+TSAメイン画像インポート: アクティブなパレットを読み取れませんでした。
+
+:TSA Write failed: {0}
+TSAの書き込みに失敗しました: {0}
+
+:Undo applied.
+元に戻すを適用しました。
+
+:Undo failed: {0}
+元に戻すに失敗しました: {0}
+
+:Unknown error
+不明なエラー
+
+:Export AI Script
+AIスクリプトをエクスポート
+
+:Import AI Script
+AIスクリプトをインポート
+
+:Expanded AI pointer table to {0} entries.
+AIポインタテーブルを{0}エントリに拡張しました。
+
+:Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
+AIポインタテーブルの新しいエントリ数を入力してください（現在: {0}、最大: {1}）。
+

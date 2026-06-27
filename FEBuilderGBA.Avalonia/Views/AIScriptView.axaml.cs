@@ -211,7 +211,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // the user hasn't pressed Re-read yet.
             if (!_vm.HasDisassembly)
             {
-                CoreState.Services.ShowInfo("Re-read the AI script before writing.");
+                CoreState.Services.ShowInfo(R._("Re-read the AI script before writing."));
                 return;
             }
             _undoService.Begin("Edit AI Script");
@@ -221,11 +221,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     CoreState.Services.ShowError(
-                        "Could not write (out of range or the AI pointer slot is unsafe).");
+                        R._("Could not write (out of range or the AI pointer slot is unsafe)."));
                     return;
                 }
                 _undoService.Commit();
-                CoreState.Services.ShowInfo("AI script written.");
+                CoreState.Services.ShowInfo(R._("AI script written."));
                 // Sync the Address / byte-count boxes to the VM FIRST: a
                 // realloc Write moves CurrentAddr / ReadByteCount, and
                 // ReloadList_Click re-reads from those boxes — so without this
@@ -537,7 +537,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = DisassemblyList.SelectedIndex;
                 if (idx < 0)
                 {
-                    CoreState.Services.ShowInfo("Select an instruction first.");
+                    CoreState.Services.ShowInfo(R._("Select an instruction first."));
                     return;
                 }
 
@@ -545,7 +545,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (line == null)
                 {
                     CoreState.Services.ShowError(
-                        "Invalid instruction bytes (must be one 16-byte hex instruction).");
+                        R._("Invalid instruction bytes (must be one 16-byte hex instruction)."));
                     return;
                 }
 
@@ -578,12 +578,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // silently dropping all existing opcodes.
                 if (!_vm.HasDisassembly)
                 {
-                    CoreState.Services.ShowInfo("Re-read the AI script before inserting an instruction.");
+                    CoreState.Services.ShowInfo(R._("Re-read the AI script before inserting an instruction."));
                     return;
                 }
                 if (string.IsNullOrWhiteSpace(AsmBox.Text))
                 {
-                    CoreState.Services.ShowInfo("Enter instruction bytes in Binary Code first.");
+                    CoreState.Services.ShowInfo(R._("Enter instruction bytes in Binary Code first."));
                     return;
                 }
 
@@ -591,7 +591,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (line == null)
                 {
                     CoreState.Services.ShowError(
-                        "Invalid instruction bytes (one 16-byte hex instruction).");
+                        R._("Invalid instruction bytes (one 16-byte hex instruction)."));
                     return;
                 }
 
@@ -616,12 +616,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 int idx = DisassemblyList.SelectedIndex;
                 if (idx < 0)
                 {
-                    CoreState.Services.ShowInfo("Select an instruction to remove.");
+                    CoreState.Services.ShowInfo(R._("Select an instruction to remove."));
                     return;
                 }
                 if (!_vm.RemoveRow(idx))
                 {
-                    CoreState.Services.ShowInfo("Cannot remove the last instruction.");
+                    CoreState.Services.ShowInfo(R._("Cannot remove the last instruction."));
                     return;
                 }
 

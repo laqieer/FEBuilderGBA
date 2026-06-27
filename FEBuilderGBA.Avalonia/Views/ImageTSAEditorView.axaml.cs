@@ -463,7 +463,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                CoreState.Services.ShowError($"TSA Write failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("TSA Write failed: {0}", ex.Message));
             }
         }
 
@@ -488,7 +488,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                CoreState.Services.ShowError($"Palette Write failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Palette Write failed: {0}", ex.Message));
             }
         }
 
@@ -559,7 +559,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                CoreState.Services.ShowError($"Undo failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Undo failed: {0}", ex.Message));
             }
         }
 
@@ -578,12 +578,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
                 {
-                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    CoreState.Services.ShowInfo(R._("Nothing to redo."));
                     return;
                 }
                 if (!CoreState.Undo.RunRedo())
                 {
-                    CoreState.Services.ShowError("Redo failed.");
+                    CoreState.Services.ShowError(R._("Redo failed."));
                     return;
                 }
                 // RunRedo rolls ROM bytes forward (e.g. a redone palette write),
@@ -596,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                CoreState.Services.ShowError($"Redo failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Redo failed: {0}", ex.Message));
             }
         }
 
@@ -637,7 +637,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 IClipboard? clipboard = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
                 if (clipboard == null)
                 {
-                    CoreState.Services.ShowError("Clipboard is not available.");
+                    CoreState.Services.ShowError(R._("Clipboard is not available."));
                     return;
                 }
                 await clipboard.SetTextAsync(hex);
@@ -646,7 +646,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImageTSAEditorView.PaletteClipboard failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Palette to clipboard failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("Palette to clipboard failed: {0}", ex.Message));
             }
         }
 
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     out int widthPx, out int heightPx))
             {
                 CoreState.Services.ShowError(
-                    "TSA Main Image Import: could not determine the existing tilesheet size.");
+                    R._("TSA Main Image Import: could not determine the existing tilesheet size."));
                 return;
             }
 
@@ -691,7 +691,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (existingPalette == null)
             {
                 CoreState.Services.ShowError(
-                    "TSA Main Image Import: could not read the active palette.");
+                    R._("TSA Main Image Import: could not read the active palette."));
                 return;
             }
 
@@ -702,8 +702,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 filePath, widthPx, heightPx, existingPalette, 16, strictSize: true);
             if (loadResult == null || !loadResult.Success)
             {
-                string err = loadResult?.Error ?? "Unknown error";
-                CoreState.Services.ShowError($"TSA Main Image Import failed: {err}");
+                string err = loadResult?.Error ?? R._("Unknown error");
+                CoreState.Services.ShowError(R._("TSA Main Image Import failed: {0}", err));
                 return;
             }
 
@@ -721,7 +721,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // leaves the UI showing an unpersisted image (#871 lesson).
                 RefreshBattleCanvas();
                 RefreshChipList();
-                CoreState.Services.ShowError($"TSA Main Image Import failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("TSA Main Image Import failed: {0}", ex.Message));
                 return;
             }
 
@@ -730,7 +730,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 RefreshBattleCanvas();
                 RefreshChipList();
-                CoreState.Services.ShowError($"TSA Main Image Import failed: {writeError}");
+                CoreState.Services.ShowError(R._("TSA Main Image Import failed: {0}", writeError));
                 return;
             }
 
@@ -776,7 +776,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (img == null)
                 {
                     CoreState.Services.ShowError(
-                        "TSA Image Export: could not decode the main tilesheet.");
+                        R._("TSA Image Export: could not decode the main tilesheet."));
                     return;
                 }
                 // Show the rendered tilesheet in the Main Image preview so the
@@ -787,7 +787,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImageTSAEditorView.MainImageExport failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"TSA Image Export failed: {ex.Message}");
+                CoreState.Services.ShowError(R._("TSA Image Export failed: {0}", ex.Message));
             }
         }
 
