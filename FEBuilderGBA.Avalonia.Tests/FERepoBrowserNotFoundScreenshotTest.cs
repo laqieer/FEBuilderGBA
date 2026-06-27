@@ -44,7 +44,12 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 // Data-layer proof of the fix (the meaningful assertions).
                 Assert.True(vm.NotFound);
+                // #1380: source-build submodule command still surfaced.
                 Assert.Contains(FERepoResourceBrowserViewModel.SubmoduleInitCommand, vm.StatusText);
+                // #1644: released-build (no git repo / no submodule) shallow-clone
+                // command also surfaced so a shipped-zip user has an actionable path.
+                Assert.Contains(FERepoResourceBrowser.GraphicsCloneCommand, vm.StatusText);
+                Assert.Equal(FERepoResourceBrowser.GraphicsCloneCommand, vm.ReleaseFetchCommand);
 
                 // Best-effort visual proof (headless render may be a no-op in
                 // some environments — we don't assert the PNG, mirroring

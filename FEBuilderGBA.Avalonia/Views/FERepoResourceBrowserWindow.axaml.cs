@@ -58,9 +58,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Copy the EFFECTIVE command for this browser's mode (graphics vs
-                // music), so music mode copies the music submodule init command.
-                string cmd = (DataContext as FERepoResourceBrowserViewModel)?.EffectiveInitCommand
+                // Copy BOTH the source-build submodule command AND the
+                // released-build clone command for this browser's mode (graphics
+                // vs music), so a released-zip user can copy the clone command
+                // that the empty-state surfaces (#1669 review). Falls back to the
+                // graphics submodule command if the DataContext is unexpectedly null.
+                var vm = DataContext as FERepoResourceBrowserViewModel;
+                string cmd = vm?.CopyCommand
                              ?? FERepoResourceBrowserViewModel.SubmoduleInitCommand;
                 var clipboard = Clipboard;
                 if (clipboard != null)

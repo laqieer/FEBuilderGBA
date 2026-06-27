@@ -26,15 +26,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public const string MusicSubmoduleInitCommand = "git submodule update --init resources/FE-Repo-Music-No-Preview";
 
         /// <summary>
+        /// Released-build (non-git, no submodule) self-contained fetch command
+        /// for THIS browser's mode. A user of a shipped .zip has no submodule to
+        /// init, so the empty-state also offers a shallow git clone straight into
+        /// the expected <c>resources/</c> folder next to the executable (#1644).
+        /// </summary>
+        public string ReleaseFetchCommand => _musicMode
+            ? FERepoResourceBrowser.MusicCloneCommand
+            : FERepoResourceBrowser.GraphicsCloneCommand;
+
+        /// <summary>
         /// The init command for THIS browser's mode (graphics vs music). The
-        /// status text, copy button, and tooltip all use this so a missing
-        /// music submodule shows the music init command, not the graphics one
-        /// (#1380 Copilot review).
+        /// status text uses this so a missing music submodule shows the music
+        /// init command, not the graphics one (#1380 Copilot review).
         /// </summary>
         public string EffectiveInitCommand => _musicMode ? MusicSubmoduleInitCommand : SubmoduleInitCommand;
 
-        /// <summary>Tooltip for the "Copy git command" button — shows the effective command.</summary>
-        public string CopyTooltip => "Copy: " + EffectiveInitCommand;
+        /// <summary>
+        /// What the "Copy git command" button puts on the clipboard: BOTH the
+        /// source-build submodule command AND the released-build clone command
+        /// (newline-separated), so a released-zip user can actually copy the
+        /// clone command that was added to the empty-state (#1669 review).
+        /// </summary>
+        public string CopyCommand => EffectiveInitCommand + "\n" + ReleaseFetchCommand;
+
+        /// <summary>Tooltip for the "Copy git command" button — shows both commands.</summary>
+        public string CopyTooltip => "Copy:\n" + EffectiveInitCommand + "\n" + ReleaseFetchCommand;
 
         public ObservableCollection<CategoryNode> Categories
         {
@@ -125,11 +142,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_repoRoot == null)
             {
                 NotFound = true;
-                // On Android FE-Repo is not delivered on-device and the desktop "git submodule"
-                // command cannot work there, so show the canonical Android limitation instead
-                // (#1641). Desktop keeps the actionable init-command hint (#1380).
+                // On Android FE-Repo is not delivered on-device and the desktop
+                // git commands cannot work there, so show the canonical Android
+                // limitation instead (#1641). On desktop, source clones init the
+                // submodule while released-zip users (no git repo / no submodule)
+                // shallow-clone the public repo into the expected resources/
+                // folder — offer both so every desktop build type has an
+                // actionable path (#1644). The repo name is mode-aware so music
+                // mode does not say "FE-Repo" when it searched for FE-Repo-Music
+                // (#1669 review). Keeping the submodule command as a leading
+                // substring preserves the #1380 NotFound assertions.
+                string repoName = _musicMode ? "FE-Repo-Music" : "FE-Repo";
                 StatusText = AndroidResourceNoticeCore.IsResourceDeliverySupported
-                    ? "FE-Repo not found. Run: " + EffectiveInitCommand
+                    ? repoName + " not found. Source build: " + EffectiveInitCommand
+                        + "  |  Released build: " + ReleaseFetchCommand
                     : AndroidResourceNoticeCore.FERepoUnavailableMessage;
                 return;
             }

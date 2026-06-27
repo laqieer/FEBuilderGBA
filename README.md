@@ -65,7 +65,12 @@ dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
 
-**Public Resources:** [FE-Repo](https://github.com/Klokinator/FE-Repo) (graphics) and [FE-Repo-Music-No-Preview](https://github.com/laqieer/FE-Repo-Music-No-Preview) (music) ship as submodules under `resources/`. Run `git submodule update --init resources/FE-Repo` (and `resources/FE-Repo-Music-No-Preview` for music) before using the **FE-Repo** / **FE-Repo-Music** buttons, which are wired into the portrait, icon, background, CG, battle-background, skill-icon, and song editors (WinForms + Avalonia) to browse and import community assets directly. An uninitialized submodule shows an actionable *"run git submodule update"* message with a **Copy git command** button instead of an empty tree.
+**Public Resources:** [FE-Repo](https://github.com/Klokinator/FE-Repo) (graphics) and [FE-Repo-Music-No-Preview](https://github.com/laqieer/FE-Repo-Music-No-Preview) (music) ship as submodules under `resources/`. They are wired into the **FE-Repo** / **FE-Repo-Music** buttons on the portrait, icon, background, CG, battle-background, skill-icon, and song editors (WinForms + Avalonia) to browse and import community assets directly. **They are intentionally not bundled into released artifacts** (their payload is too large to attach to every release), so the Resource Browser is empty until you fetch them on demand:
+
+- **Source clone:** `git submodule update --init resources/FE-Repo` (and `resources/FE-Repo-Music-No-Preview` for music), or run the convenience helper `scripts/fetch-fe-repo.sh` / `pwsh scripts/fetch-fe-repo.ps1`.
+- **Released build (extracted `.zip`, no git repo / no `scripts/` folder):** shallow-clone the public repo straight into the expected folder next to the executable — `git clone --depth 1 https://github.com/Klokinator/FE-Repo resources/FE-Repo` (and `... https://github.com/laqieer/FE-Repo-Music-No-Preview resources/FE-Repo-Music-No-Preview` for music) — or manually download/extract the repo there.
+
+Until then the Resource Browser shows an actionable empty-state listing **both** the `git submodule update` (source) and `git clone` (released-build) commands, with a **Copy git command** button, instead of an empty tree. See [docs/RELEASE.md → FE-Repo / FE-Repo-Music resources](docs/RELEASE.md#fe-repo--fe-repo-music-resources-on-demand) for the release-notes wording.
 
 ### Cross-Platform Build (Linux / macOS / Windows)
 

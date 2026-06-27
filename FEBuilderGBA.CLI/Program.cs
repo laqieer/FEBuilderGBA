@@ -3192,8 +3192,20 @@ namespace FEBuilderGBA.CLI
             {
                 if (!Directory.Exists(repoPath))
                 {
+                    bool isMusic = label.StartsWith("FE-Repo-Music");
+                    // Use the EXPLICIT per-repo submodule path, not a bare
+                    // `resources/` (which is not a registered submodule and would
+                    // fail) (#1669 review). Source clone: init the submodule.
+                    // Released build (no git repo / no scripts/ folder):
+                    // shallow-clone the public repo into the expected folder (#1644).
+                    string submodulePath = isMusic
+                        ? "resources/FE-Repo-Music-No-Preview"
+                        : "resources/FE-Repo";
                     Console.WriteLine($"{label}: not found at {repoPath}");
-                    Console.WriteLine("  Run: git submodule update --init resources/");
+                    Console.WriteLine("  Source build: git submodule update --init " + submodulePath);
+                    Console.WriteLine("  Released build: " + (isMusic
+                        ? FERepoResourceBrowser.MusicCloneCommand
+                        : FERepoResourceBrowser.GraphicsCloneCommand));
                     Console.WriteLine();
                     continue;
                 }

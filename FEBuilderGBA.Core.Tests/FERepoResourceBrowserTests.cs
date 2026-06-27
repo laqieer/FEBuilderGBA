@@ -348,5 +348,49 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(files.Length > 0,
                 $"{kind} seeds an EMPTY FE-Repo folder ({folder.Category}/{folder.SubCategory}) — pick a populated source folder");
         }
+
+        // -----------------------------------------------------------------
+        // #1644 — released-build (non-git) on-demand fetch commands.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void GraphicsCloneCommand_IsSelfContained_TargetsResourcesFeRepo()
+        {
+            // Released-build users have no git repo / no submodule / no scripts/
+            // folder: the command must be a plain shallow clone into the exact
+            // folder FindRepoRoot searches (resources/FE-Repo).
+            string cmd = FERepoResourceBrowser.GraphicsCloneCommand;
+            Assert.StartsWith("git clone --depth 1 ", cmd);
+            Assert.Contains(FERepoResourceBrowser.GraphicsRepoUrl, cmd);
+            Assert.EndsWith(" resources/FE-Repo", cmd);
+            // Must NOT depend on a submodule or a local scripts/ path.
+            Assert.DoesNotContain("submodule", cmd);
+            Assert.DoesNotContain("scripts/", cmd);
+        }
+
+        [Fact]
+        public void MusicCloneCommand_IsSelfContained_TargetsResourcesFeRepoMusic()
+        {
+            string cmd = FERepoResourceBrowser.MusicCloneCommand;
+            Assert.StartsWith("git clone --depth 1 ", cmd);
+            Assert.Contains(FERepoResourceBrowser.MusicRepoUrl, cmd);
+            Assert.EndsWith(" resources/FE-Repo-Music-No-Preview", cmd);
+            Assert.DoesNotContain("submodule", cmd);
+            Assert.DoesNotContain("scripts/", cmd);
+        }
+
+        [Fact]
+        public void CloneCommands_TargetFoldersMatchTheBrowserSearchPaths()
+        {
+            // The clone target is the same folder the browser resolves a repo
+            // from, so cloning there makes the browser populated (no manual move).
+            string graphicsTarget = FERepoResourceBrowser.GraphicsCloneCommand
+                .Substring(FERepoResourceBrowser.GraphicsCloneCommand.LastIndexOf(' ') + 1);
+            Assert.Equal("resources/FE-Repo", graphicsTarget);
+
+            string musicTarget = FERepoResourceBrowser.MusicCloneCommand
+                .Substring(FERepoResourceBrowser.MusicCloneCommand.LastIndexOf(' ') + 1);
+            Assert.Equal("resources/FE-Repo-Music-No-Preview", musicTarget);
+        }
     }
 }
