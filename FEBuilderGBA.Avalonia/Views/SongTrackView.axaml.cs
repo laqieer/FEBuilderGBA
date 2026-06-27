@@ -351,9 +351,12 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // Export / Import (Midi only — preview). Wave / Instrument / Source
-        // stay disabled until the Core extraction lands; their AXAML
-        // declares the disabled state with explanatory tooltip.
+        // Export (dispatch-by-extension). MIDI export + .instrument (#1609)
+        // instrument-set export are wired; .s (MPlay assembly source produced
+        // by SongUtil.ExportSFile, e.g. includes MPlayDef.s) and .sf2
+        // (SoundFont via external GBAMusRiper) stay out of scope. The single
+        // "Export Music File" button routes by the chosen extension, mirroring
+        // WinForms SongTrackForm.ExportButton_Click (.MID/.MIDI vs .INSTRUMENT).
         // -----------------------------------------------------------------
 
         async void ExportMidi_Click(object? sender, RoutedEventArgs e)
@@ -363,26 +366,49 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                // #1609: offer the instrument-set (.instrument) export inline,
+                // matching the WinForms Song Track Export filter. The Core seam
+                // (SongInstrumentSetCore.ExportAll) is already wired by the Song
+                // Instrument editor — no new Core work.
+                var instType = new FilePickerFileType(R._("Instrument Set Files")) { Patterns = new[] { "*.instrument" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = R._("Export MIDI"),
+                    Title = R._("Export Music File"),
                     SuggestedFileName = $"song_0x{_vm.CurrentAddr:X06}.mid",
-                    FileTypeChoices = new[] { midiType, allType },
+                    FileTypeChoices = new[] { midiType, instType, allType },
                 });
 
                 string? path = file?.TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                string? error = _vm.ExportMidi(path);
-                if (error != null)
-                    CoreState.Services.ShowError(error);
+                // Dispatch by the chosen extension (mirrors WF
+                // SongTrackForm.cs:436-471: .MID/.MIDI vs .INSTRUMENT).
+                string ext = U.GetFilenameExt(path);
+                if (ext == ".INSTRUMENT")
+                {
+                    string? instError = _vm.ExportInstrumentSet(path);
+                    if (instError != null)
+                        CoreState.Services.ShowError(instError);
+                    else
+                        CoreState.Services.ShowInfo($"Instrument set exported to {path}");
+                }
                 else
-                    CoreState.Services.ShowInfo($"MIDI exported to {path}");
+                {
+                    string? error = _vm.ExportMidi(path);
+                    if (error != null)
+                        CoreState.Services.ShowError(error);
+                    else
+                        CoreState.Services.ShowInfo($"MIDI exported to {path}");
+                }
             }
             catch (Exception ex)
             {
-                Log.Error("ExportMidi_Click failed: {0}", ex.Message);
+                // Core Log.Error is params string[] (joined with spaces, NOT
+                // composite formatting) — pass the message and the full exception
+                // (stack + inner) as separate args, never a "{0}" placeholder
+                // (matches LinkInternet_Click above).
+                Log.Error("SongTrackView.ExportMidi_Click failed:", ex.ToString());
             }
         }
 
