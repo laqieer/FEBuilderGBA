@@ -1533,7 +1533,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
             const uint blockSize = 44;
             var result = new List<AddrResult>();
-            for (int i = 0; i < 64; i++)
+            // Cap matches StructExportCore.status_options (i <= 0xFF) so rows
+            // added by the list-expand affordance (#1607) past 64 are visible.
+            for (int i = 0; i < 0x100; i++)
             {
                 uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
