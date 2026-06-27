@@ -82,13 +82,11 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// Verify the doc lists exactly 323 editor views.
-        /// (Was 325 before #1447 removed the dead standalone SongTrackImportWaveView;
-        ///  324 before #1453 removed the inert standalone
-        ///  SkillSystemsEffectivenessReworkClassTypeView.)
+        /// Verify the doc lists exactly 324 editor views.
+        /// (Was 323 before #1601 registered MapTerrainNameView for screenshot/gap-sweep coverage.)
         /// </summary>
         [Fact]
-        public void Documentation_Lists323Editors()
+        public void Documentation_Lists324Editors()
         {
             var docPath = Path.Combine(SolutionDir, "docs", "avalonia-gui-forms.md");
             var docContent = File.ReadAllText(docPath);
@@ -98,17 +96,15 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\|\s*\d+\s*\|\s*\w+View\s*\|");
             int count = viewPattern.Matches(docContent).Count;
 
-            Assert.Equal(323, count);
+            Assert.Equal(324, count);
         }
 
         /// <summary>
-        /// Verify GetAllEditorFactories has exactly 323 entries.
-        /// (Was 325 before #1447 removed the dead standalone SongTrackImportWaveView;
-        ///  324 before #1453 removed the inert standalone
-        ///  SkillSystemsEffectivenessReworkClassTypeView.)
+        /// Verify GetAllEditorFactories has exactly 324 entries.
+        /// (Was 323 before #1601 registered MapTerrainNameView for screenshot/gap-sweep coverage.)
         /// </summary>
         [Fact]
-        public void SmokeTestFactories_Has323Entries()
+        public void SmokeTestFactories_Has324Entries()
         {
             var mainWindowSrc = File.ReadAllText(
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
@@ -117,7 +113,7 @@ namespace FEBuilderGBA.Tests.Unit
                 @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
             int count = factoryPattern.Matches(mainWindowSrc).Count;
 
-            Assert.Equal(323, count);
+            Assert.Equal(324, count);
         }
     }
 }

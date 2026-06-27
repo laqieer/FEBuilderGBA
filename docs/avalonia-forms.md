@@ -637,7 +637,7 @@ through their parent editors:
 | MapStyleEditorAppendView | Inner form of MapStyleEditorAppendPopupView |
 | MapStyleEditorWarningView | Inner form of MapStyleEditorWarningOverrideView |
 | MapSettingDifficultyExtraView | Extra fields of MapSettingDifficultyView |
-| MapTerrainNameView | Sub-view of TerrainNameEditorView |
+| MapTerrainNameView | Multibyte/JP terrain-name editor (editable name string; sibling of TerrainNameEditorView) (#1601) |
 | MapPictureBoxViewerView | Reusable map image component |
 | ImageFormRefViewerView | Reusable image reference component |
 | InterpolatedPictureBoxViewerView | Reusable scaled image component |

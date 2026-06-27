@@ -2209,6 +2209,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("MapTileAnimation2View", () => wm.Open<MapTileAnimation2View>()),
                 ("MapLoadFunctionView", () => wm.Open<MapLoadFunctionView>()),
                 ("MapTerrainNameEngView", () => wm.Open<MapTerrainNameEngView>()),
+                ("MapTerrainNameView", () => wm.Open<MapTerrainNameView>()),
 
                 // Event Script Editors
                 ("EventCondView", () => wm.Open<EventCondView>()),
