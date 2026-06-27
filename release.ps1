@@ -16,18 +16,25 @@
     PLANNED but NOT yet merged (tracked by issue #1629); until it lands, the
     manual/script path here is the source of truth.
 
+    Repo-relative paths are resolved against the script's own location
+    ($PSScriptRoot), so the script works the same regardless of the current
+    working directory, and all paths are built with Join-Path so it runs on
+    Windows, Linux and macOS under `pwsh`.
+
 .PARAMETER OutputDir
     Destination folder to stage the release into. Created if missing.
-    Default: "release".
+    Relative paths are resolved against the current working directory.
+    Default: "release" (under the repo root).
 
 .PARAMETER WinFormsBinDir
     Folder containing the built WinForms output (FEBuilderGBA.exe + DLLs).
-    Default: "FEBuilderGBA\bin\Release".
+    Relative paths are resolved against the repo root.
+    Default: FEBuilderGBA/bin/Release.
 
 .PARAMETER ConfigDir
     Folder containing the runtime `config` directory to copy.
-    Default: "FEBuilderGBA\bin\Release\config" with a fallback to the
-    repo-root "config" if the build output has none.
+    Default: the WinForms build output's `config`, falling back to the
+    repo-root `config` if the build output has none.
 
 .PARAMETER Clean
     Remove the output folder before staging (fresh build). Off by default so
@@ -35,11 +42,11 @@
 
 .EXAMPLE
     pwsh ./release.ps1
-    # Stages into .\release using the Release build output.
+    # Stages into ./release using the Release build output.
 
 .EXAMPLE
     pwsh ./release.ps1 -OutputDir dist -Clean
-    # Fresh staging into .\dist.
+    # Fresh staging into ./dist.
 
 .NOTES
     See docs/RELEASE.md for the full-suite release runbook and
@@ -48,17 +55,28 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = "release",
-    [string]$WinFormsBinDir = "FEBuilderGBA\bin\Release",
+    [string]$WinFormsBinDir = "",
     [string]$ConfigDir = "",
     [switch]$Clean
 )
 
 $ErrorActionPreference = "Stop"
 
+# Resolve the repo root from the script location so paths are independent of
+# the current working directory.
+$repoRoot = $PSScriptRoot
+if ([string]::IsNullOrEmpty($repoRoot)) { $repoRoot = (Get-Location).Path }
+
 function New-DirIfMissing([string]$path) {
     if (-not (Test-Path $path)) {
         $null = New-Item -ItemType Directory -Path $path -Force
     }
+}
+
+# Default the WinForms bin dir to <repo>/FEBuilderGBA/bin/Release, built with
+# Join-Path so it is correct on every OS.
+if ([string]::IsNullOrEmpty($WinFormsBinDir)) {
+    $WinFormsBinDir = Join-Path (Join-Path (Join-Path $repoRoot "FEBuilderGBA") "bin") "Release"
 }
 
 # --- Resolve / prepare the output folder -----------------------------------
@@ -67,10 +85,11 @@ if ($Clean -and (Test-Path $OutputDir)) {
     Remove-Item -Path $OutputDir -Recurse -Force
 }
 
+$outConfig = Join-Path $OutputDir "config"
 New-DirIfMissing $OutputDir
-New-DirIfMissing (Join-Path $OutputDir "config")
-New-DirIfMissing (Join-Path $OutputDir "config\etc")
-New-DirIfMissing (Join-Path $OutputDir "config\log")
+New-DirIfMissing $outConfig
+New-DirIfMissing (Join-Path $outConfig "etc")
+New-DirIfMissing (Join-Path $outConfig "log")
 
 # --- Stage the WinForms application ----------------------------------------
 if (-not (Test-Path $WinFormsBinDir)) {
@@ -92,35 +111,40 @@ foreach ($pattern in @("*.dll", "*.json")) {
 }
 
 # --- Stage the config directory --------------------------------------------
-# Prefer the build-output config (Release, not Debug). Fall back to repo-root.
+# Prefer the build-output config (Release, not Debug). Fall back to the
+# repo-root config (resolved against the script location, not the CWD).
 if ([string]::IsNullOrEmpty($ConfigDir)) {
     $candidate = Join-Path $WinFormsBinDir "config"
+    $repoConfig = Join-Path $repoRoot "config"
     if (Test-Path $candidate) {
         $ConfigDir = $candidate
-    } elseif (Test-Path "config") {
-        $ConfigDir = "config"
+    } elseif (Test-Path $repoConfig) {
+        $ConfigDir = $repoConfig
     }
 }
 
 if ($ConfigDir -and (Test-Path $ConfigDir)) {
     # Copy config contents, leaving the staged etc/ and log/ folders intact.
-    Copy-Item -Force -Recurse (Join-Path $ConfigDir "*") (Join-Path $OutputDir "config") -Exclude @("etc", "log")
+    Copy-Item -Force -Recurse (Join-Path $ConfigDir "*") $outConfig -Exclude @("etc", "log")
 } else {
     Write-Warning "No config directory found to stage (looked in build output and repo root)."
 }
 
 # --- Stage docs ------------------------------------------------------------
-Copy-Item -Force *.md $OutputDir -ErrorAction SilentlyContinue
+# Copy the repo-root docs (resolved against the script location).
+Copy-Item -Force (Join-Path $repoRoot "*.md") $OutputDir -ErrorAction SilentlyContinue
 
 # --- Best-effort: stage CLI / Avalonia publish output if present -----------
 # These come from `dotnet publish ... -o publish/cli-{rid}` /
-# `publish/avalonia-{rid}` (same layout the crossplatform.yml workflow uses).
-# Staged under <OutputDir>\<name> so a single local run can mirror the
-# full-suite asset set without overwriting the WinForms payload.
-$publishGlobs = @("publish\cli-*", "publish\avalonia-*")
-foreach ($glob in $publishGlobs) {
-    $matches = Get-ChildItem -Path $glob -Directory -ErrorAction SilentlyContinue
-    foreach ($dir in $matches) {
+# `publish/avalonia-{rid}` (same layout the crossplatform.yml workflow and
+# scripts/publish-all.sh use). Staged under <OutputDir>/<name> so a single
+# local run can mirror the full-suite asset set without overwriting the
+# WinForms payload. Globs are rooted at the repo so they resolve on any OS.
+$publishRoot = Join-Path $repoRoot "publish"
+foreach ($prefix in @("cli-", "avalonia-")) {
+    $glob = Join-Path $publishRoot ($prefix + "*")
+    $bundles = Get-ChildItem -Path $glob -Directory -ErrorAction SilentlyContinue
+    foreach ($dir in $bundles) {
         $dest = Join-Path $OutputDir $dir.Name
         Write-Host "Staging published bundle: $($dir.Name)"
         New-DirIfMissing $dest
