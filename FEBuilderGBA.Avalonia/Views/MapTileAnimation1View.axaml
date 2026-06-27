@@ -76,6 +76,46 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="MapTileAnimation1_Write_Button" Content="Write" Click="Write_Click" />
         </StackPanel>
+
+        <!-- Image preview + Import/Export panel (#1602) — mirrors WF
+             MapTileAnimation1Form's MapPictureBox/X_SAMPLE_BIG_PIC preview and the
+             four image buttons (Export/Import single PNG + ExportAll/ImportAll
+             batch .mapanime1.txt). The image is RAW 4bpp at the entry's +4
+             pointer. -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,16,0,0">
+          <StackPanel Spacing="8">
+            <Label Content="Tile Animation Image" FontWeight="SemiBold" />
+
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label Content="Sample Palette" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="MapTileAnimation1_SamplePalette_Combo"
+                        Name="SamplePaletteComboBox" Width="80"
+                        SelectionChanged="SamplePalette_SelectionChanged" />
+            </StackPanel>
+
+            <controls:GbaImageControl AutomationProperties.AutomationId="MapTileAnimation1_Preview_Image"
+                                      Name="PreviewImage" Height="280" />
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="MapTileAnimation1_Export_Button"
+                      Name="ExportButton" Content="Export"
+                      ToolTip.Tip="Export the current tile animation image to a PNG"
+                      Click="Export_Click" />
+              <Button AutomationProperties.AutomationId="MapTileAnimation1_Import_Button"
+                      Name="ImportButton" Content="Import"
+                      ToolTip.Tip="Import a 256xN PNG into the current entry's image (+4)"
+                      Click="Import_Click" />
+              <Button AutomationProperties.AutomationId="MapTileAnimation1_ExportAll_Button"
+                      Name="ExportAllButton" Content="Export All"
+                      ToolTip.Tip="Export all entries of the current PLIST to a .mapanime1.txt manifest + PNGs"
+                      Click="ExportAll_Click" />
+              <Button AutomationProperties.AutomationId="MapTileAnimation1_ImportAll_Button"
+                      Name="ImportAllButton" Content="Import All"
+                      ToolTip.Tip="Import a .mapanime1.txt manifest into the current PLIST"
+                      Click="ImportAll_Click" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

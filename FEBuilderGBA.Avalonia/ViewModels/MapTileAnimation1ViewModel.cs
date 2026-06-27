@@ -42,6 +42,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Selection bar.
         uint _selectedAddress;
 
+        // Image preview / Import-Export (#1602). The selected 16-color sub-palette
+        // index drives both the preview render and the import remap target.
+        int _selectedPaletteIndex;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint AnimInterval { get => _animInterval; set => SetField(ref _animInterval, value); }
@@ -59,6 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _plistRows, value ?? new());
         }
         public uint SelectedAddress { get => _selectedAddress; set => SetField(ref _selectedAddress, value); }
+        public int SelectedPaletteIndex { get => _selectedPaletteIndex; set => SetField(ref _selectedPaletteIndex, value); }
 
         /// <summary>Build the filter combo list — one row per distinct anime1
         /// PLIST referenced by any map (mirrors WF MakeTileAnimation1).</summary>
@@ -155,6 +160,83 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["D4"] = MapTileDataPointer,
             };
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
+        }
+
+        // -----------------------------------------------------------------
+        // Image preview + Import/Export (#1602). All ROM access goes through
+        // MapTileAnimation1ImageCore (RAW 4bpp at the entry's +4 pointer; the
+        // entry's +2 length stays authoritative on single import).
+        // -----------------------------------------------------------------
+
+        /// <summary>Resolve the parent map's palette offset for the selected
+        /// anime1 PLIST; 0 when none resolves.</summary>
+        public uint ResolvePaletteOffset()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || SelectedPlist == null) return 0;
+            return MapTileAnimation1ImageCore.ResolvePaletteOffset(rom, SelectedPlist.Value, out uint off)
+                ? off : 0;
+        }
+
+        /// <summary>Render the currently-selected entry's image (256 × CalcHeight)
+        /// using the selected sub-palette, or null when it cannot be rendered.</summary>
+        public IImage RenderPreview()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || !IsLoaded || CurrentAddr == 0) return null;
+            uint palOffset = ResolvePaletteOffset();
+            if (palOffset == 0) return null;
+            return MapTileAnimation1ImageCore.RenderEntryImage(
+                rom, MapTileDataPointer, DataCount, palOffset, SelectedPaletteIndex);
+        }
+
+        /// <summary>Single-PNG import (WF parity; +2 length unchanged). Returns ""
+        /// on success or a localized error. Caller owns the undo scope.</summary>
+        public string ImportImage(byte[] rgba, int width, int height)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || !IsLoaded || CurrentAddr == 0) return "No entry selected.";
+            uint palOffset = ResolvePaletteOffset();
+            if (palOffset == 0) return "Cannot resolve the tile animation palette.";
+            string err = MapTileAnimation1ImageCore.ImportEntryImage(
+                rom, CurrentAddr, rgba, width, height, palOffset, SelectedPaletteIndex);
+            if (err == "")
+            {
+                // Re-read the entry so MapTileDataPointer reflects the new +4.
+                LoadEntry(CurrentAddr);
+            }
+            return err;
+        }
+
+        /// <summary>Export the current PLIST's entries to a .mapanime1.txt manifest
+        /// + per-entry PNGs. Returns "" on success or a localized error.</summary>
+        public string ExportBatch(string txtPath, System.Action<IImage, string> savePng)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || ReadStartAddress == 0) return "No PLIST selected.";
+            uint palOffset = ResolvePaletteOffset();
+            if (palOffset == 0) return "Cannot resolve the tile animation palette.";
+            return MapTileAnimation1ImageCore.ExportBatchTxt(
+                rom, ReadStartAddress, (int)ReadCount, palOffset, SelectedPaletteIndex,
+                txtPath, savePng);
+        }
+
+        /// <summary>Re-import a .mapanime1.txt manifest into the selected PLIST.
+        /// Returns "" on success or a localized error. Caller owns the undo
+        /// scope.</summary>
+        public string ImportBatch(string txtPath, MapTileAnimation1ImageCore.LoadRgbaDelegate loadRgba)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || SelectedPlist == null) return "No PLIST selected.";
+            uint palOffset = ResolvePaletteOffset();
+            if (palOffset == 0) return "Cannot resolve the tile animation palette.";
+            // Resolve the PLIST table pointer slot so the rebuilt table can be repointed.
+            uint dataAddr = MapChangeCore.PlistToOffsetAddr(
+                rom, MapChangeCore.PlistType.ANIMATION, SelectedPlist.Value, out uint pointerSlot);
+            if (dataAddr == U.NOT_FOUND || pointerSlot == 0)
+                return "Cannot resolve the tile animation pointer slot.";
+            return MapTileAnimation1ImageCore.ImportBatchTxt(
+                rom, pointerSlot, txtPath, palOffset, SelectedPaletteIndex, loadRgba);
         }
 
         public int GetListCount() => LoadList().Count;
