@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackImportMidiView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackImportMidiView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackImportMidiView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackImportMidiView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("BrowseMidi_Click failed: {0}", ex.Message);
+                Log.ErrorF("BrowseMidi_Click failed: {0}", ex.Message);
             }
         }
 
@@ -196,7 +196,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackImportMidiView.SelectInstrument_Click pick failed: {0}", ex.Message);
+                Log.ErrorF("SongTrackImportMidiView.SelectInstrument_Click pick failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Instrument selection failed: {0}", ex.Message));
                 return;
             }

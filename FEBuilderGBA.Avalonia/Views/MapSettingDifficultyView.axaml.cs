@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingDifficultyView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapSettingDifficultyView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingDifficultyView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapSettingDifficultyView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -125,7 +125,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingDifficultyView.Write failed: {0}", ex.Message);
+                Log.ErrorF("MapSettingDifficultyView.Write failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Difficulty Settings write failed: {0}", ex.Message));
             }
         }

@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PortraitViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("PortraitViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PortraitViewerView.OnPortraitSelected failed: {0}", ex.Message);
+                Log.ErrorF("PortraitViewerView.OnPortraitSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TryShowPortraitImage main failed: {0}", ex.Message);
+                Log.ErrorF("TryShowPortraitImage main failed: {0}", ex.Message);
                 MainPortraitImage.SetImage(null);
             }
 
@@ -129,7 +129,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TryShowPortraitImage map failed: {0}", ex.Message);
+                Log.ErrorF("TryShowPortraitImage map failed: {0}", ex.Message);
                 MapPortraitImage.SetImage(null);
             }
 
@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TryShowPortraitImage class failed: {0}", ex.Message);
+                Log.ErrorF("TryShowPortraitImage class failed: {0}", ex.Message);
                 ClassPortraitImage.SetImage(null);
             }
         }

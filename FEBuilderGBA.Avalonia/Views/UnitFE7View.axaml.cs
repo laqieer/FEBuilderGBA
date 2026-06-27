@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE7View.JumpToSupportUnit failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE7View.JumpToSupportUnit failed: {0}", ex.Message);
             }
         }
 
@@ -97,7 +97,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE7View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE7View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitFE7View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE7View.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("UnitFE7View.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE7View.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -303,7 +303,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     // NameText refresh via ValueChanged.
                 }
             }
-            catch (Exception ex) { Log.Error("UnitFE7View.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE7View.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -326,7 +326,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = baseAddr + portraitId * dataSize;
                 WindowManager.Instance.Navigate<PortraitViewerView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnPortraitLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OnPortraitLinkClick failed: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -404,7 +404,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 
@@ -444,7 +444,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (SizeLabel != null)
                     SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
             }
-            catch (Exception ex) { Log.Error("UnitFE7View.UpdateAddressBarInfra failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE7View.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         /// <summary>
@@ -481,7 +481,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitFE7View.RefreshHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("UnitFE7View.RefreshHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLabel.IsVisible = false;
             }
         }
@@ -500,7 +500,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var pv = WindowManager.Instance.Open<PatchManagerView>();
                 pv.JumpTo($"HARDCODING_UNIT={unitId:X2}", 0);
             }
-            catch (Exception ex) { Log.Error("UnitFE7View.HardCodingWarning_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE7View.HardCodingWarning_Click failed: {0}", ex.Message); }
         }
 
         // ---- #428: Weapon-rank letter labels -------------------------------
@@ -572,7 +572,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 SimMagicExtLabel.IsVisible = magicSplit;
                 if (magicSplit) SimMagicExtLabel.Text = sim.sim_ext_magic.ToString();
             }
-            catch (Exception ex) { Log.Error("UnitFE7View.RefreshGrowthSim failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("UnitFE7View.RefreshGrowthSim failed: {0}", ex.Message); }
         }
     }
 }

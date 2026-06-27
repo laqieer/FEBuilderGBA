@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapChangeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapChangeView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -54,7 +54,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapChangeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapChangeView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapChangeView.OnRecordSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapChangeView.OnRecordSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadRecords();
                 CoreState.Services?.ShowInfo("Map Change pointer written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapChangeView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapChangeView.Write: {0}", ex.Message); }
         }
 
         void WriteRecord_Click(object? sender, RoutedEventArgs e)
@@ -162,7 +162,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 CoreState.Services?.ShowInfo("Change record written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapChangeView.WriteRecord: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapChangeView.WriteRecord: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address)

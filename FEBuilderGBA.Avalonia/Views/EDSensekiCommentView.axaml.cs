@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDSensekiCommentView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EDSensekiCommentView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDSensekiCommentView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDSensekiCommentView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -82,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDSensekiCommentView.Write failed: {0}", ex.Message);
+                Log.ErrorF("EDSensekiCommentView.Write failed: {0}", ex.Message);
             }
         }
 
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDSensekiCommentView.UnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDSensekiCommentView.UnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void UnitId_Pick(object? sender, RoutedEventArgs e)
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null) UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
-            catch (Exception ex) { Log.Error("EDSensekiCommentView.UnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDSensekiCommentView.UnitId_Pick failed: {0}", ex.Message); }
         }
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

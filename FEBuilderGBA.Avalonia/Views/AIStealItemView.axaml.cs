@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIStealItemView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIStealItemView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIStealItemView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIStealItemView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIStealItemView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIStealItemView.Write failed: {0}", ex.Message);
             }
         }
 

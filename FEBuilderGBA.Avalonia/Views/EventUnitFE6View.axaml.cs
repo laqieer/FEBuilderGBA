@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE6View.LoadMapList failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.LoadMapList failed: {0}", ex.Message);
             }
         }
 
@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE6View.MapListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.MapListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE6View.GroupListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.GroupListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE6View.UnitListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.UnitListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -135,14 +135,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = U.atoh(text);
                 if (addr == 0 || !U.isSafetyOffset(addr))
                 {
-                    Log.Error("EventUnitFE6View: Invalid address {0}", text);
+                    Log.ErrorF("EventUnitFE6View: Invalid address {0}", text);
                     return;
                 }
                 LoadUnitsFromAddress(addr);
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitFE6View.LoadAddr_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.LoadAddr_Click failed: {0}", ex.Message);
             }
         }
 
@@ -226,7 +226,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventUnitFE6View.Write failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitFE6View.Write failed: {0}", ex.Message);
             }
         }
 

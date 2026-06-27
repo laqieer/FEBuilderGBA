@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PatchUninstallDialogView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("PatchUninstallDialogView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PatchUninstallDialogView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("PatchUninstallDialogView.OnSelected failed: {0}", ex.Message);
             }
         }
 

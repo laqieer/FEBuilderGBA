@@ -167,7 +167,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                Log.Error("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
+                Log.ErrorF("PatchMetadataCore: Failed to parse {0}: {1}", patchFilePath, ex.Message);
             }
 
             return info;
@@ -339,7 +339,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                Log.Error("PatchMetadataCore.GetPatchDependencies: {0}: {1}", patchFilePath, ex.Message);
+                Log.ErrorF("PatchMetadataCore.GetPatchDependencies: {0}: {1}", patchFilePath, ex.Message);
             }
 
             return result;

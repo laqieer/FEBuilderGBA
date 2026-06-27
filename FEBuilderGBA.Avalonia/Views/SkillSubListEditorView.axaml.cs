@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 undoService.Rollback();
-                Log.Error("SkillSubListEditorView.{0} failed: {1}", label, ex.Message);
+                Log.ErrorF("SkillSubListEditorView.{0} failed: {1}", label, ex.Message);
                 CoreState.Services?.ShowError(ex.Message);
             }
         }

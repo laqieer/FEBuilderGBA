@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIUnitsView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIUnitsView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIUnitsView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIUnitsView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIUnitsView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIUnitsView.Write failed: {0}", ex.Message);
             }
         }
 

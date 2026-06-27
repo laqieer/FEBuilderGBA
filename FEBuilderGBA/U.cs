@@ -4900,7 +4900,7 @@ namespace FEBuilderGBA
         {
             string url = download_url;
             string contents = U.HttpGet(url);
-            Log.Debug("front page:{0}", contents);
+            Log.DebugF("front page:{0}", contents);
             contents = U.skip(contents, "name=\"token\"");
             string token = U.cut(contents, "value=\"", "\"");
             token = Uri.UnescapeDataString(token);
@@ -4914,18 +4914,18 @@ namespace FEBuilderGBA
             Dictionary<string, string> args = new Dictionary<string, string>();
             args["token"] = token;
             contents = U.HttpPost(download_url, args, download_url);
-            Log.Debug("download page:{0}", contents);
+            Log.DebugF("download page:{0}", contents);
             contents = U.skip(contents, "http-equiv=\"refresh\"");
             string durl = U.cut(contents, "URL=", "\"");
             durl = Uri.UnescapeDataString(durl);
             durl = U.unhtmlspecialchars(durl);
             if (durl == "" && durl.IndexOf("http") < 0)
             {
-                Log.Error("download url NOT FOUND:{0}", durl);
+                Log.ErrorF("download url NOT FOUND:{0}", durl);
                 return;
             }
 
-            Log.Notify("download url:{0}", durl);
+            Log.NotifyF("download url:{0}", durl);
             U.HttpDownload(save_filename, durl, download_url, pleaseWait);
         }
 
@@ -7496,7 +7496,7 @@ namespace FEBuilderGBA
                 }
                 catch (Exception e)
                 {
-                    Log.Error("ディレクトリを作成できませんでした。\r\n{0}\r\n\r\n{1}", destDirName, R.ExceptionToString(e));
+                    Log.ErrorF("ディレクトリを作成できませんでした。\r\n{0}\r\n\r\n{1}", destDirName, R.ExceptionToString(e));
                 }
             }
 
@@ -7520,7 +7520,7 @@ namespace FEBuilderGBA
                 }
                 catch (Exception e)
                 {
-                    Log.Error("ファイルをコピーできませんでした。\r\nSrc:{0}\r\nDest:{1}\r\n\r\n{2}", file, destfilename,R.ExceptionToString(e));
+                    Log.ErrorF("ファイルをコピーできませんでした。\r\nSrc:{0}\r\nDest:{1}\r\n\r\n{2}", file, destfilename,R.ExceptionToString(e));
                 }
             }
 

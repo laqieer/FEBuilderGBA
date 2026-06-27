@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -153,7 +153,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -271,7 +271,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.PickFile_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.PickFile_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Pick file failed: {ex.Message}");
             }
         }
@@ -295,7 +295,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.FERepo_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.FERepo_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"FE-Repo browser failed: {ex.Message}");
             }
         }
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.LoadImageFromPath failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.LoadImageFromPath failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Load image failed: {ex.Message}");
             }
         }
@@ -433,7 +433,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImagePortraitImporterView.PickFolder_Click batch failed: {0}", ex.Message);
+                    Log.ErrorF("ImagePortraitImporterView.PickFolder_Click batch failed: {0}", ex.Message);
                     CoreState.Services.ShowError($"Batch import error: {ex.Message}");
                 }
                 finally
@@ -447,7 +447,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.PickFolder_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.PickFolder_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Pick folder failed: {ex.Message}");
             }
         }
@@ -526,7 +526,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.Import_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.Import_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Import failed: {ex.Message}");
             }
         }
@@ -609,7 +609,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.CustomPalettePick_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitImporterView.CustomPalettePick_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Pick palette failed: {ex.Message}");
             }
         }

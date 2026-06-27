@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTileAnimation2View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -183,7 +183,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTileAnimation2View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -305,7 +305,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 finally { _vm.IsLoading = false; _vm.MarkClean(); }
                 CoreState.Services?.ShowInfo("Tile Animation Type 2 data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimation2View.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapTileAnimation2View.Write: {0}", ex.Message); }
         }
 
         void NWrite_Click(object? sender, RoutedEventArgs e)
@@ -330,7 +330,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdatePaletteSubList();
                 CoreState.Services?.ShowInfo("Palette row written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimation2View.NWrite: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapTileAnimation2View.NWrite: {0}", ex.Message); }
         }
 
         // -----------------------------------------------------------------
@@ -369,7 +369,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapTileAnimation2View.ListExpand_Click: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.ListExpand_Click: {0}", ex.Message);
             }
         }
 
@@ -408,7 +408,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapTileAnimation2View.NListExpand_Click: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.NListExpand_Click: {0}", ex.Message);
             }
         }
 
@@ -456,12 +456,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("MapTileAnimation2View.BulkImport: {0}", inner.Message);
+                    Log.ErrorF("MapTileAnimation2View.BulkImport: {0}", inner.Message);
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("MapTileAnimation2View.BulkImport_Click: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.BulkImport_Click: {0}", ex.Message);
             }
         }
 
@@ -493,7 +493,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTileAnimation2View.BulkExport_Click: {0}", ex.Message);
+                Log.ErrorF("MapTileAnimation2View.BulkExport_Click: {0}", ex.Message);
             }
         }
 

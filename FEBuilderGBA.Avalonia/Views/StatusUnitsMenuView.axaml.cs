@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusUnitsMenuView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("StatusUnitsMenuView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusUnitsMenuView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("StatusUnitsMenuView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Status units menu data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusUnitsMenuView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("StatusUnitsMenuView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

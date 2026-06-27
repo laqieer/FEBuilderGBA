@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -150,7 +150,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.JumpTo failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.JumpTo failed: {0}", ex.Message);
             }
         }
 
@@ -387,7 +387,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.RenderPreview failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.RenderPreview failed: {0}", ex.Message);
                 try
                 {
                     DisposePreview();
@@ -557,7 +557,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImagePalletView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Write_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Write failed: {0}", ex.Message));
             }
         }
@@ -616,7 +616,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.Undo_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Undo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -657,7 +657,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.Redo_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Redo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -754,7 +754,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.Export_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Export_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Export palette failed: {0}", ex.Message));
             }
         }
@@ -816,13 +816,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     _undoService.Rollback();
                     ApplyGbaBytesToNuds(prevBytes); // restore the pre-import grid
                     RefreshSwatches();
-                    Log.Error("ImagePalletView.Import_Click inner failed: {0}", ex.Message);
+                    Log.ErrorF("ImagePalletView.Import_Click inner failed: {0}", ex.Message);
                     CoreState.Services?.ShowError(R._("Import palette failed: {0}", ex.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.Import_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Import_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Import palette failed: {0}", ex.Message));
             }
         }
@@ -838,7 +838,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePalletView.Clipboard_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImagePalletView.Clipboard_Click failed: {0}", ex.Message);
             }
         }
 

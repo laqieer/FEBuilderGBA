@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIMapSettingView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIMapSettingView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIMapSettingView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIMapSettingView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIMapSettingView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIMapSettingView.Write failed: {0}", ex.Message);
             }
         }
 

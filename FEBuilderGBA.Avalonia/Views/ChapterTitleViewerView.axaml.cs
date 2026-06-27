@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true;
             try { var items = _vm.LoadChapterTitleList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("ChapterTitleViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ChapterTitleViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("ChapterTitleViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ChapterTitleViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Chapter Title data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ChapterTitleViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ChapterTitleViewerView.Write: {0}", ex.Message); }
         }
 
         void LoadImage()

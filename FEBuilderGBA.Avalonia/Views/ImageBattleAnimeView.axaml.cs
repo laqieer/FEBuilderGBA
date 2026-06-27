@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SectionCombo_SelectionChanged: {0}", ex.Message);
+                Log.ErrorF("SectionCombo_SelectionChanged: {0}", ex.Message);
             }
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("FrameUpDown_ValueChanged: {0}", ex.Message);
+                Log.ErrorF("FrameUpDown_ValueChanged: {0}", ex.Message);
             }
         }
 

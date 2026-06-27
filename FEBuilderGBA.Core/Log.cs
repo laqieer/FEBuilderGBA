@@ -31,6 +31,75 @@ namespace FEBuilderGBA
             writeString("E:", args);
         }
 
+        // #1637: real string.Format overloads.
+        // The plain Debug/Notify/Error(params string[]) sink only does string.Join(" ", args),
+        // so a call like Error("... {0}", ex.Message) recorded the LITERAL "{0}" token
+        // instead of substituting it. These *F overloads do an actual string.Format so the
+        // {N} placeholders are substituted. Call sites that pass a {N}-bearing format string
+        // plus arguments must use these (the LogFormatPlaceholderTests regression guard enforces it).
+        [Conditional("DEBUG")]
+        public static void DebugF(string fmt, params object[] args)
+        {
+            writeString("D:", FormatSafe(fmt, args));
+        }
+
+        public static void NotifyF(string fmt, params object[] args)
+        {
+            writeString("N:", FormatSafe(fmt, args));
+        }
+
+        public static void ErrorF(string fmt, params object[] args)
+        {
+            writeString("E:", FormatSafe(fmt, args));
+        }
+
+        /// <summary>
+        /// #1637: string.Format that can never throw from a logging call. A malformed
+        /// format string (bad/extra placeholder) falls back to the raw format string —
+        /// with every <c>{N}</c> token stripped so the literal-placeholder bug can never
+        /// be reintroduced via the fallback path — followed by the joined arguments, so
+        /// logging stays diagnostic, never fatal and never polluted with <c>{N}</c>.
+        /// </summary>
+        private static string FormatSafe(string fmt, object[] args)
+        {
+            if (args == null || args.Length == 0)
+            {
+                return StripPlaceholders(fmt ?? string.Empty);
+            }
+            try
+            {
+                return string.Format(System.Globalization.CultureInfo.InvariantCulture, fmt ?? string.Empty, args);
+            }
+            catch (FormatException)
+            {
+                return FormatFallback(fmt, args);
+            }
+            catch (ArgumentNullException)
+            {
+                return FormatFallback(fmt, args);
+            }
+        }
+
+        private static string FormatFallback(string fmt, object[] args)
+        {
+            return StripPlaceholders(fmt ?? string.Empty)
+                + " " + string.Join(" ", System.Array.ConvertAll(args, a => a?.ToString() ?? string.Empty));
+        }
+
+        /// <summary>
+        /// Replaces every <c>{N}</c> indexed placeholder (e.g. <c>{0}</c>, <c>{1,5:X}</c>) with a
+        /// neutral <c>{}</c> token so a malformed-format fallback never records a literal
+        /// numbered placeholder in the log. Used only on the error path.
+        /// </summary>
+        private static string StripPlaceholders(string fmt)
+        {
+            if (string.IsNullOrEmpty(fmt) || fmt.IndexOf('{') < 0)
+            {
+                return fmt;
+            }
+            return System.Text.RegularExpressions.Regex.Replace(fmt, @"\{\d+(?:[,:][^}]*)?\}", "{}");
+        }
+
         private static void writeString(string type, params string[] args)
         {
             string str = string.Join(" ", args);

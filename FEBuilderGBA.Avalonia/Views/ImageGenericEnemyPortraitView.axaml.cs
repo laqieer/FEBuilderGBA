@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageGenericEnemyPortraitView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageGenericEnemyPortraitView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageGenericEnemyPortraitView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageGenericEnemyPortraitView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 PreviewImage.SetImage(null);
-                Log.Error("ImageGenericEnemyPortraitView.RefreshPreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageGenericEnemyPortraitView.RefreshPreview failed: {0}", ex.Message);
             }
         }
 
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageGenericEnemyPortraitView.ExportButton failed: {0}", ex.Message);
+                Log.ErrorF("ImageGenericEnemyPortraitView.ExportButton failed: {0}", ex.Message);
             }
         }
 

@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigAnimeImportHelper.LoadFrameImage: {0}", ex.Message);
+                Log.ErrorF("SkillConfigAnimeImportHelper.LoadFrameImage: {0}", ex.Message);
                 return null;
             }
         }

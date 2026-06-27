@@ -100,13 +100,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("MapSettingFE6View.OnExpandListClick inner failed: {0}", inner.ToString());
+                    Log.ErrorF("MapSettingFE6View.OnExpandListClick inner failed: {0}", inner.ToString());
                     CoreState.Services?.ShowError(R._("Map setting list expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE6View.OnExpandListClick failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE6View.OnExpandListClick failed: {0}", ex.ToString());
             }
         }
 
@@ -119,7 +119,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.CurrentAddr == 0) return;
             try { WindowManager.Instance.Navigate<MapEditorView>(_vm.CurrentAddr); }
-            catch (Exception ex) { Log.Error("MapSettingFE6View.JumpMapEditor failed: {0}", ex.ToString()); }
+            catch (Exception ex) { Log.ErrorF("MapSettingFE6View.JumpMapEditor failed: {0}", ex.ToString()); }
         }
 
         // 離脱ポイントへJump — map id -> exit-point table slot -> navigate.
@@ -138,7 +138,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 WindowManager.Instance.Navigate<MapExitPointView>(slot);
             }
-            catch (Exception ex) { Log.Error("MapSettingFE6View.JumpExitPoint failed: {0}", ex.ToString()); }
+            catch (Exception ex) { Log.ErrorF("MapSettingFE6View.JumpExitPoint failed: {0}", ex.ToString()); }
         }
 
         void LoadList()
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE6View.LoadList failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE6View.LoadList failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE6View.OnSelected failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE6View.OnSelected failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -384,7 +384,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingFE6View.Write failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE6View.Write failed: {0}", ex.ToString());
                 CoreState.Services?.ShowError(
                     $"Failed to write Map Setting (FE6): {ex.Message}");
             }

@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     }
                     catch (Exception ex2)
                     {
-                        Log.Error("TextViewerViewModel.FindCrossReferences union: {0}", ex2.Message);
+                        Log.ErrorF("TextViewerViewModel.FindCrossReferences union: {0}", ex2.Message);
                     }
                 }
 
@@ -373,7 +373,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerViewModel.FindCrossReferences: {0}", ex.Message);
+                Log.ErrorF("TextViewerViewModel.FindCrossReferences: {0}", ex.Message);
                 return new List<string>();
             }
         }
@@ -635,7 +635,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                             result.Add(new AddrResult(entryAddr, $"{U.ToHexString(i)} {preview}", i));
                         }
                     }
-                    catch (Exception ex) { Log.Error("TextViewerViewModel.SearchTexts text decode: {0}", ex.Message); }
+                    catch (Exception ex) { Log.ErrorF("TextViewerViewModel.SearchTexts text decode: {0}", ex.Message); }
                 }
                 return result;
             }
@@ -740,7 +740,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerViewModel.FindUnreferencedTexts: {0}", ex.Message);
+                Log.ErrorF("TextViewerViewModel.FindUnreferencedTexts: {0}", ex.Message);
                 return new FreeAreaScanResult { IsDefinitive = false };
             }
             return new FreeAreaScanResult { IsDefinitive = true, Results = results };

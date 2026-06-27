@@ -144,7 +144,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -179,7 +179,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.OnTextSelected failed: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.OnTextSelected failed: {0}", ex.Message);
             }
         }
 
@@ -241,7 +241,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.UpdatePointerDisplay: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.UpdatePointerDisplay: {0}", ex.Message);
                 PointerValueBox.Text = R._("(invalid)");
                 RefsCountBox.Text = "0";
             }
@@ -338,7 +338,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.OnAddReferenceClick failed: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.OnAddReferenceClick failed: {0}", ex.Message);
                 ReferencesTabStatusLabel.Text = R._("Error: {0}", ex.Message);
             }
         }
@@ -521,7 +521,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Export failed: {0}", ex.Message);
+                Log.ErrorF("Export failed: {0}", ex.Message);
                 await MessageBoxWindow.Show(this, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
@@ -546,7 +546,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Import failed: {0}", ex.Message);
+                Log.ErrorF("Import failed: {0}", ex.Message);
                 await MessageBoxWindow.Show(this, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);
             }
         }
@@ -646,7 +646,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 WriteStatusLabel.Text = $"Write failed: {ex.Message}";
-                Log.Error("WriteText failed: {0}", ex.Message);
+                Log.ErrorF("WriteText failed: {0}", ex.Message);
             }
             finally
             {
@@ -727,7 +727,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 SearchResultLabel.Text = $"Error: {ex.Message}";
-                Log.Error("SearchContent failed: {0}", ex.Message);
+                Log.ErrorF("SearchContent failed: {0}", ex.Message);
             }
         }
 
@@ -774,7 +774,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 FreeAreaStatusLabel.Text = R._("Error: {0}", ex.Message);
-                Log.Error("SearchFreeArea failed: {0}", ex.Message);
+                Log.ErrorF("SearchFreeArea failed: {0}", ex.Message);
             }
         }
 
@@ -822,7 +822,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.PopulateTranslateCombos failed: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.PopulateTranslateCombos failed: {0}", ex.Message);
             }
         }
 
@@ -901,7 +901,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // an empty or error-shaped string.
                 if (string.IsNullOrWhiteSpace(result))
                 {
-                    Log.Error("TextViewerView.OnTranslateClick: translation returned empty for {0}->{1}", fromCode, toCode);
+                    Log.ErrorF("TextViewerView.OnTranslateClick: translation returned empty for {0}->{1}", fromCode, toCode);
                     CoreState.Services?.ShowError(R._("Translation failed: the service returned no result."));
                     return;
                 }
@@ -912,12 +912,12 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (System.Net.WebException wex)
             {
-                Log.Error("TextViewerView.OnTranslateClick WebException: {0}", wex.Message);
+                Log.ErrorF("TextViewerView.OnTranslateClick WebException: {0}", wex.Message);
                 CoreState.Services?.ShowError(R._("Google translation returned an error. You may have sent too many requests.\r\n\r\n{0}", wex.Message));
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.OnTranslateClick failed: {0}", ex.Message);
+                Log.ErrorF("TextViewerView.OnTranslateClick failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Translation failed: {0}", ex.Message));
             }
             finally

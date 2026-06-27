@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SomeClassListView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SomeClassListView.Write_Click failed: {0}", ex.Message);
             }
         }
     }

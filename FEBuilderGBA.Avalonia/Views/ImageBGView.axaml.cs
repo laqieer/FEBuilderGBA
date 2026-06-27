@@ -248,7 +248,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBGView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageBGView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -264,7 +264,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBGView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageBGView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -355,7 +355,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageBGView.ListExpands_Click: {0}", ex.Message);
+                Log.ErrorF("ImageBGView.ListExpands_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Expand failed: {ex.Message}");
             }
         }
@@ -604,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBGView.OpenSource_Click: {0}", ex.Message);
+                Log.ErrorF("ImageBGView.OpenSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
             }
         }
@@ -637,7 +637,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBGView.SelectSource_Click: {0}", ex.Message);
+                Log.ErrorF("ImageBGView.SelectSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
             }
         }

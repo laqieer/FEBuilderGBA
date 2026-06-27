@@ -194,7 +194,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("RefreshFaceImage failed: {0}", ex.Message);
+                Log.ErrorF("RefreshFaceImage failed: {0}", ex.Message);
                 FaceImage = null;
             }
         }
@@ -207,7 +207,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("RefreshMiniPortrait failed: {0}", ex.Message);
+                Log.ErrorF("RefreshMiniPortrait failed: {0}", ex.Message);
                 MiniPortraitImage = null;
             }
         }
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("RefreshMouthStrip failed: {0}", ex.Message);
+                Log.ErrorF("RefreshMouthStrip failed: {0}", ex.Message);
                 MouthStripImage = null;
             }
         }
@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("RefreshEyeStrip failed: {0}", ex.Message);
+                Log.ErrorF("RefreshEyeStrip failed: {0}", ex.Message);
                 EyeStripImage = null;
             }
         }
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("RefreshClassCard failed: {0}", ex.Message);
+                Log.ErrorF("RefreshClassCard failed: {0}", ex.Message);
                 ClassCardImage = null;
             }
         }
@@ -295,7 +295,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     string pname = NameResolver.GetPortraitName((uint)i);
                     if (!string.IsNullOrEmpty(pname)) name += $" {pname}";
                 }
-                catch (Exception ex) { Log.Error("ImagePortraitViewModel.LoadList portrait name resolve: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("ImagePortraitViewModel.LoadList portrait name resolve: {0}", ex.Message); }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
             ReadCount = (uint)result.Count;

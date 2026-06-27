@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundRoomCGView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomCGView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundRoomCGView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomCGView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SoundRoomCGView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomCGView.Write_Click failed: {0}", ex.Message);
             }
         }
 

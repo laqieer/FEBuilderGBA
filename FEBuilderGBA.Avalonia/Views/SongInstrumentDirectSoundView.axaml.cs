@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentDirectSoundView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentDirectSoundView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentDirectSoundView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentDirectSoundView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongInstrumentDirectSoundView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentDirectSoundView.Write_Click failed: {0}", ex.Message);
             }
         }
 

@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.BinaryButton failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.BinaryButton failed: {0}", ex.Message);
             }
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.CopyPointer failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.CopyPointer failed: {0}", ex.Message);
             }
         }
 
@@ -92,7 +92,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.CopyClipboard failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.CopyClipboard failed: {0}", ex.Message);
             }
         }
 
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.CopyLittleEndian failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.CopyLittleEndian failed: {0}", ex.Message);
             }
         }
 
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.CopyNoDollGBARadBreakPoint failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.CopyNoDollGBARadBreakPoint failed: {0}", ex.Message);
             }
         }
 
@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.ExportSelected({0}) failed: {1}", formatName, ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.ExportSelected({0}) failed: {1}", formatName, ex.Message);
             }
         }
 
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.OpenPreviewDialog({0}) failed: {1}", formatName, ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.OpenPreviewDialog({0}) failed: {1}", formatName, ex.Message);
             }
         }
 
@@ -235,7 +235,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.ImportButton failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.ImportButton failed: {0}", ex.Message);
             }
         }
 
@@ -259,7 +259,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.SetClipboardAsync failed: {0}", ex.Message);
+                Log.ErrorF("DumpStructSelectDialogView.SetClipboardAsync failed: {0}", ex.Message);
             }
         }
 

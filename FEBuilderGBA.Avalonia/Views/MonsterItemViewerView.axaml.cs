@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.LoadItemList failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.LoadItemList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.OnItemSelected failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.OnItemSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -101,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemSelectedAddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             ItemIdBox.Value = _vm.ItemId;
             try { ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId); }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateItemUI ItemName: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.UpdateItemUI ItemName: {0}", ex.Message); }
             // #950 T4: Item 2..5 (B1..B4) are item IDs; populate the IdFieldControl
             // value + inline item-name preview just like slot-1 ItemIdBox.
             DropRateBox.Value = _vm.DropRate;
@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Unknown2Box.NameText = NameResolver.GetItemName(_vm.Unknown2);
                 Unknown3Box.NameText = NameResolver.GetItemName(_vm.Unknown3);
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateItemUI ItemName 2..5: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.UpdateItemUI ItemName 2..5: {0}", ex.Message); }
             ItemCommentBox.Text = ReadComment(_vm.CurrentAddr);
         }
 
@@ -146,7 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.ItemWrite: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.ItemWrite: {0}", ex.Message);
             }
         }
 
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.ItemExpand: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.ItemExpand: {0}", ex.Message);
             }
         }
 
@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.LoadProbList failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.LoadProbList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.OnProbSelected failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.OnProbSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -270,7 +270,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.ProbabilityWrite: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.ProbabilityWrite: {0}", ex.Message);
             }
         }
 
@@ -305,7 +305,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.ProbExpand: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.ProbExpand: {0}", ex.Message);
             }
         }
 
@@ -330,7 +330,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.LoadHoldList failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.LoadHoldList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -345,7 +345,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterItemViewerView.OnHoldingSelected failed: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.OnHoldingSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -356,7 +356,7 @@ namespace FEBuilderGBA.Avalonia.Views
             HoldSelectedAddrLabel.Text = $"0x{_vm.HoldingAddr:X08}";
             HoldClassIdBox.Value = _vm.ClassId;
             try { HoldClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateHoldingUI ClassName: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.UpdateHoldingUI ClassName: {0}", ex.Message); }
 
             HoldItem1Box.Value = _vm.HoldingItem1;
             HoldItem2Box.Value = _vm.HoldingItem2;
@@ -462,7 +462,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.HoldingsWrite: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.HoldingsWrite: {0}", ex.Message);
             }
         }
 
@@ -497,7 +497,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MonsterItemViewerView.HoldExpand: {0}", ex.Message);
+                Log.ErrorF("MonsterItemViewerView.HoldExpand: {0}", ex.Message);
             }
         }
 
@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 EntryList.SelectByIndex((int)(value - 1));
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToItemRow: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.JumpToItemRow: {0}", ex.Message); }
         }
 
         /// <summary>
@@ -550,7 +550,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 ProbEntryList.SelectByIndex((int)(value - 1));
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToProbRow: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.JumpToProbRow: {0}", ex.Message); }
         }
 
         // 10 holding-item jump handlers (B1..B10 -> Item tab).
@@ -623,7 +623,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result != null)
                     box.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.PickItemIdInto: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.PickItemIdInto: {0}", ex.Message); }
         }
 
         void ItemId_Jump(object? sender, RoutedEventArgs e)
@@ -637,7 +637,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ItemEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.ItemId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.ItemId_Jump failed: {0}", ex.Message); }
         }
 
         async void ItemId_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(ItemIdBox);
@@ -668,7 +668,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ItemEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToItemEditor: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.JumpToItemEditor: {0}", ex.Message); }
         }
 
         void Item2_Jump(object? sender, RoutedEventArgs e) => JumpToItemEditor(DropRateBox);
@@ -732,7 +732,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.HoldClassId_Jump: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.HoldClassId_Jump: {0}", ex.Message); }
         }
 
         async void HoldClassId_Pick(object? sender, RoutedEventArgs e)
@@ -743,13 +743,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) HoldClassIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.HoldClassId_Pick: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.HoldClassId_Pick: {0}", ex.Message); }
         }
 
         void HoldClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
             try { HoldClassIdBox.NameText = NameResolver.GetClassName(e.NewValue); }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.HoldClassId_ValueChanged: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.HoldClassId_ValueChanged: {0}", ex.Message); }
         }
 
         // ============================================================
@@ -804,7 +804,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.CommentCache.TryGetValue(addr, out string value))
                     return value ?? string.Empty;
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.ReadComment: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.ReadComment: {0}", ex.Message); }
             return string.Empty;
         }
 
@@ -822,7 +822,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.CommentCache?.Update(addr, comment ?? string.Empty);
             }
-            catch (Exception ex) { Log.Error("MonsterItemViewerView.WriteComment: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterItemViewerView.WriteComment: {0}", ex.Message); }
         }
     }
 }

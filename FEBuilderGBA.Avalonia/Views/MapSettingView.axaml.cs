@@ -120,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapSettingView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -135,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingView.OnMapSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapSettingView.OnMapSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

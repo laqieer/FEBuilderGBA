@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageSystemAreaView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageSystemAreaView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageSystemAreaView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageSystemAreaView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageSystemAreaView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ImageSystemAreaView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

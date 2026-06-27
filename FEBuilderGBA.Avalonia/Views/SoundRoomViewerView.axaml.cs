@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundRoomViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomViewerView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -197,7 +197,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundRoomViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -238,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SoundRoomViewerView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SoundRoomViewerView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<SongTableView>(addr);
             }
-            catch (Exception ex) { Log.Error("SoundRoomViewerView.SongId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SoundRoomViewerView.SongId_Jump failed: {0}", ex.Message); }
         }
 
         async void SongId_Pick(object? sender, RoutedEventArgs e)
@@ -285,7 +285,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<SongTableView>(addr, this);
                 if (result != null) SongIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("SoundRoomViewerView.SongId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SoundRoomViewerView.SongId_Pick failed: {0}", ex.Message); }
         }
 
         void SongId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

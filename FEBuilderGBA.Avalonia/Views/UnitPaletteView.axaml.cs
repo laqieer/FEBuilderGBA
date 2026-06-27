@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("UnitPaletteView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("UnitPaletteView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("UnitPaletteView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("UnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 

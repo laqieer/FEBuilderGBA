@@ -76,7 +76,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8UCSkillSys09xView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8UCSkillSys09xView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8UCSkillSys09xView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8UCSkillSys09xView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -183,7 +183,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillConfigFE8UCSkillSys09xView.Write failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8UCSkillSys09xView.Write failed: {0}", ex.Message);
             }
         }
 

@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusParamView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("StatusParamView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -63,7 +63,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusParamView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("StatusParamView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Status parameter data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusParamView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("StatusParamView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

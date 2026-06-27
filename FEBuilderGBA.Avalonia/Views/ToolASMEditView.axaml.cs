@@ -185,9 +185,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             finally
             {
-                try { if (File.Exists(tempAsm)) File.Delete(tempAsm); } catch (Exception ex) { Log.Error("ToolASMEditView temp asm cleanup: {0}", ex.Message); }
-                try { if (File.Exists(tempObj)) File.Delete(tempObj); } catch (Exception ex) { Log.Error("ToolASMEditView temp obj cleanup: {0}", ex.Message); }
-                try { if (File.Exists(tempBin)) File.Delete(tempBin); } catch (Exception ex) { Log.Error("ToolASMEditView temp bin cleanup: {0}", ex.Message); }
+                try { if (File.Exists(tempAsm)) File.Delete(tempAsm); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp asm cleanup: {0}", ex.Message); }
+                try { if (File.Exists(tempObj)) File.Delete(tempObj); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp obj cleanup: {0}", ex.Message); }
+                try { if (File.Exists(tempBin)) File.Delete(tempBin); } catch (Exception ex) { Log.ErrorF("ToolASMEditView temp bin cleanup: {0}", ex.Message); }
             }
         }
         void Close_Click(object? sender, RoutedEventArgs e) => Close();

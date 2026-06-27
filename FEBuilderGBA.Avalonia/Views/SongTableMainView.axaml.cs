@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTableMainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTableMainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTableMainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongTableMainView.OnSelected failed: {0}", ex.Message);
             }
         }
 

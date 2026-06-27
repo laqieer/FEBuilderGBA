@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventFunctionPointerFE7View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventFunctionPointerFE7View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventFunctionPointerFE7View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventFunctionPointerFE7View.OnSelected failed: {0}", ex.Message);
             }
         }
 

@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (!string.IsNullOrEmpty(resolved))
                         name = U.ToHexString(i) + " " + resolved;
                 }
-                catch (Exception ex) { Log.Error("StatusParamViewModel.LoadList string resolve: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("StatusParamViewModel.LoadList string resolve: {0}", ex.Message); }
 
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 StringText = ResolveParamName(rom, addr);
             }
-            catch (Exception ex) { Log.Error("StatusParamViewModel.LoadStatusParam string resolve: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("StatusParamViewModel.LoadStatusParam string resolve: {0}", ex.Message); }
 
             CanWrite = true;
         }

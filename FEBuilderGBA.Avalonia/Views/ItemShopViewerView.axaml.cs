@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemShopViewerView.LoadShopList: {0}", ex.Message);
+                Log.ErrorF("ItemShopViewerView.LoadShopList: {0}", ex.Message);
                 StatusLabel.Text = $"Failed to load shop list: {ex.Message}";
             }
         }
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemShopViewerView.ReloadShopListAndSelect: {0}", ex.Message);
+                Log.ErrorF("ItemShopViewerView.ReloadShopListAndSelect: {0}", ex.Message);
                 StatusLabel.Text = $"Reload failed after relocation: {ex.Message}";
             }
         }
@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemShopViewerView.OnShopSelected: {0}", ex.Message);
+                Log.ErrorF("ItemShopViewerView.OnShopSelected: {0}", ex.Message);
             }
         }
 
@@ -164,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemShopViewerView.OnSlotSelected: {0}", ex.Message);
+                Log.ErrorF("ItemShopViewerView.OnSlotSelected: {0}", ex.Message);
             }
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
                 StatusLabel.Text = $"Write failed: {ex.Message}";
             }
         }
@@ -296,7 +296,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AppendSlot failed: {0}", ex.Message);
+                Log.ErrorF("AppendSlot failed: {0}", ex.Message);
                 StatusLabel.Text = $"Append failed: {ex.Message}";
             }
         }
@@ -346,7 +346,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("RemoveLastSlot failed: {0}", ex.Message);
+                Log.ErrorF("RemoveLastSlot failed: {0}", ex.Message);
                 StatusLabel.Text = $"Remove failed: {ex.Message}";
             }
         }
@@ -449,7 +449,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ItemEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("ItemShopViewerView.ItemId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ItemShopViewerView.ItemId_Jump failed: {0}", ex.Message); }
         }
 
         async void ItemId_Pick(object? sender, RoutedEventArgs e)
@@ -464,7 +464,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
                 if (result != null) ItemIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("ItemShopViewerView.ItemId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ItemShopViewerView.ItemId_Pick failed: {0}", ex.Message); }
         }
 
         void ItemId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

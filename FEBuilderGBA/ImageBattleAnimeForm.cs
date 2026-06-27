@@ -539,7 +539,7 @@ namespace FEBuilderGBA
            {
                if (addr + 4 > rom_length)
                {
-                   Log.Error("ROM Broken! Address after allocation is out of range. {0}+2/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
+                   Log.ErrorF("ROM Broken! Address after allocation is out of range. {0}+2/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length));
                    break;
                }
                if (Program.ROM.u32(addr + 0) == 0)

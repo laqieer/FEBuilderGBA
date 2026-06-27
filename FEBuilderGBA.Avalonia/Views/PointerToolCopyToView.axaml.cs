@@ -115,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolCopyToView.HexButton_Click: {0}", ex.Message);
+                Log.ErrorF("PointerToolCopyToView.HexButton_Click: {0}", ex.Message);
             }
         }
 
@@ -150,7 +150,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolCopyToView.SetClipboardAsync failed: {0}", ex.Message);
+                Log.ErrorF("PointerToolCopyToView.SetClipboardAsync failed: {0}", ex.Message);
             }
         }
 

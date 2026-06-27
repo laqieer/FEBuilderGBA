@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapEventPointerView.InitialLoad failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.InitialLoad failed: {0}", ex.Message);
             }
             finally
             {
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapEventPointerView.ReloadBefore failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.ReloadBefore failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapEventPointerView.ReloadAfter failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.ReloadAfter failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapEventPointerView.OnBeforeSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.OnBeforeSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapEventPointerView.OnAfterSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.OnAfterSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapEventPointerView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -231,7 +231,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapEventPointerView.WriteAfter_Click failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.WriteAfter_Click failed: {0}", ex.Message);
             }
         }
 
@@ -258,7 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapEventPointerView.WriteGlobalEvents_Click failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapEventPointerView.WriteGlobalEvents_Click failed: {0}", ex.Message);
             }
         }
 

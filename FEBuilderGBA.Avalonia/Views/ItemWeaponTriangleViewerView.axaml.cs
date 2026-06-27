@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemWeaponTriangleViewerView.LoadList: {0}", ex.Message);
+                Log.ErrorF("ItemWeaponTriangleViewerView.LoadList: {0}", ex.Message);
             }
         }
 
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemWeaponTriangleViewerView.OnSelected: {0}", ex.Message);
+                Log.ErrorF("ItemWeaponTriangleViewerView.OnSelected: {0}", ex.Message);
             }
         }
 
@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 

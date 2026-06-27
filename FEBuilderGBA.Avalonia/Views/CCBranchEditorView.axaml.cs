@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("CCBranchEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("CCBranchEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("CCBranchEditorView.OnBranchSelected failed: {0}", ex.Message);
+                Log.ErrorF("CCBranchEditorView.OnBranchSelected failed: {0}", ex.Message);
             }
         }
 
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("CCBranchEditorView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("CCBranchEditorView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("CCBranchEditorView.JumpToClass failed: {0}", ex.Message);
+                Log.ErrorF("CCBranchEditorView.JumpToClass failed: {0}", ex.Message);
             }
         }
 
@@ -148,7 +148,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("CCBranchEditorView.PickClass failed: {0}", ex.Message);
+                Log.ErrorF("CCBranchEditorView.PickClass failed: {0}", ex.Message);
             }
         }
 

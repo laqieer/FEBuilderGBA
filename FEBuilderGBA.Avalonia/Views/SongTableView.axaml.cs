@@ -34,7 +34,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTableView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongTableView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -56,7 +56,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongTableView.OnSongSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongTableView.OnSongSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTableView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongTableView.Write_Click failed: {0}", ex.Message);
             }
         }
 

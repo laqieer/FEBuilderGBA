@@ -84,7 +84,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageMapActionAnimationView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageMapActionAnimationView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageMapActionAnimationView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ImageMapActionAnimationView.Write: {0}", ex.Message); }
         }
 
         /// <summary>
@@ -265,13 +265,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImageMapActionAnimationView.ListExpand_Click inner failed: {0}", inner.Message);
+                    Log.ErrorF("ImageMapActionAnimationView.ListExpand_Click inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationView.ListExpand_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImageMapActionAnimationView.ListExpand_Click failed: {0}", ex.Message);
             }
         }
 
@@ -310,7 +310,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationView.OpenInCreator_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImageMapActionAnimationView.OpenInCreator_Click failed: {0}", ex.Message);
             }
         }
 

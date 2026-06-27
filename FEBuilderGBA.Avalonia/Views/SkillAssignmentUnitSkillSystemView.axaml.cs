@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
         static void DisposeBitmap(ref Bitmap bmp)
         {
             if (bmp == null) return;
-            try { bmp.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentUnitSkillSystemView dispose bmp: {0}", ex.Message); }
+            try { bmp.Dispose(); } catch (System.Exception ex) { Log.DebugF("SkillAssignmentUnitSkillSystemView dispose bmp: {0}", ex.Message); }
             bmp = null;
         }
 
@@ -92,7 +92,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitSkillSystemView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitSkillSystemView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_unitIconBitmap != null && !ReferenceEquals(_unitIconBitmap, bmp))
             {
-                try { _unitIconBitmap.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentUnitSkillSystemView dispose unit icon: {0}", ex.Message); }
+                try { _unitIconBitmap.Dispose(); } catch (System.Exception ex) { Log.DebugF("SkillAssignmentUnitSkillSystemView dispose unit icon: {0}", ex.Message); }
             }
             _unitIconBitmap = bmp;
             SkillIconImage.Source = bmp;
@@ -198,7 +198,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_n1IconBitmap != null && !ReferenceEquals(_n1IconBitmap, bmp))
             {
-                try { _n1IconBitmap.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentUnitSkillSystemView dispose n1 icon: {0}", ex.Message); }
+                try { _n1IconBitmap.Dispose(); } catch (System.Exception ex) { Log.DebugF("SkillAssignmentUnitSkillSystemView dispose n1 icon: {0}", ex.Message); }
             }
             _n1IconBitmap = bmp;
             N1SkillIconImage.Source = bmp;
@@ -222,7 +222,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitSkillSystemView.MasterWrite failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.MasterWrite failed: {0}", ex.Message);
             }
         }
 
@@ -237,7 +237,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitSkillSystemView.N1EntryList_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.N1EntryList_SelectionChanged failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; }
         }
@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillAssignmentUnitSkillSystemView.N1Write failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.N1Write failed: {0}", ex.Message);
             }
         }
 
@@ -293,7 +293,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitSkillSystemView.N1ReloadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.N1ReloadList failed: {0}", ex.Message);
             }
         }
 
@@ -464,7 +464,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillAssignmentUnitSkillSystemView.LearnInfo failed: {0}", ex.Message);
+                Log.ErrorF("SkillAssignmentUnitSkillSystemView.LearnInfo failed: {0}", ex.Message);
             }
         }
 

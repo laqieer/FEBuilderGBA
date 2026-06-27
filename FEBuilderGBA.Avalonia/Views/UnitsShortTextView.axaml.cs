@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
     }

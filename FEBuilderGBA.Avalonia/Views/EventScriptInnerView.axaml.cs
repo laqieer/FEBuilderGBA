@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptInnerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventScriptInnerView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventScriptInnerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventScriptInnerView.OnSelected failed: {0}", ex.Message);
             }
         }
 

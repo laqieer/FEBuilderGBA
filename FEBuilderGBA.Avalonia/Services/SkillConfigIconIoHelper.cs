@@ -148,7 +148,7 @@ namespace FEBuilderGBA.Avalonia.Services
             catch (Exception ex)
             {
                 undo.Rollback();
-                Log.Error("SkillConfigIconIoHelper.ImportIconAsync write failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigIconIoHelper.ImportIconAsync write failed: {0}", ex.Message);
                 return R._("Failed to write the icon to ROM; rolled back.");
             }
 
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigIconIoHelper.ExportIconAsync save failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigIconIoHelper.ExportIconAsync save failed: {0}", ex.Message);
             }
         }
     }

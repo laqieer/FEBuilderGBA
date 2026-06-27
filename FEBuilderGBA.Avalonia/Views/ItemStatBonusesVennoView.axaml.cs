@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemStatBonusesVennoView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ItemStatBonusesVennoView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemStatBonusesVennoView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ItemStatBonusesVennoView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 

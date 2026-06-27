@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemEffectPointerViewerView.LoadList: {0}", ex.Message);
+                Log.ErrorF("ItemEffectPointerViewerView.LoadList: {0}", ex.Message);
             }
         }
 
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemEffectPointerViewerView.OnSelected: {0}", ex.Message);
+                Log.ErrorF("ItemEffectPointerViewerView.OnSelected: {0}", ex.Message);
             }
         }
 
@@ -73,7 +73,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 

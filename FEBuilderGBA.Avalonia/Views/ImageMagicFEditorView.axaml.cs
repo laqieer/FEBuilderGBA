@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -230,7 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.RenderPreview: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.RenderPreview: {0}", ex.Message);
                 MagicFramePreview.SetImage(null);
                 ExportPngButton.IsEnabled = false;
             }
@@ -304,7 +304,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageMagicFEditorView.Write: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.Write: {0}", ex.Message);
             }
         }
 
@@ -357,7 +357,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageMagicFEditorView.MagicListExpand: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.MagicListExpand: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
             }
         }
@@ -380,7 +380,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.ExportPng: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.ExportPng: {0}", ex.Message);
             }
         }
 
@@ -531,7 +531,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.LoadIndexedImage: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.LoadIndexedImage: {0}", ex.Message);
                 return null;
             }
         }
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MagicAnimeExport: {0}", ex.Message);
+                Log.ErrorF("MagicAnimeExport: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
             }
         }
@@ -696,7 +696,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 img.SetPixelData(new byte[width * height * 4]);
                 img.Save(path);
             }
-            catch (Exception ex) { Log.Error("SaveDummyPng: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SaveDummyPng: {0}", ex.Message); }
         }
 
         // #878 PR1 — Open Source File (mirrors WF OpenSourceButton_Click).
@@ -720,7 +720,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImageMagicFEditorView.OpenSource: {0}", ex.Message);
+                    Log.ErrorF("ImageMagicFEditorView.OpenSource: {0}", ex.Message);
                     CoreState.Services?.ShowError(
                         R._("Cannot open file: {0}", ex.Message));
                 }
@@ -758,7 +758,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImageMagicFEditorView.SelectSource: {0}", ex.Message);
+                    Log.ErrorF("ImageMagicFEditorView.SelectSource: {0}", ex.Message);
                     CoreState.Services?.ShowError(
                         R._("Cannot open folder: {0}", ex.Message));
                 }
@@ -830,7 +830,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMagicFEditorView.LinkInternet: {0}", ex.Message);
+                Log.ErrorF("ImageMagicFEditorView.LinkInternet: {0}", ex.Message);
             }
         }
 

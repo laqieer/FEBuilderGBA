@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         tname += (char)b;
                     }
                 }
-                catch (Exception ex) { Log.Error("BattleTerrainViewerViewModel.LoadList terrain name read: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("BattleTerrainViewerViewModel.LoadList terrain name read: {0}", ex.Message); }
 
                 string name = U.ToHexString(i) + " " + tname;
                 result.Add(new AddrResult(addr, name, i));
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     tname += (char)b;
                 }
             }
-            catch (Exception ex) { Log.Error("BattleTerrainViewerViewModel.LoadBattleTerrain terrain name read: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BattleTerrainViewerViewModel.LoadBattleTerrain terrain name read: {0}", ex.Message); }
             TerrainName = tname;
 
             NameChar0 = rom.u8(addr + 0);

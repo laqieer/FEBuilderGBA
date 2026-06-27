@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.LoadAll failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.LoadAll failed: {0}", ex.Message);
             }
             finally
             {
@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapImageView.WriteAll failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.WriteAll failed: {0}", ex.Message);
             }
         }
 
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.OnBorderSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.OnBorderSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
             // #849 NV5c: render the border AP preview after loading the record.
@@ -232,7 +232,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapImageView.BorderWrite failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.BorderWrite failed: {0}", ex.Message);
             }
         }
 
@@ -389,7 +389,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnBorderTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadBorderList(); }
-            catch (Exception ex) { Log.Error("BorderReload failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BorderReload failed: {0}", ex.Message); }
         }
 
         // #825: list-expand for the border table (worldmap_county_border_pointer,
@@ -458,13 +458,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("WorldMapImageView.BorderListExpand inner failed: {0}", inner.Message);
+                    Log.ErrorF("WorldMapImageView.BorderListExpand inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.BorderListExpand failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.BorderListExpand failed: {0}", ex.Message);
             }
         }
 
@@ -541,7 +541,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.OnIconSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.OnIconSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -577,7 +577,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapImageView.IconWrite failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.IconWrite failed: {0}", ex.Message);
             }
         }
 
@@ -585,7 +585,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnIconDataTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadIconList(); }
-            catch (Exception ex) { Log.Error("IconDataReload failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("IconDataReload failed: {0}", ex.Message); }
         }
 
         // #825: list-expand for the icon-data table (worldmap_icon_data_pointer,
@@ -645,13 +645,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("WorldMapImageView.IconDataListExpand inner failed: {0}", inner.Message);
+                    Log.ErrorF("WorldMapImageView.IconDataListExpand inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.IconDataListExpand failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.IconDataListExpand failed: {0}", ex.Message);
             }
         }
 
@@ -1301,7 +1301,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.OpenSource_Click: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.OpenSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
             }
         }
@@ -1340,7 +1340,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.SelectSource_Click: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.SelectSource_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
             }
         }
@@ -1358,7 +1358,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.Undo failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapImageView.Undo failed: {0}", ex.Message);
             }
         }
 

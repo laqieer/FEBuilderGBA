@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDStaffRollView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EDStaffRollView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDStaffRollView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDStaffRollView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -72,7 +72,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDStaffRollView.Write failed: {0}", ex.Message);
+                Log.ErrorF("EDStaffRollView.Write failed: {0}", ex.Message);
             }
         }
 

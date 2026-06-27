@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.FilterCombo_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.FilterCombo_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.Reload_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Reload_Click failed: {0}", ex.Message);
             }
         }
 
@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -238,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIScriptView.Write: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Write: {0}", ex.Message);
             }
         }
 
@@ -266,7 +266,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.ReloadList_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.ReloadList_Click failed: {0}", ex.Message);
             }
         }
 
@@ -348,13 +348,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("AIScriptView.ListExpand_Click inner failed: {0}", inner.Message);
+                    Log.ErrorF("AIScriptView.ListExpand_Click inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.ListExpand_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.ListExpand_Click failed: {0}", ex.Message);
             }
         }
 
@@ -375,7 +375,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.DisassemblyList_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.DisassemblyList_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -557,7 +557,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.Update_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Update_Click failed: {0}", ex.Message);
             }
         }
 
@@ -605,7 +605,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.New_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.New_Click failed: {0}", ex.Message);
             }
         }
 
@@ -633,7 +633,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.Remove_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Remove_Click failed: {0}", ex.Message);
             }
         }
 
@@ -691,7 +691,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.ScriptChange_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.ScriptChange_Click failed: {0}", ex.Message);
             }
         }
 
@@ -709,7 +709,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.DetailAddress_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.DetailAddress_Click failed: {0}", ex.Message);
             }
         }
 
@@ -748,7 +748,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.Export_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Export_Click failed: {0}", ex.Message);
             }
         }
 
@@ -799,7 +799,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIScriptView.Import_Click failed: {0}", ex.Message);
+                Log.ErrorF("AIScriptView.Import_Click failed: {0}", ex.Message);
             }
         }
 

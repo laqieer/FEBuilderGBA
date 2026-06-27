@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorAppendView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorAppendView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorAppendView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapStyleEditorAppendView.OnSelected failed: {0}", ex.Message);
             }
         }
 

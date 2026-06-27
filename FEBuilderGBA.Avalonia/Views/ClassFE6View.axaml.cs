@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ClassFE6View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ClassFE6View.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -372,7 +372,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassFE6View.RefreshHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("ClassFE6View.RefreshHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLabel.IsVisible = false;
             }
         }
@@ -411,7 +411,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassFE6View.UpdateAddressBarInfra failed: {0}", ex.Message);
+                Log.ErrorF("ClassFE6View.UpdateAddressBarInfra failed: {0}", ex.Message);
             }
         }
 
@@ -436,7 +436,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassFE6View.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("ClassFE6View.Write_Click failed: {0}", ex.Message);
             }
         }
 

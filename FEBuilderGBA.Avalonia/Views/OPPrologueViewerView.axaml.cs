@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true;
             try { var items = _vm.LoadOPPrologueList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("OPPrologueViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OPPrologueViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("OPPrologueViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("OPPrologueViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("OP Prologue data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPPrologueViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("OPPrologueViewerView.Write: {0}", ex.Message); }
         }
 
         async void ExportPng_Click(object? sender, RoutedEventArgs e)

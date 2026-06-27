@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                 name = U.ToHexString(i + 1) + " " + resolved;
                         }
                     }
-                    catch (Exception ex) { Log.Error("OPClassAlphaNameFE6ViewModel.LoadList name resolve: {0}", ex.Message); }
+                    catch (Exception ex) { Log.ErrorF("OPClassAlphaNameFE6ViewModel.LoadList name resolve: {0}", ex.Message); }
                 }
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (U.isSafetyOffset(strAddr))
                         AlphaName = rom.getString(strAddr, 64);
                 }
-                catch (Exception ex) { Log.Error("OPClassAlphaNameFE6ViewModel.LoadEntry alpha name read: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("OPClassAlphaNameFE6ViewModel.LoadEntry alpha name read: {0}", ex.Message); }
             }
             CanWrite = true;
         }

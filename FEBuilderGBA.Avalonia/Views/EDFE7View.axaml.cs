@@ -53,13 +53,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadAllLists()
         {
             try { LoadLynList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.LoadLynList failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LoadLynList failed: {0}", ex.Message); }
             try { LoadRetreatList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.LoadRetreatList failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LoadRetreatList failed: {0}", ex.Message); }
             try { LoadEpithetList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.LoadEpithetList failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LoadEpithetList failed: {0}", ex.Message); }
             try { LoadEpilogueList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.LoadEpilogueList failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LoadEpilogueList failed: {0}", ex.Message); }
         }
 
         // ============================================================
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE7View.OnLynSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.OnLynSelected failed: {0}", ex.Message);
             }
         }
 
@@ -130,7 +130,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnLynTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadLynList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.ReloadLyn failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.ReloadLyn failed: {0}", ex.Message); }
         }
 
         void WriteLyn_Click(object? sender, RoutedEventArgs e)
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.WriteLyn failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.WriteLyn failed: {0}", ex.Message);
             }
         }
 
@@ -163,7 +163,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDFE7View.LynUnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LynUnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void LynUnitId_Pick(object? sender, RoutedEventArgs e)
@@ -174,7 +174,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) Lyn_UnitIdBox.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EDFE7View.LynUnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.LynUnitId_Pick failed: {0}", ex.Message); }
         }
 
         void LynUnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -216,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE7View.OnRetreatSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.OnRetreatSelected failed: {0}", ex.Message);
             }
         }
 
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnRetreatTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadRetreatList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.ReloadRetreat failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.ReloadRetreat failed: {0}", ex.Message); }
         }
 
         void WriteRetreat_Click(object? sender, RoutedEventArgs e)
@@ -246,7 +246,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.WriteRetreat failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.WriteRetreat failed: {0}", ex.Message);
             }
         }
 
@@ -269,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.ExpandRetreat failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.ExpandRetreat failed: {0}", ex.Message);
             }
         }
 
@@ -281,7 +281,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDFE7View.RetreatUnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.RetreatUnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void RetreatUnitId_Pick(object? sender, RoutedEventArgs e)
@@ -292,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EDFE7View.RetreatUnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.RetreatUnitId_Pick failed: {0}", ex.Message); }
         }
 
         void RetreatUnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -333,7 +333,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE7View.OnEpithetSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.OnEpithetSelected failed: {0}", ex.Message);
             }
         }
 
@@ -353,7 +353,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnEpithetTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpithetList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.ReloadEpithet failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.ReloadEpithet failed: {0}", ex.Message); }
         }
 
         void WriteEpithet_Click(object? sender, RoutedEventArgs e)
@@ -373,7 +373,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.WriteEpithet failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.WriteEpithet failed: {0}", ex.Message);
             }
         }
 
@@ -396,7 +396,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.ExpandEpithet failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.ExpandEpithet failed: {0}", ex.Message);
             }
         }
 
@@ -408,7 +408,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpithetUnitId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpithetUnitId_Jump failed: {0}", ex.Message); }
         }
 
         async void EpithetUnitId_Pick(object? sender, RoutedEventArgs e)
@@ -419,7 +419,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpithetUnitId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpithetUnitId_Pick failed: {0}", ex.Message); }
         }
 
         void EpithetUnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -481,7 +481,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EDFE7View.OnEpilogueSelected failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.OnEpilogueSelected failed: {0}", ex.Message);
             }
         }
 
@@ -513,14 +513,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 : EDFE7ViewModel.EpilogueRouteKind.Eliwood;
             if (!IsLoaded && CoreState.ROM == null) return;
             try { LoadEpilogueList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.EpilogueFilter_SelectionChanged failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueFilter_SelectionChanged failed: {0}", ex.Message); }
         }
 
         // #668: routed event from the unified EditorTopBar control.
         void OnEpilogueTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpilogueList(); }
-            catch (Exception ex) { Log.Error("EDFE7View.ReloadEpilogue failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.ReloadEpilogue failed: {0}", ex.Message); }
         }
 
         void WriteEpilogue_Click(object? sender, RoutedEventArgs e)
@@ -547,7 +547,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.WriteEpilogue failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.WriteEpilogue failed: {0}", ex.Message);
             }
         }
 
@@ -570,7 +570,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EDFE7View.ExpandEpilogue failed: {0}", ex.Message);
+                Log.ErrorF("EDFE7View.ExpandEpilogue failed: {0}", ex.Message);
             }
         }
 
@@ -582,7 +582,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpilogueUnitId1_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId1_Jump failed: {0}", ex.Message); }
         }
 
         async void EpilogueUnitId1_Pick(object? sender, RoutedEventArgs e)
@@ -593,7 +593,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
         }
 
         void EpilogueUnitId1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -610,7 +610,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpilogueUnitId2_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId2_Jump failed: {0}", ex.Message); }
         }
 
         async void EpilogueUnitId2_Pick(object? sender, RoutedEventArgs e)
@@ -621,7 +621,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EDFE7View.EpilogueUnitId2_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("EDFE7View.EpilogueUnitId2_Pick failed: {0}", ex.Message); }
         }
 
         void EpilogueUnitId2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
