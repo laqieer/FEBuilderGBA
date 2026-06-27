@@ -60,6 +60,94 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_PLATFORM}} /t:build /restore ${{env.SOLUTION_FILE_PATH}}
 
+    # ------------------------------------------------------------------------
+    # Conditional Authenticode signing of the WinForms FEBuilderGBA.exe (#1634).
+    #
+    # Mirrors the conditional-signing pattern from #1654 (Android release
+    # signing): the signing step activates ONLY when the maintainer adds a
+    # code-signing certificate to GitHub Actions secrets. With the secrets ABSENT
+    # — the state of this fork's CI — the unsigned exe is packaged exactly as
+    # before, so no existing CI breaks. Documented in docs/RELEASE.md.
+    #
+    # `secrets.*` cannot be referenced in a step-level `if:` (GitHub Actions
+    # forbids it), so presence is classified once into a step output
+    # (winsign.outputs.present) and the signing step gates on that output. Both
+    # WINDOWS_CERT_BASE64 and WINDOWS_CERT_PASSWORD must be set together: both
+    # empty => unsigned fallback (the fork's current CI); both set => Authenticode
+    # signing; a PARTIAL set fails fast so a half-configured maintainer gets a
+    # clear error instead of a silent unsigned build.
+    - name: Detect Windows signing secret
+      id: winsign
+      shell: pwsh
+      env:
+        WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+      run: |
+        # Read from env: (NOT inline ${{ secrets.* }}) to stay aligned with the
+        # GitHub limitation and avoid embedding secret values in the script body.
+        $set = 0
+        $missing = @()
+        foreach ($name in 'WINDOWS_CERT_BASE64','WINDOWS_CERT_PASSWORD') {
+          $val = [Environment]::GetEnvironmentVariable($name)
+          if (-not [string]::IsNullOrEmpty($val)) { $set++ } else { $missing += $name }
+        }
+        if ($set -eq 2) {
+          "present=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Windows signing secrets detected — Authenticode-signing FEBuilderGBA.exe."
+        } elseif ($set -eq 0) {
+          "present=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "No Windows signing secrets — packaging the unsigned exe (unchanged)."
+        } else {
+          Write-Host "::error::Partial Windows signing secrets configured. Set BOTH WINDOWS_CERT_BASE64 and WINDOWS_CERT_PASSWORD (or neither). Missing: $($missing -join ', ')"
+          exit 1
+        }
+
+    - name: Sign Windows WinForms exe (Authenticode)
+      # Runs ONLY when both signing secrets are present. Imports the base64 PFX
+      # into the CurrentUser cert store (password as a SecureString from env: —
+      # never on a command line), signs FEBuilderGBA.exe by SHA-1 thumbprint with
+      # signtool (located from the Windows SDK; hard error if not found), then
+      # removes the cert from the store. SHA-256 file digest + RFC-3161 timestamp
+      # so the signature stays valid after the cert expires.
+      if: steps.winsign.outputs.present == 'true'
+      shell: pwsh
+      env:
+        WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $exe = "FEBuilderGBA/bin/Release/FEBuilderGBA.exe"
+        if (-not (Test-Path $exe)) { Write-Host "::error::$exe not found — cannot sign."; exit 1 }
+
+        # Locate signtool.exe from the installed Windows SDK(s). windows-latest
+        # ships the SDK; pick the newest x64 signtool. Fail clearly if absent.
+        $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -match '\\x64\\' } |
+          Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $signtool) {
+          Write-Host "::error::signtool.exe not found under the Windows SDK. Cannot Authenticode-sign."
+          exit 1
+        }
+
+        # Decode the PFX to a runner-temp file (auto-cleaned at job end).
+        $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+        [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+
+        # Import into CurrentUser\My, sign by thumbprint, then remove the cert —
+        # so the PFX password is never passed to signtool as an argument.
+        $sec = ConvertTo-SecureString -String $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+        $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $sec
+        try {
+          & $signtool.FullName sign /sha1 $cert.Thumbprint /fd sha256 /tr http://timestamp.digicert.com /td sha256 $exe
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::signtool failed (exit $LASTEXITCODE)."; exit 1 }
+          & $signtool.FullName verify /pa $exe
+          if ($LASTEXITCODE -ne 0) { Write-Host "::error::signature verification failed."; exit 1 }
+        } finally {
+          Remove-Item -Path ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path $pfx -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "FEBuilderGBA.exe Authenticode-signed."
+
     - name: Run Tests
       run: dotnet test --configuration ${{env.BUILD_CONFIGURATION}} --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 
