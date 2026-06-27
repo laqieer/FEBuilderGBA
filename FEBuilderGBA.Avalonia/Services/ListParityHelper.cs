@@ -3247,12 +3247,16 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptrAddr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
+            // WinForms parity (StatusOptionOrderForm.Init `i < u8(count_address)`):
+            // honor the RAW count byte (0..255) — NO 0x20 default, NO 0x40 cap.
+            // The old clamp collapsed a valid expanded count (65+) back to 0x20,
+            // breaking the Status Option Order list-expand feature on reload
+            // (Copilot plan-review finding #2 on #1608). Loop still breaks on ROM
+            // bounds.
             uint countAddr = rom.RomInfo.status_game_option_order_count_address;
             uint count = 0;
             if (countAddr != 0 && U.isSafetyOffset(countAddr))
                 count = rom.u8(countAddr);
-            if (count == 0 || count > 0x40)
-                count = 0x20;
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < count; i++)
