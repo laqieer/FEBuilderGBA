@@ -456,6 +456,57 @@ public class SkillAssignmentUnitSkillSystemParityTests
     }
 
     [Fact]
+    public void ViewModel_ExpandLevelUpList_RefusesSentinelUnit_AndMaxRows()
+    {
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+
+            // Sentinel unit 0 must be refused (no mutation of slot 0).
+            vm.LoadEntry(PlantedUnitBase + 0);
+            uint slot0 = PlantedLevelUpBase + 0;
+            uint before0 = rom.u32(slot0);
+            var undodata0 = CoreState.Undo.NewUndoData("sentinel test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult r0;
+            using (ROM.BeginUndoScope(undodata0)) { r0 = vm.ExpandLevelUpList(); }
+            Assert.False(r0.Success);
+            Assert.Equal(before0, rom.u32(slot0));
+
+            // A unit whose list is already at LEVELUP_MAX_ROWS must be refused.
+            const uint unitId = 4;
+            const uint fullBase = 0xD0000u;
+            WriteU32(rom, PlantedLevelUpBase + unitId * 4, fullBase | 0x08000000u);
+            for (uint n = 0; n < SkillAssignmentUnitSkillSystemViewModel.LEVELUP_MAX_ROWS; n++)
+            {
+                rom.write_u8(fullBase + n * 2 + 0, 0x05);
+                rom.write_u8(fullBase + n * 2 + 1, 0x02);
+            }
+            rom.write_u16(fullBase + SkillAssignmentUnitSkillSystemViewModel.LEVELUP_MAX_ROWS * 2, 0x0000);
+
+            vm.LoadEntry(PlantedUnitBase + unitId);
+            uint slotFull = PlantedLevelUpBase + unitId * 4;
+            uint beforeFull = rom.u32(slotFull);
+            var undodataF = CoreState.Undo.NewUndoData("maxrows test");
+            SkillAssignmentUnitSkillSystemViewModel.LevelUpExpandResult rF;
+            using (ROM.BeginUndoScope(undodataF)) { rF = vm.ExpandLevelUpList(); }
+            Assert.False(rF.Success);
+            Assert.Equal(beforeFull, rom.u32(slotFull)); // pointer not repointed
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    [Fact]
     public void ViewModel_ExpandLevelUpList_AllocatesOnNullPointer()
     {
         var prevRom = CoreState.ROM;

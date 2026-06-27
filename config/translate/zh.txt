@@ -21421,6 +21421,9 @@ to:
 :No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
 此职业没有分配等级提升表。\n请按下「列表扩展」按钮以分配。
 
+:No level-up table is allocated for this unit.\r\nPress List Expand to allocate one.
+此单位没有分配等级提升表。\n请按下「列表扩展」按钮以分配。
+
 :This level-up table is referenced by multiple classes.
 此表被多个职业引用。
 

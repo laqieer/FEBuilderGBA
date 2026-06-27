@@ -356,6 +356,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_assignLevelUpBaseAddress == 0 || _assignLevelUpBaseAddress == U.NOT_FOUND)
                 return new LevelUpExpandResult { Success = false, Error = "Skill assignment level-up table not resolved." };
 
+            // WF treats the index-0 row (the 0x00 sentinel) as non-editable; the
+            // VM also hides its panels in RecomputeVisibilityFlags. Refuse to
+            // allocate/repoint the sentinel slot (Copilot bot review).
+            if (SelectedId == 0)
+                return new LevelUpExpandResult { Success = false, Error = "The sentinel unit (0x00) has no editable level-up table." };
+
             uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
             if (!U.isSafetyOffset(pointerAddr + 3, rom))
                 return new LevelUpExpandResult { Success = false, Error = "Per-unit pointer slot out of bounds." };
@@ -382,6 +388,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint oldBase = U.toOffset(gbaPtr);
             uint oldCount = CountLevelUpEntries(rom, oldBase);
+            // The N1 sub-list only ever shows LEVELUP_MAX_ROWS entries, so an
+            // expand past that cap could never become visible/editable. Block it
+            // (Copilot bot review).
+            if (oldCount >= LEVELUP_MAX_ROWS)
+                return new LevelUpExpandResult { Success = false, Error = $"The level-up list already holds the maximum {LEVELUP_MAX_ROWS} entries." };
             uint newCount = oldCount + 1;
 
             // COPY (never move-and-wipe): allocate (newCount + 1) rows so the
@@ -500,7 +511,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return false;
             if (_assignUnitPointerLocation == U.NOT_FOUND
                 || _assignLevelUpPointerLocation == U.NOT_FOUND) return false;
+            // Bounds-guard the FULL 4-byte pointer extents before p32 (which only
+            // checks addr >= Length, so a slot in the last 3 bytes would read OOB)
+            // and validate the resolved base (Copilot bot review).
+            if (!U.isSafetyOffset(_assignUnitPointerLocation + 3, rom)) return false;
+            if (!U.isSafetyOffset(_assignLevelUpPointerLocation + 3, rom)) return false;
             uint unitBase = rom.p32(_assignUnitPointerLocation);
+            if (!U.isSafetyOffset(unitBase, rom)) return false;
             uint unitCount = ResolveUnitCount(rom);
             return SkillAssignmentClassSkillSystemCore.ExportAllData(
                 rom, unitBase, _assignLevelUpPointerLocation, unitCount, filename);
@@ -516,7 +533,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return false;
             if (_assignUnitPointerLocation == U.NOT_FOUND
                 || _assignLevelUpPointerLocation == U.NOT_FOUND) return false;
+            // Same full-extent bounds + base validation as ExportAllData
+            // (Copilot bot review).
+            if (!U.isSafetyOffset(_assignUnitPointerLocation + 3, rom)) return false;
+            if (!U.isSafetyOffset(_assignLevelUpPointerLocation + 3, rom)) return false;
             uint unitBase = rom.p32(_assignUnitPointerLocation);
+            if (!U.isSafetyOffset(unitBase, rom)) return false;
             uint unitCount = ResolveUnitCount(rom);
             return SkillAssignmentClassSkillSystemCore.ImportAllData(
                 rom, unitBase, _assignLevelUpPointerLocation, unitCount, filename);
@@ -562,7 +584,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool IsTableShared(ROM rom, uint currentGbaPtr)
         {
             if (!U.isSafetyPointer(currentGbaPtr)) return false;
+            // ReadCount may still be 0 in a LoadEntry-before-LoadList (Jump-to)
+            // path; fall back to the ROM's unit_maxcount so sharing detection
+            // doesn't incorrectly return false and hide the Independence panel
+            // (Copilot bot review).
             uint unitCount = ReadCount;
+            if (unitCount == 0 && rom.RomInfo != null) unitCount = rom.RomInfo.unit_maxcount;
             for (uint i = 0; i < unitCount; i++)
             {
                 if (i == SelectedId) continue;

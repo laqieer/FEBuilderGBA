@@ -7519,6 +7519,9 @@ Hex アドレス
 :No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
 領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
 
+:No level-up table is allocated for this unit.\r\nPress List Expand to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
 :This level-up table is referenced by multiple classes.
 このテーブルは、複数のクラスで参照されています。
 
