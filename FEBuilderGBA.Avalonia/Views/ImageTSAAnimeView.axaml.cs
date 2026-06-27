@@ -117,10 +117,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // near the ROM end) rather than exporting a partial 8-bank palette.
                 byte[] pal = rom.getBinaryData(palAddr, PALETTE_BYTES);
                 if (pal == null || pal.Length < PALETTE_BYTES) { CoreState.Services.ShowError("Failed to read palette (expected 256 bytes)"); return; }
-                string path = await FileDialogHelper.SavePaletteFile(this, "tsa_anime_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "tsa_anime_palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                });
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

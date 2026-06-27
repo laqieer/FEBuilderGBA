@@ -234,9 +234,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (CoreState.ROM == null) return;
                 var img = _vm.TryLoadImage();
                 if (img == null) { CoreState.Services.ShowError("No image to export"); return; }
-                string path = await FileDialogHelper.SaveImageFile(this, $"battle_bg_{_vm.CurrentIndex:X02}.png");
-                if (string.IsNullOrEmpty(path)) return;
-                img.Save(path);
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                await FileDialogHelper.SaveImageFileVia(this, $"battle_bg_{_vm.CurrentIndex:X02}.png", p => img.Save(p));
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export image failed: {ex.Message}"); }
         }
@@ -264,10 +263,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // BattleBG palette is LZ77-compressed
                 byte[] pal = LZ77.decompress(rom.Data, palAddr);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                string path = await FileDialogHelper.SavePaletteFile(this, "battle_bg_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "battle_bg_palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                });
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

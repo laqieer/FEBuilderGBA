@@ -830,14 +830,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.SavePaletteFile(this, "map_style_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-
                 byte[] gbaBytes = PackPaletteToBytes();
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
-                File.WriteAllBytes(path, output);
-                CoreState.Services.ShowInfo(R._("Palette exported to {0}.", System.IO.Path.GetFileName(path)));
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                string? written = await FileDialogHelper.SavePaletteFileVia(this, "map_style_palette.pal", p =>
+                {
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
+                    File.WriteAllBytes(p, output);
+                });
+                if (written == null) return;
+                CoreState.Services.ShowInfo(R._("Palette exported to {0}.", System.IO.Path.GetFileName(written)));
             }
             catch (Exception ex)
             {
@@ -959,20 +961,20 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services.ShowError(R._("No OBJ tile sheet available to export."));
                     return;
                 }
-                string? path = await FileDialogHelper.SaveImageFile(this, $"map_style_obj_{_vm.ConfigNo}.png");
-                if (string.IsNullOrEmpty(path)) return;
-
                 var bitmap = IconBitmapBuilder.FromRgba(rgba, w, h);
                 if (bitmap == null)
                 {
                     CoreState.Services.ShowError(R._("Failed to build bitmap from OBJ tile sheet."));
                     return;
                 }
-                using (var stream = File.Create(path))
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                string? written = await FileDialogHelper.SaveImageFileVia(this, $"map_style_obj_{_vm.ConfigNo}.png", p =>
                 {
+                    using var stream = File.Create(p);
                     bitmap.Save(stream);
-                }
-                CoreState.Services.ShowInfo(R._("OBJ tile sheet exported to {0}.", System.IO.Path.GetFileName(path)));
+                });
+                if (written == null) return;
+                CoreState.Services.ShowInfo(R._("OBJ tile sheet exported to {0}.", System.IO.Path.GetFileName(written)));
             }
             catch (Exception ex)
             {
@@ -1088,22 +1090,18 @@ namespace FEBuilderGBA.Avalonia.Views
                         R._("No chipset config loaded — select a Map Style entry first."));
                     return;
                 }
-                string? path = await FileDialogHelper.SaveFile(
+                // #1639: single-file config export → SAF bridge so Android
+                // content:// targets are written through OpenWriteAsync.
+                string? written = await FileDialogHelper.SaveFileVia(
                     this,
                     "Export Map Chip Config",
                     "Map Chip Config",
                     "*.MAPCHIP_CONFIG",
-                    "mapchip.MAPCHIP_CONFIG");
-                // Treat null / empty / whitespace as cancel — FileDialogHelper.SaveFile
-                // can return an empty string in some flows, and File.WriteAllBytes
-                // would throw on it. Matches the guard pattern used by other
-                // Save-path callers (e.g. ToolTranslateROMView). Copilot bot
-                // inline review on PR #706.
-                if (string.IsNullOrWhiteSpace(path)) return;
-
-                File.WriteAllBytes(path, configClone);
+                    "mapchip.MAPCHIP_CONFIG",
+                    p => File.WriteAllBytes(p, configClone));
+                if (string.IsNullOrWhiteSpace(written)) return;
                 CoreState.Services.ShowInfo(
-                    R._("Exported {0} bytes to {1}.", configClone.Length, System.IO.Path.GetFileName(path)));
+                    R._("Exported {0} bytes to {1}.", configClone.Length, System.IO.Path.GetFileName(written)));
             }
             catch (Exception ex)
             {

@@ -329,21 +329,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.CurrentAddr == 0) { CoreState.Services?.ShowError(R._("No move icon selected.")); return; }
 
                 string suggested = $"move_icon_{_vm.CurrentIndex:X02}.png";
-                string? path = await FileDialogHelper.SaveFile(this, "Export Move Icon",
+                // #1639: both .png and .gif are single-file → SAF bridge.
+                bool ok = false;
+                string? written = await FileDialogHelper.SaveFileVia(this, "Export Move Icon",
                     new[]
                     {
                         ("PNG Image", "*.png"),
                         ("Animated GIF", "*.gif"),
                     },
-                    suggested);
-                if (string.IsNullOrEmpty(path)) return;
-
-                bool ok = path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)
-                    ? _vm.ExportGif(path)
-                    : _vm.ExportPng(path);
-
+                    suggested,
+                    (p, _) => { ok = p.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ? _vm.ExportGif(p) : _vm.ExportPng(p); return System.Threading.Tasks.Task.CompletedTask; });
+                if (written == null) return;
                 if (!ok) { CoreState.Services?.ShowError(R._("Failed to render move icon for export.")); return; }
-                CoreState.Services?.ShowInfo($"Exported to: {path}");
+                CoreState.Services?.ShowInfo($"Exported to: {written}");
             }
             catch (Exception ex)
             {
@@ -413,12 +411,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (ap == null || ap.Length == 0) { CoreState.Services?.ShowError(R._("No AP data to export.")); return; }
 
                 string suggested = $"move_icon_{_vm.CurrentIndex:X02}.romtcs.ap.bin";
-                string? path = await FileDialogHelper.SaveFile(this, "Export AP",
-                    new[] { ("AP", "*.romtcs.ap.bin") }, suggested);
-                if (string.IsNullOrEmpty(path)) return;
-
-                File.WriteAllBytes(path, ap);
-                CoreState.Services?.ShowInfo($"Exported to: {path}");
+                // #1639: single-file AP export → SAF bridge.
+                string? written = await FileDialogHelper.SaveFileVia(this, "Export AP",
+                    "AP", "*.romtcs.ap.bin", suggested, p => File.WriteAllBytes(p, ap));
+                if (written == null) return;
+                CoreState.Services?.ShowInfo($"Exported to: {written}");
             }
             catch (Exception ex)
             {

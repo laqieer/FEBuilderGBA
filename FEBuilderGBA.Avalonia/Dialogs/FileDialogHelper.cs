@@ -54,15 +54,45 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// </summary>
         internal static async Task<string?> CopyStreamToTempAsync(Func<Task<Stream>> openRead, string? name)
         {
+            // Read-temp files must outlive this call (deferred flows read them on a
+            // later button click), so they can't be deleted here. To avoid an
+            // unbounded leak (review #1639 finding 5), each new read-temp first
+            // best-effort sweeps the read-temps left by PRIOR picks in this
+            // session's dedicated subdirectory. The cost is bounded (one dir
+            // listing) and never throws.
+            string dir = ReadTempDir();
+            SweepReadTemps(dir);
             string ext = Path.GetExtension(name ?? "");
-            string tempPath = Path.Combine(Path.GetTempPath(),
-                "febgba_" + Guid.NewGuid().ToString("N") + ext);
+            string tempPath = Path.Combine(dir,
+                "febgba_read_" + Guid.NewGuid().ToString("N") + ext);
             await using (var src = await openRead())
             await using (var dst = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 await src.CopyToAsync(dst);
             }
             return tempPath;
+        }
+
+        static string ReadTempDir()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "febgba_saf_reads");
+            try { Directory.CreateDirectory(dir); } catch { /* fall back to temp root below */ }
+            return Directory.Exists(dir) ? dir : Path.GetTempPath();
+        }
+
+        // Best-effort cleanup of read-temp copies from earlier picks. A file that
+        // is still open (a deferred flow mid-read) cannot be deleted on Windows and
+        // is simply skipped — it will be swept on a later pick. Never throws.
+        static void SweepReadTemps(string dir)
+        {
+            try
+            {
+                foreach (string f in Directory.EnumerateFiles(dir, "febgba_read_*"))
+                {
+                    try { File.Delete(f); } catch { /* in use or gone — skip */ }
+                }
+            }
+            catch { /* dir missing / unlistable — ignore */ }
         }
 
         /// <summary>
@@ -319,14 +349,22 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Open any file with custom filter.</summary>
-        public static async Task<string?> OpenFile(Window owner, string title, string pattern)
-            => await OpenFile(owner, title, new[] { pattern });
+        public static async Task<string?> OpenFile(Window owner, string title, string pattern, bool requireLocalPath = false)
+            => await OpenFile(owner, title, new[] { pattern }, requireLocalPath);
 
         /// <summary>
         /// Open any file with a custom multi-pattern filter (e.g. ".ttf" + ".otf"
         /// for the Font editor's auto-generate font picker, #1232).
+        ///
+        /// <paramref name="requireLocalPath"/> (#1639): when the consumer resolves
+        /// SIBLING files relative to the picked path (e.g. a script that loads
+        /// frame PNGs from its own directory), a one-file SAF temp copy would make
+        /// those siblings resolve beside the temp instead of beside the chosen
+        /// document. Such callers pass <c>true</c> so a SAF pick (no local path)
+        /// returns null — the caller then shows an explicit Android message — and
+        /// the bridge is NEVER used for multi-file flows.
         /// </summary>
-        public static async Task<string?> OpenFile(Window owner, string title, string[] patterns)
+        public static async Task<string?> OpenFile(Window owner, string title, string[] patterns, bool requireLocalPath = false)
         {
             var fileType = new FilePickerFileType(title) { Patterns = patterns };
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -336,7 +374,13 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { fileType, MakeAllFileType() },
             });
 
-            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
+            if (files.Count == 0) return null;
+            if (requireLocalPath)
+            {
+                string? local = files[0].TryGetLocalPath();
+                return string.IsNullOrEmpty(local) ? null : local;
+            }
+            return await ResolveReadPathAsync(files[0]);
         }
 
         /// <summary>
@@ -504,6 +548,10 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
+        /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(Window, string, Func{string, Task})"/>.</summary>
+        public static Task<string?> SaveImageFileVia(Window owner, string? suggestedName, Action<string> writer)
+            => SaveImageFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
+
         /// <summary>Pick a palette save target (multi-format) and run <paramref name="writer"/> via the SAF bridge.</summary>
         public static async Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Func<string, Task> writer)
         {
@@ -516,6 +564,10 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return await WriteViaAsync(file, writer);
         }
 
+        /// <summary>Synchronous-writer overload of <see cref="SavePaletteFileVia(Window, string, Func{string, Task})"/>.</summary>
+        public static Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Action<string> writer)
+            => SavePaletteFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
+
         /// <summary>Pick a single-format save target and run <paramref name="writer"/> via the SAF bridge.</summary>
         public static async Task<string?> SaveFileVia(Window owner, string title, string filterName, string pattern, string? suggestedName, Func<string, Task> writer)
         {
@@ -527,6 +579,84 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeChoices = new[] { fileType, MakeAllFileType() },
             });
             return await WriteViaAsync(file, writer);
+        }
+
+        /// <summary>Synchronous-writer overload of <see cref="SaveFileVia(Window, string, string, string, string, Func{string, Task})"/>.</summary>
+        public static Task<string?> SaveFileVia(Window owner, string title, string filterName, string pattern, string? suggestedName, Action<string> writer)
+            => SaveFileVia(owner, title, filterName, pattern, suggestedName, p => { writer(p); return Task.CompletedTask; });
+
+        /// <summary>
+        /// Pick a single-format save target and return the <see cref="IStorageFile"/>
+        /// handle (not collapsed to a path), for callers that must run a complex /
+        /// awaited write and then bridge it via <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>
+        /// themselves (#1639).
+        /// </summary>
+        public static async Task<IStorageFile?> SaveFilePick(Window owner, string title, string filterName, string pattern, string? suggestedName = null)
+        {
+            var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = new[] { fileType, MakeAllFileType() },
+            });
+        }
+
+        /// <summary>
+        /// Multi-format-choice save picker returning the <see cref="IStorageFile"/>
+        /// handle (not collapsed). For callers where SOME formats are single-file
+        /// (bridgeable) and others write siblings (must require a local path), so
+        /// they branch by the chosen extension themselves (#1639).
+        /// </summary>
+        public static async Task<IStorageFile?> SaveFilePick(Window owner, string title,
+            (string Name, string Pattern)[] filters, string? suggestedName = null)
+        {
+            var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
+            foreach (var (name, pattern) in filters)
+                choices.Add(new FilePickerFileType(name) { Patterns = new[] { pattern } });
+            choices.Add(MakeAllFileType());
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = choices,
+            });
+        }
+
+        /// <summary>
+        /// Multi-format-choice save target + SAF bridge (#1639). The
+        /// <paramref name="writer"/> receives the path (real local on desktop, a
+        /// temp matched to the chosen extension on Android) and the chosen filter
+        /// index, so callers can branch by format (e.g. .txt vs .gif). Single-file
+        /// writers only — multi-file/sibling exports must require a local path.
+        /// </summary>
+        public static async Task<string?> SaveFileVia(Window owner, string title,
+            (string Name, string Pattern)[] filters, string? suggestedName, Func<string, int, Task> writer)
+        {
+            var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
+            foreach (var (name, pattern) in filters)
+                choices.Add(new FilePickerFileType(name) { Patterns = new[] { pattern } });
+            choices.Add(MakeAllFileType());
+
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = choices,
+            });
+            if (file == null) return null;
+
+            // Infer the chosen filter index from the saved name's extension
+            // (matches SaveFileWithFilterIndex). The picker does not expose it.
+            int filterIndex = 0;
+            string nameExt = Path.GetExtension(file.Name ?? "").ToLowerInvariant();
+            for (int i = 0; i < filters.Length; i++)
+            {
+                string pat = filters[i].Pattern.TrimStart('*').ToLowerInvariant();
+                if (nameExt == pat) { filterIndex = i; break; }
+            }
+
+            return await WriteViaAsync(file, p => writer(p, filterIndex));
         }
     }
 }

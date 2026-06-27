@@ -365,7 +365,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
                 if (folders == null || folders.Count == 0) return;
 
-                string folder = folders[0].Path.LocalPath;
+                // #1639: batch import reads many files from the chosen folder and
+                // needs a real local directory; a SAF folder pick (no local path)
+                // cannot be enumerated by path → message on Android, never silent.
+                string folder = folders[0].TryGetLocalPath();
+                if (string.IsNullOrEmpty(folder))
+                {
+                    CoreState.Services.ShowError(R._("Batch portrait import reads a folder of files and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
                 bool confirm = CoreState.Services.ShowYesNo(
                     $"Batch-import all PNG/BMP files from {folder}? Each file must be named 0xNN.png or NN.png matching the portrait slot.");
                 if (!confirm) return;
@@ -569,7 +577,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
                 if (files == null || files.Count == 0) return;
 
-                string path = files[0].Path.LocalPath;
+                // #1639: bridge a SAF source (no local path) to a temp file.
+                string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
+                if (string.IsNullOrEmpty(path)) return;
                 byte[] fileBytes;
                 try
                 {

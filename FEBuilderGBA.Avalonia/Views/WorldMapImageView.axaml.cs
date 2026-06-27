@@ -1204,8 +1204,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("Dark field map is not available (FE8 only)."));
                     return;
                 }
-                string? path = await FileDialogHelper.SaveImageFile(this, "worldmap_darkfieldmap");
-                if (path == null) return;
                 // Convert IImage → WriteableBitmap → save as PNG.
                 // FIX C: wrap bmp in using so the WriteableBitmap is disposed after save.
                 using var bmp = FEBuilderGBA.Avalonia.Controls.IconBitmapBuilder.FromImage(dark);
@@ -1214,8 +1212,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("Failed to convert dark map image to bitmap."));
                     return;
                 }
-                using var stream = System.IO.File.Create(path);
-                bmp.Save(stream);
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                await FileDialogHelper.SaveImageFileVia(this, "worldmap_darkfieldmap", p =>
+                {
+                    using var stream = System.IO.File.Create(p);
+                    bmp.Save(stream);
+                });
             }
             catch (Exception ex)
             {

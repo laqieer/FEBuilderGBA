@@ -575,12 +575,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string suggested = $"wave_0x{_vm.CurrentAddr:X06}.wav";
-                string? path = await FileDialogHelper.SaveFile(
-                    this, R._("Export Wave"), R._("Wave Files"), "*.wav", suggested);
-                if (string.IsNullOrEmpty(path)) return;
-
-                File.WriteAllBytes(path, wav);
-                CoreState.Services.ShowInfo(R._("Wave exported to {0}", path));
+                // #1639: single-file WAV export → SAF bridge.
+                string? written = await FileDialogHelper.SaveFileVia(
+                    this, R._("Export Wave"), R._("Wave Files"), "*.wav", suggested, p => File.WriteAllBytes(p, wav));
+                if (written == null) return;
+                CoreState.Services.ShowInfo(R._("Wave exported to {0}", written));
             }
             catch (Exception ex)
             {
@@ -683,10 +682,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
+                // #1639: instrument-set export writes SIBLING files next to the
+                // chosen path, so require a real local path; a SAF pick (no local
+                // path) cannot place siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.SaveFile(
                     this, R._("Export Instrument"), R._("Instrument Set"), "*.instrument",
                     $"voicegroup_0x{vocaBase:X06}.instrument");
-                if (string.IsNullOrEmpty(path)) return;
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Instrument-set export writes multiple files and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 string dir = Path.GetDirectoryName(path) ?? ".";
                 string baseName = Path.GetFileNameWithoutExtension(path);

@@ -5,6 +5,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -235,18 +236,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("Cannot render the tile animation image for this entry.");
                     return;
                 }
-                string? path = await FileDialogHelper.SaveImageFile(
-                    this, $"maptileanim1_{_vm.CurrentAddr:X08}.png");
-                if (string.IsNullOrEmpty(path)) return;
-
                 var bmp = IconBitmapBuilder.FromImage(img);
                 if (bmp == null)
                 {
                     CoreState.Services?.ShowError("Failed to build the image bitmap.");
                     return;
                 }
-                using (var stream = File.Create(path)) bmp.Save(stream);
-                CoreState.Services?.ShowInfo($"Exported to {path}.");
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                string? written = await FileDialogHelper.SaveImageFileVia(this, $"maptileanim1_{_vm.CurrentAddr:X08}.png", p =>
+                {
+                    using var stream = File.Create(p); bmp.Save(stream);
+                });
+                if (written == null) return;
+                CoreState.Services?.ShowInfo($"Exported to {written}.");
             }
             catch (Exception ex)
             {
@@ -321,7 +323,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 // batch (lossless per-frame PNG round-trip) and the composited-map
                 // animated .gif (#1602). The chosen format is inferred from the
                 // saved extension.
-                string? path = await FileDialogHelper.SaveFile(
+                // #1639: pick the handle so we can branch by format — the
+                // single-file .gif export routes through the SAF bridge, while the
+                // .mapanime1.txt batch (which writes sibling PNGs) requires a real
+                // local path.
+                var file = await FileDialogHelper.SaveFilePick(
                     this, "Export Map Tile Animation Type 1",
                     new[]
                     {
@@ -329,18 +335,34 @@ namespace FEBuilderGBA.Avalonia.Views
                         ("Animated GIF", "*.gif"),
                     },
                     $"maptileanim1_plist{_vm.SelectedPlist:X2}.mapanime1.txt");
-                if (string.IsNullOrEmpty(path)) return;
+                if (file == null) return;
 
-                bool isGif = path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
-                string err = isGif
-                    ? _vm.ExportGif(path)
-                    : _vm.ExportBatch(path, SavePngFile);
+                bool isGif = (file.Name ?? "").EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+                string? localPath = file.TryGetLocalPath();
+                if (!isGif && string.IsNullOrEmpty(localPath))
+                {
+                    CoreState.Services?.ShowError(R._("Exporting the .mapanime1.txt batch writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device."));
+                    return;
+                }
+
+                string err = "";
+                string? written;
+                if (isGif)
+                {
+                    written = await FileDialogHelper.WriteViaAsync(file, p => { err = _vm.ExportGif(p); });
+                }
+                else
+                {
+                    err = _vm.ExportBatch(localPath, SavePngFile);
+                    written = localPath;
+                }
+                if (written == null) return;
                 if (err != "")
                 {
                     CoreState.Services?.ShowError(err);
                     return;
                 }
-                CoreState.Services?.ShowInfo($"Exported to {path}.");
+                CoreState.Services?.ShowInfo($"Exported to {written}.");
             }
             catch (Exception ex)
             {
@@ -358,9 +380,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No PLIST selected.");
                     return;
                 }
+                // #1639: ImportBatch resolves sibling frame PNGs from the script's
+                // own directory, so require a real local path; a SAF pick (no local
+                // path) cannot resolve siblings → message on Android, never silent.
                 string? path = await FileDialogHelper.OpenFile(
-                    this, "Import Map Tile Animation Type 1", "*.mapanime1.txt");
-                if (string.IsNullOrEmpty(path)) return;
+                    this, "Import Map Tile Animation Type 1", "*.mapanime1.txt", requireLocalPath: true);
+                if (string.IsNullOrEmpty(path))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        CoreState.Services?.ShowError(R._("Importing a tile-animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                    return;
+                }
 
                 _undoService.Begin("Import All Tile Animation Type 1");
                 try

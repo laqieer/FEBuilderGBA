@@ -469,11 +469,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                 }
 
-                string? path = await FileDialogHelper.SaveImageFile(this, "portrait_sheet.png");
-                if (string.IsNullOrEmpty(path)) return;
-
-                using var stream = File.Create(path);
-                wb.Save(stream);
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                await FileDialogHelper.SaveImageFileVia(this, "portrait_sheet.png", p =>
+                {
+                    using var stream = File.Create(p);
+                    wb.Save(stream);
+                });
                 wb.Dispose();
             }
             catch (Exception ex)
@@ -493,10 +494,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palAddr = U.toOffset(palPtr);
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
-                string? path = await FileDialogHelper.SavePaletteFile(this, "portrait_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "portrait_palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                });
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

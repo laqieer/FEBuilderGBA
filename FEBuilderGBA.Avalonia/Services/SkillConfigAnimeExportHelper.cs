@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
+using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Services
 {
@@ -42,7 +43,10 @@ namespace FEBuilderGBA.Avalonia.Services
             }
 
             string suggested = $"SkillAnime_{selectedId:X02}.txt";
-            string? path = await FileDialogHelper.SaveFile(owner,
+            // #1639: pick the handle so we can branch by format — the single-file
+            // .gif export routes through the SAF bridge, while the .txt script
+            // (which writes sibling PNGs) requires a real local path.
+            var file = await FileDialogHelper.SaveFilePick(owner,
                 R._("Save Skill Animation"),
                 new[]
                 {
@@ -50,7 +54,14 @@ namespace FEBuilderGBA.Avalonia.Services
                     (R._("Animated GIF"), "*.gif"),
                 },
                 suggested);
-            if (string.IsNullOrEmpty(path)) return;
+            if (file == null) return;
+            bool isGif = (file.Name ?? "").EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+            string? localPath = file.TryGetLocalPath();
+            if (!isGif && string.IsNullOrEmpty(localPath))
+            {
+                CoreState.Services?.ShowError(R._("Exporting an animation script writes sibling PNG frames and requires desktop file-system access; export as GIF instead, or use a desktop device."));
+                return;
+            }
 
             try
             {
@@ -66,15 +77,19 @@ namespace FEBuilderGBA.Avalonia.Services
                     return;
                 }
 
-                if (path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                string? written;
+                if (isGif)
                 {
-                    ExportGif(result, path);
+                    // Single-file GIF → SAF bridge.
+                    written = await FileDialogHelper.WriteViaAsync(file, p => ExportGif(result, p));
                 }
                 else
                 {
-                    ExportScript(result, path);
+                    ExportScript(result, localPath);
+                    written = localPath;
                 }
-                CoreState.Services?.ShowInfo(R._("Exported to: {0}", path));
+                if (written == null) return;
+                CoreState.Services?.ShowInfo(R._("Exported to: {0}", written));
             }
             catch (Exception ex)
             {

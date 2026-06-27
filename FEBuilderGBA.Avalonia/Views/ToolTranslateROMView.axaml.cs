@@ -233,10 +233,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            string? outPath = await FileDialogHelper.SaveFile(this,
-                R._("Save translation file"), "Text", "*.txt",
-                suggestedName: "translation.txt");
-            if (string.IsNullOrEmpty(outPath)) return;
+            // #1639: pick the handle now; the actual single-file write is routed
+            // through the SAF bridge below so Android content:// targets work.
+            var outFile = await FileDialogHelper.SaveFilePick(this,
+                R._("Save translation file"), "Text", "*.txt", "translation.txt");
+            if (outFile == null) return;
 
             // Parse Detail-tab translate-from / translate-to (when
             // UseAutoTranslate is checked). Empty otherwise -> no dictionary
@@ -259,12 +260,17 @@ namespace FEBuilderGBA.Avalonia.Views
             // tens of thousands of text entries.
             try
             {
-                int n = await Task.Run(() =>
-                    ToolTranslateROMCore.ExportTextsToFile(rom, outPath,
-                        _vm.OneLinerCheck, _vm.ModifiedTextOnly,
-                        fromLang, toLang, fromPath, toPath,
-                        progressCallback: null));
-                await ShowInfo($"Exported {n} text entries to:\n{outPath}");
+                int n = 0;
+                string? written = await FileDialogHelper.WriteViaAsync(outFile, async outPath =>
+                {
+                    n = await Task.Run(() =>
+                        ToolTranslateROMCore.ExportTextsToFile(rom, outPath,
+                            _vm.OneLinerCheck, _vm.ModifiedTextOnly,
+                            fromLang, toLang, fromPath, toPath,
+                            progressCallback: null));
+                });
+                if (written == null) return;
+                await ShowInfo($"Exported {n} text entries to:\n{written}");
             }
             catch (Exception ex)
             {

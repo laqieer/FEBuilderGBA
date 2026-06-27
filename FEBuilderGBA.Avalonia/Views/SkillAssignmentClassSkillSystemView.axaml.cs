@@ -6,6 +6,7 @@ using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -469,9 +470,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     },
                 });
                 if (file == null) return;
-                string path = file.Path.LocalPath;
-                if (string.IsNullOrEmpty(path)) return;
-                bool ok = _vm.ExportAllData(path);
+                // #1639: ExportAllData writes a single TSV by path → SAF bridge.
+                bool ok = false;
+                string? written = await FileDialogHelper.WriteViaAsync(file, p => { ok = _vm.ExportAllData(p); });
+                if (written == null) return;
                 if (ok) CoreState.Services?.ShowInfo("Exported.");
                 else CoreState.Services?.ShowError("Export failed.");
             }
@@ -502,7 +504,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     },
                 });
                 if (files == null || files.Count == 0) return;
-                string path = files[0].Path.LocalPath;
+                // #1639: bridge a SAF source (no local path) to a temp file.
+                string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
                 if (string.IsNullOrEmpty(path)) return;
 
                 // Now open the undo scope and perform the actual import.

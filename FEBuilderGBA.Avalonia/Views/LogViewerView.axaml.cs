@@ -111,11 +111,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                string? path = await FileDialogHelper.SaveFile(
-                    this, R._("Save"), R._("TEXT"), "*.txt", "log.txt");
-                if (string.IsNullOrEmpty(path)) return;
-                _vm.SaveToFile(path);
-                StatusLabel.Text = R._("Saved to {0}", path);
+                // #1639: single-file log save → SAF bridge.
+                string? written = await FileDialogHelper.SaveFileVia(
+                    this, R._("Save"), R._("TEXT"), "*.txt", "log.txt", p => _vm.SaveToFile(p));
+                if (written == null) return;
+                StatusLabel.Text = R._("Saved to {0}", written);
             }
             catch (Exception ex)
             {

@@ -75,10 +75,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 byte[] pal = _vm.CachedPalette;
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("No palette loaded"); return; }
-                string? path = await FileDialogHelper.SavePaletteFile(this, "item_icon_palette.pal");
-                if (string.IsNullOrEmpty(path)) return;
-                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
-                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                await FileDialogHelper.SavePaletteFileVia(this, "item_icon_palette.pal", p =>
+                {
+                    // #1639: write via the SAF bridge so Android content:// targets work.
+                    PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(p));
+                    File.WriteAllBytes(p, PaletteFormatConverter.ExportToFormat(pal, fmt));
+                });
             }
             catch (Exception ex) { CoreState.Services.ShowError($"Export palette failed: {ex.Message}"); }
         }

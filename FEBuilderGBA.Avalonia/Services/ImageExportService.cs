@@ -29,29 +29,25 @@ namespace FEBuilderGBA.Avalonia.Services
                 return;
             }
 
-            string? path = await FileDialogHelper.SaveImageFile(owner, suggestedName);
-            if (string.IsNullOrEmpty(path)) return;
-
-            if (image is Bitmap bmp)
+            if (image is not Bitmap bmp)
             {
-                if (File.Exists(path))
-                {
-                    var confirm = await MessageBoxWindow.Show(
-                        owner,
-                        $"File \"{Path.GetFileName(path)}\" already exists. Overwrite?",
-                        "Export",
-                        MessageBoxMode.YesNo);
-                    if (confirm != MessageBoxResult.Yes) return;
-                }
-
-                using var stream = File.Create(path);
-                bmp.Save(stream);
-                await MessageBoxWindow.Show(owner, $"Image saved to {Path.GetFileName(path)}", "Export", MessageBoxMode.Ok);
-            }
-            else
-            {
+                // Resolve a picker first so we don't claim "unsupported" only
+                // after the user picked; but the type check is cheap, so do it now.
                 await MessageBoxWindow.Show(owner, "Cannot export this image type. Only Bitmap images are supported.", "Export", MessageBoxMode.Ok);
+                return;
             }
+
+            // #1639: pick the IStorageFile handle and write via the SAF bridge so
+            // Android content:// targets (no local path) are written through
+            // OpenWriteAsync. The overwrite prompt only applies to a real local
+            // file (a freshly-picked SAF document is created by the picker).
+            string? written = await FileDialogHelper.SaveImageFileVia(owner, suggestedName, async path =>
+            {
+                await using var stream = File.Create(path);
+                bmp.Save(stream);
+            });
+            if (written == null) return;
+            await MessageBoxWindow.Show(owner, $"Image saved to {Path.GetFileName(written)}", "Export", MessageBoxMode.Ok);
         }
 
         /// <summary>

@@ -43,8 +43,6 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (file == null) return;
 
-            var path = file.Path.LocalPath;
-
             try
             {
                 var table = StructExportCore.GetTable(tableName);
@@ -71,8 +69,13 @@ namespace FEBuilderGBA.Avalonia.Services
                         headers.Select(h => row.TryGetValue(h, out var v) ? v : "")));
                 }
 
-                await File.WriteAllTextAsync(path, sb.ToString(), Encoding.UTF8);
-                CoreState.Services.ShowInfo($"Exported {rows.Count} entries to {Path.GetFileName(path)}");
+                // #1639: write via the SAF bridge so Android content:// targets
+                // (no local path) are written through OpenWriteAsync.
+                string content = sb.ToString();
+                string? written = await FileDialogHelper.WriteViaAsync(file,
+                    path => File.WriteAllTextAsync(path, content, Encoding.UTF8));
+                if (written == null) return;
+                CoreState.Services.ShowInfo($"Exported {rows.Count} entries to {Path.GetFileName(written)}");
             }
             catch (Exception ex)
             {
@@ -289,7 +292,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (files.Count == 0) return;
 
-            var importPath = files[0].Path.LocalPath;
+            // #1639: bridge a SAF source (no local path) to a temp file on Android.
+            var importPath = await FileDialogHelper.ResolveReadPathAsync(files[0]);
+            if (importPath == null) return;
 
             undoService.Begin($"Import {tableName}");
             try

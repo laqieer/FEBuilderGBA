@@ -407,12 +407,20 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // File dialog: pick .txt script.
+            // #1639: the script loads sibling PNG frames from its own directory,
+            // so require a real local path; a SAF pick (no local path) cannot
+            // resolve siblings → message on Android, never silent.
             string txtPath = await FileDialogHelper.OpenFile(
                 this,
                 R._("Import CSA magic animation script"),
-                "*.txt");
+                "*.txt", requireLocalPath: true);
 
-            if (string.IsNullOrEmpty(txtPath)) return;
+            if (string.IsNullOrEmpty(txtPath))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Importing a magic animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             await DoImport(
                 txtPath,
@@ -562,7 +570,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 },
                 "csa_" + U.ToHexString((uint)(idx + 1)) + ".txt");
 
-            if (string.IsNullOrEmpty(filename)) return;
+            // #1639: DoExport writes sibling PNG frames next to the script, so
+            // require a real local path; a SAF pick (no local path) cannot place
+            // siblings → message on Android, never silent.
+            if (string.IsNullOrEmpty(filename))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services?.ShowError(R._("Exporting a magic animation script writes sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             bool enableComment = (filterIndex == 0);
             await DoExport(filename, enableComment);

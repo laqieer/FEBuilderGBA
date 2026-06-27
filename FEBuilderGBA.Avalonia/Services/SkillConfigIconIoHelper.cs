@@ -188,9 +188,6 @@ namespace FEBuilderGBA.Avalonia.Services
                 return;
             }
 
-            string filePath = await FileDialogHelper.SaveImageFile(owner, "skill_icon.png");
-            if (string.IsNullOrEmpty(filePath)) return; // user cancelled.
-
             try
             {
                 using var img = imgService.Decode4bppTiles(
@@ -200,7 +197,8 @@ namespace FEBuilderGBA.Avalonia.Services
                     Log.Notify("SkillConfigIconIoHelper.ExportIconAsync: failed to render the icon.");
                     return;
                 }
-                img.Save(filePath);
+                // #1639: write via the SAF bridge so Android content:// targets work.
+                await FileDialogHelper.SaveImageFileVia(owner, "skill_icon.png", p => img.Save(p));
             }
             catch (Exception ex)
             {

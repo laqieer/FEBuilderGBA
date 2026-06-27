@@ -68,6 +68,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public async Task CopyStreamToTempAsync_SweepsPriorReadTemps()
+        {
+            // #1639 finding 5: read-temps from PRIOR picks are swept on the next
+            // pick so they don't accumulate. The first temp (closed after the read)
+            // must be gone after a second pick creates its own.
+            string? first = await FileDialogHelper.CopyStreamToTempAsync(
+                () => Task.FromResult<Stream>(new MemoryStream(new byte[] { 1 })), "a.bin");
+            Assert.True(File.Exists(first));
+
+            string? second = await FileDialogHelper.CopyStreamToTempAsync(
+                () => Task.FromResult<Stream>(new MemoryStream(new byte[] { 2 })), "b.bin");
+
+            Assert.True(File.Exists(second));
+            Assert.False(File.Exists(first)); // prior read-temp swept
+
+            try { File.Delete(second!); } catch { }
+        }
+
+        [Fact]
         public async Task WriteViaStreamsAsync_WritesBackThroughStream()
         {
             var backing = new MemoryStream();

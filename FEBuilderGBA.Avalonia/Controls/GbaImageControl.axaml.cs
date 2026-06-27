@@ -277,11 +277,14 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             if (_bitmap == null) return;
 
-            string? path = await FileDialogHelper.SaveImageFile(owner, suggestedName);
-            if (string.IsNullOrEmpty(path)) return;
-
-            using var stream = File.Create(path);
-            _bitmap.Save(stream);
+            // #1639: write via the SAF bridge so Android content:// targets
+            // (no local path) are written through OpenWriteAsync.
+            var bmp = _bitmap;
+            await FileDialogHelper.SaveImageFileVia(owner, suggestedName, async path =>
+            {
+                await using var stream = File.Create(path);
+                bmp.Save(stream);
+            });
         }
     }
 }

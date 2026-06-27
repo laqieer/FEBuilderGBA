@@ -130,10 +130,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint rebuildAddress = validated.Value;
 
                 string suggested = "rebuilt_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".gba";
+                // #1639: ROM rebuild compares the output path against the original
+                // ROM, reveals it in the file explorer, and is a desktop power
+                // flow — it needs a real local path. On Android (no local path)
+                // disable with a clear message instead of failing silently.
                 string? output = await FileDialogHelper.SaveFile(this,
                     R._("Save rebuilt ROM"), R._("GBA ROM"), "*.gba", suggested);
                 if (string.IsNullOrEmpty(output))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        StatusText.Text = R._("ROM rebuild needs desktop file-system access and is not available on this device.");
                     return;   // user cancelled
+                }
 
                 MakeButton.IsEnabled = false;
                 RebuildButton.IsEnabled = false;
@@ -197,10 +205,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint rebuildAddress = validated.Value;
 
                 string suggested = ToolROMRebuildViewModel.SuggestedName(DateTime.Now.ToString("yyyyMMddHHmmss"));
+                // #1639: the ROMRebuild report is part of the desktop rebuild flow
+                // (path-based, revealed in the explorer). On Android (no local
+                // path) disable with a clear message instead of failing silently.
                 string? output = await FileDialogHelper.SaveFile(this,
                     R._("Save ROMRebuild report"), R._("ROMRebuild report"), "*.rebuild", suggested);
                 if (string.IsNullOrEmpty(output))
+                {
+                    if (OperatingSystem.IsAndroid())
+                        StatusText.Text = R._("ROM rebuild needs desktop file-system access and is not available on this device.");
                     return;   // user cancelled
+                }
 
                 MakeButton.IsEnabled = false;
                 RebuildButton.IsEnabled = false;
