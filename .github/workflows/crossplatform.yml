@@ -204,7 +204,19 @@ jobs:
         KEYCHAIN="$RUNNER_TEMP/codesign.keychain-db"
         KEYCHAIN_PASS="$(openssl rand -base64 24)"
         CERT_P12="$RUNNER_TEMP/codesign.p12"
-        printf '%s' "$APPLE_CERT_BASE64" | base64 --decode > "$CERT_P12"
+
+        # Delete the throwaway keychain (with the imported private key) on ANY
+        # exit — `set -e` would otherwise skip a trailing cleanup line on the
+        # first codesign/notarize failure and leave the key on the runner.
+        cleanup() {
+          security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+          rm -f "$CERT_P12"
+        }
+        trap cleanup EXIT
+
+        # macOS /usr/bin/base64 does NOT accept GNU's `--decode`; use `-D`
+        # (the BSD/macOS decode flag). This step only ever runs on macos-latest.
+        printf '%s' "$APPLE_CERT_BASE64" | base64 -D > "$CERT_P12"
 
         security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
         security set-keychain-settings -lut 21600 "$KEYCHAIN"
@@ -228,14 +240,22 @@ jobs:
         fi
         echo "Using signing identity: $IDENTITY"
 
+        codesign_one() {
+          codesign --force --options runtime --timestamp \
+            --keychain "$KEYCHAIN" --sign "$IDENTITY" "$1"
+        }
+
         sign_dir() {
           local dir="$1"
-          # Recursively sign every Mach-O file, libraries/dylibs FIRST and the
-          # main executable LAST (nested code must be signed before its parent).
-          # Detect Mach-O via `file`, not just by extension, to catch the
-          # extension-less apphost executable and bundled native libs.
+          # Recursively sign every loose Mach-O file, libraries/dylibs FIRST and
+          # the main executable LAST (nested code must be signed before its
+          # parent). Detect Mach-O via `file`, not just by extension, to catch the
+          # extension-less apphost executable and bundled native libs. Skip files
+          # INSIDE a .app bundle here — the bundle is signed as a unit afterwards
+          # (codesign signs its nested payloads when sealing the bundle).
           local machos=()
           while IFS= read -r f; do
+            case "$f" in *.app/*) continue ;; esac
             if file "$f" | grep -q 'Mach-O'; then machos+=("$f"); fi
           done < <(find "$dir" -type f)
 
@@ -248,9 +268,15 @@ jobs:
             esac
           done
           for f in "${libs[@]}" "${exes[@]}"; do
-            codesign --force --options runtime --timestamp \
-              --keychain "$KEYCHAIN" --sign "$IDENTITY" "$f"
+            codesign_one "$f"
           done
+
+          # Sign each .app bundle DIRECTORY as a unit, last — this seals the
+          # bundle (and its nested payloads) so it is staple-able and assessable.
+          while IFS= read -r app; do
+            [ -n "$app" ] || continue
+            codesign_one "$app"
+          done < <(find "$dir" -maxdepth 2 -name '*.app' -type d)
         }
 
         notarize_dir() {
@@ -261,7 +287,8 @@ jobs:
             --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" \
             --wait
           # Staple ONLY a real .app bundle (a raw dir / CLI binary cannot be
-          # stapled; it relies on Apple's online ticket instead).
+          # stapled; it relies on Apple's online ticket instead). The .app was
+          # codesigned as a unit in sign_dir above, so it is staple-able here.
           local app
           app="$(find "$dir" -maxdepth 2 -name '*.app' -type d | head -n 1 || true)"
           if [ -n "$app" ]; then
@@ -276,8 +303,7 @@ jobs:
           notarize_dir "publish/${target}-${{ matrix.rid }}" "${target}-${{ matrix.rid }}"
         done
 
-        # Remove the throwaway keychain.
-        security delete-keychain "$KEYCHAIN" || true
+        # The throwaway keychain is removed by the EXIT trap above.
         echo "macOS bundles codesigned + notarized."
 
     # ------------------------------------------------------------------------
