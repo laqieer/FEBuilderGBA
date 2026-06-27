@@ -54,6 +54,23 @@
 #   reactivecircus/android-emulator-runner@v2 executes each `script:` line in a
 #   SEPARATE `/usr/bin/sh -c <line>` invocation — multi-line constructs
 #   (variable persistence, shell functions, if/fi blocks) cannot span lines.
+#
+# BOOT SMOKE TEST (#1640)
+# -----------------------
+# The `android-boot-smoke` job below closes a SEPARATE gap from the parity job:
+# the parity job instruments the SkiaSharp byte-parity TEST head
+# (com.laqieer.febuildergba.tests) and never boots the REAL app. #1640 is the
+# fact that the actual FEBuilderGBA.Android application
+# (com.laqieer.febuildergba) had never been launched on a device/emulator —
+# config first-run extraction (#1123), the single-view Avalonia lifetime
+# (#1122), and the editor-launcher shell were all documented build-only. The
+# boot-smoke job builds the REAL signed APK, installs it, launches its LAUNCHER
+# intent, and asserts the activity reaches the RESUMED state with no fatal
+# exception in logcat (logic in scripts/android-boot-smoke.sh, single-line
+# invocation for the same android-emulator-runner reason). It is its own job
+# (own AVD cache key) so a slow/flaky boot cannot affect the parity job, and it
+# is advisory / non-blocking by the same construction (job context
+# `android-boot-smoke`, never the required `build`). References epic #1070.
 
 name: Android Emulator Parity
 
@@ -162,4 +179,117 @@ jobs:
             TestResults-${{ matrix.arch }}.xml
             logcat-${{ matrix.arch }}.txt
             instrumentation-error-${{ matrix.arch }}.txt
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # BOOT SMOKE TEST (#1640) — boot the REAL app (com.laqieer.febuildergba), not
+  # the SkiaSharp parity test head. Builds the signed APK, installs it on an
+  # API-34 x86_64 emulator, launches its LAUNCHER intent, and asserts the
+  # activity reaches RESUMED with no fatal exception (config first-run extraction
+  # #1123 -> single-view Avalonia boot #1122 -> editor-launcher shell). Separate
+  # job + own AVD cache so a slow/flaky boot cannot affect the parity job.
+  # Advisory / non-blocking (context android-boot-smoke, never the required
+  # `build`). References epic #1070.
+  # ---------------------------------------------------------------------------
+  android-boot-smoke:
+    name: Android Boot Smoke (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Advisory / non-blocking (#1640): the boot smoke test has passed (real app
+    # booted to RESUMED on an API-34 x86_64 emulator), but emulator boots can be
+    # flaky in CI, so continue-on-error keeps a future flaky boot from ever
+    # blocking a PR merge. The job still runs and reports signal; the acceptance
+    # criteria are independently satisfied by the experimental/preview labeling
+    # in docs/ANDROID.md + README and the Android Emulator Parity job.
+    continue-on-error: true
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Init build-required submodules
+        # Same submodule set as android.yml. config/patch2 must resolve because
+        # the main Android head globs config/** (excluding patch2) as
+        # AndroidAsset; the tool submodules are referenced transitively by the
+        # Avalonia -> Core chain.
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-android-boot-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-android-boot-${{ runner.os }}-
+
+      - name: Install android workload
+        run: dotnet workload install android
+
+      - name: Enable KVM
+        # Required for usable emulator performance on ubuntu-latest GitHub runners
+        # (software-only emulation boots too slowly and times out).
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build real app APK
+        # The REAL FEBuilderGBA.Android head (NOT the parity test head).
+        # -p:EnableAndroidTarget=true is REQUIRED as a GLOBAL property (#1121):
+        # a bare build fails restore with NETSDK1005 because NuGet restore's
+        # static graph ignores the per-reference AdditionalProperties that
+        # activates the net9.0-android TFM on the shared FEBuilderGBA.Avalonia
+        # project. See docs/ANDROID.md §7.
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
+
+      - name: Cache AVD snapshot
+        id: avd-cache-boot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.android/avd/*
+          key: avd-boot-api34-${{ matrix.arch }}-v1
+
+      - name: Create AVD (cache miss only)
+        if: steps.avd-cache-boot.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: false
+          script: echo "AVD snapshot created for ${{ matrix.arch }}"
+
+      - name: Boot smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: bash scripts/android-boot-smoke.sh ${{ matrix.arch }}
+
+      - name: Upload boot artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-boot-smoke-${{ matrix.arch }}
+          path: |
+            boot-logcat-${{ matrix.arch }}.txt
+            boot-dumpsys-${{ matrix.arch }}.txt
           if-no-files-found: warn

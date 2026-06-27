@@ -1,15 +1,25 @@
 # Native Android (Avalonia.Android) — Feasibility Assessment
 
-> **Status: builds an APK; not yet device-validated.** This document is the
+> **Status: EXPERIMENTAL / PREVIEW — builds an APK; boots on an emulator
+> (#1640); not a full ROM-editing app yet.** This document is the
 > feasibility/scoping deliverable for epic
 > [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). The structural
 > prerequisite — packaging the shared Avalonia UI into an APK — **landed in
 > [#1121](https://github.com/laqieer/FEBuilderGBA/issues/1121)**: the Android head
 > (`FEBuilderGBA.Android/`) now builds a real APK against the conditionally
-> multi-targeted `FEBuilderGBA.Avalonia`. A *runnable, usable* Android app is
-> still **a substantial, separate port** (single-view navigation, config asset
-> extraction, SAF ROM I/O, touch UX) and is **not** a free byproduct of Avalonia.
-> The head remains intentionally **not** part of `FEBuilderGBA.sln` (see
+> multi-targeted `FEBuilderGBA.Avalonia`. An **emulator BOOT SMOKE TEST landed in
+> [#1640](https://github.com/laqieer/FEBuilderGBA/issues/1640)**: CI now installs
+> the real signed APK on an API-34 `x86_64` emulator, launches it, and asserts the
+> activity reaches the RESUMED state with no fatal exception — so config first-run
+> extraction (#1123) and the single-view Avalonia boot (#1122) into the
+> editor-launcher shell are now **emulator-validated**, not merely build-only.
+> What remains **unvalidated on-device** is the *interactive* ROM-editing path:
+> SAF ROM open/save (#1124) and reaching/using an editor require the system file
+> picker and touch UX, which a non-interactive CI smoke test cannot drive. The
+> Android head therefore ships as **experimental/preview** — a *runnable, usable*
+> Android app is still **a substantial, separate port** (SAF ROM I/O, touch UX)
+> and is **not** a free byproduct of Avalonia. The head remains intentionally
+> **not** part of `FEBuilderGBA.sln` (see
 > [§7 Build status in this environment](#7-build-status-in-this-environment)).
 
 This assessment is evidence-backed: every claim cites a `file:line` in the
@@ -35,7 +45,7 @@ pulls in `Core` + `SkiaSharp`). The WinForms project is explicitly out of scope.
 
 ## 2. Avalonia-on-Android specifics (lifetime & windowing)
 
-> **Status: implemented (#1122) — build-only validated, not yet device-validated.**
+> **Status: implemented (#1122) — single-view BOOT is emulator-smoke-validated (#1640); interactive touch UX / per-editor attached-Window dialogs remain on-device-unvalidated (preview).**
 
 Avalonia 11 ships a real Android target: the `Avalonia.Android` package, an
 `[Activity]`-attributed `MainActivity : AvaloniaMainActivity<App>` entry point,
@@ -205,7 +215,7 @@ which write beside the exe / ROM — to **app-private storage** (`Context.FilesD
 
 ## 5. `config/` packaging for an APK
 
-> **Status: implemented (#1123) — build-only validated, not yet device-validated.**
+> **Status: implemented (#1123) — config first-run extraction is emulator-smoke-validated (#1640): it runs during the boot-smoke and a broken extract surfaces as a boot crash the test catches.**
 
 The `config/` directory (game data, scripts, names, translations) is **required
 at runtime**: `FEBuilderGBA.Core/PathUtil.cs:39` resolves `config/<subpath>`
@@ -252,14 +262,17 @@ head therefore ships + extracts config:
 > (e.g. an on-demand download into `FilesDir`) is tracked under the epic #1070,
 > not this issue. The issue explicitly accepts "deferred / not bundled."
 
-> **Validation note (#1123).** No device/emulator was available, so this was
-> **desktop/build-only validated**: the extraction logic is unit-tested on desktop
+> **Validation note (#1123).** This note was originally authored without a
+> device/emulator (desktop/build-only): the extraction logic is unit-tested on desktop
 > (`FEBuilderGBA.Core.Tests/AndroidConfigExtractorCoreTests.cs` — fresh extract,
 > version-stamp skip, version-bump re-extract, partial/corrupt re-extract,
 > crash-before-stamp recovery, manifest-completeness, nested paths,
 > path-traversal rejection, unrelated-dir isolation) and the APK is verified to
 > contain `assets/config/...` while excluding `assets/config/patch2/` (unzip +
-> grep). On-device first-run extraction runtime is tracked under #1070.
+> grep). The first-run extraction is **now emulator-validated via #1640's
+> boot-smoke**: `MainActivity.OnCreate` runs the extraction and rethrows on
+> failure (fail-fast), so a bad extract surfaces as a boot crash the boot-smoke
+> test catches.
 
 ---
 
@@ -352,21 +365,30 @@ conditional multi-target gives the resolver a real `net9.0-android` target.
 
 ### Honest conclusion
 
-The Android APK builds against the shared Avalonia UI (#1121). What remains is
-**runtime**, not structural — the APK is **not yet device/emulator-validated**:
+The Android APK builds against the shared Avalonia UI (#1121) and now **boots on
+an emulator** (#1640). The app ships as **experimental/preview**: the boot path
+is emulator-validated, but the *interactive* ROM-editing path is not.
 
 - Under the single-view Android lifetime, `App.OnFrameworkInitializationCompleted`
   now sets `singleView.MainView = new Views.MainView()` (#1122), and
   `WindowManager` routes the ~356 editor-launch call sites through
   `AndroidNavigationService` (a single-view page/view-stack nav host) — so the
-  booted app presents the editor-launcher shell. **Build-only validated** (no
-  device): the nav-stack core is unit-tested and the desktop nav is
-  regression-verified behavior-identical; the on-device runtime UX (touch,
-  per-editor attached-`Window` dialogs) is carved to #1070 (see §2).
+  booted app presents the editor-launcher shell. **Emulator-validated boot**
+  (#1640): the boot-smoke CI job launches the real APK and asserts it reaches the
+  RESUMED state with no fatal exception, so the single-view shell genuinely comes
+  up on-device (not merely build-only). The nav-stack core is also unit-tested and
+  the desktop nav is regression-verified behavior-identical; the on-device
+  *interactive* runtime UX (touch, per-editor attached-`Window` dialogs) is carved
+  to #1070 (see §2).
 - `config/**` ships as an extracted `AndroidAsset` with version-stamped first-run
-  extraction to `Context.FilesDir` (#1123, build-only validated — see §5). ROM
-  open/save (the remaining storage item) is still path-based.
+  extraction to `Context.FilesDir` (#1123). This extraction now runs inside the
+  emulator boot-smoke (#1640) — `MainActivity.OnCreate` rethrows on extraction
+  failure (fail-fast), so a broken extract would surface as a boot crash the smoke
+  test catches. ROM open/save (the remaining storage item) is still path-based.
 - ROM open/save still goes through path-based I/O; SAF stream I/O is #1124 (see §4).
+  SAF open/save + reaching an editor are **not** exercised by the boot-smoke CI
+  (a non-interactive job cannot drive the system file picker) and remain
+  **on-device-unvalidated** — the reason the head stays experimental/preview.
 
 > The Android head needs `FEBuilderGBA.Avalonia` to be android-aware, which it
 > now is *opt-in*; the `EnableAndroidTarget` default is OFF so the desktop build
@@ -418,6 +440,35 @@ bytes) but are not directly emulated on GitHub-hosted runners — `x86` has no
 API-34 system image; `arm64-v8a`/`armeabi-v7a` need a self-hosted ARM runner
 (see §3). This closes #1125 and completes the #1070 epic checklist item 5.
 
+**On-device BOOT SMOKE TEST (#1640 — DONE):** the parity CI above instruments the
+SkiaSharp byte-parity *test head* (`com.laqieer.febuildergba.tests`); it never
+boots the **real app**. #1640 closed that gap. A second job in
+`android-emulator-parity.yml` — `android-boot-smoke` — builds the **real signed
+APK** (`dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release
+-p:EnableAndroidTarget=true`), installs it on an API-34 `x86_64` emulator,
+launches it via its **LAUNCHER intent** (`monkey -p com.laqieer.febuildergba -c
+android.intent.category.LAUNCHER 1` — robust against the CRC-mangled
+.NET-for-Android activity class name), and asserts the activity reaches the
+**RESUMED** state (`dumpsys activity activities`) with **no fatal exception** in
+logcat. Crash detection is **PID/package-scoped** (it uses the app's resolved PID
+via `logcat --pid`, falling back to package-name matching) so an unrelated
+emulator/system crash cannot false-fail the smoke test. Because
+`MainActivity.OnCreate` does the config first-run extraction (#1123) and rethrows
+on failure (fail-fast), a broken extract surfaces as a boot crash the test
+catches — so this run **emulator-validates** config extraction + the single-view
+Avalonia boot (#1122) into the editor-launcher shell. All logic lives in
+`scripts/android-boot-smoke.sh` (single-line invocation — same
+`android-emulator-runner` constraint as `android-parity-run.sh`). The job is its
+own (own AVD cache key) so a slow/flaky boot cannot affect the parity job, and is
+**advisory / non-blocking** by the same construction (job context
+`android-boot-smoke`, never the required `build`).
+
+**Scope honesty (#1640):** the boot-smoke job validates *boot*, not the full
+ROM-editing flow. SAF ROM open/save (#1124) and reaching/using an editor need the
+interactive system file picker + touch UX, which a non-interactive CI job cannot
+drive — so they stay **on-device-unvalidated** and the Android head ships as
+**experimental/preview** (see the §1 banner and §9). References epic #1070.
+
 ---
 
 ## 8. Follow-up sub-issues
@@ -428,7 +479,7 @@ linked under #1070 as its checklist:
 1. ~~**Android: multi-target `FEBuilderGBA.Avalonia` (or split a shared UI library)
    so the Android head can be packaged into an APK.**~~ **DONE (#1121)** — the
    shared project conditionally multi-targets `net9.0;net9.0-android`; the head
-   builds a real APK (build-only — not yet device-validated). *(prerequisite —
+   builds a real APK (now emulator-boot-validated via #1640; the interactive ROM-editing flow remains preview). *(prerequisite —
    unblocked everything below; see §7.)*
 2. ~~**Android: single-activity navigation model for the multi-window editors**
    (`WindowManager` page/view-stack rework + `ISingleViewApplicationLifetime`
@@ -436,12 +487,12 @@ linked under #1070 as its checklist:
    (`DesktopNavigationService` behavior-identical + `AndroidNavigationService`
    single-view nav host over the pure `NavigationStack`), `WindowManager` kept as
    a stable facade (~356 call sites untouched), `App` single-view branch +
-   `Views/MainView` shell. Build-only validated (no device); per-editor
+   `Views/MainView` shell. Single-view boot emulator-validated via #1640 (no device for interactive UX); per-editor
    attached-`Window` dialog flows + touch-UX polish carved to #1070. *(was the
    largest item; see §2.)*
 3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
    first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
-   build-only validated (no device); `config/patch2` deferred / not bundled.
+   config extraction emulator-validated via #1640's boot-smoke; `config/patch2` deferred / not bundled.
    *(see §5.)*
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
@@ -478,17 +529,21 @@ not promise Android from "Avalonia supports Android" alone.
 1. ~~**Phase A — make it packageable.**~~ **DONE (#1121)** — the shared UI is
    conditionally multi-targeted and the Android head builds an APK.
 2. **Phase B — make it run.** Single-view lifetime + a minimal navigation host
-   (#2), config extraction (#3 — **DONE (#1123)**, build-only), and SAF ROM I/O
+   (#2), config extraction (#3 — **DONE (#1123)**, emulator-boot-validated via #1640), and SAF ROM I/O
    (#4) — enough to open a ROM and show one editor on a device.
 3. **Phase C — make it usable.** Touch UX adaptation (larger hit targets,
    phone/tablet layouts, touch-friendly numeric entry replacing the ~2,300
    `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke
    test (#5) and a CI/APK job (#6).
 
-Phase A landed in #1121: the `FEBuilderGBA.Android/` head now builds a real APK
-against the shared, conditionally-multi-targeted Avalonia UI. It is **not yet a
-runnable app** — booting it presents no editor under the single-view lifetime
-until the navigation rework (Phase B / #1122) lands.
+Phase A landed in #1121: the `FEBuilderGBA.Android/` head builds a real APK
+against the shared, conditionally-multi-targeted Avalonia UI. Phase B is partly
+in: the navigation rework (#1122), config extraction (#1123), and SAF stream I/O
+seam (#1124) landed, and #1640 added an **emulator boot smoke test** that proves
+the app actually launches into the single-view editor-launcher shell. It is now a
+**runnable (experimental/preview)** app — it boots and presents the launcher —
+but the *interactive* ROM-editing flow (SAF open + reaching an editor on a touch
+device) is still on-device-unvalidated, so it is not yet a full ROM-editing app.
 
 ---
 
