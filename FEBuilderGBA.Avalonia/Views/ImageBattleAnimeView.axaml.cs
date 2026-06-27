@@ -200,9 +200,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            // #1639: the .txt / FEditor .bin importer reads sibling files (per-frame
+            // PNGs, and the .bin's " Frame Data.dmp") RELATIVE to the picked script's
+            // directory, so a SAF pick (no local path) can't reach them. Require a
+            // real local path; on Android (no local path) message instead of silently
+            // importing a sibling-less temp copy. Matches the Magic FEditor import.
             string? path = await Dialogs.FileDialogHelper.OpenFile(
-                this, R._("Import Battle Animation"), new[] { "*.txt", "*.bin" });
-            if (string.IsNullOrEmpty(path)) return;
+                this, R._("Import Battle Animation"), new[] { "*.txt", "*.bin" },
+                requireLocalPath: true);
+            if (string.IsNullOrEmpty(path))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services.ShowError(R._("Importing an animation script reads sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             StopAnimation();
             _undoService.Begin("Import Battle Animation");
@@ -244,8 +255,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
             string name = _vm.AnimeName.Replace("\0", "").Trim();
             if (string.IsNullOrEmpty(name)) name = "battle_anime";
+            // #1639: BattleAnimeExportCore writes per-frame PNGs as siblings next to
+            // the .txt script, so a SAF pick (no local path) can't place them.
+            // SaveAnimationScriptFile returns null without a local path; on Android
+            // message instead of silently exporting siblings into a temp dir.
             string? path = await Dialogs.FileDialogHelper.SaveAnimationScriptFile(this, $"{name}.txt");
-            if (string.IsNullOrEmpty(path)) return;
+            if (string.IsNullOrEmpty(path))
+            {
+                if (OperatingSystem.IsAndroid())
+                    CoreState.Services.ShowError(R._("Exporting a battle animation script writes sibling PNG frames and requires desktop file-system access; it is not available on this device."));
+                return;
+            }
 
             try
             {
