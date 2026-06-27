@@ -61,6 +61,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint itemPtr = rom.RomInfo.item_pointer;
             if (itemPtr == 0) return new List<AddrResult>();
 
+            // Bound the full 4-byte pointer read so p32() cannot throw on a
+            // truncated/corrupt ROM whose item_pointer slot falls within the
+            // last 3 bytes (#1597 review).
+            if (itemPtr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
+
             uint itemBase = rom.p32(itemPtr);
             if (!U.isSafetyOffset(itemBase)) return new List<AddrResult>();
 

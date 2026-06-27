@@ -167,6 +167,49 @@ public class ItemStatBonusesPatchedParityTests : System.IDisposable
     }
 
     // ------------------------------------------------------------------
+    // Truncated-ROM guard (#1597 Copilot review): the 4-byte p32(item_pointer)
+    // read is bounds-checked so a ROM whose item_pointer slot falls within the
+    // last 3 bytes returns an empty list instead of throwing IndexOutOfRange.
+    //
+    // Hermetic exercise of the branch: LoadLow a full FE8U image (gives a valid
+    // RomInfo whose item_pointer is a real deep offset ~0x16xxx), then swap in a
+    // tiny Data array so item_pointer + 4 > Data.Length. SwapNewROMDataDirect
+    // replaces only Data and leaves RomInfo intact, so the guard fires.
+    // ------------------------------------------------------------------
+
+    static ROM MakeRomWithTruncatedItemPointerSlot()
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+        // item_pointer is deep in the image (well past 16 bytes); shrink Data so
+        // the full 4-byte read at the slot would run past EOF.
+        Assert.True(rom.RomInfo.item_pointer + 4 > 16,
+            "Test premise: FE8U item_pointer must be past the truncated length.");
+        rom.SwapNewROMDataDirect(new byte[16]);
+        return rom;
+    }
+
+    [Fact]
+    public void SkillSystems_LoadList_TruncatedItemPointerSlot_ReturnsEmpty_NoThrow()
+    {
+        CoreState.ROM = MakeRomWithTruncatedItemPointerSlot();
+        var vm = new ItemStatBonusesSkillSystemsViewModel();
+
+        var rows = vm.LoadList(); // must NOT throw IndexOutOfRange
+        Assert.Empty(rows);
+    }
+
+    [Fact]
+    public void Venno_LoadList_TruncatedItemPointerSlot_ReturnsEmpty_NoThrow()
+    {
+        CoreState.ROM = MakeRomWithTruncatedItemPointerSlot();
+        var vm = new ItemStatBonusesVennoViewModel();
+
+        var rows = vm.LoadList(); // must NOT throw IndexOutOfRange
+        Assert.Empty(rows);
+    }
+
+    // ------------------------------------------------------------------
     // Parity helper classification
     // ------------------------------------------------------------------
 
