@@ -13,6 +13,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
 
@@ -98,6 +99,40 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var btn = view.FindControl<Button>("ExpandButton");
                 Assert.NotNull(btn);
                 Assert.False(btn!.IsEnabled, "Expand button must be disabled for an FE6 ROM (non-FE8)");
+            }
+            finally { view.Close(); }
+        }
+
+        // The Expand handler preserves the selection by ORIGINAL INDEX (not by
+        // address) because the expand repoints the table base — an address match
+        // would always fall back to row 0. This test pins the index-preservation
+        // mechanism: SelectedOriginalIndex captured before a reload re-selects the
+        // SAME row via SelectByIndex afterwards. (Copilot bot review thread.)
+        [AvaloniaFact]
+        public void SelectByIndex_RoundTrips_AfterReload()
+        {
+            CoreState.ROM = MakeFe8U();
+            var view = new SummonsDemonKingViewerView();
+            try
+            {
+                OpenAndLoad(view);
+                var list = view.FindControl<FEBuilderGBA.Avalonia.Controls.AddressListControl>("EntryList");
+                Assert.NotNull(list);
+
+                // Select a non-first row, capture its original index (the value the
+                // Expand handler stashes before the grow).
+                Assert.True(list!.SelectByIndex(2), "row 2 must exist");
+                int captured = list.SelectedOriginalIndex;
+                Assert.Equal(2, captured);
+
+                // Reload the list (simulating LoadList() after expand) and re-select
+                // by the captured ORIGINAL INDEX — the row at that index is the same
+                // logical entry, proving the index-preservation mechanism works
+                // where the old-address match would have failed.
+                var vm = new SummonsDemonKingViewerViewModel();
+                list.SetItems(vm.LoadSummonsDemonKingList());
+                Assert.True(list.SelectByIndex(captured));
+                Assert.Equal(2, list.SelectedOriginalIndex);
             }
             finally { view.Close(); }
         }

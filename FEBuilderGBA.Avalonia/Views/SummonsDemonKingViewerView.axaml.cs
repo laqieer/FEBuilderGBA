@@ -25,23 +25,20 @@ namespace FEBuilderGBA.Avalonia.Views
             Opened += (_, _) => LoadList();
         }
 
-        void LoadList(uint preserveAddress = 0)
+        void LoadList()
         {
             _vm.IsLoading = true;
             try
             {
                 var items = _vm.LoadSummonsDemonKingList();
-                if (preserveAddress != 0)
-                    EntryList.SetItemsPreserveSelection(items, preserveAddress);
-                else
-                    EntryList.SetItems(items);
+                EntryList.SetItems(items);
                 // #1606: the list-expand affordance is FE8-only (FE6/FE7 leave the
                 // table pointer + count address at 0). Gate the button accordingly.
                 ExpandButton.IsEnabled = SummonsDemonKingExpandCore.IsEnabled(CoreState.ROM);
             }
             catch (Exception ex)
             {
-                Log.Error("SummonsDemonKingViewerView.LoadList failed: {0}", ex.Message);
+                Log.Error($"SummonsDemonKingViewerView.LoadList failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -115,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Demon king summon data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonsDemonKingViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"SummonsDemonKingViewerView.Write: {ex}"); }
         }
 
         // #1606 — list-expand (WF SummonsDemonKingForm.AddressListExpandsEvent
@@ -161,6 +158,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     SummonsDemonKingExpandCore.MaxCountByte);
                 if (chosen == null) return; // user cancelled
 
+                // Preserve the selection by ORIGINAL INDEX, not by address: the
+                // expand repoints the table base, so the selected row's address
+                // changes and an address match would always fall back to row 0.
+                // The row index is stable across an append-only grow. (Copilot
+                // bot review thread.)
+                int preserveIndex = EntryList.SelectedOriginalIndex;
+
                 _undoService.Begin("Expand Demon King Summon");
                 try
                 {
@@ -173,10 +177,11 @@ namespace FEBuilderGBA.Avalonia.Views
                             ? R._("Demon King Summon table expansion failed.") : err);
                         return;
                     }
-                    uint preserve = _vm.CurrentAddr;
                     _undoService.Commit();
                     _vm.MarkClean();
-                    LoadList(preserve);
+                    LoadList();
+                    if (preserveIndex >= 0)
+                        EntryList.SelectByIndex(preserveIndex);
                     CoreState.Services?.ShowInfo(
                         R._("Expanded Demon King Summon list to {0} entries.", result.NewCountByte + 1));
                 }
