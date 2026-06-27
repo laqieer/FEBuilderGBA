@@ -21,6 +21,53 @@ namespace FEBuilderGBA
         Dictionary<string,string> Dic = new Dictionary<string,string>();
         Dictionary<string,string> ReverseEnglishMap = new Dictionary<string,string>();
 
+        // Decode the XML character/entity references that an AXAML parser resolves
+        // before a string ever reaches str(). Older en.txt extractions retained raw
+        // entities in their keys (e.g. `Support &amp; Other`, `...&#10;...`,
+        // `&lt;= 4095`) while ja.txt/zh.txt use the decoded form, so without this the
+        // entity-keyed entries miss every lookup and fall through to English
+        // identity-passthrough (issue #1636 — a residual of #356). Applied to keys
+        // AND values at load time and as a final str() fallback so every locale file
+        // resolves uniformly regardless of which form it ships with, and so a future
+        // re-extraction cannot silently re-introduce the regression.
+        //
+        // `&amp;` MUST be decoded LAST so a doubly-escaped `&amp;lt;` decodes to the
+        // literal `&lt;` (not `<`). Numeric refs are converted before named refs for
+        // the same reason. Idempotent on entity-free strings.
+        public static string DecodeXmlEntities(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.IndexOf('&') < 0)
+            {
+                return s;
+            }
+
+            // Numeric character references: &#NN; (decimal) and &#xNN; (hex, any case).
+            // We only resolve the small set that actually appears in the translation
+            // files and that the AXAML parser would emit: a LINE BREAK (10/0x0a).
+            //
+            // The whole translate system standardises newlines on CRLF (the `\r\n`
+            // escape that LoadResource decodes to "\r\n"). ja.txt/zh.txt — and the
+            // normalized en.txt — store line breaks as that CRLF form, so a lone
+            // LF entity (`&#10;`) MUST decode to "\r\n" here, otherwise the reverse
+            // map's Japanese key (LF) would never match the target Dic key (CRLF).
+            // A bare CR entity is decoded to "\r" (none currently ship, but kept for
+            // completeness). str()'s #356 LF↔CRLF fallback covers the runtime input.
+            s = s.Replace("&#10;", "\r\n");
+            s = s.Replace("&#x0a;", "\r\n").Replace("&#x0A;", "\r\n");
+            s = s.Replace("&#xa;", "\r\n").Replace("&#xA;", "\r\n");
+            s = s.Replace("&#13;", "\r");
+            s = s.Replace("&#x0d;", "\r").Replace("&#x0D;", "\r");
+            s = s.Replace("&#xd;", "\r").Replace("&#xD;", "\r");
+
+            // Named entities. `&amp;` decoded LAST.
+            s = s.Replace("&lt;", "<");
+            s = s.Replace("&gt;", ">");
+            s = s.Replace("&quot;", "\"");
+            s = s.Replace("&apos;", "'");
+            s = s.Replace("&amp;", "&");
+            return s;
+        }
+
         //翻訳文字列の取得
         public string str(string src)
         {
@@ -82,6 +129,29 @@ namespace FEBuilderGBA
                 }
             }
 
+            // 2d. XML-entity normalisation (issue #1636): a caller may pass a string
+            //     that still carries raw entities (`&#10;`, `&#x0a;`, `&amp;`, `&lt;`)
+            //     even though the dictionaries are now keyed by the decoded form.
+            //     Decode and retry the full direct + reverse chain (with newline
+            //     normalisation) before giving up.
+            if (src.IndexOf('&') >= 0)
+            {
+                string decoded = DecodeXmlEntities(src);
+                if (decoded != src)
+                {
+                    if (Dic.TryGetValue(decoded, out dest)) return dest;
+                    if (ReverseEnglishMap.TryGetValue(decoded, out japaneseKey))
+                    {
+                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
+                        return japaneseKey;
+                    }
+                    // The decoded form may itself differ from the stored key only in
+                    // newline form (LF vs CRLF) — reuse str()'s normalisation chain.
+                    string viaNewline = str(decoded);
+                    if (viaNewline != decoded) return viaNewline;
+                }
+            }
+
             // 3. Pass-through
             return src;
         }
@@ -116,10 +186,11 @@ namespace FEBuilderGBA
                     {
                         if (line[0] != ':') continue;
                         src = line.Substring(1).Replace("\\r\\n", "\r\n");
+                        src = DecodeXmlEntities(src);
                     }
                     else
                     {
-                        string englishValue = line.Replace("\\r\\n", "\r\n").TrimEnd();
+                        string englishValue = DecodeXmlEntities(line.Replace("\\r\\n", "\r\n")).TrimEnd();
                         // Map English value → Japanese key (for reverse lookup)
                         if (!string.IsNullOrEmpty(englishValue))
                             ReverseEnglishMap[englishValue] = src;
@@ -174,10 +245,12 @@ namespace FEBuilderGBA
                         }
                         src = line.Substring(1);
                         src = src.Replace("\\r\\n", "\r\n");
+                        src = DecodeXmlEntities(src);
                     }
                     else
                     {
                         line = line.Replace("\\r\\n", "\r\n");
+                        line = DecodeXmlEntities(line);
                         Dic[src] = line;
                     }
                 }
