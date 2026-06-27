@@ -54,12 +54,14 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            FlagIdBox.Text = string.Format("0x{0:X02}", _vm.FlagId);
             P0Box.Text = string.Format("0x{0:X08}", _vm.P0);
         }
 
         void ReadFromUI()
         {
-            _vm.P0 = U.atoh(P0Box.Text ?? "");
+            // The FLAG byte is the only editable field; P0 is read-only display.
+            _vm.FlagId = U.atoh(FlagIdBox.Text ?? "");
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
