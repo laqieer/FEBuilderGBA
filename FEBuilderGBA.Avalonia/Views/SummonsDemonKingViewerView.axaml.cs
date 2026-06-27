@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -31,10 +32,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadSummonsDemonKingList();
                 EntryList.SetItems(items);
+                // #1606: the list-expand affordance is FE8-only (FE6/FE7 leave the
+                // table pointer + count address at 0). Gate the button accordingly.
+                ExpandButton.IsEnabled = SummonsDemonKingExpandCore.IsEnabled(CoreState.ROM);
             }
             catch (Exception ex)
             {
-                Log.Error("SummonsDemonKingViewerView.LoadList failed: {0}", ex.Message);
+                Log.Error($"SummonsDemonKingViewerView.LoadList failed: {ex}");
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -108,7 +112,93 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Demon king summon data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonsDemonKingViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"SummonsDemonKingViewerView.Write: {ex}"); }
+        }
+
+        // #1606 — list-expand (WF SummonsDemonKingForm.AddressListExpandsEvent
+        // parity). Grows the 20-byte summons_demon_king table AND writes the new
+        // entry count to summons_demon_king_count_address, all under ONE undo
+        // scope with the MapSettingCore #885 byte-identical fault restore (the
+        // Core helper snapshots + restores on any failure, even across a ROM
+        // resize). FE8-only.
+        async void Expand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (!SummonsDemonKingExpandCore.IsEnabled(rom))
+                {
+                    CoreState.Services?.ShowInfo(R._("Demon King Summon table is not available for this ROM."));
+                    return;
+                }
+
+                // Pre-dialog guard (Copilot plan-review finding #2): never build the
+                // NumberInputDialog with min/default > max. A corrupt count (>= 100)
+                // or an already-maxed count (>= 99) short-circuits with a message and
+                // ZERO mutation.
+                uint current = SummonsDemonKingExpandCore.ReadCountByte(rom);
+                if (current >= SummonsDemonKingExpandCore.CorruptCountThreshold)
+                {
+                    CoreState.Services?.ShowInfo(R._("The current Demon King Summon count byte (0x{0:X}) is corrupt — cannot expand.", current));
+                    return;
+                }
+                if (current >= SummonsDemonKingExpandCore.MaxCountByte)
+                {
+                    CoreState.Services?.ShowInfo(R._("Already at the maximum Demon King Summon count ({0}).", SummonsDemonKingExpandCore.MaxCountByte));
+                    return;
+                }
+
+                uint defaultCount = current + 1;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new Demon King Summon count (current: {0}, max: {1}).", current, SummonsDemonKingExpandCore.MaxCountByte),
+                    R._("List Expansion"),
+                    defaultCount,
+                    defaultCount,
+                    SummonsDemonKingExpandCore.MaxCountByte);
+                if (chosen == null) return; // user cancelled
+
+                // Preserve the selection by ORIGINAL INDEX, not by address: the
+                // expand repoints the table base, so the selected row's address
+                // changes and an address match would always fall back to row 0.
+                // The row index is stable across an append-only grow. (Copilot
+                // bot review thread.)
+                int preserveIndex = EntryList.SelectedOriginalIndex;
+
+                _undoService.Begin("Expand Demon King Summon");
+                try
+                {
+                    var result = SummonsDemonKingExpandCore.Expand(
+                        rom, chosen.Value, _undoService.GetActiveUndoData(), out string err);
+                    if (!result.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(string.IsNullOrEmpty(err)
+                            ? R._("Demon King Summon table expansion failed.") : err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    if (preserveIndex >= 0)
+                        EntryList.SelectByIndex(preserveIndex);
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded Demon King Summon list to {0} entries.", result.NewCountByte + 1));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    // Log.Error joins string[] args verbatim (no composite-format
+                    // {0} substitution), so use interpolation + ex.ToString() for
+                    // actionable detail.
+                    Log.Error($"SummonsDemonKingViewerView.Expand inner failed: {inner}");
+                    CoreState.Services?.ShowError(R._("Demon King Summon table expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"SummonsDemonKingViewerView.Expand failed: {ex}");
+            }
         }
 
         // -- IdFieldControl handlers (#360) ----------------------------------
