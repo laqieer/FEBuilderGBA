@@ -37,13 +37,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// The init command for THIS browser's mode (graphics vs music). The
-        /// copy button and tooltip use this so a missing music submodule shows
-        /// the music init command, not the graphics one (#1380 Copilot review).
+        /// status text uses this so a missing music submodule shows the music
+        /// init command, not the graphics one (#1380 Copilot review).
         /// </summary>
         public string EffectiveInitCommand => _musicMode ? MusicSubmoduleInitCommand : SubmoduleInitCommand;
 
-        /// <summary>Tooltip for the "Copy git command" button — shows the effective command.</summary>
-        public string CopyTooltip => "Copy: " + EffectiveInitCommand;
+        /// <summary>
+        /// What the "Copy git command" button puts on the clipboard: BOTH the
+        /// source-build submodule command AND the released-build clone command
+        /// (newline-separated), so a released-zip user can actually copy the
+        /// clone command that was added to the empty-state (#1669 review).
+        /// </summary>
+        public string CopyCommand => EffectiveInitCommand + "\n" + ReleaseFetchCommand;
+
+        /// <summary>Tooltip for the "Copy git command" button — shows both commands.</summary>
+        public string CopyTooltip => "Copy:\n" + EffectiveInitCommand + "\n" + ReleaseFetchCommand;
 
         public ObservableCollection<CategoryNode> Categories
         {

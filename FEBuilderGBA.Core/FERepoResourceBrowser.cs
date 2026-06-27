@@ -23,11 +23,19 @@ namespace FEBuilderGBA
         // expected `resources/` folder next to the executable.
         // -----------------------------------------------------------------
 
-        /// <summary>Public upstream URL of the FE-Repo graphics repository.</summary>
-        public const string GraphicsRepoUrl = "https://github.com/Klokinator/FE-Repo";
+        /// <summary>
+        /// Public upstream URL of the FE-Repo graphics repository. Aliased to the
+        /// single source of truth in <see cref="GitUtil.FERepoDefaultUrl"/> so the
+        /// remote URL is defined once (#1669 review).
+        /// </summary>
+        public const string GraphicsRepoUrl = GitUtil.FERepoDefaultUrl;
 
-        /// <summary>Public upstream URL of the FE-Repo-Music (no-preview) repository.</summary>
-        public const string MusicRepoUrl = "https://github.com/laqieer/FE-Repo-Music-No-Preview";
+        /// <summary>
+        /// Public upstream URL of the FE-Repo-Music (no-preview) repository.
+        /// Aliased to <see cref="GitUtil.FERepoMusicDefaultUrl"/> (single source
+        /// of truth, #1669 review).
+        /// </summary>
+        public const string MusicRepoUrl = GitUtil.FERepoMusicDefaultUrl;
 
         /// <summary>
         /// Self-contained fetch command for a RELEASED build (no git repo / no

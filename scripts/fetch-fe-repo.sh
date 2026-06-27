@@ -53,7 +53,17 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --graphics-only) graphics_only=1 ;;
     --music-only)    music_only=1 ;;
-    --dest)          shift; dest="${1:-}" ;;
+    --dest)
+      # Require a value: error out instead of shifting past the end (which
+      # would crash under `set -u`) when --dest is the last argument (#1669).
+      if [ $# -lt 2 ]; then
+        echo "fetch-fe-repo: --dest requires a directory argument." >&2
+        usage
+        exit 2
+      fi
+      shift
+      dest="$1"
+      ;;
     -h|--help)       usage; exit 0 ;;
     *) echo "fetch-fe-repo: unknown argument: $1" >&2; usage; exit 2 ;;
   esac
