@@ -437,3 +437,4 @@ Standalone usage docs for specific editors that need extra explanation:
 | 321 | SMEPromoListView | E2E COVERED | - | ALIGNED |
 | 322 | ToolRunHintMessageView | E2E COVERED | - | ALIGNED |
 | 323 | ImageChapterTitleFE7View | E2E COVERED | YES | ALIGNED |
+| 324 | MapTerrainNameView | E2E COVERED | YES | ALIGNED |
