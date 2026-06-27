@@ -23,8 +23,22 @@
 # being a separate, non-required workflow, so we let genuine failures surface as
 # a (still non-blocking) RED check rather than a misleading green one.
 #
-# Release signing-key handling is deferred: the artifact is the debug-keystore
-# *-Signed.apk the build already produces (docs/ANDROID.md §7).
+# Release signing is CONDITIONAL on a maintainer-provided keystore secret
+# (ANDROID_KEYSTORE_BASE64). When that secret is present the job decodes the
+# keystore and publishes a release-signed APK + AAB (-p:AndroidKeyStore=true +
+# the AndroidSigning* props). When it is ABSENT — the state on this fork's CI,
+# which has no secret — the job falls back to the original debug-keystore
+# *-Signed.apk build, so the existing (non-required) CI keeps passing unchanged.
+# The four secrets (ANDROID_KEYSTORE_BASE64 / ANDROID_KEY_ALIAS /
+# ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_PASSWORD) are documented in
+# docs/ANDROID.md §7. Attaching the signed artifact to a GitHub release is the
+# separate tag-triggered release workflow (#1629); this workflow only produces
+# the signed build. Closes #1631 (the #1126 signing-key deferral).
+#
+# NOTE: `secrets.*` cannot be referenced in a step-level `if:` (GitHub Actions
+# forbids it), so presence is computed once into a step output (haskeystore)
+# and the signing / fallback steps gate on that output. Passwords are passed via
+# `env:` (never interpolated into a logged command line).
 #
 # The on-device / emulator SkiaSharp byte-parity run (#1125) — running
 # SkiaRenderByteParityTests on the Android native across the 4 ABIs — is NOT
@@ -87,25 +101,99 @@ jobs:
         # Android SDK + a JDK that the workload build consumes.
         run: dotnet workload install android
 
-      - name: Build Android APK
-        # -p:EnableAndroidTarget=true is REQUIRED as a GLOBAL property (#1121):
-        # a bare build fails restore with NETSDK1005 because NuGet restore's
-        # static graph ignores the per-reference AdditionalProperties that
-        # activates the net9.0-android TFM on the shared FEBuilderGBA.Avalonia
-        # project. See docs/ANDROID.md §7.
+      - name: Detect release keystore secret
+        # `secrets.*` is NOT allowed in a step-level `if:`, so classify presence
+        # once here into a step output the later steps can gate on. Only the
+        # boolean is emitted — secret values are never printed. The detector
+        # reads from `env:` (NOT `${{ secrets.* }}` inline) to stay aligned with
+        # GitHub's limitation. All four secrets must be set together: all empty
+        # => debug fallback (the fork's current CI); all set => release signing;
+        # a PARTIAL set fails fast so a half-configured maintainer doesn't get a
+        # confusing publish failure or a silent accidental debug fallback.
+        id: haskeystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set_count=0
+          missing=""
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD; do
+            eval "val=\${$name}"
+            if [ -n "$val" ]; then
+              set_count=$((set_count + 1))
+            else
+              missing="$missing $name"
+            fi
+          done
+          if [ "$set_count" -eq 4 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "All Android signing secrets detected — building a release-signed APK + AAB."
+          elif [ "$set_count" -eq 0 ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No Android signing secrets — falling back to the debug-keystore APK build."
+          else
+            echo "::error::Partial Android signing secrets configured. Set ALL of ANDROID_KEYSTORE_BASE64, ANDROID_KEY_ALIAS, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD (or none). Missing:$missing"
+            exit 1
+          fi
+
+      - name: Decode release keystore
+        # Base64-decode the maintainer-provided keystore to a runner-temp file.
+        # Runs ONLY when the secrets are present. The decoded keystore lives under
+        # $RUNNER_TEMP (cleaned up automatically at job end), is chmod 600, and is
+        # never logged. `printf '%s'` avoids any echo-added trailing newline.
+        if: steps.haskeystore.outputs.present == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          chmod 600 "$RUNNER_TEMP/release.keystore"
+
+      - name: Build release-signed APK + AAB
+        # Release-signing path (secret present). Publishes BOTH an APK and an AAB
+        # (AndroidPackageFormats=apk;aab) signed with the release keystore.
+        # Passwords come from `env:` so they never appear in the logged command
+        # line. -p:EnableAndroidTarget=true is REQUIRED as a GLOBAL property
+        # (#1121): a bare build fails restore with NETSDK1005 because NuGet
+        # restore's static graph ignores the per-reference AdditionalProperties
+        # that activates the net9.0-android TFM on FEBuilderGBA.Avalonia.
+        if: steps.haskeystore.outputs.present == 'true'
+        env:
+          ANDROID_SIGNING_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_SIGNING_KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          dotnet publish FEBuilderGBA.Android/FEBuilderGBA.Android.csproj \
+            -c Release \
+            -p:EnableAndroidTarget=true \
+            -p:AndroidPackageFormats='apk;aab' \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/release.keystore" \
+            -p:AndroidSigningKeyAlias="$ANDROID_SIGNING_KEY_ALIAS" \
+            -p:AndroidSigningStorePass="$ANDROID_SIGNING_STORE_PASS" \
+            -p:AndroidSigningKeyPass="$ANDROID_SIGNING_KEY_PASS"
+
+      - name: Build debug-keystore APK (fallback)
+        # Fallback path (secret ABSENT) — the original #1126 behaviour. This is
+        # what runs on the fork's CI today, so the existing (non-required) check
+        # is unchanged. Produces the debug-keystore *-Signed.apk.
+        if: steps.haskeystore.outputs.present != 'true'
         run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c Release -p:EnableAndroidTarget=true
 
-      - name: Upload APK artifact
+      - name: Upload APK / AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: febuildergba-android-apk
-          # The debug-keystore-signed APK the build already produces
-          # (docs/ANDROID.md §7), at the well-known net9.0-android output path.
+          # Both paths land a *-Signed.apk at the well-known net9.0-android
+          # output path; the release-signing path additionally emits an .aab.
           # if-no-files-found: error so a run that produced NO apk (a path /
           # packaging regression) fails VISIBLY rather than passing green with
-          # an empty artifact — this is meaningful precisely because the job is
-          # NOT continue-on-error. It still can't block merges: the workflow is
+          # an empty artifact — meaningful precisely because the job is NOT
+          # continue-on-error. It still can't block merges: the workflow is
           # separate + non-required (context android-build, not the required
           # `build`).
-          path: FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk
+          path: |
+            FEBuilderGBA.Android/bin/Release/net9.0-android/*-Signed.apk
+            FEBuilderGBA.Android/bin/Release/net9.0-android/*.aab
           if-no-files-found: error

@@ -258,12 +258,39 @@ Future improvements for CI/CD:
 - [ ] Update notification system
 - [ ] Beta/nightly channel support
 
+## Android release signing
+
+The Android head (`FEBuilderGBA.Android`) is built by a separate workflow,
+`.github/workflows/android.yml` (advisory / non-required — see
+[docs/ANDROID.md §7](ANDROID.md#7-build-status-in-this-environment)). It produces
+a **release-signed APK + AAB** *only when* the maintainer adds a release keystore
+to the repository's GitHub Actions secrets; otherwise it falls back to the
+debug-keystore `*-Signed.apk` (the fork's current CI), so the existing check is
+unchanged.
+
+Required secrets (set ALL four together, or none):
+
+| Secret | Meaning |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | base64 of the release keystore — `base64 -w0 release.keystore` |
+| `ANDROID_KEY_ALIAS` | the key alias inside the keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | the keystore (store) password |
+| `ANDROID_KEY_PASSWORD` | the key password |
+
+Add them at **Settings → Secrets and variables → Actions → New repository secret**.
+A partial set fails the workflow fast with a clear error. The `.aab` is the
+artifact Google Play requires; the signed APK is for direct sideload. Attaching
+the signed artifact to a GitHub release is handled by the tag-triggered release
+workflow ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)). No
+production signing key is committed to the repo.
+
 ## References
 
 - Split Package Status: `SPLIT-PACKAGE-FINAL-STATUS.md`
 - PowerShell Script: `scripts/create-split-packages.ps1`
 - CI/CD Workflow: `.github/workflows/msbuild.yml`
 - Update Logic: `FEBuilderGBA/UpdateCheckSplitPackage.cs`
+- Android build + signing: `.github/workflows/android.yml`, [docs/ANDROID.md §7](ANDROID.md#7-build-status-in-this-environment)
 
 ---
 
