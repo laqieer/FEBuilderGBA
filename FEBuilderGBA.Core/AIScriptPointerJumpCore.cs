@@ -161,7 +161,7 @@ namespace FEBuilderGBA
         /// </summary>
         static uint AppendZeroBlock(ROM rom, Undo.UndoData? undodata)
         {
-            byte[] data = new byte[ASM_ALLOC_SIZE]; // all zero
+            byte[] data = new byte[(int)ASM_ALLOC_SIZE]; // all zero
 
             uint newaddr;
             if (CoreState.AppendBinaryData != null && undodata != null)

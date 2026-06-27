@@ -444,10 +444,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 // block for a null/broken Coordinate/Range/CallTalk pointer.
                 if (_vm.ParamNeedsAlloc(rowIdx, paramRow))
                 {
-                    // Reuse the existing WF AllocIfNeed Japanese-source key
-                    // (already translated en/zh/ja) — no new translate entry.
-                    bool proceed = CoreState.Services?.ShowYesNo(
-                        R._("新規に座標データを作成しますか？")) ?? false;
+                    // Match WinForms' per-form prompt wording (both keys already
+                    // translated en/zh/ja — no new translate entry):
+                    //   Coordinate/Range -> "新規に座標データを作成しますか？"
+                    //   (AIASMCoordinateForm/AIASMRangeForm.AllocIfNeed)
+                    //   CallTalk          -> "新規にデータを作成しますか？"
+                    //   (AIASMCALLTALKForm.AllocIfNeed)
+                    string promptKey = kind == AiPointerKind.CallTalk
+                        ? "新規にデータを作成しますか？"
+                        : "新規に座標データを作成しますか？";
+                    bool proceed = CoreState.Services?.ShowYesNo(R._(promptKey)) ?? false;
                     if (!proceed) return;
                 }
 
@@ -469,7 +475,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error($"AIScriptView.ParamLabel_Click apply failed: {inner.Message}");
+                    Log.Error($"AIScriptView.ParamLabel_Click apply failed: {inner}");
                     return;
                 }
 
@@ -485,7 +491,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"AIScriptView.ParamLabel_Click failed: {ex.Message}");
+                Log.Error($"AIScriptView.ParamLabel_Click failed: {ex}");
             }
         }
 
