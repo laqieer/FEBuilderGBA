@@ -29,8 +29,9 @@
 #   (an empty range prints a "no changes" line); a real git failure (e.g. a bad
 #   range or unfetched tags) is NOT swallowed and fails the script.
 #
-# DEPENDENCIES: POSIX sh + git only (no Node/jq/python) — runs as-is on the
-# ubuntu release runner and on any contributor machine (GNU or BSD/macOS).
+# DEPENDENCIES: POSIX sh + git + the standard POSIX userland (awk, grep, sed,
+# mktemp, wc, head, cat) — no Node/jq/python. Runs as-is on the ubuntu release
+# runner and on any contributor machine (GNU or BSD/macOS).
 
 set -eu
 

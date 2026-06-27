@@ -72,7 +72,7 @@ commit "Random freeform subject"            # non-conforming -> Other
 # ---------------------------------------------------------------------------
 # Case 1: full range (explicit FROM..TO) classifies every type.
 # ---------------------------------------------------------------------------
-OUT="$(cd "$WORK" && bash "$GEN" ver_20000101.00 HEAD)"
+OUT="$(cd "$WORK" && sh "$GEN" ver_20000101.00 HEAD)"
 
 assert_contains "$OUT" "## 🚀 Features"                  "section: Features present"
 assert_contains "$OUT" "- feat(avalonia): add a thing"   "route: feat -> Features"
@@ -99,7 +99,7 @@ assert_not_contains "$OTHER_BLOCK" "fix: correct"   "no fix leak into Other"
 # ---------------------------------------------------------------------------
 # Case 2: auto-detect previous ver_* tag when FROM is empty.
 # ---------------------------------------------------------------------------
-OUT2="$(cd "$WORK" && bash "$GEN" "" HEAD)"
+OUT2="$(cd "$WORK" && sh "$GEN" "" HEAD)"
 assert_contains "$OUT2" "ver_20000101.00...HEAD" "auto-detect: previous ver_* tag in header"
 assert_contains "$OUT2" "- feat(avalonia): add a thing" "auto-detect: feat still routed"
 
@@ -107,7 +107,7 @@ assert_contains "$OUT2" "- feat(avalonia): add a thing" "auto-detect: feat still
 # Case 3: empty range prints the no-changes line and exits 0.
 # ---------------------------------------------------------------------------
 EMPTY_EXIT=0
-OUT3="$(cd "$WORK" && bash "$GEN" HEAD HEAD)" || EMPTY_EXIT=$?
+OUT3="$(cd "$WORK" && sh "$GEN" HEAD HEAD)" || EMPTY_EXIT=$?
 [ "$EMPTY_EXIT" -eq 0 ] && pass "empty range: exit 0" || fail "empty range: exit $EMPTY_EXIT"
 assert_contains "$OUT3" "_No changes in this range._" "empty range: no-changes line"
 
@@ -117,9 +117,10 @@ assert_contains "$OUT3" "_No changes in this range._" "empty range: no-changes l
 git -C "$WORK" checkout -q -b sidebranch ver_20000101.00
 commit "feat: side feature"
 git -C "$WORK" checkout -q -
-# Create a real merge commit with a conventional-looking subject.
-git -C "$WORK" merge -q --no-ff -m "fix: this is actually a merge commit" sidebranch || true
-OUT4="$(cd "$WORK" && bash "$GEN" ver_20000101.00 HEAD)"
+# Create a real merge commit with a conventional-looking subject. This merge is
+# required for the case; let a real failure surface instead of masking it.
+git -C "$WORK" merge -q --no-ff -m "fix: this is actually a merge commit" sidebranch
+OUT4="$(cd "$WORK" && sh "$GEN" ver_20000101.00 HEAD)"
 assert_not_contains "$OUT4" "this is actually a merge commit" "merges excluded"
 assert_contains "$OUT4" "- feat: side feature" "merged-in non-merge commit still listed"
 
