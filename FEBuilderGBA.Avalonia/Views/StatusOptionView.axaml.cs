@@ -101,13 +101,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("StatusOptionView.OnExpandListClick inner failed: {0}", inner.ToString());
+                    Log.Error($"StatusOptionView.OnExpandListClick inner failed: {inner}");
                     CoreState.Services?.ShowError(R._("Game option list expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("StatusOptionView.OnExpandListClick failed: {0}", ex.ToString());
+                Log.Error($"StatusOptionView.OnExpandListClick failed: {ex}");
             }
         }
 

@@ -277,6 +277,38 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(before, rom.Data);
         }
 
+        // Copilot PR #1612 review: CountGameOptions must NOT throw even when the
+        // game-option base RESOLVES to within the last few bytes of the ROM (a
+        // corrupt/garbage pointer). U.isSafetyOffset rejects an unsafe base, so
+        // the per-row +40 read never overruns. Returns 0, no throw.
+        [Fact]
+        public void CountGameOptions_BaseResolvesNearEof_ReturnsZero_NoThrow()
+        {
+            ROM rom = MakeFe8uRom();
+            uint ptr = rom.RomInfo.status_game_option_pointer;
+            // Resolve the base to 2 bytes from EOF — a +40 row read there would
+            // overrun; the safety-offset gate must reject it WITHOUT throwing.
+            uint nearEof = (uint)rom.Data.Length - 2;
+            WriteU32(rom, ptr, nearEof + 0x08000000);
+
+            uint count = 0;
+            var ex = Record.Exception(() => count = StatusGameOptionCore.CountGameOptions(rom));
+            Assert.Null(ex);
+            Assert.Equal(0u, count);
+        }
+
+        [Fact]
+        public void CountGameOptions_ZeroPointerSlot_ReturnsZero_NoThrow()
+        {
+            // An all-zero pointer slot → base 0 → unsafe → 0, no throw.
+            ROM rom = MakeFe8uRom();
+            WriteU32(rom, rom.RomInfo.status_game_option_pointer, 0);
+            uint count = 0;
+            var ex = Record.Exception(() => count = StatusGameOptionCore.CountGameOptions(rom));
+            Assert.Null(ex);
+            Assert.Equal(0u, count);
+        }
+
         [Fact]
         public void ExpandGameOptionTable_ZeroAddCount_Fails_NoMutation()
         {

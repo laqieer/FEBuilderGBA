@@ -53,6 +53,11 @@ namespace FEBuilderGBA
             if (rom == null || rom.RomInfo == null || rom.Data == null) return 0;
             uint pointerAddr = rom.RomInfo.status_game_option_pointer;
             if (pointerAddr == 0) return 0;
+            // 4-byte extent guard: rom.p32 only checks `addr >= Length` then
+            // reads a u32, so a pointerAddr within the last 3 bytes of a
+            // truncated/corrupt ROM would index out of bounds. Guard the full
+            // 4-byte read so this enumerator truly never throws.
+            if (pointerAddr + 4 > (uint)rom.Data.Length) return 0;
             uint baseAddr = rom.p32(pointerAddr);
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
