@@ -471,7 +471,7 @@ namespace FEBuilderGBA
                 uint p = addr + (uint)i;
                 if (p + 2 > rom_length)
                 {
-                    Log.ErrorF("ROM Broken! MappChange[{2}] is out of range. {0}+2/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length), n.ToString());
+                    Log.ErrorF("ROM Broken! MapChange[{2}] is out of range. {0}+2/{1}", U.ToHexString8(addr), U.ToHexString8(rom_length), n.ToString());
                     break;
                 }
 
