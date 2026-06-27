@@ -26497,3 +26497,21 @@ CALL 1
 
 :Allocate a counter-reinforcement event and set this TURN to 1-255 (B8=1, B9=255)
 分配计数器增援事件并将此 TURN 设为 1-255（B8=1, B9=255）
+
+:Tile Animation Image
+图块动画图像
+
+:Sample Palette
+示例调色板
+
+:Export the current tile animation image to a PNG
+将当前图块动画图像导出为 PNG
+
+:Import a 256xN PNG into the current entry's image (+4)
+将 256xN 的 PNG 导入当前条目的图像(+4)
+
+:Export all entries of the current PLIST to a .mapanime1.txt manifest + PNGs
+将当前 PLIST 的所有条目导出到 .mapanime1.txt 清单 + PNG
+
+:Import a .mapanime1.txt manifest into the current PLIST
+将 .mapanime1.txt 清单导入当前 PLIST

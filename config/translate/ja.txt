@@ -12666,3 +12666,21 @@ CALL 1
 
 :パス
 パス
+
+:Tile Animation Image
+タイルアニメーション画像
+
+:Sample Palette
+サンプルパレット
+
+:Export the current tile animation image to a PNG
+現在のタイルアニメーション画像を PNG にエクスポート
+
+:Import a 256xN PNG into the current entry's image (+4)
+256xN の PNG を現在のエントリの画像(+4)にインポート
+
+:Export all entries of the current PLIST to a .mapanime1.txt manifest + PNGs
+現在の PLIST の全エントリを .mapanime1.txt マニフェスト + PNG にエクスポート
+
+:Import a .mapanime1.txt manifest into the current PLIST
+.mapanime1.txt マニフェストを現在の PLIST にインポート

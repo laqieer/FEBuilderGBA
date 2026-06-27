@@ -247,11 +247,15 @@ namespace FEBuilderGBA
         /// <paramref name="paletteIndex"/>, encodes RAW 4bpp, optionally truncates
         /// to the explicit 3rd-column length (the manifest length is authoritative
         /// when present), and rebuilds the 8-byte entry table (terminated by a
-        /// <c>0,0,0</c> row). The new image blocks are written to free space and
-        /// the PLIST <paramref name="pointerAddr"/> is repointed to the rebuilt
+        /// <c>0,0,0</c> row). All image blocks PLUS the entry table are written as
+        /// ONE contiguous free-space allocation (so an all-transparent / all-0x00
+        /// frame can never be rediscovered as free and overwritten by a later
+        /// block or the table — <c>ROM.FindFreeSpace</c> treats 0x00 runs as free),
+        /// then the PLIST <paramref name="pointerAddr"/> is repointed to the rebuilt
         /// table — all under the caller's ambient undo scope with a byte-identical
-        /// fault restore. Every <c>+2</c> length write is <c>&lt;= 0xFFFF</c>
-        /// guarded. Returns "" on success or a localized error string.
+        /// fault restore. The <c>wait</c> column and every <c>+2</c> length write
+        /// are <c>&lt;= 0xFFFF</c> range-checked (rejected, not truncated). Returns
+        /// "" on success or a localized error string.
         /// </summary>
         /// <param name="loadRgba">Loads a PNG path → (rgba, width, height). Returns
         /// false on failure.</param>
@@ -273,72 +277,107 @@ namespace FEBuilderGBA
             string dir = Path.GetDirectoryName(txtPath) ?? ".";
             byte[] palette = ImageUtilCore.GetPalette(rom, palOffset + (uint)(paletteIndex * 16 * 2), 16);
 
+            // -------- Phase 1: validate + encode ALL blocks (NO ROM writes) --------
+            // The snapshot is intentionally NOT taken yet: an early validation
+            // failure here mutates nothing, so we avoid a full ~32MB ROM clone on
+            // the no-op path (Copilot inline review).
+            var blocks = new List<(uint wait, byte[] raw)>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                line = U.ClipComment(line);
+                if (line == "") continue;
+                string[] sp = line.Split('\t');
+                if (sp.Length < 2) continue;
+
+                uint wait = U.atoi(sp[0]);
+                // anime1 wait is a u16 — reject (not silently truncate) > 0xFFFF
+                // (Copilot inline review).
+                if (wait > 0xFFFF)
+                    return R._("Tile animation wait {0} is out of range (max 65535). Line: {1}", wait, i);
+
+                string imgPath = Path.Combine(dir, sp[1].Trim());
+                if (!loadRgba(imgPath, out byte[] rgba, out int w, out int h)
+                    || rgba == null || w <= 0 || h <= 0)
+                    return R._("Tile animation image not found:\r\n{0}\r\nLine: {1}", imgPath, i);
+                if (w % 8 != 0 || h % 8 != 0)
+                    return R._("Image {0} must be a multiple of 8 in both dimensions.", imgPath);
+
+                byte[] indexed = ImageImportCore.RemapToExistingPalette(rgba, w, h, palette, 16);
+                if (indexed == null)
+                    return R._("Failed to remap the image onto the palette:\r\n{0}", imgPath);
+                byte[] raw = ImageImportCore.EncodeDirectTiles4bpp(indexed, w, h);
+                if (raw == null || raw.Length == 0)
+                    return R._("Failed to encode tile animation image:\r\n{0}", imgPath);
+
+                // Explicit length column (authoritative) truncates the bytes.
+                if (sp.Length >= 3)
+                {
+                    uint explicitLen = U.atoi(sp[2]);
+                    if (explicitLen > 0 && explicitLen < (uint)raw.Length)
+                        raw = U.subrange(raw, 0, explicitLen);
+                }
+                if (raw.Length > 0xFFFF)
+                    return R._("Tile animation image too large ({0} bytes; max 65535):\r\n{1}", raw.Length, imgPath);
+                blocks.Add((wait, raw));
+            }
+
+            // -------- Phase 2: ONE contiguous allocation: [block0..blockN][table] --------
+            // Writing every block PLUS the entry table as a single contiguous buffer
+            // (rather than per-block FindAndWriteData calls) guarantees that an
+            // all-transparent (all-0x00) frame can NEVER be rediscovered as free
+            // space and overwritten by a later block / the table — ROM.FindFreeSpace
+            // treats a run of 0x00 (and 0xFF) as free, so per-block allocation could
+            // alias an earlier all-zero block (Copilot blocking review). One
+            // allocation also means one self-consistent fault-restore point.
+            int tableBytes = (blocks.Count + 1) * 8; // +1 terminator row
+            // Lay out each block 4-byte aligned; record its offset within the buffer.
+            var blockOffsets = new int[blocks.Count];
+            int cursor = 0;
+            for (int i = 0; i < blocks.Count; i++)
+            {
+                blockOffsets[i] = cursor;
+                cursor += (int)U.Padding4((uint)blocks[i].raw.Length);
+            }
+            int tableOffset = cursor;
+            byte[] buffer = new byte[tableOffset + tableBytes];
+
+            // Take the byte-identical snapshot ONLY now, right before the first
+            // (and only) ROM write — so the restore is exact on any fault.
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
-                // Encode every PNG to its RAW block FIRST (validate-all-before-mutate).
-                var blocks = new List<(uint wait, byte[] raw)>();
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    string line = lines[i];
-                    if (U.IsComment(line) || U.OtherLangLine(line)) continue;
-                    line = U.ClipComment(line);
-                    if (line == "") continue;
-                    string[] sp = line.Split('\t');
-                    if (sp.Length < 2) continue;
-
-                    uint wait = U.atoi(sp[0]);
-                    string imgPath = Path.Combine(dir, sp[1].Trim());
-                    if (!loadRgba(imgPath, out byte[] rgba, out int w, out int h)
-                        || rgba == null || w <= 0 || h <= 0)
-                        return R._("Tile animation image not found:\r\n{0}\r\nLine: {1}", imgPath, i);
-                    if (w % 8 != 0 || h % 8 != 0)
-                        return R._("Image {0} must be a multiple of 8 in both dimensions.", imgPath);
-
-                    byte[] indexed = ImageImportCore.RemapToExistingPalette(rgba, w, h, palette, 16);
-                    if (indexed == null)
-                        return R._("Failed to remap the image onto the palette:\r\n{0}", imgPath);
-                    byte[] raw = ImageImportCore.EncodeDirectTiles4bpp(indexed, w, h);
-                    if (raw == null || raw.Length == 0)
-                        return R._("Failed to encode tile animation image:\r\n{0}", imgPath);
-
-                    // Explicit length column (authoritative) truncates the bytes.
-                    if (sp.Length >= 3)
-                    {
-                        uint explicitLen = U.atoi(sp[2]);
-                        if (explicitLen > 0 && explicitLen < (uint)raw.Length)
-                            raw = U.subrange(raw, 0, explicitLen);
-                    }
-                    if (raw.Length > 0xFFFF)
-                        return R._("Tile animation image too large ({0} bytes; max 65535):\r\n{1}", raw.Length, imgPath);
-                    blocks.Add((wait, raw));
-                }
-
-                // Write each block, collect its GBA pointer, then build the table.
-                var entry = new List<byte>();
-                foreach (var b in blocks)
-                {
-                    uint blockAddr = ImageImportCore.FindAndWriteData(rom, b.raw);
-                    if (blockAddr == U.NOT_FOUND)
-                    {
-                        RestoreSnapshot(rom, snap);
-                        return R._("Failed to write tile animation image. Check ROM free space.");
-                    }
-                    U.append_u16(entry, b.wait);
-                    U.append_u16(entry, (uint)b.raw.Length);
-                    U.append_u32(entry, U.toPointer(blockAddr));
-                }
-                // Terminator row (wait=0, length=0, pointer=0).
-                U.append_u16(entry, 0);
-                U.append_u16(entry, 0);
-                U.append_u32(entry, 0);
-
-                uint tableAddr = ImageImportCore.WriteRawToROM(rom, entry.ToArray(), pointerAddr);
-                if (tableAddr == U.NOT_FOUND)
+                // Write the whole buffer ONCE; pointer fix-ups happen after we know
+                // the base address (so the table's per-row pointers are absolute).
+                uint baseAddr = ImageImportCore.FindAndWriteData(rom, buffer);
+                if (baseAddr == U.NOT_FOUND)
                 {
                     RestoreSnapshot(rom, snap);
-                    return R._("Failed to write the tile animation entry table. Check ROM free space.");
+                    return R._("Failed to write tile animation data. Check ROM free space.");
                 }
+
+                // Now that baseAddr is known, write each block's bytes and the entry
+                // table (with absolute GBA pointers) into the reserved region.
+                for (int i = 0; i < blocks.Count; i++)
+                {
+                    uint blockAddr = baseAddr + (uint)blockOffsets[i];
+                    ImageImportCore.WriteBytes(rom, blockAddr, blocks[i].raw);
+
+                    uint rowAddr = baseAddr + (uint)tableOffset + (uint)(i * 8);
+                    rom.write_u16(rowAddr + 0, (ushort)blocks[i].wait);
+                    rom.write_u16(rowAddr + 2, (ushort)blocks[i].raw.Length);
+                    rom.write_p32(rowAddr + 4, blockAddr);
+                }
+                // Terminator row (wait=0, length=0, pointer=0) — buffer is already
+                // zero-filled there, but write explicitly for clarity / undo cover.
+                uint termAddr = baseAddr + (uint)tableOffset + (uint)(blocks.Count * 8);
+                rom.write_u16(termAddr + 0, 0);
+                rom.write_u16(termAddr + 2, 0);
+                rom.write_u32(termAddr + 4, 0);
+
+                // Repoint the PLIST slot to the entry TABLE (not the first block).
+                rom.write_p32(pointerAddr, baseAddr + (uint)tableOffset);
                 return "";
             }
             catch (Exception ex)

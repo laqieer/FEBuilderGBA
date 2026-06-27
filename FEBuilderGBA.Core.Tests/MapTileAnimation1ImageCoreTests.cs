@@ -267,6 +267,144 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = savedRom; }
         }
 
+        // ----------------------------------------------------------------
+        // Batch import (.mapanime1.txt). The corruption case from the Copilot
+        // review: an all-transparent (all-0x00 encoded) frame followed by
+        // another frame + the entry table must NOT alias — each entry must
+        // point to distinct, correct, non-overlapping data.
+        // ----------------------------------------------------------------
+
+        // An all-transparent frame: every pixel alpha<128 -> remap to index 0 ->
+        // EncodeDirectTiles4bpp emits all 0x00 bytes. (256x8 = 1024 zero bytes.)
+        static byte[] MakeRgbaAllTransparent(int w, int h)
+        {
+            return new byte[w * h * 4]; // all zero -> alpha 0 -> transparent
+        }
+
+        [Fact]
+        public void ImportBatchTxt_AllZeroFrameThenAnother_NoAlias_DistinctData()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            string txt = Path.GetTempFileName();
+            string png0 = txt + "_0.png"; // all-transparent
+            string png1 = txt + "_1.png"; // patterned
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // A pointer SLOT to repoint: use a dword inside the zeroed region.
+                uint pointerSlot = 0x300;
+
+                File.WriteAllLines(txt, new[]
+                {
+                    "//wait\tfilename\tlength",
+                    "16\t" + Path.GetFileName(png0),
+                    "32\t" + Path.GetFileName(png1),
+                });
+
+                // loadRgba returns frame 0 = all transparent (encodes to all 0x00),
+                // frame 1 = patterned (distinct non-zero bytes).
+                bool LoadRgba(string path, out byte[] rgba, out int w, out int h)
+                {
+                    w = SHEET_W; h = SHEET_H;
+                    rgba = path.EndsWith("_0.png")
+                        ? MakeRgbaAllTransparent(SHEET_W, SHEET_H)
+                        : MakeRgbaFromPalette(SHEET_W, SHEET_H);
+                    return true;
+                }
+
+                string err = MapTileAnimation1ImageCore.ImportBatchTxt(
+                    rom, pointerSlot, txt, PAL_ADDR, 0, LoadRgba);
+                Assert.Equal("", err);
+
+                // The slot now points at the entry table.
+                uint tableAddr = U.toOffset(rom.u32(pointerSlot));
+                Assert.True(U.isSafetyOffset(tableAddr, rom));
+
+                // Row 0 = all-zero frame; row 1 = patterned; row 2 = terminator.
+                uint p0 = U.toOffset(rom.u32(tableAddr + 0 * 8 + 4));
+                uint len0 = rom.u16(tableAddr + 0 * 8 + 2);
+                uint p1 = U.toOffset(rom.u32(tableAddr + 1 * 8 + 4));
+                uint len1 = rom.u16(tableAddr + 1 * 8 + 2);
+                // Terminator row 2 = all zero.
+                Assert.Equal(0u, rom.u32(tableAddr + 2 * 8 + 4));
+
+                Assert.Equal((uint)SHEET_LEN, len0);
+                Assert.Equal((uint)SHEET_LEN, len1);
+                // The two image blocks must NOT overlap (no aliasing).
+                Assert.True(p0 + len0 <= p1 || p1 + len1 <= p0,
+                    $"blocks overlap: p0=0x{p0:X} len0={len0} p1=0x{p1:X} len1={len1}");
+
+                // Frame 0's bytes are all 0x00 (the all-transparent encode); frame
+                // 1's bytes are the patterned encode and must remain intact (NOT
+                // overwritten by a later write that re-found the zero region).
+                byte[] block0 = rom.getBinaryData(p0, (int)len0);
+                Assert.All(block0, b => Assert.Equal(0, b));
+
+                byte[] expected1 = ImageImportCore.EncodeDirectTiles4bpp(
+                    ImageImportCore.RemapToExistingPalette(
+                        MakeRgbaFromPalette(SHEET_W, SHEET_H), SHEET_W, SHEET_H,
+                        ImageUtilCore.GetPalette(rom, PAL_ADDR, 16), 16),
+                    SHEET_W, SHEET_H);
+                byte[] block1 = rom.getBinaryData(p1, (int)len1);
+                Assert.Equal(expected1, block1);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                TryDelete(txt); TryDelete(png0); TryDelete(png1);
+            }
+        }
+
+        [Fact]
+        public void ImportBatchTxt_WaitOverU16_Rejected_NoMutation()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            string txt = Path.GetTempFileName();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                File.WriteAllLines(txt, new[] { "70000\tframe.png" }); // wait > 0xFFFF
+                bool LoadRgba(string p, out byte[] rgba, out int w, out int h)
+                { w = SHEET_W; h = SHEET_H; rgba = MakeRgbaFromPalette(SHEET_W, SHEET_H); return true; }
+
+                string err = MapTileAnimation1ImageCore.ImportBatchTxt(rom, 0x300, txt, PAL_ADDR, 0, LoadRgba);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, rom.Data); // byte-identical, no mutation
+            }
+            finally { CoreState.ROM = savedRom; TryDelete(txt); }
+        }
+
+        [Fact]
+        public void ImportBatchTxt_MissingImage_NoMutation()
+        {
+            var savedRom = CoreState.ROM;
+            using var _ = EnsureImageService();
+            string txt = Path.GetTempFileName();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                File.WriteAllLines(txt, new[] { "16\tmissing.png" });
+                bool LoadRgba(string p, out byte[] rgba, out int w, out int h)
+                { rgba = Array.Empty<byte>(); w = 0; h = 0; return false; } // load fails
+
+                string err = MapTileAnimation1ImageCore.ImportBatchTxt(rom, 0x300, txt, PAL_ADDR, 0, LoadRgba);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, rom.Data); // byte-identical, no mutation
+            }
+            finally { CoreState.ROM = savedRom; TryDelete(txt); }
+        }
+
+        static void TryDelete(string p) { try { if (File.Exists(p)) File.Delete(p); } catch { } }
+
         [Fact]
         public void RenderEntryImage_BadPointer_ReturnsNull()
         {
