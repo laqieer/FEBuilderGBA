@@ -316,13 +316,25 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError("No PLIST selected.");
                     return;
                 }
+                // Offer BOTH export formats in one dropdown (mirrors WF
+                // "マップアニメ1|*.mapanime1.txt|GifAnime|*.gif"): the .mapanime1.txt
+                // batch (lossless per-frame PNG round-trip) and the composited-map
+                // animated .gif (#1602). The chosen format is inferred from the
+                // saved extension.
                 string? path = await FileDialogHelper.SaveFile(
                     this, "Export Map Tile Animation Type 1",
-                    "Map Tile Animation 1", "*.mapanime1.txt",
+                    new[]
+                    {
+                        ("Map Tile Animation 1", "*.mapanime1.txt"),
+                        ("Animated GIF", "*.gif"),
+                    },
                     $"maptileanim1_plist{_vm.SelectedPlist:X2}.mapanime1.txt");
                 if (string.IsNullOrEmpty(path)) return;
 
-                string err = _vm.ExportBatch(path, SavePngFile);
+                bool isGif = path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase);
+                string err = isGif
+                    ? _vm.ExportGif(path)
+                    : _vm.ExportBatch(path, SavePngFile);
                 if (err != "")
                 {
                     CoreState.Services?.ShowError(err);

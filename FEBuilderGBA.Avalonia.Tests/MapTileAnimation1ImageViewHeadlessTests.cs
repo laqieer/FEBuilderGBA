@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
 
@@ -81,6 +82,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             var view = new MapTileAnimation1View();
             var button = view.FindControl<Button>(name);
             Assert.NotNull(button);
+        }
+
+        /// <summary>
+        /// #1602 deferred half: the Export-All flow now also offers a composited-map
+        /// animated GIF. The VM exposes <c>ExportGif</c> (the affordance the
+        /// Export-All save dialog routes to when the user picks the .gif filter).
+        /// Without a ROM / selected PLIST it must return a non-empty localized
+        /// error rather than throwing.
+        /// </summary>
+        [AvaloniaFact]
+        public void ViewModel_ExportGif_NoRomOrPlist_ReturnsError_DoesNotThrow()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                var vm = new MapTileAnimation1ViewModel();
+                string gif = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(),
+                    "maptileanim1_test_" + System.Guid.NewGuid().ToString("N") + ".gif");
+                string err = vm.ExportGif(gif);
+                Assert.NotEqual("", err);
+                Assert.False(System.IO.File.Exists(gif));
+            }
+            finally { CoreState.ROM = savedRom; }
         }
     }
 }
