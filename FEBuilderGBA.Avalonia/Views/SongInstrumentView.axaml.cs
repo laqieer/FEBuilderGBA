@@ -122,7 +122,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -147,7 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.JumpToAddr failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.JumpToAddr failed: {0}", ex.Message);
             }
             finally
             {
@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -239,7 +239,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongInstrumentView.ListExpand_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.ListExpand_Click failed: {0}", ex.Message);
             }
         }
 
@@ -479,7 +479,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongInstrumentView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -584,7 +584,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.ExportWaveGated failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.ExportWaveGated failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Wave export failed: {0}", ex.Message));
             }
         }
@@ -644,7 +644,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("SongInstrumentView.ImportWaveGated failed: {0}", ex.Message);
+                    Log.ErrorF("SongInstrumentView.ImportWaveGated failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
                 }
             }
@@ -654,7 +654,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (permissions, missing/locked file) BEFORE _undoService.Begin, so
                 // no undo scope is open here and no Rollback is needed. Surface a
                 // user-facing error instead of failing silently (Copilot review).
-                Log.Error("SongInstrumentView.ImportWaveGated: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.ImportWaveGated: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Wave import failed: {0}", ex.Message));
             }
         }
@@ -704,7 +704,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.InstExport_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.InstExport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Instrument set export failed: {0}", ex.Message));
             }
         }
@@ -788,7 +788,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("SongInstrumentView.InstImport_Click failed: {0}", ex.Message);
+                    Log.ErrorF("SongInstrumentView.InstImport_Click failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Instrument set import failed: {0}", ex.Message));
                 }
             }
@@ -796,7 +796,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Pre-Begin scope: the file dialog can throw BEFORE _undoService.Begin,
                 // so no undo scope is open here and no Rollback is needed.
-                Log.Error("SongInstrumentView.InstImport_Click: {0}", ex.Message);
+                Log.ErrorF("SongInstrumentView.InstImport_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Instrument set import failed: {0}", ex.Message));
             }
         }

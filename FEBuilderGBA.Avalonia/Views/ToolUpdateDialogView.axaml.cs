@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUpdateDialogView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ToolUpdateDialogView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolUpdateDialogView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ToolUpdateDialogView.OnSelected failed: {0}", ex.Message);
             }
         }
 

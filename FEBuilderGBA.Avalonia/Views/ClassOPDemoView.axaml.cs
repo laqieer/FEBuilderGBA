@@ -159,7 +159,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -306,7 +306,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("ClassOPDemoView.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ClassOPDemoView.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -321,7 +321,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) DisplayWeaponBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("ClassOPDemoView.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ClassOPDemoView.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -408,7 +408,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.ApplyN1Rows failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.ApplyN1Rows failed: {0}", ex.Message);
             }
         }
 
@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.OnN1Selected failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.OnN1Selected failed: {0}", ex.Message);
             }
             // #1032: refresh the font-glyph image preview from the just-loaded
             // glyph id. Run OUTSIDE the `_vm.IsLoading` gate above so it isn't
@@ -459,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.RefreshN1GlyphPreview failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.RefreshN1GlyphPreview failed: {0}", ex.Message);
                 N1GlyphPreview?.SetImage(null);
             }
         }
@@ -554,7 +554,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPDemoView.LoadAnimeShared failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.LoadAnimeShared failed: {0}", ex.Message);
             }
         }
 
@@ -612,7 +612,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.Write failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.Write failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write Class OP Demo entry: {0}"), ex.Message));
             }
         }
@@ -636,7 +636,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.N1_Write failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.N1_Write failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write JP name font glyph: {0}"), ex.Message));
             }
         }
@@ -665,7 +665,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.N2_Write failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.N2_Write failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write anime spec tuple: {0}"), ex.Message));
             }
         }
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.N1_WritePtr failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.N1_WritePtr failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write JP name pointer: {0}"), ex.Message));
             }
         }
@@ -745,7 +745,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.N2_WritePtr failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.N2_WritePtr failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write anime spec pointer: {0}"), ex.Message));
             }
         }
@@ -782,7 +782,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassOPDemoView.N1_ListExpand failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPDemoView.N1_ListExpand failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to expand JP name font block: {0}"), ex.Message));
             }
         }

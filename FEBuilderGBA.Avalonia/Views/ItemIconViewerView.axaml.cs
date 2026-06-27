@@ -27,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             try { var items = _vm.LoadItemIconList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.DirectItemIconLoader(items, i)); }
-            catch (Exception ex) { Log.Error("ItemIconViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ItemIconViewerView.LoadList: {0}", ex.Message); }
         }
 
         void OnSelected(uint addr)
@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemIconViewerView.OnSelected: {0}", ex.Message);
+                Log.ErrorF("ItemIconViewerView.OnSelected: {0}", ex.Message);
             }
         }
 

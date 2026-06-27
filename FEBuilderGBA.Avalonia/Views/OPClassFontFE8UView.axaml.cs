@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassFontFE8UView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("OPClassFontFE8UView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -52,7 +52,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OPClassFontFE8UView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("OPClassFontFE8UView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("OP Class Font (FE8U) data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("OPClassFontFE8UView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("OPClassFontFE8UView.Write: {0}", ex.Message); }
         }
 
         static uint ParseHexText(string? text)

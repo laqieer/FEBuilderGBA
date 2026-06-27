@@ -268,7 +268,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 if (_undo.HasPendingUndo)
                 {
-                    try { _undo.Rollback(); } catch (Exception rollbackEx) { Log.Error("ZeroClear rollback failed: {0}", rollbackEx.Message); }
+                    try { _undo.Rollback(); } catch (Exception rollbackEx) { Log.ErrorF("ZeroClear rollback failed: {0}", rollbackEx.Message); }
                 }
                 StatusText = R._("ZeroClear failed: {0}", ex.Message);
             }
@@ -472,13 +472,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 else
                 {
                     if (_undo.HasPendingUndo)
-                        try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Move rollback failed: {0}", rbEx.Message); }
+                        try { _undo.Rollback(); } catch (Exception rbEx) { Log.ErrorF("Move rollback failed: {0}", rbEx.Message); }
                 }
             }
             catch (Exception ex)
             {
                 if (_undo.HasPendingUndo)
-                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Move rollback failed: {0}", rbEx.Message); }
+                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.ErrorF("Move rollback failed: {0}", rbEx.Message); }
                 StatusText = R._("Move failed: {0}", ex.Message);
                 return new LZ77ToolCore.MoveResult { Ok = false, ErrorMessage = ex.Message };
             }
@@ -574,7 +574,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 if (_undo.HasPendingUndo)
-                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.Error("Recompress rollback failed: {0}", rbEx.Message); }
+                    try { _undo.Rollback(); } catch (Exception rbEx) { Log.ErrorF("Recompress rollback failed: {0}", rbEx.Message); }
                 StatusText = R._("Recompress failed: {0}", ex.Message);
                 return (0, 0);
             }

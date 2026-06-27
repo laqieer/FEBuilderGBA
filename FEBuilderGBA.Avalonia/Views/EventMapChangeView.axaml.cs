@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventMapChangeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventMapChangeView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventMapChangeView.MapListBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("EventMapChangeView.MapListBox_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -108,7 +108,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventMapChangeView.OnEntrySelected failed: {0}", ex.Message);
+                Log.ErrorF("EventMapChangeView.OnEntrySelected failed: {0}", ex.Message);
             }
         }
 
@@ -216,7 +216,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventMapChangeView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventMapChangeView.Write_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Write failed: {ex.Message}");
             }
         }
@@ -331,13 +331,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("EventMapChangeView.PointerImport inner failed: {0}", inner.Message);
+                    Log.ErrorF("EventMapChangeView.PointerImport inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("Pointer import failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("EventMapChangeView.PointerImport_Click failed: {0}", ex.Message);
+                Log.ErrorF("EventMapChangeView.PointerImport_Click failed: {0}", ex.Message);
             }
         }
 

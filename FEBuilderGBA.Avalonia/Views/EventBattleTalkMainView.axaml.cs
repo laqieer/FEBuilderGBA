@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventBattleTalkMainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventBattleTalkMainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventBattleTalkMainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventBattleTalkMainView.OnSelected failed: {0}", ex.Message);
             }
         }
 

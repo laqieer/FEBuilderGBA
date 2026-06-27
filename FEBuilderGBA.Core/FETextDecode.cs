@@ -366,7 +366,7 @@ namespace FEBuilderGBA
             {
                 if (addr + 4 > rom_length)
                 {
-                    Log.Error("String Tree Broken: {0}/{1} addr_start:{2}", U.ToHexString8(addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
+                    Log.ErrorF("String Tree Broken: {0}/{1} addr_start:{2}", U.ToHexString8(addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
                     out_DataSize = (int)(addr - addr_start);
                     return listbyte_to_string(str.ToArray(), str.Count);
                 }
@@ -375,7 +375,7 @@ namespace FEBuilderGBA
                 {
                     if (addr + 4 + 4 > rom_length)
                     {
-                        Log.Error("String Tree Broken2: {0}/{1} addr_start:{2}", U.ToHexString8(addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
+                        Log.ErrorF("String Tree Broken2: {0}/{1} addr_start:{2}", U.ToHexString8(addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
                         out_DataSize = (int)(addr - addr_start);
                         return listbyte_to_string(str.ToArray(), str.Count);
                     }
@@ -393,7 +393,7 @@ namespace FEBuilderGBA
                     uint tree_addr = tree_data + ((bit & 1) * 2);
                     if (tree_addr + 2 > rom_length)
                     {
-                        Log.Error("String Tree Broken3: {0}/{1} addr_start:{2}", U.ToHexString8(tree_addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
+                        Log.ErrorF("String Tree Broken3: {0}/{1} addr_start:{2}", U.ToHexString8(tree_addr), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
                         out_DataSize = 0;
                         return "";
                     }
@@ -407,7 +407,7 @@ namespace FEBuilderGBA
 
                     if (tree_data + 4 > rom_length)
                     {
-                        Log.Error("String Data Broken: {0}/{1} addr_start:{2}", U.ToHexString8(tree_data), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
+                        Log.ErrorF("String Data Broken: {0}/{1} addr_start:{2}", U.ToHexString8(tree_data), U.ToHexString8(rom_length), U.ToHexString8(addr_start));
                         out_DataSize = 0;
                         return "";
                     }

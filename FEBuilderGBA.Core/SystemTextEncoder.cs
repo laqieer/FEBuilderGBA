@@ -80,7 +80,7 @@ namespace FEBuilderGBA
                 string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "zh_tbl", rom.RomInfo.TitleToFilename + ".tbl");
                 if (! File.Exists(resoucefilename))
                 {
-                    Log.Error("tbl not found. filename:{0}", resoucefilename);
+                    Log.ErrorF("tbl not found. filename:{0}", resoucefilename);
                     return false;
                 }
                 this.TBLEncode = new SystemTextEncoderTBLEncode(resoucefilename);
@@ -92,7 +92,7 @@ namespace FEBuilderGBA
                 string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "en_tbl", rom.RomInfo.TitleToFilename + ".tbl");
                 if (! File.Exists(resoucefilename))
                 {
-                    Log.Error("tbl not found. filename:{0}", resoucefilename);
+                    Log.ErrorF("tbl not found. filename:{0}", resoucefilename);
                     return false;
                 }
                 this.TBLEncode = new SystemTextEncoderTBLEncode(resoucefilename);
@@ -104,7 +104,7 @@ namespace FEBuilderGBA
                 string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "ko_tbl", rom.RomInfo.TitleToFilename + ".tbl");
                 if (!File.Exists(resoucefilename))
                 {
-                    Log.Error("tbl not found. filename:{0}", resoucefilename);
+                    Log.ErrorF("tbl not found. filename:{0}", resoucefilename);
                     return false;
                 }
                 this.TBLEncode = new SystemTextEncoderTBLEncode(resoucefilename);
@@ -116,7 +116,7 @@ namespace FEBuilderGBA
                 string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "ar_tbl", rom.RomInfo.TitleToFilename + ".arabic_tbl");
                 if (! File.Exists(resoucefilename))
                 {
-                    Log.Error("tbl not found. filename:{0}", resoucefilename);
+                    Log.ErrorF("tbl not found. filename:{0}", resoucefilename);
                     return false;
                 }
                 SystemTextEncoderTBLEncode inner = null;
@@ -138,7 +138,7 @@ namespace FEBuilderGBA
                 string resoucefilename = System.IO.Path.Combine(CoreState.BaseDirectory, "config", "translate", "kr_tbl", rom.RomInfo.TitleToFilename + ".tbl");
                 if (!File.Exists(resoucefilename))
                 {
-                    Log.Error("tbl not found. filename:{0}", resoucefilename);
+                    Log.ErrorF("tbl not found. filename:{0}", resoucefilename);
                     return false;
                 }
                 this.TBLEncode = new SystemTextEncoderTBLEncode(resoucefilename);

@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.OnTopBarFilterTextChanged failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.OnTopBarFilterTextChanged failed: {0}", ex.Message);
             }
         }
 
@@ -141,7 +141,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -329,7 +329,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.UpdateHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.UpdateHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLink.IsVisible = false;
             }
         }
@@ -348,7 +348,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.OnHardCodingLink_Click failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.OnHardCodingLink_Click failed: {0}", ex.Message);
             }
         }
 
@@ -371,7 +371,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.JumpToWeaponEffect_Click failed: {0}", ex.Message);
+                Log.ErrorF("ItemFE6View.JumpToWeaponEffect_Click failed: {0}", ex.Message);
             }
         }
 
@@ -422,7 +422,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToStatBonuses failed: {0}", ex.Message);
+                Log.ErrorF("JumpToStatBonuses failed: {0}", ex.Message);
             }
         }
 
@@ -443,7 +443,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToEffectiveness failed: {0}", ex.Message);
+                Log.ErrorF("JumpToEffectiveness failed: {0}", ex.Message);
             }
         }
 
@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("Write failed: {0}", ex.Message);
+                Log.ErrorF("Write failed: {0}", ex.Message);
             }
         }
 
@@ -531,7 +531,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AllocStatBonuses failed: {0}", ex.Message);
+                Log.ErrorF("AllocStatBonuses failed: {0}", ex.Message);
             }
         }
 
@@ -559,7 +559,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AllocEffectiveness failed: {0}", ex.Message);
+                Log.ErrorF("AllocEffectiveness failed: {0}", ex.Message);
             }
         }
 

@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMCALLTALKView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCALLTALKView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIASMCALLTALKView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCALLTALKView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -85,7 +85,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIASMCALLTALKView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIASMCALLTALKView.Write failed: {0}", ex.Message);
             }
         }
 

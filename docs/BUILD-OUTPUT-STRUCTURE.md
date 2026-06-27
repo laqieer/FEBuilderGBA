@@ -376,6 +376,6 @@ dotnet build FEBuilderGBA/FEBuilderGBA.csproj -c Release
 
 **Build Configuration:** `FEBuilderGBA/FEBuilderGBA.csproj` (CopyConfigDirectories target)
 **Related Documentation:**
-- `SPLIT-PACKAGE-FINAL-STATUS.md` - Split package system overview
+- `archive/SPLIT-PACKAGE-FINAL-STATUS.md` - Split package system overview (archived)
 - `DEPLOYMENT.md` - Package creation and deployment
 - `UPDATE-GUIDE.md` - User-facing update documentation

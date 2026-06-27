@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitFE6View.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitFE6View.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -137,7 +137,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitFE6View.TryShowPortraitImage failed: {0}", ex.Message);
+                Log.ErrorF("ImagePortraitFE6View.TryShowPortraitImage failed: {0}", ex.Message);
                 PortraitImage.SetImage(null);
                 MapFaceImage.SetImage(null);
                 ShowExampleImage.SetImage(null);

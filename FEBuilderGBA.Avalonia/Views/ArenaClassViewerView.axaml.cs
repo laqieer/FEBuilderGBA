@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ArenaClassViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ArenaClassViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -68,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ArenaClassViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ArenaClassViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Arena Class data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaClassViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ArenaClassViewerView.Write: {0}", ex.Message); }
         }
 
         // #939: resolve the real class id (u8 at entry+0) for the list icon.
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("ArenaClassViewerView.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ArenaClassViewerView.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("ArenaClassViewerView.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ArenaClassViewerView.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

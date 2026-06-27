@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true;
             try { var items = _vm.LoadSystemIconList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("SystemIconViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SystemIconViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("SystemIconViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("SystemIconViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 

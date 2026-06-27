@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIPerformStaffView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformStaffView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AIPerformStaffView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformStaffView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AIPerformStaffView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AIPerformStaffView.Write failed: {0}", ex.Message);
             }
         }
 

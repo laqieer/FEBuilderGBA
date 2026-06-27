@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EasyExportText failed: {0}", ex.Message);
+                Log.ErrorF("EasyExportText failed: {0}", ex.Message);
                 var topLevel = TopLevel.GetTopLevel(this);
                 if (topLevel is Window w)
                     await MessageBoxWindow.Show(w, $"Export failed: {ex.Message}", "Error", MessageBoxMode.Ok);
@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EasyImportText failed: {0}", ex.Message);
+                Log.ErrorF("EasyImportText failed: {0}", ex.Message);
                 var topLevel = TopLevel.GetTopLevel(this);
                 if (topLevel is Window w)
                     await MessageBoxWindow.Show(w, $"Import failed: {ex.Message}", "Error", MessageBoxMode.Ok);

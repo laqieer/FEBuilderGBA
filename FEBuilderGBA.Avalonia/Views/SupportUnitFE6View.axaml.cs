@@ -67,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportUnitFE6View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SupportUnitFE6View.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportUnitFE6View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SupportUnitFE6View.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportUnitFE6View.JumpToSourceUnit failed: {0}", ex.Message);
+                Log.ErrorF("SupportUnitFE6View.JumpToSourceUnit failed: {0}", ex.Message);
             }
         }
 
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SupportUnitFE6View.JumpToTalk failed: {0}", ex.Message);
+                Log.ErrorF("SupportUnitFE6View.JumpToTalk failed: {0}", ex.Message);
             }
         }
 
@@ -275,7 +275,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SupportUnitFE6View.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SupportUnitFE6View.Write_Click failed: {0}", ex.Message);
             }
         }
 

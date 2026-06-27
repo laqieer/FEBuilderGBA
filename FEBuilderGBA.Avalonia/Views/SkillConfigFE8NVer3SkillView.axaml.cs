@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NVer3SkillView.OnSubListChanged failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NVer3SkillView.OnSubListChanged failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -152,7 +152,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NVer3SkillView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NVer3SkillView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -175,7 +175,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NVer3SkillView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NVer3SkillView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -296,7 +296,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillConfigFE8NVer3SkillView.Write failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NVer3SkillView.Write failed: {0}", ex.Message);
             }
         }
 
@@ -458,7 +458,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NVer3SkillView.JumpToCombatArt_Click failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NVer3SkillView.JumpToCombatArt_Click failed: {0}", ex.Message);
             }
         }
 

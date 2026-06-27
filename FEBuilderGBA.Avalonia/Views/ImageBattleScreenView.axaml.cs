@@ -170,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -186,7 +186,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -209,7 +209,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.RefreshBattlePreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.RefreshBattlePreview failed: {0}", ex.Message);
                 BattlePreview.SetImage(null);
                 _vm.CanExportBattle = false;
             }
@@ -247,7 +247,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.BattleExportPng failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.BattleExportPng failed: {0}", ex.Message);
             }
         }
 
@@ -267,7 +267,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.RefreshChipsetPreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.RefreshChipsetPreview failed: {0}", ex.Message);
                 ChipsetPreview.SetImage(null);
             }
         }
@@ -321,7 +321,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.Zoom_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.Zoom_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -363,7 +363,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.Write threw: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.Write threw: {0}", ex.Message);
                 _undoService.Rollback();
                 return;
             }
@@ -406,7 +406,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.WritePalette threw: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.WritePalette threw: {0}", ex.Message);
                 _undoService.Rollback();
                 return;
             }
@@ -444,7 +444,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.PaletteIndex_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.PaletteIndex_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -492,7 +492,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PaletteClipboard_Click failed: {0}", ex.Message);
+                Log.ErrorF("PaletteClipboard_Click failed: {0}", ex.Message);
             }
         }
 
@@ -510,7 +510,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PaletteUndo_Click failed: {0}", ex.Message);
+                Log.ErrorF("PaletteUndo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -539,7 +539,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PaletteRedo_Click failed: {0}", ex.Message);
+                Log.ErrorF("PaletteRedo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -556,7 +556,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("BulkUndo_Click failed: {0}", ex.Message);
+                Log.ErrorF("BulkUndo_Click failed: {0}", ex.Message);
             }
         }
 
@@ -589,7 +589,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleScreenView.BulkExport failed: {0}", ex.Message);
+                Log.ErrorF("ImageBattleScreenView.BulkExport failed: {0}", ex.Message);
             }
         }
 
@@ -627,7 +627,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (loadResult == null || !loadResult.Success)
             {
                 string err = loadResult?.Error ?? "Unknown error";
-                Log.Error("BulkImport_Click: load/quantize failed: {0}", err);
+                Log.ErrorF("BulkImport_Click: load/quantize failed: {0}", err);
                 return;
             }
 
@@ -654,14 +654,14 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("BulkImport_Click: ImportBattleScreenBulk threw: {0}", ex.Message);
+                Log.ErrorF("BulkImport_Click: ImportBattleScreenBulk threw: {0}", ex.Message);
                 _undoService.Rollback();
                 return;
             }
 
             if (!string.IsNullOrEmpty(error))
             {
-                Log.Error("BulkImport_Click: {0}; rolling back.", error);
+                Log.ErrorF("BulkImport_Click: {0}; rolling back.", error);
                 _undoService.Rollback();
                 return;
             }

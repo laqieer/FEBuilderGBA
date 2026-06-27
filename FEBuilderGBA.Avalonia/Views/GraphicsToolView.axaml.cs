@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("GraphicsToolView.TSAEditor_Click failed: {0}", ex.Message);
+                Log.ErrorF("GraphicsToolView.TSAEditor_Click failed: {0}", ex.Message);
             }
         }
 

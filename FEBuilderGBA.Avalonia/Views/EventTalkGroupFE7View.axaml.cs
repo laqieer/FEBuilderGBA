@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventTalkGroupFE7View.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventTalkGroupFE7View.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventTalkGroupFE7View.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventTalkGroupFE7View.OnSelected failed: {0}", ex.Message);
             }
         }
 

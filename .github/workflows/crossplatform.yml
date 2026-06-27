@@ -114,6 +114,269 @@ jobs:
           done
         fi
 
+    - name: Bundle LICENSE and third-party notices into CLI and Avalonia artifacts
+      shell: bash
+      # GPLv3 requires the license text to accompany every binary distribution,
+      # and the bundled ColorzCore / lyn.exe are themselves GPLv3. Ship LICENSE +
+      # THIRD-PARTY-NOTICES.md inside each artifact (GPLv3 compliance, issue #1633).
+      run: |
+        for target in cli avalonia; do
+          cp LICENSE "publish/${target}-${{ matrix.rid }}/LICENSE"
+          cp THIRD-PARTY-NOTICES.md "publish/${target}-${{ matrix.rid }}/THIRD-PARTY-NOTICES.md"
+        done
+
+    # ------------------------------------------------------------------------
+    # Conditional macOS codesign + notarization (#1634).
+    #
+    # Mirrors the conditional-signing pattern from #1654: signing activates ONLY
+    # when the maintainer adds Apple Developer credentials to GitHub Actions
+    # secrets. With the secrets ABSENT — the fork's current CI — the unsigned
+    # bundles are uploaded exactly as before, so no existing CI breaks.
+    # Documented (with the `xattr -dr com.apple.quarantine` Gatekeeper workaround)
+    # in docs/RELEASE.md.
+    #
+    # `secrets.*` cannot be referenced in a step-level `if:`, so presence is
+    # classified once into a step output (macsign.outputs.present). All five Apple
+    # secrets must be set together: all empty => unsigned fallback; all set =>
+    # codesign + notarize; a PARTIAL set fails fast.
+    #
+    # ARTIFACT SHAPE NOTE: this job uploads raw `dotnet publish` directories (not
+    # `.app`/`.pkg`/`.dmg`), so `stapler staple` of a bare directory is not valid.
+    # We codesign every Mach-O payload (libraries first, the main executable
+    # last), then submit a `ditto` zip to notarytool. Apple serves the
+    # notarization ticket online, so the extracted directory passes Gatekeeper via
+    # online validation; if a `.app` bundle is present we additionally staple it.
+    # This is the honest behaviour for a directory artifact (see #1634 plan).
+    - name: Detect macOS signing secrets
+      id: macsign
+      if: matrix.rid == 'osx-arm64'
+      env:
+        APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+        APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      shell: bash
+      run: |
+        set_count=0
+        missing=""
+        for name in APPLE_CERT_BASE64 APPLE_CERT_PASSWORD APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
+          # Safe bash indirect expansion (NOT eval) so secret metacharacters
+          # cannot be executed.
+          val="${!name}"
+          if [ -n "$val" ]; then
+            set_count=$((set_count + 1))
+          else
+            missing="$missing $name"
+          fi
+        done
+        if [ "$set_count" -eq 5 ]; then
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          echo "All Apple signing secrets detected — codesigning + notarizing the macOS bundles."
+        elif [ "$set_count" -eq 0 ]; then
+          echo "present=false" >> "$GITHUB_OUTPUT"
+          echo "No Apple signing secrets — uploading the unsigned macOS bundles (unchanged)."
+        else
+          echo "::error::Partial Apple signing secrets configured. Set ALL of APPLE_CERT_BASE64, APPLE_CERT_PASSWORD, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD (or none). Missing:$missing"
+          exit 1
+        fi
+
+    - name: Codesign + notarize macOS bundles
+      # Runs ONLY on osx-arm64 with all Apple secrets present. Imports the .p12
+      # into a throwaway keychain, recursively codesigns every Mach-O (libs
+      # first, executable last) with the hardened runtime, then notarizes a
+      # `ditto` zip of each bundle (--wait). Credentials are passed via env: only.
+      if: matrix.rid == 'osx-arm64' && steps.macsign.outputs.present == 'true'
+      env:
+        APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+        APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        # Optional explicit signing identity; otherwise the first codesigning
+        # identity imported into the keychain is auto-detected.
+        APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # --- Throwaway keychain + cert import -------------------------------
+        KEYCHAIN="$RUNNER_TEMP/codesign.keychain-db"
+        KEYCHAIN_PASS="$(openssl rand -base64 24)"
+        CERT_P12="$RUNNER_TEMP/codesign.p12"
+
+        # Delete the throwaway keychain (with the imported private key) on ANY
+        # exit — `set -e` would otherwise skip a trailing cleanup line on the
+        # first codesign/notarize failure and leave the key on the runner.
+        cleanup() {
+          security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+          rm -f "$CERT_P12"
+        }
+        trap cleanup EXIT
+
+        # macOS /usr/bin/base64 does NOT accept GNU's `--decode`; use `-D`
+        # (the BSD/macOS decode flag). This step only ever runs on macos-latest.
+        printf '%s' "$APPLE_CERT_BASE64" | base64 -D > "$CERT_P12"
+
+        security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN"
+        security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+        security import "$CERT_P12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" \
+          -T /usr/bin/codesign -T /usr/bin/security
+        security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASS" "$KEYCHAIN" >/dev/null
+        # Prepend to the search list so codesign finds the identity.
+        security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | sed s/\"//g)
+        rm -f "$CERT_P12"
+
+        # Resolve the signing identity (explicit override or first available).
+        if [ -n "${APPLE_SIGN_IDENTITY:-}" ]; then
+          IDENTITY="$APPLE_SIGN_IDENTITY"
+        else
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk -F'"' 'NR==1{print $2}')"
+        fi
+        if [ -z "$IDENTITY" ]; then
+          echo "::error::No codesigning identity found in the imported keychain."
+          exit 1
+        fi
+        echo "Using signing identity: $IDENTITY"
+
+        codesign_one() {
+          codesign --force --options runtime --timestamp \
+            --keychain "$KEYCHAIN" --sign "$IDENTITY" "$1"
+        }
+
+        sign_dir() {
+          local dir="$1"
+          # Recursively sign every loose Mach-O file, libraries/dylibs FIRST and
+          # the main executable LAST (nested code must be signed before its
+          # parent). Detect Mach-O via `file`, not just by extension, to catch the
+          # extension-less apphost executable and bundled native libs. Skip files
+          # INSIDE a .app bundle here — the bundle is signed as a unit afterwards
+          # (codesign signs its nested payloads when sealing the bundle).
+          local machos=()
+          while IFS= read -r f; do
+            case "$f" in *.app/*) continue ;; esac
+            if file "$f" | grep -q 'Mach-O'; then machos+=("$f"); fi
+          done < <(find "$dir" -type f)
+
+          # Sort so .dylib/.so come before extension-less executables; sign each.
+          local libs=() exes=()
+          for f in "${machos[@]}"; do
+            case "$f" in
+              *.dylib|*.so) libs+=("$f") ;;
+              *) exes+=("$f") ;;
+            esac
+          done
+          for f in "${libs[@]}" "${exes[@]}"; do
+            codesign_one "$f"
+          done
+
+          # Sign each .app bundle DIRECTORY as a unit, last — this seals the
+          # bundle (and its nested payloads) so it is staple-able and assessable.
+          while IFS= read -r app; do
+            [ -n "$app" ] || continue
+            codesign_one "$app"
+          done < <(find "$dir" -maxdepth 2 -name '*.app' -type d)
+        }
+
+        notarize_dir() {
+          local dir="$1" name="$2"
+          local zip="$RUNNER_TEMP/${name}.zip"
+          /usr/bin/ditto -c -k --keepParent "$dir" "$zip"
+          xcrun notarytool submit "$zip" \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" \
+            --wait
+          # Staple ONLY a real .app bundle (a raw dir / CLI binary cannot be
+          # stapled; it relies on Apple's online ticket instead). The .app was
+          # codesigned as a unit in sign_dir above, so it is staple-able here.
+          local app
+          app="$(find "$dir" -maxdepth 2 -name '*.app' -type d | head -n 1 || true)"
+          if [ -n "$app" ]; then
+            xcrun stapler staple "$app" || echo "stapler: nothing to staple in $app (continuing)"
+          else
+            echo "No .app bundle in $dir — notarized via online ticket (no local staple)."
+          fi
+        }
+
+        for target in cli avalonia; do
+          sign_dir "publish/${target}-${{ matrix.rid }}"
+          notarize_dir "publish/${target}-${{ matrix.rid }}" "${target}-${{ matrix.rid }}"
+        done
+
+        # The throwaway keychain is removed by the EXIT trap above.
+        echo "macOS bundles codesigned + notarized."
+
+    # ------------------------------------------------------------------------
+    # Conditional Authenticode signing of the published Windows CLI/Avalonia
+    # exes (#1634). Same WINDOWS_CERT_* secret set as msbuild.yml; runs only on
+    # win-x64 when both secrets are present. No-secret path uploads unchanged.
+    - name: Detect Windows signing secret
+      id: winsign
+      if: matrix.rid == 'win-x64'
+      shell: pwsh
+      env:
+        WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+      run: |
+        $set = 0
+        $missing = @()
+        foreach ($name in 'WINDOWS_CERT_BASE64','WINDOWS_CERT_PASSWORD') {
+          $val = [Environment]::GetEnvironmentVariable($name)
+          if (-not [string]::IsNullOrEmpty($val)) { $set++ } else { $missing += $name }
+        }
+        if ($set -eq 2) {
+          "present=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Windows signing secrets detected — Authenticode-signing the Windows bundles."
+        } elseif ($set -eq 0) {
+          "present=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "No Windows signing secrets — uploading the unsigned Windows bundles (unchanged)."
+        } else {
+          Write-Host "::error::Partial Windows signing secrets configured. Set BOTH WINDOWS_CERT_BASE64 and WINDOWS_CERT_PASSWORD (or neither). Missing: $($missing -join ', ')"
+          exit 1
+        }
+
+    - name: Sign Windows CLI/Avalonia exes (Authenticode)
+      # Imports the PFX into the CurrentUser store, signs the published *.exe by
+      # thumbprint with signtool (password never on a command line), removes the
+      # cert. Same deterministic approach as msbuild.yml.
+      if: matrix.rid == 'win-x64' && steps.winsign.outputs.present == 'true'
+      shell: pwsh
+      env:
+        WINDOWS_CERT_BASE64: ${{ secrets.WINDOWS_CERT_BASE64 }}
+        WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+          Where-Object { $_.FullName -match '\\x64\\' } |
+          Sort-Object FullName -Descending | Select-Object -First 1
+        if (-not $signtool) {
+          Write-Host "::error::signtool.exe not found under the Windows SDK. Cannot Authenticode-sign."
+          exit 1
+        }
+        $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+        [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERT_BASE64))
+        $sec = ConvertTo-SecureString -String $env:WINDOWS_CERT_PASSWORD -AsPlainText -Force
+        $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $sec
+        try {
+          # Sign the managed entry-point exes for both bundles (the self-contained
+          # apphost is the SmartScreen-relevant binary).
+          $exes = @(
+            "publish/cli-${{ matrix.rid }}/FEBuilderGBA.CLI.exe",
+            "publish/avalonia-${{ matrix.rid }}/FEBuilderGBA.Avalonia.exe"
+          ) | Where-Object { Test-Path $_ }
+          if ($exes.Count -eq 0) { Write-Host "::error::No Windows exes found to sign."; exit 1 }
+          foreach ($exe in $exes) {
+            & $signtool.FullName sign /sha1 $cert.Thumbprint /fd sha256 /tr http://timestamp.digicert.com /td sha256 $exe
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::signtool failed for $exe (exit $LASTEXITCODE)."; exit 1 }
+            & $signtool.FullName verify /pa $exe
+            if ($LASTEXITCODE -ne 0) { Write-Host "::error::verification failed for $exe."; exit 1 }
+          }
+        } finally {
+          Remove-Item -Path ("Cert:\CurrentUser\My\" + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path $pfx -Force -ErrorAction SilentlyContinue
+        }
+        Write-Host "Windows bundles Authenticode-signed."
+
     - name: Upload CLI artifact
       uses: actions/upload-artifact@v4
       with:

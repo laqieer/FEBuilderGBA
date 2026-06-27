@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapPointerMainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapPointerMainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapPointerMainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapPointerMainView.OnSelected failed: {0}", ex.Message);
             }
         }
 

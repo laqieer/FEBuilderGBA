@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapExitPointView.ReloadMapList failed: {0}", ex.Message);
+                Log.ErrorF("MapExitPointView.ReloadMapList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapExitPointView.OnMapSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapExitPointView.OnMapSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -132,7 +132,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapExitPointView.OnExitSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapExitPointView.OnExitSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -269,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reload sub-list to reflect the new pointer.
                 OnMapSelected(_vm.SelectedMapSlotAddr);
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.WritePointer: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapExitPointView.WritePointer: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -287,7 +287,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Map Exit Point data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapExitPointView.Write: {0}", ex.Message); }
         }
 
         void NewAlloc_Click(object? sender, RoutedEventArgs e)
@@ -309,7 +309,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 OnMapSelected(_vm.SelectedMapSlotAddr);
                 CoreState.Services?.ShowInfo($"Allocated new exit-point block at 0x{newaddr:X08}.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.NewAlloc: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapExitPointView.NewAlloc: {0}", ex.Message); }
         }
 
         void ExpandList_Click(object? sender, RoutedEventArgs e)
@@ -325,7 +325,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 OnMapSelected(_vm.SelectedMapSlotAddr);
                 CoreState.Services?.ShowInfo($"Expanded exit-point block to {r.NewCount} rows at 0x{r.NewBaseAddress:X08}.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.ExpandList: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapExitPointView.ExpandList: {0}", ex.Message); }
         }
 
         // -----------------------------------------------------------------

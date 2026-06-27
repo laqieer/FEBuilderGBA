@@ -76,6 +76,10 @@ Set-Content -Path (Join-Path $binDir "Some.dll")           -Value "fake-dll"
 Set-Content -Path (Join-Path $binDir "app.deps.json")      -Value "{}"
 Set-Content -Path (J $cfgDir "data" "marker.txt")          -Value "release-config-marker"
 Set-Content -Path (Join-Path $fixture "README.md")         -Value "# fixture readme"
+# Extensionless LICENSE (GPLv3) + notices file — both must be staged so every
+# release artifact carries the required license text (issue #1633).
+Set-Content -Path (Join-Path $fixture "LICENSE")                  -Value "GNU GENERAL PUBLIC LICENSE Version 3"
+Set-Content -Path (Join-Path $fixture "THIRD-PARTY-NOTICES.md")   -Value "# Third-Party Notices"
 
 # Optional published bundles (best-effort staging path) under <fixture>/publish.
 $cliPub = J $fixture "publish" "cli-linux-x64"
@@ -115,6 +119,11 @@ try {
     # Docs + publish bundles are resolved against the script location (fixture),
     # NOT the unrelated CWD — these assertions prove location-independence.
     Assert-True (Test-Path (Join-Path $out "README.md"))      "repo-root docs (*.md) staged from script dir, not CWD"
+    # GPLv3 compliance (#1633): the extensionless LICENSE must be staged via the
+    # explicit Copy-Item (the "*.md" glob would miss it), and THIRD-PARTY-NOTICES.md
+    # via the "*.md" glob.
+    Assert-True (Test-Path (Join-Path $out "LICENSE"))                "LICENSE staged (GPLv3 compliance #1633)"
+    Assert-True (Test-Path (Join-Path $out "THIRD-PARTY-NOTICES.md")) "THIRD-PARTY-NOTICES.md staged (#1633)"
     Assert-True (Test-Path (J $out "cli-linux-x64" "FEBuilderGBA.CLI"))      "optional CLI publish bundle staged"
     Assert-True (Test-Path (J $out "avalonia-linux-x64" "FEBuilderGBA.Avalonia")) "optional Avalonia publish bundle staged"
 

@@ -206,7 +206,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     Array.Copy(romBackup, rom.Data, romBackup.Length);
 
                     // Clean up temp files
-                    try { File.Delete(tempFile1); } catch (Exception ex) { Log.Error("ImageImportValidator temp file cleanup: {0}", ex.Message); }
+                    try { File.Delete(tempFile1); } catch (Exception ex) { Log.ErrorF("ImageImportValidator temp file cleanup: {0}", ex.Message); }
                 }
             }
             catch (Exception ex)

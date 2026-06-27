@@ -42,14 +42,14 @@ namespace FEBuilderGBA
             }
             catch (FormatException e)
             {
-                Log.Error("Translate Error! {0}->{1} @@ {2}" , src,trans , e.ToString() );
+                Log.ErrorF("Translate Error! {0}->{1} @@ {2}" , src,trans , e.ToString() );
                 try
                 {
                     return string.Format(src, args);
                 }
                 catch (FormatException e2)
                 {
-                    Log.Error("Translate Error2! {0} @@ {1}", src, e2.ToString());
+                    Log.ErrorF("Translate Error2! {0} @@ {1}", src, e2.ToString());
                     return src;
                 }
             }

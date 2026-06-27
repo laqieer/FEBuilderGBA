@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageCGFE7UView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageCGFE7UView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageCGFE7UView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageCGFE7UView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

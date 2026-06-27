@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextEscapeEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("TextEscapeEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextEscapeEditorView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("TextEscapeEditorView.OnSelected failed: {0}", ex.Message);
             }
         }
 

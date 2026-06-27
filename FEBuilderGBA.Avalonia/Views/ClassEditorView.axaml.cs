@@ -97,7 +97,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassEditorView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ClassEditorView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -602,7 +602,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ClassEditorView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("ClassEditorView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -680,7 +680,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToMoveCost failed: {0}", ex.Message);
+                Log.ErrorF("JumpToMoveCost failed: {0}", ex.Message);
             }
         }
 
@@ -733,7 +733,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<MoveCostEditorView>();
                 view.NavigateToWithCostType(_vm.CurrentAddr, costType);
             }
-            catch (Exception ex) { Log.Error("JumpToPtr60 failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPtr60 failed: {0}", ex.Message); }
         }
 
         void JumpToPtr64_Click(object? sender, RoutedEventArgs e)
@@ -747,7 +747,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<MoveCostEditorView>();
                 view.NavigateToWithCostType(_vm.CurrentAddr, costType);
             }
-            catch (Exception ex) { Log.Error("JumpToPtr64 failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPtr64 failed: {0}", ex.Message); }
         }
 
         void JumpToPtr68_Click(object? sender, RoutedEventArgs e)
@@ -761,7 +761,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<MoveCostEditorView>();
                 view.NavigateToWithCostType(_vm.CurrentAddr, costType);
             }
-            catch (Exception ex) { Log.Error("JumpToPtr68 failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPtr68 failed: {0}", ex.Message); }
         }
 
         void JumpToPtr72_Click(object? sender, RoutedEventArgs e)
@@ -777,7 +777,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<MoveCostEditorView>();
                 view.NavigateToWithCostType(_vm.CurrentAddr, CostType.TerrainDefense);
             }
-            catch (Exception ex) { Log.Error("JumpToPtr72 failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPtr72 failed: {0}", ex.Message); }
         }
 
         void JumpToPtr76_Click(object? sender, RoutedEventArgs e)
@@ -791,7 +791,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<MoveCostEditorView>();
                 view.NavigateToWithCostType(_vm.CurrentAddr, CostType.TerrainResistance);
             }
-            catch (Exception ex) { Log.Error("JumpToPtr76 failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("JumpToPtr76 failed: {0}", ex.Message); }
         }
 
         void JumpToBattleAnime_Click(object? sender, RoutedEventArgs e)
@@ -811,7 +811,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToBattleAnime failed: {0}", ex.Message);
+                Log.ErrorF("JumpToBattleAnime failed: {0}", ex.Message);
             }
         }
 
@@ -894,7 +894,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EditSkills_Click failed: {0}", ex.Message);
+                Log.ErrorF("EditSkills_Click failed: {0}", ex.Message);
             }
         }
 
@@ -953,7 +953,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("GetAllClassAddresses failed: {0}", ex.Message);
+                Log.ErrorF("GetAllClassAddresses failed: {0}", ex.Message);
                 return Array.Empty<uint>();
             }
         }
@@ -968,7 +968,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (addrs.Length == 0) return;
                 await MakeCsvManager().ExportAllAsync(this, rom, addrs);
             }
-            catch (Exception ex) { Log.Error("ExportAll_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ExportAll_Click failed: {0}", ex.Message); }
         }
 
         async void ExportSelected_Click(object? sender, RoutedEventArgs e)
@@ -986,7 +986,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint uid = idx >= 0 ? (uint)idx : 0u;
                 await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
             }
-            catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ExportSelected_Click failed: {0}", ex.Message); }
         }
 
         async void ImportAll_Click(object? sender, RoutedEventArgs e)
@@ -1015,7 +1015,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     ReloadCurrentClassAfterImport();
                 }
             }
-            catch (Exception ex) { Log.Error("ImportAll_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImportAll_Click failed: {0}", ex.Message); }
         }
 
         async void ImportSelected_Click(object? sender, RoutedEventArgs e)
@@ -1046,7 +1046,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     ReloadCurrentClassAfterImport();
                 }
             }
-            catch (Exception ex) { Log.Error("ImportSelected_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImportSelected_Click failed: {0}", ex.Message); }
         }
 
         // ---- #406: Address-bar infrastructure (parity with WF ClassForm) ----
@@ -1077,7 +1077,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopBar.SizeText = $"0x{rom.RomInfo.class_datasize:X}";
                 }
             }
-            catch (Exception ex) { Log.Error("ClassEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ClassEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         // #649: routed event from the unified EditorTopBar Reload button.
@@ -1113,7 +1113,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
+                Log.ErrorF("ClassEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
                 HardCodingWarningLabel.IsVisible = false;
             }
         }
@@ -1128,7 +1128,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var pv = WindowManager.Instance.Open<PatchManagerView>();
                 pv.JumpTo($"HARDCODING_CLASS={classId:X2}", 0);
             }
-            catch (Exception ex) { Log.Error("ClassEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ClassEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
         }
 
         // ---- #406: CC Branch jump (FE8 parity with WF ClassForm.J_5_Click) ----
@@ -1144,7 +1144,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // mirrors WF InputFormRef.JumpForm<CCBranchForm>(SelectedIndex).
                 WindowManager.Instance.Navigate<CCBranchEditorView>((uint)idx);
             }
-            catch (Exception ex) { Log.Error("ClassEditorView.JumpToCCBranch_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ClassEditorView.JumpToCCBranch_Click failed: {0}", ex.Message); }
         }
 
         /// <summary>

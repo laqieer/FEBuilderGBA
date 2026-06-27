@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AITilesView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("AITilesView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("AITilesView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("AITilesView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("AITilesView.Write failed: {0}", ex.Message);
+                Log.ErrorF("AITilesView.Write failed: {0}", ex.Message);
             }
         }
 

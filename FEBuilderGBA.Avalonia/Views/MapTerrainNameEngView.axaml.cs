@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainNameEngView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainNameEngView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainNameEngView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainNameEngView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -74,7 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Terrain Name (English) data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTerrainNameEngView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MapTerrainNameEngView.Write: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

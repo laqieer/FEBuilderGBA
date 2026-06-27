@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapBGMView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapBGMView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapBGMView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapBGMView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapBGMView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapBGMView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToSong failed: {0}", ex.Message);
+                Log.ErrorF("JumpToSong failed: {0}", ex.Message);
             }
         }
 

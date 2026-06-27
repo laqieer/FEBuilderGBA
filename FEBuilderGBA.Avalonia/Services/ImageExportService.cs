@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch (Exception ex)
             {
-                Log.Error("ImageExportService.SavePngToFile failed: {0}", ex.Message);
+                Log.ErrorF("ImageExportService.SavePngToFile failed: {0}", ex.Message);
                 return false;
             }
         }

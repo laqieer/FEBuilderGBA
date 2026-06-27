@@ -143,6 +143,30 @@ the "### Graphics System" overview in `CLAUDE.md`.
 - `MapTileAnimation1ImageCore.cs` (Core, #1602; WF `MapTileAnimation1Form`) — Map Tile Animation Type 1 image surface (anime1 is the INVERSE of anime2: RAW 4bpp block at the entry's **+4** pointer, sized by **+2** u16 length, NOT LZ77): `CalcEntryHeight` (=`CalcHeight(256,len)`), `ResolvePaletteOffset` (parent map's `palette_plist`→PALETTE table via `MapChangeCore.PlistToOffsetAddr`), `RenderEntryImage` (R/O, `ByteToImage16Tile` 256×H), `ImportEntryImage` (single-PNG, **+2 length AUTHORITATIVE/unchanged** — reject unless `height==CalcEntryHeight(currentLen)`, remap→`EncodeDirectTiles4bpp`→`WriteRawToROM` to +4, snapshot byte-identical fault restore #885/#923, ambient undo), `ExportBatchTxt`/`ImportBatchTxt` (`.mapanime1.txt`; batch honours the explicit 3rd length column with truncate, all `<=0xFFFF` guarded, injected PNG save/load delegates keep Core decoder-free). Avalonia `MapTileAnimation1View` GbaImageControl preview + sample-palette combo + Export/Import/ExportAll/ImportAll. **Composited-map GIF (the #1602 deferred half):** `ResolveGifContext` (first map using the anime1 PLIST → OBJ/obj2/palette/config/mappointer offsets), `ReadFrameBytes` (RAW 4bpp `change_bitmap_bytes`), `ExportGif` composites each frame onto the chapter map via `MapRenderCore.RenderMapImage`'s new `animeOverlayBytes`/`ANIME1_OBJ_PATCH_OFFSET`(=8192, the WF `U.ArrayPatch` offset) → `GifEncoderCore.Encode` (`GameFrameSecToGifFrameSec` timing, IImage disposed per frame); R/O. ExportAll save dialog offers `.mapanime1.txt`|`.gif`.
 - `AIScriptPointerJumpCore.cs` (Core, #1600; WF `AIScriptForm.ParamLabel_Clicked`) — AIScript per-param `POINTER_AI*` jump to the 5 AI sub-editors: `ClassifyArg` (5 ArgTypes → `AiPointerKind`), `AllocIfNeed` (WF AllocIfNeed; alloc a fresh 4-byte ASM block for null/broken Coordinate/Range/CallTalk via the `MapExitPointCore.NewAlloc` seam — Units/Tiles never alloc), `IsBrokenData` (Coordinate `u16(off+2)!=0`), `WritePointerIntoBytes` (PURE — pointer into opcode `ByteData`, NO ROM). Avalonia `AIScriptViewModel.{TryGetParamArg,GetParam*,ClassifyParam,ParamNeedsAlloc,ApplyPointerJump}` write the resolved/allocated pointer into the selected row's IN-MEMORY `OneCode.ByteData` (clone-replace like `UpdateRow`) so a later `WriteScript` serializes it and pending row edits survive; `AIScriptView` 5 `Param*Label` clickable affordances (Cursor=Hand + PointerPressed) prompt-before-alloc (reuses WF JP key, no new translate) then `Navigate<>` the matching sub-editor seeded at the pointer; NavigationTargets manifest gains the 5 jump rows. Sub-Views' `NavigateTo` direct-load the supplied addr (#1414).
 
+## Logging — `Log.*` vs `Log.*F` (string.Format) overloads
+
+**Files:** `FEBuilderGBA.Core/Log.cs` (used by Core, Avalonia, CLI) and `FEBuilderGBA/Log.cs`
+(the WinForms `Log` class, which shadows the Core one inside the WinForms assembly).
+
+The base `Log.Debug/Notify/Error(params string[] args)` sink only does
+`string.Join(" ", args)` — it has **no `string.Format`**. So `Log.Error("... failed: {0}", ex.Message)`
+recorded the **literal `{0}` token** in the log instead of substituting the value (the value
+was still appended after a space, just un-substituted), polluting every such diagnostic line (#1637).
+
+Fix: real `Log.DebugF/NotifyF/ErrorF(string fmt, params object[] args)` overloads do an actual
+`string.Format(InvariantCulture, fmt, args)`. They route through the existing join sink with the
+single formatted string. `FormatSafe` never throws from a logging call — a malformed format string
+(bad/extra placeholder) falls back to the format string **with every `{N}` token stripped to `{}`**
+plus the joined args, so the literal-placeholder bug can never be reintroduced via the fallback.
+`DebugF` keeps `[Conditional("DEBUG")]` parity with `Debug`.
+
+**Convention:** any `Log.*` call carrying a `{N}` placeholder MUST use the `*F` overload.
+The `FEBuilderGBA.Tests/Unit/LogFormatPlaceholderTests` regression guard scans all four production
+projects (Core, Avalonia, CLI, WinForms), strips comments, walks balanced parens (so it catches
+multi-line calls), and FAILS the build if a plain `Log.Error/Notify/Debug(...)` carries a literal
+`{N}` placeholder, or if a `Log.*F(...)` references a placeholder index its argument list cannot
+satisfy. Runs in `check.yml` on every PR.
+
 ## Table Expansion Helpers (full prose)
 
 **File:** `FEBuilderGBA.Core/DataExpansionCore.cs`

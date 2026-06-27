@@ -753,7 +753,7 @@ namespace FEBuilderGBA
             }
 
             DateTime romDatetime = GetROMDateTime(romfilename);
-            Log.Notify("romDatetime:{0} vs datetime:{1}", romDatetime.ToString(), datetime.ToString());
+            Log.NotifyF("romDatetime:{0} vs datetime:{1}", romDatetime.ToString(), datetime.ToString());
             if (romDatetime < datetime)
             {//更新する必要あり!
                 return UPDATE_RESULT.UPDATEABLE;

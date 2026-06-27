@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitWaitIconView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitWaitIconView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitWaitIconView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitWaitIconView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -266,7 +266,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitWaitIconView.JumpMoveIcon_Click: {0}", ex.Message);
+                Log.ErrorF("ImageUnitWaitIconView.JumpMoveIcon_Click: {0}", ex.Message);
             }
         }
 

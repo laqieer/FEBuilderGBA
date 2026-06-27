@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitItemDropView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitItemDropView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventUnitItemDropView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("EventUnitItemDropView.OnSelected failed: {0}", ex.Message);
             }
         }
 

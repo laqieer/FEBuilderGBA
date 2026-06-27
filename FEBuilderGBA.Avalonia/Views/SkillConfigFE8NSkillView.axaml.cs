@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NSkillView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NSkillView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -169,7 +169,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NSkillView.FilterComboBox_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NSkillView.FilterComboBox_SelectionChanged failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -205,7 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NSkillView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NSkillView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -379,7 +379,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillConfigFE8NSkillView.Write failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigFE8NSkillView.Write failed: {0}", ex.Message);
             }
         }
 

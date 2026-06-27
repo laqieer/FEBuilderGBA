@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPFontView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPFontView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ClassOPFontView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ClassOPFontView.OnSelected failed: {0}", ex.Message);
             }
         }
 

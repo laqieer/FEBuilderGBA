@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapTerrainNameView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainNameView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("MapTerrainNameView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainNameView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapTerrainNameView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("MapTerrainNameView.Write_Click failed: {0}", ex.Message);
             }
         }
 

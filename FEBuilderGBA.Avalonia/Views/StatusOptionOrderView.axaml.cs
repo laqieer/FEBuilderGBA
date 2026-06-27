@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusOptionOrderView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("StatusOptionOrderView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("StatusOptionOrderView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("StatusOptionOrderView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Status option order data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("StatusOptionOrderView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("StatusOptionOrderView.Write: {0}", ex.Message); }
         }
 
         // リストの拡張 — expand the 1-byte-per-entry game-option-order list by a

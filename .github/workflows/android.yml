@@ -40,12 +40,12 @@
 # and the signing / fallback steps gate on that output. Passwords are passed via
 # `env:` (never interpolated into a logged command line).
 #
-# The on-device / emulator SkiaSharp byte-parity run (#1125) — running
-# SkiaRenderByteParityTests on the Android native across the 4 ABIs — is NOT
-# included here: it needs a new instrumented test head (XHarness-style) + a
-# flaky emulator boot, which is out of scope for this build+artifact workflow.
-# That instrumented-parity run is the remaining step that keeps #1125 (and thus
-# #1070) open. See docs/ANDROID.md §7-8.
+# The on-device / emulator SkiaSharp byte-parity run — running
+# SkiaRenderByteParityTests on the Android native — is NOT included here: this is
+# the build+artifact workflow only. That run lives in its own dedicated workflow
+# (.github/workflows/android-emulator-parity.yml), which already CLOSED #1125
+# (and completed the #1070 epic). Both #1125 and #1070 are CLOSED. See
+# docs/ANDROID.md §7-8.
 #
 # Actions are pinned to @v4 tags to stay consistent with the repo's other
 # workflows (check.yml / crossplatform.yml); a repo-wide move to commit-SHA

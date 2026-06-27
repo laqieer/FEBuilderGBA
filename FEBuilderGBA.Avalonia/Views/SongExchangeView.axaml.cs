@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongExchangeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SongExchangeView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongExchangeView.LoadCurrentSongs failed: {0}", ex.Message);
+                Log.ErrorF("SongExchangeView.LoadCurrentSongs failed: {0}", ex.Message);
             }
         }
 
@@ -62,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongExchangeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SongExchangeView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongExchangeView.OpenOtherRom_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongExchangeView.OpenOtherRom_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Failed to open ROM: {0}", ex.Message));
             }
         }
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongExchangeView.Convert_Click failed: {0}", ex.Message);
+                Log.ErrorF("SongExchangeView.Convert_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Convert failed: {0}", ex.Message));
             }
         }

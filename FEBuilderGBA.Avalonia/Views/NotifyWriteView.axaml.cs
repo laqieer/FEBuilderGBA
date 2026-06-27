@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("NotifyWriteView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("NotifyWriteView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("NotifyWriteView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("NotifyWriteView.OnSelected failed: {0}", ex.Message);
             }
         }
 

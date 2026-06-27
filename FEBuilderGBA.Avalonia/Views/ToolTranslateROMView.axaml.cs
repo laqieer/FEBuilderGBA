@@ -50,7 +50,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.SimpleFromRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleFromRomBrowse: {0}", ex.Message); }
         }
 
         async void SimpleToRomBrowse_Click(object? sender, RoutedEventArgs e)
@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.SimpleToRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.SimpleToRomBrowse: {0}", ex.Message); }
         }
 
         async void ExtraFontRomBrowse_Click(object? sender, RoutedEventArgs e)
@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.ExtraFontRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.ExtraFontRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.ExtraFontRomBrowse: {0}", ex.Message); }
         }
 
         async void TranslateDataBrowse_Click(object? sender, RoutedEventArgs e)
@@ -81,7 +81,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     R._("Translation Data"), "*.txt");
                 if (!string.IsNullOrEmpty(path)) _vm.TranslateDataPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.TranslateDataBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.TranslateDataBrowse: {0}", ex.Message); }
         }
 
         // ---------- Detail tab browse handlers ----------
@@ -93,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.FromRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.DetailFromRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailFromRomBrowse: {0}", ex.Message); }
         }
 
         async void DetailToRomBrowse_Click(object? sender, RoutedEventArgs e)
@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.ToRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.DetailToRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.DetailToRomBrowse: {0}", ex.Message); }
         }
 
         async void FontRomBrowse_Click(object? sender, RoutedEventArgs e)
@@ -113,7 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var path = await FileDialogHelper.OpenRomFile(this);
                 if (!string.IsNullOrEmpty(path)) _vm.FontRomPath = path;
             }
-            catch (Exception ex) { Log.Error("ToolTranslateROMView.FontRomBrowse: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ToolTranslateROMView.FontRomBrowse: {0}", ex.Message); }
         }
 
         // ---------- Real action handlers (#536 wires Core helpers) ----------
@@ -220,7 +220,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.UndoService.Rollback();
                 await ShowError("Translation failed: " + ex.Message);
-                Log.Error("ToolTranslateROMView.SimpleFire: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.SimpleFire: {0}", ex.Message);
             }
         }
 
@@ -269,7 +269,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 await ShowError("Export failed: " + ex.Message);
-                Log.Error("ToolTranslateROMView.ExportAllText: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.ExportAllText: {0}", ex.Message);
             }
         }
 
@@ -315,7 +315,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.UndoService.Rollback();
                 await ShowError("Import failed: " + ex.Message);
-                Log.Error("ToolTranslateROMView.ImportAllText: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.ImportAllText: {0}", ex.Message);
             }
         }
 
@@ -382,7 +382,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.UndoService.Rollback();
                 await ShowError("Import Font failed: " + ex.Message);
-                Log.Error("ToolTranslateROMView.ImportFont: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.ImportFont: {0}", ex.Message);
             }
         }
 
@@ -429,7 +429,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolTranslateROMView.UseFontName: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.UseFontName: {0}", ex.Message);
             }
         }
 
@@ -465,7 +465,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolTranslateROMView.ShowInfo: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.ShowInfo: {0}", ex.Message);
             }
         }
 
@@ -503,7 +503,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
             }
         }
 
@@ -549,7 +549,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ToolTranslateROMView.InstallChapterNameToTextPatch: {0}", ex.Message);
+                Log.ErrorF("ToolTranslateROMView.InstallChapterNameToTextPatch: {0}", ex.Message);
                 return ex.Message;
             }
         }

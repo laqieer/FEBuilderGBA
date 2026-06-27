@@ -777,7 +777,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
+                    Log.ErrorF("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
                     // Use ROM-aware fallback so JP ROMs get Shift_JIS, not ISO-8859-1
                     CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(CoreState.ROM);
                 }
@@ -787,7 +787,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CoreState.FETextEncoder == null)
             {
                 try { CoreState.FETextEncoder = new FETextEncode(); }
-                catch (Exception ex) { Log.Error("Failed to init FETextEncode: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("Failed to init FETextEncode: {0}", ex.Message); }
             }
 
             // Init text escape
@@ -804,7 +804,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CoreState.FlagCache == null)
             {
                 try { CoreState.FlagCache = new EtcCacheFLag(); }
-                catch (Exception ex) { Log.Error("Failed to init FlagCache: {0}", ex.Message); }
+                catch (Exception ex) { Log.ErrorF("Failed to init FlagCache: {0}", ex.Message); }
             }
 
             // Init export function + undo
@@ -837,7 +837,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Failed to init EventScripts: {0}", ex.Message);
+                Log.ErrorF("Failed to init EventScripts: {0}", ex.Message);
             }
 
             // Detect installed patches (SkillSystem, MagicSplit, etc.)
@@ -961,7 +961,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     catch (Exception ex)
                     {
-                        Log.Error("Smoke test failed: {0}", ex.Message);
+                        Log.ErrorF("Smoke test failed: {0}", ex.Message);
                         Environment.ExitCode = 1;
                     }
                     finally
@@ -973,7 +973,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("Smoke test failed: {0}", ex.Message);
+                Log.ErrorF("Smoke test failed: {0}", ex.Message);
                 Environment.ExitCode = 1;
                 Close();
             }
@@ -1001,7 +1001,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         var window = factory();
                         await Task.Delay(50);  // Let it initialize
-                        try { window.Close(); } catch (Exception ex) { Log.Error("MainWindow.SmokeTest window close: {0}", ex.Message); }
+                        try { window.Close(); } catch (Exception ex) { Log.ErrorF("MainWindow.SmokeTest window close: {0}", ex.Message); }
                         passed++;
                         Console.WriteLine($"SMOKE: {name} ... OK");
                     }
@@ -1156,7 +1156,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.ScreenshotAll window close: {0}", ex.Message); }
+                        try { window?.Close(); } catch (Exception ex) { Log.ErrorF("MainWindow.ScreenshotAll window close: {0}", ex.Message); }
                     }
                 }
 
@@ -1701,7 +1701,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.DataVerify window close: {0}", ex.Message); }
+                        try { window?.Close(); } catch (Exception ex) { Log.ErrorF("MainWindow.DataVerify window close: {0}", ex.Message); }
                     }
                 }
 
@@ -1813,7 +1813,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     finally
                     {
-                        try { window?.Close(); } catch (Exception ex) { Log.Error("MainWindow.ListParity window close: {0}", ex.Message); }
+                        try { window?.Close(); } catch (Exception ex) { Log.ErrorF("MainWindow.ListParity window close: {0}", ex.Message); }
                     }
                 }
 
@@ -3609,13 +3609,13 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OnlineManual_Click(object? sender, RoutedEventArgs e)
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/wiki") { UseShellExecute = true }); }
-            catch (Exception ex) { Log.Error("MainWindow.OnlineManual_Click launch browser: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MainWindow.OnlineManual_Click launch browser: {0}", ex.Message); }
         }
 
         private void Discussions_Click(object? sender, RoutedEventArgs e)
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
-            catch (Exception ex) { Log.Error("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
         }
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)

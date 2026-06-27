@@ -82,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.OnClassChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.OnClassChanged failed: {0}", ex.Message);
             }
         }
 
@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.OnPreviewPaletteTypeChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.OnPreviewPaletteTypeChanged failed: {0}", ex.Message);
             }
         }
 
@@ -148,7 +148,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -284,7 +284,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.RefreshSamplePreview (anime id) failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.RefreshSamplePreview (anime id) failed: {0}", ex.Message);
                 BattleAnimeBox.Text = "";
             }
 
@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.RefreshSamplePreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.RefreshSamplePreview failed: {0}", ex.Message);
                 SamplePreview.SetImage(null);
             }
         }
@@ -360,7 +360,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageUnitPaletteView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ImageUnitPaletteView.Write: {0}", ex.Message); }
         }
 
         /// <summary>Palette Write button handler — delegates to
@@ -428,7 +428,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
                 return false;
             }
         }
@@ -488,7 +488,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("ImageUnitPaletteView.NewAlloc: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.NewAlloc: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Failed to allocate a new palette block. Check ROM free space."));
             }
         }
@@ -510,7 +510,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.ExportImage: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.ExportImage: {0}", ex.Message);
             }
         }
 
@@ -552,7 +552,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.ImportImage: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.ImportImage: {0}", ex.Message);
                 CoreState.Services?.ShowError($"{R._("Import failed:")} {ex.Message}");
             }
         }
@@ -706,7 +706,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImageUnitPaletteView.Expand_Click inner failed: {0}", inner.Message);
+                    Log.ErrorF("ImageUnitPaletteView.Expand_Click inner failed: {0}", inner.Message);
                     CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
                 }
             }
@@ -717,7 +717,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // count-prep path) and surface the error to the user (Copilot
                 // review on PR #1080 — the outer catch previously only logged).
                 try { _undoService.Rollback(); } catch { /* no active scope — ignore */ }
-                Log.Error("ImageUnitPaletteView.Expand_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.Expand_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
             }
         }
@@ -756,7 +756,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.Clipboard_Click failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.Clipboard_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Failed to copy palette to clipboard."));
             }
         }
@@ -779,7 +779,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageUnitPaletteView.Zoom_SelectionChanged failed: {0}", ex.Message);
+                Log.ErrorF("ImageUnitPaletteView.Zoom_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -803,7 +803,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (CoreState.Undo.Postion != before)
                     ReloadAfterUndoRedo();
             }
-            catch (Exception ex) { Log.Error("ImageUnitPaletteView.Undo_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImageUnitPaletteView.Undo_Click failed: {0}", ex.Message); }
         }
 
         /// <summary>
@@ -819,7 +819,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (CoreState.Undo == null || !CoreState.Undo.RunRedo()) return;   // empty -> no-op
                 ReloadAfterUndoRedo();
             }
-            catch (Exception ex) { Log.Error("ImageUnitPaletteView.Redo_Click failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ImageUnitPaletteView.Redo_Click failed: {0}", ex.Message); }
         }
 
         /// <summary>

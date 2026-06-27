@@ -287,7 +287,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Use custom URL if set, otherwise restore default
             string effectiveUrl = string.IsNullOrWhiteSpace(customUrl) ? defaultUrl : customUrl;
             if (!GitUtil.SetSubmoduleRemote(submodulePath, effectiveUrl))
-                Log.Error("Failed to set remote for {0}", submodulePath);
+                Log.ErrorF("Failed to set remote for {0}", submodulePath);
         }
 
         internal static void ReloadTranslations()

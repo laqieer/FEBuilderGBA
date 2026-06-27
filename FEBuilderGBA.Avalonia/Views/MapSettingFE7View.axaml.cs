@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7View.LoadList failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE7View.LoadList failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -133,7 +133,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE7View.OnSelected failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE7View.OnSelected failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -321,7 +321,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingFE7View.Write failed: {0}", ex.ToString());
+                Log.ErrorF("MapSettingFE7View.Write failed: {0}", ex.ToString());
             }
         }
 

@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OAMSpriteViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("OAMSpriteViewerView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("OAMSpriteViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("OAMSpriteViewerView.OnSelected failed: {0}", ex.Message);
             }
         }
 

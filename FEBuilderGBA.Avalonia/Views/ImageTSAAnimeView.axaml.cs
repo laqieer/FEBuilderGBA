@@ -35,7 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnimeView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAAnimeView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImageTSAAnimeView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("ImageTSAAnimeView.OnSelected failed: {0}", ex.Message);
             }
         }
 

@@ -32,7 +32,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundBossBGMViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SoundBossBGMViewerView.LoadList failed: {0}", ex.Message);
             }
             finally
             {
@@ -51,7 +51,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SoundBossBGMViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SoundBossBGMViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally
             {
@@ -90,7 +90,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SoundBossBGMViewerView.Write_Click failed: {0}", ex.Message);
+                Log.ErrorF("SoundBossBGMViewerView.Write_Click failed: {0}", ex.Message);
             }
         }
 
@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToSong failed: {0}", ex.Message);
+                Log.ErrorF("JumpToSong failed: {0}", ex.Message);
             }
         }
 
@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("JumpToUnit failed: {0}", ex.Message);
+                Log.ErrorF("JumpToUnit failed: {0}", ex.Message);
             }
         }
 
@@ -156,7 +156,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PickUnit failed: {0}", ex.Message);
+                Log.ErrorF("PickUnit failed: {0}", ex.Message);
             }
         }
 

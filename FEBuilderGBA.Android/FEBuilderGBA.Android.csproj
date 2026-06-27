@@ -99,4 +99,15 @@
                   Exclude="..\config\patch2\**"
                   Link="config\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!--
+    GPLv3 (sections 4-6) requires the license text to accompany every binary
+    distribution. Embed the repo-root LICENSE and THIRD-PARTY-NOTICES.md as
+    AndroidAssets so they ship INSIDE the APK (alongside config/) rather than
+    only living in the source tree. Issue #1633.
+  -->
+  <ItemGroup>
+    <AndroidAsset Include="..\LICENSE" Link="LICENSE" />
+    <AndroidAsset Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" />
+  </ItemGroup>
 </Project>

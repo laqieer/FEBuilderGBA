@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemPromotionViewerView.LoadList: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.LoadList: {0}", ex.Message);
             }
         }
 
@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemPromotionViewerView.CheckIERPatch: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.CheckIERPatch: {0}", ex.Message);
             }
         }
 
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("ItemPromotionViewerView.OnOuterSelected: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.OnOuterSelected: {0}", ex.Message);
             }
         }
 
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemPromotionViewerView.Write_Click: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.Write_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError("Write failed: " + ex.Message);
             }
         }
@@ -172,7 +172,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemPromotionViewerView.ListExpands_Click: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.ListExpands_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError("Expand failed: " + ex.Message);
             }
         }
@@ -185,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemPromotionViewerView.OpenPatchManager_Click: {0}", ex.Message);
+                Log.ErrorF("ItemPromotionViewerView.OpenPatchManager_Click: {0}", ex.Message);
             }
         }
 
@@ -218,7 +218,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("ItemPromotionViewerView.ClassId_Jump failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ItemPromotionViewerView.ClassId_Jump failed: {0}", ex.Message); }
         }
 
         async void ClassId_Pick(object? sender, RoutedEventArgs e)
@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) ClassIdBox.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("ItemPromotionViewerView.ClassId_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("ItemPromotionViewerView.ClassId_Pick failed: {0}", ex.Message); }
         }
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)

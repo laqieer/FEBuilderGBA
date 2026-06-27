@@ -86,7 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigSkillSystemView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigSkillSystemView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigSkillSystemView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigSkillSystemView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SkillConfigSkillSystemView.Write failed: {0}", ex.Message);
+                Log.ErrorF("SkillConfigSkillSystemView.Write failed: {0}", ex.Message);
             }
         }
 
@@ -396,7 +396,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     catch (Exception ex)
                     {
-                        Log.Error("SkillConfigSkillSystemView.BulkImport image load failed: {0}", ex.Message);
+                        Log.ErrorF("SkillConfigSkillSystemView.BulkImport image load failed: {0}", ex.Message);
                         return null;
                     }
                 };

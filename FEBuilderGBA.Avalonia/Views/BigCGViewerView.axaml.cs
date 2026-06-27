@@ -28,7 +28,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.IsLoading = true;
             try { var items = _vm.LoadBigCGList(); EntryList.SetItems(items); }
-            catch (Exception ex) { Log.Error("BigCGViewerView.LoadList: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BigCGViewerView.LoadList: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -41,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadImage();
             }
-            catch (Exception ex) { Log.Error("BigCGViewerView.OnSelected: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("BigCGViewerView.OnSelected: {0}", ex.Message); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Big CG data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("BigCGViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("BigCGViewerView.Write: {0}", ex.Message); }
         }
 
         void LoadImage()

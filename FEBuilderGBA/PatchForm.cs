@@ -8071,7 +8071,7 @@ namespace FEBuilderGBA
                     Program.CommentCache.Remove(addr);
                     if (addr >= current_rom_length)
                     {
-//                        Log.Error("OutOfRange: {0}/{1}", U.ToHexString8(addr), U.ToHexString8(current_rom_length));
+//                        Log.ErrorF("OutOfRange: {0}/{1}", U.ToHexString8(addr), U.ToHexString8(current_rom_length));
                         continue;
                     }
 

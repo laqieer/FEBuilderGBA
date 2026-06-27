@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
+                    Log.ErrorF("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
                 }
             }
 
@@ -145,7 +145,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig fallback failed: {0}", ex.Message);
+                Log.ErrorF("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig fallback failed: {0}", ex.Message);
             }
             return dic;
         }

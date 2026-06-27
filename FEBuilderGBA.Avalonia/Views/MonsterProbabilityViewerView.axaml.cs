@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterProbabilityViewerView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("MonsterProbabilityViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
 
@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MonsterProbabilityViewerView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("MonsterProbabilityViewerView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ClassId4Box.NameText = NameResolver.GetClassName(_vm.ClassId4);
                 ClassId5Box.NameText = NameResolver.GetClassName(_vm.ClassId5);
             }
-            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.UpdateUI ClassName: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterProbabilityViewerView.UpdateUI ClassName: {0}", ex.Message); }
             Prob1Box.Value = _vm.Prob1;
             Prob2Box.Value = _vm.Prob2;
             Prob3Box.Value = _vm.Prob3;
@@ -121,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster probability data written.");
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterProbabilityViewerView.Write: {0}", ex.Message); }
+            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("MonsterProbabilityViewerView.Write: {0}", ex.Message); }
         }
 
         // ============================================================
@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.JumpToClassEditor: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterProbabilityViewerView.JumpToClassEditor: {0}", ex.Message); }
         }
 
         async System.Threading.Tasks.Task PickClassIdInto(IdFieldControl box)
@@ -173,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
                 if (result != null) box.Value = (uint)result.Index;
             }
-            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.PickClassIdInto: {0}", ex.Message); }
+            catch (Exception ex) { Log.ErrorF("MonsterProbabilityViewerView.PickClassIdInto: {0}", ex.Message); }
         }
 
         static void RefreshClassName(IdFieldControl box, uint value)

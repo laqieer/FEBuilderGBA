@@ -103,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DecreaseColorTSAToolView.InputBrowse failed: {0}", ex.Message);
+                Log.ErrorF("DecreaseColorTSAToolView.InputBrowse failed: {0}", ex.Message);
                 _vm.StatusMessage = ex.Message;
             }
         }
@@ -139,7 +139,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DecreaseColorTSAToolView.OutputBrowse failed: {0}", ex.Message);
+                Log.ErrorF("DecreaseColorTSAToolView.OutputBrowse failed: {0}", ex.Message);
                 _vm.StatusMessage = ex.Message;
             }
         }
@@ -161,7 +161,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Keep the low-level/English-only detail in the log; show the
                 // user the standard localized failure status (SetReduceStatus(-1)).
-                Log.Error("DecreaseColorTSAToolView.Reduce failed: {0}", ex.Message);
+                Log.ErrorF("DecreaseColorTSAToolView.Reduce failed: {0}", ex.Message);
                 _vm.SetReduceStatus(-1);
             }
             finally

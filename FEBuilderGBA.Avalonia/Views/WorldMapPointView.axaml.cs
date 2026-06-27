@@ -44,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPointView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapPointView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
-                Log.Error("WorldMapPointView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapPointView.OnSelected failed: {0}", ex.Message);
             }
         }
 
@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("WorldMapPointView.Write failed: {0}", ex.Message);
+                Log.ErrorF("WorldMapPointView.Write failed: {0}", ex.Message);
             }
         }
 

@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error("ImageGenericEnemyPortraitViewModel.RenderPreview failed: {0}", ex.Message);
+                Log.ErrorF("ImageGenericEnemyPortraitViewModel.RenderPreview failed: {0}", ex.Message);
                 return null;
             }
         }

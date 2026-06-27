@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillSystemsCSkillRechainView.LoadList failed: {0}", ex.Message);
+                Log.ErrorF("SkillSystemsCSkillRechainView.LoadList failed: {0}", ex.Message);
             }
         }
 
@@ -42,7 +42,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillSystemsCSkillRechainView.OnSelected failed: {0}", ex.Message);
+                Log.ErrorF("SkillSystemsCSkillRechainView.OnSelected failed: {0}", ex.Message);
             }
         }
 
