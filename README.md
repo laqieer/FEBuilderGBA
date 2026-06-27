@@ -127,7 +127,8 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-image-roundtrip
 
 # Avalonia ↔ WinForms gap sweeps (static analysis → docs/avalonia-gaps/)
-dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-all --out=docs/avalonia-gaps/$(date +%F)
+# Use a dated output dir, e.g. docs/avalonia-gaps/YYYY-MM-DD
+dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-all --out=docs/avalonia-gaps/YYYY-MM-DD
 
 # Cross-platform publish (self-contained) + tests
 ./scripts/publish-all.sh linux-x64 osx-arm64 win-x64
