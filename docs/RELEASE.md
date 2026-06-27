@@ -177,7 +177,6 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | patch2 not bundled into CLI/Avalonia artifacts | [#1630](https://github.com/laqieer/FEBuilderGBA/issues/1630) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
-| LICENSE + third-party notices in every artifact (GPLv3) | [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633) |
 | Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§7.1](#71-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
 | Android: patch2 binary-patch library + FE-Repo resources not delivered on-device (desktop-only; in-app empty-state notice shown — see [docs/ANDROID.md §5.1](ANDROID.md)) | [#1641](https://github.com/laqieer/FEBuilderGBA/issues/1641) |
 

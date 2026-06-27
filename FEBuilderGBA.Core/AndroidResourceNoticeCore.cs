@@ -26,11 +26,13 @@ namespace FEBuilderGBA
     public static class AndroidResourceNoticeCore
     {
         /// <summary>
-        /// Platform predicate seam. Defaults to <see cref="OperatingSystem.IsAndroid"/>. Tests may set
-        /// this to force the Android branch on a desktop runner; always restore it in a try/finally so
-        /// the override cannot leak between tests.
+        /// Platform predicate seam (test-only). Defaults to <see cref="OperatingSystem.IsAndroid"/>.
+        /// Tests may set this to force the Android branch on a desktop runner; always restore it in a
+        /// try/finally so the override cannot leak between tests. Kept <c>internal</c> (visible to the
+        /// app + test assemblies via <c>InternalsVisibleTo</c>) so this seam is not part of the public
+        /// Core API surface and cannot be flipped by arbitrary external runtime code.
         /// </summary>
-        public static Func<bool> IsAndroidOverride = OperatingSystem.IsAndroid;
+        internal static Func<bool> IsAndroidOverride = OperatingSystem.IsAndroid;
 
         /// <summary>
         /// True when the platform supports the desktop git-backed resource delivery (i.e. NOT Android).

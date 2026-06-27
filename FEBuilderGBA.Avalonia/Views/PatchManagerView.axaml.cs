@@ -32,9 +32,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 PatchListBox.ItemsSource = _vm.FilteredPatches;
                 UpdateSummary();
                 // Surface the VM's load-time status (e.g. the Android patch2-unavailable
-                // empty-state notice, #1641) into the status label.
-                if (!string.IsNullOrEmpty(_vm.StatusMessage))
-                    StatusMessageLabel.Text = _vm.StatusMessage;
+                // empty-state notice, #1641) into the status label. Always assign so a
+                // cleared StatusMessage ("") also resets the label — never leaves a stale notice.
+                StatusMessageLabel.Text = _vm.StatusMessage;
             }
             catch (Exception ex)
             {
