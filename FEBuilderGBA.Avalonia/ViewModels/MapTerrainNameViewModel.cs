@@ -56,8 +56,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Multibyte (Japanese) ROMs: 4-byte pointer entries. The stop rule mirrors
             // WinForms MapTerrainNameForm.Init's read callback U.isPointerOrNULL(u32(addr)).
             const uint blockSize = 4;
-            uint maxCount = rom.RomInfo.map_terrain_type_count;
-            if (maxCount == 0) maxCount = 65;
+            uint maxCount = MaxCount(rom);
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < maxCount; i++)
@@ -85,6 +84,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TerrainNamePointer = rom.u32(addr);
             TerrainName = DecodeName(rom, TerrainNamePointer);
             IsLoaded = true;
+        }
+
+        /// <summary>The number of 4-byte slots the terrain-name table is bounded to.
+        /// Single source of truth shared by <see cref="LoadList"/> and
+        /// <see cref="IsOldStringShared"/> so both enumerate the SAME range (mirrors
+        /// WinForms <c>map_terrain_type_count</c> with the 65 fallback).</summary>
+        static uint MaxCount(ROM rom)
+        {
+            uint maxCount = rom.RomInfo.map_terrain_type_count;
+            if (maxCount == 0) maxCount = 65;
+            return maxCount;
         }
 
         /// <summary>Decode the NUL-terminated string a slot pointer references.
@@ -185,7 +195,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr, rom)) return true;
 
             const uint blockSize = 4;
-            for (uint i = 0; i < 0x100; i++)
+            uint maxCount = MaxCount(rom); // same bounded range as LoadList.
+            for (uint i = 0; i < maxCount; i++)
             {
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;

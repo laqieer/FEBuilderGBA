@@ -67,15 +67,22 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Terrain Name");
             try
             {
+                // The edited slot address is stable across a write (only the pointer
+                // VALUE it holds is repointed), so capture it before rebuilding the
+                // list and re-select it afterwards.
+                uint editedAddr = _vm.CurrentAddr;
+
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
                 // Refresh the display: the slot was repointed to fresh free space,
                 // so the diagnostics pointer updates.
                 UpdateUI();
-                // Rebuild the list so the new decoded name shows in the entry list.
-                LoadList();
-                EntryList.SelectAddress(_vm.CurrentAddr);
+                // Rebuild the list so the new decoded name shows in the entry list,
+                // preserving the user's selection (plain SetItems would SelectFirst
+                // and clobber the edited row).
+                var items = _vm.LoadList();
+                EntryList.SetItemsPreserveSelection(items, editedAddr);
                 CoreState.Services.ShowInfo("Terrain name data written.");
             }
             catch (Exception ex)
