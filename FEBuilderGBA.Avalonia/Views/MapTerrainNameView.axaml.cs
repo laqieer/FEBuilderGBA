@@ -55,12 +55,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             PointerBox.Text = $"0x{_vm.TerrainNamePointer:X08}";
-            NameLabel.Text = _vm.TerrainNameText;
+            NameBox.Text = _vm.TerrainName;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.TerrainNamePointer = ParseHexText(PointerBox.Text);
+            // The editable surface is the Name string; the pointer is read-only
+            // diagnostics that Write() repoints automatically. Read ONLY the Name.
+            _vm.TerrainName = NameBox.Text ?? string.Empty;
 
             _undoService.Begin("Edit Terrain Name");
             try
@@ -68,6 +70,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // Refresh the display: the slot was repointed to fresh free space,
+                // so the diagnostics pointer updates.
+                UpdateUI();
+                // Rebuild the list so the new decoded name shows in the entry list.
+                LoadList();
+                EntryList.SelectAddress(_vm.CurrentAddr);
                 CoreState.Services.ShowInfo("Terrain name data written.");
             }
             catch (Exception ex)
@@ -80,13 +88,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-
-        static uint ParseHexText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            text = text.Trim();
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
-            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
-        }
     }
 }

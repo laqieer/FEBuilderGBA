@@ -16,10 +16,10 @@
           <TextBlock AutomationProperties.AutomationId="MapTerrainName_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Name Pointer:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MapTerrainName_Pointer_Input" Grid.Row="1" Grid.Column="1" Name="PointerBox" Width="160" HorizontalAlignment="Left" />
+          <TextBox AutomationProperties.AutomationId="MapTerrainName_Pointer_Input" Grid.Row="1" Grid.Column="1" Name="PointerBox" Width="160" HorizontalAlignment="Left" IsReadOnly="True" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MapTerrainName_Name_Label" Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBox AutomationProperties.AutomationId="MapTerrainName_Name_Input" Grid.Row="2" Grid.Column="1" Name="NameBox" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
