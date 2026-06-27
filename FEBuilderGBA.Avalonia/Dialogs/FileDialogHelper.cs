@@ -187,6 +187,14 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             try
             {
                 await writer(tempPath);
+                // Many VM writers signal a validation error by setting StatusText
+                // and returning WITHOUT creating the output file. In that case there
+                // is nothing to stream back — return null (not a crash) so the
+                // caller can treat it like "no write happened" and keep the VM's
+                // own error status. (Without this guard, opening the missing temp
+                // would throw FileNotFoundException and crash the SAF save flow.)
+                if (!File.Exists(tempPath))
+                    return null;
                 await using var src = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 await using var dst = await openWrite();
                 // OpenWriteAsync streams do not reliably truncate; reset length

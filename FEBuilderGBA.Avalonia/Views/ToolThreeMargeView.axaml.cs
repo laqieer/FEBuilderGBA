@@ -4,6 +4,7 @@ using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using global::Avalonia.Platform.Storage;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -52,9 +53,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // #1639: the merged ROM is a single-file output → pick the handle and
             // write through the SAF bridge so Android content:// targets work.
+            // SaveMerged returns false (no write) on no merge result — the bridge's
+            // missing-output guard then returns null, so nothing is streamed back.
             var file = await FileDialogHelper.SaveRomFilePick(this, "merged.gba");
             if (file == null) return;
-            await FileDialogHelper.WriteViaAsync(file, p => _vm.SaveMerged(p));
+            string? written = await FileDialogHelper.WriteViaAsync(file, p => _vm.SaveMerged(p));
+            // On a SAF target the VM's status shows the temp path; rewrite it with
+            // the chosen document name once the bridge has written the file.
+            if (written != null && string.IsNullOrEmpty(file.TryGetLocalPath()))
+                _vm.StatusText = $"Merged ROM saved to: {file.Name ?? written}";
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();

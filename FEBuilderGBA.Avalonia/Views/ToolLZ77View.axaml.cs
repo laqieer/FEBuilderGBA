@@ -60,8 +60,20 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_decompressDestFile != null && string.IsNullOrEmpty(_decompressDestFile.TryGetLocalPath()))
             {
                 string displayLabel = _vm.DecompressDestPath;
-                await FileDialogHelper.WriteViaAsync(_decompressDestFile, p => { _vm.DecompressDestPath = p; _vm.RunDecompress(); });
+                string tempName = "";
+                // The bridge's missing-output guard returns null if RunDecompress
+                // validated and never wrote — then nothing is streamed back.
+                string? written = await FileDialogHelper.WriteViaAsync(_decompressDestFile, p =>
+                {
+                    tempName = System.IO.Path.GetFileName(p);
+                    _vm.DecompressDestPath = p;
+                    _vm.RunDecompress();
+                });
                 _vm.DecompressDestPath = displayLabel;
+                // The VM's success status embeds the temp filename — swap it for the
+                // chosen document name when the bridge actually wrote the file.
+                if (written != null && tempName.Length > 0)
+                    _vm.StatusText = _vm.StatusText.Replace(tempName, displayLabel);
             }
             else
                 _vm.RunDecompress();
@@ -93,8 +105,16 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_compressDestFile != null && string.IsNullOrEmpty(_compressDestFile.TryGetLocalPath()))
             {
                 string displayLabel = _vm.CompressDestPath;
-                await FileDialogHelper.WriteViaAsync(_compressDestFile, p => { _vm.CompressDestPath = p; _vm.RunCompress(); });
+                string tempName = "";
+                string? written = await FileDialogHelper.WriteViaAsync(_compressDestFile, p =>
+                {
+                    tempName = System.IO.Path.GetFileName(p);
+                    _vm.CompressDestPath = p;
+                    _vm.RunCompress();
+                });
                 _vm.CompressDestPath = displayLabel;
+                if (written != null && tempName.Length > 0)
+                    _vm.StatusText = _vm.StatusText.Replace(tempName, displayLabel);
             }
             else
                 _vm.RunCompress();
