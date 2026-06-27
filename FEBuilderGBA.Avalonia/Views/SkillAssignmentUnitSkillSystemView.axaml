@@ -128,6 +128,10 @@
               <Label DockPanel.Dock="Top"
                      AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_N1FilterName_Label"
                      Content="Filter Name" HorizontalAlignment="Stretch" />
+              <Button DockPanel.Dock="Bottom"
+                      AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_N1ListExpand_Button"
+                      Name="N1ListExpandButton" Content="List Expand"
+                      HorizontalAlignment="Stretch" Click="N1ListExpand_Click" />
               <ListBox AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_N1Entry_List"
                        Name="N1EntryList" ItemsSource="{Binding LevelUpEntries}"
                        SelectionChanged="N1EntryList_SelectionChanged">
@@ -200,9 +204,33 @@
                          TextWrapping="Wrap" Name="ZeroPointerText" />
             </Border>
 
+            <Border AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_IndependencePanel"
+                    Name="IndependencePanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                    IsVisible="False">
+              <StackPanel Orientation="Vertical" Spacing="6">
+                <TextBlock TextWrapping="Wrap"
+                           Text="This level-up table is referenced by multiple units." />
+                <Button AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_Independence_Button"
+                        Name="IndependenceButton" Content="Make Selected Unit Independent"
+                        HorizontalAlignment="Left"
+                        Click="Independence_Click" />
+              </StackPanel>
+            </Border>
+
             <Button AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_LearnInfo_Button"
                     Name="LearnInfoButton" Content="Click here for level/skill details (opens wiki)"
                     HorizontalAlignment="Left" Click="LearnInfo_Click" />
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_BulkImport_Button"
+                        Name="BulkImportButton" Content="Bulk Import"
+                        Click="BulkImport_Click" />
+                <Button AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_BulkExport_Button"
+                        Name="BulkExportButton" Content="Bulk Export"
+                        Click="BulkExport_Click" />
+              </StackPanel>
+            </Border>
 
           </StackPanel>
         </Grid>

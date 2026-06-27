@@ -23,6 +23,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public const uint LEVELUP_BLOCK_SIZE = 2;
         public const uint LEVELUP_MAX_ROWS = 20;
         public const uint LEVELUP_TERMINATOR = 0x0000;
+        public const uint DEFAULT_LEVELUP_DEFAULT = 0x0101;
         public const uint MASTER_BLOCK_SIZE = 1;
 
         uint _assignUnitPointerLocation = U.NOT_FOUND;
@@ -52,6 +53,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unitSkill;
         uint _xLevelUpAddr;
         bool _isZeroPointer;
+        bool _isIndependenceVisible;
         bool _hasLevelUpTable;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -60,6 +62,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint UnitSkill { get => _unitSkill; set => SetField(ref _unitSkill, value); }
         public uint XLevelUpAddr { get => _xLevelUpAddr; set => SetField(ref _xLevelUpAddr, value); }
         public bool IsZeroPointer { get => _isZeroPointer; set => SetField(ref _isZeroPointer, value); }
+
+        /// <summary>
+        /// True when the selected unit's level-up pointer is shared with at least
+        /// one OTHER unit slot — i.e. "Make Independent" is meaningful. Drives the
+        /// View's IndependencePanel visibility. Mirrors the sibling Class VM's
+        /// <c>IsIndependenceVisible</c> and WF
+        /// <c>SkillAssignmentUnitSkillSystemForm.IsShowIndependencePanel</c>.
+        /// </summary>
+        public bool IsIndependenceVisible { get => _isIndependenceVisible; set => SetField(ref _isIndependenceVisible, value); }
 
         /// <summary>
         /// True only when the per-unit level-up table (LEVELUP+4) resolves to a
@@ -215,6 +226,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 XLevelUpAddr = 0;
                 IsZeroPointer = false;
+                IsIndependenceVisible = false;
                 LevelUpEntries.Clear();
                 SelectedLevelUpAddr = 0;
                 SelectedLevelUpId = 0;
@@ -310,24 +322,243 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(SelectedLevelUpAddr + 1, LevelUpSkill);
         }
 
+        public sealed class LevelUpExpandResult
+        {
+            public bool Success { get; init; }
+            public string Error { get; init; }
+            public uint NewBaseAddress { get; init; }
+            public uint NewDataCount { get; init; }
+        }
+
+        /// <summary>
+        /// Allocate (when the per-unit pointer is 0) or grow the selected unit's
+        /// 0x0000-terminated level-up list by one entry, then repoint ONLY this
+        /// unit's <c>LEVELUP+4</c> slot. Mirrors WF
+        /// <c>SkillAssignmentUnitSkillSystemForm.N1_InputFormRef_AddressListExpandsEvent</c>
+        /// and the sibling Class VM's <c>ExpandLevelUpList</c>.
+        ///
+        /// CRITICAL (single-slot): the grow path uses
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> with
+        /// <c>Repoint = PointerSlotOnly</c> (the default) so ONLY this unit's
+        /// pointer is repointed — units that share the same base intentionally
+        /// stay on the intact original table (the inverse of an all-reference
+        /// repoint). The terminator-row OOB write in a naive <c>ExpandTable</c>
+        /// grow is avoided by reserving a FULL zero terminator row
+        /// (<c>FullZeroTerminatorRow = true</c>) so the <c>0x0000</c> terminator
+        /// lands inside the allocation (Copilot plan-review finding #1).
+        /// </summary>
+        public LevelUpExpandResult ExpandLevelUpList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return new LevelUpExpandResult { Success = false, Error = "ROM not loaded." };
+            if (_assignLevelUpBaseAddress == 0 || _assignLevelUpBaseAddress == U.NOT_FOUND)
+                return new LevelUpExpandResult { Success = false, Error = "Skill assignment level-up table not resolved." };
+
+            uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
+            if (!U.isSafetyOffset(pointerAddr + 3, rom))
+                return new LevelUpExpandResult { Success = false, Error = "Per-unit pointer slot out of bounds." };
+
+            uint gbaPtr = rom.u32(pointerAddr);
+
+            if (gbaPtr == 0 || !U.isSafetyPointer(gbaPtr))
+            {
+                // First-allocation: one entry + a 0x0000 terminator.
+                const uint INITIAL_ENTRIES = 1;
+                uint allocSize = (INITIAL_ENTRIES + 1) * LEVELUP_BLOCK_SIZE;
+                uint newBase = DataExpansionCore.FindFreeSpace(rom, allocSize);
+                if (newBase == U.NOT_FOUND)
+                    return new LevelUpExpandResult { Success = false, Error = "No free space for new level-up table." };
+                rom.write_u8(newBase + 0, 0x01);
+                rom.write_u8(newBase + 1, 0x01);
+                rom.write_u16(newBase + LEVELUP_BLOCK_SIZE, (ushort)LEVELUP_TERMINATOR);
+                rom.write_p32(pointerAddr, newBase);
+                XLevelUpAddr = U.toPointer(newBase);
+                RecomputeVisibilityFlags(rom);
+                LoadLevelUpList(rom);
+                return new LevelUpExpandResult { Success = true, NewBaseAddress = newBase, NewDataCount = INITIAL_ENTRIES };
+            }
+
+            uint baseAddr2 = U.toOffset(gbaPtr);
+            uint oldCount = CountLevelUpEntries(rom, baseAddr2);
+            uint newCount = oldCount + 1;
+
+            // Grow with a reserved FULL zero terminator row so the 0x0000
+            // terminator never lands one row past the allocation.
+            var expandResult = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, LEVELUP_BLOCK_SIZE, oldCount, newCount, fullZeroTerminatorRow: true);
+            if (!expandResult.Success)
+                return new LevelUpExpandResult { Success = false, Error = expandResult.Error };
+
+            uint newBaseAddr = expandResult.NewBaseAddress;
+            // The new (last) data row was zero-filled by ExpandTableTo; a 0x0000
+            // pair reads as a terminator, so seed it with a sentinel level/skill
+            // (0x01/0x01) exactly like WF so the grown row stays visible.
+            uint newEntryAddr = newBaseAddr + oldCount * LEVELUP_BLOCK_SIZE;
+            if (U.isSafetyOffset(newEntryAddr + 1, rom))
+            {
+                rom.write_u8(newEntryAddr + 0, 0x01);
+                rom.write_u8(newEntryAddr + 1, 0x01);
+            }
+            XLevelUpAddr = U.toPointer(newBaseAddr);
+            RecomputeVisibilityFlags(rom);
+            LoadLevelUpList(rom);
+            return new LevelUpExpandResult { Success = true, NewBaseAddress = newBaseAddr, NewDataCount = newCount };
+        }
+
+        static uint CountLevelUpEntries(ROM rom, uint baseAddr)
+        {
+            uint count = 0;
+            uint cursor = baseAddr;
+            for (uint n = 0; n < LEVELUP_MAX_ROWS; n++, cursor += LEVELUP_BLOCK_SIZE)
+            {
+                if (!U.isSafetyOffset(cursor + 1, rom)) break;
+                uint pair = rom.u16(cursor);
+                if (pair == 0 || pair == 0xFFFF) break;
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// True when the selected unit's level-up table currently holds 0 rows,
+        /// so the View can mirror WF's "the list is empty, separate it anyway?"
+        /// confirm before <see cref="MakeIndependent"/>. Mirrors WF
+        /// <c>IndependenceButton_Click</c>'s <c>N1_InputFormRef.DataCount == 0</c>
+        /// check.
+        /// </summary>
+        public bool IsSelectedLevelUpListEmpty()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return true;
+            if (_assignLevelUpBaseAddress == 0 || _assignLevelUpBaseAddress == U.NOT_FOUND) return true;
+            uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
+            if (!U.isSafetyOffset(pointerAddr + 3, rom)) return true;
+            uint gbaPtr = rom.u32(pointerAddr);
+            if (!U.isSafetyPointer(gbaPtr)) return true;
+            return SkillAssignmentIndependenceCore.CountLevelUpRows(rom, U.toOffset(gbaPtr)) == 0;
+        }
+
+        /// <summary>
+        /// Clone the selected unit's SHARED level-up table into a fresh
+        /// free-space block and repoint ONLY this unit's pointer slot — mirrors WF
+        /// <c>SkillAssignmentUnitSkillSystemForm.IndependenceButton_Click</c> →
+        /// <c>PatchUtil.WriteIndependence</c>. Delegates to the generic
+        /// <see cref="SkillAssignmentIndependenceCore.MakeIndependent"/> (shared
+        /// with the Class VM). CRITICALLY a SINGLE-slot repoint, NOT
+        /// <c>RepointAllReferences</c>: every other sharing unit deliberately
+        /// stays on the intact original table.
+        /// </summary>
+        /// <returns>The new block's GBA pointer (0x08xxxxxx) on success, or 0 on
+        /// no-op / failure.</returns>
+        public uint MakeIndependent(Undo.UndoData undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return 0;
+            if (_assignLevelUpBaseAddress == 0 || _assignLevelUpBaseAddress == U.NOT_FOUND) return 0;
+
+            uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
+            if (!U.isSafetyOffset(pointerAddr + 3, rom)) return 0;
+
+            uint gbaPtr = rom.u32(pointerAddr);
+            if (!U.isSafetyPointer(gbaPtr)) return 0;
+            if (!U.isSafetyOffset(U.toOffset(gbaPtr), rom)) return 0;
+
+            uint newOffset = SkillAssignmentIndependenceCore.MakeIndependent(
+                rom, _assignLevelUpBaseAddress, SelectedId, undoData);
+            if (newOffset == U.NOT_FOUND || newOffset == 0) return 0;
+
+            XLevelUpAddr = U.toPointer(newOffset);
+            RecomputeVisibilityFlags(rom);
+            LoadLevelUpList(rom);
+            return U.toPointer(newOffset);
+        }
+
+        /// <summary>
+        /// Bulk-export the per-unit skill assignment table to a
+        /// <c>*.SkillAssignmentUnit.tsv</c>. Reuses the generic
+        /// <see cref="SkillAssignmentClassSkillSystemCore.ExportAllData"/> — the
+        /// per-unit TSV format is byte-identical to the per-class one (master B0
+        /// u8 + level-up table offset + level/skill u8 pairs), confirmed against
+        /// WF <c>SkillAssignmentUnitSkillSystemForm.ExportAllData</c>.
+        /// </summary>
+        public bool ExportAllData(string filename)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (_assignUnitPointerLocation == U.NOT_FOUND
+                || _assignLevelUpPointerLocation == U.NOT_FOUND) return false;
+            uint unitBase = rom.p32(_assignUnitPointerLocation);
+            uint unitCount = ResolveUnitCount(rom);
+            return SkillAssignmentClassSkillSystemCore.ExportAllData(
+                rom, unitBase, _assignLevelUpPointerLocation, unitCount, filename);
+        }
+
+        /// <summary>
+        /// Bulk-import the per-unit skill assignment table from a TSV. See
+        /// <see cref="ExportAllData"/> for the shared format note.
+        /// </summary>
+        public bool ImportAllData(string filename)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (_assignUnitPointerLocation == U.NOT_FOUND
+                || _assignLevelUpPointerLocation == U.NOT_FOUND) return false;
+            uint unitBase = rom.p32(_assignUnitPointerLocation);
+            uint unitCount = ResolveUnitCount(rom);
+            return SkillAssignmentClassSkillSystemCore.ImportAllData(
+                rom, unitBase, _assignLevelUpPointerLocation, unitCount, filename);
+        }
+
+        static uint ResolveUnitCount(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null) return 0;
+            return rom.RomInfo.unit_maxcount;
+        }
+
         void RecomputeVisibilityFlags(ROM rom)
         {
-            if (rom == null) { IsZeroPointer = false; return; }
-            // Mirror WF: hide panel for index-0 (sentinel slot).
+            if (rom == null) { IsZeroPointer = false; IsIndependenceVisible = false; return; }
+            // Mirror WF: hide both panels for index-0 (sentinel slot).
             if (SelectedId == 0)
             {
                 IsZeroPointer = false;
+                IsIndependenceVisible = false;
                 return;
             }
             // CRITICAL: only compute when LEVELUP base is valid.
             if (_assignLevelUpBaseAddress == 0 || _assignLevelUpBaseAddress == U.NOT_FOUND)
             {
                 IsZeroPointer = false;
+                IsIndependenceVisible = false;
                 return;
             }
             uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
             uint gbaPtr = U.isSafetyOffset(pointerAddr + 3, rom) ? rom.u32(pointerAddr) : 0;
-            IsZeroPointer = (gbaPtr == 0);
+            if (gbaPtr == 0)
+            {
+                IsZeroPointer = true;
+                IsIndependenceVisible = false;
+                return;
+            }
+            IsZeroPointer = false;
+            IsIndependenceVisible = IsTableShared(rom, gbaPtr);
+        }
+
+        // True when another unit slot points at the SAME level-up table. Mirrors
+        // the Class VM's IsTableShared / WF IsExistsAssignLevelUpPointer.
+        bool IsTableShared(ROM rom, uint currentGbaPtr)
+        {
+            if (!U.isSafetyPointer(currentGbaPtr)) return false;
+            uint unitCount = ReadCount;
+            for (uint i = 0; i < unitCount; i++)
+            {
+                if (i == SelectedId) continue;
+                uint slot = _assignLevelUpBaseAddress + i * 4;
+                if (!U.isSafetyOffset(slot + 3, rom)) continue;
+                uint other = rom.u32(slot);
+                if (other == currentGbaPtr) return true;
+            }
+            return false;
         }
 
         void ResetDerivedListState()
@@ -340,6 +571,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             UnitSkill = 0;
             XLevelUpAddr = 0;
             IsZeroPointer = false;
+            IsIndependenceVisible = false;
             HasLevelUpTable = false;
             LevelUpEntries.Clear();
             SelectedLevelUpAddr = 0;
