@@ -59,7 +59,7 @@ namespace FEBuilderGBA.Core.Tests
 
             // OBJ: (PATCHED_TILE_INDEX + 4) tiles, all index 0 initially.
             byte[] objRaw = new byte[32 * (PATCHED_TILE_INDEX + 4)];
-            Array.Copy(LZ77.compress(objRaw), 0, rom.Data, OBJ_OFF, LZ77.compress(objRaw).Length);
+            PlantCompressed(rom, OBJ_OFF, objRaw);
 
             // Palette (raw 512 bytes): give a few distinct colors so a changed
             // index is visibly different. color i = i*0x0421 spreads R/G/B bits.
@@ -81,13 +81,21 @@ namespace FEBuilderGBA.Core.Tests
                 cfgRaw[s * 2] = (byte)(tsa & 0xFF);
                 cfgRaw[s * 2 + 1] = (byte)(tsa >> 8);
             }
-            Array.Copy(LZ77.compress(cfgRaw), 0, rom.Data, CFG_OFF, LZ77.compress(cfgRaw).Length);
+            PlantCompressed(rom, CFG_OFF, cfgRaw);
 
             // Map: 1×1 logical tile, MAR value 0.
             byte[] marRaw = new byte[] { 1, 1, 0, 0 };
-            Array.Copy(LZ77.compress(marRaw), 0, rom.Data, MAP_OFF, LZ77.compress(marRaw).Length);
+            PlantCompressed(rom, MAP_OFF, marRaw);
 
             return rom;
+        }
+
+        // Compress ONCE and copy that exact buffer (Copilot review: never compress
+        // twice and copy buffer-A using buffer-B's length).
+        static void PlantCompressed(ROM rom, uint offset, byte[] raw)
+        {
+            byte[] compressed = LZ77.compress(raw);
+            Array.Copy(compressed, 0, rom.Data, offset, compressed.Length);
         }
 
         [Fact]
