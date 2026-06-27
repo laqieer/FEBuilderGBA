@@ -344,10 +344,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// path does NOT use <see cref="DataExpansionCore.ExpandTableTo"/> /
         /// <see cref="DataExpansionCore.ExpandTable"/>, both of which zero/0xFF-wipe
         /// the old region and would corrupt a sharing sibling
-        /// (Copilot PR-review finding #1). The new last row is seeded 0x01/0x01
-        /// (a 0x0000 pair would read as a terminator and hide the grown row),
-        /// matching WF. All writes route through the ambient undo scope opened by
-        /// the View's <c>UndoService.Begin</c>.
+        /// (Copilot PR-review finding #1). The new last row is seeded
+        /// <see cref="DEFAULT_LEVELUP_DEFAULT"/> (0x0101 — a 0x0000 pair would read
+        /// as a terminator and hide the grown row), matching WF. All writes route
+        /// through the ambient undo scope opened by the View's
+        /// <c>UndoService.Begin</c>.
         /// </summary>
         public LevelUpExpandResult ExpandLevelUpList()
         {
@@ -376,8 +377,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint newBase = DataExpansionCore.FindFreeSpace(rom, allocSize);
                 if (newBase == U.NOT_FOUND)
                     return new LevelUpExpandResult { Success = false, Error = "No free space for new level-up table." };
-                rom.write_u8(newBase + 0, 0x01);
-                rom.write_u8(newBase + 1, 0x01);
+                // DEFAULT_LEVELUP_DEFAULT (0x0101) writes lv 0x01 / skill 0x01 as a
+                // single little-endian u16 (a 0x0000 pair would read as terminator).
+                rom.write_u16(newBase + 0, (ushort)DEFAULT_LEVELUP_DEFAULT);
                 rom.write_u16(newBase + LEVELUP_BLOCK_SIZE, (ushort)LEVELUP_TERMINATOR);
                 rom.write_p32(pointerAddr, newBase);
                 XLevelUpAddr = U.toPointer(newBase);
@@ -414,10 +416,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 byte[] existing = rom.getBinaryData(oldBase, oldBytes);
                 rom.write_range(newBaseAddr, existing);
             }
-            // New (last) data row: 0x01/0x01 so it is not mistaken for a terminator.
+            // New (last) data row: DEFAULT_LEVELUP_DEFAULT (0x0101) so it is not
+            // mistaken for a 0x0000 terminator.
             uint newEntryAddr = newBaseAddr + oldBytes;
-            rom.write_u8(newEntryAddr + 0, 0x01);
-            rom.write_u8(newEntryAddr + 1, 0x01);
+            rom.write_u16(newEntryAddr, (ushort)DEFAULT_LEVELUP_DEFAULT);
             // 0x0000 terminator right after the new row.
             rom.write_u16(newBaseAddr + newCount * LEVELUP_BLOCK_SIZE, (ushort)LEVELUP_TERMINATOR);
             // Repoint ONLY this unit's slot; the old table is left intact.

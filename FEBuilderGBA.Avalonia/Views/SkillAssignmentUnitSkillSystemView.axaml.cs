@@ -322,7 +322,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitSkillSystemView.N1ListExpand failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitSkillSystemView.N1ListExpand failed: {ex}");
             }
         }
 
@@ -369,7 +369,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error($"SkillAssignmentUnitSkillSystemView.Independence failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitSkillSystemView.Independence failed: {ex}");
             }
         }
 
@@ -397,7 +397,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkExport failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkExport failed: {ex}");
             }
         }
 
@@ -442,12 +442,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport failed: {ex.Message}");
+                    Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport failed: {ex}");
                 }
             }
             catch (Exception ex)
             {
-                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport file picker failed: {ex.Message}");
+                Log.Error($"SkillAssignmentUnitSkillSystemView.BulkImport file picker failed: {ex}");
             }
         }
 
