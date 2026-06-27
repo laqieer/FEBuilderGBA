@@ -525,6 +525,41 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Str_DoubleEscapedEntity_DoesNotDoubleDecode()
+        {
+            // Regression for the str() entity fallback (Copilot PR #1655 review):
+            // `&amp;lt;` is an intentionally double-escaped `&lt;`. str() must
+            // decode it EXACTLY ONCE to `&lt;` and must NOT recurse to decode a
+            // SECOND time into `<`. Here the dictionary has a translation only for
+            // the fully-decoded `<`; the single-decode result `&lt;` is NOT a key,
+            // so str() must pass it through as `&lt;` — proving no double-decode.
+            string langFile = Path.GetTempFileName();
+            try
+            {
+                // ":<" has no entity, so the loader keeps "<" as a literal key with
+                // value "RAW-LT". This is the double-decode trap target.
+                File.WriteAllText(langFile,
+                    ":<\n" +
+                    "RAW-LT\n" +
+                    "\n");
+                MyTranslateResource.LoadResource(langFile);
+
+                // "&amp;lt;" -> single decode -> "&lt;", which is NOT a key, so the
+                // chain misses and str() passes the ORIGINAL src through unchanged.
+                // If str() double-decoded ("&lt;" -> "<"), it would wrongly return
+                // "RAW-LT" — that must NOT happen.
+                Assert.Equal("&amp;lt;", MyTranslateResource.str("&amp;lt;"));
+                Assert.NotEqual("RAW-LT", MyTranslateResource.str("&amp;lt;"));
+                // Sanity: a single-level "&lt;" DOES resolve to the "<" entry.
+                Assert.Equal("RAW-LT", MyTranslateResource.str("&lt;"));
+            }
+            finally
+            {
+                File.Delete(langFile);
+            }
+        }
+
+        [Fact]
         public void ChineseMode_AmpEntityKey_ResolvesToChinese()
         {
             // Real-world #1636 case: en.txt shipped `:Support &amp; Other`, the

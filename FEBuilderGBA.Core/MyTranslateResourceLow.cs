@@ -103,57 +103,76 @@ namespace FEBuilderGBA
             //     decodes to CRLF). Without normalisation, the LF runtime
             //     key would never match the CRLF stored key. Try both LF→CRLF
             //     and CRLF→LF conversions before giving up.
-            if (src.IndexOf('\n') >= 0 || src.IndexOf('\r') >= 0)
+            if (TryNewlineNormalisedResolve(src, out dest))
             {
-                // Normalise to CRLF (LF → CRLF) for direct + reverse lookup
-                string crlfForm = src.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
-                if (crlfForm != src)
-                {
-                    if (Dic.TryGetValue(crlfForm, out dest)) return dest;
-                    if (ReverseEnglishMap.TryGetValue(crlfForm, out japaneseKey))
-                    {
-                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
-                        return japaneseKey;
-                    }
-                }
-                // Normalise to LF (CRLF → LF) for direct + reverse lookup
-                string lfForm = src.Replace("\r\n", "\n").Replace("\r", "\n");
-                if (lfForm != src)
-                {
-                    if (Dic.TryGetValue(lfForm, out dest)) return dest;
-                    if (ReverseEnglishMap.TryGetValue(lfForm, out japaneseKey))
-                    {
-                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
-                        return japaneseKey;
-                    }
-                }
+                return dest;
             }
 
             // 2d. XML-entity normalisation (issue #1636): a caller may pass a string
             //     that still carries raw entities (`&#10;`, `&#x0a;`, `&amp;`, `&lt;`)
             //     even though the dictionaries are now keyed by the decoded form.
-            //     Decode and retry the full direct + reverse chain (with newline
-            //     normalisation) before giving up.
+            //     Decode ONCE and retry the direct + reverse chain (plus newline
+            //     normalisation) directly — never recurse back into str(), which
+            //     would re-run DecodeXmlEntities and could double-decode an
+            //     intentionally double-escaped input (e.g. `&amp;lt;`).
             if (src.IndexOf('&') >= 0)
             {
                 string decoded = DecodeXmlEntities(src);
                 if (decoded != src)
                 {
-                    if (Dic.TryGetValue(decoded, out dest)) return dest;
-                    if (ReverseEnglishMap.TryGetValue(decoded, out japaneseKey))
-                    {
-                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
-                        return japaneseKey;
-                    }
-                    // The decoded form may itself differ from the stored key only in
-                    // newline form (LF vs CRLF) — reuse str()'s normalisation chain.
-                    string viaNewline = str(decoded);
-                    if (viaNewline != decoded) return viaNewline;
+                    if (TryDirectAndReverse(decoded, out dest)) return dest;
+                    if (TryNewlineNormalisedResolve(decoded, out dest)) return dest;
                 }
             }
 
             // 3. Pass-through
             return src;
+        }
+
+        // Direct Dic lookup, then the reverse English→Japanese→target chain (in
+        // Japanese mode Dic is cleared, so the Japanese key itself is returned).
+        // Does NOT apply newline / entity normalisation — callers layer that on.
+        bool TryDirectAndReverse(string key, out string result)
+        {
+            if (Dic.TryGetValue(key, out result))
+            {
+                return true;
+            }
+            if (ReverseEnglishMap.TryGetValue(key, out string japaneseKey))
+            {
+                if (Dic.TryGetValue(japaneseKey, out result))
+                    return true;
+                result = japaneseKey; // Japanese mode
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
+        // Try both LF→CRLF and CRLF→LF forms of <paramref name="key"/> through the
+        // direct + reverse chain (issue #356). Returns false (result null) when the
+        // key has no line break or neither normalised form resolves.
+        bool TryNewlineNormalisedResolve(string key, out string result)
+        {
+            result = null;
+            if (key.IndexOf('\n') < 0 && key.IndexOf('\r') < 0)
+            {
+                return false;
+            }
+            // Normalise to CRLF (LF → CRLF).
+            string crlfForm = key.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+            if (crlfForm != key && TryDirectAndReverse(crlfForm, out result))
+            {
+                return true;
+            }
+            // Normalise to LF (CRLF → LF).
+            string lfForm = key.Replace("\r\n", "\n").Replace("\r", "\n");
+            if (lfForm != key && TryDirectAndReverse(lfForm, out result))
+            {
+                return true;
+            }
+            result = null;
+            return false;
         }
         /// <summary>
         /// Clear all translation entries so str() returns keys as-is (built-in Japanese).
