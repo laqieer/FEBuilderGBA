@@ -349,8 +349,20 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             // `//` that lives inside a string.
             content = StripCommentsPreservingLayout(content);
 
+            // Track the line number incrementally. Regex.Matches yields matches in
+            // ascending index order, so we only ever count the newlines BETWEEN the
+            // previous match index and the current one — keeping the whole scan O(N)
+            // instead of the O(N*M) a from-the-start re-count per match would cost.
+            int lineNumber = 1;
+            int scannedUpTo = 0;
+
             foreach (Match m in RUnderscoreCallStart.Matches(content))
             {
+                // Advance the running line counter across the gap since the last match.
+                for (int p = scannedUpTo; p < m.Index; p++)
+                    if (content[p] == '\n') lineNumber++;
+                scannedUpTo = m.Index;
+
                 // The match ends just past the opening quote. `@?"` — verbatim
                 // (`@"..."`) string literals double their quotes to escape them;
                 // detect which form we matched so the literal scanner uses the
@@ -386,10 +398,9 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 else
                     verdict = L10nVerdict.PartiallyTranslated;
 
-                int line = content.Take(m.Index).Count(c => c == '\n') + 1;
                 findings.Add(new CodeLiteralFinding(
                     SourcePath: sourceRelPath,
-                    LineNumber: line,
+                    LineNumber: lineNumber,
                     Literal: literal,
                     TranslationStatus: status,
                     Verdict: verdict));
@@ -475,8 +486,9 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         }
 
         /// <summary>
-        /// Replace the BODY of every C# comment (`//`, `///`, `/* */`) with spaces
-        /// while leaving newlines and overall length untouched, so subsequent
+        /// Blank every C# comment (`//`, `///`, `/* */`) — including its delimiters
+        /// (`//`, `/*`, `*/`) AND body — by replacing each comment character with a
+        /// space, while leaving newlines and overall length untouched, so subsequent
         /// regex matching keeps accurate offsets / line numbers but never sees a
         /// `R._("...")` that lives inside a comment. String and char literals are
         /// preserved verbatim (and skipped over) so a `//` or `/*` inside a string
