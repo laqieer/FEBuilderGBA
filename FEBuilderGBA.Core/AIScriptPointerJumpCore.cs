@@ -183,12 +183,13 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// PURE: write a 4-byte GBA pointer into an opcode's in-memory ByteData at
-        /// the argument's position (little-endian), returning the modified array.
-        /// The caller mutates the editor's pending-edit model row with the result
-        /// (WriteScript serializes ByteData later). No ROM access. Returns the
-        /// array unchanged when the arg is not a 4-byte slot or would run off the
-        /// end of ByteData.
+        /// PURE (no ROM access): write a 4-byte GBA pointer IN PLACE into an
+        /// opcode's in-memory <paramref name="byteData"/> at the argument's
+        /// position (little-endian). The caller passes the editor's pending-edit
+        /// model row's bytes; WriteScript serializes them later. Leaves the array
+        /// UNCHANGED (no-op) when <paramref name="byteData"/>/<paramref name="arg"/>
+        /// is null, the arg is not a 4-byte slot, or the slot would run off the end
+        /// of the array.
         /// </summary>
         public static void WritePointerIntoBytes(byte[] byteData, EventScript.Arg arg, uint pointerValue)
         {
