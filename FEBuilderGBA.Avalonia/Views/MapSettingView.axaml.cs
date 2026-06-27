@@ -89,13 +89,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("MapSettingView.OnExpandListClick inner failed: {0}", inner.ToString());
+                    Log.Error("MapSettingView.OnExpandListClick inner failed: " + inner.ToString());
                     CoreState.Services?.ShowError(R._("Map setting list expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingView.OnExpandListClick failed: {0}", ex.ToString());
+                Log.Error("MapSettingView.OnExpandListClick failed: " + ex.ToString());
             }
         }
 
