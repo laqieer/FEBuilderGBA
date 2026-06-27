@@ -3,6 +3,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -37,6 +38,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("SummonUnitViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+            // #1605: the summon table only exists on FE8 (FE6/FE7 have
+            // summon_unit_pointer == 0). Gate the Expand affordance to the
+            // active ROM so it disables on a non-FE8 / no ROM load. Wrapped
+            // defensively since ExpandListButton is a generated AXAML field.
+            try
+            {
+                if (ExpandListButton != null)
+                    ExpandListButton.IsEnabled =
+                        CoreState.ROM?.RomInfo?.version == 8 &&
+                        CoreState.ROM?.RomInfo?.summon_unit_pointer != 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SummonUnitViewerView.LoadList expand-gate failed: {0}", ex.Message);
+            }
         }
 
         void OnSelected(uint addr)
@@ -84,6 +101,94 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Summon unit data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("SummonUnitViewerView.Write: {0}", ex.Message); }
+        }
+
+        // リストの拡張 — expand the 2-byte summon_unit_pointer table by a prompted
+        // count, mirroring WinForms SummonUnitForm.AddressListExpandsEvent (#1605).
+        // FE8-only (FE6/FE7 have summon_unit_pointer == 0). The whole expand runs
+        // under one UndoService scope with a byte-identical fault restore inside
+        // SummonUnitExpandCore.ExpandSummonUnitTable. On a cancel / malformed /
+        // zero / same count this is a no-op.
+        async void OnExpandListClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (CoreState.ROM.RomInfo?.version != 8)
+                {
+                    CoreState.Services?.ShowInfo(R._("Summon unit table is only available on FE8."));
+                    return;
+                }
+
+                uint current = (uint)_vm.LoadSummonUnitList().Count;
+                if (current == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: the summon list is empty."));
+                    return;
+                }
+
+                // Max = the Core/editor enumeration cap (SummonUnitExpandCore.MaxRows
+                // == 0x100 == 256). Refuse when already at the cap so the dialog
+                // never gets an invalid min>max range.
+                uint maxCount = SummonUnitExpandCore.MaxRows;
+                if (current >= maxCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("Already at the maximum of {0} entries.", maxCount));
+                    return;
+                }
+
+                uint defaultCount = current + 1;
+                if (defaultCount > maxCount) defaultCount = maxCount;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new summon entry count (current: {0}, max: {1}).", current, maxCount),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    maxCount);
+                if (chosen == null) return; // user cancelled
+
+                uint newCount = chosen.Value;
+                if (newCount <= current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count must be greater than the current count."));
+                    return;
+                }
+                uint addCount = newCount - current;
+
+                _undoService.Begin("Expand Summon Unit");
+                try
+                {
+                    var result = SummonUnitExpandCore.ExpandSummonUnitTable(
+                        CoreState.ROM, addCount, _undoService.GetActiveUndoData(), out string err);
+                    if (!result.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(string.IsNullOrEmpty(err)
+                            ? R._("Summon list expansion failed.") : err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded summon list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"SummonUnitViewerView.OnExpandListClick inner failed: {inner}");
+                    CoreState.Services?.ShowError(R._("Summon list expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"SummonUnitViewerView.OnExpandListClick failed: {ex}");
+            }
         }
 
         // -- IdFieldControl handlers (#360) ----------------------------------
