@@ -52,14 +52,21 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// into a temp file whose extension matches <paramref name="name"/>, and
         /// return that path. #1639.
         /// </summary>
+        // Read-temps older than this are eligible for the best-effort sweep. A
+        // generous window so a DEFERRED flow (browse now, Import/Reduce later —
+        // possibly after picking other SAF files in between) keeps its temp:
+        // only genuinely stale temps from prior sessions / abandoned picks go.
+        static readonly TimeSpan ReadTempMaxAge = TimeSpan.FromHours(12);
+
         internal static async Task<string?> CopyStreamToTempAsync(Func<Task<Stream>> openRead, string? name)
         {
             // Read-temp files must outlive this call (deferred flows read them on a
             // later button click), so they can't be deleted here. To avoid an
-            // unbounded leak (review #1639 finding 5), each new read-temp first
-            // best-effort sweeps the read-temps left by PRIOR picks in this
-            // session's dedicated subdirectory. The cost is bounded (one dir
-            // listing) and never throws.
+            // unbounded leak (review #1639 finding 5) WITHOUT breaking deferred
+            // flows (review follow-up), each new read-temp best-effort sweeps only
+            // read-temps OLDER THAN ReadTempMaxAge in this session's dedicated
+            // subdirectory — never a temp a current deferred flow might still use.
+            // The cost is bounded (one dir listing) and never throws.
             string dir = ReadTempDir();
             SweepReadTemps(dir);
             string ext = Path.GetExtension(name ?? "");
@@ -80,19 +87,48 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return Directory.Exists(dir) ? dir : Path.GetTempPath();
         }
 
-        // Best-effort cleanup of read-temp copies from earlier picks. A file that
-        // is still open (a deferred flow mid-read) cannot be deleted on Windows and
-        // is simply skipped — it will be swept on a later pick. Never throws.
+        // Best-effort age-based cleanup of read-temp copies from EARLIER picks.
+        // Only temps last-written more than <see cref="ReadTempMaxAge"/> ago are
+        // deleted, so a deferred flow's recent temp (kept for a later Import /
+        // Reduce, even across other SAF picks) is never removed. A file still open
+        // (a flow mid-read) cannot be deleted on Windows and is simply skipped.
+        // Never throws.
         static void SweepReadTemps(string dir)
         {
+            DateTime cutoff = DateTime.UtcNow - ReadTempMaxAge;
             try
             {
                 foreach (string f in Directory.EnumerateFiles(dir, "febgba_read_*"))
                 {
-                    try { File.Delete(f); } catch { /* in use or gone — skip */ }
+                    try
+                    {
+                        if (File.GetLastWriteTimeUtc(f) < cutoff)
+                            File.Delete(f);
+                    }
+                    catch { /* in use / gone / unreadable timestamp — skip */ }
                 }
             }
             catch { /* dir missing / unlistable — ignore */ }
+        }
+
+        /// <summary>
+        /// Test seam (#1639 review follow-up): force-delete read-temps older than
+        /// <paramref name="maxAge"/> (defaults to the production window). Lets a
+        /// unit test verify the age-based sweep without sleeping 12 hours.
+        /// </summary>
+        internal static void SweepReadTempsForTest(TimeSpan? maxAge = null)
+        {
+            string dir = ReadTempDir();
+            DateTime cutoff = DateTime.UtcNow - (maxAge ?? ReadTempMaxAge);
+            try
+            {
+                foreach (string f in Directory.EnumerateFiles(dir, "febgba_read_*"))
+                {
+                    try { if (File.GetLastWriteTimeUtc(f) < cutoff) File.Delete(f); }
+                    catch { /* skip */ }
+                }
+            }
+            catch { /* ignore */ }
         }
 
         /// <summary>
@@ -567,6 +603,22 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <summary>Synchronous-writer overload of <see cref="SaveImageFileVia(Window, string, Func{string, Task})"/>.</summary>
         public static Task<string?> SaveImageFileVia(Window owner, string? suggestedName, Action<string> writer)
             => SaveImageFileVia(owner, suggestedName, p => { writer(p); return Task.CompletedTask; });
+
+        /// <summary>
+        /// Pick a PNG save target and return the <see cref="IStorageFile"/> handle
+        /// (not collapsed), for callers that need to inspect the chosen path before
+        /// writing (e.g. the desktop overwrite-confirmation in ImageExportService)
+        /// and then bridge the write via <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>. #1639.
+        /// </summary>
+        public static async Task<IStorageFile?> SaveImageFilePick(Window owner, string? suggestedName = null)
+        {
+            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Export Image"),
+                SuggestedFileName = suggestedName ?? "image.png",
+                FileTypeChoices = new[] { MakePngFileType() },
+            });
+        }
 
         /// <summary>Pick a palette save target (multi-format) and run <paramref name="writer"/> via the SAF bridge.</summary>
         public static async Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Func<string, Task> writer)

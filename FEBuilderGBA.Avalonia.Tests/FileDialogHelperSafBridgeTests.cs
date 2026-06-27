@@ -68,11 +68,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public async Task CopyStreamToTempAsync_SweepsPriorReadTemps()
+        public async Task CopyStreamToTempAsync_DoesNotSweepRecentReadTemps()
         {
-            // #1639 finding 5: read-temps from PRIOR picks are swept on the next
-            // pick so they don't accumulate. The first temp (closed after the read)
-            // must be gone after a second pick creates its own.
+            // #1639 review follow-up: the read-temp sweep is AGE-BASED so a
+            // DEFERRED flow (browse now, Import/Reduce later — even after picking
+            // other SAF files in between) keeps its temp. A second pick must NOT
+            // delete the first, recent temp.
             string? first = await FileDialogHelper.CopyStreamToTempAsync(
                 () => Task.FromResult<Stream>(new MemoryStream(new byte[] { 1 })), "a.bin");
             Assert.True(File.Exists(first));
@@ -81,9 +82,26 @@ namespace FEBuilderGBA.Avalonia.Tests
                 () => Task.FromResult<Stream>(new MemoryStream(new byte[] { 2 })), "b.bin");
 
             Assert.True(File.Exists(second));
-            Assert.False(File.Exists(first)); // prior read-temp swept
+            Assert.True(File.Exists(first)); // recent prior read-temp is RETAINED
 
+            try { File.Delete(first!); } catch { }
             try { File.Delete(second!); } catch { }
+        }
+
+        [Fact]
+        public async Task SweepReadTemps_RemovesStaleReadTemps()
+        {
+            // The sweep DOES reclaim genuinely old temps (no unbounded leak).
+            // Create a read-temp, backdate it past the window, then sweep with a
+            // zero max-age so any past-cutoff temp is eligible.
+            string? old = await FileDialogHelper.CopyStreamToTempAsync(
+                () => Task.FromResult<Stream>(new MemoryStream(new byte[] { 9 })), "stale.bin");
+            Assert.True(File.Exists(old));
+            File.SetLastWriteTimeUtc(old!, DateTime.UtcNow.AddHours(-24));
+
+            FileDialogHelper.SweepReadTempsForTest(TimeSpan.Zero);
+
+            Assert.False(File.Exists(old)); // stale temp reclaimed
         }
 
         [Fact]
