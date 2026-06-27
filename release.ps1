@@ -9,9 +9,12 @@
     (best-effort), so a single local run can mirror the full-suite asset set
     that the tag-triggered release workflow produces.
 
-    This script is a *local convenience* / fallback. The canonical release flow
-    is the tag-triggered CI workflow documented in docs/RELEASE.md — push a
-    `ver_YYYYMMDD.NN` tag and CI builds and attaches every platform artifact.
+    This script is part of the CURRENT live release flow: the release process
+    is manual today (build -> stage with this script -> `gh release create`),
+    as documented in docs/RELEASE.md. A tag-triggered CI workflow that would
+    build and attach every platform artifact on a `ver_YYYYMMDD.NN` tag push is
+    PLANNED but NOT yet merged (tracked by issue #1629); until it lands, the
+    manual/script path here is the source of truth.
 
 .PARAMETER OutputDir
     Destination folder to stage the release into. Created if missing.
