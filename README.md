@@ -14,6 +14,7 @@ README
 [![Cross-Platform](https://github.com/laqieer/FEBuilderGBA/actions/workflows/crossplatform.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/crossplatform.yml)
 [![Android](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android.yml)
 [![Android Emulator Parity](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml)
+[![Release](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml)
 
 Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [![Gitee Go Build](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
 
@@ -903,6 +904,13 @@ FEBuilderGBA uses a two-track update model that keeps the application and patch 
 | **Patch2** | ~44,000 patch files in `config/patch2/` | `git fetch` + `git reset --hard` via the built-in Git updater |
 
 When you check for updates the app compares the remote version against the local assembly build date and shows only the relevant update button(s).
+
+> **Publishing a release (maintainers):** pushing a `ver_YYYYMMDD.HH` tag triggers
+> [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds the WinForms desktop package,
+> the per-RID self-contained CLI and Avalonia bundles, and the Android APK, then creates the GitHub Release with
+> every platform package attached as a zipped asset. Publishing the release auto-fires
+> [`sync-release-to-gitee.yml`](.github/workflows/sync-release-to-gitee.yml) so the Gitee mirror gets the full
+> asset set. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#option-0-automated-tag-triggered-release-recommended) for details.
 
 ### Updating Patch2 via Git
 
