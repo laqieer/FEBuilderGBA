@@ -41,6 +41,7 @@ coverage-report/
 # Temp files
 lint_stdout.txt
 lint_stderr.txt
+/tmp/
 
 # Stale release folder
 r/
@@ -65,6 +66,9 @@ ss-stdout.txt
 docs/screenshots/*_test_output.txt
 cli-logs/
 config/log/
+# config/config.xml is a runtime user-preferences file (machine-specific);
+# keep it out of the index so local prefs can't be accidentally committed.
+config/config.xml
 
 # Prevent screenshots in project root (use pr-screenshots/ instead)
 /*.png
