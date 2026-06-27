@@ -26787,3 +26787,1074 @@ TSA 写入失败：{0}
 
 :Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 请输入 AI 指针表的新条目数（当前：{0}，最大：{1}）。
+:(No ROM loaded)
+(未加载ROM)
+
+:.s assembled into the song at 0x{0:X08}.
+已将 .s 汇编到位于 0x{0:X08} 的乐曲中。
+
+:.s import failed.
+.s 导入失败。
+
+:.s import failed: {0}
+.s 导入失败: {0}
+
+:2-ROM Diff failed: {0}
+2-ROM 差异比较失败: {0}
+
+:2-ROM Diff: 'other ROM' file not found.
+2-ROM 差异: 找不到“另一个ROM”文件。
+
+:2-ROM Diff: 'other ROM' path required.
+2-ROM 差异: 需要指定“另一个ROM”的路径。
+
+:2-ROM Diff: no ROM loaded.
+2-ROM 差异: 未加载ROM。
+
+:2-ROM Diff: output path required.
+2-ROM 差异: 需要指定输出路径。
+
+:2-ROM Diff: wrote patch file {0}.
+2-ROM 差异: 已写入补丁文件 {0}。
+
+:3-ROM Diff failed: {0}
+3-ROM 差异比较失败: {0}
+
+:3-ROM Diff: ROM A file not found.
+3-ROM 差异: 找不到 ROM A 文件。
+
+:3-ROM Diff: ROM B file not found.
+3-ROM 差异: 找不到 ROM B 文件。
+
+:3-ROM Diff: both A and B paths required.
+3-ROM 差异: 需要同时指定 A 和 B 的路径。
+
+:3-ROM Diff: no ROM loaded.
+3-ROM 差异: 未加载ROM。
+
+:3-ROM Diff: output path required.
+3-ROM 差异: 需要指定输出路径。
+
+:3-ROM Diff: wrote patch file {0}.
+3-ROM 差异: 已写入补丁文件 {0}。
+
+:A virtual ROM cannot be updated.
+无法更新虚拟ROM。
+
+:AI pointer table not found.
+找不到AI指针表。
+
+:Already at the maximum Demon King Summon count ({0}).
+已达到魔王召唤数量的最大值 ({0})。
+
+:Already at the maximum of {0} entries.
+已达到最大条目数 {0}。
+
+:Animated GIF
+动态GIF
+
+:Animation @ 0x{0:X08}
+动画 @ 0x{0:X08}
+
+:Animation Creator{0}
+动画制作器{0}
+
+:Animation Script (.txt)
+动画脚本 (.txt)
+
+:Animation pointer 0x{0:X} is outside the ROM.
+动画指针 0x{0:X} 超出ROM范围。
+
+:Applying UPS patch...
+正在应用UPS补丁...
+
+:Assemble this .s source into the selected song using the chosen 
+使用所选设置将此 .s 源汇编到选定的乐曲中 
+
+:BLANK
+空白
+
+:Back
+返回
+
+:Base64 read failed: {0}
+Base64 读取失败: {0}
+
+:Base64 write failed: {0}
+Base64 写入失败: {0}
+
+:Base64: could not decode (invalid base64).
+Base64: 无法解码（无效的Base64）。
+
+:Base64: encoded {0} bytes.
+Base64: 已编码 {0} 字节。
+
+:Base64: enter base64 text first.
+Base64: 请先输入Base64文本。
+
+:Base64: output path required.
+Base64: 需要指定输出路径。
+
+:Base64: source file not found.
+Base64: 找不到源文件。
+
+:Base64: source path required.
+Base64: 需要指定源文件路径。
+
+:Base64: wrote {0} bytes to {1}.
+Base64: 已将 {0} 字节写入 {1}。
+
+:Battle-screen bulk import supports a single palette bank (max {0} colors). Reduce the image to {0} colors first.
+战斗画面批量导入仅支持单个调色板组（最多 {0} 色）。请先将图像减色到 {0} 色。
+
+:Bulk Import Skill Config
+批量导入技能配置
+
+:Bulk import failed: {0}
+批量导入失败: {0}
+
+:Bulk imported from: {0}
+已从 {0} 批量导入。
+
+:CSA animation scan failed — bad frame-data pointer.
+CSA动画扫描失败 — 帧数据指针无效。
+
+:Cannot expand: change list has 0 records.
+无法扩展: 变更列表有 0 条记录。
+
+:Cannot expand: change list is empty (first byte is 0xFF).
+无法扩展: 变更列表为空（首字节为 0xFF）。
+
+:Cannot expand: change list is empty.
+无法扩展: 变更列表为空。
+
+:Cannot expand: the CHANGE PLIST slot could not be resolved.
+无法扩展: 无法解析 CHANGE PLIST 槽位。
+
+:Cannot expand: the change list appears unterminated (no 0xFF within 256 rows). 
+无法扩展: 变更列表似乎未终止（256 行内没有 0xFF）。 
+
+:Cannot expand: the game option list is already at the maximum of {0} entries.
+无法扩展: 游戏选项列表已达到最大条目数 {0}。
+
+:Cannot expand: the game option list is empty.
+无法扩展: 游戏选项列表为空。
+
+:Cannot expand: the game option order list is empty.
+无法扩展: 游戏选项顺序列表为空。
+
+:Cannot expand: the map setting list is empty.
+无法扩展: 地图设置列表为空。
+
+:Cannot expand: the sound room list is empty (no row 0 to copy).
+无法扩展: 音乐室列表为空（没有可复制的第 0 行）。
+
+:Cannot expand: the summon list is empty.
+无法扩展: 召唤列表为空。
+
+:Cannot open file: {0}
+无法打开文件: {0}
+
+:Cannot open folder: {0}
+无法打开文件夹: {0}
+
+:Cannot resolve the song-table entry for the selected song.
+无法解析所选乐曲的乐曲表条目。
+
+:Cannot write to SongID 0x0.
+无法写入 SongID 0x0。
+
+:Compress failed: {0}
+压缩失败: {0}
+
+:Compress: destination path required.
+压缩: 需要指定目标路径。
+
+:Compress: source file not found.
+压缩: 找不到源文件。
+
+:Compress: source path required.
+压缩: 需要指定源文件路径。
+
+:Compress: wrote {0} bytes to {1}.
+压缩: 已将 {0} 字节写入 {1}。
+
+:Confirm Move
+确认移动
+
+:Confirm Multi-Pointer Move
+确认多指针移动
+
+:Confirm Raw Pointer Fallback
+确认原始指针回退
+
+:Confirm Recompress
+确认重新压缩
+
+:Confirm Zero Clear
+确认清零
+
+:Convert failed: {0}
+转换失败: {0}
+
+:Copied generated hex to clipboard.
+已将生成的十六进制复制到剪贴板。
+
+:Could not install the ChapterNameToText patch.
+无法安装 ChapterNameToText 补丁。
+
+:Could not read the skill palette; aborting import.
+无法读取技能调色板，导入中止。
+
+:Could not resolve a local file path for export.
+无法解析用于导出的本地文件路径。
+
+:Could not resolve the update URL ({0}).
+无法解析更新URL ({0})。
+
+:Could not resolve the update URL ({0}). {1}
+无法解析更新URL ({0})。{1}
+
+:Could not select the destination song for import.
+无法选择导入目标乐曲。
+
+:DPCM compression is available (m4a HQ mixer patch detected).
+可使用DPCM压缩（已检测到 m4a HQ 混音器补丁）。
+
+:DPCM compression requires the m4a HQ mixer patch (not installed); raw 8-bit PCM will be used.
+DPCM压缩需要 m4a HQ 混音器补丁（未安装），将使用原始 8 位 PCM。
+
+:Dark field map is not available (FE8 only).
+暗场地图不可用（仅限FE8）。
+
+:Decompress failed: {0}
+解压失败: {0}
+
+:Decompress: SRC address is not a valid hex value.
+解压: SRC 地址不是有效的十六进制值。
+
+:Decompress: address out of range.
+解压: 地址超出范围。
+
+:Decompress: destination path required.
+解压: 需要指定目标路径。
+
+:Decompress: no ROM loaded.
+解压: 未加载ROM。
+
+:Decompress: source file not found.
+解压: 找不到源文件。
+
+:Decompress: wrote {0} bytes to {1}.
+解压: 已将 {0} 字节写入 {1}。
+
+:Demon King Summon table expansion failed.
+魔王召唤表扩展失败。
+
+:Demon King Summon table expansion failed: {0}
+魔王召唤表扩展失败: {0}
+
+:Demon King Summon table is not available for this ROM.
+此ROM不支持魔王召唤表。
+
+:Download/extract failed ({0}). {1}
+下载/解压失败 ({0})。{1}
+
+:Downloading and extracting...
+正在下载并解压...
+
+:EA Event Files
+EA事件文件
+
+:Edit Battle Data (FE7)
+编辑战斗数据 (FE7)
+
+:Edit Event Function Pointer
+编辑事件函数指针
+
+:Edit Move Data (FE7)
+编辑移动数据 (FE7)
+
+:Edit Palette
+编辑调色板
+
+:Edit Talk Group (FE7)
+编辑对话组 (FE7)
+
+:Enemy Escape Point
+敌方撤离点
+
+:Enter the new Demon King Summon count (current: {0}, max: {1}).
+请输入新的魔王召唤数量（当前: {0}，最大: {1}）。
+
+:Enter the new entry count for the event map-change list (current: {0}, max: 255).
+请输入事件地图变更列表的新条目数（当前: {0}，最大: 255）。
+
+:Enter the new entry count for the map action animation list (current: {0}, max: 255).
+请输入地图动作动画列表的新条目数（当前: {0}，最大: 255）。
+
+:Enter the new game option entry count (current: {0}, max: {1}).
+请输入新的游戏选项条目数（当前: {0}，最大: {1}）。
+
+:Enter the new game option order slot count (current: {0}, max: 255).
+请输入游戏选项顺序的新槽位数（当前: {0}，最大: 255）。
+
+:Enter the new map setting entry count (current: {0}, max: 255).
+请输入新的地图设置条目数（当前: {0}，最大: 255）。
+
+:Enter the new spell-list entry count for this unit (current: {0}, max: {1}).
+请输入该单位法术列表的新条目数（当前: {0}，最大: {1}）。
+
+:Enter the new summon entry count (current: {0}, max: {1}).
+请输入新的召唤条目数（当前: {0}，最大: {1}）。
+
+:Expanded Demon King Summon list to {0} entries.
+已将魔王召唤列表扩展到 {0} 条。
+
+:Expanded event map-change list to {0} entries.
+已将事件地图变更列表扩展到 {0} 条。
+
+:Expanded game option list to {0} entries.
+已将游戏选项列表扩展到 {0} 条。
+
+:Expanded game option order list to {0} slots.
+已将游戏选项顺序列表扩展到 {0} 个槽位。
+
+:Expanded map action animation list to {0} entries.
+已将地图动作动画列表扩展到 {0} 条。
+
+:Expanded map setting list to {0} entries.
+已将地图设置列表扩展到 {0} 条。
+
+:Expanded summon list to {0} entries.
+已将召唤列表扩展到 {0} 条。
+
+:Expanded the spell list to {0} entries.
+已将法术列表扩展到 {0} 条。
+
+:Export Complete
+导出完成
+
+:Export EA Event
+导出EA事件
+
+:Export Texts
+导出文本
+
+:Exported map to {0} ({1} chars).
+已将地图导出到 {0}（{1} 个字符）。
+
+:Exported to: {0}
+已导出到: {0}
+
+:Exported {0} OBJ + {1} BG frames to {2}
+已将 {0} 个OBJ和 {1} 个BG帧导出到 {2}
+
+:FE-Repo-Music import failed: {0}
+FE-Repo-Music 导入失败: {0}
+
+:FE8N Ver1 skills are render-only and have no animation to edit in the Animation Creator.
+FE8N Ver1 技能仅供显示，在动画制作器中没有可编辑的动画。
+
+:FEditor / SCA_Creator magic-system patch not detected.
+未检测到 FEditor / SCA_Creator 魔法系统补丁。
+
+:Failed to apply UPS patch ({0}). {1}
+应用UPS补丁失败 ({0})。{1}
+
+:Failed to convert dark map image to bitmap.
+无法将暗场地图图像转换为位图。
+
+:Failed to encode the icon tile data.
+图标图块数据编码失败。
+
+:Failed to load image from: {0}
+无法从 {0} 加载图像。
+
+:Failed to load the border image.
+加载边框图像失败。
+
+:Failed to load the border name image.
+加载边框名称图像失败。
+
+:Failed to open ROM: {0}
+无法打开ROM: {0}
+
+:Failed to save patched ROM ({0}). {1}
+保存已打补丁的ROM失败 ({0})。{1}
+
+:Failed to write the icon to ROM; rolled back.
+将图标写入ROM失败，已回滚。
+
+:File size {0} -> {1} ({2}%)\r\nDPCM quality SNR: {3}dB (higher is better; below 20dB you may not want compression).
+文件大小 {0} -> {1} ({2}%)\r\nDPCM 质量 SNR: {3}dB（越高越好；低于 20dB 时可能不宜压缩）。
+
+:File size {0} -> {1} ({2}%) (raw 8-bit PCM)
+文件大小 {0} -> {1} ({2}%)（原始 8 位 PCM）
+
+:Frame-data pointer 0x{0:X} is outside the ROM.
+帧数据指针 0x{0:X} 超出ROM范围。
+
+:Free area: cannot scan (text-reference data not ready)
+空闲区域: 无法扫描（文本引用数据尚未就绪）
+
+:GBA ROMs
+GBA ROM
+
+:Game option list expansion failed.
+游戏选项列表扩展失败。
+
+:Game option list expansion failed: {0}
+游戏选项列表扩展失败: {0}
+
+:Game option order count address is unset for this ROM version.
+此ROM版本未设置游戏选项顺序数量地址。
+
+:Game option order count is a single byte; the maximum is 255.
+游戏选项顺序数量为单字节，最大为 255。
+
+:Game option order list expansion failed: {0}
+游戏选项顺序列表扩展失败: {0}
+
+:Game option order list pointer is unset for this ROM version.
+此ROM版本未设置游戏选项顺序列表指针。
+
+:Generated {0} byte(s).
+已生成 {0} 字节。
+
+:Generation failed.
+生成失败。
+
+:Home
+主页
+
+:ID 0 is reserved as null data.
+ID 0 保留为空数据。
+
+:Icon address is out of range; aborting import.
+图标地址超出范围，导入中止。
+
+:Image loader is null.
+图像加载器为空。
+
+:Image must be 16x16 pixels.
+图像必须为 16x16 像素。
+
+:Image pixel data is missing or too short.
+图像像素数据缺失或过短。
+
+:Import Class CSV
+导入职业CSV
+
+:Import Classes CSV
+导入职业CSV
+
+:Import Complete
+导入完成
+
+:Import magic animation script
+导入魔法动画脚本
+
+:Import this WAV as a new one-track song? This appends a sample, a 
+将此 WAV 作为新的单轨乐曲导入吗？这会追加一个采样、一个 
+
+:Import this instrument set and point the selected song at it? This 
+导入此乐器组并将选定的乐曲指向它吗？这会 
+
+:Imported map from {0} ({1}x{2} tiles).
+已从 {0} 导入地图（{1}x{2} 图块）。
+
+:Imported: {0}
+已导入: {0}
+
+:Instrument Set
+乐器组
+
+:Instrument selection failed: {0}
+乐器选择失败: {0}
+
+:Instrument set import failed.
+乐器组导入失败。
+
+:Instrument set import failed: {0}
+乐器组导入失败: {0}
+
+:Instrument set imported at 0x{0:X08}.
+已将乐器组导入到 0x{0:X08}。
+
+:Internal error: missing ROM or editor context.
+内部错误: 缺少ROM或编辑器上下文。
+
+:Invalid palette address
+无效的调色板地址
+
+:Item source updated. Project needs rebuild.
+已更新道具源代码。项目需要重新构建。
+
+:LDR pointer search returned no hits. Falling back to a raw 4-byte binary pointer scan (may match unrelated bytes). Continue?
+LDR 指针搜索没有命中。将回退到原始 4 字节二进制指针扫描（可能匹配到无关字节）。是否继续？
+
+:List expansion failed (out of free space?).
+列表扩展失败（空闲空间不足？）。
+
+:Load Road Data
+加载道路数据
+
+:Loaded (Write to apply).
+已加载（写入以应用）。
+
+:MIDI Files
+MIDI文件
+
+:MIDI import failed: {0}
+MIDI 导入失败: {0}
+
+:Magic Animation (CSA) #{0:X2}
+魔法动画 (CSA) #{0:X2}
+
+:Magic Animation (FEditor) #{0:X2}
+魔法动画 (FEditor) #{0:X2}
+
+:Magic Animation (no comments)
+魔法动画（无注释）
+
+:Magic Animation (with comments)
+魔法动画（带注释）
+
+:Magic animation import failed: {0}
+魔法动画导入失败: {0}
+
+:Magic animation imported successfully.
+魔法动画导入成功。
+
+:Magic animation scan failed — bad frame-data pointer.
+魔法动画扫描失败 — 帧数据指针无效。
+
+:Magic system not detected.
+未检测到魔法系统。
+
+:Map Action Animation Script
+地图动作动画脚本
+
+:Map action animation table not found in this ROM.
+在此ROM中找不到地图动作动画表。
+
+:Map data is invalid or too small.
+地图数据无效或过小。
+
+:Map setting list expansion failed.
+地图设置列表扩展失败。
+
+:Map setting list expansion failed: {0}
+地图设置列表扩展失败: {0}
+
+:Move 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8}{3}?
+将 0x{0:X} 字节从 0x{1:X8} 移动到 0x{2:X8}{3}？
+
+:Move failed: {0}
+移动失败: {0}
+
+:Move: FROM is not a valid hex value.
+移动: FROM 不是有效的十六进制值。
+
+:Move: LENGTH 0x{0:X} exceeds 2 MB limit.
+移动: LENGTH 0x{0:X} 超过 2 MB 上限。
+
+:Move: LENGTH is 0 (cannot auto-detect length).
+移动: LENGTH 为 0（无法自动检测长度）。
+
+:Move: LENGTH is not a valid hex value.
+移动: LENGTH 不是有效的十六进制值。
+
+:Move: TO is not a valid hex value.
+移动: TO 不是有效的十六进制值。
+
+:Move: canceled at final prompt.
+移动: 在最终确认时已取消。
+
+:Move: canceled at pointer-count prompt.
+移动: 在指针数量确认时已取消。
+
+:Move: canceled at raw-fallback prompt.
+移动: 在原始回退确认时已取消。
+
+:Move: destination range 0x{0:X8}+0x{1:X} exceeds ROM end.
+移动: 目标范围 0x{0:X8}+0x{1:X} 超出ROM末尾。
+
+:Move: moved 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8} ({3} pointers rewritten{4}).
+移动: 已将 0x{0:X} 字节从 0x{1:X8} 移动到 0x{2:X8}（重写了 {3} 个指针{4}）。
+
+:Move: no ROM loaded.
+移动: 未加载ROM。
+
+:Move: pending user confirmation — see prompt.
+移动: 等待用户确认 — 请查看提示。
+
+:Move: source 0x{0:X8}+0x{1:X} and destination 0x{2:X8}+0x{1:X} overlap (not supported).
+移动: 源 0x{0:X8}+0x{1:X} 与目标 0x{2:X8}+0x{1:X} 重叠（不支持）。
+
+:Move: source address is 0 (bad base address).
+移动: 源地址为 0（基址无效）。
+
+:Move: source range 0x{0:X8}+0x{1:X} exceeds ROM end.
+移动: 源范围 0x{0:X8}+0x{1:X} 超出ROM末尾。
+
+:Move: {0}
+移动: {0}
+
+:NPC Escape Point
+NPC撤离点
+
+:New Block Talk Group (FE7)
+新建区块对话组 (FE7)
+
+:New count ({0}) exceeds the maximum ({1}).
+新数量 ({0}) 超过最大值 ({1})。
+
+:New count ({0}) must be >= current count ({1}).
+新数量 ({0}) 必须大于等于当前数量 ({1})。
+
+:No .updateinfo.txt found for this ROM.
+找不到此ROM的 .updateinfo.txt。
+
+:No animation context loaded.
+未加载动画上下文。
+
+:No animation frames to export.
+没有可导出的动画帧。
+
+:No animation is set for this skill.
+此技能未设置动画。
+
+:No change-data for the selected map (plist 0/0xFF or resolution failed).
+所选地图没有变更数据（plist 0/0xFF 或解析失败）。
+
+:No change: new count must be greater than the current count.
+无变化: 新数量必须大于当前数量。
+
+:No entry selected.
+未选择条目。
+
+:No instrument set (voicegroup) is loaded to import into.
+没有加载用于导入的乐器组（voicegroup）。
+
+:No magic frames found at 0x{0:X}.
+在 0x{0:X} 处找不到魔法帧。
+
+:No magic-animation entry selected.
+未选择魔法动画条目。
+
+:No map data loaded — select a map first.
+未加载地图数据 — 请先选择一个地图。
+
+:No map selected.
+未选择地图。
+
+:No renderable animation frames found for this skill at 0x{0:X}.
+在 0x{0:X} 处找不到此技能可渲染的动画帧。
+
+:No road data to export.
+没有可导出的道路数据。
+
+:No song selected to export.
+未选择要导出的乐曲。
+
+:No song selected to import.
+未选择要导入的乐曲。
+
+:No source loaded.
+未加载源。
+
+:No spell list is allocated for this unit.\r\nUse Expand List to allocate one.
+此单位未分配法术列表。\r\n请使用“扩展列表”来分配。
+
+:No template selected.
+未选择模板。
+
+:No texts were imported. Check the file format.
+未导入任何文本。请检查文件格式。
+
+:No unit is selected.\r\nOpen this editor from the Unit Editor's "Edit Skills" button to assign a unit's scroll/mastery skills.
+未选择单位。\r\n请从单位编辑器的“编辑技能”按钮打开此编辑器，以设置单位的卷轴/精通技能。
+
+:No valid animation selected to export.
+未选择要导出的有效动画。
+
+:No vanilla ROM selected.
+未选择原版ROM。
+
+:No wave file is loaded.
+未加载wave文件。
+
+:Nothing to export.
+没有可导出的内容。
+
+:Open Map Action Animation Script
+打开地图动作动画脚本
+
+:Open file to encode as base64
+打开要编码为 base64 的文件
+
+:Open folder failed: {0}
+打开文件夹失败: {0}
+
+:Open source failed: {0}
+打开源失败: {0}
+
+:Open translation file
+打开翻译文件
+
+:Override JP Font: the Japanese font tables were wiped 
+覆盖日文字体: 日文字体表已被清除 
+
+:PLIST Split\r\nPLIST tables pack several purposes into one shared array, 
+PLIST 拆分\r\nPLIST 表将多个用途打包到一个共享数组中，
+
+:Palette No {0}
+调色板编号 {0}
+
+:Per-cell TSA editing is not available.
+不支持逐格TSA编辑。
+
+:Pick a destination song from the list first.
+请先从列表中选择目标乐曲。
+
+:Press Preview to see the conversion result.
+按预览以查看转换结果。
+
+:ROM changed during import; aborting.
+导入过程中ROM被更改，已中止。
+
+:ROM has unsaved modifications. Save first before recompressing? (Pressing No will proceed anyway, which is risky.)
+ROM 有未保存的修改。重新压缩前先保存吗？（按“否”仍会继续，这很危险。）
+
+:Recompress failed: {0}
+重新压缩失败: {0}
+
+:Recompress: canceled by user.
+重新压缩: 用户已取消。
+
+:Recompress: no ROM loaded.
+重新压缩: 未加载ROM。
+
+:Recompress: no savings — all entries already optimally compressed.
+重新压缩: 没有节省 — 所有条目均已最优压缩。
+
+:Recompress: pending user confirmation — see prompt.
+重新压缩: 等待用户确认 — 请查看提示。
+
+:Recompress: running (this may take several minutes)...
+重新压缩: 正在运行（可能需要几分钟）...
+
+:Recompress: save ROM and retry.
+重新压缩: 请保存ROM后重试。
+
+:Recompress: {0} entries recompressed, {1} bytes saved. Heuristic scan — may miss entries WinForms catches.
+重新压缩: 重新压缩了 {0} 条条目，节省了 {1} 字节。启发式扫描 — 可能会遗漏 WinForms 版能捕获的条目。
+
+:Reference: {0}
+引用: {0}
+
+:Referenced (event/menu/patch/symbol)
+已引用（事件/菜单/补丁/符号）
+
+:Resolving download URL...
+正在解析下载URL...
+
+:Road.BIN
+Road.BIN
+
+:Run LZ77 recompress? This walks the entire ROM (slow) and rewrites any entries that compress smaller. Heuristic scan — may miss entries WinForms catches.
+运行 LZ77 重新压缩吗？这会遍历整个ROM（较慢）并重写任何能压缩得更小的条目。启发式扫描 — 可能会遗漏 WinForms 版能捕获的条目。
+
+:Save 3-Way Binary Patch File
+保存三方二进制补丁文件
+
+:Save Animation Script
+保存动画脚本
+
+:Save Binary Patch File
+保存二进制补丁文件
+
+:Save CSA magic animation script
+保存CSA魔法动画脚本
+
+:Save Compressed File
+保存压缩文件
+
+:Save Decoded File
+保存解码后的文件
+
+:Save Decompressed File
+保存解压后的文件
+
+:Save Graphics Patch
+保存图形补丁
+
+:Save Map Action Animation
+保存地图动作动画
+
+:Save Road Data
+保存道路数据
+
+:Save Skill Animation
+保存技能动画
+
+:Save Text Dump
+保存文本转储
+
+:Save failed: {0}
+保存失败: {0}
+
+:Save magic animation script
+保存魔法动画脚本
+
+:Save the patched ROM anyway?
+仍要保存已打补丁的ROM吗？
+
+:Save translation file
+保存翻译文件
+
+:Script file is empty or contains no recognized commands.
+脚本文件为空或不包含可识别的命令。
+
+:Select Backup File
+选择备份文件
+
+:Select Directory
+选择目录
+
+:Select MIDI File
+选择MIDI文件
+
+:Select SAV File
+选择SAV文件
+
+:Select Translation Data File
+选择翻译数据文件
+
+:Select a ROM to import a song from
+选择要从中导入乐曲的ROM
+
+:Select a map with change-data before expanding.
+扩展前请先选择带有变更数据的地图。
+
+:Select a non-empty entry first.
+请先选择一个非空条目。
+
+:Select a unit first.
+请先选择一个单位。
+
+:Skill Animation #{0:X2}
+技能动画 #{0:X2}
+
+:Song ID 0 is write-protected (silence song).
+Song ID 0 受写保护（静音乐曲）。
+
+:Song address is invalid.
+乐曲地址无效。
+
+:Song conversion failed.
+乐曲转换失败。
+
+:Song import complete.
+乐曲导入完成。
+
+:Song track data is corrupt or truncated.
+乐曲音轨数据损坏或被截断。
+
+:Song track table runs past ROM end.
+乐曲音轨表超出ROM末尾。
+
+:Sound room expand aborted: no references were repointed (expected at least the canonical pointer slot).
+音乐室扩展已中止: 没有重定向任何引用（至少应有规范的指针槽位）。
+
+:Sound room expand aborted: the canonical pointer slot (0x{0:X}) was not among the repointed references.
+音乐室扩展已中止: 规范的指针槽位 (0x{0:X}) 不在被重定向的引用中。
+
+:Sound room expand aborted: {0} references would be repointed, exceeding the plausible maximum ({1}) — likely a false-positive match.
+音乐室扩展已中止: 将重定向 {0} 个引用，超过合理最大值 ({1}) — 很可能是误匹配。
+
+:Sound room table expansion failed.
+音乐室表扩展失败。
+
+:Sound room table expansion failed: {0}
+音乐室表扩展失败: {0}
+
+:Source file not found.
+找不到源文件。
+
+:Source file not recorded or not found.
+源文件未记录或找不到。
+
+:Split the PLIST tables?\r\n
+拆分 PLIST 表吗？\r\n
+
+:Summon list expansion failed.
+召唤列表扩展失败。
+
+:Summon list expansion failed: {0}
+召唤列表扩展失败: {0}
+
+:Summon unit table is only available on FE8.
+召唤单位表仅在FE8上可用。
+
+:TSV Files
+TSV文件
+
+:Text Patch File
+文本补丁文件
+
+:The TSA pointer is not set.
+未设置TSA指针。
+
+:The UPS patch produced CRC warnings:
+UPS补丁产生了CRC警告:
+
+:The companion name image is missing.\r\nExpected: {0}
+缺少配套的名称图像。\r\n应为: {0}
+
+:The current Demon King Summon count byte (0x{0:X}) is corrupt — cannot expand.
+当前的魔王召唤数量字节 (0x{0:X}) 已损坏 — 无法扩展。
+
+:The destination song could not be loaded for import.
+无法加载用于导入的目标乐曲。
+
+:The downloaded programs will be placed under the app folder.\r\n\r\nContinue?
+下载的程序将被放置在应用文件夹下。\r\n\r\n是否继续？
+
+:The map setting list is already at the maximum of 255 entries; it cannot be expanded further.
+地图设置列表已达到最大 255 条，无法继续扩展。
+
+:The other ROM has not been loaded.
+尚未加载另一个ROM。
+
+:The selected instrument set address is invalid.
+所选乐器组地址无效。
+
+:The song table has no song header.
+乐曲表没有乐曲头。
+
+:The world map border palette is invalid.
+世界地图边框调色板无效。
+
+:This AP pattern is not present in this ROM. Import the AP data, or enter the AP pointer manually.
+此ROM中不存在该AP模式。请导入AP数据，或手动输入AP指针。
+
+:This ROM has no sound room table.
+此ROM没有音乐室表。
+
+:This entry has no valid animation pointer.
+此条目没有有效的动画指针。
+
+:This item is ROM-only in decomp mode. Edit the source manually and rebuild.
+在反编译模式下此项目仅限ROM。请手动编辑源代码并重新构建。
+
+:This item table is ROM-only in decomp mode.
+在反编译模式下此项目表仅限ROM。
+
+:This template requires the event editor context (map/label) and is not available here.
+此模板需要事件编辑器上下文（地图/标签），在此处不可用。
+
+:This template requires the event editor context and is not available here.
+此模板需要事件编辑器上下文，在此处不可用。
+
+:This will download an executable from:\r\n{0}\r\n\r\nThe downloaded program will be placed under the app folder.\r\n\r\nContinue?
+这将从以下位置下载一个可执行文件:\r\n{0}\r\n\r\n下载的程序将被放置在应用文件夹下。\r\n\r\n是否继续？
+
+:This will download the official Git for Windows installer from:\r\n{0}\r\n\r\nIt will RUN the installer, which may request administrator (UAC) elevation.\r\n\r\nContinue?
+这将从以下位置下载官方 Git for Windows 安装程序:\r\n{0}\r\n\r\n它将运行该安装程序，可能会请求管理员 (UAC) 提权。\r\n\r\n是否继续？
+
+:To display chapter titles as text (required before wiping the Japanese 
+要将章节标题显示为文本（在清除日文之前需要）
+
+:Track is invalid.
+音轨无效。
+
+:Transplant this song (#{0}) from the other ROM into the current ROM (#{1})?
+将这首乐曲 (#{0}) 从另一个ROM移植到当前ROM (#{1}) 吗？
+
+:Update cancelled (CRC warning declined). No ROM written.
+已取消更新（已拒绝CRC警告）。未写入ROM。
+
+:Update cancelled.
+已取消更新。
+
+:Update check failed (missing CHECK_URL/CHECK_REGEX or unreachable).
+更新检查失败（缺少 CHECK_URL/CHECK_REGEX 或无法访问）。
+
+:Update complete.
+更新完成。
+
+:Update complete. Reopening ROM...
+更新完成。正在重新打开ROM...
+
+:Update failed: {0}
+更新失败: {0}
+
+:Warning: unsaved changes are not stored in the ROM. Update anyway?
+警告: 未保存的更改不会存入ROM。仍要更新吗？
+
+:Wave conversion failed.
+wave转换失败。
+
+:Wave conversion failed: {0}
+wave转换失败: {0}
+
+:Wave export failed: {0}
+wave导出失败: {0}
+
+:Wave exported to {0}
+已将wave导出到 {0}
+
+:Wave imported as a new song at 0x{0:X08}.
+已将wave作为新乐曲导入到 0x{0:X08}。
+
+:Wave imported. The sample pointer is now 0x{0:X08}.
+wave已导入。采样指针现在是 0x{0:X08}。
+
+:World map table pointer not found in this ROM.
+在此ROM中找不到世界地图表指针。
+
+:Wrote {0} frames to ROM at 0x{1:X}.
+已将 {0} 帧写入ROM的 0x{1:X}。
+
+:Wrote {0} frames to {1}.
+已将 {0} 帧写入 {1}。
+
+:You are up to date.
+已是最新版本。
+
+:ZeroClear failed: {0}
+清零失败: {0}
+
+:ZeroClear: FROM is not a valid hex value.
+清零: FROM 不是有效的十六进制值。
+
+:ZeroClear: TO is not a valid hex value.
+清零: TO 不是有效的十六进制值。
+
+:ZeroClear: address out of ROM bounds.
+清零: 地址超出ROM范围。
+
+:ZeroClear: canceled by user.
+清零: 用户已取消。
+
+:ZeroClear: low address requires confirmation — set ZeroClearConfirmed=true to proceed.
+清零: 低地址需要确认 — 请设置 ZeroClearConfirmed=true 以继续。
+
+:ZeroClear: no ROM loaded.
+清零: 未加载ROM。
+
+:ZeroClear: wrote 0 to 0x{0:X8}..0x{1:X8} ({2} bytes).
+清零: 已向 0x{0:X8}..0x{1:X8} 写入 0（{2} 字节）。
+
+:Zeroing 0x{0:X8}..0x{1:X8} hits a dangerous low-address region (ROM header, fixed tables). Continue?
+对 0x{0:X8}..0x{1:X8} 清零会涉及危险的低地址区域（ROM头、固定表）。是否继续？
+
+:{0} pointer reference(s) will be rewritten. Continue?
+将重写 {0} 个指针引用。是否继续？
+
+:{1} Version:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\nThis software is open-source free software.\r\nPlease use it freely under GPLv3.
+{1} 版本:{0}\r\nCopyright: 2017-\r\nLicense: GPLv3\r\n\r\n本软件是开源的自由软件。\r\n请在 GPLv3 下自由使用。
+

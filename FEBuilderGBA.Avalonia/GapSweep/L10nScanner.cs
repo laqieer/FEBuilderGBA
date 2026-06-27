@@ -43,6 +43,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -194,6 +195,398 @@ namespace FEBuilderGBA.Avalonia.GapSweep
                 .ThenBy(f => f.LineNumber)
                 .ThenBy(f => f.Literal, StringComparer.Ordinal)
                 .ToList();
+        }
+
+        // =====================================================================
+        // Code-literal sweep (#1635)
+        //
+        // The AXAML sweep above only sees attribute values. A large class of
+        // user-facing strings — status / error / dialog messages — instead live
+        // as `R._("literal")` calls inside Avalonia ViewModels and code-behind
+        // (`*.cs`). The AXAML scanner is blind to them, so CI stayed green while
+        // ~334 such strings rendered in English under Japanese / Chinese UI.
+        //
+        // `ScanCodeLiterals` closes that gap: it enumerates every distinct
+        // `R._("...")` first-string-argument across `FEBuilderGBA.Avalonia/**/*.cs`
+        // and joins each against the same reverse-English → forward-map chain the
+        // runtime uses (see `MyTranslateResourceLow.str`). Findings reuse the
+        // existing verdict buckets so the report / gate logic is identical to the
+        // AXAML side.
+        // =====================================================================
+
+        /// <summary>
+        /// One `R._("literal")` finding from a `.cs` source file. Mirrors
+        /// <see cref="L10nFinding"/> but keyed on a source-file path rather than an
+        /// AXAML element/attribute, since a code literal has no XML host.
+        /// </summary>
+        /// <param name="SourcePath">Repo-relative `.cs` path with forward slashes.</param>
+        /// <param name="LineNumber">1-based source line of the `R._(` call.</param>
+        /// <param name="Literal">Decoded literal value (C# escapes already resolved).</param>
+        /// <param name="TranslationStatus">Language code → did the lookup chain produce a non-empty translation.</param>
+        /// <param name="Verdict">Bucket classification (same enum as the AXAML sweep).</param>
+        public record CodeLiteralFinding(
+            string SourcePath,
+            int LineNumber,
+            string Literal,
+            IReadOnlyDictionary<string, bool> TranslationStatus,
+            L10nVerdict Verdict);
+
+        /// <summary>
+        /// Matches the START of an <c>R._("literal"</c> call. The first string
+        /// argument is then captured by a dedicated C#-string-literal scanner
+        /// (<see cref="ReadCsStringLiteral"/>) so embedded escaped quotes
+        /// (<c>\"</c>) never truncate it. Whitespace between <c>R._(</c> and the
+        /// opening quote is tolerated.
+        /// </summary>
+        static readonly Regex RUnderscoreCallStart = new(
+            @"\bR\._\(\s*@?""", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Scan every `*.cs` under `FEBuilderGBA.Avalonia/` for `R._("literal")`
+        /// calls and join each distinct literal against the translation tables.
+        ///
+        /// Returns one finding per (file, line) occurrence (so the report can show
+        /// where a literal is used), ordered by (SourcePath asc, LineNumber asc,
+        /// Literal asc). Files under `bin/` and `obj/` are skipped.
+        /// </summary>
+        public static IReadOnlyList<CodeLiteralFinding> ScanCodeLiterals(
+            string repoRoot,
+            IReadOnlyList<string>? languages = null)
+        {
+            if (string.IsNullOrEmpty(repoRoot))
+                throw new ArgumentException("repoRoot must be non-empty", nameof(repoRoot));
+            if (!Directory.Exists(repoRoot))
+                throw new DirectoryNotFoundException($"repo root not found: {repoRoot}");
+
+            languages ??= DefaultLanguages;
+
+            string translateDir = Path.Combine(repoRoot, "config", "translate");
+            var reverseEnMap = LoadReverseEnglishMap(Path.Combine(translateDir, "en.txt"));
+            var languageMaps = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+            foreach (string lang in languages)
+                languageMaps[lang] = LoadForwardMap(Path.Combine(translateDir, lang + ".txt"));
+
+            var avaloniaDir = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia");
+            var findings = new List<CodeLiteralFinding>();
+            if (!Directory.Exists(avaloniaDir))
+                return findings;
+
+            foreach (string csPath in Directory.EnumerateFiles(avaloniaDir, "*.cs", SearchOption.AllDirectories)
+                                               .OrderBy(p => p, StringComparer.Ordinal))
+            {
+                if (IsInBinOrObj(repoRoot, csPath))
+                    continue;
+                string relPath = ToRelative(repoRoot, csPath);
+                ScanCsFile(csPath, relPath, reverseEnMap, languageMaps, languages, findings);
+            }
+
+            return findings
+                .OrderBy(f => f.SourcePath, StringComparer.Ordinal)
+                .ThenBy(f => f.LineNumber)
+                .ThenBy(f => f.Literal, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        /// <summary>
+        /// In-memory variant for unit tests: scan an arbitrary C# source string
+        /// for `R._("literal")` calls and classify each against the supplied maps.
+        /// Avoids disk I/O so tests stay hermetic.
+        /// </summary>
+        public static IReadOnlyList<CodeLiteralFinding> ScanCsString(
+            string csContent,
+            string sourceRelPath,
+            IReadOnlyDictionary<string, string> reverseEnglishMap,
+            IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> languageMaps)
+        {
+            var findings = new List<CodeLiteralFinding>();
+            var maps = languageMaps.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal),
+                StringComparer.Ordinal);
+            ScanCsContent(
+                csContent,
+                sourceRelPath,
+                reverseEnglishMap,
+                maps,
+                languageMaps.Keys.ToList(),
+                findings);
+            return findings;
+        }
+
+        static void ScanCsFile(
+            string csPath,
+            string sourceRelPath,
+            IReadOnlyDictionary<string, string> reverseEnMap,
+            IReadOnlyDictionary<string, Dictionary<string, string>> languageMaps,
+            IReadOnlyList<string> languages,
+            List<CodeLiteralFinding> findings)
+        {
+            string content;
+            try
+            {
+                content = File.ReadAllText(csPath);
+            }
+            catch
+            {
+                return;
+            }
+            ScanCsContent(content, sourceRelPath, reverseEnMap, languageMaps, languages, findings);
+        }
+
+        static void ScanCsContent(
+            string content,
+            string sourceRelPath,
+            IReadOnlyDictionary<string, string> reverseEnMap,
+            IReadOnlyDictionary<string, Dictionary<string, string>> languageMaps,
+            IReadOnlyList<string> languages,
+            List<CodeLiteralFinding> findings)
+        {
+            // Blank out `//`, `///` and `/* */` comments (preserving offsets and
+            // newlines so line numbers stay accurate). Without this, doc-comment
+            // examples like the `R._("literal")` in THIS file's own XML docs would
+            // be reported as untranslated UI strings — a false positive. String
+            // literals are NOT blanked, so the comment-detector never trips on a
+            // `//` that lives inside a string.
+            content = StripCommentsPreservingLayout(content);
+
+            // Track the line number incrementally. Regex.Matches yields matches in
+            // ascending index order, so we only ever count the newlines BETWEEN the
+            // previous match index and the current one — keeping the whole scan O(N)
+            // instead of the O(N*M) a from-the-start re-count per match would cost.
+            int lineNumber = 1;
+            int scannedUpTo = 0;
+
+            foreach (Match m in RUnderscoreCallStart.Matches(content))
+            {
+                // Advance the running line counter across the gap since the last match.
+                for (int p = scannedUpTo; p < m.Index; p++)
+                    if (content[p] == '\n') lineNumber++;
+                scannedUpTo = m.Index;
+
+                // The match ends just past the opening quote. `@?"` — verbatim
+                // (`@"..."`) string literals double their quotes to escape them;
+                // detect which form we matched so the literal scanner uses the
+                // right escaping rule.
+                bool verbatim = m.Value.IndexOf('@') >= 0;
+                int quoteIndex = m.Index + m.Length - 1; // index of the opening '"'
+                if (!ReadCsStringLiteral(content, quoteIndex, verbatim, out string literal))
+                    continue;
+                if (string.IsNullOrWhiteSpace(literal))
+                    continue;
+
+                var status = new Dictionary<string, bool>(StringComparer.Ordinal);
+                int hit = 0;
+                bool isNonEnglish = ContainsCjkOrHangul(literal);
+                foreach (string lang in languages)
+                {
+                    bool ok = false;
+                    if (languageMaps.TryGetValue(lang, out var map))
+                        ok = HasTranslation(literal, reverseEnMap, map);
+                    status[lang] = ok;
+                    if (ok) hit++;
+                }
+
+                L10nVerdict verdict;
+                if (isNonEnglish)
+                    verdict = L10nVerdict.NonEnglish;
+                else if (languages.Count == 0)
+                    verdict = L10nVerdict.Untranslated;
+                else if (hit == languages.Count)
+                    verdict = L10nVerdict.Translated;
+                else if (hit == 0)
+                    verdict = L10nVerdict.Untranslated;
+                else
+                    verdict = L10nVerdict.PartiallyTranslated;
+
+                findings.Add(new CodeLiteralFinding(
+                    SourcePath: sourceRelPath,
+                    LineNumber: lineNumber,
+                    Literal: literal,
+                    TranslationStatus: status,
+                    Verdict: verdict));
+            }
+        }
+
+        /// <summary>
+        /// Read a C# string literal starting at <paramref name="quoteIndex"/> (the
+        /// index of the opening <c>"</c>) and decode its escape sequences. Handles
+        /// both regular literals (backslash escapes) and verbatim <c>@"..."</c>
+        /// literals (doubled quotes). Returns false if the literal is unterminated.
+        /// </summary>
+        public static bool ReadCsStringLiteral(string src, int quoteIndex, bool verbatim, out string value)
+        {
+            value = string.Empty;
+            if (quoteIndex < 0 || quoteIndex >= src.Length || src[quoteIndex] != '"')
+                return false;
+
+            var sb = new StringBuilder();
+            int i = quoteIndex + 1;
+            while (i < src.Length)
+            {
+                char c = src[i];
+                if (verbatim)
+                {
+                    if (c == '"')
+                    {
+                        if (i + 1 < src.Length && src[i + 1] == '"')
+                        {
+                            sb.Append('"');
+                            i += 2;
+                            continue;
+                        }
+                        value = sb.ToString();
+                        return true;
+                    }
+                    sb.Append(c);
+                    i++;
+                }
+                else
+                {
+                    if (c == '\\' && i + 1 < src.Length)
+                    {
+                        char n = src[i + 1];
+                        switch (n)
+                        {
+                            case 'r': sb.Append('\r'); break;
+                            case 'n': sb.Append('\n'); break;
+                            case 't': sb.Append('\t'); break;
+                            case '0': sb.Append('\0'); break;
+                            case '"': sb.Append('"'); break;
+                            case '\\': sb.Append('\\'); break;
+                            default: sb.Append(n); break; // best-effort for \uXXXX etc.
+                        }
+                        i += 2;
+                        continue;
+                    }
+                    if (c == '"')
+                    {
+                        value = sb.ToString();
+                        return true;
+                    }
+                    sb.Append(c);
+                    i++;
+                }
+            }
+            return false; // unterminated
+        }
+
+        /// <summary>
+        /// True if <paramref name="s"/> contains any CJK / Hangul character — the
+        /// same "already localised in-line" heuristic the AXAML sweep uses, exposed
+        /// here for the code-literal path (and reusable by the gate test).
+        /// </summary>
+        public static bool ContainsCjkOrHangul(string s)
+        {
+            if (string.IsNullOrEmpty(s))
+                return false;
+            foreach (char c in s)
+                if (IsCjkOrHangul(c))
+                    return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Blank every C# comment (`//`, `///`, `/* */`) — including its delimiters
+        /// (`//`, `/*`, `*/`) AND body — by replacing each comment character with a
+        /// space, while leaving newlines and overall length untouched, so subsequent
+        /// regex matching keeps accurate offsets / line numbers but never sees a
+        /// `R._("...")` that lives inside a comment. String and char literals are
+        /// preserved verbatim (and skipped over) so a `//` or `/*` inside a string
+        /// doesn't start a phantom comment. Handles verbatim (`@"..."`) and
+        /// interpolated (`$"..."`, `$@"..."`) string prefixes well enough for this
+        /// blanking purpose — the goal is comment removal, not a full C# lexer.
+        /// </summary>
+        public static string StripCommentsPreservingLayout(string src)
+        {
+            if (string.IsNullOrEmpty(src))
+                return src ?? string.Empty;
+
+            var sb = new StringBuilder(src.Length);
+            int i = 0;
+            int n = src.Length;
+            while (i < n)
+            {
+                char c = src[i];
+
+                // Line comment: // ... (and ///). Blank to end of line.
+                if (c == '/' && i + 1 < n && src[i + 1] == '/')
+                {
+                    while (i < n && src[i] != '\n') { sb.Append(' '); i++; }
+                    continue;
+                }
+                // Block comment: /* ... */. Blank everything but keep newlines.
+                if (c == '/' && i + 1 < n && src[i + 1] == '*')
+                {
+                    sb.Append(' '); sb.Append(' '); i += 2;
+                    while (i < n && !(src[i] == '*' && i + 1 < n && src[i + 1] == '/'))
+                    {
+                        sb.Append(src[i] == '\n' ? '\n' : ' ');
+                        i++;
+                    }
+                    if (i < n) { sb.Append(' '); sb.Append(' '); i += 2; } // consume the closing */
+                    continue;
+                }
+                // Char literal: '...'. Copy verbatim so an embedded // or /* is safe.
+                if (c == '\'')
+                {
+                    sb.Append(c); i++;
+                    while (i < n)
+                    {
+                        sb.Append(src[i]);
+                        if (src[i] == '\\' && i + 1 < n) { i++; sb.Append(src[i]); i++; continue; }
+                        if (src[i] == '\'') { i++; break; }
+                        i++;
+                    }
+                    continue;
+                }
+                // String literal — verbatim (@"...") or regular ("...").
+                if (c == '"' || (c == '@' && i + 1 < n && src[i + 1] == '"')
+                             || (c == '$' && i + 1 < n && (src[i + 1] == '"' ||
+                                  (src[i + 1] == '@' && i + 2 < n && src[i + 2] == '"'))))
+                {
+                    bool verbatim = false;
+                    // Copy any $ / @ prefix and locate the opening quote.
+                    while (i < n && src[i] != '"')
+                    {
+                        if (src[i] == '@') verbatim = true;
+                        sb.Append(src[i]); i++;
+                    }
+                    if (i >= n) break;
+                    sb.Append(src[i]); i++; // opening quote
+                    while (i < n)
+                    {
+                        char d = src[i];
+                        if (verbatim)
+                        {
+                            if (d == '"')
+                            {
+                                if (i + 1 < n && src[i + 1] == '"') { sb.Append('"'); sb.Append('"'); i += 2; continue; }
+                                sb.Append('"'); i++; break;
+                            }
+                            sb.Append(d); i++;
+                        }
+                        else
+                        {
+                            if (d == '\\' && i + 1 < n) { sb.Append(d); sb.Append(src[i + 1]); i += 2; continue; }
+                            sb.Append(d); i++;
+                            if (d == '"') break;
+                        }
+                    }
+                    continue;
+                }
+
+                sb.Append(c); i++;
+            }
+            return sb.ToString();
+        }
+
+        static bool IsInBinOrObj(string repoRoot, string fullPath)
+        {
+            string rel = Path.GetRelativePath(repoRoot, fullPath).Replace('\\', '/');
+            return rel.Contains("/bin/", StringComparison.Ordinal)
+                || rel.Contains("/obj/", StringComparison.Ordinal)
+                || rel.StartsWith("bin/", StringComparison.Ordinal)
+                || rel.StartsWith("obj/", StringComparison.Ordinal);
         }
 
         /// <summary>
