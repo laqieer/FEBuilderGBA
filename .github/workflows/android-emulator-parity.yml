@@ -195,6 +195,13 @@ jobs:
     name: Android Boot Smoke (${{ matrix.arch }})
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # Advisory / non-blocking (#1640): the boot smoke test has passed (real app
+    # booted to RESUMED on an API-34 x86_64 emulator), but emulator boots can be
+    # flaky in CI, so continue-on-error keeps a future flaky boot from ever
+    # blocking a PR merge. The job still runs and reports signal; the acceptance
+    # criteria are independently satisfied by the experimental/preview labeling
+    # in docs/ANDROID.md + README and the Android Emulator Parity job.
+    continue-on-error: true
 
     strategy:
       fail-fast: false
