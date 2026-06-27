@@ -15,29 +15,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // INavigationTargetSource — Phase 4 (#374). The CC Branch editor's
         // Promotion Class fields are class-id references whose natural jump
         // target is the Class editor (the WinForms CCBranchForm wires both
-        // to ClassForm via InputFormRef). Issue #365 reports a related bug:
-        // the Upstream Chain panel computation is wrong. Although #365 is
-        // a DATA-DISPLAY bug (not a navigation bug), it's still surfaced as
-        // a known-gap here so the meta tracking can route through Phase 4's
-        // skipped tests.
+        // to ClassForm via InputFormRef). Issue #365 reported a related bug:
+        // the Upstream Chain panel computation was wrong AND the promotion
+        // fields lacked jump buttons. Both are now fixed (Fixed in #365 /
+        // PR #460): Promo1/2_Jump → ClassEditorView and BuildUpstreamChain
+        // computes the before-promotion list, so the IssueRef tags are dropped.
         // ----------------------------------------------------------------
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
             return new[]
             {
-                // Known-broken (#365): Upstream chain display is wrong;
-                // navigation to source class is also missing. Target view
+                // Fixed in #365 (PR #460): Upstream chain display now correct
+                // and navigation to the promotion class is wired. Target view
                 // is ClassEditorView (FE8 — CCBranch is FE8-only).
                 new NavigationTarget(
                     CommandName: "JumpToPromotionClass1",
                     TargetViewType: typeof(ClassEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#365"),
+                    TargetAddress: null),
                 new NavigationTarget(
                     CommandName: "JumpToPromotionClass2",
                     TargetViewType: typeof(ClassEditorView),
-                    TargetAddress: null,
-                    IssueRef: "#365"),
+                    TargetAddress: null),
             };
         }
     }

@@ -452,9 +452,10 @@ class ItemForm {
         // The repo has hundreds of InputFormRef.JumpForm callsites; expect
         // a non-trivial row count.
         Assert.NotEmpty(rows);
-        // We seeded 7 VMs with INavigationTargetSource; at LEAST one
-        // KnownGap entry should be present (the #359/#360/#362/#363/#365
-        // backlog).
+        // We seeded several VMs with INavigationTargetSource; at LEAST one
+        // KnownGap entry should be present. The #359/#360/#362/#363/#365
+        // gaps are now closed (their IssueRef tags dropped); the remaining
+        // open IssueRef-backed gaps are #374/#385/#500.
         Assert.Contains(rows, r => r.Status == JumpRowStatus.KnownGap);
     }
 
