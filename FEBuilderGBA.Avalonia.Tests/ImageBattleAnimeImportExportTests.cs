@@ -183,6 +183,16 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(U.isPointer(rom.u32(animAddr + 20)), "oam R->L ptr invalid after import");
                 Assert.True(U.isPointer(rom.u32(animAddr + 24)), "oam L->R ptr invalid after import");
                 Assert.True(U.isPointer(rom.u32(animAddr + 28)), "palette ptr invalid after import");
+
+                // Frame-data pointer at +16 drives frame rendering and may legitimately
+                // be either a raw LZ77 pointer OR an UnHuffman-patch pointer, so assert
+                // what the editor/renderer actually relies on: the frame data still
+                // decompresses to a non-empty buffer after import (not just that the
+                // other 4 pointers survived).
+                uint frameRaw = rom.u32(animAddr + 16);
+                byte[] frameData = BattleAnimeRendererCore.DecompressFrameData(rom, frameRaw);
+                Assert.True(frameData != null && frameData.Length > 0,
+                    "frame data (ptr@+16) did not decompress after import");
             }
             finally
             {
