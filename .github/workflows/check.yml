@@ -60,6 +60,16 @@ jobs:
       shell: bash
       run: bash scripts/validate-pr-screenshots.test.sh
 
+    - name: Run CLAUDE.md size-gate self-tests
+      shell: bash
+      run: bash scripts/check-claudemd-size.test.sh
+
+    - name: Check CLAUDE.md under harness limit
+      # CLAUDE.md is truncated by the Claude Code harness at ~40,000 chars; this
+      # gate fails the build if it regrows past the limit (issue #1645 / #1039).
+      shell: bash
+      run: bash scripts/check-claudemd-size.sh
+
     - name: Validate PR screenshot URLs
       if: github.event_name == 'pull_request'
       shell: bash
