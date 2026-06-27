@@ -718,6 +718,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 AllowMultiple = false,
                 FileTypeFilter = new[] { exeFiles, allFiles },
             });
+            // #1639: this picks an EXECUTABLE whose path is later launched as an
+            // external process (devkitARM / EA). External tools need a real
+            // filesystem path and have no meaning under Android scoped storage,
+            // so the path-only result is intentional here — a SAF pick (no local
+            // path) simply leaves the configured tool path unchanged.
             if (files.Count > 0)
                 return files[0].TryGetLocalPath();
             return null;

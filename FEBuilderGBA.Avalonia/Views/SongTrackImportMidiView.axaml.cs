@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -97,7 +98,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
 
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
+
+                // #1639: ParseMidiInfo/ImportMidi read by path, and the import
+                // happens on a LATER button click. Bridge a SAF source (no local
+                // path) to a temp file that survives until the deferred import
+                // (the OS temp sweeper reclaims it). The display label uses the
+                // original picked name, not the temp path.
+                string displayName = files[0].Name ?? "midi";
+                string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
                 if (string.IsNullOrEmpty(path)) return;
 
                 string? error = _vm.ParseMidiInfo(path);
@@ -109,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 else
                 {
-                    MidiFileLabel.Text = System.IO.Path.GetFileName(path);
+                    MidiFileLabel.Text = displayName;
                     MidiInfoLabel.Text = _vm.MidiInfoText;
                     MidiInfoBorder.IsVisible = true;
                 }

@@ -12,6 +12,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Dialogs;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -145,7 +146,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeFilter = new[] { gbaFiles, binFiles, allFiles },
                 });
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
+                // #1639: LoadOtherRom reads the ROM bytes by path → bridge a SAF
+                // source (no local path) to a temp file on Android.
+                string? path = await FileDialogHelper.ResolveReadPathAsync(files[0]);
                 if (path == null) return;
                 _vm.LoadOtherRom(path);
             }

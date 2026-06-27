@@ -5,6 +5,7 @@ using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -401,13 +402,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(R._("Map data is invalid or too small."));
                     return;
                 }
-                string path = file.TryGetLocalPath();
-                if (string.IsNullOrEmpty(path))
-                {
-                    CoreState.Services?.ShowError(R._("Could not resolve a local file path for export."));
-                    return;
-                }
-                File.WriteAllText(path, csv);
+                // #1639: write via the SAF bridge so Android content:// targets
+                // (no local path) are written through OpenWriteAsync.
+                string? written = await FileDialogHelper.WriteViaAsync(file, p => File.WriteAllText(p, csv));
+                if (written == null) return;
                 CoreState.Services?.ShowInfo(string.Format(R._("Exported map to {0} ({1} chars)."), file.Name, csv.Length));
             }
             catch (Exception ex)

@@ -193,11 +193,23 @@ Desktop ROM I/O is path-based and will not work under Android scoped storage:
 
 - `FEBuilderGBA.Core/Rom.cs:606` / `Rom.cs:619` `File.ReadAllBytes(name)`;
   `Rom.cs:654` `Save(string name, bool silent)` writes by path.
-- `FEBuilderGBA.Avalonia/Dialogs/FileDialogHelper.cs:52,65` collapse every
-  picker result to `IStorageFile.TryGetLocalPath()`. On Android, SAF returns
-  **`content://` URIs** that frequently have **no stable local path**, so
-  `TryGetLocalPath()` returns `null` and a perfectly valid pick reads as
-  "cancelled".
+- The desktop ROM open/save already streams via `IStorageFile` (#1124); the ROM
+  path branch is the documented fast path.
+- **Editor import/export pickers (#1639):** the path-returning `FileDialogHelper`
+  helpers (`OpenRomFile` / `OpenImageFile` / `OpenPaletteFile` / `OpenFile` /
+  `OpenPatchFile`) used to collapse every pick to `IStorageFile.TryGetLocalPath()`.
+  On Android, SAF returns **`content://` URIs** that frequently have **no stable
+  local path**, so `TryGetLocalPath()` returned `null` and a perfectly valid pick
+  read as "cancelled". These now transparently bridge a SAF source to a temp
+  file (`ResolveReadPathAsync` / `CopyStreamToTempAsync`) so path-based Core APIs
+  keep working with **no call-site change**. Save flows route a path-based writer
+  through `FileDialogHelper.WriteViaAsync` (temp + write-back via `OpenWriteAsync`,
+  truncating first). Flows that genuinely need desktop access — Event Assembler /
+  ASM insert / custom build / executable-path config / Tiled (.tmx) sibling-file
+  export / `.instrument` + `.s` song imports that resolve sibling files — are
+  **disabled on Android with an explicit message**, never silently. The stream
+  core (`CopyStreamToTempAsync` / `WriteViaStreamsAsync`) is covered by
+  `FileDialogHelperSafBridgeTests`.
 
 **What Avalonia's `IStorageProvider` gives you on Android:** the same
 `OpenFilePickerAsync` / `SaveFilePickerAsync` API the desktop helper already uses

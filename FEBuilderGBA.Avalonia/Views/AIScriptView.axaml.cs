@@ -730,8 +730,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     SuggestedFileName = $"aiscript_0x{_vm.CurrentAddr:X06}.txt",
                     FileTypeChoices = new[] { txtType, allType },
                 });
-                string? path = file?.TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
+                if (file == null) return;
 
                 // Full per-opcode dump (WF AIScriptForm.EventToTextAll parity):
                 // one line per 16-byte opcode — hex bytes + tab + //script-name
@@ -743,8 +742,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services.ShowInfo(R._("There is no AI script to export. Re-read the script first."));
                     return;
                 }
-                System.IO.File.WriteAllText(path, content);
-                CoreState.Services.ShowInfo($"{R._("AI script exported to")} {path}");
+                // #1639: write via the SAF bridge so Android content:// targets
+                // (no local path) are written through OpenWriteAsync.
+                string? written = await FileDialogHelper.WriteViaAsync(file, p => System.IO.File.WriteAllText(p, content));
+                if (written != null) CoreState.Services.ShowInfo($"{R._("AI script exported to")} {written}");
             }
             catch (Exception ex)
             {
@@ -774,14 +775,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeFilter = new[] { txtType, allType },
                 });
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
 
                 // Full byte-stream import (WF AIScriptForm.FileToEvent parity):
                 // parse each hex line, rebuild the in-memory opcode model, and
                 // refresh the Disassembly list. NO ROM write — the user clicks
                 // the Write button to persist (preserving the undo flow).
-                string text = System.IO.File.ReadAllText(path);
+                // #1639: read via the stream API so Android content:// sources
+                // (no local path) are read, not treated as cancelled.
+                string text;
+                await using (var stream = await files[0].OpenReadAsync())
+                using (var reader = new System.IO.StreamReader(stream))
+                {
+                    text = await reader.ReadToEndAsync();
+                }
                 int count = _vm.ImportFromText(text);
                 if (count <= 0)
                 {

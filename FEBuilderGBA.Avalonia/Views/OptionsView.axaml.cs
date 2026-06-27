@@ -76,9 +76,16 @@ namespace FEBuilderGBA.Avalonia.Views
             });
             if (files.Count > 0)
             {
+                // #1639: these options configure paths to EXTERNAL tool
+                // executables that are launched as processes (devkitARM / EA),
+                // so a real filesystem path is required. On Android (no local
+                // path) leave the field and message instead of silently doing
+                // nothing.
                 string? path = files[0].TryGetLocalPath();
                 if (path != null)
                     target.Text = path;
+                else
+                    CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
             }
         }
 
@@ -96,9 +103,14 @@ namespace FEBuilderGBA.Avalonia.Views
             });
             if (folders.Count > 0)
             {
+                // #1639: tool directory config — a real local directory is
+                // required. On Android (no local path) message instead of
+                // silently doing nothing.
                 string? path = folders[0].TryGetLocalPath();
                 if (path != null)
                     target.Text = path;
+                else
+                    CoreState.Services?.ShowInfo(R._("This setting configures an external tool directory and requires desktop file-system access; it is not available on this device."));
             }
         }
 

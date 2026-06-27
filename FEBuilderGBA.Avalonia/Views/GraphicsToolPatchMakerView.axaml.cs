@@ -71,11 +71,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     },
                 });
 
-                var outputPath = file?.TryGetLocalPath();
-                if (!string.IsNullOrEmpty(outputPath))
+                if (file != null)
                 {
-                    _vm.SavePatch(outputPath);
-                    _vm.MarkClean();
+                    // #1639: write via the SAF bridge so Android content:// targets
+                    // (no local path) are written through OpenWriteAsync.
+                    bool ok = false;
+                    string? written = await FileDialogHelper.WriteViaAsync(file, p => { ok = _vm.SavePatch(p); });
+                    if (written != null && ok)
+                        _vm.MarkClean();
                 }
             }
             catch (Exception ex)

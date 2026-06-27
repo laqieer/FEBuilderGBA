@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -84,12 +85,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeFilter = new[] { gbaType, allType },
                 });
                 if (files.Count == 0) return;
-                string? path = files[0].TryGetLocalPath();
-                if (string.IsNullOrEmpty(path)) return;
 
-                byte[] data = System.IO.File.ReadAllBytes(path);
-                _vm.LoadOtherRom(data, path);
-                OtherRomLabel.Text = R._("Other ROM: {0} ({1} songs)", path, _vm.OtherSongList.Count);
+                // #1639: read the donor ROM bytes via the stream API so Android
+                // content:// sources (no local path) are read, not treated as
+                // cancelled. The filename is only used as a display label, so the
+                // local path (when present) or the SAF display name both work.
+                string label = files[0].TryGetLocalPath() ?? files[0].Name ?? "(rom)";
+                byte[] data;
+                await using (var stream = await files[0].OpenReadAsync())
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    await stream.CopyToAsync(ms);
+                    data = ms.ToArray();
+                }
+                _vm.LoadOtherRom(data, label);
+                OtherRomLabel.Text = R._("Other ROM: {0} ({1} songs)", label, _vm.OtherSongList.Count);
             }
             catch (Exception ex)
             {

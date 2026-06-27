@@ -43,9 +43,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
                 },
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.RunMakeBinPatch(path);
+            // #1639: RunMakeBinPatch writes the patch by path → route through the
+            // SAF bridge (temp + write-back on Android).
+            await FileDialogHelper.WriteViaAsync(file, p => _vm.RunMakeBinPatch(p));
         }
 
         // ---------- 3-ROM Diff tab ----------
@@ -76,9 +76,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
                 },
             });
-            var path = file?.TryGetLocalPath();
-            if (!string.IsNullOrEmpty(path))
-                _vm.RunMakeBinPatch3(path);
+            // #1639: RunMakeBinPatch3 writes the patch by path → route through the
+            // SAF bridge (temp + write-back on Android).
+            await FileDialogHelper.WriteViaAsync(file, p => _vm.RunMakeBinPatch3(p));
         }
 
         public void NavigateTo(uint address) { }

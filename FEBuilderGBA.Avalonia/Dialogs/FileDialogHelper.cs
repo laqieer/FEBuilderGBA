@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
@@ -11,6 +13,131 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     /// </summary>
     public static class FileDialogHelper
     {
+        // ===================================================================
+        // SAF (Storage Access Framework) bridge — #1639
+        //
+        // On Android the picked IStorageFile is a content:// document with NO
+        // local filesystem path: TryGetLocalPath() returns null. The historic
+        // path-returning helpers below therefore collapsed a valid pick to null
+        // — which every caller reads as "cancelled" — so import/export silently
+        // failed. #1124 fixed the ROM open/save by switching to OpenReadAsync /
+        // OpenWriteAsync streams; this bridge does the same for every other
+        // editor flow.
+        //
+        // Two strategies, both centralized here so call sites need not change:
+        //   * OPEN helpers that return a path: when there is no local path, copy
+        //     the SAF stream into a temp file (extension preserved) and return
+        //     THAT path. Consumers read it synchronously, so a best-effort temp
+        //     is sufficient.
+        //   * SAVE helpers: a *Via overload runs the caller's path-based writer
+        //     on a temp file then streams the temp bytes back into the SAF
+        //     target via OpenWriteAsync (truncating), so a previously-larger
+        //     document leaves no stale trailing bytes.
+        // ===================================================================
+
+        /// <summary>
+        /// Copy the bytes of a picked <see cref="IStorageFile"/> into a freshly
+        /// created temp file (the original extension is preserved so format
+        /// sniffing by extension still works) and return that local path. The
+        /// caller is expected to read the file synchronously right after; the
+        /// temp is left for the OS temp sweeper (best-effort, mirrors how the
+        /// previous code never owned the picked file's lifetime either).
+        /// </summary>
+        static Task<string?> CopyToTempForReadAsync(IStorageFile file)
+            => CopyStreamToTempAsync(file.OpenReadAsync, file.Name);
+
+        /// <summary>
+        /// Stream-based core of the SAF read bridge (testable without an
+        /// <see cref="IStorageFile"/>): copy <paramref name="openRead"/>'s bytes
+        /// into a temp file whose extension matches <paramref name="name"/>, and
+        /// return that path. #1639.
+        /// </summary>
+        internal static async Task<string?> CopyStreamToTempAsync(Func<Task<Stream>> openRead, string? name)
+        {
+            string ext = Path.GetExtension(name ?? "");
+            string tempPath = Path.Combine(Path.GetTempPath(),
+                "febgba_" + Guid.NewGuid().ToString("N") + ext);
+            await using (var src = await openRead())
+            await using (var dst = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await src.CopyToAsync(dst);
+            }
+            return tempPath;
+        }
+
+        /// <summary>
+        /// Resolve a picked file to a local path that path-based Core APIs can
+        /// consume: the real local path on desktop, or a temp copy of the SAF
+        /// stream on Android (#1639). Returns null only when <paramref name="file"/>
+        /// is null. Public so callers that picked the handle directly (e.g. the
+        /// shared TableExportImportHelper) can bridge a SAF read without
+        /// re-opening the picker.
+        /// </summary>
+        public static async Task<string?> ResolveReadPathAsync(IStorageFile? file)
+        {
+            if (file == null) return null;
+            string? local = file.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(local)) return local;
+            return await CopyToTempForReadAsync(file);
+        }
+
+        /// <summary>
+        /// Run a path-based <paramref name="writer"/> against the picked save
+        /// target. On desktop the writer runs directly on the real local path.
+        /// On Android (no local path) the writer runs on a temp file whose
+        /// extension matches the chosen file, then the temp bytes are streamed
+        /// back into the SAF document via <see cref="IStorageFile.OpenWriteAsync"/>
+        /// (truncating the target first so a previously-larger document keeps no
+        /// stale trailing bytes). The temp file is always deleted. Returns the
+        /// path that was written (real local path on desktop, the SAF display
+        /// name on Android) or null when <paramref name="file"/> is null. (#1639)
+        /// </summary>
+        public static async Task<string?> WriteViaAsync(IStorageFile? file, Func<string, Task> writer)
+        {
+            if (file == null) return null;
+            string? local = file.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(local))
+            {
+                await writer(local);
+                return local;
+            }
+            return await WriteViaStreamsAsync(file.OpenWriteAsync, file.Name, writer);
+        }
+
+        /// <summary>
+        /// Stream-based core of the SAF write bridge (testable without an
+        /// <see cref="IStorageFile"/>): run <paramref name="writer"/> on a temp
+        /// file (extension matched to <paramref name="name"/>), then stream the
+        /// temp bytes into <paramref name="openWrite"/>'s stream, truncating it
+        /// first so a previously-larger document keeps no stale trailing bytes.
+        /// The temp file is always deleted. Returns the file name on success.
+        /// #1639.
+        /// </summary>
+        internal static async Task<string?> WriteViaStreamsAsync(Func<Task<Stream>> openWrite, string? name, Func<string, Task> writer)
+        {
+            string ext = Path.GetExtension(name ?? "");
+            string tempPath = Path.Combine(Path.GetTempPath(),
+                "febgba_" + Guid.NewGuid().ToString("N") + ext);
+            try
+            {
+                await writer(tempPath);
+                await using var src = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                await using var dst = await openWrite();
+                // OpenWriteAsync streams do not reliably truncate; reset length
+                // so a previously-larger document has no stale trailing bytes.
+                if (dst.CanSeek) dst.SetLength(0);
+                await src.CopyToAsync(dst);
+                return name ?? "(file)";
+            }
+            finally
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { /* best effort */ }
+            }
+        }
+
+        /// <summary>Synchronous-writer convenience over <see cref="WriteViaAsync(IStorageFile, Func{string, Task})"/>.</summary>
+        public static Task<string?> WriteViaAsync(IStorageFile? file, Action<string> writer)
+            => WriteViaAsync(file, path => { writer(path); return Task.CompletedTask; });
         // Reuse static pattern arrays to avoid repeated allocations
         static readonly string[] GbaPatterns = new[] { "*.gba" };
         static readonly string[] AllPatterns = new[] { "*" };
@@ -39,7 +166,14 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             Patterns = UpsPatterns,
         };
 
-        /// <summary>Open a GBA ROM file.</summary>
+        /// <summary>
+        /// Open a GBA ROM file and return a usable local path. On Android SAF
+        /// (no local path) the picked ROM is copied to a temp file so the many
+        /// path-based ROM-utility tools (diff / 3-way merge / translate-ROM /
+        /// UPS / header-recovery) keep working (#1639). Callers that need to
+        /// retain the SAF handle for write-back (the main ROM open/save) use
+        /// <see cref="OpenRomFilePick"/> instead.
+        /// </summary>
         public static async Task<string?> OpenRomFile(Window owner)
         {
             var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -49,7 +183,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { MakeGbaFileType(), MakeAllFileType() },
             });
 
-            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
         }
 
         /// <summary>Save a GBA ROM file.</summary>
@@ -131,7 +265,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { MakeUpsFileType(), MakeAllFileType() },
             });
 
-            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
         }
 
         static FilePickerFileType MakePngFileType() => new(R._("PNG Image"))
@@ -167,7 +301,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { MakeImageFileType(), MakeAllFileType() },
             });
 
-            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
         }
 
         /// <summary>Save an Animation Creator script file (.txt).</summary>
@@ -202,7 +336,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { fileType, MakeAllFileType() },
             });
 
-            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
         }
 
         /// <summary>
@@ -348,7 +482,51 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 FileTypeFilter = new[] { MakeAnyPaletteFileType(), MakeJascPalFileType(), MakeGbaRawPalFileType(), MakeAdobeActFileType(), MakeGimpGplFileType(), MakeHexTextPalFileType(), MakeAllFileType() },
             });
 
-            return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
+        }
+
+        // ===================================================================
+        // SAVE "*Via" overloads — pick the target, then run a path-based writer
+        // through WriteViaAsync so the output reaches the SAF document on
+        // Android too (#1639). These let palette/image/file save flows keep
+        // their existing path-based write code unchanged.
+        // ===================================================================
+
+        /// <summary>Pick a PNG save target and run <paramref name="writer"/> via the SAF bridge.</summary>
+        public static async Task<string?> SaveImageFileVia(Window owner, string? suggestedName, Func<string, Task> writer)
+        {
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Export Image"),
+                SuggestedFileName = suggestedName ?? "image.png",
+                FileTypeChoices = new[] { MakePngFileType() },
+            });
+            return await WriteViaAsync(file, writer);
+        }
+
+        /// <summary>Pick a palette save target (multi-format) and run <paramref name="writer"/> via the SAF bridge.</summary>
+        public static async Task<string?> SavePaletteFileVia(Window owner, string? suggestedName, Func<string, Task> writer)
+        {
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Export Palette"),
+                SuggestedFileName = suggestedName ?? "palette.pal",
+                FileTypeChoices = new[] { MakeJascPalFileType(), MakeGbaRawPalFileType(), MakeAdobeActFileType(), MakeGimpGplFileType(), MakeHexTextPalFileType() },
+            });
+            return await WriteViaAsync(file, writer);
+        }
+
+        /// <summary>Pick a single-format save target and run <paramref name="writer"/> via the SAF bridge.</summary>
+        public static async Task<string?> SaveFileVia(Window owner, string title, string filterName, string pattern, string? suggestedName, Func<string, Task> writer)
+        {
+            var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = new[] { fileType, MakeAllFileType() },
+            });
+            return await WriteViaAsync(file, writer);
         }
     }
 }

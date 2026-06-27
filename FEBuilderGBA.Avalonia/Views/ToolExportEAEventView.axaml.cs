@@ -46,15 +46,22 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        async System.Threading.Tasks.Task<string?> PickSaveFile(string suggestedName)
+        async System.Threading.Tasks.Task<global::Avalonia.Platform.Storage.IStorageFile?> PickSaveFile(string suggestedName)
         {
-            var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            return await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Export EA Event"),
                 SuggestedFileName = suggestedName,
                 FileTypeChoices = new[] { EaFileType, AllFileType },
             });
-            return file?.TryGetLocalPath();
+        }
+
+        // #1639: write the built EA text via the SAF bridge so Android content://
+        // targets (no local path) are written through OpenWriteAsync. Returns the
+        // file label (local path on desktop, display name on Android) or null.
+        async System.Threading.Tasks.Task<string?> SaveEa(global::Avalonia.Platform.Storage.IStorageFile? file, string content)
+        {
+            return await FileDialogHelper.WriteViaAsync(file, p => File.WriteAllText(p, content));
         }
 
         /// <summary>Format ROM bytes as EA BYTE command with $ hex prefix.</summary>
@@ -93,8 +100,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string suggestedName = $"Map{mapIndex:D2}_Event_0x{eventAddr:X08}.event";
-                string? path = await PickSaveFile(suggestedName);
-                if (path == null) return;
+                var file = await PickSaveFile(suggestedName);
+                if (file == null) return;
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"// Event export for Map {mapIndex} (0x{eventAddr:X08})");
@@ -120,8 +127,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     sb.AppendLine($"BYTE {FormatBytesDollar(rom.Data, eventAddr, dataLen)}");
                 }
 
-                File.WriteAllText(path, sb.ToString());
-                _vm.StatusText = $"Exported events to: {Path.GetFileName(path)}";
+                string? written = await SaveEa(file, sb.ToString());
+                if (written == null) return;
+                _vm.StatusText = $"Exported events to: {Path.GetFileName(written)}";
             }
             catch (Exception ex)
             {
@@ -157,8 +165,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string suggestedName = $"Map{mapIndex:D2}_WMap_0x{addr:X08}.event";
-                string? path = await PickSaveFile(suggestedName);
-                if (path == null) return;
+                var file = await PickSaveFile(suggestedName);
+                if (file == null) return;
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"// World Map Event export for Map {mapIndex} (0x{addr:X08})");
@@ -169,8 +177,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 ef.Add($"Map{mapIndex}_WorldMapEvent", U.toPointer(addr));
                 ef.ExportEA(sb);
 
-                File.WriteAllText(path, sb.ToString());
-                _vm.StatusText = $"Exported world map events to: {Path.GetFileName(path)}";
+                string? written = await SaveEa(file, sb.ToString());
+                if (written == null) return;
+                _vm.StatusText = $"Exported world map events to: {Path.GetFileName(written)}";
             }
             catch (Exception ex)
             {
@@ -209,8 +218,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 string suggestedName = $"Map{mapIndex:D2}_WMap2_0x{addr:X08}.event";
-                string? path = await PickSaveFile(suggestedName);
-                if (path == null) return;
+                var file = await PickSaveFile(suggestedName);
+                if (file == null) return;
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"// World Map Event (Selected) export for Map {mapIndex} (0x{addr:X08})");
@@ -221,8 +230,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 ef.Add($"Map{mapIndex}_WorldMapEventSelect", U.toPointer(addr));
                 ef.ExportEA(sb);
 
-                File.WriteAllText(path, sb.ToString());
-                _vm.StatusText = $"Exported world map events (selected) to: {Path.GetFileName(path)}";
+                string? written = await SaveEa(file, sb.ToString());
+                if (written == null) return;
+                _vm.StatusText = $"Exported world map events (selected) to: {Path.GetFileName(written)}";
             }
             catch (Exception ex)
             {
@@ -238,8 +248,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await PickSaveFile("MainTables.event");
-                if (path == null) return;
+                var file = await PickSaveFile("MainTables.event");
+                if (file == null) return;
 
                 var sb = new StringBuilder();
                 sb.AppendLine("// Main Table export");
@@ -289,8 +299,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     sb.AppendLine();
                 }
 
-                File.WriteAllText(path, sb.ToString());
-                _vm.StatusText = $"Exported main tables to: {Path.GetFileName(path)}";
+                string? written = await SaveEa(file, sb.ToString());
+                if (written == null) return;
+                _vm.StatusText = $"Exported main tables to: {Path.GetFileName(written)}";
             }
             catch (Exception ex)
             {
@@ -307,8 +318,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                string? path = await PickSaveFile("UndoBuffer.event");
-                if (path == null) return;
+                var file = await PickSaveFile("UndoBuffer.event");
+                if (file == null) return;
 
                 var checkDupMap = new Dictionary<string, bool>();
                 var revLines = new List<string>();
@@ -346,8 +357,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 for (int i = revLines.Count - 1; i >= 0; i--)
                     sb.AppendLine(revLines[i]);
 
-                File.WriteAllText(path, sb.ToString());
-                _vm.StatusText = $"Exported undo buffer to: {Path.GetFileName(path)}";
+                string? written = await SaveEa(file, sb.ToString());
+                if (written == null) return;
+                _vm.StatusText = $"Exported undo buffer to: {Path.GetFileName(written)}";
             }
             catch (Exception ex)
             {

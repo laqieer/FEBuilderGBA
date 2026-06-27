@@ -123,11 +123,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     SuggestedFileName = "texts.tsv",
                     FileTypeChoices = new[] { tsvType, allType },
                 });
-                string? path = file?.TryGetLocalPath();
-                if (path == null) return;
+                if (file == null) return;
 
+                // #1639: ExportAllTexts writes by path, so route through the SAF
+                // bridge (temp + write-back on Android). Capture the count in the
+                // closure since WriteViaAsync only returns the written label.
                 var vm = new TextViewerViewModel();
-                int count = vm.ExportAllTexts(path);
+                int count = 0;
+                string? written = await FileDialogHelper.WriteViaAsync(file, path => { count = vm.ExportAllTexts(path); });
+                if (written == null) return;
                 var ownerWindow = topLevel as Window ?? new Window();
                 await MessageBoxWindow.Show(ownerWindow,
                     $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
