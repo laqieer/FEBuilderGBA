@@ -12956,4 +12956,3 @@ AIポインタテーブルを{0}エントリに拡張しました。
 
 :Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 AIポインタテーブルの新しいエントリ数を入力してください（現在: {0}、最大: {1}）。
-

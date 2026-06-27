@@ -26787,4 +26787,3 @@ TSA 写入失败：{0}
 
 :Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 请输入 AI 指针表的新条目数（当前：{0}，最大：{1}）。
-

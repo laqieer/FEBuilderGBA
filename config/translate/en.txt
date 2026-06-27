@@ -21194,4 +21194,3 @@ Expanded AI pointer table to {0} entries.
 
 :Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
 Enter the new entry count for the AI pointer table (current: {0}, max: {1}).
-
