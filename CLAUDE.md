@@ -13,11 +13,16 @@ FEBuilderGBA.sln
 ├── FEBuilderGBA/             # net9.0-windows — WinForms GUI application
 ├── FEBuilderGBA.CLI/         # net9.0 — Cross-platform CLI (--version, --help, --makeups)
 ├── FEBuilderGBA.SkiaSharp/   # net9.0 — SkiaSharp IImageService implementation
-├── FEBuilderGBA.Avalonia/    # net9.0 — Cross-platform Avalonia UI preview
-├── FEBuilderGBA.Tests/       # net9.0-windows — Unit tests (1666 tests)
-├── FEBuilderGBA.Core.Tests/  # net9.0 — Cross-platform Core tests (1004 tests)
-└── FEBuilderGBA.E2ETests/    # net9.0-windows — End-to-end tests
+├── FEBuilderGBA.Avalonia/        # net9.0 — Cross-platform Avalonia UI preview
+├── FEBuilderGBA.Tests/           # net9.0-windows — WinForms unit tests (~1.3k)
+├── FEBuilderGBA.Core.Tests/      # net9.0 — Cross-platform Core tests (~5.5k)
+├── FEBuilderGBA.Avalonia.Tests/  # net9.0 — Avalonia GUI / ViewModel tests (~4.6k)
+├── FEBuilderGBA.Android.Tests/   # net9.0-android — on-device reflection-runner parity/version-guard head
+└── FEBuilderGBA.E2ETests/        # net9.0-windows — End-to-end tests
 ```
+
+> Test counts above are rounded approximations of declared `[Fact]`/`[Theory]` methods; `[Theory]`
+> cases expand at runtime, so the authoritative live total is the one reported by `dotnet test` / CI.
 
 **FEBuilderGBA.Core** contains platform-independent logic: ROM manipulation (`Rom.cs`, `ROMFE*.cs`), undo system (`Undo.cs`), utility functions (`U.cs`), logging (`Log.cs`), and shared state (`CoreState.cs`). It defines abstraction interfaces (`IAppServices`, `IEtcCache`, `ISystemTextEncoder`, `IAsmMapCache`) so Core code can call platform-specific services without depending on WinForms.
 
@@ -65,6 +70,10 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 ### Command-Line Tools
 
+> The examples below are a **representative subset**. The canonical full CLI reference (all 67
+> commands) lives in **[docs/cli-reference.md](docs/cli-reference.md)**; the argument table is in
+> **[docs/cli-args.md](docs/cli-args.md)**.
+
 ```bash
 # Run lint check on ROM
 ./FEBuilderGBA.exe --rom rom.gba --lint
@@ -77,6 +86,9 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 
 # Disassemble code
 ./FEBuilderGBA.exe --rom rom.gba --disasm [params]
+
+# Convert an image to GBA map tiles + TSA (no ROM required)
+./FEBuilderGBA.CLI --convertmap1picture --in=map.png --outImg=tiles.bin --outTSA=tsa.bin
 
 # Show version
 ./FEBuilderGBA.exe --version
