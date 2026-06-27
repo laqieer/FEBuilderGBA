@@ -54,8 +54,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // #1639: when the target is a SAF document, write the produced bytes
             // through its handle via the bridge (the VM writes to a temp path).
+            // DecompressDestPath holds the user-facing display label; swap in the
+            // temp path only for the write, then RESTORE the label so the textbox
+            // keeps showing the chosen target, not the temp path.
             if (_decompressDestFile != null && string.IsNullOrEmpty(_decompressDestFile.TryGetLocalPath()))
+            {
+                string displayLabel = _vm.DecompressDestPath;
                 await FileDialogHelper.WriteViaAsync(_decompressDestFile, p => { _vm.DecompressDestPath = p; _vm.RunDecompress(); });
+                _vm.DecompressDestPath = displayLabel;
+            }
             else
                 _vm.RunDecompress();
         }
@@ -81,8 +88,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void CompressFire_Click(object? sender, RoutedEventArgs e)
         {
+            // #1639: same as DecompressFire — swap in the temp path only for the
+            // bridged write, then RESTORE the display label.
             if (_compressDestFile != null && string.IsNullOrEmpty(_compressDestFile.TryGetLocalPath()))
+            {
+                string displayLabel = _vm.CompressDestPath;
                 await FileDialogHelper.WriteViaAsync(_compressDestFile, p => { _vm.CompressDestPath = p; _vm.RunCompress(); });
+                _vm.CompressDestPath = displayLabel;
+            }
             else
                 _vm.RunCompress();
         }

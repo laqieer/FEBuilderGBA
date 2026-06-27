@@ -168,12 +168,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 // through the handle.
                 if (_outputFile != null && string.IsNullOrEmpty(_outputFile.TryGetLocalPath()))
                 {
+                    // OutputPath holds the user-facing display name; swap in the
+                    // temp path only for the Core write, then RESTORE it so the
+                    // status message shows the chosen name, not the temp path.
+                    string displayLabel = _vm.OutputPath;
                     int c = -1;
                     await FileDialogHelper.WriteViaAsync(_outputFile, async p =>
                     {
                         _vm.OutputPath = p;
                         c = await Task.Run(() => _vm.RunReduce());
                     });
+                    _vm.OutputPath = displayLabel;
                     code = c;
                 }
                 else
