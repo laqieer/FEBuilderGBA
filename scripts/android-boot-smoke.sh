@@ -51,6 +51,13 @@ echo "APK: $APK_PATH"
 # ---------------------------------------------------------------
 # 2. Install the APK with one retry on transient adb failure
 # ---------------------------------------------------------------
+# Force a clean FIRST-RUN: the AVD is cached across workflow runs, so a prior
+# run's app + its extracted config in FilesDir can persist. Uninstalling first
+# guarantees this run exercises the real first-run config extraction (#1123)
+# (which is version-stamped + idempotent and would otherwise be skipped).
+echo "--- Uninstalling any prior ${PKG} to force a clean first-run ---"
+adb uninstall "${PKG}" || true
+
 install_apk() {
   adb install -r "$APK_PATH"
 }
@@ -99,11 +106,14 @@ app_crashed() {
     adb logcat -d --pid "${APP_PID}" 2>/dev/null \
       | grep -qE "FATAL EXCEPTION|AndroidRuntime" && return 0
   fi
-  # Fallback: a crash block whose AndroidRuntime line names our package, or the
-  # app's own fail-fast config-extraction error (logged with our LogTag).
-  adb logcat -d 2>/dev/null \
-    | grep -E "AndroidRuntime|config extraction FAILED" \
-    | grep -q "${PKG}" && return 0
+  # The app's own fail-fast config-extraction error is logged under the
+  # FEBuilderGBA tag (NOT the package name), so match it INDEPENDENTLY. The
+  # logcat buffer was cleared right before launch (section 3), so any
+  # occurrence belongs to THIS boot.
+  adb logcat -d 2>/dev/null | grep -q "config extraction FAILED" && return 0
+  # A generic AndroidRuntime crash block: scope to OUR package so an unrelated
+  # system/other-app crash cannot false-fail the smoke test.
+  adb logcat -d 2>/dev/null | grep -E "AndroidRuntime" | grep -q "${PKG}" && return 0
   return 1
 }
 
