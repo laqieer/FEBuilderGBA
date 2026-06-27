@@ -36,8 +36,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>Raw 32-bit pointer value stored in the selected slot. READ-ONLY
         /// diagnostics — the editable surface is <see cref="TerrainName"/>; the
-        /// pointer is repointed automatically by <see cref="Write"/>.</summary>
-        public uint TerrainNamePointer { get => _terrainNamePointer; set => SetField(ref _terrainNamePointer, value); }
+        /// pointer is repointed automatically by <see cref="Write"/>. The setter is
+        /// private so only <see cref="LoadEntry"/> / <see cref="Write"/> can update
+        /// it (external code cannot mutate the pointer directly).</summary>
+        public uint TerrainNamePointer { get => _terrainNamePointer; private set => SetField(ref _terrainNamePointer, value); }
 
         /// <summary>The decoded, EDITABLE terrain name string (multibyte case).</summary>
         public string TerrainName { get => _terrainName; set => SetField(ref _terrainName, value); }
