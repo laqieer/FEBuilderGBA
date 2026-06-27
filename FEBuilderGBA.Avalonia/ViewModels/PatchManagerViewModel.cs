@@ -156,8 +156,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TotalCount = _allPatches.Count;
             InstalledCount = _allPatches.Count(p => p.Status == PatchMetadataCore.PatchStatus.Installed);
 
+            ApplyAndroidEmptyStateNotice();
+
             ApplyFilter();
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Android empty-state notice (#1641): patch2 is not delivered on-device, so the patch list
+        /// resolves empty there. Surface the canonical limitation instead of a silent blank list.
+        /// Desktop (resource delivery supported) keeps its existing behaviour untouched. Extracted so
+        /// the platform-gated branch is directly unit-testable via the
+        /// <see cref="AndroidResourceNoticeCore.IsAndroidOverride"/> seam.
+        /// </summary>
+        public void ApplyAndroidEmptyStateNotice()
+        {
+            if (!AndroidResourceNoticeCore.IsResourceDeliverySupported && _allPatches.Count == 0)
+                StatusMessage = AndroidResourceNoticeCore.PatchLibraryUnavailableMessage;
         }
 
         /// <summary>

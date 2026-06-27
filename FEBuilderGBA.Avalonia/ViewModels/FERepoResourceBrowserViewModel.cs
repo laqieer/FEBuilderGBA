@@ -125,7 +125,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_repoRoot == null)
             {
                 NotFound = true;
-                StatusText = "FE-Repo not found. Run: " + EffectiveInitCommand;
+                // On Android FE-Repo is not delivered on-device and the desktop "git submodule"
+                // command cannot work there, so show the canonical Android limitation instead
+                // (#1641). Desktop keeps the actionable init-command hint (#1380).
+                StatusText = AndroidResourceNoticeCore.IsResourceDeliverySupported
+                    ? "FE-Repo not found. Run: " + EffectiveInitCommand
+                    : AndroidResourceNoticeCore.FERepoUnavailableMessage;
                 return;
             }
 

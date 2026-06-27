@@ -178,6 +178,7 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
 | LICENSE + third-party notices in every artifact (GPLv3) | [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633) |
 | Code-sign / notarize Windows + macOS artifacts | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
+| Android: patch2 binary-patch library + FE-Repo resources not delivered on-device (desktop-only; in-app empty-state notice shown — see [docs/ANDROID.md §5.1](ANDROID.md)) | [#1641](https://github.com/laqieer/FEBuilderGBA/issues/1641) |
 
 ---
 

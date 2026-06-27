@@ -255,12 +255,62 @@ head therefore ships + extracts config:
    is unchanged**. Extraction failure logs + rethrows (fail fast — a booted app
    with missing config is worse than a visible crash).
 
-> **patch2 delivery decision: `config/patch2` is NOT bundled for Android
-> (deferred).** It is a runtime-installed git submodule (hundreds of MB) that the
-> desktop app installs on demand via `GitUtil`; bundling it would bloat the APK
-> enormously and Android has no in-process git. Deciding on-device patch delivery
-> (e.g. an on-demand download into `FilesDir`) is tracked under the epic #1070,
-> not this issue. The issue explicitly accepts "deferred / not bundled."
+### 5.1 patch2 / FE-Repo on-device delivery decision (#1641)
+
+**Decision: the binary-patch library (`config/patch2`) and the FE-Repo
+graphics/music resource submodules are DESKTOP-ONLY on Android for now —
+documented limitation, not on-device delivery.** This is a deliberate, honest
+scoping decision (acceptance of #1641's "document the limitation" path), not an
+oversight.
+
+**Why they are not delivered on Android:**
+
+- **No in-process git.** On desktop both `config/patch2/` and `resources/FE-Repo*`
+  are runtime-installed git submodules that the app fetches on demand via the
+  in-process `GitUtil`. Android has no in-process git, so the desktop delivery
+  path simply does not exist on a device.
+- **APK packaging / submodule size.** `config/patch2` and FE-Repo are large
+  (the patch library is hundreds of MB; FE-Repo is a large graphics/music
+  corpus). Bundling either as an `AndroidAsset` inside the APK would bloat the
+  download enormously and is not how the desktop build delivers them either
+  (the desktop ships them out-of-band via git, see §2 of `docs/RELEASE.md` and
+  the `config/patch2/` empty placeholders).
+- **Storage model differs.** The desktop relies on a "loose files beside the
+  exe" layout; Android uses app-private `Context.FilesDir` + SAF (`content://`)
+  storage with no equivalent loose-file tree (see §4 and §5 above). Even a
+  bundled copy would need the same first-run extraction the rest of `config/`
+  uses, which does not solve the size problem.
+
+**What the user sees in-app today (the empty-state):**
+
+- **Patch Manager** — the patch list resolves empty on Android (no
+  `config/patch2/{version}/` on device). Instead of a silent blank list, the
+  manager now shows the canonical Android notice
+  (`AndroidResourceNoticeCore.PatchLibraryUnavailableMessage`): patch2 is not
+  available on Android yet, ships on desktop builds via git, and on-device
+  delivery is planned under #1070.
+- **FE-Repo Resource Browser** — when the submodule is absent the browser
+  already surfaces an actionable empty-state. On desktop that is the
+  `git submodule update --init …` hint (#1380); on Android — where that command
+  cannot work — it instead shows
+  `AndroidResourceNoticeCore.FERepoUnavailableMessage` (the same desktop-only /
+  planned-on-device-delivery message).
+
+The decision is centralised in the GUI-free, desktop-unit-testable
+`FEBuilderGBA.Core/AndroidResourceNoticeCore.cs` (an `IsResourceDeliverySupported`
+predicate with a test-injectable platform seam + the two canonical message
+strings), so the limitation is **verifiable on desktop CI** without an Android
+build.
+
+**Intended future delivery mechanism (tracked under epic #1070, NOT promised here):**
+an **on-demand HTTP download** of a minimal patch index (and then the
+user-selected patches / FE-Repo categories) into app-private `Context.FilesDir`,
+**version-pinned** (reusing the version-stamp / completeness-manifest pattern
+already used by `AndroidConfigExtractorCore`, §5), with integrity verification
+and resumable/partial-download recovery. The `INTERNET` permission is already
+declared in `AndroidManifest`, but **no downloader is implemented yet** — this
+section deliberately does not over-claim one. See also the release-readiness
+known-gaps table in `docs/RELEASE.md` §7.
 
 > **Validation note (#1123).** This note was originally authored without a
 > device/emulator (desktop/build-only): the extraction logic is unit-tested on desktop
@@ -531,8 +581,11 @@ linked under #1070 as its checklist:
    largest item; see §2.)*
 3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
    first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
-   config extraction emulator-validated via #1640's boot-smoke; `config/patch2` deferred / not bundled.
-   *(see §5.)*
+   config extraction emulator-validated via #1640's boot-smoke. The `patch2` /
+   FE-Repo on-device delivery **decision** is now made (#1641): **documented
+   desktop-only limitation** with an Android-aware in-app empty-state; an
+   on-demand download into `FilesDir` is the intended future mechanism under
+   #1070, not yet implemented. *(see §5 and §5.1.)*
 4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
    `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
 5. ~~**Android: `SkiaSharp.NativeAssets.Android` version pinning + render
