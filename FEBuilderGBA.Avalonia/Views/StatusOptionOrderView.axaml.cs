@@ -141,13 +141,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception inner)
                 {
                     _undoService.Rollback();
-                    Log.Error("StatusOptionOrderView.ExpandList_Click inner failed: {0}", inner.ToString());
+                    // Log.Error joins params with spaces (no {0} composite formatting),
+                    // so interpolate the message ourselves.
+                    Log.Error($"StatusOptionOrderView.ExpandList_Click inner failed: {inner}");
                     CoreState.Services?.ShowError(R._("Game option order list expansion failed: {0}", inner.Message));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("StatusOptionOrderView.ExpandList_Click failed: {0}", ex.ToString());
+                Log.Error($"StatusOptionOrderView.ExpandList_Click failed: {ex}");
             }
         }
 

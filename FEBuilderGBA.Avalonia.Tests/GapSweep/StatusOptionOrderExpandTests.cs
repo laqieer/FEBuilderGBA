@@ -70,17 +70,17 @@ public class StatusOptionOrderExpandTests
         Assert.NotEqual(0u, ptrAddr);
         Assert.NotEqual(0u, countAddr);
 
-        // pointer → list base
-        BitConverter.GetBytes(ListBase | 0x08000000u).CopyTo(bytes, ptrAddr);
-        // count byte
-        bytes[countAddr] = count;
+        // pointer → list base (CopyTo takes an int offset)
+        BitConverter.GetBytes(ListBase | 0x08000000u).CopyTo(bytes, (int)ptrAddr);
+        // count byte (explicit int index)
+        bytes[(int)countAddr] = count;
         // list entries
         for (int r = 0; r < count; r++)
-            bytes[(int)(ListBase + r)] = (byte)(0x10 + r);
+            bytes[(int)ListBase + r] = (byte)(0x10 + r);
 
-        // Explicit 0xFF free-space region for the relocate.
-        for (uint i = 0; i < FreeSpaceLen; i++)
-            bytes[FreeSpace + i] = 0xFF;
+        // Explicit 0xFF free-space region for the relocate (int index).
+        for (int i = 0; i < (int)FreeSpaceLen; i++)
+            bytes[(int)FreeSpace + i] = 0xFF;
 
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
         return rom;
@@ -251,6 +251,53 @@ public class StatusOptionOrderExpandTests
             Assert.Equal(origPtr, rom.p32(rom.RomInfo.status_game_option_order_pointer));
             Assert.Equal(origCount, rom.u8(countAddr)); // count byte untouched (not 0)
             Assert.Equal(before, rom.getBinaryData(0x00800000u, 0x20000));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    [Fact]
+    public void ExpandList_WithoutPriorLoad_ResolvesCountFromRom_PreservesEntries()
+    {
+        // Finding (Copilot PR review): ExpandList must NOT trust a stale/0 ReadCount.
+        // A fresh VM that never called LoadStatusOptionOrderList() has ReadCount==0;
+        // ExpandList must re-resolve the current count from the ROM count byte so it
+        // copies all existing entries instead of dropping them.
+        ROM rom = MakeFe8uRom(count: 8);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            uint ptrAddr = rom.RomInfo.status_game_option_order_pointer;
+            uint countAddr = rom.RomInfo.status_game_option_order_count_address;
+
+            // Fresh VM — never loaded; ReadCount is the default 0.
+            var vm = new StatusOptionOrderViewModel();
+            Assert.Equal(0u, vm.ReadCount);
+
+            string err;
+            var undodata = CoreState.Undo.NewUndoData("StatusOptionOrder Expand no-load");
+            using (ROM.BeginUndoScope(undodata))
+            {
+                err = vm.ExpandList(12, undodata);
+            }
+            CoreState.Undo.Push(undodata);
+
+            Assert.Equal("", err);
+            // Re-resolved current (8) from the ROM, not the stale 0.
+            Assert.Equal(12u, vm.ReadCount);
+            Assert.Equal(12u, rom.u8(countAddr));
+
+            // All 8 original entries preserved (none dropped by a wrong currentCount=0).
+            uint newBase = rom.p32(ptrAddr);
+            for (uint r = 0; r < 8; r++)
+                Assert.Equal(0x10u + r, rom.u8(newBase + r));
         }
         finally
         {

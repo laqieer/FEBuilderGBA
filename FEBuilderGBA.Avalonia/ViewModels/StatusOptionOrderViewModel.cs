@@ -109,7 +109,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (countAddr == 0 || !U.isSafetyOffset(countAddr, rom))
                 return R._("Game option order count address is unset for this ROM version.");
 
-            uint current = ReadCount;
+            // Re-resolve the current count from the ROM count byte — the runtime
+            // source of truth — rather than trust ReadCount, which can be 0/stale if
+            // ExpandList is invoked without a prior LoadStatusOptionOrderList() or
+            // after the ROM was mutated elsewhere. A wrong (e.g. 0) current count
+            // would make ExpandTableTo copy too few existing bytes and drop entries
+            // (Copilot PR-review finding). ReadCount is refreshed to this value too.
+            uint current = rom.u8(countAddr);
+            ReadCount = current;
+
             if (newCount < current)
                 return R._("New count ({0}) must be greater than or equal to current count ({1}).",
                     newCount, current);
