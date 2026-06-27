@@ -483,5 +483,229 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // -------------------------------------------------------------------
+        // Issue #1636 \u2014 XML-entity key normalization in MyTranslateResourceLow.
+        //
+        // en.txt historically retained raw XML entities (`&amp;`, `&#10;`,
+        // `&#x0a;`, `&lt;`) in its self-referencing keys/values where ja.txt /
+        // zh.txt store the decoded form (`&`, `\r\n`, `<`). The AXAML parser
+        // decodes entities before a string ever reaches str(), so the entity-
+        // keyed entries missed every lookup and fell through to English
+        // identity-passthrough, rendering the existing ja/zh translations
+        // UNREACHABLE. The loader now decodes XML char/entity refs when building
+        // both dictionaries (and as a str() fallback), and the shipped en.txt
+        // data is normalized to the decoded form. The tests below assert both
+        // halves: the runtime decode (against temp fixtures mirroring the real
+        // entity / decoded forms) and the shipped-file acceptance strings.
+        // -------------------------------------------------------------------
+
+        [Fact]
+        public void DecodeXmlEntities_DecodesScopedRefs()
+        {
+            // &#10; / &#x0a; (any hex case) -> CRLF (the translate-file newline
+            // convention), &#13; / &#x0d; -> CR, named entities resolved, &amp; LAST.
+            Assert.Equal("a\r\nb", MyTranslateResourceLow.DecodeXmlEntities("a&#10;b"));
+            Assert.Equal("a\r\nb", MyTranslateResourceLow.DecodeXmlEntities("a&#x0a;b"));
+            Assert.Equal("a\r\nb", MyTranslateResourceLow.DecodeXmlEntities("a&#x0A;b"));
+            Assert.Equal("a\rb", MyTranslateResourceLow.DecodeXmlEntities("a&#13;b"));
+            Assert.Equal("Support & Other", MyTranslateResourceLow.DecodeXmlEntities("Support &amp; Other"));
+            Assert.Equal("<= 4095", MyTranslateResourceLow.DecodeXmlEntities("&lt;= 4095"));
+            // Idempotent / no-op on entity-free strings.
+            Assert.Equal("plain text", MyTranslateResourceLow.DecodeXmlEntities("plain text"));
+            Assert.Null(MyTranslateResourceLow.DecodeXmlEntities(null));
+        }
+
+        [Fact]
+        public void DecodeXmlEntities_AmpDecodedLast_PreservesDoubleEscape()
+        {
+            // `&amp;lt;` is a doubly-escaped `&lt;` \u2014 it must decode to the
+            // literal `&lt;`, NOT to `<`. Guards the decode ordering.
+            Assert.Equal("&lt;", MyTranslateResourceLow.DecodeXmlEntities("&amp;lt;"));
+            Assert.Equal("a & b < c", MyTranslateResourceLow.DecodeXmlEntities("a &amp; b &lt; c"));
+        }
+
+        [Fact]
+        public void Str_DoubleEscapedEntity_DoesNotDoubleDecode()
+        {
+            // Regression for the str() entity fallback (Copilot PR #1655 review):
+            // `&amp;lt;` is an intentionally double-escaped `&lt;`. str() must
+            // decode it EXACTLY ONCE to `&lt;` and must NOT recurse to decode a
+            // SECOND time into `<`. Here the dictionary has a translation only for
+            // the fully-decoded `<`; the single-decode result `&lt;` is NOT a key,
+            // so str() must pass it through as `&lt;` — proving no double-decode.
+            string langFile = Path.GetTempFileName();
+            try
+            {
+                // ":<" has no entity, so the loader keeps "<" as a literal key with
+                // value "RAW-LT". This is the double-decode trap target.
+                File.WriteAllText(langFile,
+                    ":<\n" +
+                    "RAW-LT\n" +
+                    "\n");
+                MyTranslateResource.LoadResource(langFile);
+
+                // "&amp;lt;" -> single decode -> "&lt;", which is NOT a key, so the
+                // chain misses and str() passes the ORIGINAL src through unchanged.
+                // If str() double-decoded ("&lt;" -> "<"), it would wrongly return
+                // "RAW-LT" — that must NOT happen.
+                Assert.Equal("&amp;lt;", MyTranslateResource.str("&amp;lt;"));
+                Assert.NotEqual("RAW-LT", MyTranslateResource.str("&amp;lt;"));
+                // Sanity: a single-level "&lt;" DOES resolve to the "<" entry.
+                Assert.Equal("RAW-LT", MyTranslateResource.str("&lt;"));
+            }
+            finally
+            {
+                File.Delete(langFile);
+            }
+        }
+
+        [Fact]
+        public void ChineseMode_AmpEntityKey_ResolvesToChinese()
+        {
+            // Real-world #1636 case: en.txt shipped `:Support &amp; Other`, the
+            // AXAML runtime queries `Support & Other` (decoded), zh.txt keys it
+            // as the decoded `:Support & Other`. After the loader decodes the en
+            // reverse-map key, the runtime decoded query must resolve to Chinese.
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                // en.txt with the OLD entity form (pre-normalization) \u2014 proves the
+                // loader decode alone fixes it even before the data is cleaned.
+                File.WriteAllText(enFile,
+                    ":Support &amp; Other\n" +
+                    "Support &amp; Other\n");
+                File.WriteAllText(zhFile,
+                    ":Support & Other\n" +
+                    "\u652f\u63f4\u4e0e\u5176\u4ed6\n");
+
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // AXAML runtime string (decoded &).
+                Assert.Equal("\u652f\u63f4\u4e0e\u5176\u4ed6", MyTranslateResource.str("Support & Other"));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
+        [Fact]
+        public void ChineseMode_NewlineEntityKey_ResolvesToChinese()
+        {
+            // en.txt shipped `&#10;` / `&#x0a;` newline entities; AXAML decodes
+            // them to LF; zh.txt keys use the literal `\r\n` escape -> CRLF.
+            string enFile = Path.GetTempFileName();
+            string zhFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(enFile,
+                    ":Background Image Selector.&#10;Choose a background image.\n" +
+                    "Background Image Selector.&#10;Choose a background image.\n");
+                File.WriteAllText(zhFile,
+                    ":Background Image Selector.\\r\\nChoose a background image.\n" +
+                    "\u80cc\u666f\u56fe\u9009\u62e9\u5668\u3002\\r\\n\u9009\u62e9\u80cc\u666f\u56fe\u3002\n");
+
+                MyTranslateResource.LoadResource(zhFile);
+                MyTranslateResource.LoadReverseEnglishMap(enFile);
+
+                // AXAML runtime string uses bare LF from &#10;.
+                string runtime = "Background Image Selector.\nChoose a background image.";
+                Assert.Equal("\u80cc\u666f\u56fe\u9009\u62e9\u5668\u3002\r\n\u9009\u62e9\u80cc\u666f\u56fe\u3002",
+                    MyTranslateResource.str(runtime));
+            }
+            finally
+            {
+                File.Delete(enFile);
+                File.Delete(zhFile);
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // Shipped-file acceptance: load the REAL config/translate/{en,zh}.txt
+        // and assert the three #1636 acceptance strings resolve to their
+        // existing zh translations (Copilot review finding #2 \u2014 real-file
+        // coverage, not just temp fixtures). Skipped gracefully if the repo
+        // tree isn't reachable from the test runtime.
+        // -------------------------------------------------------------------
+
+        [Fact]
+        public void ShippedFiles_ChineseMode_AcceptanceStringsResolve()
+        {
+            string root = FindRepoRoot();
+            if (root == null) return; // not in a repo checkout \u2014 skip
+            string enPath = Path.Combine(root, "config", "translate", "en.txt");
+            string zhPath = Path.Combine(root, "config", "translate", "zh.txt");
+            if (!File.Exists(enPath) || !File.Exists(zhPath)) return;
+
+            MyTranslateResource.LoadResource(zhPath);
+            MyTranslateResource.LoadReverseEnglishMap(enPath);
+
+            // 1. `Support & Other` (was `&amp;`) -> zh.
+            string supportZh = MyTranslateResource.str("Support & Other");
+            Assert.NotEqual("Support & Other", supportZh);   // must be translated, not passthrough
+            Assert.Equal("\u652f\u63f4\u4e0e\u5176\u4ed6", supportZh);
+
+            // 2. Background Image Selector help (was `&#10;`). AXAML emits LF.
+            string bgRuntime = "Background Image Selector.\nChoose a background image from the available BG entries in the ROM.";
+            string bgZh = MyTranslateResource.str(bgRuntime);
+            Assert.NotEqual(bgRuntime, bgZh);
+            Assert.Contains("\u80cc\u666f", bgZh); // \u80cc\u666f = "background"
+
+            // 3. Encoding-error dialog (was `&#x0a;`). AXAML emits LF.
+            string encRuntime =
+                "Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\n\n" +
+                "Common issues:\n" +
+                "  - Using characters outside the ROM's supported character set\n" +
+                "  - Pasting text from external sources with special Unicode characters\n" +
+                "  - Using control characters that are not valid escape sequences\n\n" +
+                "Please choose one of the options below to resolve the issue.";
+            string encZh = MyTranslateResource.str(encRuntime);
+            Assert.NotEqual(encRuntime, encZh);          // resolved to the existing zh translation
+            Assert.Contains("ROM", encZh);               // the zh string keeps the literal "ROM"
+            Assert.True(ContainsCjk(encZh), "encoding-error dialog should resolve to a CJK translation");
+        }
+
+        // True if the string contains any CJK Unified Ideograph (proves a real
+        // Chinese translation, not English identity-passthrough).
+        static bool ContainsCjk(string s)
+        {
+            foreach (char c in s)
+                if (c >= 0x4E00 && c <= 0x9FFF) return true;
+            return false;
+        }
+
+        [Fact]
+        public void ShippedEnFile_HasNoScopedEntityKeys()
+        {
+            // Parity assert: the shipped en.txt must contain zero scoped XML
+            // entities (`&#10;`, `&#x0a;`, `&amp;`) after normalization, matching
+            // ja.txt / zh.txt. Guards against a re-extraction reintroducing them.
+            string root = FindRepoRoot();
+            if (root == null) return;
+            string enPath = Path.Combine(root, "config", "translate", "en.txt");
+            if (!File.Exists(enPath)) return;
+
+            string text = File.ReadAllText(enPath);
+            Assert.DoesNotContain("&#10;", text);
+            Assert.DoesNotContain("&#x0a;", text);
+            Assert.DoesNotContain("&#x0A;", text);
+            Assert.DoesNotContain("&amp;", text);
+        }
+
+        static string FindRepoRoot()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
+                dir = dir.Parent;
+            }
+            return null;
+        }
+
     }
 }

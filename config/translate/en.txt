@@ -15616,8 +15616,8 @@ BGM ID:
 :Background Image Editor
 Background Image Editor
 
-:Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
-Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
 
 :Backup History (newest on top)
 Backup History (newest on top)
@@ -16015,8 +16015,8 @@ Character Code Table
 :Character Display:
 Character Display:
 
-:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
-Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
+Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
 
 :Check Update
 Check Update
@@ -16111,8 +16111,8 @@ Common editing tasks organized by category. Click any button to open its editor.
 :Community:
 Community:
 
-:Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
-Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+:Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
+Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
 
 :Compare two ROMs and generate a patch of changed regions
 Compare two ROMs and generate a patch of changed regions
@@ -16318,8 +16318,8 @@ Dark (B51):
 :Dark:
 Dark:
 
-:Data Address&#x0a;(if pointer)
-Data Address&#x0a;(if pointer)
+:Data Address\r\n(if pointer)
+Data Address\r\n(if pointer)
 
 :Data Address:
 Data Address:
@@ -16333,8 +16333,8 @@ Data Pointer:
 :Data Size:
 Data Size:
 
-:Data size mismatch.&#x0a;(DataCount/2) % Width != 0
-Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+Data size mismatch.\r\n(DataCount/2) % Width != 0
 
 :Decay:
 Decay:
@@ -17857,8 +17857,8 @@ Original ROM:
 :Other ROM Ref
 Other ROM Ref
 
-:Other ROM&#x0a;Data Address
-Other ROM&#x0a;Data Address
+:Other ROM\r\nData Address
+Other ROM\r\nData Address
 
 :Other Text Strings
 Other Text Strings
@@ -17869,8 +17869,8 @@ Override
 :Overriding map style data may cause visual artifacts. Are you sure?
 Overriding map style data may cause visual artifacts. Are you sure?
 
-:PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
-PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
 
 :PLIST ID:
 PLIST ID:
@@ -17932,11 +17932,11 @@ Palette Change Colors
 :Palette Clipboard
 Palette Clipboard
 
-:Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
-Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
 
-:Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
-Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
 
 :Palette Data Pointer:
 Palette Data Pointer:
@@ -17962,8 +17962,8 @@ Palette Ptr:
 :Palette Swap
 Palette Swap
 
-:Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
-Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
 
 :Palette Transparency Error
 Palette Transparency Error
@@ -18067,8 +18067,8 @@ Play all tracks
 :Play only this track
 Play only this track
 
-:Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
-Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+:Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
+Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
 
 :Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
 Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
@@ -18436,8 +18436,8 @@ Separator 2:
 :Separator:
 Separator:
 
-:Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
-Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
 
 :Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
 Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
@@ -18523,8 +18523,8 @@ Skill Set 1:
 :Skill Set 2:
 Skill Set 2:
 
-:Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
-Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
 
 :Skill:
 Skill:
@@ -18802,8 +18802,8 @@ Summoned Unit:
 :Summoner:
 Summoner:
 
-:Support &amp; Other
-Support &amp; Other
+:Support & Other
+Support & Other
 
 :Support / Talk:
 Support / Talk:
