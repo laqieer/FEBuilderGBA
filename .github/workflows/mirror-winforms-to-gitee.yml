@@ -56,6 +56,18 @@ jobs:
           fi
           echo "GITEE_TOKEN is present."
 
+      - name: Validate the tag input
+        # TAG comes from workflow_dispatch and is interpolated into filenames and
+        # `rm -rf` below, so restrict it to the strict ver_YYYYMMDD.NN release-tag
+        # shape — this rules out path separators and `..` (no path traversal).
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "${TAG}" | grep -qE '^ver_[0-9]{8}\.[0-9]+$'; then
+            echo "::error::Tag '${TAG}' is not a valid ver_YYYYMMDD.NN release tag; refusing to proceed."
+            exit 1
+          fi
+          echo "Tag '${TAG}' is valid."
+
       - name: Download ONLY the WinForms zip from the GitHub release
         run: |
           set -euo pipefail
@@ -95,6 +107,13 @@ jobs:
           base="FEBuilderGBA_${TAG}"
           rm -rf _winforms_stage "${base}.7z"
           mkdir _winforms_stage
+          # Zip Slip guard: refuse any entry with an absolute path or a `..`
+          # segment so extraction cannot escape _winforms_stage (defence in depth;
+          # the asset is self-produced by release.yml).
+          if unzip -Z1 "${ASSET}" | grep -qE '(^/|(^|/)\.\.(/|$))'; then
+            echo "::error::Refusing to extract '${ASSET}': a zip entry has an absolute or parent-traversal path (Zip Slip)."
+            exit 1
+          fi
           unzip -q "${ASSET}" -d _winforms_stage
           ( cd _winforms_stage && "${SEVENZ}" a -t7z -mx=9 "${GITHUB_WORKSPACE}/${base}.7z" . >/dev/null )
           echo "Recompressed $(du -h "${ASSET}" | cut -f1) zip -> $(du -h "${base}.7z" | cut -f1) 7z"
