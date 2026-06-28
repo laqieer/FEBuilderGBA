@@ -190,10 +190,23 @@ jobs:
           fi
 
       - name: Zip CLI + Avalonia bundles
+        # windows-latest has no `zip` on PATH (the previous bash `zip` here failed
+        # the win-x64 leg with "zip: command not found", exit 127). Prefer Info-ZIP
+        # `zip` where it exists (linux/macOS) because it preserves the executable
+        # bit on the self-contained app hosts; fall back to PowerShell
+        # Compress-Archive only where `zip` is unavailable (Windows, where unix
+        # file permissions are irrelevant to the .exe bundle).
         shell: bash
         run: |
-          ( cd publish/cli-${{ matrix.rid }}      && zip -r "$GITHUB_WORKSPACE/FEBuilderGBA-cli-${{ matrix.rid }}.zip" . )
-          ( cd publish/avalonia-${{ matrix.rid }} && zip -r "$GITHUB_WORKSPACE/FEBuilderGBA-avalonia-${{ matrix.rid }}.zip" . )
+          for target in cli avalonia; do
+            src="publish/${target}-${{ matrix.rid }}"
+            out="$GITHUB_WORKSPACE/FEBuilderGBA-${target}-${{ matrix.rid }}.zip"
+            if command -v zip >/dev/null 2>&1; then
+              ( cd "$src" && zip -r "$out" . )
+            else
+              pwsh -NoProfile -Command "Compress-Archive -Path '$src/*' -DestinationPath '$out' -Force"
+            fi
+          done
 
       - name: Upload CLI + Avalonia artifacts
         uses: actions/upload-artifact@v4
