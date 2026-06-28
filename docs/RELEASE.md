@@ -9,7 +9,7 @@ End-to-end runbook for cutting a FEBuilderGBA release across **all four ship tar
 | **Avalonia desktop** | `avalonia-{rid}` self-contained bundle (+ bundled ColorzCore) | [`crossplatform.yml`](../.github/workflows/crossplatform.yml) | Linux / macOS / Windows |
 | **Android APK** | `*-Signed.apk` (debug keystore — see caveat) | [`android.yml`](../.github/workflows/android.yml) | Android |
 
-> **What's live today:** the release process is **manual** (Section 4). No workflow has a `tags:` trigger yet, and nothing in-repo runs `gh release create` — so pushing a `ver_*` tag does **not** currently create a GitHub release. The automated tag-triggered flow is tracked by **[#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)** (Section 5) and is **not yet merged**. Treat Section 4 as the source of truth until #1629 lands.
+> **What's live today:** the release process is **automated** — [`release.yml`](../.github/workflows/release.yml) ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)) is **merged and in-tree**. Pushing a `ver_*` tag builds every platform and runs `softprops/action-gh-release` to create the GitHub release with all assets attached (Section 5, the primary path). The manual `gh release create` flow (Section 4) remains as a **fallback** for hand-cut releases. The `RELEASE_TOKEN` secret is **optional** (Section 6): absent ⇒ the tag-triggered release still publishes via the built-in `GITHUB_TOKEN` and the Gitee mirror is run manually; present (a PAT) ⇒ the Gitee sync auto-fires.
 >
 > This runbook is part of the release-readiness umbrella **[#1628](https://github.com/laqieer/FEBuilderGBA/issues/1628)**. For the WinForms split-package update system see [DEPLOYMENT.md](DEPLOYMENT.md) (and its **Status** caveat below).
 
@@ -84,9 +84,12 @@ For the WinForms package, build the solution (`Release`/`x86`) then stage with *
 
 ---
 
-## 4. Manual release (the live path)
+## 4. Manual release (fallback path)
 
-This is the process to follow **today**. It produces a GitHub release with all-platform assets, which then auto-mirrors to Gitee (Section 6).
+The automated tag-push flow (Section 5) is the **primary** path. This manual
+process is the **fallback** for hand-cutting a release (e.g. re-attaching an
+asset, or publishing outside CI). It produces a GitHub release with all-platform
+assets, which then auto-mirrors to Gitee (Section 6).
 
 ### 4.1 Stage the WinForms package — `release.ps1`
 
@@ -148,17 +151,21 @@ Confirm every platform download is listed and downloadable, then check the [Gite
 
 ---
 
-## 5. Automated release (planned — #1629)
+## 5. Automated release (live — #1629, primary path)
 
-> **Status: not merged.** Until [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629) lands, use the manual path in Section 4.
+> **Status: live.** [`release.yml`](../.github/workflows/release.yml) ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)) is **merged and in-tree**. This is the **primary** release path; Section 4 is the manual fallback.
 
-The intended automation: a workflow triggered on `push: tags: ['ver_*']` that
+The workflow is triggered on `push: tags: ['ver_*']` and
 
 1. builds/collects the WinForms package, the per-RID `cli-{rid}` and `avalonia-{rid}` bundles, and the Android APK,
-2. runs `gh release create` / `softprops/action-gh-release` and attaches all of them as release assets (one zip per platform),
-3. thereby auto-fires the existing Gitee sync (Section 6).
+2. runs `softprops/action-gh-release` and attaches all of them as release assets (one zip per platform),
+3. thereby publishes the GitHub release that the Gitee sync mirrors (Section 6).
 
-When #1629 merges, the release flow collapses to: **bump the tag → push it → CI does the rest.** This document should be updated then to make Section 5 the source of truth and demote Section 4 to "manual fallback".
+The release flow is therefore: **bump the tag → push it → CI does the rest.**
+
+> **`RELEASE_TOKEN` is optional.** The create step uses `token: ${{ secrets.RELEASE_TOKEN || github.token }}`, so the release publishes whether or not the secret is set:
+> - **absent** ⇒ the release is created with the built-in `GITHUB_TOKEN`. GitHub suppresses workflow events from `GITHUB_TOKEN`, so this does **not** auto-fire `sync-release-to-gitee.yml` — run the Gitee mirror manually (Section 6, `workflow_dispatch`) after publishing. The workflow logs a `::warning::` (not an error) reminding you to do so.
+> - **present** (a PAT with `contents: write`) ⇒ publishing auto-fires the Gitee sync.
 
 ---
 
@@ -166,7 +173,12 @@ When #1629 merges, the release flow collapses to: **bump the tag → push it →
 
 [`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml) triggers automatically on **`release: published`** (and is manually re-runnable via `workflow_dispatch`). It uses `H-TWINKLE/sync-action` with the `gitee_token` secret to mirror the GitHub release — title, notes, and **all attached assets** — to [`gitee.com/laqieer/FEBuilderGBA`](https://gitee.com/laqieer/FEBuilderGBA/releases/latest), the mirror for users in mainland China.
 
-No action is required to invoke it: creating the GitHub release in Section 4.3 (or Section 5, once live) fires it. If a sync fails (e.g. transient upload error), re-run it from the Actions tab via **Run workflow** (`workflow_dispatch`).
+**Whether it auto-fires depends on which token created the release** (the `RELEASE_TOKEN` secret is **optional**):
+
+- **`RELEASE_TOKEN` set** (a PAT with `contents: write`) — the automated `release.yml` (Section 5) and the manual `gh release create` (Section 4.3) both publish via the PAT, which fires `sync-release-to-gitee.yml` automatically. No action required.
+- **`RELEASE_TOKEN` absent** — the release publishes via the built-in `GITHUB_TOKEN`, whose workflow events GitHub suppresses, so the sync does **not** auto-fire. Run it manually from the Actions tab via **Run workflow** (`workflow_dispatch`) after publishing. (`release.yml` logs a `::warning::` reminding you.)
+
+If a sync fails (e.g. transient upload error), re-run it the same way (`workflow_dispatch`).
 
 ---
 
@@ -174,6 +186,7 @@ No action is required to invoke it: creating the GitHub release in Section 4.3 (
 
 - [ ] `master` is green on `msbuild.yml`, `crossplatform.yml`, and `check.yml`.
 - [ ] Tag name follows `ver_YYYYMMDD.NN` and does not already exist.
+- [ ] **`RELEASE_TOKEN` is optional** — confirm whether the secret is set. If **absent**, the tag-triggered release still publishes (via `GITHUB_TOKEN`) but the Gitee mirror does **not** auto-fire, so plan to run `sync-release-to-gitee.yml` manually (`workflow_dispatch`) after publishing. If **set** (a PAT with `contents: write`), the Gitee sync auto-fires.
 - [ ] `config/patch2/version.txt` is current if patches changed (see [DEPLOYMENT.md](DEPLOYMENT.md#patch2-version-management)).
 - [ ] All four platform assets collected (WinForms zip, 3× CLI, 3× Avalonia, Android APK).
 - [ ] `LICENSE` + `THIRD-PARTY-NOTICES.md` present inside every artifact: the WinForms zip via `release.ps1`, the CLI/Avalonia bundles via `crossplatform.yml`, and the Android APK via `<AndroidAsset>` entries in `FEBuilderGBA.Android/FEBuilderGBA.Android.csproj` (both files land under the APK's `assets/`) — GPLv3 compliance, [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633).
@@ -187,7 +200,7 @@ These do **not** block a manual WinForms release, but flag them in release notes
 
 | Gap | Issue |
 |-----|-------|
-| Tag-triggered release workflow (automate Sections 4–5) | [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629) |
+| Tag-triggered release workflow — **delivered** (`release.yml`, Section 5); the manual Section 4 is now only a fallback | [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629) (merged) |
 | FE-Repo / FE-Repo-Music resources not bundled — fetch on demand (see [§2 → FE-Repo / FE-Repo-Music resources](#fe-repo--fe-repo-music-resources-on-demand)) | [#1644](https://github.com/laqieer/FEBuilderGBA/issues/1644) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
