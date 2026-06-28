@@ -182,6 +182,21 @@ The release flow is therefore: **bump the tag → push it → CI does the rest.*
 
 If a sync fails (e.g. transient upload error), re-run it the same way (`workflow_dispatch`).
 
+> **Oversized-asset caveat (full-suite releases).** A full-suite release also ships the
+> cross-platform CLI/Avalonia bundles, which are **96–114 MB each and exceed Gitee's per-asset
+> size limit**. `H-TWINKLE/sync-action` reports success but **silently skips** the oversized
+> release, so nothing lands on Gitee. To mirror the small (~36 MB) WinForms package for such a
+> release, run the dedicated [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
+> workflow manually:
+>
+> ```bash
+> gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>
+> ```
+>
+> It uploads only `FEBuilderGBA_<tag>.zip` (the CLI/Avalonia bundles never touch the runner), is
+> idempotent (skips re-upload if the asset is already attached), and **fails loudly** on any Gitee
+> API error.
+
 ---
 
 ## 7. Pre-release checklist
@@ -299,7 +314,7 @@ See [DEPLOYMENT.md → Rollback Procedure](DEPLOYMENT.md#rollback-procedure) for
 - [DEPLOYMENT.md](DEPLOYMENT.md) — WinForms split-package (FULL/CORE/PATCH2) update system.
 
   > **Status:** the split-package `.7z` generator (`scripts/create-split-packages.ps1`) and a `split-packages_{buildTime}` CI artifact described in DEPLOYMENT.md are **not present in the current tree** — `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact (Section 2). Treat the split-package flow in DEPLOYMENT.md as the design of the in-app updater, not a step you can run today. The live artifact set is the one in Section 2.
-- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml) · [`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml)
+- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml) · [`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml) · [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
 - Scripts: [`release.ps1`](../release.ps1) (WinForms staging) · [`scripts/publish-all.sh`](../scripts/publish-all.sh) (CLI/Avalonia bundles) · [`scripts/release.test.ps1`](../scripts/release.test.ps1) (release.ps1 smoke test)
 - [docs/ANDROID.md](ANDROID.md) — Android build & signing details.
 - Umbrella: [#1628](https://github.com/laqieer/FEBuilderGBA/issues/1628) (release readiness) · automation: [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)
