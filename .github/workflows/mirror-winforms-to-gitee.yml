@@ -1,0 +1,199 @@
+name: Mirror WinForms package to Gitee
+
+# Mirrors ONLY the WinForms desktop zip (FEBuilderGBA_<tag>.zip, ~36 MB) of a
+# given GitHub release to the Gitee mirror, and FAILS LOUDLY on any Gitee API
+# error. Manual-only: GitHub releases here are created by the default
+# GITHUB_TOKEN, whose `release: published` events GitHub deliberately suppresses,
+# so an `on: release` trigger would never auto-fire (see release.yml).
+#
+# Why not sync-release-to-gitee.yml? That mirrors the FULL asset set via
+# H-TWINKLE/sync-action, which silently SKIPS the oversized CLI/Avalonia bundles
+# (96-114 MB > Gitee's per-asset size limit) yet still reports success. This
+# workflow uploads only the small WinForms zip and surfaces every Gitee error.
+#
+# NOTE on the Gitee tag anchor: the Gitee git repo is a manual/stale mirror, so a
+# Gitee release for a brand-new tag is created with target_commitish=master (the
+# only commit guaranteed to exist on Gitee). The mirror exists to distribute the
+# downloadable WinForms .zip to users in mainland China; the Gitee tag is NOT a
+# source-of-truth ref (use the GitHub tag for that).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to mirror (e.g. ver_20260628.21)'
+        required: true
+        type: string
+
+permissions:
+  contents: read   # only needs to read & download the GitHub release (same repo)
+
+concurrency:
+  group: mirror-gitee-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Mirror WinForms zip to Gitee
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # GitHub secret names are case-insensitive (stored upper-cased), so
+      # `secrets.GITEE_TOKEN` resolves to the SAME secret as the `gitee_token`
+      # used by sync-release-to-gitee.yml — no second secret is required.
+      GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+      GITEE_OWNER: laqieer
+      GITEE_REPO: FEBuilderGBA
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Fail fast if GITEE_TOKEN is missing
+        run: |
+          set -euo pipefail
+          if [ -z "${GITEE_TOKEN:-}" ]; then
+            echo "::error::Secret GITEE_TOKEN is not set; cannot mirror to Gitee."
+            exit 1
+          fi
+          echo "GITEE_TOKEN is present."
+
+      - name: Download ONLY the WinForms zip from the GitHub release
+        run: |
+          set -euo pipefail
+          # The glob FEBuilderGBA_*.zip matches ONLY the WinForms package.
+          # The CLI/Avalonia bundles are named FEBuilderGBA-cli-*.zip /
+          # FEBuilderGBA-avalonia-*.zip (hyphen, not underscore) and are never
+          # fetched, so the 96-114 MB bundles never even touch the runner.
+          gh release download "${TAG}" -R "${GITEE_OWNER}/${GITEE_REPO}" \
+            -p 'FEBuilderGBA_*.zip' --clobber
+
+          shopt -s nullglob
+          zips=(FEBuilderGBA_*.zip)
+          if [ "${#zips[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one FEBuilderGBA_*.zip, found ${#zips[@]}: ${zips[*]:-<none>}"
+            exit 1
+          fi
+          echo "ASSET=${zips[0]}" >> "$GITHUB_ENV"
+          echo "ASSET_NAME=$(basename "${zips[0]}")" >> "$GITHUB_ENV"
+          echo "Selected WinForms asset:"
+          ls -la "${zips[0]}"
+
+      - name: Find or create the Gitee release, then upload the WinForms zip (idempotent)
+        run: |
+          set -euo pipefail
+          api="https://gitee.com/api/v5/repos/${GITEE_OWNER}/${GITEE_REPO}"
+
+          # ---- helper: any non-2xx Gitee response => loud failure (exit 1) ----
+          gitee_call() {
+            local method="$1"; shift
+            local url="$1"; shift
+            local out http
+            out="$(mktemp)"
+            local safe_url="${url%%\?*}"
+            http="$(curl -sS -w '%{http_code}' -o "$out" -X "$method" "$@" "$url")" || {
+              echo "::error::curl transport error calling ${method} ${safe_url}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            }
+            if [ "${http:0:1}" != "2" ]; then
+              echo "::error::Gitee API ${method} ${safe_url} returned HTTP ${http}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            fi
+            cat "$out"
+            rm -f "$out"
+          }
+
+          # ---- helper: GET that treats "release absent" as empty, not an error ----
+          # Gitee's behaviour for a missing release-by-tag is not contractually
+          # documented: some deployments answer 200 + `null`, others answer 404.
+          # Both mean "no release for this tag", so map 404 (and an empty/`null`
+          # 200 body) to empty stdout and let the caller fall through to create.
+          # Every OTHER non-2xx still fails loudly via the strict gitee_call.
+          gitee_get_release_or_empty() {
+            local url="$1"
+            local out http safe_url
+            out="$(mktemp)"
+            safe_url="${url%%\?*}"
+            http="$(curl -sS -w '%{http_code}' -o "$out" -X GET "$url")" || {
+              echo "::error::curl transport error calling GET ${safe_url}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            }
+            if [ "${http}" = "404" ]; then
+              rm -f "$out"
+              return 0   # no release for this tag -> empty stdout
+            fi
+            if [ "${http:0:1}" != "2" ]; then
+              echo "::error::Gitee API GET ${safe_url} returned HTTP ${http}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            fi
+            cat "$out"
+            rm -f "$out"
+          }
+
+          # 1) Resolve the Gitee release id for this tag. Absent => 200+`null` OR
+          #    404 (see gitee_get_release_or_empty); both yield an empty rel_id.
+          echo "Looking up existing Gitee release for tag '${TAG}'..."
+          rel="$(gitee_get_release_or_empty "${api}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")"
+          rel_id="$(printf '%s' "$rel" | jq -r '.id // empty' 2>/dev/null || true)"
+
+          if [ -z "${rel_id}" ]; then
+            # 2) None exists -> create it. target_commitish=master (see header note).
+            echo "No Gitee release found for '${TAG}'; creating it (target_commitish=master)."
+            rel="$(gitee_call POST "${api}/releases" \
+              --data-urlencode "access_token=${GITEE_TOKEN}" \
+              --data-urlencode "tag_name=${TAG}" \
+              --data-urlencode "name=${TAG}" \
+              --data-urlencode "body=WinForms desktop package (FEBuilderGBA_${TAG}.zip) mirrored from the GitHub release ${TAG}. The cross-platform CLI/Avalonia bundles exceed Gitee's per-asset size limit and remain GitHub-only." \
+              --data-urlencode "target_commitish=master" \
+              --data-urlencode "prerelease=false")"
+            rel_id="$(printf '%s' "$rel" | jq -r '.id // empty')"
+            if [ -z "${rel_id}" ]; then
+              echo "::error::Gitee release creation returned no id." >&2
+              printf '%s\n' "$rel" >&2
+              exit 1
+            fi
+            echo "Created Gitee release id=${rel_id} for tag '${TAG}'."
+          else
+            echo "Found existing Gitee release id=${rel_id} for tag '${TAG}'."
+          fi
+
+          # 3) Idempotent asset upload: skip if same filename already attached
+          #    (Gitee attach_files does NOT de-dup by name).
+          #    The release-detail response has historically named the attachment
+          #    array both `assets` and `attach_files` across Gitee versions, so
+          #    check BOTH (plus the `/attach_files` sub-resource as a fallback).
+          echo "Checking whether '${ASSET_NAME}' is already attached to release ${rel_id}..."
+          rel_full="$(gitee_call GET "${api}/releases/${rel_id}?access_token=${GITEE_TOKEN}")"
+          already_present="$(printf '%s' "$rel_full" | jq -r --arg n "$ASSET_NAME" '
+            ((.assets // []) + (.attach_files // []))
+            | map(.name // (.browser_download_url // "" | split("/") | last))
+            | index($n) // empty
+          ')"
+          if [ -z "${already_present}" ]; then
+            # Fallback: query the dedicated attach_files sub-resource (some Gitee
+            # versions omit attachments from the release-detail payload).
+            af_list="$(gitee_call GET "${api}/releases/${rel_id}/attach_files?access_token=${GITEE_TOKEN}")"
+            already_present="$(printf '%s' "$af_list" | jq -r --arg n "$ASSET_NAME" '
+              (if type == "array" then . else (.attach_files // .assets // []) end)
+              | map(.name // (.browser_download_url // "" | split("/") | last))
+              | index($n) // empty
+            ' 2>/dev/null || true)"
+          fi
+          if [ -n "${already_present}" ]; then
+            echo "Asset '${ASSET_NAME}' already attached to Gitee release '${TAG}'; skipping upload (idempotent no-op)."
+            exit 0
+          fi
+
+          echo "Uploading '${ASSET_NAME}' to Gitee release ${rel_id}..."
+          attach="$(gitee_call POST "${api}/releases/${rel_id}/attach_files" \
+            -F "access_token=${GITEE_TOKEN}" \
+            -F "file=@${ASSET}")"
+          dl_url="$(printf '%s' "$attach" | jq -r '.browser_download_url // empty')"
+          echo "Uploaded '${ASSET_NAME}' to Gitee release '${TAG}'."
+          [ -n "${dl_url}" ] && echo "Gitee download URL: ${dl_url}"
+          echo "Done."
