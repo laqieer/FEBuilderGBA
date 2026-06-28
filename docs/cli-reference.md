@@ -497,7 +497,9 @@ required and optional flags. Each is verified against its `Run*` handler in
   and `--count=<int>` (the current row count, required for safety). **Exit:** 0 on success,
   1 on usage/expand error.
 - **`--merge3`** — Three-way merge of ROM files. Requires `--base`, `--mine`, `--theirs`,
-  and `--out` (all paths). **Exit:** 0 on success, 1 on file/usage error.
+  and `--out` (all paths). **Exit:** 0 clean merge, **2** merged **with conflicts** (the
+  merged ROM is still written; conflicting ranges default to `--mine`'s bytes), 1 on
+  file/usage error.
 - **`--freespace`** — Scan and report runs of free space (`0x00`/`0xFF`). Requires `--rom`;
   optional `--min-size=<int>` (default 16). **Exit:** 0 on success, 1 on usage error.
 - **`--hex-dump`** — Dump ROM bytes in xxd-style hex+ASCII. Requires `--rom` and
@@ -1069,7 +1071,7 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|
 | `0` | Success (or no errors for `--lint`). |
 | `1` | Error: missing arguments, file not found, operation failed, or lint found ERROR-severity issues. |
-| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, or a `--build-project` with no enabled build section. |
+| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, a `--merge3` merged **with conflicts** (output still written), or a `--build-project` with no enabled build section. |
 | `3` | Internal read-only-invariant violation — a READ-ONLY exporter (`--export-voicegroup`, `--export-battle-anim-decomp`) detected that the in-memory ROM was mutated and aborted without writing. |
 
 ---
