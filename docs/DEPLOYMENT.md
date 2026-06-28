@@ -1,60 +1,67 @@
-# Deployment Guide for Split Package Releases
+# Deployment Guide: Core Artifact + In-App Patch2 Git Updater
 
-> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + Gitee sync), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers only the WinForms split-package (FULL/CORE/PATCH2) update system.
+> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + Gitee sync), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers the **core application artifact** built by CI and the **two-track update model** that delivers patch data separately.
 >
-> **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §7.1 Code-signing & notarization](RELEASE.md#71-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround.
->
-> **⚠️ Design / historical reference — not currently runnable as written.** The split-package `.7z` generator (`scripts/create-split-packages.ps1`) and the `split-packages_{buildTime}` CI artifact described throughout this page are **not present in the current tree**; `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact. Read the rest of this document as the design of the in-app split-package updater, **not** a sequence you can run today. For the **live** artifact set and the steps that actually work, follow [RELEASE.md → CI artifact inventory](RELEASE.md#2-ci-artifact-inventory-what-each-workflow-produces) and [RELEASE.md → Manual release](RELEASE.md#4-manual-release-the-live-path).
+> **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §7.1 Code-signing & notarization](RELEASE.md#71-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround. (Windows Authenticode signing is wired into the build job below.)
 
-This guide explains how to create GitHub releases with the split package update system.
+This guide explains how the application is packaged and how its updates reach users.
+
+## The two-track update model
+
+FEBuilderGBA keeps the **application** and the **patch database (patch2)** on independent update tracks:
+
+| Component | What it contains | How it updates |
+|-----------|-----------------|----------------|
+| **Core** | `FEBuilderGBA.exe`, DLLs, `config/data`, `config/translate`, bundled `tools/bin/` | Download `FEBuilderGBA_YYYYMMDD.HH.zip` from a GitHub Release or from nightly.link, then unpack over the install |
+| **Patch2** | ~44,000 patch files in `config/patch2/` | `git clone` / `git fetch` + `git reset --hard` via the in-app Git updater |
+
+The previous FULL / CORE / PATCH2 `.7z` split-package release system (and its `scripts/create-split-packages.ps1` generator + `config/patch2/version.txt` version file) **has been removed**. There is now a **single core artifact** and patch2 is delivered over Git — not as a release package.
 
 ## Prerequisites
 
 - Push access to the repository
 - GitHub CLI (`gh`) installed (optional, for automation)
-- Understanding of the split package system (see archive/SPLIT-PACKAGE-FINAL-STATUS.md)
 
-## Package Types
+## The core artifact
 
-Every release should include three package files:
+CI builds exactly **one** application artifact. There is no separate exe/patch package split.
 
-1. **FULL Package** (`FEBuilderGBA_FULL_{coreVersion}_{patch2Version}.7z`)
-   - Contains: Application + Patch Database
-   - Size: ~60-80MB
-   - Use: Fresh installs, users who want everything
+### Built by the "MSBuild" workflow
 
-2. **CORE Package** (`FEBuilderGBA_CORE_{coreVersion}.7z`)
-   - Contains: Application only (exe, DLLs, config except patch2)
-   - Size: ~10-20MB
-   - Use: When only application code changed
+[`.github/workflows/msbuild.yml`](../.github/workflows/msbuild.yml) (display name **MSBuild**) runs on every push to `master`:
 
-3. **PATCH2 Package** (`FEBuilderGBA_PATCH2_{patch2Version}.7z`)
-   - Contains: Patch database only (config/patch2/)
-   - Size: ~10-20MB
-   - Use: When only patches were added/updated
+1. Checks out the repo and inits the build-required submodules (`config/patch2`, `tools/Event-Assembler`, `tools/ColorzCore`).
+2. Builds the solution with MSBuild (`Configuration=Release`, `Platform=x86`) and publishes a self-contained `win-x86` ColorzCore.
+3. Optionally Authenticode-signs `FEBuilderGBA.exe` (only when both `WINDOWS_CERT_BASE64` and `WINDOWS_CERT_PASSWORD` secrets are present; absent in this fork's CI ⇒ unsigned build, unchanged).
+4. Runs the test suite, generates a coverage report, and uploads test/coverage artifacts.
+5. **Post Build** step stages the deliverable:
+   - moves `FEBuilderGBA.exe`, the `*.dll`s and `*.json`s, and the `config/` directory (data + translate) to the workspace root;
+   - **strips `config/patch2/`** to five empty version subdirs (`FE6`, `FE7J`, `FE7U`, `FE8J`, `FE8U`) so the app still starts but ships no patch payload — users fetch patch2 over Git;
+   - copies the self-contained ColorzCore into `tools/bin/` (and `lyn.exe` if present).
+6. **Upload Core Artifact** publishes a single artifact named `FEBuilderGBA_{build_time}` (where `build_time` = `YYYYMMDD.HH`) containing:
 
-## Automatic Package Generation
+   ```
+   *.exe  *.dll  *.json  config/  tools/bin/  README*.md  LICENSE  THIRD-PARTY-NOTICES.md
+   ```
 
-Split packages are automatically generated by the CI/CD pipeline (`msbuild.yml`) on every push to master:
+There is **no** `split-packages_{buildTime}` artifact and no three-package `.7z` set.
 
-1. **Build triggers** on push to master
-2. **Post-build script** (`scripts/create-split-packages.ps1`) runs
-3. **Three packages** are created with proper naming
-4. **Artifacts uploaded** to GitHub Actions
+### Downloading the CI artifact
 
-### Downloading CI Artifacts
+1. Go to [Actions](https://github.com/laqieer/FEBuilderGBA/actions).
+2. Click on the latest successful **MSBuild** workflow run.
+3. Scroll to the **Artifacts** section.
+4. Download `FEBuilderGBA_{build_time}` and extract it.
 
-1. Go to [Actions](https://github.com/laqieer/FEBuilderGBA/actions)
-2. Click on the latest successful "MSBuild" workflow run
-3. Scroll to "Artifacts" section
-4. Download `split-packages_{buildTime}` artifact
-5. Extract the three .7z files
+For an always-current direct link the in-app updater uses
+`https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master`, which exposes the latest run's
+`FEBuilderGBA_YYYYMMDD.HH.zip`.
 
-## Creating a Release
+## Creating a release
 
 ### Option 0: Automated tag-triggered release (recommended)
 
-The `.github/workflows/release.yml` workflow (#1629) creates the GitHub Release
+The [`.github/workflows/release.yml`](../.github/workflows/release.yml) workflow (#1629) creates the GitHub Release
 and attaches **every platform package** automatically when you push a `ver_*`
 tag (the project's tag convention, `ver_YYYYMMDD.HH`):
 
@@ -104,224 +111,180 @@ button) runs the build jobs only and does **not** create a release — the
 release-creation step is gated on `refs/tags/ver_*`. To exercise the full path
 and populate the release page, push a real test `ver_*` tag.
 
-### Option 1: Manual Release
+### Option 1: Manual release with GitHub CLI
 
-1. **Build and download packages:**
-   ```bash
-   # Trigger build by pushing to master, or run locally:
-   pwsh scripts/create-split-packages.ps1 -BuildTime "$(Get-Date -UFormat '%Y%m%d.%H')" -BinPath "FEBuilderGBA/bin/Release" -OutputPath "."
-   ```
-
-2. **Create GitHub release:**
-   - Go to https://github.com/laqieer/FEBuilderGBA/releases/new
-   - Tag version: Use build date format `YYYYMMDD.HH` (e.g., `20260226.00`)
-   - Release title: Descriptive name (e.g., "Build 20260226.00 - Split Package Support")
-   - Description: Changelog and what's new. **Do not hand-type this** — generate
-     it from the conventional-commit history (kept clean by the linting in
-     [Commit & PR Title Convention](#commit--pr-title-convention)):
-
-     ```bash
-     # Type-grouped notes since the previous ver_* tag (auto-detected):
-     scripts/generate-changelog.sh > notes.md
-     # ...or an explicit range:
-     scripts/generate-changelog.sh ver_20260204.22 ver_20260601.00 > notes.md
-     ```
-
-     Paste `notes.md` into the description (or pass `--notes-file notes.md` to
-     `gh release create`). The tag-triggered workflow (Option 0) runs this same
-     script automatically. See also [`CHANGELOG.md`](../CHANGELOG.md).
-   - Attach all three packages:
-     - `FEBuilderGBA_FULL_{coreVersion}_{patch2Version}.7z`
-     - `FEBuilderGBA_CORE_{coreVersion}.7z`
-     - `FEBuilderGBA_PATCH2_{patch2Version}.7z`
-   - Publish release
-
-3. **Verify release:**
-   - Check that all three files are downloadable
-   - URLs should match expected pattern
-   - Test update flow from older version
-
-### Option 2: Automated Release with GitHub CLI
+The WinForms desktop asset is the `FEBuilderGBA_YYYYMMDD.HH.zip` core artifact described above (download it
+from the MSBuild run, or zip a clean `Release` output yourself). Attach it — and, if you also built them, the
+per-RID CLI/Avalonia bundles and the Android APK — to a `ver_*`-tagged release:
 
 ```bash
-# Set variables
 BUILD_TIME=$(date +%Y%m%d.%H)
-TAG="ver_${BUILD_TIME}"   # tag the project's ver_YYYYMMDD.HH convention
-PATCH2_VERSION=$(cat config/patch2/version.txt)
+TAG="ver_${BUILD_TIME}"   # the project's ver_YYYYMMDD.HH convention
 
 # Generate type-grouped release notes from conventional commits (#1632)
 scripts/generate-changelog.sh > notes.md
+# ...or an explicit range:
+# scripts/generate-changelog.sh ver_20260204.22 ver_20260601.00 > notes.md
 
-# Create release with all packages (the ver_* tag also matches the tag-triggered
-# automation in Option 0, so prefer that workflow for the full platform set).
 gh release create "$TAG" \
   --title "Build $BUILD_TIME" \
   --notes-file notes.md \
-  FEBuilderGBA_FULL_${BUILD_TIME}_${PATCH2_VERSION}.7z \
-  FEBuilderGBA_CORE_${BUILD_TIME}.7z \
-  FEBuilderGBA_PATCH2_${PATCH2_VERSION}.7z
+  FEBuilderGBA_${BUILD_TIME}.zip
 ```
 
-## Versioning Strategy
+> Prefer Option 0 (push the `ver_*` tag) whenever you want the full platform set — it builds and attaches every
+> platform package, runs the same `generate-changelog.sh`, and fires the Gitee mirror automatically.
 
-### Core Version (Application)
+### Verify the release
+
+- Check that the core `FEBuilderGBA_*.zip` (and any per-platform assets) are downloadable.
+- Confirm the in-app **Check for Updates** flow detects the new core version (see below).
+
+## How clients update
+
+The in-app updater is split across two cooperating pieces — one for the core app, one for patch2.
+
+### Core application
+
+[`FEBuilderGBA/UpdateCheckSplitPackage.cs`](../FEBuilderGBA/UpdateCheckSplitPackage.cs) checks for a newer core
+build, from either source:
+
+- **nightly.link** — scrapes `https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master` for
+  `FEBuilderGBA_(\d{8}\.\d{2})\.zip` (`CheckSplitPackageUpdateByNightlyLink`).
+- **GitHub Releases** — reads `releases/latest` for a `FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip)` asset
+  (`CheckSplitPackageUpdateByGitHub`).
+
+The remote version (`YYYYMMDD.HH`) is compared against the local assembly build date in
+[`FEBuilderGBA.Core/UpdateInfo.cs`](../FEBuilderGBA.Core/UpdateInfo.cs). `UpdateInfo.PackageType` has only three
+values — `Unknown`, `CoreOnly`, and `None` — there is no FULL/PATCH2 package type. `DetermineUpdateType`
+returns `CoreOnly` when the remote is newer, otherwise `None` ("already up to date"). The user then downloads and
+unpacks the single core `.zip`.
+
+### Patch2 (Git)
+
+Patch data is updated independently via Git, driven by
+[`FEBuilderGBA.Core/GitUtil.cs`](../FEBuilderGBA.Core/GitUtil.cs):
+
+- **First install / missing `config/patch2/`:** `GitUtil.Clone` runs `git clone --progress --depth=1 <url> <path>`.
+- **Subsequent updates:** `GitUtil.Update` runs `git fetch --progress --depth=1 origin` followed by
+  `git reset --hard FETCH_HEAD` (it can also `git remote set-url origin` first to switch GitHub ↔ Gitee).
+
+The patch2 remote is selected by `GitUtil.GetPatch2RemoteUrl()` from the user's **Options → Release Source**
+setting (and a custom `submodule_patch2_url` override, if set):
+
+| Release Source setting | Patch2 git remote used |
+|------------------------|------------------------|
+| Auto (Chinese language detected) | `gitee.com/laqieer/FEBuilderGBA-patch2` |
+| Gitee | `gitee.com/laqieer/FEBuilderGBA-patch2` |
+| GitHub / Nightly | `github.com/laqieer/FEBuilderGBA-patch2` |
+
+In the UI this is **Tools → Check for Updates** ([`FEBuilderGBA/ToolUpdateDialogForm.cs`](../FEBuilderGBA/ToolUpdateDialogForm.cs)):
+when Git is found, a dedicated **Git Patch2** button performs the clone/update; if Git is absent, the app keeps
+the five empty `config/patch2/{FE6,FE7J,FE7U,FE8J,FE8U}` directories so startup still succeeds.
+
+See **[README → 🔄 Update System / Updating Patch2 via Git](../README.md#-update-system)** for the user-facing summary.
+
+## Versioning
+
+### Core version (application)
 
 - **Format:** `YYYYMMDD.HH` (e.g., `20260226.14`)
-- **Source:** Build date/time from assembly
-- **Changes when:** Code changes (C# files, DLLs updated)
-- **Determines:** Whether CORE or FULL package is needed
+- **Source:** build date/time baked into the assembly (`U.getVersion()`)
+- **Compared by:** `UpdateInfo.CompareVersions` (numeric compare); `IsValidVersion` enforces `^\d{8}\.\d{2}$`
 
-### Patch2 Version (Patch Database)
+### Patch2 version (patch database)
 
-- **Format:** `YYYYMMDD.HH` (e.g., `20260226.14`)
-- **Source:** `config/patch2/version.txt` in FEBuilderGBA-patch2 submodule
-- **Changes when:** Patches added/modified in patch2 repository
-- **Determines:** Whether PATCH2 or FULL package is needed
+Patch2 is versioned **by its Git history**, not by a `version.txt` file. To read the installed patch2 version:
 
-### Update Scenarios
+```bash
+git -C config/patch2 log -1 --format="%h %s"
+```
 
-| Core Changed | Patch2 Changed | Package to Release     | Example                             |
-|--------------|----------------|------------------------|-------------------------------------|
-| ✅           | ✅             | FULL                   | Major version with code + patches   |
-| ✅           | ❌             | CORE + FULL (optional) | Bug fix in application code         |
-| ❌           | ✅             | PATCH2 + FULL (opt.)   | New patches added to database       |
+## Testing a release
 
-**Best Practice:** Always release FULL package even if only one component changed, for users who missed previous updates.
+### Before publishing
 
-## Patch2 Version Management
+1. **Download the core artifact** from the MSBuild run (or build a clean `Release` output).
+2. **Verify contents** — the app, the config data/translate, the bundled tools, and the empty patch2 stubs:
 
-### Updating Patch2 Version
-
-When adding/modifying patches in the patch2 submodule:
-
-1. **Update version.txt:**
    ```bash
-   cd config/patch2
-   echo "20260226.14" > version.txt
-   git add version.txt
-   git commit -m "Update patch2 version to 20260226.14"
-   git push origin master
+   unzip -l FEBuilderGBA_*.zip | grep "FEBuilderGBA.exe"
+   unzip -l FEBuilderGBA_*.zip | grep "config/data/"
+   unzip -l FEBuilderGBA_*.zip | grep "tools/bin/"
+   # patch2 should ship as empty version dirs only (no patch payload)
+   unzip -l FEBuilderGBA_*.zip | grep "config/patch2/"
    ```
 
-2. **Update main repository submodule reference:**
+3. **Test extraction & launch:**
+
    ```bash
-   cd ../..  # Back to main repo
-   git add config/patch2
-   git commit -m "Update patch2 submodule to version 20260226.14"
-   git push origin master
-   ```
-
-3. **Create release** (will include new patch2 version)
-
-## Testing a Release
-
-### Before Publishing
-
-1. **Download packages** from CI artifacts or generate locally
-2. **Verify package contents:**
-   ```bash
-   # FULL should have everything
-   7z l FEBuilderGBA_FULL_*.7z | grep "FEBuilderGBA.exe"
-   7z l FEBuilderGBA_FULL_*.7z | grep "config/patch2/"
-
-   # CORE should have exe but not patch2
-   7z l FEBuilderGBA_CORE_*.7z | grep "FEBuilderGBA.exe"
-   7z l FEBuilderGBA_CORE_*.7z | grep "config/patch2/" && echo "ERROR: CORE has patch2" || echo "OK"
-
-   # PATCH2 should only have patch2
-   7z l FEBuilderGBA_PATCH2_*.7z | grep "config/patch2/"
-   7z l FEBuilderGBA_PATCH2_*.7z | grep "FEBuilderGBA.exe" && echo "ERROR: PATCH2 has exe" || echo "OK"
-   ```
-
-3. **Test extraction:**
-   ```bash
-   mkdir test_extract
-   cd test_extract
-   7z x ../FEBuilderGBA_FULL_*.7z
-   # Verify files present and executable runs
+   mkdir test_extract && cd test_extract
+   unzip ../FEBuilderGBA_*.zip
    ./FEBuilderGBA.exe --version
    ```
 
-### After Publishing
+### After publishing
 
-1. **Test update flow:**
-   - Install previous version
-   - Run "Check for Updates"
-   - Verify correct package is selected (CORE/PATCH2/FULL)
-   - Confirm update completes successfully
+1. **Test the core update flow:**
+   - Install an older build.
+   - Run **Tools → Check for Updates**.
+   - Confirm the app reports a `CoreOnly` update and the download URL points at the new core `.zip`.
+2. **Test the patch2 Git flow:**
+   - On a clean install (no `config/patch2/` content), click the **Git Patch2** button and confirm the clone
+     populates the patch database.
+   - On an existing install, re-run it and confirm `git fetch` + `reset --hard` updates in place.
+3. **Verify URLs:**
 
-2. **Verify URLs:**
    ```bash
-   # Check that GitHub release has proper URLs
-   gh release view $BUILD_TIME --json assets
+   gh release view "$TAG" --json assets
    ```
-
-3. **Monitor metrics:**
-   - Check download counts per package type
-   - Verify users are getting split packages
-   - Watch for error reports
 
 ## Troubleshooting
 
-### Package Creation Failures
+### Core update not detected
 
-**Problem:** PowerShell script fails to create packages
-
-**Solutions:**
-- Check 7-Zip is installed and in PATH
-- Verify `config/patch2/version.txt` exists and is readable
-- Ensure build output directory has all required files
-
-### Wrong Package Selected
-
-**Problem:** Client downloads FULL package when CORE/PATCH2 would suffice
-
-**Causes:**
-- Missing CORE or PATCH2 package in release
-- Version extraction regex not matching filename
-- Fallback logic triggered due to error
+**Problem:** "Check for Updates" reports up-to-date when a newer build exists.
 
 **Debug:**
-1. Check release assets have all three packages
-2. Verify filename format matches expected pattern
-3. Review logs from UpdateCheckSplitPackage
+1. Confirm the release/nightly.link asset is named `FEBuilderGBA_YYYYMMDD.HH.zip` (the regex in
+   `UpdateCheckSplitPackage` requires that exact `\d{8}\.\d{2}` pattern).
+2. Compare the remote `YYYYMMDD.HH` against the local assembly build date — `DetermineUpdateType` only flags an
+   update when the remote is strictly newer.
+3. Review logs from `UpdateCheckSplitPackage` / `ToolUpdateDialogForm`.
 
-### Version Mismatch
+### Patch2 Git update fails
 
-**Problem:** Patch2 version doesn't match after update
+**Problem:** The Git Patch2 button errors or does nothing.
 
 **Solutions:**
-- Ensure `config/patch2/version.txt` is included in packages
-- Verify file is UTF-8 without BOM
-- Check version format is `YYYYMMDD.HH`
+- Confirm Git is installed and discoverable — `GitUtil.FindGitExecutable()` checks the configured path, then
+  `git` on `PATH`, then common Windows install locations. If none is found the button is hidden.
+- Check network access to the selected remote (GitHub vs Gitee per **Release Source**).
+- The patch2 repo is public; `GIT_TERMINAL_PROMPT=0` is set, so a credential prompt would surface as a failure
+  rather than a hang — re-run with a clean `config/patch2/` to force a fresh `--depth=1` clone.
 
-## Rollback Procedure
+## Rollback procedure
 
 If a release has critical issues:
 
-1. **Mark release as pre-release** (not latest):
+1. **Mark the release as pre-release** (not latest):
+
    ```bash
-   gh release edit $BUILD_TIME --prerelease
+   gh release edit "$TAG" --prerelease
    ```
 
-2. **Create hotfix release** with previous working version:
-   ```bash
-   gh release create "${BUILD_TIME}_hotfix" --latest \
-     --notes "Hotfix: Reverted to previous stable build"
-     # Attach previous working packages
-   ```
+2. **Publish a hotfix release** from the previous working build (push a new `ver_*` tag, or attach the prior core
+   `.zip`).
+3. **Fix issues** and cut a new release when ready.
 
-3. **Fix issues** and create new release when ready
+## Best practices
 
-## Best Practices
-
-1. ✅ **Always test locally** before releasing
-2. ✅ **Include changelog** in release notes
-3. ✅ **Version patch2** independently from core
-4. ✅ **Monitor first 24 hours** after release
-5. ✅ **Keep FULL package** even for minor updates
-6. ✅ **Document breaking changes** prominently
-7. ✅ **Tag releases** with consistent date format
+1. ✅ **Always test locally** before releasing.
+2. ✅ **Generate the changelog** from conventional commits — never hand-type release notes.
+3. ✅ **Keep patch2 on its own Git track** — never re-bundle it into the core artifact.
+4. ✅ **Monitor the first 24 hours** after release.
+5. ✅ **Document breaking changes** prominently.
+6. ✅ **Tag releases** with the `ver_YYYYMMDD.HH` convention.
 
 ## Commit & PR Title Convention
 
@@ -375,7 +338,7 @@ Future improvements for CI/CD:
       [`CHANGELOG.md`](../CHANGELOG.md). The conventional-commit prerequisite is
       enforced in CI (see [Commit & PR Title Convention](#commit--pr-title-convention)
       and `.github/workflows/pr-title-lint.yml`). (#1632)
-- [ ] Auto-test packages before publishing
+- [ ] Auto-test the core artifact before publishing
 - [ ] CDN upload for faster downloads
 - [ ] Update notification system
 - [ ] Beta/nightly channel support
@@ -408,16 +371,15 @@ production signing key is committed to the repo.
 
 ## References
 
-- Split Package Status: `archive/SPLIT-PACKAGE-FINAL-STATUS.md`
-- PowerShell Script: `scripts/create-split-packages.ps1`
-- CI/CD Workflows: `.github/workflows/msbuild.yml`, `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
+- CI/CD Workflows: `.github/workflows/msbuild.yml` (core artifact), `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
 - Tag-triggered Release Workflow: `.github/workflows/release.yml` (#1629)
 - Changelog Generator: `scripts/generate-changelog.sh` + `CHANGELOG.md` + `.github/release.yml` (#1632)
 - Gitee Mirror Sync: `.github/workflows/sync-release-to-gitee.yml`
-- Update Logic: `FEBuilderGBA/UpdateCheckSplitPackage.cs`
+- Core update check: `FEBuilderGBA/UpdateCheckSplitPackage.cs` + `FEBuilderGBA.Core/UpdateInfo.cs`
+- Patch2 Git updater: `FEBuilderGBA.Core/GitUtil.cs` + `FEBuilderGBA/ToolUpdateDialogForm.cs`
 - Android build + signing: `.github/workflows/android.yml`, [docs/ANDROID.md §7](ANDROID.md#7-build-status-in-this-environment)
 
 ---
 
-**Last Updated:** 2026-02-26
+**Last Updated:** 2026-06-28
 **Maintainer:** FEBuilderGBA Development Team

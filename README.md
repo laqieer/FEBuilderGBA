@@ -28,7 +28,7 @@ Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地�
 | `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
 | `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (67 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
-| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 356 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, and decomp-project mode. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
+| `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, and decomp-project mode. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
 | `FEBuilderGBA.Tests` | net9.0-windows | WinForms unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net9.0 | Cross-platform Core unit tests (Linux/macOS/Windows), including the SkiaSharp native-version guard and render byte-parity smoke tests. |
 | `FEBuilderGBA.Avalonia.Tests` | net9.0 | Avalonia GUI / ViewModel unit tests (data verification, navigation, field completeness). |
@@ -267,7 +267,7 @@ FEBuilderGBA.sln
 │   └── WriteValidator.cs                  ROM write validation utilities
 ├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 67 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)
-├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 325 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
+├── FEBuilderGBA.Avalonia/       net9.0    (cross-platform GUI — 324 editors, with ambient undo, dirty tracking, data export/import, full Options dialog with 20+ external tool paths)
 ├── FEBuilderGBA/                net9.0-windows (WinForms GUI)
 ├── FEBuilderGBA.Tests/          net9.0-windows (WinForms unit tests)
 ├── FEBuilderGBA.Core.Tests/     net9.0    (cross-platform Core tests)
@@ -279,7 +279,7 @@ FEBuilderGBA.sln
 ## Testing & Coverage
 
 - ✅ **11,000+ unit/integration tests** passing across the four desktop test projects — `FEBuilderGBA.Core.Tests` (~5.5k, cross-platform), `FEBuilderGBA.Avalonia.Tests` (~4.6k, GUI/ViewModel), `FEBuilderGBA.Tests` (~1.3k, WinForms), and `FEBuilderGBA.E2ETests` (E2E). `[Theory]` cases expand at runtime, so the authoritative live total for these is the one reported by `dotnet test` / [CI](https://github.com/laqieer/FEBuilderGBA/actions). The fifth project, `FEBuilderGBA.Android.Tests`, is an Android **instrumentation** head (not run by `dotnet test`) — its on-device SkiaSharp byte-parity/version-guard results come from the [Android Emulator Parity workflow](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml).
-- ✅ **E2E suite** (`FEBuilderGBA.E2ETests`) covers CLI + GUI automation + output-log capture: a no-ROM subset runs on every PR, and the full suite (including the 325-editor Avalonia smoke test, screenshot capture for both GUIs, and CLI output-log capture for both the new CLI and WinForms executables) runs with all 5 ROMs. See the [E2E CI workflows](https://github.com/laqieer/FEBuilderGBA/actions) for the live pass/skip counts.
+- ✅ **E2E suite** (`FEBuilderGBA.E2ETests`) covers CLI + GUI automation + output-log capture: a no-ROM subset runs on every PR, and the full suite (including the 324-editor Avalonia smoke test, screenshot capture for both GUIs, and CLI output-log capture for both the new CLI and WinForms executables) runs with all 5 ROMs. See the [E2E CI workflows](https://github.com/laqieer/FEBuilderGBA/actions) for the live pass/skip counts.
 - 📊 [View Full Coverage Report on Codecov](https://codecov.io/gh/laqieer/FEBuilderGBA)
 - 🔍 Latest test results and coverage reports available as [GitHub Actions artifacts](https://github.com/laqieer/FEBuilderGBA/actions)
 - 🧪 **Test Coverage:**
@@ -288,13 +288,13 @@ FEBuilderGBA.sln
   - Core package download logic
   - Integration tests for update system
   - E2E CLI tests (`--version` flag, exit codes, output content, `--help` coverage)
-  - CLI arg parsing tests (all 19 commands with complete argument sets)
+  - CLI arg parsing tests (every primary command with complete argument sets — 69 test methods, see `CliArgsE2ETests.cs`)
   - E2E GUI tests (startup window detection, child controls, graceful shutdown)
   - ROM-based E2E CLI tests (`--lint`, `--makeups` × 5 ROMs, `--rebuild` × 2 representative ROMs — skipped without ROMs)
   - ROM-based E2E GUI tests (main form loads, title, child controls × 5 ROMs — skipped without ROMs)
   - Form smoke tests (all toolbar buttons × 5 ROMs — skipped without ROMs)
   - Avalonia editor smoke tests: Unit/Item editor selection (× 5 ROMs — skipped without ROMs)
-  - Avalonia all-editors smoke test: all 325 GUI editors open/close (× 5 ROMs — skipped without ROMs)
+  - Avalonia all-editors smoke test: all 324 GUI editors open/close (× 5 ROMs — skipped without ROMs)
 - Avalonia data verification: `--data-verify` mode cross-checks ViewModel fields against raw ROM bytes, verifies NumericUpDown UI controls display values, validates text encoding (Shift-JIS for JP ROMs, ISO-8859-1 for US ROMs), and skips helper/context-only editors when they have no comparable ROM-backed record instead of reporting false mismatches (× 5 ROMs — skipped without ROMs). `--data-verify-full` mode iterates ALL list items per editor (not just the first) and performs per-field cross-checking via `GetFieldOffsetMap()` to verify each ViewModel field maps to the correct raw ROM byte offset, reporting `FIELDMISMATCH` lines for any discrepancy.
   - **Field completeness tests**: `AvaloniaFieldCompletenessTests` compares WinForms Designer.cs ROM data field controls against Avalonia ViewModel ROM access patterns across all 170 mapped forms (1562 WinForms fields, 0 gaps). Tests are **strict** — they fail on any gap, type/offset mismatch, or unmapped ROM-field form. Includes cross-checks: `AllFormFields_TypeAndOffsetMatch` verifies ROM read types match WinForms field types, `AllViewModels_ReportMethodsAreConsistent` verifies GetDataReport/GetRawRomReport key consistency, `MappedVMs_RawRomReport_CoversRomReads` enforces ≥60% raw ROM report coverage for all mapped VMs, `NoOrphanVMs_ImplementIDataVerifiable` prevents non-data-editor VMs from implementing IDataVerifiable, and `AllDesignerFilesWithRomFields_HaveAvaloniaMapping` auto-discovers ALL Designer.cs files with ROM fields to prevent new forms from being invisible to tests. Orphan cleanup removed IDataVerifiable from 49 non-editor VMs (dialogs, tools, infrastructure). Reports in `docs/field-completeness-report.txt`
 
@@ -307,21 +307,21 @@ The project includes a dedicated end-to-end test suite (`FEBuilderGBA.E2ETests`)
 | Test File | ROMs required | What it tests |
 |-----------|--------------|--------------|
 | `Tests/CliTests.cs` | No | CLI flag `--version`: exit code 0, output contains "FEBuilderGBA" and version info |
-| `Tests/CliArgsE2ETests.cs` | No | All 18 CLI primary commands via `FEBuilderGBA.CLI`: `--help/-h`, `--version`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--translate-roundtrip`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test/--testonly` — 38 tests ([docs/cli-args.md](docs/cli-args.md)) |
+| `Tests/CliArgsE2ETests.cs` | No | CLI primary commands via `FEBuilderGBA.CLI`: `--help/-h`, `--version`, `--makeups`, `--applyups`, `--lint`, `--disasm`, `--decreasecolor`, `--pointercalc`, `--rebuild`, `--songexchange`, `--convertmap1picture`, `--translate`, `--translate-roundtrip`, `--lastrom`, `--force-detail`, `--translate_batch`, `--test/--testonly`, `--import-battle-anime`, `--export-battle-anime`, `--diff`, `--import-portrait-all`, `--export-map-settings`, `--lz77`, `--checksum`, `--repair-header`, `--rom-info`, `--list-tables`, `--export-palette`, `--import-palette` (plus the unknown-command path) — 69 tests ([docs/cli-args.md](docs/cli-args.md)) |
 | `Tests/GuiStartupTests.cs` | No | GUI startup: window appears within 30 s, has non-empty title, has child controls, responds to WM_CLOSE |
 | `Tests/DiagnosticTests.cs` | No | Diagnostic: logs all window handles, titles (hex-encoded), and class names — always passes |
 | `Tests/RomCliTests.cs` | Yes (×5/×2) | `--lint`, `--makeups` × 5 ROMs; `--rebuild` × 2 representative ROMs (FE8U, FE6) — 12 tests, skipped without ROMs |
 | `Tests/RomGuiTests.cs` | Yes (×5) | Main form loads per ROM: window appears, non-empty title, ≥10 child controls — 15 tests, skipped without ROMs |
 | `Tests/FormSmokeTests.cs` | Yes (×5) | All toolbar buttons clicked per ROM; verifies ≥1 opens a form — 5 tests, skipped without ROMs |
 | `Tests/AvaloniaEditorSmokeTests.cs` | Yes (×5) | Avalonia: ROM load + Unit/Item editor selection per ROM — 10 tests, skipped without ROMs |
-| `Tests/AvaloniaAllEditorsSmokeTests.cs` | Yes (×5) | Avalonia: all 325 GUI editors opened/closed per ROM via `--smoke-test-all` — 10 tests, skipped without ROMs ([docs/avalonia-gui-forms.md](docs/avalonia-gui-forms.md), [docs/avalonia-forms.md](docs/avalonia-forms.md)) |
+| `Tests/AvaloniaAllEditorsSmokeTests.cs` | Yes (×5) | Avalonia: all 324 GUI editors opened/closed per ROM via `--smoke-test-all` — 10 tests, skipped without ROMs ([docs/avalonia-gui-forms.md](docs/avalonia-gui-forms.md), [docs/avalonia-forms.md](docs/avalonia-forms.md)) |
 | `Tests/CliOutputLogNoRomTests.cs` | No | New CLI output log capture: `--help`, `-h`, `--version`, `--force-detail`, `--test`, `--testonly`, no args, `--bogus-command` — 8 tests |
 | `Tests/CliOutputLogRomPart1Tests.cs` | Yes (×5/×2) | New CLI ROM output logs: `--lint` ×5, `--disasm` ×5, `--translate` ×5, `--rebuild` ×2 — 17 tests, skipped without ROMs |
 | `Tests/CliOutputLogRomPart2Tests.cs` | Yes (×5/×2) | New CLI ROM output logs: `--makeups` ×5, `--applyups` ×2, `--pointercalc` ×2, `--songexchange` ×2 — 11 tests, skipped without ROMs |
 | `Tests/CliOutputLogImageTests.cs` | No | New CLI image output logs: `--decreasecolor` (5 flag variants), `--convertmap1picture` — 6 tests |
 | `Tests/WinFormsCliOutputLogNoRomTests.cs` | No | WinForms CLI output log capture: `--version`, no args, `--bogus-command` — 3 tests |
 | `Tests/WinFormsCliOutputLogRomTests.cs` | Yes (×5/×2) | WinForms CLI ROM output logs: `--lint` ×5, `--rebuild` ×2, `--makeups` ×5, `--disasm` ×2, `--translate` ×2, `--pointercalc` ×2, `--songexchange` ×2 — 20 tests, skipped without ROMs |
-| `Tests/AvaloniaScreenshotTests.cs` | Yes (×2) | Avalonia: captures PNG screenshots of all 325 editors via `--screenshot-all` — 4 tests, skipped without ROMs |
+| `Tests/AvaloniaScreenshotTests.cs` | Yes (×2) | Avalonia: captures PNG screenshots of all 324 editors via `--screenshot-all` — 4 tests, skipped without ROMs |
 | `Tests/WinFormsScreenshotAllTests.cs` | Yes (×2) | WinForms: screenshots of main form + all toolbar-openable editor forms — 4 tests, skipped without ROMs |
 | `Tests/WinFormsScreenshotAllCliTests.cs` | Yes (×2) | WinForms: captures screenshots of all editors via `--screenshot-all` CLI flag — 4 tests, skipped without ROMs |
 | `Tests/EditorImageComparisonTests.cs` | Yes (×1) | Cross-platform image export + pixel-perfect comparison for 16 editors: `--export-editor-images` on both WinForms and Avalonia — 3 tests, strict assertions, skipped without ROMs |

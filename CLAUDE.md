@@ -157,16 +157,15 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 # Search for text across all ROM text entries
 ./FEBuilderGBA.CLI --search-text --rom=rom.gba --query=Eirika
 
-# Disassemble event scripts
-./FEBuilderGBA.CLI --disasm-event --rom=rom.gba --out=events.txt
+# Disassemble event scripts (requires --addr; optional --type=event|procs|ai)
+./FEBuilderGBA.CLI --disasm-event --rom=rom.gba --addr=0x123456 --out=events.txt
 
-# Lint OAM sprites
-./FEBuilderGBA.CLI --lint-oam --rom=rom.gba
+# Lint OAM sprites (requires --addr)
+./FEBuilderGBA.CLI --lint-oam --rom=rom.gba --addr=0x123456
 
 # Apply binary patch
 ./FEBuilderGBA.CLI --apply-patch --rom=rom.gba --patch-file=patch.txt
 
-# List patches and install status
 # List patches and install status (with optional name filter)
 ./FEBuilderGBA.CLI --list-patches --rom=rom.gba
 ./FEBuilderGBA.CLI --list-patches --rom=rom.gba --patch-name=SkillSystem
@@ -181,7 +180,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ./FEBuilderGBA.CLI --expand-table --rom=rom.gba --pointer=0x8000000 --entry-size=28 --count=100
 
 # Three-way ROM merge
-./FEBuilderGBA.CLI --merge3 --rom=base.gba --target=modA.gba --in=modB.gba --out=merged.gba
+./FEBuilderGBA.CLI --merge3 --base=base.gba --mine=modA.gba --theirs=modB.gba --out=merged.gba
 
 # Resolve name IDs
 ./FEBuilderGBA.CLI --resolve-names --rom=rom.gba --kind=unit --ids=0,1,2,3

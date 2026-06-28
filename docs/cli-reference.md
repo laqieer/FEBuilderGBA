@@ -2,6 +2,12 @@
 
 Comprehensive reference for the cross-platform `FEBuilderGBA.CLI` command-line tool.
 
+The most commonly used commands have full subsections under [Commands](#commands); the
+remaining commands are listed in compact form under
+[Additional commands](#additional-commands); decomp-project-only commands are under
+[Decomp project mode](#decomp-project-mode). The complete option list with inline help is
+always available via `FEBuilderGBA.CLI --help`.
+
 **Source:** `FEBuilderGBA.CLI/Program.cs`, `FEBuilderGBA.CLI/RomLoader.cs`
 
 ## Usage
@@ -346,6 +352,171 @@ FEBuilderGBA.CLI --test
 
 ---
 
+### `--rom-info`
+
+Print ROM metadata to stdout: file path, size, ASCII title and game code (from the
+header), detected version, CRC32, header checksum (actual + expected + `VALID`/`INVALID`
+status), and a `Mode:` line.
+
+| Option | Required | Description |
+|---|---|---|
+| `--rom=<path>` **or** `--project=<dir>` | Yes (one) | The ROM file, or a decomp project whose *built* ROM is read. |
+| `--force-version=<VER>` | No | Override version detection (`--rom` mode only). |
+
+With `--rom` the last line is `Mode: Rom`. With `--project` it loads the project's built
+ROM and the last lines are `Mode: Decomp (preview ROM …)` plus a `Symbols:` breakdown.
+
+```
+FEBuilderGBA.CLI --rom-info --rom=rom.gba
+FEBuilderGBA.CLI --rom-info --project=decomp/
+```
+
+**Exit code:** 0 on success, 1 if neither `--rom` nor `--project` is given, the file is
+missing, or the ROM is not a recognized GBA Fire Emblem ROM.
+
+---
+
+## Additional commands
+
+The commands below are documented in compact form — one entry per command with its
+required and optional flags. Each is verified against its `Run*` handler in
+`FEBuilderGBA.CLI/Program.cs`. The full option list with inline help is available via
+`FEBuilderGBA.CLI --help`. Unless noted, ROM-based commands accept the global
+`--force-version=<VER>` modifier.
+
+### ROM info / validation
+
+- **`--checksum`** — Validate the GBA ROM header checksum. Requires `--rom`. Prints
+  title, game code, and the actual/expected checksum bytes. **Exit:** 0 valid, 2 invalid,
+  1 on file/usage error.
+- **`--repair-header`** — Recompute and write the correct GBA header checksum in-place.
+  Requires `--rom`. **Exit:** 0 (already valid or repaired), 1 on file/usage error.
+- **`--diff`** — Compare two ROMs byte-by-byte. Requires `--rom` and `--rom2`; optional
+  `--out=<path>` writes a TSV of the differing ranges (a summary always prints to stdout).
+  Operates on raw files (no ROM init). **Exit:** 0 on success, 1 on file/usage error.
+- **`--translate-roundtrip`** — Export all ROM text, write it back, re-export, and compare
+  for losslessness (works on a temp copy; the source ROM is untouched). Requires `--rom`;
+  optional `--out=<base>` saves `<base>.export1.tsv` and `<base>.export2.tsv`. **Exit:**
+  0 lossless, 2 if any text entry mismatches, 1 on file/usage error.
+- **`--data-roundtrip`** — Export/import struct data and verify losslessness on a temp
+  copy. Requires `--rom`; optional `--table=<name>` (default `all`). **Exit:** 0 lossless,
+  2 if any table mismatches, 1 on file/usage error.
+- **`--lint-oam`** — Validate battle-animation OAM data at an address. Requires `--rom`
+  and `--addr=<hex>`; optional `--length=<int>` (0 = auto, default). **Exit:** 0 clean,
+  1 if issues are found or on usage error.
+
+### Data
+
+- **`--export-data`** — Export a struct table to TSV/CSV/EA. Requires `--rom` and
+  `--table=<name>` (any name from `--list-tables`, or `all`); optional `--out=<path>`
+  (defaults to `<rom>.<table>.<ext>`; with `--table=all` it is a base path written as
+  `<out>.<table>.<ext>`) and `--format=<tsv|csv|ea>` (default `tsv`). **Exit:** 0 on
+  success, 1 on usage/unknown-table error.
+- **`--import-data`** — Import a struct table from a TSV and save the ROM in-place.
+  Requires `--rom`, `--table=<name>`, and `--in=<path.tsv>`. **Exit:** 0 on success, 1 on
+  usage/unknown-table error.
+- **`--resolve-names`** — Resolve entity IDs to names. Requires `--rom`, `--kind=<unit|class|item|song>`,
+  and `--ids=<comma-list>`. Prints `id<TAB>name` per ID. **Exit:** 0 on success, 1 on
+  usage/unknown-kind error.
+- **`--list-tables`** — Print every exportable struct table name (one per line). No ROM
+  required. **Exit:** 0.
+- **`--export-map-settings`** — Export all chapter/map settings as a TSV of raw struct
+  words. Requires `--rom` and `--out=<path.tsv>`. **Exit:** 0 on success, 1 on usage error.
+
+### Graphics
+
+- **`--render-portrait`** — Render a unit's portrait to a PNG. Requires `--rom`,
+  `--unit-id=<id>`, and `--out=<path.png>`. **Exit:** 0 on success, 1 on usage/render error.
+- **`--export-portrait-all`** — Export every portrait in the table to `portrait_NNN.png`
+  files. Requires `--rom` and `--out=<dir>`. **Exit:** 0 on success, 2 if some portraits
+  failed to render, 1 on usage error.
+- **`--import-portrait`** — Import a PNG into a portrait slot and save the ROM in-place.
+  Requires `--rom`, `--portrait-id=<id>` (alias `--unit-id`), and `--in=<path.png>`.
+  **Exit:** 0 on success, 1 on usage/import error.
+- **`--import-portrait-all`** — Batch-import PNGs from a directory; the leading
+  `{id}_`/`{id}`/`0x{id}` of each filename selects the slot. Requires `--rom` and
+  `--dir=<directory>`. **Exit:** 0 if all imports succeed, 1 if any failed.
+- **`--generate-font`** — Render characters to a 16×16-per-glyph PNG via SkiaSharp. No ROM.
+  Requires `--out=<path.png>`; optional `--text=<chars>` (default `A`), `--font-file=<path>`
+  (`.ttf`/`.otf`; system default if omitted), `--font-size=<float>` (default 12), and
+  `--vertical-offset=<int>` (clamped -8..8). **Exit:** 0 on success, 1 on usage/font error.
+- **`--export-palette`** — Export a GBA palette to a file. Requires `--rom`, `--addr=<hex>`,
+  and `--out=<path>` whose extension picks the format (`.pal` JASC, `.act` ACT, `.gpl` GIMP,
+  `.txt` hex, `.gbapal` raw); optional `--colors=<int>` (1..256, default 16). **Exit:** 0 on
+  success, 1 on usage/format error.
+- **`--import-palette`** — Import a palette file into the ROM (format auto-detected from
+  content/extension). Requires `--rom`, `--addr=<hex>`, and `--in=<path>`. **Exit:** 0 on
+  success, 1 on usage/format error.
+
+### Audio
+
+- **`--export-midi`** — Export a ROM song to a `.mid` file. Requires `--rom`,
+  `--song-id=<hex>`, and `--out=<path.mid>`. **Exit:** 0 on success, 1 on usage/range error.
+- **`--import-midi`** — Import a MIDI file into a ROM song slot and save in-place. Requires
+  `--rom`, `--song-id=<hex>`, and `--in=<path.mid>`. **Exit:** 0 on success, 1 on
+  usage/range error.
+
+### Events
+
+- **`--disasm-event`** — Disassemble an event/procs/AI script starting at an address.
+  Requires `--rom` and `--addr=<hex>`; optional `--type=<event|procs|ai>` (default `event`)
+  and `--out=<path>` (prints to stdout if omitted). **Exit:** 0 on success, 1 on
+  usage/unknown-type error.
+- **`--compile-event`** — Compile an `.event` script with the bundled/configured
+  EA/ColorzCore and write the modified ROM. Requires `--rom` and `--in=<path.event>`;
+  optional `--out=<path>` (defaults to overwriting the input ROM). **Exit:** 0 on success,
+  1 if the tool is missing or compilation fails.
+- **`--import-battle-anime`** — Import a battle animation from a `.txt` script or FEditor
+  `.bin` (format auto-detected) and save the ROM in-place. Requires `--rom`,
+  `--animation-id=<id>` (0-based), and `--in=<path>`. **Exit:** 0 on success, 1 on
+  usage/range error.
+- **`--export-battle-anime`** — Export a battle animation to a `.txt` script + PNGs, or to
+  an animated GIF. Requires `--rom`, `--animation-id=<id>` (0-based), and `--out=<path>`;
+  optional `--gif` (GIF instead of `.txt`+PNG) and `--section=<0..11>` (GIF only,
+  default 0). **Exit:** 0 on success, 1 on usage/range error.
+
+### Patches
+
+- **`--list-patches`** — List the patches available for the ROM's version and their install
+  status. Requires `--rom`; optional `--patch-name=<substring>` filter. **Exit:** 0 on
+  success, 1 if the version/patch directory cannot be resolved.
+- **`--apply-patch`** — Apply a `PATCH_*.txt` BIN patch (checks dependencies, writes a
+  `.backup`, restores on failure). Requires `--rom` and `--patch-file=<path>`. **Exit:** 0
+  on success, 1 on unsatisfied dependencies / apply failure / usage error.
+- **`--uninstall-patch`** — Restore the original bytes for fixed-address `BIN:0xADDR=file`
+  entries using a clean ROM (writes a `.backup`; FREEAREA/JUMP/EA/CLEAR directives can't be
+  reversed and warn). Requires `--rom`, `--patch-file=<path>`, and `--original-rom=<clean.gba>`.
+  **Exit:** 0 on success, 1 if no BIN ranges or on usage error.
+- **`--list-resources`** — List the FE-Repo / FE-Repo-Music submodule resource categories
+  and file counts. No ROM. Optional `--category=<name>` substring filter. **Exit:** 0.
+
+### Utility
+
+- **`--expand-table`** — Grow a pointer-based ROM data table by one entry (writes a
+  `.backup`, restores on failure). Requires `--rom`, `--pointer=<hex>`, `--entry-size=<int>`,
+  and `--count=<int>` (the current row count, required for safety). **Exit:** 0 on success,
+  1 on usage/expand error.
+- **`--merge3`** — Three-way merge of ROM files. Requires `--base`, `--mine`, `--theirs`,
+  and `--out` (all paths). **Exit:** 0 on success, 1 on file/usage error.
+- **`--freespace`** — Scan and report runs of free space (`0x00`/`0xFF`). Requires `--rom`;
+  optional `--min-size=<int>` (default 16). **Exit:** 0 on success, 1 on usage error.
+- **`--hex-dump`** — Dump ROM bytes in xxd-style hex+ASCII. Requires `--rom` and
+  `--addr=<hex>`; optional `--length=<int>` (default 256). **Exit:** 0 on success, 1 on
+  usage error.
+- **`--search-text`** — Search the decoded text of every ROM text entry (case-insensitive).
+  Requires `--rom` and `--query=<text>`. **Exit:** 0 on success, 1 on usage error.
+- **`--text-refs`** — List every ROM entry that references a text ID (via the text-ref table
+  registry). Requires `--rom` and `--text-id=<hex|dec>`. **Exit:** 0 on success, 1 on usage
+  error.
+- **`--lz77`** — LZ77 compress or decompress a file. No ROM. Requires `--in`, `--out`, and
+  exactly one of `--compress`/`--decompress`. **Exit:** 0 on success, 1 on usage/data error.
+
+For the decomp-only `--export-battle-anim-decomp` source exporter, see
+[`--export-battle-anim-decomp`](#--export-battle-anim-decomp) in the Decomp project mode
+section below.
+
+---
+
 ## Decomp project mode
 
 These commands operate on a **decomp project directory** (one containing a `febuilder.project.json`
@@ -603,6 +774,32 @@ FEBuilderGBA.CLI --export-voicegroup --project=decomp/ --voicegroup-addr=0x20747
 ```
 
 **Exit code:** 0 on success; 1 usage error; 2 export fault / path rejected / song not found; 3 internal read-only-invariant violation.
+
+---
+
+### `--export-battle-anim-decomp`
+
+Export a FEBuilder/FEditor-decoded battle animation as reviewable decomp **source macro
+assembly** (`banim_<TAG>_motion.s`) plus per-team `.pal` palette sidecars and a `.json`
+registration manifest, using the `fireemblem8u` banim macros (#1363). **READ-ONLY** — it
+reads the preview ROM and never mutates it (a before/after SHA-256 of the ROM bytes guards
+the invariant).
+
+| Option | Required | Description |
+|---|---|---|
+| `--out=<banim_<TAG>_motion.s>` | Yes | Output `.s` path (project-root-confined when `--project`; absolute or relative when `--rom`). Sidecars are written alongside. |
+| `--animation-id=<n>` **or** `--banim-addr=<hex>` | Yes (exactly one) | 0-based animation index in the ROM table, or the ROM offset/pointer of the 32-byte animation record. |
+| `--rom=<path>` **or** `--project=<dir>` | Yes | Source ROM, or a decomp project whose built ROM is read (one is required). |
+| `--tag=<name>` | No | Label tag for the emitted symbols. Default: `anim<NNN>`. |
+| `--number=<N>` | No | Animation number used in the default tag. Default: `--animation-id`, else `0`. |
+
+```
+FEBuilderGBA.CLI --export-battle-anim-decomp --rom=rom.gba --animation-id=1 --out=banim/banim_anim001_motion.s
+FEBuilderGBA.CLI --export-battle-anim-decomp --project=decomp/ --banim-addr=0x12A4F0 --tag=eirika --out=banim/banim_eirika_motion.s
+```
+
+**Exit code:** 0 on success; 1 usage error; 2 export fault / path rejected / animation not
+found; 3 internal read-only-invariant violation.
 
 ---
 
@@ -872,6 +1069,8 @@ Each finding prints as `ERROR [CODE] msg` (stderr) or `WARN [CODE] msg` (stdout)
 |---|---|
 | `0` | Success (or no errors for `--lint`). |
 | `1` | Error: missing arguments, file not found, operation failed, or lint found ERROR-severity issues. |
+| `2` | Advisory / validation / no-write outcome — no fatal error, but the operation did not fully succeed. Examples: a `--translate-roundtrip` / `--data-roundtrip` / `--roundtrip-asset` mismatch, a `--checksum` INVALID header, `--export-portrait-all` rendering some portraits, a `--write-shop` not-owned / ROM-only / refused list, a `--verify-asset` byte mismatch, or a `--build-project` with no enabled build section. |
+| `3` | Internal read-only-invariant violation — a READ-ONLY exporter (`--export-voicegroup`, `--export-battle-anim-decomp`) detected that the in-memory ROM was mutated and aborted without writing. |
 
 ---
 
