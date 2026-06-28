@@ -88,7 +88,12 @@ jobs:
             local out http
             out="$(mktemp)"
             local safe_url="${url%%\?*}"
-            http="$(curl -sS -w '%{http_code}' -o "$out" -X "$method" "$@" "$url")" || {
+            # --connect-timeout/--max-time bound each call so a stalled Gitee
+            # connection (US runner -> Gitee) fails fast instead of hanging the
+            # job (the upload once stalled ~22 min with no progress). Re-running
+            # is safe: this workflow is idempotent (the GET-then-create + asset
+            # presence check below prevent duplicates).
+            http="$(curl -sS --connect-timeout 30 --max-time 900 -w '%{http_code}' -o "$out" -X "$method" "$@" "$url")" || {
               echo "::error::curl transport error calling ${method} ${safe_url}" >&2
               cat "$out" >&2 || true
               rm -f "$out"
@@ -115,7 +120,7 @@ jobs:
             local out http safe_url
             out="$(mktemp)"
             safe_url="${url%%\?*}"
-            http="$(curl -sS -w '%{http_code}' -o "$out" -X GET "$url")" || {
+            http="$(curl -sS --connect-timeout 30 --max-time 900 -w '%{http_code}' -o "$out" -X GET "$url")" || {
               echo "::error::curl transport error calling GET ${safe_url}" >&2
               cat "$out" >&2 || true
               rm -f "$out"
