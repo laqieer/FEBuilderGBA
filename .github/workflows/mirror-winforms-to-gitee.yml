@@ -38,6 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      # GitHub secret names are case-insensitive (stored upper-cased), so
+      # `secrets.GITEE_TOKEN` resolves to the SAME secret as the `gitee_token`
+      # used by sync-release-to-gitee.yml — no second secret is required.
       GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
       GITEE_OWNER: laqieer
       GITEE_REPO: FEBuilderGBA
@@ -101,10 +104,42 @@ jobs:
             rm -f "$out"
           }
 
-          # 1) Resolve the Gitee release id for this tag (GET returns 200 + `null` when absent).
+          # ---- helper: GET that treats "release absent" as empty, not an error ----
+          # Gitee's behaviour for a missing release-by-tag is not contractually
+          # documented: some deployments answer 200 + `null`, others answer 404.
+          # Both mean "no release for this tag", so map 404 (and an empty/`null`
+          # 200 body) to empty stdout and let the caller fall through to create.
+          # Every OTHER non-2xx still fails loudly via the strict gitee_call.
+          gitee_get_release_or_empty() {
+            local url="$1"
+            local out http safe_url
+            out="$(mktemp)"
+            safe_url="${url%%\?*}"
+            http="$(curl -sS -w '%{http_code}' -o "$out" -X GET "$url")" || {
+              echo "::error::curl transport error calling GET ${safe_url}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            }
+            if [ "${http}" = "404" ]; then
+              rm -f "$out"
+              return 0   # no release for this tag -> empty stdout
+            fi
+            if [ "${http:0:1}" != "2" ]; then
+              echo "::error::Gitee API GET ${safe_url} returned HTTP ${http}" >&2
+              cat "$out" >&2 || true
+              rm -f "$out"
+              exit 1
+            fi
+            cat "$out"
+            rm -f "$out"
+          }
+
+          # 1) Resolve the Gitee release id for this tag. Absent => 200+`null` OR
+          #    404 (see gitee_get_release_or_empty); both yield an empty rel_id.
           echo "Looking up existing Gitee release for tag '${TAG}'..."
-          rel="$(gitee_call GET "${api}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")"
-          rel_id="$(printf '%s' "$rel" | jq -r '.id // empty')"
+          rel="$(gitee_get_release_or_empty "${api}/releases/tags/${TAG}?access_token=${GITEE_TOKEN}")"
+          rel_id="$(printf '%s' "$rel" | jq -r '.id // empty' 2>/dev/null || true)"
 
           if [ -z "${rel_id}" ]; then
             # 2) None exists -> create it. target_commitish=master (see header note).
@@ -129,13 +164,26 @@ jobs:
 
           # 3) Idempotent asset upload: skip if same filename already attached
           #    (Gitee attach_files does NOT de-dup by name).
+          #    The release-detail response has historically named the attachment
+          #    array both `assets` and `attach_files` across Gitee versions, so
+          #    check BOTH (plus the `/attach_files` sub-resource as a fallback).
           echo "Checking whether '${ASSET_NAME}' is already attached to release ${rel_id}..."
           rel_full="$(gitee_call GET "${api}/releases/${rel_id}?access_token=${GITEE_TOKEN}")"
           already_present="$(printf '%s' "$rel_full" | jq -r --arg n "$ASSET_NAME" '
-            (.assets // [])
+            ((.assets // []) + (.attach_files // []))
             | map(.name // (.browser_download_url // "" | split("/") | last))
             | index($n) // empty
           ')"
+          if [ -z "${already_present}" ]; then
+            # Fallback: query the dedicated attach_files sub-resource (some Gitee
+            # versions omit attachments from the release-detail payload).
+            af_list="$(gitee_call GET "${api}/releases/${rel_id}/attach_files?access_token=${GITEE_TOKEN}")"
+            already_present="$(printf '%s' "$af_list" | jq -r --arg n "$ASSET_NAME" '
+              (if type == "array" then . else (.attach_files // .assets // []) end)
+              | map(.name // (.browser_download_url // "" | split("/") | last))
+              | index($n) // empty
+            ' 2>/dev/null || true)"
+          fi
           if [ -n "${already_present}" ]; then
             echo "Asset '${ASSET_NAME}' already attached to Gitee release '${TAG}'; skipping upload (idempotent no-op)."
             exit 0
