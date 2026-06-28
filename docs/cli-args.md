@@ -1,10 +1,19 @@
 # FEBuilderGBA.CLI — Command-Line Arguments
 
-This document lists all command-line arguments supported by the cross-platform `FEBuilderGBA.CLI` tool.
+This document tracks the **E2E-covered** primary commands of the cross-platform `FEBuilderGBA.CLI`
+tool and their alignment with the original WinForms CLI. The table below is *not* the complete
+command set — it lists the commands exercised by `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
+
+For the **full command set** (the `Main` dispatcher in `FEBuilderGBA.CLI/Program.cs` routes 67
+distinct user-facing commands), see [`docs/cli-reference.md`](cli-reference.md) or run:
+
+```bash
+FEBuilderGBA.CLI --help
+```
 
 E2E tests are in `FEBuilderGBA.E2ETests/Tests/CliArgsE2ETests.cs`.
 
-## Primary Commands
+## Primary Commands (E2E-covered)
 
 The **WinForms Alignment** column tracks whether the cross-platform CLI output is aligned with the
 original WinForms CLI (`FEBuilderGBA.exe`). "ALIGNED" means the CLI produces equivalent or better
@@ -18,17 +27,29 @@ output for that command compared to the WinForms exe.
 | `--applyups=<path>` | Apply UPS patch | `--rom`, `--patch` | E2E COVERED | ALIGNED |
 | `--lint` | Run lint checks on ROM | `--rom` | E2E COVERED | ALIGNED |
 | `--disasm=<path>` | Disassemble ROM to file | `--rom` | E2E COVERED | ALIGNED |
-| `--decreasecolor` | Quantize image palette | `--in`, `--out`, `--paletteno` | E2E COVERED | ALIGNED |
+| `--decreasecolor` | Quantize image palette | `--in`, `--out` (opt: `--paletteno`) | E2E COVERED | ALIGNED |
 | `--pointercalc` | Search pointer references | `--rom`, `--target`, `--address` | E2E COVERED | ALIGNED |
 | `--rebuild` | Rebuild/defragment ROM | `--rom` (opt: `--fromrom`) | E2E COVERED | ALIGNED |
 | `--songexchange` | Copy song between ROMs | `--rom`, `--fromrom`, `--fromsong`, `--tosong` | E2E COVERED | ALIGNED |
 | `--convertmap1picture` | Convert image to map tiles | `--in`, `--outImg` and/or `--outTSA` | E2E COVERED | ALIGNED |
 | `--translate` | Dump or import ROM text | `--rom` | E2E COVERED | ALIGNED |
+| `--translate-roundtrip` | Validate text export/import round-trip | `--rom` (opt: `--out`) | E2E COVERED | ALIGNED |
 | `--lastrom` | Load last-used ROM from config | — | E2E COVERED | ALIGNED |
 | `--force-detail` | Force detailed editor mode (Avalonia GUI flag) | — | E2E COVERED | ALIGNED |
 | `--translate_batch` | Batch translation: export + import all text | `--rom` | E2E COVERED | ALIGNED |
-| `--test` | Run self-test diagnostics | — (optionally `--rom`) | E2E COVERED | ALIGNED |
-| `--testonly` | Run self-test diagnostics then exit | — (optionally `--rom`) | E2E COVERED | ALIGNED |
+| `--test`, `--testonly` | Run self-test diagnostics (both route to the same handler) | — (optionally `--rom`) | E2E COVERED | ALIGNED |
+| `--import-battle-anime` | Import battle animation from `.txt`/`.bin` | `--rom`, `--animation-id`, `--in` | E2E COVERED | ALIGNED |
+| `--export-battle-anime` | Export battle animation to `.txt`+PNG (or `--gif`) | `--rom`, `--animation-id`, `--out` | E2E COVERED | ALIGNED |
+| `--diff` | Compare two ROMs byte-by-byte | `--rom`, `--rom2` | E2E COVERED | ALIGNED |
+| `--import-portrait-all` | Batch import portraits from a directory | `--rom`, `--dir` | E2E COVERED | ALIGNED |
+| `--export-map-settings` | Export all map/chapter settings to TSV | `--rom`, `--out` | E2E COVERED | ALIGNED |
+| `--lz77` | LZ77 compress/decompress a file | `--in`, `--out`, `--compress`/`--decompress` | E2E COVERED | ALIGNED |
+| `--checksum` | Validate GBA ROM header checksum | `--rom` | E2E COVERED | ALIGNED |
+| `--repair-header` | Fix corrupted GBA ROM header checksum | `--rom` | E2E COVERED | ALIGNED |
+| `--rom-info` | Print ROM metadata (version, title, CRC32, …) | `--rom` | E2E COVERED | ALIGNED |
+| `--list-tables` | List all exportable struct table names | — | E2E COVERED | ALIGNED |
+| `--export-palette` | Export GBA palette to a file | `--rom`, `--addr`, `--out` | E2E COVERED | ALIGNED |
+| `--import-palette` | Import a palette file into the ROM | `--rom`, `--addr`, `--in` | E2E COVERED | ALIGNED |
 
 ## Auxiliary Arguments (used with primary commands)
 
@@ -38,8 +59,16 @@ output for that command compared to the WinForms exe.
 | `--fromrom=<path>` | Specify original/source ROM (auto-detected if omitted for `--makeups`/`--rebuild`) | `--makeups`, `--rebuild`, `--songexchange` |
 | `--force-version=<VER>` | Force ROM version (FE6, FE7J, FE7U, FE8J, FE8U) | Any ROM command |
 | `--patch=<path>` | Specify UPS patch file | `--applyups` |
-| `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate` |
-| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate_batch` |
+| `--rom2=<path>` | Second ROM file to compare against | `--diff` |
+| `--in=<path>` | Input file | `--decreasecolor`, `--convertmap1picture`, `--translate`, `--lz77`, `--import-palette`, `--import-battle-anime` |
+| `--out=<path>` | Output file | `--decreasecolor`, `--translate`, `--translate-roundtrip`, `--translate_batch`, `--export-map-settings`, `--lz77`, `--export-palette`, `--export-battle-anime`, `--diff` |
+| `--dir=<path>` | Input directory of portraits | `--import-portrait-all` |
+| `--addr=<hex>` | ROM address (raw offset or `0x08…` pointer) | `--export-palette`, `--import-palette` |
+| `--colors=<n>` | Number of palette colors (default: 16, range 1-256) | `--export-palette` |
+| `--animation-id=<id>` | Battle animation id (0-based) | `--import-battle-anime`, `--export-battle-anime` |
+| `--gif` | Export the animation as an animated GIF | `--export-battle-anime` |
+| `--section=<N>` | Section index 0-11 for GIF export (default: 0) | `--export-battle-anime` |
+| `--compress` / `--decompress` | LZ77 mode (exactly one required) | `--lz77` |
 | `--paletteno=<n>` | Number of palette colors (default: 16) | `--decreasecolor` |
 | `--noScale` | Do not scale colors to GBA 5-bit range | `--decreasecolor` |
 | `--noReserve1stColor` | Do not reserve palette slot 0 for transparency | `--decreasecolor` |

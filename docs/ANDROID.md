@@ -14,12 +14,14 @@
 > extraction (#1123) and the single-view Avalonia boot (#1122) into the
 > editor-launcher shell are now **emulator-validated**, not merely build-only.
 > What remains **unvalidated on-device** is the *interactive* ROM-editing path:
-> SAF ROM open/save (#1124) and reaching/using an editor require the system file
-> picker and touch UX, which a non-interactive CI smoke test cannot drive. The
-> Android head therefore ships as **experimental/preview** — a *runnable, usable*
-> Android app is still **a substantial, separate port** (SAF ROM I/O, touch UX)
-> and is **not** a free byproduct of Avalonia. The head remains intentionally
-> **not** part of `FEBuilderGBA.sln` (see
+> SAF ROM open/save (#1124) is **implemented** (stream-based `Rom` load/save +
+> the Avalonia head reads/writes the picked `IStorageFile` via its stream API —
+> see §4), but exercising it, and reaching/using an editor, require the system
+> file picker and touch UX, which a non-interactive CI smoke test cannot drive.
+> The Android head therefore ships as **experimental/preview** — a *runnable, usable*
+> Android app is still **a substantial, separate port** (touch UX, on-device
+> validation) and is **not** a free byproduct of Avalonia. The head remains
+> intentionally **not** part of `FEBuilderGBA.sln` (see
 > [§7 Build status in this environment](#7-build-status-in-this-environment)).
 
 This assessment is evidence-backed: every claim cites a `file:line` in the
@@ -189,12 +191,21 @@ via a branch-ruleset change — no code change needed. See §7 for workflow deta
 
 ## 4. ROM file access on Android (scoped storage / SAF)
 
-Desktop ROM I/O is path-based and will not work under Android scoped storage:
+Desktop ROM I/O is path-based; a parallel **stream-based** I/O seam (#1124) makes
+it work under Android scoped storage:
 
-- `FEBuilderGBA.Core/Rom.cs:606` / `Rom.cs:619` `File.ReadAllBytes(name)`;
-  `Rom.cs:654` `Save(string name, bool silent)` writes by path.
-- The desktop ROM open/save already streams via `IStorageFile` (#1124); the ROM
-  path branch is the documented fast path.
+- Path I/O: `FEBuilderGBA.Core/Rom.cs:615` `File.ReadAllBytes(name)` (in `Load`);
+  `Rom.cs:688` `Save(string name, bool silent)` writes by path.
+- **Stream I/O (#1124 — DONE):** `Rom.cs` adds `LoadFromStream` / `LoadFromStreamAsync`
+  (`Rom.cs:624,635`) and `SaveToStream` / `SaveToStreamAsync` (`Rom.cs:701,719`),
+  all converging on the same `LoadBytes` detection seam / `Modified` semantics as
+  the path overloads. The Avalonia head consumes a SAF `IStorageFile` directly:
+  `MainWindow.axaml.cs` reads via `IStorageFile.OpenReadAsync()` →
+  `Rom.LoadFromStreamAsync` (`LoadRomFromStorageFile`) and writes via
+  `OpenWriteAsync()` → `Rom.SaveToStreamAsync`, **retaining the picked
+  `IStorageFile`** (`_currentRomStorageFile`) so a later Save writes back through
+  the same handle — used only when the pick has no local path (Android `content://`);
+  desktop picks with a real local path keep the path branch.
 - **Editor import/export pickers (#1639):** the path-returning `FileDialogHelper`
   helpers (`OpenRomFile` / `OpenImageFile` / `OpenPaletteFile` / `OpenFile` /
   `OpenPatchFile`) used to collapse every pick to `IStorageFile.TryGetLocalPath()`.
@@ -213,15 +224,22 @@ Desktop ROM I/O is path-based and will not work under Android scoped storage:
 
 **What Avalonia's `IStorageProvider` gives you on Android:** the same
 `OpenFilePickerAsync` / `SaveFilePickerAsync` API the desktop helper already uses
-(`FileDialogHelper.cs:45,58`), but the returned `IStorageFile` must be consumed
-via **streams** (`OpenReadAsync` / `OpenWriteAsync`), keeping the storage handle
-/ URI rather than reducing it to a path.
+(`FileDialogHelper.cs`), where the returned `IStorageFile` is consumed via
+**streams** (`OpenReadAsync` / `OpenWriteAsync`), keeping the storage handle /
+URI rather than reducing it to a path.
 
-**Required port:** add **stream-based** ROM load/save to `Rom` (alongside the
-path-based overloads) and return/retain the `IStorageFile` instead of a path.
-Also redirect the desktop side-writes — `Log` (`FEBuilderGBA.Core/Log.cs:53`),
-`Config.Save`, and `AutoSaveService` (`FEBuilderGBA.Avalonia/Services/AutoSaveService.cs:33-114`),
-which write beside the exe / ROM — to **app-private storage** (`Context.FilesDir`).
+**Port status (#1124 — DONE):** the **stream-based** ROM load/save now exists on
+`Rom` alongside the path-based overloads (`LoadFromStream*` / `SaveToStream*`,
+above), and `MainWindow` retains the `IStorageFile` instead of a path. The
+desktop side-writes that used to write beside the exe / ROM are likewise
+redirected to **app-private storage** on Android: the log file resolves under
+`CoreState.BaseDirectory` — the exe dir on desktop, `Context.FilesDir` on Android
+(#1123) — so it is already app-private on Android
+(`FEBuilderGBA.Core/Log.cs:122`), and `AutoSaveService.ComputeSidecarPath`
+redirects the auto-save sidecar into `{CoreState.BaseDirectory}/autosave/…` when
+`OperatingSystem.IsAndroid()`
+(`FEBuilderGBA.Avalonia/Services/AutoSaveService.cs:35-52`), instead of beside the
+`content://` ROM.
 
 ---
 
@@ -446,11 +464,13 @@ is emulator-validated, but the *interactive* ROM-editing path is not.
   extraction to `Context.FilesDir` (#1123). This extraction now runs inside the
   emulator boot-smoke (#1640) — `MainActivity.OnCreate` rethrows on extraction
   failure (fail-fast), so a broken extract would surface as a boot crash the smoke
-  test catches. ROM open/save (the remaining storage item) is still path-based.
-- ROM open/save still goes through path-based I/O; SAF stream I/O is #1124 (see §4).
-  SAF open/save + reaching an editor are **not** exercised by the boot-smoke CI
-  (a non-interactive job cannot drive the system file picker) and remain
-  **on-device-unvalidated** — the reason the head stays experimental/preview.
+  test catches.
+- ROM open/save has a **SAF stream-based I/O seam (#1124 — DONE):** `Rom` has
+  stream load/save overloads and `MainWindow` reads/writes the picked
+  `IStorageFile` via `OpenReadAsync` / `OpenWriteAsync` (see §4). Still,
+  *exercising* SAF open/save + reaching an editor are **not** driven by the
+  boot-smoke CI (a non-interactive job cannot drive the system file picker) and
+  remain **on-device-unvalidated** — the reason the head stays experimental/preview.
 
 > The Android head needs `FEBuilderGBA.Avalonia` to be android-aware, which it
 > now is *opt-in*; the `EnableAndroidTarget` default is OFF so the desktop build
@@ -565,7 +585,8 @@ own (own AVD cache key) so a slow/flaky boot cannot affect the parity job, and i
 `android-boot-smoke`, never the required `build`).
 
 **Scope honesty (#1640):** the boot-smoke job validates *boot*, not the full
-ROM-editing flow. SAF ROM open/save (#1124) and reaching/using an editor need the
+ROM-editing flow. The SAF ROM open/save seam (#1124) is **implemented** (stream
+I/O — see §4), but *exercising* it, and reaching/using an editor, need the
 interactive system file picker + touch UX, which a non-interactive CI job cannot
 drive — so they stay **on-device-unvalidated** and the Android head ships as
 **experimental/preview** (see the §1 banner and §9). References epic #1070.
@@ -598,8 +619,14 @@ linked under #1070 as its checklist:
    desktop-only limitation** with an Android-aware in-app empty-state; an
    on-demand download into `FilesDir` is the intended future mechanism under
    #1070, not yet implemented. *(see §5 and §5.1.)*
-4. **Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
-   `Log` / `Config.Save` / `AutoSaveService` to app-private storage). *(see §4.)*
+4. ~~**Android: ROM open/save via `IStorageProvider`/SAF streams** (+ redirect
+   `Log` / `AutoSaveService` to app-private storage).~~ **DONE (#1124)** — `Rom`
+   adds `LoadFromStream*` / `SaveToStream*`, `MainWindow` reads/writes the picked
+   `IStorageFile` via its stream API and retains the handle, and the `Log` file +
+   `AutoSaveService` sidecar redirect to app-private storage on Android (the log
+   already resolves under `CoreState.BaseDirectory` = `Context.FilesDir`). The
+   *interactive* SAF path is still on-device-unvalidated (no system-file-picker
+   automation in CI). *(see §4.)*
 5. ~~**Android: `SkiaSharp.NativeAssets.Android` version pinning + render
    byte-parity smoke test** on the Android native.~~ **DONE (#1125)** — the
    on-device parity run is wired in `android-emulator-parity.yml` and runs
@@ -639,8 +666,11 @@ not promise Android from "Avalonia supports Android" alone.
 1. ~~**Phase A — make it packageable.**~~ **DONE (#1121)** — the shared UI is
    conditionally multi-targeted and the Android head builds an APK.
 2. **Phase B — make it run.** Single-view lifetime + a minimal navigation host
-   (#2), config extraction (#3 — **DONE (#1123)**, emulator-boot-validated via #1640), and SAF ROM I/O
-   (#4) — enough to open a ROM and show one editor on a device.
+   (#2 — **DONE (#1122)**, boot emulator-validated via #1640), config extraction
+   (#3 — **DONE (#1123)**, emulator-boot-validated via #1640), and SAF ROM I/O
+   (#4 — **DONE (#1124)**, stream-based load/save + side-write redirect; the
+   *interactive* picker path is on-device-unvalidated) — enough to open a ROM and
+   show one editor on a device.
 3. **Phase C — make it usable.** Touch UX adaptation (larger hit targets,
    phone/tablet layouts, touch-friendly numeric entry replacing the ~2,300
    `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke
