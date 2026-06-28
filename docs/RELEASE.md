@@ -185,17 +185,19 @@ If a sync fails (e.g. transient upload error), re-run it the same way (`workflow
 > **Oversized-asset caveat (full-suite releases).** A full-suite release also ships the
 > cross-platform CLI/Avalonia bundles, which are **96–114 MB each and exceed Gitee's per-asset
 > size limit**. `H-TWINKLE/sync-action` reports success but **silently skips** the oversized
-> release, so nothing lands on Gitee. To mirror the small (~36 MB) WinForms package for such a
-> release, run the dedicated [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
+> release, so nothing lands on Gitee. To mirror the WinForms package for such a release, run the
+> dedicated [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
 > workflow manually:
 >
 > ```bash
 > gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>
 > ```
 >
-> It uploads only `FEBuilderGBA_<tag>.zip` (the CLI/Avalonia bundles never touch the runner), is
-> idempotent (skips re-upload if the asset is already attached), and **fails loudly** on any Gitee
-> API error.
+> It downloads only the WinForms `FEBuilderGBA_<tag>.zip` and **re-packs it to a ~6 MB `.7z`**
+> before upload — the ~36 MB `.zip` is too big for Gitee's release-attachment upload (it stalls),
+> whereas the LZMA `.7z` matches the size Gitee has always hosted. The CLI/Avalonia bundles never
+> touch the runner. The workflow is idempotent (skips re-upload if the asset is already attached)
+> and **fails loudly** on any Gitee API error.
 
 ---
 
