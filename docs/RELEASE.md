@@ -173,10 +173,12 @@ The release flow is therefore: **bump the tag → push it → CI does the rest.*
 
 [`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml) triggers automatically on **`release: published`** (and is manually re-runnable via `workflow_dispatch`). It uses `H-TWINKLE/sync-action` with the `gitee_token` secret to mirror the GitHub release — title, notes, and **all attached assets** — to [`gitee.com/laqieer/FEBuilderGBA`](https://gitee.com/laqieer/FEBuilderGBA/releases/latest), the mirror for users in mainland China.
 
-**Whether it auto-fires depends on which token created the release** (the `RELEASE_TOKEN` secret is **optional**):
+**Whether it auto-fires depends on which token created the release**, and that differs between the automated and the manual path:
 
-- **`RELEASE_TOKEN` set** (a PAT with `contents: write`) — the automated `release.yml` (Section 5) and the manual `gh release create` (Section 4.3) both publish via the PAT, which fires `sync-release-to-gitee.yml` automatically. No action required.
-- **`RELEASE_TOKEN` absent** — the release publishes via the built-in `GITHUB_TOKEN`, whose workflow events GitHub suppresses, so the sync does **not** auto-fire. Run it manually from the Actions tab via **Run workflow** (`workflow_dispatch`) after publishing. (`release.yml` logs a `::warning::` reminding you.)
+- **Automated `release.yml` (Section 5)** — the create step uses `token: ${{ secrets.RELEASE_TOKEN || github.token }}`, so it depends on the **optional** `RELEASE_TOKEN` secret:
+  - **set** (a PAT with `contents: write`) ⇒ publishing fires `sync-release-to-gitee.yml` automatically. No action required.
+  - **absent** ⇒ the release is created with the built-in `GITHUB_TOKEN`, whose workflow events GitHub suppresses, so the sync does **not** auto-fire. Run it manually from the Actions tab via **Run workflow** (`workflow_dispatch`) after publishing. (`release.yml` logs a `::warning::` reminding you.)
+- **Manual `gh release create` (Section 4.3)** — publishes with the operator's **local `gh` user token** (a real user token, not `GITHUB_TOKEN`), so it fires `sync-release-to-gitee.yml` automatically **regardless of whether `RELEASE_TOKEN` is set**.
 
 If a sync fails (e.g. transient upload error), re-run it the same way (`workflow_dispatch`).
 
