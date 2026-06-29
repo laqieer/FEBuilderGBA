@@ -5,21 +5,16 @@
 // row, so the Apply button no longer sits flush against the top of the taller
 // row. These tests construct each Window headlessly and assert the ApplyButton's
 // VerticalAlignment == Center.
-using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Layout;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
     public class ApplyButtonAlignmentTests
     {
-        readonly ITestOutputHelper _output;
-        public ApplyButtonAlignmentTests(ITestOutputHelper output) => _output = output;
-
         static void AssertApplyButtonCentered(Window view)
         {
             var apply = view.FindControl<Button>("ApplyButton");
@@ -38,57 +33,31 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void PackedMemorySlotView_ApplyButton_IsVerticallyCentered()
         {
-            try
-            {
-                var view = new PackedMemorySlotView();
-                AssertApplyButtonCentered(view);
-            }
-            catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
-            {
-                _output.WriteLine($"PackedMemorySlotView construction skipped (environment): {ex.Message}");
-            }
+            // ROM-independent clone dialog (constructs its own ViewModel), so an
+            // unexpected construction failure SHOULD fail this regression guard.
+            var view = new PackedMemorySlotView();
+            AssertApplyButtonCentered(view);
         }
 
         [AvaloniaFact]
         public void UbyteBitFlagView_ApplyButton_IsVerticallyCentered()
         {
-            try
-            {
-                var view = new UbyteBitFlagView();
-                AssertApplyButtonCentered(view);
-            }
-            catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
-            {
-                _output.WriteLine($"UbyteBitFlagView construction skipped (environment): {ex.Message}");
-            }
+            var view = new UbyteBitFlagView();
+            AssertApplyButtonCentered(view);
         }
 
         [AvaloniaFact]
         public void UshortBitFlagView_ApplyButton_IsVerticallyCentered()
         {
-            try
-            {
-                var view = new UshortBitFlagView();
-                AssertApplyButtonCentered(view);
-            }
-            catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
-            {
-                _output.WriteLine($"UshortBitFlagView construction skipped (environment): {ex.Message}");
-            }
+            var view = new UshortBitFlagView();
+            AssertApplyButtonCentered(view);
         }
 
         [AvaloniaFact]
         public void UwordBitFlagView_ApplyButton_IsVerticallyCentered()
         {
-            try
-            {
-                var view = new UwordBitFlagView();
-                AssertApplyButtonCentered(view);
-            }
-            catch (Exception ex) when (ex is not Xunit.Sdk.XunitException)
-            {
-                _output.WriteLine($"UwordBitFlagView construction skipped (environment): {ex.Message}");
-            }
+            var view = new UwordBitFlagView();
+            AssertApplyButtonCentered(view);
         }
     }
 }

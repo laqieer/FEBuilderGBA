@@ -404,16 +404,18 @@ namespace FEBuilderGBA.Avalonia
                 string? dir = Path.GetDirectoryName(fullPath);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-                // #1681: SizeToContent="WidthAndHeight" windows can report a NaN
-                // Width/Height here; Math.Max(NaN, n) is NaN, which would yield an
-                // invalid PixelSize. Fall back to the window's measured DesiredSize
-                // (then the declared min) when the resolved size is not finite.
+                // #1681: SizeToContent="WidthAndHeight" windows can report a
+                // non-finite (NaN or Infinity) Width/Height here; Math.Max(NaN, n)
+                // is NaN, which would yield an invalid PixelSize. Fall back to the
+                // window's arranged Bounds (then the declared min) whenever the
+                // resolved size is not finite or non-positive. double.IsFinite
+                // (net9) rejects NaN AND ±Infinity in one check.
                 double rawW = window.Width;
                 double rawH = window.Height;
-                if (double.IsNaN(rawW) || rawW <= 0) rawW = window.Bounds.Width;
-                if (double.IsNaN(rawH) || rawH <= 0) rawH = window.Bounds.Height;
-                int w = (int)Math.Max(double.IsNaN(rawW) ? 0 : rawW, 400);
-                int h = (int)Math.Max(double.IsNaN(rawH) ? 0 : rawH, 300);
+                if (!double.IsFinite(rawW) || rawW <= 0) rawW = window.Bounds.Width;
+                if (!double.IsFinite(rawH) || rawH <= 0) rawH = window.Bounds.Height;
+                int w = (int)Math.Max(double.IsFinite(rawW) ? rawW : 0, 400);
+                int h = (int)Math.Max(double.IsFinite(rawH) ? rawH : 0, 300);
                 window.Measure(new global::Avalonia.Size(w, h));
                 window.Arrange(new global::Avalonia.Rect(0, 0, w, h));
                 using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
