@@ -194,9 +194,11 @@ If a sync fails (e.g. transient upload error), re-run it the same way (`workflow
 > [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml) workflow
 > (`gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>`) downloads
 > only the WinForms zip, re-packs it to `.7z`, is idempotent, and **fails loudly** on any Gitee
-> error — but it can only succeed for a package small enough to upload (≈ ≤ 6 MB). For the current
-> full-suite package the **WinForms download is GitHub-only** (mainland-China users are directed to
-> the GitHub release and the announcement discussion). To put a binary on Gitee, either strip the
+> error — but it can only succeed for a package small enough to upload (~6 MB). For the current
+> full-suite package the **WinForms download is GitHub-only** (mainland China users are directed to
+> the [GitHub release](https://github.com/laqieer/FEBuilderGBA/releases) and any per-release
+> announcement in [Discussions](https://github.com/laqieer/FEBuilderGBA/discussions)). To put a
+> binary on Gitee, either strip the
 > bundled `tools/bin/` (ColorzCore) to shrink the package toward the historical ~6 MB, or upload
 > the `.7z` manually from a reliable China-side connection using the `GITEE_TOKEN`.
 
