@@ -24,10 +24,10 @@
            Mirrors WF AllWriteButton + Zoom + TSAInfo.
            =========================================================== -->
       <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-        <StackPanel Orientation="Horizontal" Spacing="6">
+        <WrapPanel Orientation="Horizontal">
           <Button AutomationProperties.AutomationId="ImageBattleScreen_AllWrite_Button"
                   Name="WriteButton" Content="Write" Width="140"
-                  Click="WriteButton_Click" />
+                  Click="WriteButton_Click" Margin="0,0,6,4" />
           <!-- Read-only Export PNG of the composited battle screen (#769 item 1,
                mirrors WF ImageBattleScreenForm.ExportButton_Click which exports the
                full DrawBitmap). Driven by code-behind (this view has no DataContext),
@@ -35,8 +35,8 @@
                — NOT a XAML binding. Starts disabled until a render succeeds. -->
           <Button AutomationProperties.AutomationId="ImageBattleScreen_BattleExportPng_Button"
                   Name="BattleExportPngButton" Content="Export PNG" Width="140"
-                  IsEnabled="False" Click="BattleExportPng_Click" />
-          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
+                  IsEnabled="False" Click="BattleExportPng_Click" Margin="0,0,6,4" />
+          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" Margin="0,0,6,4" />
           <!-- Initial selection is set in the constructor AFTER
                InitializeComponent() (NOT via SelectedIndex here) so the
                Zoom_SelectionChanged handler runs once BattlePreview exists,
@@ -45,18 +45,18 @@
           <ComboBox AutomationProperties.AutomationId="ImageBattleScreen_Zoom_Combo"
                     Name="ZoomCombo" Width="120" VerticalAlignment="Center"
                     SelectionChanged="Zoom_SelectionChanged"
-                    ToolTip.Tip="Zoom factor for the live battle-screen preview (#802)." />
+                    ToolTip.Tip="Zoom factor for the live battle-screen preview (#802)." Margin="0,0,6,4" />
           <!-- TSAInfo split into separate TextBlocks so each fragment goes
                through ViewTranslationHelper independently (a composite
                'Selected: 00   Canvas:' string has no translation entry).
                Per Copilot bot PR #594 round 5 thread #1. -->
           <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoSelected_Label"
                      Name="TSAInfoSelectedLabel" Text="Selected: 00"
-                     VerticalAlignment="Center" Margin="20,0,0,0" Foreground="DarkGray" />
+                     VerticalAlignment="Center" Margin="20,0,6,4" Foreground="DarkGray" />
           <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoCanvas_Label"
                      Name="TSAInfoCanvasLabel" Text="Canvas:"
-                     VerticalAlignment="Center" Margin="12,0,0,0" Foreground="DarkGray" />
-        </StackPanel>
+                     VerticalAlignment="Center" Margin="12,0,6,4" Foreground="DarkGray" />
+        </WrapPanel>
       </Border>
 
       <!-- ===========================================================
@@ -113,28 +113,28 @@
             <StackPanel Margin="8" Spacing="6">
 
               <!-- Palette toolbar -->
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="Palette Address" VerticalAlignment="Center" Width="120" />
+              <WrapPanel Orientation="Horizontal">
+                <TextBlock Text="Palette Address" VerticalAlignment="Center" Width="120" Margin="0,0,6,4" />
                 <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_PaletteAddress_Input"
                                Name="PaletteAddressBox" Width="160" Minimum="0" Maximum="4294967295"
-                               FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
-                <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" Margin="20,0,0,0" />
+                               FormatString="0" VerticalAlignment="Center" IsReadOnly="True" Margin="0,0,6,4" />
+                <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" Margin="20,0,6,4" />
                 <ComboBox AutomationProperties.AutomationId="ImageBattleScreen_PaletteIndex_Combo"
                           Name="PaletteIndexCombo" Width="120" VerticalAlignment="Center" SelectedIndex="0"
-                          SelectionChanged="PaletteIndex_SelectionChanged" />
+                          SelectionChanged="PaletteIndex_SelectionChanged" Margin="0,0,6,4" />
                 <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteWrite_Button"
                         Name="PaletteWriteButton" Content="Palette Write" Width="140"
-                        Click="PaletteWrite_Click" />
+                        Click="PaletteWrite_Click" Margin="0,0,6,4" />
                 <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteClipboard_Button"
                         Name="PaletteClipboardButton" Content="Clipboard" Width="120"
-                        Click="PaletteClipboard_Click" />
+                        Click="PaletteClipboard_Click" Margin="0,0,6,4" />
                 <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteUndo_Button"
                         Name="PaletteUndoButton" Content="Undo" Width="100"
-                        Click="PaletteUndo_Click" />
+                        Click="PaletteUndo_Click" Margin="0,0,6,4" />
                 <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteRedo_Button"
                         Name="PaletteRedoButton" Content="Redo" Width="100"
-                        Click="PaletteRedo_Click" />
-              </StackPanel>
+                        Click="PaletteRedo_Click" Margin="0,0,6,4" />
+              </WrapPanel>
 
               <!-- RGB header row -->
               <Grid Margin="0,0,0,2">
@@ -527,7 +527,7 @@
             <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_BulkDescription_Label"
                        Text="Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated."
                        TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <WrapPanel Orientation="Horizontal">
               <!-- Bulk image Import (#988): load a 256x160 indexed image (≤4
                    palette banks), keep the existing TSA layout, and rewrite the
                    deduplicated tilesheet (split into the 5 strips) + palette via
@@ -537,7 +537,7 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkImport_Button"
                       Name="BulkImportButton"
                       Content="Image Import" Width="160" IsEnabled="False"
-                      Click="BulkImport_Click" />
+                      Click="BulkImport_Click" Margin="0,0,6,4" />
               <!-- Bulk image Export (#988): same composited-preview PNG as the
                    top "Export PNG" button (BattlePreview.ExportPng). Gated on the
                    SAME render-success state (CanExportBattle / HasImage), set in
@@ -545,10 +545,10 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkExport_Button"
                       Name="BulkExportButton"
                       Content="Image Export" Width="160" IsEnabled="False"
-                      Click="BulkExport_Click" />
+                      Click="BulkExport_Click" Margin="0,0,6,4" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkUndo_Button"
                       Content="Undo" Width="100"
-                      Click="BulkUndo_Click" />
+                      Click="BulkUndo_Click" Margin="0,0,6,4" />
               <!-- Bulk Redo stays a documented deferral (#988): the local TSA
                    redo buffer is WinForms-coupled; the functional Bulk Undo
                    button (main ROM-level Undo) covers rollback. This EXACT
@@ -556,8 +556,8 @@
                    ja.txt + zh.txt, so it passes the L10n coverage gate. -->
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkRedo_Button"
                       Content="Redo" Width="100" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393)." />
-            </StackPanel>
+                      ToolTip.Tip="KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393)." Margin="0,0,6,4" />
+            </WrapPanel>
           </StackPanel>
         </TabItem>
       </TabControl>

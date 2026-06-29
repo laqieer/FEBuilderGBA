@@ -11,7 +11,7 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Palette Assignment" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="220,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 

@@ -106,7 +106,7 @@
             </Border>
 
             <!-- Icon row: label + image preview + Import/Export buttons + IconAddr. -->
-            <Grid ColumnDefinitions="140,80,Auto,Auto,Auto" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_IconHeader_Label"
                      Content="Icon" VerticalAlignment="Center" />
@@ -115,22 +115,21 @@
                 <Image AutomationProperties.AutomationId="SkillConfigFE8NSkill_Icon_Image"
                        Name="IconImage" Width="40" Height="40" Stretch="Uniform" />
               </Border>
-              <Button Grid.Column="2"
-                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_ImageImport_Button"
-                      Name="ImageImportButton" Content="Image Import" Margin="8,0,0,0"
-                      IsEnabled="False"
-                      Click="ImageImport_Click"
-                      ToolTip.Tip="FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008)." />
-              <Button Grid.Column="3"
-                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_ImageExport_Button"
-                      Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
-                      IsEnabled="False"
-                      Click="ImageExport_Click"
-                      ToolTip.Tip="FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008)." />
-              <Label Grid.Column="4"
-                     AutomationProperties.AutomationId="SkillConfigFE8NSkill_IconAddr_Label"
-                     Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
-                     FontFamily="Consolas" />
+              <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_ImageImport_Button"
+                        Name="ImageImportButton" Content="Image Import" Margin="0,0,8,4"
+                        IsEnabled="False"
+                        Click="ImageImport_Click"
+                        ToolTip.Tip="FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008)." />
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_ImageExport_Button"
+                        Name="ImageExportButton" Content="Image Export" Margin="0,0,8,4"
+                        IsEnabled="False"
+                        Click="ImageExport_Click"
+                        ToolTip.Tip="FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008)." />
+                <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_IconAddr_Label"
+                       Name="IconAddrLabel" VerticalAlignment="Center" Margin="0,0,8,4"
+                       FontFamily="Consolas" />
+              </WrapPanel>
             </Grid>
 
             <!-- Icon ID row (W0): label + NumericUpDown. -->
@@ -261,7 +260,7 @@
             </Grid>
 
             <!-- Animation row: pointer + Import/Export buttons + JumpToEditor. -->
-            <Grid ColumnDefinitions="140,120,Auto,Auto,Auto" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_Animation_Label"
                      Content="Animation" VerticalAlignment="Center" />
@@ -269,23 +268,22 @@
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationPointer_Input"
                              FormatString="0" Name="AnimationPointerBox"
                              Minimum="0" Maximum="4294967295" IsEnabled="False" />
-              <Button Grid.Column="2"
-                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationImport_Button"
-                      Name="AnimationImportButton" Content="Animation Import" Margin="8,0,0,0"
-                      IsEnabled="False"
-                      Click="AnimationImport_Click"
-                      ToolTip.Tip="FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008)." />
-              <Button Grid.Column="3"
-                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationExport_Button"
-                      Name="AnimationExportButton" Content="Animation Export" Margin="8,0,0,0"
-                      IsEnabled="False"
-                      Click="AnimationExport_Click"
-                      ToolTip.Tip="FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008)." />
-              <Button Grid.Column="4"
-                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_JumpToEditor_Button"
-                      Name="JumpToEditorButton" Content="Editor" Margin="8,0,0,0"
-                      Click="JumpToEditor_Click"
-                      ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationImport_Button"
+                        Name="AnimationImportButton" Content="Animation Import" Margin="0,0,8,4"
+                        IsEnabled="False"
+                        Click="AnimationImport_Click"
+                        ToolTip.Tip="FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008)." />
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationExport_Button"
+                        Name="AnimationExportButton" Content="Animation Export" Margin="0,0,8,4"
+                        IsEnabled="False"
+                        Click="AnimationExport_Click"
+                        ToolTip.Tip="FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008)." />
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_JumpToEditor_Button"
+                        Name="JumpToEditorButton" Content="Editor" Margin="0,0,8,4"
+                        Click="JumpToEditor_Click"
+                        ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              </WrapPanel>
             </Grid>
           </StackPanel>
         </ScrollViewer>

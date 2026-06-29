@@ -25,25 +25,25 @@
            PaletteWriteButton + Warning32ColorMode + zoom combo).
            =========================================================== -->
       <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" />
+        <WrapPanel Orientation="Horizontal">
+          <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" Margin="0,0,6,4" />
           <ComboBox AutomationProperties.AutomationId="ImageBattleAnimePallet_PaletteIndex_Combo"
-                    Name="PaletteIndexCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
+                    Name="PaletteIndexCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" Margin="0,0,6,4" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_PaletteWrite_Button"
                   Name="PaletteWriteButton" Content="Palette Write" Width="140"
-                  Click="PaletteWrite_Click" />
+                  Click="PaletteWrite_Click" Margin="0,0,6,4" />
           <Border AutomationProperties.AutomationId="ImageBattleAnimePallet_Warning32Color_Border"
                   Name="Warning32ColorBorder" BorderBrush="OrangeRed" BorderThickness="1" Padding="4"
-                  IsVisible="False">
+                  IsVisible="False" Margin="0,0,6,4">
             <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_Warning32Color_Label"
                        Name="Warning32ColorLabel"
                        Text="32 Color Mode" Foreground="OrangeRed" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
+          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" Margin="0,0,6,4" />
           <ComboBox AutomationProperties.AutomationId="ImageBattleAnimePallet_Zoom_Combo"
                     Name="ZoomCombo" Width="200" VerticalAlignment="Center" SelectedIndex="0"
-                    SelectionChanged="Zoom_SelectionChanged" />
-        </StackPanel>
+                    SelectionChanged="Zoom_SelectionChanged" Margin="0,0,6,4" />
+        </WrapPanel>
       </Border>
 
       <!-- ===========================================================
@@ -352,26 +352,26 @@
            ImportButton + ExportButton + UNDOButton + REDOButton).
            =========================================================== -->
       <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-        <StackPanel Orientation="Horizontal" Spacing="6">
+        <WrapPanel Orientation="Horizontal">
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Clipboard_Button"
                   Name="ClipboardButton" Content="Clipboard" Width="120"
-                  Click="Clipboard_Click" />
+                  Click="Clipboard_Click" Margin="0,0,6,4" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Import_Button"
                   Name="ImportButton" Content="Import Image" Width="140"
                   IsEnabled="True"
-                  Click="Import_Click" />
+                  Click="Import_Click" Margin="0,0,6,4" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Export_Button"
                   Name="ExportButton" Content="Export Image" Width="140"
                   IsEnabled="False"
                   Click="Export_Click"
-                  ToolTip.Tip="Export the rendered battle-animation sample (360x290 grid) to a PNG file. Read-only — no ROM write. Enabled once a sample renders." />
+                  ToolTip.Tip="Export the rendered battle-animation sample (360x290 grid) to a PNG file. Read-only — no ROM write. Enabled once a sample renders." Margin="0,0,6,4" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Undo_Button"
                   Name="UndoButton" Content="Undo" Width="100"
-                  Click="Undo_Click" />
+                  Click="Undo_Click" Margin="0,0,6,4" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Redo_Button"
                   Name="RedoButton" Content="Redo" Width="100"
-                  Click="Redo_Click" />
-        </StackPanel>
+                  Click="Redo_Click" Margin="0,0,6,4" />
+        </WrapPanel>
       </Border>
 
       <!-- ===========================================================
