@@ -383,6 +383,14 @@ namespace FEBuilderGBA.Avalonia
                     // link and the palette index columns + swatches; no ROM needed).
                     "AIScriptView" => new Views.AIScriptView(),
                     "ImagePalletView" => new Views.ImagePalletView(),
+                    // #1681: the alignment-fix clone dialogs are ROM-independent
+                    // (each constructs its own ViewModel + Load(0)/Initialize()),
+                    // so they render real PNG proof of the centered Apply button.
+                    "EventUnitColorView" => new Views.EventUnitColorView(),
+                    "PackedMemorySlotView" => new Views.PackedMemorySlotView(),
+                    "UbyteBitFlagView" => new Views.UbyteBitFlagView(),
+                    "UshortBitFlagView" => new Views.UshortBitFlagView(),
+                    "UwordBitFlagView" => new Views.UwordBitFlagView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 
@@ -396,8 +404,16 @@ namespace FEBuilderGBA.Avalonia
                 string? dir = Path.GetDirectoryName(fullPath);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-                int w = (int)Math.Max(window.Width, 400);
-                int h = (int)Math.Max(window.Height, 300);
+                // #1681: SizeToContent="WidthAndHeight" windows can report a NaN
+                // Width/Height here; Math.Max(NaN, n) is NaN, which would yield an
+                // invalid PixelSize. Fall back to the window's measured DesiredSize
+                // (then the declared min) when the resolved size is not finite.
+                double rawW = window.Width;
+                double rawH = window.Height;
+                if (double.IsNaN(rawW) || rawW <= 0) rawW = window.Bounds.Width;
+                if (double.IsNaN(rawH) || rawH <= 0) rawH = window.Bounds.Height;
+                int w = (int)Math.Max(double.IsNaN(rawW) ? 0 : rawW, 400);
+                int h = (int)Math.Max(double.IsNaN(rawH) ? 0 : rawH, 300);
                 window.Measure(new global::Avalonia.Size(w, h));
                 window.Arrange(new global::Avalonia.Rect(0, 0, w, h));
                 using var rtb = new global::Avalonia.Media.Imaging.RenderTargetBitmap(
