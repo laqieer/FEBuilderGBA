@@ -10,9 +10,21 @@
 //      too narrow for NumericUpDown(100) + DescTextLabel(MaxWidth=200) +
 //      "Desc" button + theme padding, so the Desc block overflowed and the
 //      far-right pointer fields became unreachable. The column was widened
-//      to 360px. This test proves the Desc block (DescTextLabel + the
-//      JumpToDesc "Desc" button) fits inside that column once arranged, and
-//      that the Movement/Terrain pointer inputs (Ptr60Box / Ptr64Box) exist.
+//      to 380px — sized to the measured worst case (NumericUpDown desires
+//      ~120px incl. spinner chrome + label clamped to MaxWidth=200 + 34px
+//      "Desc" button + StackPanel spacing => ~378px natural block width).
+//
+// IMPORTANT (test-discrimination): the Desc block is a Horizontal StackPanel
+// with default HorizontalAlignment=Stretch, so its ARRANGED bounds always
+// equal the full grid-column width regardless of content — asserting on the
+// arranged right edge is a FALSE GUARD that passes against both the buggy and
+// fixed layouts. Instead we populate DescTextLabel with a long string (so the
+// label reaches its MaxWidth), then re-Measure the StackPanel with infinite
+// available width to obtain its NATURAL (unconstrained) content width, and
+// assert that natural width fits inside the column. That genuinely FAILS when
+// the column is too narrow (the pre-fix 170px) and PASSES at the fixed 360px.
+// Mirrors the proven pattern in ClassEditorListPreviewTests
+// (PreviewBorder_FitsInsideLeftColumn_EvenWithLongName).
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -33,6 +45,14 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// </summary>
     public class ClassEditorDescOverflowLayoutTests
     {
+        // Worst-case content: long enough that DescTextLabel reaches its
+        // MaxWidth=200 so the Desc block hits its natural maximum width.
+        private const string LongText = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"; // 59 W's
+        // The pre-fix Identity/Misc Desc column width (#1682). The populated
+        // Desc block must exceed this — proving the test would fail against
+        // the buggy layout.
+        private const double OldColumnWidth = 170.0;
+
         private readonly ITestOutputHelper _output;
 
         public ClassEditorDescOverflowLayoutTests(ITestOutputHelper output) => _output = output;
@@ -67,13 +87,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
-        /// After Measure + Arrange at a realistic editor size, the Identity /
-        /// Misc Desc block (DescTextLabel + the "Desc" jump button) must fit
-        /// horizontally inside the grid column it lives in — i.e. it must not
-        /// overflow past the column's right edge. We assert the Desc button's
-        /// right edge stays within the arranged width of the parent Grid that
-        /// hosts the Identity / Misc fields. Assertions stay tolerant of
-        /// sub-pixel layout rounding rather than over-fitting exact values.
+        /// Discriminating regression: with a long description, the Identity /
+        /// Misc Desc block's NATURAL content width must fit inside the widened
+        /// Desc column. Populating the label forces the block to its true
+        /// maximum width (NumericUpDown 100 + label up to MaxWidth=200 + "Desc"
+        /// button + spacing). The block's natural width is measured with
+        /// infinite available width (so Stretch cannot mask it), then compared
+        /// to the actual column width. The companion assertion proves the
+        /// populated block would have overflowed the pre-fix 170px column, so
+        /// this test FAILS against the buggy layout and PASSES against the fix.
         /// </summary>
         [AvaloniaFact]
         public void IdentityMisc_DescBlock_DoesNotOverflowColumn()
@@ -82,36 +104,51 @@ namespace FEBuilderGBA.Avalonia.Tests
             view.Show();
             try
             {
+                var descBox = view.FindControl<NumericUpDown>("DescIdBox");
+                var descLabel = view.FindControl<TextBlock>("DescTextLabel");
+                Assert.NotNull(descBox);
+                Assert.NotNull(descLabel);
+
+                // Force worst-case content so the block reaches its natural max.
+                descLabel!.Text = LongText;
+
                 view.UpdateLayout();
                 view.Measure(new Size(1200, 900));
                 view.Arrange(new Rect(0, 0, 1200, 900));
                 view.UpdateLayout();
 
-                var descLabel = view.FindControl<TextBlock>("DescTextLabel");
-                var descButton = FindByContent<Button>(view, "Desc");
-                Assert.NotNull(descLabel);
-                Assert.NotNull(descButton);
+                // The Desc block = the horizontal StackPanel hosting DescIdBox.
+                var descBlock = descBox!.GetVisualAncestors().OfType<StackPanel>().First();
 
-                // The Identity/Misc grid is the Grid ancestor of DescTextLabel
-                // that defines 5 columns (the widened one). Walk up to it.
-                var grid = descLabel!.GetVisualAncestors().OfType<Grid>()
+                // The Identity/Misc grid = nearest 5-column Grid ancestor.
+                var grid = descBox.GetVisualAncestors().OfType<Grid>()
                     .FirstOrDefault(g => g.ColumnDefinitions.Count == 5);
                 Assert.NotNull(grid);
 
-                // Translate the Desc button's right edge into the grid's
-                // coordinate space; it must not exceed the grid's width.
-                var rightEdge = descButton!.TranslatePoint(
-                    new Point(descButton.Bounds.Width, 0), grid!);
-                Assert.NotNull(rightEdge);
+                double colWidth = grid!.ColumnDefinitions[4].ActualWidth;
+                Assert.True(colWidth > 0,
+                    $"Identity/Misc Desc column ActualWidth should be populated after Arrange; got {colWidth}.");
 
-                double gridWidth = grid!.Bounds.Width;
+                // Natural (unconstrained) width of the populated Desc block.
+                descBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double naturalWidth = descBlock.DesiredSize.Width;
+
                 _output.WriteLine(
-                    $"Desc button right edge X = {rightEdge!.Value.X:F1}, grid width = {gridWidth:F1}");
+                    $"Desc block natural width = {naturalWidth:F1}, col[4] ActualWidth = {colWidth:F1}, " +
+                    $"old column = {OldColumnWidth:F1}");
 
-                // Allow 1px tolerance for layout rounding.
-                Assert.True(rightEdge.Value.X <= gridWidth + 1.0,
-                    $"Desc block right edge ({rightEdge.Value.X:F1}) overflows the " +
-                    $"Identity/Misc grid width ({gridWidth:F1}). The Desc column is too narrow.");
+                // (a) Discrimination guard: the populated block exceeds the old
+                //     170px column — so this test genuinely fails on the buggy
+                //     layout (where col[4] was 170px).
+                Assert.True(naturalWidth > OldColumnWidth,
+                    $"Populated Desc block natural width ({naturalWidth:F1}) must exceed the pre-fix " +
+                    $"column width ({OldColumnWidth:F1}); otherwise this test cannot detect the regression.");
+
+                // (b) The fix: the block fits inside the widened column (1px
+                //     tolerance for layout rounding).
+                Assert.True(naturalWidth <= colWidth + 1.0,
+                    $"Desc block natural width ({naturalWidth:F1}) overflows the Identity/Misc Desc " +
+                    $"column ({colWidth:F1}). The column is too narrow.");
             }
             finally
             {
@@ -135,13 +172,6 @@ namespace FEBuilderGBA.Avalonia.Tests
                 .OfType<ScrollViewer>()
                 .FirstOrDefault(sv => Grid.GetColumn(sv) == 1)
                 ?? root.GetLogicalDescendants().OfType<ScrollViewer>().FirstOrDefault();
-        }
-
-        private static T? FindByContent<T>(Control root, string content) where T : ContentControl
-        {
-            return root.GetVisualDescendants()
-                .OfType<T>()
-                .FirstOrDefault(c => c.Content as string == content);
         }
     }
 }

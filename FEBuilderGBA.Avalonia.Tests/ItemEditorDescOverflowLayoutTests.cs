@@ -9,8 +9,22 @@
 //      too narrow for NumericUpDown(100) + DescTextLabel(MaxWidth=160) +
 //      "Desc" button + padding, so the Desc / mini-desc block overflowed and
 //      overlapped the adjacent "Use Desc (W4):" label. Both columns were
-//      widened to 320px. This test proves the DescId block no longer
-//      horizontally overlaps the UseDescId_Link label after arrange.
+//      widened to 340px — sized to the measured worst case (NumericUpDown
+//      desires ~120px incl. spinner chrome + label clamped to MaxWidth=160 +
+//      34px "Desc" button + StackPanel spacing => ~338px natural block width).
+//
+// IMPORTANT (test-discrimination): the Desc / UseDesc blocks are Horizontal
+// StackPanels with default HorizontalAlignment=Stretch, so their ARRANGED
+// bounds always equal the full grid-column width regardless of content —
+// asserting on arranged right/left edges is a FALSE GUARD that passes against
+// both the buggy and fixed layouts. Instead we populate DescTextLabel (and
+// UseDescTextLabel) with a long string so the label reaches its MaxWidth=160,
+// then re-Measure the DescId StackPanel with infinite available width to get
+// its NATURAL content width, and assert it fits inside the (widened) value
+// column. Because the block fits within its own column it cannot paint into
+// the next column pair (the "Use Desc (W4):" label) — that is the no-overlap
+// guarantee. The companion assertion proves the populated block exceeds the
+// pre-fix 200px column, so this test FAILS against the buggy layout.
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -31,6 +45,14 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// </summary>
     public class ItemEditorDescOverflowLayoutTests
     {
+        // Worst-case content: long enough that DescTextLabel reaches its
+        // MaxWidth=160 so the Desc block hits its natural maximum width.
+        private const string LongText = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"; // 59 W's
+        // The pre-fix Basic Info value column width (#1683). The populated
+        // Desc block must exceed this — proving the test would fail against
+        // the buggy layout.
+        private const double OldColumnWidth = 200.0;
+
         private readonly ITestOutputHelper _output;
 
         public ItemEditorDescOverflowLayoutTests(ITestOutputHelper output) => _output = output;
@@ -49,13 +71,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
-        /// After Measure + Arrange at a realistic editor size, the DescId
-        /// block (the StackPanel hosting DescIdBox + DescTextLabel + "Desc"
-        /// button) must not horizontally overlap the "Use Desc (W4):" label
-        /// (UseDescId_Link) that sits in the next column pair. We translate
-        /// both into the shared Basic Info grid coordinate space and assert
-        /// the DescId block's right edge stays left of the UseDescId_Link
-        /// label's left edge. Assertions tolerate sub-pixel layout rounding.
+        /// Discriminating regression: with long descriptions, the Basic Info
+        /// DescId block's NATURAL content width must fit inside the widened
+        /// value column, so it cannot overflow into and overlap the next
+        /// column pair's "Use Desc (W4):" label. We populate both desc labels,
+        /// measure the DescId block with infinite available width (so Stretch
+        /// cannot mask its true size), and compare to the actual column width.
+        /// The companion assertion proves the populated block would have
+        /// overflowed the pre-fix 200px column, so this test FAILS against the
+        /// buggy layout and PASSES against the fix.
         /// </summary>
         [AvaloniaFact]
         public void BasicInfo_DescBlock_DoesNotOverlapUseDescLabel()
@@ -64,40 +88,55 @@ namespace FEBuilderGBA.Avalonia.Tests
             view.Show();
             try
             {
+                var descBox = view.FindControl<NumericUpDown>("DescIdBox");
+                var descLabel = view.FindControl<TextBlock>("DescTextLabel");
+                var useDescLabel = view.FindControl<TextBlock>("UseDescTextLabel");
+                Assert.NotNull(descBox);
+                Assert.NotNull(descLabel);
+                Assert.NotNull(useDescLabel);
+
+                // Force worst-case content on both desc blocks.
+                descLabel!.Text = LongText;
+                useDescLabel!.Text = LongText;
+
                 view.UpdateLayout();
                 view.Measure(new Size(1408, 856));
                 view.Arrange(new Rect(0, 0, 1408, 856));
                 view.UpdateLayout();
 
-                var descBox = view.FindControl<NumericUpDown>("DescIdBox");
-                var useDescLabel = view.FindControl<TextBlock>("UseDescId_Link");
-                Assert.NotNull(descBox);
-                Assert.NotNull(useDescLabel);
+                // The DescId block = the horizontal StackPanel hosting DescIdBox.
+                var descBlock = descBox!.GetVisualAncestors().OfType<StackPanel>().First();
 
-                // The DescId value block is the StackPanel hosting DescIdBox.
-                var descBlock = descBox!.GetVisualAncestors().OfType<StackPanel>().FirstOrDefault();
-                Assert.NotNull(descBlock);
-
-                // Shared ancestor: the Basic Info grid (5 columns).
+                // The Basic Info grid = nearest 5-column Grid ancestor.
                 var grid = descBox.GetVisualAncestors().OfType<Grid>()
                     .FirstOrDefault(g => g.ColumnDefinitions.Count == 5);
                 Assert.NotNull(grid);
 
-                var descRight = descBlock!.TranslatePoint(
-                    new Point(descBlock.Bounds.Width, 0), grid!);
-                var useDescLeft = useDescLabel!.TranslatePoint(new Point(0, 0), grid!);
-                Assert.NotNull(descRight);
-                Assert.NotNull(useDescLeft);
+                double colWidth = grid!.ColumnDefinitions[1].ActualWidth;
+                Assert.True(colWidth > 0,
+                    $"Basic Info Desc column ActualWidth should be populated after Arrange; got {colWidth}.");
+
+                // Natural (unconstrained) width of the populated Desc block.
+                descBlock.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double naturalWidth = descBlock.DesiredSize.Width;
 
                 _output.WriteLine(
-                    $"DescId block right edge X = {descRight!.Value.X:F1}, " +
-                    $"UseDesc label left edge X = {useDescLeft!.Value.X:F1}");
+                    $"DescId block natural width = {naturalWidth:F1}, col[1] ActualWidth = {colWidth:F1}, " +
+                    $"old column = {OldColumnWidth:F1}");
 
-                // Allow 1px tolerance for layout rounding.
-                Assert.True(descRight.Value.X <= useDescLeft.Value.X + 1.0,
-                    $"DescId block right edge ({descRight.Value.X:F1}) overlaps the " +
-                    $"'Use Desc (W4):' label left edge ({useDescLeft.Value.X:F1}). " +
-                    "The Basic Info Desc column is too narrow.");
+                // (a) Discrimination guard: the populated block exceeds the old
+                //     200px column — so this test genuinely fails on the buggy
+                //     layout (where col[1] was 200px).
+                Assert.True(naturalWidth > OldColumnWidth,
+                    $"Populated DescId block natural width ({naturalWidth:F1}) must exceed the pre-fix " +
+                    $"column width ({OldColumnWidth:F1}); otherwise this test cannot detect the regression.");
+
+                // (b) The fix: the block fits inside the widened column (1px
+                //     tolerance), so it cannot overlap the "Use Desc" label.
+                Assert.True(naturalWidth <= colWidth + 1.0,
+                    $"DescId block natural width ({naturalWidth:F1}) overflows the Basic Info value " +
+                    $"column ({colWidth:F1}) and would overlap the 'Use Desc (W4):' label. " +
+                    "The column is too narrow.");
             }
             finally
             {
