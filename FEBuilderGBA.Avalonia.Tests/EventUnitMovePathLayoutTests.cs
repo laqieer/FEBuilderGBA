@@ -66,34 +66,41 @@ namespace FEBuilderGBA.Avalonia.Tests
             window.Width = 1902;
             window.Height = 1047;
             window.Show();
-            window.UpdateLayout();
-
-            // All realized spinners in the list (8 per row).
-            var nuds = list.GetVisualDescendants().OfType<NumericUpDown>().ToList();
-            Assert.True(nuds.Count >= 8, $"expected >=8 realized NumericUpDowns, got {nuds.Count}");
-
-            // Take the first realized row (the 8 left-most by window X), ordered L->R.
-            var firstRow = nuds
-                .Select(n => new { Nud = n, P = n.TranslatePoint(new Point(0, 0), window) })
-                .Where(x => x.P.HasValue)
-                .OrderBy(x => x.P!.Value.Y).ThenBy(x => x.P!.Value.X)
-                .Take(8)
-                .OrderBy(x => x.P!.Value.X)
-                .ToList();
-            Assert.Equal(8, firstRow.Count);
-
-            string dump = string.Join(" | ", firstRow.Select((x, i) =>
-                $"#{i} x={x.P!.Value.X:F0} w={x.Nud.Bounds.Width:F0} r={x.P!.Value.X + x.Nud.Bounds.Width:F0}"));
-
-            // No spinner's right edge may pass the next spinner's left edge.
-            for (int i = 0; i + 1 < firstRow.Count; i++)
+            try
             {
-                double aRight = firstRow[i].P!.Value.X + firstRow[i].Nud.Bounds.Width;
-                double bLeft = firstRow[i + 1].P!.Value.X;
-                Assert.True(
-                    aRight <= bLeft + 0.5,
-                    $"NumericUpDown #{i} (right={aRight:F1}) overlaps #{i + 1} (left={bLeft:F1}) " +
-                    $"— After Coordinate Move Path spinners are colliding (#1713). [{dump}]");
+                window.UpdateLayout();
+
+                // All realized spinners in the list (8 per row).
+                var nuds = list.GetVisualDescendants().OfType<NumericUpDown>().ToList();
+                Assert.True(nuds.Count >= 8, $"expected >=8 realized NumericUpDowns, got {nuds.Count}");
+
+                // Take the first realized row (the 8 left-most by window X), ordered L->R.
+                var firstRow = nuds
+                    .Select(n => new { Nud = n, P = n.TranslatePoint(new Point(0, 0), window) })
+                    .Where(x => x.P.HasValue)
+                    .OrderBy(x => x.P!.Value.Y).ThenBy(x => x.P!.Value.X)
+                    .Take(8)
+                    .OrderBy(x => x.P!.Value.X)
+                    .ToList();
+                Assert.Equal(8, firstRow.Count);
+
+                string dump = string.Join(" | ", firstRow.Select((x, i) =>
+                    $"#{i} x={x.P!.Value.X:F0} w={x.Nud.Bounds.Width:F0} r={x.P!.Value.X + x.Nud.Bounds.Width:F0}"));
+
+                // No spinner's right edge may pass the next spinner's left edge.
+                for (int i = 0; i + 1 < firstRow.Count; i++)
+                {
+                    double aRight = firstRow[i].P!.Value.X + firstRow[i].Nud.Bounds.Width;
+                    double bLeft = firstRow[i + 1].P!.Value.X;
+                    Assert.True(
+                        aRight <= bLeft + 0.5,
+                        $"NumericUpDown #{i} (right={aRight:F1}) overlaps #{i + 1} (left={bLeft:F1}) " +
+                        $"— After Coordinate Move Path spinners are colliding (#1713). [{dump}]");
+                }
+            }
+            finally
+            {
+                window.Close();
             }
         }
     }
