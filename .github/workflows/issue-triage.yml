@@ -1,0 +1,266 @@
+# Automatic issue triage labeler — resolves #1710 and #1711.
+#
+# Triggers on every new or edited issue. Guards so it only acts when the
+# issue already carries the `bug` label — i.e. was filed via one of the
+# structured Issue Forms in .github/ISSUE_TEMPLATE/:
+#   • gui_bug.yml  (GUI bug — Avalonia / WinForms)
+#   • bug_report.yml  (CLI / Core / other bug)
+#
+# Both forms set `labels: [bug]` at the top-level, so the guard is reliable.
+#
+# On `edited` events the script re-derives the full set of routing labels
+# from the current body, removes any stale component/platform labels that no
+# longer match, then adds the current set.  This prevents label accumulation
+# if a reporter edits the Platform or App field.
+#
+# FIELD-NAME COUPLING — keep these in sync with the Issue Form files:
+#   gui_bug.yml     → fields "App" and "Platform"
+#   bug_report.yml  → fields "Area" and "Platform"
+#
+# If a field label is renamed in an Issue Form, update the extractField()
+# calls in the github-script below to match.
+
+name: Issue Triage Labeler
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    name: Auto-label bug issues
+    runs-on: ubuntu-latest
+    # Only process issues that carry the `bug` label (i.e. filed via a bug form).
+    # This guard prevents the job from doing anything on unrelated issues.
+    if: contains(github.event.issue.labels.*.name, 'bug')
+
+    steps:
+      - name: Apply triage labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // ----------------------------------------------------------------
+            // Helpers
+            // ----------------------------------------------------------------
+
+            /**
+             * Extract the value under a markdown H3 heading produced by
+             * GitHub Issue Forms, e.g.:
+             *
+             *   ### Platform
+             *
+             *   Windows x64
+             *
+             * Returns the trimmed value string, or null if the heading is not
+             * found or the value is empty / "_No response_".
+             *
+             * FIELD-NAME COUPLING: fieldLabel must match the `label:` in the
+             * Issue Form yml exactly (case-insensitive match used here for
+             * robustness against minor whitespace drift).
+             */
+            function extractField(body, fieldLabel) {
+              if (!body) return null;
+              // Match "### <fieldLabel>" followed by optional blank lines and
+              // then the value line(s) up to the next H3 or end-of-string.
+              const escaped = fieldLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const pattern = new RegExp(
+                `###\\s+${escaped}\\s*\\n([\\s\\S]*?)(?=\\n###|$)`,
+                'i'
+              );
+              const match = body.match(pattern);
+              if (!match) return null;
+              const value = match[1].trim();
+              // GitHub renders "no response" fields as "_No response_".
+              if (!value || value === '_No response_') return null;
+              return value;
+            }
+
+            /**
+             * Ensure a label exists in the repo.  Creates it if absent.
+             * A 422 with "already_exists" in the error message is benign and
+             * ignored; other 422s or non-422 errors are re-thrown so they
+             * surface as run failures rather than silent misses.
+             *
+             * Note: GitHub API expects color WITHOUT a leading '#'.
+             */
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo:  context.repo.repo,
+                  name,
+                  color,     // hex string without '#', e.g. "fbca04"
+                  description,
+                });
+                core.info(`Created label "${name}"`);
+              } catch (err) {
+                if (
+                  err.status === 422 &&
+                  err.message &&
+                  err.message.toLowerCase().includes('already_exists')
+                ) {
+                  // Label already exists — that is fine.
+                  core.info(`Label "${name}" already exists`);
+                } else {
+                  // Unexpected error — re-throw so the run goes red.
+                  throw new Error(
+                    `Failed to create label "${name}" (HTTP ${err.status}): ${err.message}`
+                  );
+                }
+              }
+            }
+
+            // ----------------------------------------------------------------
+            // All routing label groups (component + platform).
+            // When the issue body is re-parsed on an `edited` event, labels
+            // from these groups that are NOT in the newly derived set are
+            // removed to prevent stale label accumulation.
+            // ----------------------------------------------------------------
+            const COMPONENT_LABELS = ['avalonia', 'winforms', 'cli', 'core'];
+            const PLATFORM_LABELS  = ['os:windows', 'os:linux', 'os:macos', 'os:android'];
+
+            // Label definitions for labels that may not yet exist in the repo.
+            // Labels guaranteed to already exist (set by Issue Form or repo
+            // defaults) are not listed here: bug, avalonia, cli.
+            const LABEL_DEFS = [
+              { name: 'winforms',     color: '0075ca', description: 'WinForms GUI component' },
+              { name: 'core',         color: 'e4e669', description: 'Core library / engine component' },
+              { name: 'needs-triage', color: 'fbca04', description: 'Needs triage by a maintainer' },
+              { name: 'os:windows',   color: 'cfd3d7', description: 'Reported on Windows' },
+              { name: 'os:linux',     color: 'cfd3d7', description: 'Reported on Linux' },
+              { name: 'os:macos',     color: 'cfd3d7', description: 'Reported on macOS' },
+              { name: 'os:android',   color: 'cfd3d7', description: 'Reported on Android' },
+            ];
+
+            // ----------------------------------------------------------------
+            // Main logic — wrapped in try/catch so a parse failure surfaces as
+            // a warning rather than a hard failure (missing fields are common
+            // on manually-edited issues), but API errors propagate normally.
+            // ----------------------------------------------------------------
+            const { owner, repo } = context.repo;
+            const issue = context.payload.issue;
+            const body  = issue.body || '';
+
+            core.info(`Triaging issue #${issue.number}: ${issue.title}`);
+
+            let labelsToAdd;
+            try {
+              labelsToAdd = [];
+
+              // ---- Component label (from "### App" or "### Area") ----------
+
+              // gui_bug.yml: "### App" with dropdown options
+              //   "Avalonia GUI (cross-platform)"  → avalonia
+              //   "WinForms GUI (Windows)"          → winforms
+              // FIELD-NAME COUPLING: label is "App" in gui_bug.yml
+              const app = extractField(body, 'App');
+              if (app) {
+                if (/avalonia/i.test(app)) {
+                  labelsToAdd.push('avalonia');
+                } else if (/winforms/i.test(app)) {
+                  labelsToAdd.push('winforms');
+                }
+                // Unknown App value → no component label (don't default).
+              }
+
+              // bug_report.yml: "### Area" free-text input, e.g.
+              //   "--export-battle-anime"  → cli
+              //   "Core text encoder"      → core
+              // Only applied when the "App" field is absent (i.e. this is the
+              // non-GUI bug form, not gui_bug.yml).
+              // FIELD-NAME COUPLING: label is "Area" in bug_report.yml
+              if (!app) {
+                const area = extractField(body, 'Area');
+                if (area) {
+                  // Treat as CLI if it mentions a flag ("--") or the word "CLI".
+                  // This is heuristic; a future dropdown in bug_report.yml would
+                  // make the signal unambiguous (#1710 suggestion noted).
+                  if (/--|CLI/i.test(area)) {
+                    labelsToAdd.push('cli');
+                  } else {
+                    labelsToAdd.push('core');
+                  }
+                } else {
+                  // No area specified on the non-GUI form — default to core.
+                  labelsToAdd.push('core');
+                }
+              }
+
+              // ---- OS / Platform label (from "### Platform") ---------------
+
+              // Both forms share the same "Platform" dropdown options.
+              // FIELD-NAME COUPLING: label is "Platform" in both yml files.
+              const platform = extractField(body, 'Platform');
+              if (platform) {
+                if (/windows/i.test(platform)) {
+                  labelsToAdd.push('os:windows');
+                } else if (/linux/i.test(platform)) {
+                  labelsToAdd.push('os:linux');
+                } else if (/macos|mac\s*os|apple\s*silicon/i.test(platform)) {
+                  labelsToAdd.push('os:macos');
+                } else if (/android/i.test(platform)) {
+                  labelsToAdd.push('os:android');
+                }
+                // "Other" → no OS label applied.
+              }
+            } catch (parseErr) {
+              core.warning(`Failed to parse issue body for label routing: ${parseErr.message}`);
+              labelsToAdd = [];
+            }
+
+            // ---- Always add needs-triage ------------------------------------
+            // Keep outside the parse block so it is always applied even if
+            // component/platform parsing fails.
+            labelsToAdd.push('needs-triage');
+
+            // ---- On `edited`: remove stale routing labels -------------------
+            // Re-derive the full routing set from the current body, then remove
+            // any component/platform labels that are no longer correct.
+            if (context.payload.action === 'edited') {
+              const currentLabelNames = issue.labels.map(l => l.name);
+              const staleLabels = currentLabelNames.filter(l => {
+                const isRoutingLabel = COMPONENT_LABELS.includes(l) || PLATFORM_LABELS.includes(l);
+                return isRoutingLabel && !labelsToAdd.includes(l);
+              });
+              for (const stale of staleLabels) {
+                core.info(`Removing stale label "${stale}"`);
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: issue.number,
+                    name: stale,
+                  });
+                } catch (removeErr) {
+                  // 404 means label was already absent — not an error.
+                  if (removeErr.status !== 404) {
+                    throw new Error(
+                      `Failed to remove stale label "${stale}": ${removeErr.message}`
+                    );
+                  }
+                }
+              }
+            }
+
+            // ---- Ensure all target labels exist before applying -------------
+            const neededNames = new Set(labelsToAdd);
+            for (const def of LABEL_DEFS) {
+              if (neededNames.has(def.name)) {
+                await ensureLabel(def.name, def.color, def.description);
+              }
+            }
+
+            // ---- Apply labels ------------------------------------------------
+            core.info(`Adding labels: ${labelsToAdd.join(', ')}`);
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: issue.number,
+              labels: labelsToAdd,
+            });
+
+            core.info('Triage labeling complete.');
