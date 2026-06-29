@@ -105,29 +105,33 @@
 
           <!-- Exit Coordinates (mirrors WF N_L_0_MAPXY) -->
           <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-            <Grid ColumnDefinitions="160,40,80,40,80" RowDefinitions="Auto,Auto,Auto">
+            <Grid ColumnDefinitions="160,40,120,40,200" RowDefinitions="Auto,Auto,Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Coordinates" VerticalAlignment="Center" />
               <Label Grid.Row="0" Grid.Column="1" Content="X:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_X_Input"
                              FormatString="0" Grid.Row="0" Grid.Column="2"
-                             Name="ExitXBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                             Name="ExitXBox" Minimum="0" Maximum="255"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
               <Label Grid.Row="0" Grid.Column="3" Content="Y:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Y_Input"
                              FormatString="0" Grid.Row="0" Grid.Column="4"
-                             Name="ExitYBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                             Name="ExitYBox" Minimum="0" Maximum="255"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
 
               <Label Grid.Row="1" Grid.Column="0" Content="Direction" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Input"
                              FormatString="0" Grid.Row="1" Grid.Column="2"
-                             Name="EscapeMethodBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                             Name="EscapeMethodBox" Minimum="0" Maximum="255"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
               <ComboBox AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Combo"
                         Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
-                        Name="EscapeMethodCombo" Width="180" VerticalAlignment="Center" />
+                        Name="EscapeMethodCombo" Width="180" HorizontalAlignment="Left" VerticalAlignment="Center" />
 
               <Label Grid.Row="2" Grid.Column="0" Content="00 (Flag)" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Flag_Input"
                              FormatString="0" Grid.Row="2" Grid.Column="2"
-                             Name="FlagBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                             Name="FlagBox" Minimum="0" Maximum="255"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="MapExitPoint_FlagName_Input"
                        Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2"
                        Name="FlagNameBox" IsReadOnly="True" VerticalAlignment="Center" />

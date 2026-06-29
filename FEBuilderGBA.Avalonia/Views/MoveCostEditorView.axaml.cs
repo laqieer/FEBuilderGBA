@@ -48,23 +48,31 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (index >= MoveCostEditorViewModel.TerrainCount)
                         break;
 
-                    var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 1) };
+                    var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 1) };
 
+                    // #1685: terrain names can be long; trim with an ellipsis inside a
+                    // bounded width instead of a fixed Width that lets text overflow the cell.
                     var label = new TextBlock
                     {
                         Text = $"0x{index:X2}",
                         Width = 140,
+                        MaxWidth = 140,
+                        TextTrimming = global::Avalonia.Media.TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 4, 0),
                         FontSize = 11,
                     };
                     _labelFields[index] = label;
 
+                    // #1685: pin an explicit width + left alignment so the spinner buttons
+                    // stay inside the field and never overlap the adjacent column.
                     var nud = new NumericUpDown
                     {
                         Minimum = 0,
                         Maximum = 255,
                         Value = 0,
-                        MinWidth = 120,
+                        Width = 110,
+                        HorizontalAlignment = HorizontalAlignment.Left,
                         FontSize = 11,
                         Tag = index,
                     };
