@@ -128,9 +128,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             string src = File.ReadAllText(path);
 
             // The label must use ellipsis trimming so long terrain names are
-            // truncated cleanly instead of overflowing the column.
+            // truncated cleanly inside the fixed 140-wide column instead of
+            // overflowing into the neighbouring cell.
             Assert.Contains("TextTrimming = global::Avalonia.Media.TextTrimming.CharacterEllipsis", src);
-            Assert.Contains("MaxWidth = 140", src);
+            Assert.Contains("Width = 140", src);
 
             // The NUD must have an explicit Width and left alignment — relying
             // on MinWidth alone let the spinner buttons bleed into the neighbour.

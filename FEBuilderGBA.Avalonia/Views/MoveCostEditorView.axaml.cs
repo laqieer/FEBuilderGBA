@@ -50,13 +50,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 1) };
 
-                    // #1685: terrain names can be long; trim with an ellipsis inside a
-                    // bounded width instead of a fixed Width that lets text overflow the cell.
+                    // #1685: terrain names can be long. Keep the fixed 140-wide
+                    // label column (so the rows stay aligned) but trim with an
+                    // ellipsis inside that width so a long name is truncated
+                    // cleanly instead of overflowing into the neighbouring cell.
                     var label = new TextBlock
                     {
                         Text = $"0x{index:X2}",
                         Width = 140,
-                        MaxWidth = 140,
                         TextTrimming = global::Avalonia.Media.TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(0, 0, 4, 0),
