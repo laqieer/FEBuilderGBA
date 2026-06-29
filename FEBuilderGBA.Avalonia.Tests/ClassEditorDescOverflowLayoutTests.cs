@@ -22,7 +22,7 @@
 // label reaches its MaxWidth), then re-Measure the StackPanel with infinite
 // available width to obtain its NATURAL (unconstrained) content width, and
 // assert that natural width fits inside the column. That genuinely FAILS when
-// the column is too narrow (the pre-fix 170px) and PASSES at the fixed 360px.
+// the column is too narrow (the pre-fix 170px) and PASSES at the fixed 380px.
 // Mirrors the proven pattern in ClassEditorListPreviewTests
 // (PreviewBorder_FitsInsideLeftColumn_EvenWithLongName).
 using System.Linq;
