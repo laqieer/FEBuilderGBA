@@ -87,7 +87,7 @@
             <TextBlock Text="Detail Address" VerticalAlignment="Center" Width="120" />
             <TextBlock AutomationProperties.AutomationId="AIScript_DetailAddress_Label"
                        Name="DetailAddressLabel" Text="0x00000000"
-                       Width="140" VerticalAlignment="Center"
+                       MinWidth="140" VerticalAlignment="Center"
                        PointerPressed="DetailAddress_Click"
                        Foreground="Blue" TextDecorations="Underline" Cursor="Hand" />
             <TextBlock Text="Script Bytes:" VerticalAlignment="Center" Width="100" />

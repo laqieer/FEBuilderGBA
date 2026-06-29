@@ -72,7 +72,7 @@
           <Border Grid.Row="0" Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index1_Label" Content="1" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index1_Label" Content="1" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P1_Image" Name="P1Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R1_Input" Name="R1Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -84,7 +84,7 @@
           <Border Grid.Row="0" Grid.Column="1" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index2_Label" Content="2" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index2_Label" Content="2" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P2_Image" Name="P2Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R2_Input" Name="R2Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -96,7 +96,7 @@
           <Border Grid.Row="0" Grid.Column="2" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index3_Label" Content="3" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index3_Label" Content="3" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P3_Image" Name="P3Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R3_Input" Name="R3Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -108,7 +108,7 @@
           <Border Grid.Row="0" Grid.Column="3" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index4_Label" Content="4" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index4_Label" Content="4" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P4_Image" Name="P4Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R4_Input" Name="R4Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -121,7 +121,7 @@
           <Border Grid.Row="1" Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index5_Label" Content="5" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index5_Label" Content="5" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P5_Image" Name="P5Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R5_Input" Name="R5Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -133,7 +133,7 @@
           <Border Grid.Row="1" Grid.Column="1" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index6_Label" Content="6" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index6_Label" Content="6" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P6_Image" Name="P6Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R6_Input" Name="R6Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -145,7 +145,7 @@
           <Border Grid.Row="1" Grid.Column="2" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index7_Label" Content="7" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index7_Label" Content="7" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P7_Image" Name="P7Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R7_Input" Name="R7Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -157,7 +157,7 @@
           <Border Grid.Row="1" Grid.Column="3" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index8_Label" Content="8" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index8_Label" Content="8" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P8_Image" Name="P8Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R8_Input" Name="R8Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -170,7 +170,7 @@
           <Border Grid.Row="2" Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index9_Label" Content="9" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index9_Label" Content="9" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P9_Image" Name="P9Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R9_Input" Name="R9Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -182,7 +182,7 @@
           <Border Grid.Row="2" Grid.Column="1" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index10_Label" Content="10" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index10_Label" Content="10" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P10_Image" Name="P10Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R10_Input" Name="R10Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -194,7 +194,7 @@
           <Border Grid.Row="2" Grid.Column="2" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index11_Label" Content="11" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index11_Label" Content="11" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P11_Image" Name="P11Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R11_Input" Name="R11Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -206,7 +206,7 @@
           <Border Grid.Row="2" Grid.Column="3" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index12_Label" Content="12" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index12_Label" Content="12" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P12_Image" Name="P12Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R12_Input" Name="R12Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -219,7 +219,7 @@
           <Border Grid.Row="3" Grid.Column="0" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index13_Label" Content="13" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index13_Label" Content="13" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P13_Image" Name="P13Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R13_Input" Name="R13Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -231,7 +231,7 @@
           <Border Grid.Row="3" Grid.Column="1" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index14_Label" Content="14" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index14_Label" Content="14" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P14_Image" Name="P14Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R14_Input" Name="R14Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -243,7 +243,7 @@
           <Border Grid.Row="3" Grid.Column="2" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index15_Label" Content="15" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index15_Label" Content="15" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P15_Image" Name="P15Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R15_Input" Name="R15Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
@@ -255,7 +255,7 @@
           <Border Grid.Row="3" Grid.Column="3" BorderBrush="LightGray" BorderThickness="1" Padding="4" Margin="2">
             <StackPanel Spacing="2">
               <StackPanel Orientation="Horizontal" Spacing="4">
-                <Label AutomationProperties.AutomationId="ImagePallet_Index16_Label" Content="16" Width="20" />
+                <Label AutomationProperties.AutomationId="ImagePallet_Index16_Label" Content="16" Width="30" />
                 <Image AutomationProperties.AutomationId="ImagePallet_P16_Image" Name="P16Swatch" Width="40" Height="20" />
               </StackPanel>
               <NumericUpDown AutomationProperties.AutomationId="ImagePallet_R16_Input" Name="R16Box" Value="0" Increment="8" Minimum="0" Maximum="255" />
