@@ -220,8 +220,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void AssertFixedWidthDropdown(ComboBox combo)
         {
             Assert.NotNull(combo.ItemTemplate);
+            // Only the ComboBoxItem-targeting style governs the dropdown width — an
+            // unrelated local style (e.g. on a nested TextBlock) must not affect this.
             var setters = combo.Styles
                 .OfType<global::Avalonia.Styling.Style>()
+                .Where(s => s.Selector?.ToString()?.Contains("ComboBoxItem") == true)
                 .SelectMany(s => s.Setters)
                 .OfType<global::Avalonia.Styling.Setter>()
                 .ToList();
