@@ -21,7 +21,7 @@
       </Border>
     </Grid>
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Column="1" Margin="4" HorizontalScrollBarVisibility="Auto">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item Editor" FontSize="18" FontWeight="Bold" />
 
@@ -49,7 +49,7 @@
         <!-- Basic Info -->
         <Expander AutomationProperties.AutomationId="ItemEditor_BasicInfo_Expander" Header="Basic Info" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto">
+        <Grid ColumnDefinitions="140,320,20,140,320" RowDefinitions="Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
                      AutomationProperties.AutomationId="ItemEditor_NameId_Link"
                      Classes="Hyperlink" Name="NameId_Link" PointerPressed="OnNameIdLinkClick"
