@@ -16,8 +16,9 @@ namespace FEBuilderGBA
         public const string GuiBugTemplate = "gui_bug.yml";
 
         /// <summary>
-        /// Builds a GitHub new-issue URL pre-filled with the given fields. Fields are appended
-        /// in the dictionary's enumeration order (caller-controlled); empty/null values are skipped.
+        /// Builds a GitHub new-issue URL pre-filled with the given fields. Empty/null values are
+        /// skipped. Query-parameter order follows the dictionary's enumeration and is unspecified —
+        /// it is not significant for GitHub's issue-form prefill.
         /// </summary>
         public static string BuildIssueUrl(
             string owner,

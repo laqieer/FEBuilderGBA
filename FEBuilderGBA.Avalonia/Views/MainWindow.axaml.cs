@@ -3698,18 +3698,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 // 5. Open pre-filled issue URL in browser
+                bool browserOpened = false;
                 try
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                    browserOpened = true;
                 }
                 catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
 
-                // 6. Show info dialog (wording reflects whether the screenshot actually saved)
+                // 6. Show info dialog (wording reflects what actually happened — every step is best-effort)
+                string head = browserOpened
+                    ? R._("Opened a pre-filled bug report in your browser.")
+                    : R._("Couldn't open your browser automatically. Please file the bug at this URL:") + "\n" + url;
                 string shotNote = screenshotSaved
-                    ? string.Format(R._("A screenshot of this window was saved to:\n{0}\n\nIt was revealed in your file browser — drag it into the issue's Screenshot box."), pngPath)
+                    ? R._("A screenshot of this window was saved — drag it into the issue's Screenshot box:") + "\n" + pngPath
                     : R._("Couldn't capture a screenshot automatically — please attach one manually in the issue's Screenshot box.");
                 await MessageBoxWindow.Show(this,
-                    R._("Opened a pre-filled bug report in your browser.") + "\n\n" + shotNote + "\n\n" + R._("Never attach your ROM (.gba)."),
+                    head + "\n\n" + shotNote + "\n\n" + R._("Never attach your ROM (.gba)."),
                     R._("Report a Bug"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
