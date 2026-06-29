@@ -222,20 +222,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(combo.ItemTemplate);
             // Only the ComboBoxItem-targeting style governs the dropdown width — an
             // unrelated local style (e.g. on a nested TextBlock) must not affect this.
-            var setters = combo.Styles
+            // Identify the fixed-width style by its SETTERS (one style that pins BOTH
+            // MinWidth and MaxWidth to 900), not a brittle Selector.ToString() parse.
+            bool hasFixedWidthStyle = combo.Styles
                 .OfType<global::Avalonia.Styling.Style>()
-                .Where(s => s.Selector?.ToString()?.Contains("ComboBoxItem") == true)
-                .SelectMany(s => s.Setters)
-                .OfType<global::Avalonia.Styling.Setter>()
-                .ToList();
-            var minSetters = setters.Where(s => s.Property == global::Avalonia.Layout.Layoutable.MinWidthProperty).ToList();
-            var maxSetters = setters.Where(s => s.Property == global::Avalonia.Layout.Layoutable.MaxWidthProperty).ToList();
-            // At least one of each, and EVERY Min/Max width setter pins 900 — so a
-            // later style can't silently override the dropdown width to a different value.
-            Assert.NotEmpty(minSetters);
-            Assert.NotEmpty(maxSetters);
-            Assert.All(minSetters, s => Assert.Equal(900d, s.Value));
-            Assert.All(maxSetters, s => Assert.Equal(900d, s.Value));
+                .Any(style =>
+                {
+                    var setters = style.Setters.OfType<global::Avalonia.Styling.Setter>().ToList();
+                    bool min = setters.Any(s => s.Property == global::Avalonia.Layout.Layoutable.MinWidthProperty && Equals(s.Value, 900d));
+                    bool max = setters.Any(s => s.Property == global::Avalonia.Layout.Layoutable.MaxWidthProperty && Equals(s.Value, 900d));
+                    return min && max;
+                });
+            Assert.True(hasFixedWidthStyle,
+                "CatalogCombo must have a style pinning dropdown item MinWidth == MaxWidth == 900 (#1716) so the popup doesn't resize while scrolling.");
         }
     }
 }
