@@ -164,11 +164,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(valueCol >= 120,
                 $"Coordinate value column must be >= 120 (was 80); got {valueCol}");
 
-            // Spanned column 4 must accommodate the 180px Direction combo /
-            // Flag-name box (cols 3+4 span). Col 4 alone is now >= 180.
-            int spanCol = ParseColumn(grid, index: 4);
-            Assert.True(spanCol >= 180,
-                $"Spanned value column must be >= 180 for the Direction combo; got {spanCol}");
+            // The Direction ComboBox and the Flag-name TextBox both span
+            // columns 3+4 (Grid.ColumnSpan="2"), so the COMBINED width of those
+            // two columns — not column 4 alone — is what must accommodate the
+            // 180px Direction combo. Asserting the combined span is robust to a
+            // future edit that shifts width between col 3 and col 4 without
+            // changing the total (Copilot review on PR #1696).
+            int col3 = ParseColumn(grid, index: 3);
+            int col4 = ParseColumn(grid, index: 4);
+            // Either column could be a star/Auto column (treated as MaxValue);
+            // guard against overflow before summing.
+            int spanWidth = (col3 == int.MaxValue || col4 == int.MaxValue)
+                ? int.MaxValue
+                : col3 + col4;
+            Assert.True(spanWidth >= 180,
+                $"Direction combo / Flag-name span (cols 3+4 = {col3}+{col4} = {spanWidth}) must be >= 180px for the 180px combo");
 
             // X/Y/Escape/Flag NUDs must be left-aligned so a stretched cell
             // doesn't blow the spinner up across the whole column.
