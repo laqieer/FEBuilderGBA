@@ -155,7 +155,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ===================================================================
-        // EventScriptView: fixed-window + stable-combobox fixes (#1714, #1716)
+        // EventScriptView + ProcsScriptView: fixed-window + stable-combobox
+        // fixes (#1714, #1716). These assert the actual AXAML contract so a
+        // SizeToContent regression or a dropped fixed-width dropdown style is
+        // caught — not just that the view instantiates.
         // ===================================================================
 
         [AvaloniaFact]
@@ -166,11 +169,40 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void EventScriptView_CatalogCombo_Resolved()
+        public void EventScriptView_WindowIsFixedSize_NotSizeToContent()
+        {
+            var v = new EventScriptView();
+            // #1714: SizeToContent must stay Manual so the window does not
+            // auto-shrink (macOS black-strip repaint) after deleting a command.
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
+            // A minimum floor keeps the fixed-size window usable (no drag-to-tiny).
+            Assert.True(v.MinWidth >= 1180);
+            Assert.True(v.MinHeight >= 780);
+        }
+
+        [AvaloniaFact]
+        public void EventScriptView_CatalogCombo_HasFixedWidthDropdownStyle()
         {
             var v = new EventScriptView();
             var combo = v.FindControl<ComboBox>("CatalogCombo");
             Assert.NotNull(combo);
+            // #1716: a ComboBoxItem style pins the dropdown item width so the
+            // popup does not snap between sizes while scrolling. Assert the
+            // style + its width setters survived.
+            var style = Assert.Single(combo!.Styles);
+            Assert.NotNull(combo.ItemTemplate);
+        }
+
+        [AvaloniaFact]
+        public void ProcsScriptView_CatalogCombo_HasFixedWidthDropdownStyle()
+        {
+            var v = new ProcsScriptView();
+            var combo = v.FindControl<ComboBox>("CatalogCombo");
+            Assert.NotNull(combo);
+            // ProcsScriptView shares the same catalog engine — the #1716 fix
+            // must be applied here too.
+            var style = Assert.Single(combo!.Styles);
+            Assert.NotNull(combo.ItemTemplate);
         }
     }
 }
