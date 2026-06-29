@@ -48,16 +48,22 @@ namespace FEBuilderGBA
         /// <summary>
         /// Returns a platform label exactly matching the gui_bug.yml platform dropdown options.
         /// </summary>
+        /// <remarks>
+        /// Windows uses <see cref="RuntimeInformation.ProcessArchitecture"/> (not OSArchitecture)
+        /// so the 32-bit WinForms build is correctly tagged "Windows x86 (WinForms)" even when it
+        /// runs as a 32-bit process on a 64-bit OS (the common case). The Avalonia build ships only
+        /// as x64, so it falls into "Windows x64".
+        /// </remarks>
         public static string DetectPlatformLabel()
         {
             if (OperatingSystem.IsAndroid()) return "Android";
             if (OperatingSystem.IsWindows())
-                return RuntimeInformation.OSArchitecture is Architecture.X64 or Architecture.Arm64
-                    ? "Windows x64"
-                    : "Windows x86 (WinForms)";
+                return RuntimeInformation.ProcessArchitecture == Architecture.X86
+                    ? "Windows x86 (WinForms)"
+                    : "Windows x64";
             if (OperatingSystem.IsLinux()) return "Linux x64";
             if (OperatingSystem.IsMacOS())
-                return RuntimeInformation.OSArchitecture == Architecture.Arm64
+                return RuntimeInformation.ProcessArchitecture == Architecture.Arm64
                     ? "macOS Apple Silicon (arm64)"
                     : "macOS Intel (x64)";
             return "Other";
