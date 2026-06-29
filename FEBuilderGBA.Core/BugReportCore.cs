@@ -37,7 +37,7 @@ namespace FEBuilderGBA
                 if (!string.IsNullOrEmpty(kv.Value))
                 {
                     sb.Append('&');
-                    sb.Append(kv.Key);
+                    sb.Append(Uri.EscapeDataString(kv.Key));
                     sb.Append('=');
                     sb.Append(Uri.EscapeDataString(kv.Value));
                 }
@@ -57,15 +57,23 @@ namespace FEBuilderGBA
         public static string DetectPlatformLabel()
         {
             if (OperatingSystem.IsAndroid()) return "Android";
+            var arch = RuntimeInformation.ProcessArchitecture;
             if (OperatingSystem.IsWindows())
-                return RuntimeInformation.ProcessArchitecture == Architecture.X86
-                    ? "Windows x86 (WinForms)"
-                    : "Windows x64";
-            if (OperatingSystem.IsLinux()) return "Linux x64";
+                return arch switch
+                {
+                    Architecture.X86 => "Windows x86 (WinForms)",
+                    Architecture.X64 => "Windows x64",
+                    _ => "Other"
+                };
+            if (OperatingSystem.IsLinux())
+                return arch == Architecture.X64 ? "Linux x64" : "Other";
             if (OperatingSystem.IsMacOS())
-                return RuntimeInformation.ProcessArchitecture == Architecture.Arm64
-                    ? "macOS Apple Silicon (arm64)"
-                    : "macOS Intel (x64)";
+                return arch switch
+                {
+                    Architecture.Arm64 => "macOS Apple Silicon (arm64)",
+                    Architecture.X64 => "macOS Intel (x64)",
+                    _ => "Other"
+                };
             return "Other";
         }
 

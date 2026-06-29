@@ -27957,3 +27957,5 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 :Released build (no git repo)? Run: 
 发布版（无 git 仓库）？请运行: 
 
+:GitHubでバグを報告
+在GitHub上报告错误

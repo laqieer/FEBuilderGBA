@@ -161,7 +161,7 @@
             this.ReportBugOnGitHubButton.Name = "ReportBugOnGitHubButton";
             this.ReportBugOnGitHubButton.Size = new System.Drawing.Size(300, 36);
             this.ReportBugOnGitHubButton.TabIndex = 26;
-            this.ReportBugOnGitHubButton.Text = "Report a Bug on GitHub";
+            this.ReportBugOnGitHubButton.Text = "GitHubでバグを報告";
             this.ReportBugOnGitHubButton.UseVisualStyleBackColor = true;
             this.ReportBugOnGitHubButton.Click += new System.EventHandler(this.ReportBugOnGitHubButton_Click);
             //
