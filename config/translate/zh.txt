@@ -14233,6 +14233,9 @@ Avalonia 跨平台预览
 :_GitHub Discussions
 GitHub讨论(_G)
 
+:_Report a Bug…
+报告错误(_R)...
+
 :_About
 关于(_A)
 

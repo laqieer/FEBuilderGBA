@@ -557,5 +557,53 @@ namespace FEBuilderGBA
         {
             MainFormUtil.GotoReport7zURL();
         }
+
+        private void ReportBugOnGitHubButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Capture previously-active editor window (before this form stole focus)
+                System.Drawing.Bitmap? screenshot = null;
+                try
+                {
+                    // Find the most recently active editor (not ToolProblemReportForm itself)
+                    Form? targetForm = null;
+                    foreach (Form f in Application.OpenForms)
+                    {
+                        if (f != this && f.Visible && !(f is ToolProblemReportForm))
+                        {
+                            targetForm = f;
+                            break;
+                        }
+                    }
+                    if (targetForm != null)
+                    {
+                        screenshot = new System.Drawing.Bitmap(targetForm.Width, targetForm.Height);
+                        targetForm.DrawToBitmap(screenshot, new System.Drawing.Rectangle(0, 0, targetForm.Width, targetForm.Height));
+                        Clipboard.SetImage(screenshot);
+                    }
+                }
+                catch (Exception ex) { Log.Error(ex.ToString()); }
+
+                string? appVersion = U.getVersion();
+                string? romTag = null;
+                try { romTag = Program.ROM?.RomInfo?.VersionToFilename; } catch { }
+                var editorTitle = "FEBuilderGBA";
+                try {
+                    foreach (Form f in Application.OpenForms) {
+                        if (f != this && f.Visible && !(f is ToolProblemReportForm)) { editorTitle = f.Text; break; }
+                    }
+                } catch { }
+                var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, "WinForms GUI (Windows)");
+                var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                MessageBox.Show(
+                    "Opened a pre-filled bug report in your browser.\n\nYour screenshot is on the clipboard — paste it (Ctrl+V) into the issue's Screenshot box.\n\nNever attach your ROM (.gba).",
+                    "Report a Bug",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex) { Log.Error(ex.ToString()); }
+        }
     }
 }

@@ -313,6 +313,9 @@ Sappy実行...(_S)
 :_GitHub Discussions
 GitHub ディスカッション(_G)
 
+:_Report a Bug…
+バグを報告(_R)...
+
 :_About
 バージョン情報(_A)
 

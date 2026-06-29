@@ -258,6 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Help sub-items
             if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");
             if (DiscussionsMenuItem != null) DiscussionsMenuItem.Header = R._("_GitHub Discussions");
+            if (ReportBugMenuItem != null) ReportBugMenuItem.Header = R._("_Report a Bug…");
             if (AboutMenuItem != null) AboutMenuItem.Header = R._("_About");
         }
 
@@ -3625,6 +3626,76 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
             catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
+        }
+
+        private async void ReportBug_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. Capture screenshot of this window to temp PNG
+                string pngPath = Path.Combine(Path.GetTempPath(), $"febuilder-bugshot-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                try
+                {
+                    var win = TopLevel.GetTopLevel(this);
+                    if (win != null)
+                    {
+                        var bounds = win.Bounds;
+                        if (double.IsFinite(bounds.Width) && double.IsFinite(bounds.Height) && bounds.Width > 0 && bounds.Height > 0)
+                        {
+                            var rtb = new RenderTargetBitmap(new PixelSize((int)bounds.Width, (int)bounds.Height));
+                            rtb.Render(win);
+                            rtb.Save(pngPath);
+                        }
+                    }
+                }
+                catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click screenshot: {0}", ex.Message); }
+
+                // 2. Build prefill fields
+                string? appVersion = U.getVersion();
+                string? romTag = CoreState.ROM?.RomInfo?.VersionToFilename;
+                string? editorTitle = this.Title ?? "Main Window";
+                string appLabel = "Avalonia GUI (cross-platform)";
+                var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, appLabel);
+                var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
+
+                // 3. Reveal screenshot in file browser (desktop only)
+                if (!OperatingSystem.IsAndroid())
+                {
+                    try
+                    {
+                        if (OperatingSystem.IsWindows())
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", $"/select,\"{pngPath}\"") { UseShellExecute = true });
+                        else if (OperatingSystem.IsMacOS())
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", $"-R \"{pngPath}\"") { UseShellExecute = false });
+                        else
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", Path.GetDirectoryName(pngPath)!) { UseShellExecute = false });
+                    }
+                    catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", ex.Message); }
+
+                    // 4. Copy screenshot path to clipboard
+                    try
+                    {
+                        await (TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(pngPath) ?? System.Threading.Tasks.Task.CompletedTask);
+                    }
+                    catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click clipboard: {0}", ex.Message); }
+                }
+
+                // 5. Open pre-filled issue URL in browser
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
+
+                // 6. Show info dialog
+                await MessageBoxWindow.Show(this,
+                    $"Opened a pre-filled bug report in your browser.\n\nA screenshot of this window was saved to:\n{pngPath}\n\nIt was revealed in your file browser — drag it into the issue's Screenshot box.\n\nNever attach your ROM (.gba).",
+                    "Report a Bug", MessageBoxMode.Ok);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.ReportBug_Click: {0}", ex.Message);
+            }
         }
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)

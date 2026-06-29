@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / how-to (Q&A Discussions)
+    url: https://github.com/laqieer/FEBuilderGBA/discussions/categories/q-a
+    about: Usage questions belong in Q&A Discussions, not bug reports.
+  - name: Feature idea (Ideas Discussions)
+    url: https://github.com/laqieer/FEBuilderGBA/discussions/categories/ideas
+    about: Suggest features in Ideas Discussions.
+  - name: Community chat (Discord)
+    url: https://discordapp.com/invite/Yzztqqa
+    about: Real-time help from the FE hacking community.

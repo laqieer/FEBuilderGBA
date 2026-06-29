@@ -52,6 +52,7 @@
         <MenuItem AutomationProperties.AutomationId="Main_OnlineManualMenuItem_Button" Header="_Online Manual" Click="OnlineManual_Click" Name="OnlineManualMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_DiscussionsMenuItem_Button" Header="_GitHub Discussions" Click="Discussions_Click" Name="DiscussionsMenuItem" />
         <Separator />
+        <MenuItem AutomationProperties.AutomationId="Main_ReportBugMenuItem_Button" Header="_Report a Bug…" Click="ReportBug_Click" Name="ReportBugMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_AboutMenuItem_Button" Header="_About" Click="About_Click" Name="AboutMenuItem" />
       </MenuItem>
     </Menu>

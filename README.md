@@ -560,7 +560,7 @@ In some cases, you may earn some pocket money through affiliates. :)
 However, please do it at your own risk. :(
 
 If you have something you do not understand through hacking or the editor, please read "Manual" in "Help".
-If you find a bug that you can not solve by any means, please create report.7z from 'File' -> 'Menu' -> 'Create Report Issue' and consult with the community.
+If you find a bug that you can not solve by any means, use **Help → Report a Bug…** in the app to open a pre-filled GitHub issue form with a screenshot. Alternatively, please create report.7z from 'File' -> 'Menu' -> 'Create Report Issue' and consult with the community.
 https://discordapp.com/invite/Yzztqqa
 Do NOT send your ROM (.gba) directly.
 
@@ -612,7 +612,7 @@ FEBuilderGBAはウイルスではありません。
 ただし、あなたの責任において実施してください。 :(
 
 もし、hackromでわからないことがあれば、「ヘルプ」の「マニュアル」を読んでください。
-どうしても解決しないバグが発生した場合は、「メニュー」の「ファイル」->「問題報告ツール」から、report.7zを作成して、コミニティに相談してください。
+どうしても解決しないバグが発生した場合は、**ヘルプ → バグを報告…** からGitHubの問題報告フォームを開くか、「メニュー」の「ファイル」->「問題報告ツール」から、report.7zを作成して、コミニティに相談してください。
 https://discordapp.com/invite/Yzztqqa
 (ROMは送信しないでください。)
 
@@ -665,7 +665,7 @@ The source code is all available on github, so you can build it yourself if you 
 但是，请自行承担风险。 :(
 
 如果你有一些你从hackrom不能理解的东西，请阅读“帮助”中的“手册”。
-如果您发现无法解决的错误，请在'菜单'的'文件' -> '问题报告工具'中创建report.7z，并咨询社区。
+如果您发现无法解决的错误，请使用 **帮助 → 报告错误…** 在应用中打开预填的GitHub问题表单，或在'菜单'的'文件' -> '问题报告工具'中创建report.7z，并咨询社区。
 https://discordapp.com/invite/Yzztqqa
 （请不要发送ROM。）
 
