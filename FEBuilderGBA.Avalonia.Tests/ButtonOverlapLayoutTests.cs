@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Views;
@@ -152,6 +153,88 @@ namespace FEBuilderGBA.Avalonia.Tests
             var v = new EventMapChangeView();
             var btn = v.FindControl<Button>("WriteButton");
             Assert.NotNull(btn);
+        }
+
+        // ===================================================================
+        // EventScriptView + ProcsScriptView: fixed-window + stable-combobox
+        // fixes (#1714, #1716). These assert the actual AXAML contract so a
+        // SizeToContent regression or a dropped fixed-width dropdown style is
+        // caught — not just that the view instantiates.
+        // ===================================================================
+
+        [AvaloniaFact]
+        public void EventScriptView_CanInstantiate()
+        {
+            var v = new EventScriptView();
+            Assert.NotNull(v.Content);
+        }
+
+        [AvaloniaFact]
+        public void EventScriptView_WindowIsFixedSize_NotSizeToContent()
+        {
+            var v = new EventScriptView();
+            // #1714: SizeToContent must stay Manual so the window does not
+            // auto-shrink (macOS black-strip repaint) after deleting a command.
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
+            // A minimum floor keeps the fixed-size window usable (no drag-to-tiny).
+            Assert.True(v.MinWidth >= 1180);
+            Assert.True(v.MinHeight >= 780);
+        }
+
+        [AvaloniaFact]
+        public void ProcsScriptView_WindowIsFixedSize_NotSizeToContent()
+        {
+            // ProcsScriptView shares the EventScriptView layout/engine — the #1714
+            // fixed-size fix must hold on the sibling view too.
+            var v = new ProcsScriptView();
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
+            Assert.True(v.MinWidth >= 1180);
+            Assert.True(v.MinHeight >= 780);
+        }
+
+        [AvaloniaFact]
+        public void EventScriptView_CatalogCombo_HasFixedWidthDropdownStyle()
+        {
+            var v = new EventScriptView();
+            var combo = v.FindControl<ComboBox>("CatalogCombo");
+            Assert.NotNull(combo);
+            AssertFixedWidthDropdown(combo!);
+        }
+
+        [AvaloniaFact]
+        public void ProcsScriptView_CatalogCombo_HasFixedWidthDropdownStyle()
+        {
+            var v = new ProcsScriptView();
+            var combo = v.FindControl<ComboBox>("CatalogCombo");
+            Assert.NotNull(combo);
+            // ProcsScriptView shares the same catalog engine — the #1716 fix
+            // must be applied here too.
+            AssertFixedWidthDropdown(combo!);
+        }
+
+        // #1716: the CatalogCombo dropdown must pin every item to a FIXED width so
+        // the popup doesn't snap between sizes while scrolling. Verify a ComboBoxItem
+        // style actually sets MinWidth == MaxWidth == 900, plus an ellipsis ItemTemplate.
+        // (Asserts the setters' VALUES, not just style count — adding another local
+        // style must not break this, and the width contract is checked.)
+        static void AssertFixedWidthDropdown(ComboBox combo)
+        {
+            Assert.NotNull(combo.ItemTemplate);
+            // Only the ComboBoxItem-targeting style governs the dropdown width — an
+            // unrelated local style (e.g. on a nested TextBlock) must not affect this.
+            // Identify the fixed-width style by its SETTERS (one style that pins BOTH
+            // MinWidth and MaxWidth to 900), not a brittle Selector.ToString() parse.
+            bool hasFixedWidthStyle = combo.Styles
+                .OfType<global::Avalonia.Styling.Style>()
+                .Any(style =>
+                {
+                    var setters = style.Setters.OfType<global::Avalonia.Styling.Setter>().ToList();
+                    bool min = setters.Any(s => s.Property == global::Avalonia.Layout.Layoutable.MinWidthProperty && Equals(s.Value, 900d));
+                    bool max = setters.Any(s => s.Property == global::Avalonia.Layout.Layoutable.MaxWidthProperty && Equals(s.Value, 900d));
+                    return min && max;
+                });
+            Assert.True(hasFixedWidthStyle,
+                "CatalogCombo must have a style pinning dropdown item MinWidth == MaxWidth == 900 (#1716) so the popup doesn't resize while scrolling.");
         }
     }
 }

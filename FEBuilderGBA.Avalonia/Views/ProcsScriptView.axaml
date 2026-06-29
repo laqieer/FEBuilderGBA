@@ -3,7 +3,7 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ProcsScriptView"
         Title="Procs Script Editor" Width="1180" Height="780"
-        SizeToContent="WidthAndHeight">
+        MinWidth="1180" MinHeight="780" SizeToContent="Manual">
   <DockPanel Margin="8">
     <TextBlock DockPanel.Dock="Top" Text="Procs Script Editor" FontSize="18" FontWeight="Bold" Margin="8,4,8,8" />
 
@@ -21,7 +21,19 @@
       <StackPanel Spacing="6">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <TextBlock Text="Insert command:" VerticalAlignment="Center" />
-          <ComboBox AutomationProperties.AutomationId="ProcsScript_Catalog_Combo" Name="CatalogCombo" Width="260" />
+          <ComboBox AutomationProperties.AutomationId="ProcsScript_Catalog_Combo" Name="CatalogCombo" Width="260">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem">
+                <Setter Property="MinWidth" Value="900" />
+                <Setter Property="MaxWidth" Value="900" />
+              </Style>
+            </ComboBox.Styles>
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
           <Button AutomationProperties.AutomationId="ProcsScript_Insert_Button" Name="InsertButton" Content="Insert" Click="Insert_Click" />
           <Rectangle Width="1" Fill="#40808080" Margin="4,0" />
           <TextBox AutomationProperties.AutomationId="ProcsScript_InsertHex_Input" Name="InsertHexBox" Width="160" Watermark="hex e.g. 0100 4200" FontFamily="Consolas" />
