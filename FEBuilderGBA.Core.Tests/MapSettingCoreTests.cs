@@ -571,7 +571,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // FE7/FE8 ROM names can embed U+001F (unit-separator) as an internal
             // formatting marker — it renders as a tofu box on macOS in Avalonia.
-            string input = "Ch5Belyth";
+            string input = "Ch5\u001FBelyth";
             Assert.Equal("Ch5Belyth", MapSettingCore.StripControlChars(input));
         }
 
@@ -580,7 +580,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             // All chars < 0x20 (except tab \t) are stripped.
             // Use explicit \u escapes to avoid C# greedy \x hex parsing.
-            string input = "A BCC\t D";
+            string input = "A\u0000B\u0001C\u001FC\t D";
             Assert.Equal("ABCC\t D", MapSettingCore.StripControlChars(input));
         }
 

@@ -30,7 +30,7 @@ namespace FEBuilderGBA.Avalonia.Tests;
 
 public class NameListTruncationTests
 {
-    // ---- shared control: long names scroll instead of clip -----------
+    // ---- shared control: long names wrap to fit the column instead of clip ----
 
     [AvaloniaFact]
     public void AddressListControl_ListBox_HasDisabledHorizontalScrollBar()
