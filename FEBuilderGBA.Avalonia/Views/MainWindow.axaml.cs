@@ -3649,7 +3649,9 @@ namespace FEBuilderGBA.Avalonia.Views
                             using var rtb = new RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
                             rtb.Render(win);
                             rtb.Save(pngPath);
-                            screenshotSaved = true;
+                            // In headless/locked environments Save can be a no-op; only treat it as
+                            // saved if a non-empty file actually landed on disk.
+                            screenshotSaved = File.Exists(pngPath) && new System.IO.FileInfo(pngPath).Length > 0;
                         }
                     }
                 }
@@ -3669,11 +3671,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     try
                     {
                         if (OperatingSystem.IsWindows())
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer", $"/select,\"{pngPath}\"") { UseShellExecute = true });
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = true, ArgumentList = { "/select,", pngPath } });
+                        }
                         else if (OperatingSystem.IsMacOS())
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open", $"-R \"{pngPath}\"") { UseShellExecute = false });
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open") { UseShellExecute = false, ArgumentList = { "-R", pngPath } });
+                        }
                         else
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", Path.GetDirectoryName(pngPath)!) { UseShellExecute = false });
+                        {
+                            var dir = Path.GetDirectoryName(pngPath);
+                            if (!string.IsNullOrEmpty(dir))
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { dir } });
+                        }
                     }
                     catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", ex.Message); }
 

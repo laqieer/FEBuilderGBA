@@ -16,8 +16,8 @@ namespace FEBuilderGBA
         public const string GuiBugTemplate = "gui_bug.yml";
 
         /// <summary>
-        /// Builds a GitHub new-issue URL pre-filled with the given fields.
-        /// Iterates fields in insertion order; empty/null values are skipped.
+        /// Builds a GitHub new-issue URL pre-filled with the given fields. Fields are appended
+        /// in the dictionary's enumeration order (caller-controlled); empty/null values are skipped.
         /// </summary>
         public static string BuildIssueUrl(
             string owner,
@@ -103,9 +103,10 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Builds an ordered prefill dictionary for BuildIssueUrl.
-        /// Keys match the gui_bug.yml field ids: version, rom, editor, platform, app.
-        /// Null/empty values are omitted. screenshot/report7z are NOT prefilled.
+        /// Builds a prefill dictionary for BuildIssueUrl. Keys match the gui_bug.yml field ids:
+        /// version, rom, editor, platform, app. <c>rom</c> and <c>platform</c> are always present
+        /// (they fall back to "Other / not sure" / "Other"); <c>version</c>, <c>editor</c>, and
+        /// <c>app</c> are omitted when null/empty. screenshot/report7z are NOT prefilled.
         /// </summary>
         public static Dictionary<string, string> BuildPrefill(
             string? appVersion,
