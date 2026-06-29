@@ -3634,17 +3634,22 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // 1. Capture screenshot of this window to temp PNG
                 string pngPath = Path.Combine(Path.GetTempPath(), $"febuilder-bugshot-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+                bool screenshotSaved = false;
                 try
                 {
                     var win = TopLevel.GetTopLevel(this);
                     if (win != null)
                     {
                         var bounds = win.Bounds;
-                        if (double.IsFinite(bounds.Width) && double.IsFinite(bounds.Height) && bounds.Width > 0 && bounds.Height > 0)
+                        // Guard against non-finite/zero bounds (would yield an invalid 0x0 bitmap).
+                        int w = Math.Max((int)(double.IsFinite(bounds.Width) ? bounds.Width : 0), 1);
+                        int h = Math.Max((int)(double.IsFinite(bounds.Height) ? bounds.Height : 0), 1);
+                        if (w > 1 && h > 1)
                         {
-                            var rtb = new RenderTargetBitmap(new PixelSize((int)bounds.Width, (int)bounds.Height));
+                            using var rtb = new RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
                             rtb.Render(win);
                             rtb.Save(pngPath);
+                            screenshotSaved = true;
                         }
                     }
                 }
@@ -3658,8 +3663,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, appLabel);
                 var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
 
-                // 3. Reveal screenshot in file browser (desktop only)
-                if (!OperatingSystem.IsAndroid())
+                // 3. Reveal screenshot in file browser (desktop only, and only if we saved one)
+                if (screenshotSaved && !OperatingSystem.IsAndroid())
                 {
                     try
                     {
@@ -3687,9 +3692,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
 
-                // 6. Show info dialog
+                // 6. Show info dialog (wording reflects whether the screenshot actually saved)
+                string shotNote = screenshotSaved
+                    ? $"A screenshot of this window was saved to:\n{pngPath}\n\nIt was revealed in your file browser — drag it into the issue's Screenshot box."
+                    : "Couldn't capture a screenshot automatically — please attach one manually in the issue's Screenshot box.";
                 await MessageBoxWindow.Show(this,
-                    $"Opened a pre-filled bug report in your browser.\n\nA screenshot of this window was saved to:\n{pngPath}\n\nIt was revealed in your file browser — drag it into the issue's Screenshot box.\n\nNever attach your ROM (.gba).",
+                    "Opened a pre-filled bug report in your browser.\n\n" + shotNote + "\n\nNever attach your ROM (.gba).",
                     "Report a Bug", MessageBoxMode.Ok);
             }
             catch (Exception ex)
