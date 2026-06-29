@@ -92,7 +92,7 @@
         <!-- Identity / Misc -->
         <Expander AutomationProperties.AutomationId="ClassEditor_IdentityMisc_Expander" Header="Identity / Misc" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="130,170,20,130,360" RowDefinitions="Auto,Auto,Auto,Auto">
+          <Grid ColumnDefinitions="130,170,20,130,380" RowDefinitions="Auto,Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
                        AutomationProperties.AutomationId="ClassEditor_NameId_Link"
                        Classes="Hyperlink" Name="NameId_Link" PointerPressed="OnNameIdLinkClick"
