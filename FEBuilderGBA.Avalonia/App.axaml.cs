@@ -391,6 +391,12 @@ namespace FEBuilderGBA.Avalonia
                     "UbyteBitFlagView" => new Views.UbyteBitFlagView(),
                     "UshortBitFlagView" => new Views.UshortBitFlagView(),
                     "UwordBitFlagView" => new Views.UwordBitFlagView(),
+                    // #1714/#1716 PR proof: the empty editors already lay out the
+                    // geometry under test — the fixed-size window (SizeToContent
+                    // removed + MinWidth/MinHeight floor) and the CatalogCombo
+                    // toolbar with the fixed-width dropdown style. No ROM needed.
+                    "EventScriptView" => new Views.EventScriptView(),
+                    "ProcsScriptView" => new Views.ProcsScriptView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 
