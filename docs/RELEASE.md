@@ -182,22 +182,25 @@ The release flow is therefore: **bump the tag → push it → CI does the rest.*
 
 If a sync fails (e.g. transient upload error), re-run it the same way (`workflow_dispatch`).
 
-> **Oversized-asset caveat (full-suite releases).** A full-suite release also ships the
-> cross-platform CLI/Avalonia bundles, which are **96–114 MB each and exceed Gitee's per-asset
-> size limit**. `H-TWINKLE/sync-action` reports success but **silently skips** the oversized
-> release, so nothing lands on Gitee. To mirror the WinForms package for such a release, run the
-> dedicated [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
-> workflow manually:
+> **Gitee mirror & full-suite asset sizes (known limitation).** A full-suite release ships the
+> cross-platform CLI/Avalonia bundles (**96–114 MB each**) plus a WinForms package that is
+> **~36 MB as `.zip` / ~23 MB re-packed as `.7z`** (it now bundles self-contained ColorzCore under
+> `tools/bin/`; the historical WinForms `.7z` that Gitee hosted was **~6 MB** and did *not* bundle
+> it). `H-TWINKLE/sync-action` reports success but **silently skips** the oversized release, so
+> nothing lands on Gitee.
 >
-> ```bash
-> gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>
-> ```
->
-> It downloads only the WinForms `FEBuilderGBA_<tag>.zip` and **re-packs it to a ~6 MB `.7z`**
-> before upload — the ~36 MB `.zip` is too big for Gitee's release-attachment upload (it stalls),
-> whereas the LZMA `.7z` matches the size Gitee has always hosted. The CLI/Avalonia bundles never
-> touch the runner. The workflow is idempotent (skips re-upload if the asset is already attached)
-> and **fails loudly** on any Gitee API error.
+> The CI upload path (GitHub US runner → Gitee `attach_files`) is only **reliable for small
+> assets (~6 MB)**; the current ~23 MB `.7z` **stalls and times out**. The dedicated
+> [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml) workflow
+> (`gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>`) downloads
+> only the WinForms zip, re-packs it to `.7z`, is idempotent, and **fails loudly** on any Gitee
+> error — but it can only succeed for a package small enough to upload (~6 MB). For the current
+> full-suite package the **WinForms download is GitHub-only** (mainland China users are directed to
+> the [GitHub release](https://github.com/laqieer/FEBuilderGBA/releases) and any per-release
+> announcement in [Discussions](https://github.com/laqieer/FEBuilderGBA/discussions)). To put a
+> binary on Gitee, either strip the
+> bundled `tools/bin/` (ColorzCore) to shrink the package toward the historical ~6 MB, or upload
+> the `.7z` manually from a reliable China-side connection using the `GITEE_TOKEN`.
 
 ---
 
