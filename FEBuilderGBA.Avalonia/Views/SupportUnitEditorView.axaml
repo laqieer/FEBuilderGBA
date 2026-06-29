@@ -27,37 +27,37 @@
         <Grid ColumnDefinitions="90,120,*,80" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Partner 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="Partner1Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner1Name_Label" Grid.Row="0" Grid.Column="2" Name="Partner1NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner1NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner1Name_Label" Grid.Row="0" Grid.Column="2" Name="Partner1NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner1NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk1_Button" Grid.Row="0" Grid.Column="3" Name="Talk1Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Partner 2:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner2Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="Partner2Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner2Name_Label" Grid.Row="1" Grid.Column="2" Name="Partner2NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner2NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner2Name_Label" Grid.Row="1" Grid.Column="2" Name="Partner2NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner2NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk2_Button" Grid.Row="1" Grid.Column="3" Name="Talk2Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Partner 3:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner3Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Partner3Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner3Name_Label" Grid.Row="2" Grid.Column="2" Name="Partner3NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner3NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner3Name_Label" Grid.Row="2" Grid.Column="2" Name="Partner3NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner3NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk3_Button" Grid.Row="2" Grid.Column="3" Name="Talk3Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Partner 4:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner4Nud_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Partner4Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner4Name_Label" Grid.Row="3" Grid.Column="2" Name="Partner4NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner4NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner4Name_Label" Grid.Row="3" Grid.Column="2" Name="Partner4NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner4NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk4_Button" Grid.Row="3" Grid.Column="3" Name="Talk4Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Partner 5:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner5Nud_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Partner5Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner5Name_Label" Grid.Row="4" Grid.Column="2" Name="Partner5NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner5NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner5Name_Label" Grid.Row="4" Grid.Column="2" Name="Partner5NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner5NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk5_Button" Grid.Row="4" Grid.Column="3" Name="Talk5Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="5" Grid.Column="0" Text="Partner 6:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner6Nud_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Partner6Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner6Name_Label" Grid.Row="5" Grid.Column="2" Name="Partner6NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner6NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner6Name_Label" Grid.Row="5" Grid.Column="2" Name="Partner6NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner6NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk6_Button" Grid.Row="5" Grid.Column="3" Name="Talk6Button" Content="Talk" Margin="4,2,0,2" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Partner 7:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Partner7Nud_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="Partner7Nud" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner7Name_Label" Grid.Row="6" Grid.Column="2" Name="Partner7NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner7NameLabel.Text}" />
+          <TextBlock AutomationProperties.AutomationId="SupportUnitEditor_Partner7Name_Label" Grid.Row="6" Grid.Column="2" Name="Partner7NameLabel" VerticalAlignment="Center" Margin="16,2,0,2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding #Partner7NameLabel.Text}" />
           <Button AutomationProperties.AutomationId="SupportUnitEditor_Talk7_Button" Grid.Row="6" Grid.Column="3" Name="Talk7Button" Content="Talk" Margin="4,2,0,2" />
         </Grid>
 
@@ -66,17 +66,17 @@
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Initial Value 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="InitialValue1Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="Initial Value 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Initial Value 2:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="InitialValue2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Initial Value 3:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue3Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="InitialValue3Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="1" Grid.Column="2" Text="Initial Value 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Text="Initial Value 4:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue4Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="InitialValue4Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Initial Value 5:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue5Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="InitialValue5Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="2" Text="Initial Value 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Text="Initial Value 6:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_InitialValue6Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="3" Name="InitialValue6Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Initial Value 7:" VerticalAlignment="Center" Margin="0,2" />
@@ -88,17 +88,17 @@
         <Grid ColumnDefinitions="140,100,140,100" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Growth Rate 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="GrowthRate1Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="Growth Rate 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Growth Rate 2:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="GrowthRate2Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Growth Rate 3:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate3Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="GrowthRate3Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="1" Grid.Column="2" Text="Growth Rate 4:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="2" Text="Growth Rate 4:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate4Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="3" Name="GrowthRate4Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Growth Rate 5:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate5Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="GrowthRate5Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="2" Grid.Column="2" Text="Growth Rate 6:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="2" Text="Growth Rate 6:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_GrowthRate6Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="3" Name="GrowthRate6Nud" Minimum="0" Maximum="255" Margin="0,2" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Growth Rate 7:" VerticalAlignment="Center" Margin="0,2" />
@@ -110,9 +110,9 @@
         <Grid ColumnDefinitions="140,100,140,100,140,100" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Partner Count:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_PartnerCountNud_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="PartnerCountNud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="Separator 1:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Separator 1:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Separator1Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="3" Name="Separator1Nud" Minimum="0" Maximum="255" Margin="0,2" />
-          <TextBlock Grid.Row="0" Grid.Column="4" Text="Separator 2:" VerticalAlignment="Center" Margin="8,2,0,2" />
+          <TextBlock Grid.Row="0" Grid.Column="4" Text="Separator 2:" VerticalAlignment="Center" Margin="16,2,0,2" />
           <NumericUpDown AutomationProperties.AutomationId="SupportUnitEditor_Separator2Nud_Input" FormatString="0" Grid.Row="0" Grid.Column="5" Name="Separator2Nud" Minimum="0" Maximum="255" Margin="0,2" />
         </Grid>
 

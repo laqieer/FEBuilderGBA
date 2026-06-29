@@ -13,7 +13,7 @@
               VerticalAlignment="Center"
               Click="OnZoomInClick" ToolTip.Tip="Zoom in" />
       <Button Name="ZoomResetButton" Content="1:1" Height="28" Padding="6,0" FontSize="12"
-              VerticalAlignment="Center"
+              VerticalAlignment="Center" VerticalContentAlignment="Center"
               Click="OnZoomResetClick" ToolTip.Tip="Reset zoom to 1x" />
     </StackPanel>
     <!-- Scrollable image area -->

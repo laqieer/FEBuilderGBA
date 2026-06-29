@@ -110,18 +110,18 @@
               <Label Grid.Row="0" Grid.Column="1" Content="X:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_X_Input"
                              FormatString="0" Grid.Row="0" Grid.Column="2"
-                             Name="ExitXBox" Minimum="0" Maximum="255"
+                             Name="ExitXBox" Minimum="0" Maximum="255" Width="110"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />
               <Label Grid.Row="0" Grid.Column="3" Content="Y:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Y_Input"
                              FormatString="0" Grid.Row="0" Grid.Column="4"
-                             Name="ExitYBox" Minimum="0" Maximum="255"
+                             Name="ExitYBox" Minimum="0" Maximum="255" Width="110"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />
 
               <Label Grid.Row="1" Grid.Column="0" Content="Direction" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Input"
                              FormatString="0" Grid.Row="1" Grid.Column="2"
-                             Name="EscapeMethodBox" Minimum="0" Maximum="255"
+                             Name="EscapeMethodBox" Minimum="0" Maximum="255" Width="110"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />
               <ComboBox AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Combo"
                         Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
@@ -130,7 +130,7 @@
               <Label Grid.Row="2" Grid.Column="0" Content="00 (Flag)" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Flag_Input"
                              FormatString="0" Grid.Row="2" Grid.Column="2"
-                             Name="FlagBox" Minimum="0" Maximum="255"
+                             Name="FlagBox" Minimum="0" Maximum="255" Width="110"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="MapExitPoint_FlagName_Input"
                        Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2"

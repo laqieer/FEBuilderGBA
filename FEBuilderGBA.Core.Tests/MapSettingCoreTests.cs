@@ -550,6 +550,47 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, MapSettingCore.GetMapIdFromAddr(rom, 0x200u));
         }
 
+        // ---- StripControlChars (#1705 — EventCond chapter-name U+001F box) ----
+
+        [Fact]
+        public void StripControlChars_NullOrEmpty_ReturnsInput()
+        {
+            Assert.Null(MapSettingCore.StripControlChars(null!));
+            Assert.Equal("", MapSettingCore.StripControlChars(""));
+        }
+
+        [Fact]
+        public void StripControlChars_NormalText_IsUnchanged()
+        {
+            const string normal = "Chapter 5 - The Journey";
+            Assert.Equal(normal, MapSettingCore.StripControlChars(normal));
+        }
+
+        [Fact]
+        public void StripControlChars_RemovesU001F()
+        {
+            // FE7/FE8 ROM names can embed U+001F (unit-separator) as an internal
+            // formatting marker — it renders as a tofu box on macOS in Avalonia.
+            string input = "Ch5\u001FBelyth";
+            Assert.Equal("Ch5Belyth", MapSettingCore.StripControlChars(input));
+        }
+
+        [Fact]
+        public void StripControlChars_RemovesAllControlChars_KeepsTab()
+        {
+            // All chars < 0x20 (except tab \t) are stripped.
+            // Use explicit \u escapes to avoid C# greedy \x hex parsing.
+            string input = "A\u0000B\u0001C\u001FC\t D";
+            Assert.Equal("ABCC\t D", MapSettingCore.StripControlChars(input));
+        }
+
+        [Fact]
+        public void StripControlChars_CJKText_Unchanged()
+        {
+            const string cjk = "第5章　試練";
+            Assert.Equal(cjk, MapSettingCore.StripControlChars(cjk));
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);

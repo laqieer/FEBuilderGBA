@@ -30,18 +30,20 @@ namespace FEBuilderGBA.Avalonia.Tests;
 
 public class NameListTruncationTests
 {
-    // ---- shared control: long names scroll instead of clip -----------
+    // ---- shared control: long names wrap to fit the column instead of clip ----
 
     [AvaloniaFact]
-    public void AddressListControl_ListBox_HasAutoHorizontalScrollBar()
+    public void AddressListControl_ListBox_HasDisabledHorizontalScrollBar()
     {
         var control = new AddressListControl();
         var listBox = control.FindControl<ListBox>("AddressList");
         Assert.NotNull(listBox);
-        // #1687: Auto so overflowing names scroll (never silently clipped) and
-        // the vertical scrollbar is never obscured.
+        // #1687 round-2: Disabled because the row template is now a DockPanel
+        // with LastChildFill="True" which constrains the TextBlock to the
+        // remaining column width so names wrap rather than overflow.
+        // A horizontal scrollbar is unnecessary and would cause layout thrash.
         Assert.Equal(
-            ScrollBarVisibility.Auto,
+            ScrollBarVisibility.Disabled,
             ScrollViewer.GetHorizontalScrollBarVisibility(listBox!));
     }
 

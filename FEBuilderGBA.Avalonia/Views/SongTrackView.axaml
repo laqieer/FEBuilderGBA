@@ -39,7 +39,7 @@
                  (10 chars) and was likewise undersized at 120px. Widen both so
                  the full address/pointer is visible. -->
             <NumericUpDown AutomationProperties.AutomationId="SongTrack_Address_Input"
-                           Name="AddressBox" Width="170" Minimum="0" Maximum="4294967295"
+                           Name="AddressBox" Width="200" Minimum="0" Maximum="4294967295"
                            FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
             <TextBlock Text="Size:" VerticalAlignment="Center" Width="40" />
             <TextBox AutomationProperties.AutomationId="SongTrack_BlockSize_Input"
@@ -85,7 +85,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock Text="Instrument Set" VerticalAlignment="Center" Width="100" />
               <NumericUpDown AutomationProperties.AutomationId="SongTrack_InstrumentAddr_Input"
-                             Name="InstrumentAddrBox" Width="120" Minimum="0" Maximum="4294967295"
+                             Name="InstrumentAddrBox" Width="200" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="SongTrack_SongExchange_Button"
                       Name="SongExchangeButton" Content="Song Exchange"

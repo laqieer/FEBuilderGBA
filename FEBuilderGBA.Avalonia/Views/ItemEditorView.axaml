@@ -65,7 +65,7 @@
           <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" />
             <TextBlock AutomationProperties.AutomationId="ItemEditor_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
-                       MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Width="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                        ToolTip.Tip="{Binding #DescTextLabel.Text}" />
             <Button AutomationProperties.AutomationId="ItemEditor_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open text viewer for this description" />
@@ -77,7 +77,7 @@
           <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ItemEditor_UseDescId_Input" FormatString="0" Name="UseDescIdBox" Minimum="0" Maximum="65535" Width="100" />
             <TextBlock AutomationProperties.AutomationId="ItemEditor_UseDescText_Label" Name="UseDescTextLabel" VerticalAlignment="Center" Foreground="Gray"
-                       MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Width="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                        ToolTip.Tip="{Binding #UseDescTextLabel.Text}" />
             <Button AutomationProperties.AutomationId="ItemEditor_JumpToUseDesc_Button" Content="Desc" Click="JumpToUseDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open text viewer for this usage description" />

@@ -138,7 +138,7 @@
             </Grid>
 
             <!-- N sub-list + RGB editor row -->
-            <Grid ColumnDefinitions="300,140,140" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="300,140,220" RowDefinitions="Auto">
               <ListBox AutomationProperties.AutomationId="MapTileAnimation2_NList_List"
                        Grid.Column="0" Name="NPaletteListBox" Height="160"
                        SelectionChanged="NPaletteList_SelectionChanged" />

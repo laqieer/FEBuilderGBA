@@ -16,7 +16,7 @@
       </Border>
       <Button AutomationProperties.AutomationId="EventUnitColor_Apply_Button" Grid.Column="1"
               Name="ApplyButton" Content="Apply" Width="150" Height="40"
-              VerticalAlignment="Center"
+              VerticalAlignment="Center" HorizontalContentAlignment="Center"
               Margin="8,0,0,0" Click="Apply_Click" />
     </Grid>
 

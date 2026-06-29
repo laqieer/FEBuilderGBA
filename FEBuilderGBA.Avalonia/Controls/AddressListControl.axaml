@@ -12,24 +12,23 @@
 
     <!-- List -->
     <!--
-      #1687 fix: enable an Auto horizontal scrollbar on the shared name list.
-      The row template is an icon + a Text TextBlock with no width constraint;
-      a ListBox defaults to NO horizontal scrollbar, so when a row's name is
-      wider than the host column (every consuming view gives this control a
-      250px column) the name was SILENTLY clipped — no ellipsis, no scroll —
-      and long rows could paint over the vertical scrollbar (the Map Tile
-      Animation Type 1 "obscured scrollbar" report). HorizontalScrollBarVisibility
-      = Auto makes overflowing rows scrollable instead of clipped and keeps the
-      vertical scrollbar visible; short rows are unchanged (the bar only appears
-      when content actually overflows). Same Auto-scroll pattern already used by
-      LogViewerView / DisASMView / ImageTSAEditorView. Benefits all ~200 lists
-      that consume this control.
+      #1687 fix (round 2): make long row names WRAP to fit the host column
+      instead of clipping. The list VIRTUALIZES, so an Auto horizontal scrollbar
+      never engages (the panel only ever reports the viewport width) — which is
+      why the earlier Auto-scrollbar attempt still left long names silently
+      clipped and overpainting the vertical scrollbar (the Map Tile Animation
+      Type 1 "obscured scrollbar" report). Instead: HorizontalScrollBar=Disabled
+      forces every row to the viewport width (the 250px column the consuming
+      views give this control), and the row template's DockPanel (LastChildFill)
+      constrains the name TextBlock to the remaining width so TextWrapping="Wrap"
+      flows the full name onto multiple lines. Benefits all ~200 lists that
+      consume this control.
     -->
     <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged"
-             ScrollViewer.HorizontalScrollBarVisibility="Auto">
+             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <StackPanel Orientation="Horizontal" Spacing="4">
+          <DockPanel LastChildFill="True">
             <!--
               #342 follow-up (2026-05-26): the list-row preview slot is a
               fixed 32x32 box (Width="32" Height="32") so every row has the
@@ -51,11 +50,16 @@
               OWNER_DRAW_ICON_SIZE unconditionally; omitting the IsVisible
               binding here gives the same behaviour while keeping the #342
               Stretch="Uniform" aspect-preserving render path.
+
+              #1687 round-2: DockPanel constrains the TextBlock to the
+              remaining column width so the full name wraps instead of
+              clipping. The old StackPanel had no width constraint, causing
+              long names to overflow the host column.
             -->
-            <Image Source="{Binding Icon}" Width="32" Height="32"
-                   Stretch="Uniform" />
-            <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
-          </StackPanel>
+            <Image DockPanel.Dock="Left" Source="{Binding Icon}" Width="32" Height="32"
+                   Stretch="Uniform" Margin="0,0,4,0" />
+            <TextBlock Text="{Binding Text}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </DockPanel>
         </DataTemplate>
       </ListBox.ItemTemplate>
       <ListBox.ContextMenu>

@@ -315,7 +315,7 @@
         <!-- Movement / Terrain -->
         <Expander AutomationProperties.AutomationId="ClassEditor_PointersMovementTerrain_Expander" Header="Pointers / Movement / Terrain" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-        <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="160,175,20,160,175" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock AutomationProperties.AutomationId="ClassEditor_BattleAnimeLabel_Label" Grid.Row="0" Grid.Column="0" Name="BattleAnimeLabel" Text="Battle Anime (P52):" VerticalAlignment="Center"
                      ToolTip.Tip="Pointer to battle animation data" />
           <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
@@ -342,7 +342,7 @@
 
           <!-- Terrain pointers row (shows Avoid+Def for FE7/8, Res only for FE6) -->
           <StackPanel Name="TerrainRow" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
-            <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="160,175,20,160,175" RowDefinitions="Auto">
               <TextBlock AutomationProperties.AutomationId="ClassEditor_TerrainAvoid_Label" Grid.Row="0" Grid.Column="0" Name="TerrainAvoidLabel" Text="Terrain Avoid (P68):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr68_Input" Name="Ptr68Box" Width="120" />
@@ -358,7 +358,7 @@
 
           <!-- D80 / Terrain Res row (FE7/8 only; hidden for FE6 which has no D80) -->
           <StackPanel Name="D80Row" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Margin="0">
-            <Grid ColumnDefinitions="130,200,20,130,200" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="160,175,20,160,175" RowDefinitions="Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Terrain Res (P76):" VerticalAlignment="Center" />
               <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
                 <TextBox AutomationProperties.AutomationId="ClassEditor_Ptr76_Input" Name="Ptr76Box" Width="120" />
