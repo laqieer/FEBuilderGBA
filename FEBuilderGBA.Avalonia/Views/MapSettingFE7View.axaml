@@ -6,7 +6,7 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <DockPanel Grid.Column="0" Margin="4">
-      <Button AutomationProperties.AutomationId="MapSettingFE7_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="リストの拡張" Margin="2" />
+      <Button AutomationProperties.AutomationId="MapSettingFE7_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="Data Expansion" Margin="2" />
       <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE7_Entry_List" Name="EntryList" />
     </DockPanel>
 

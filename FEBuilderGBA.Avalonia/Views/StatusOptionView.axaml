@@ -6,7 +6,7 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <DockPanel Grid.Column="0" Margin="4">
-      <Button AutomationProperties.AutomationId="StatusOption_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="リストの拡張" Margin="0,0,0,4" />
+      <Button AutomationProperties.AutomationId="StatusOption_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="Data Expansion" Margin="0,0,0,4" />
       <controls:AddressListControl AutomationProperties.AutomationId="StatusOption_Entry_List" Name="EntryList" />
     </DockPanel>
 
