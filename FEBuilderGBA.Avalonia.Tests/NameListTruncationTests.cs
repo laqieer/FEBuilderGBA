@@ -19,11 +19,9 @@
 // fields are widened locally.
 //
 // These are headless structural assertions — they need no ROM.
-using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Primitives;
 using global::Avalonia.Headless.XUnit;
-using global::Avalonia.LogicalTree;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -97,8 +95,9 @@ public class NameListTruncationTests
         var view = new SongTrackView();
         var addressBox = view.FindControl<NumericUpDown>("AddressBox");
         Assert.NotNull(addressBox);
-        // A 0x0800xxxx-range address renders as a 9-10 digit decimal plus the
-        // NumericUpDown spinner; 120px clipped it. Require the widened value.
+        // A 0x0800xxxx-range ROM address renders as a 9-digit decimal (and the
+        // field's full Maximum, 4294967295, is 10 digits) plus the NumericUpDown
+        // spinner; 120px clipped it. Require the widened value.
         Assert.True(addressBox!.Width >= 160,
             $"AddressBox.Width was {addressBox.Width}; expected >= 160 so the full decimal address + spinner is visible (#1687).");
     }

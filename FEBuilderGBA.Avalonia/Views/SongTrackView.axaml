@@ -32,11 +32,12 @@
           <StackPanel Orientation="Horizontal" Spacing="6">
             <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
             <!-- #1687: AddressBox is a NumericUpDown over the full 0-4294967295
-                 range (a 0x0800xxxx-range address renders as a 9-10 digit
-                 decimal) plus spinner buttons; 120px clipped the value behind
-                 the spinner. SelectedAddressLabel shows a 0xXXXXXXXX track
-                 pointer (10 chars) and was likewise undersized at 120px.
-                 Widen both so the full address/pointer is visible. -->
+                 range (a 0x0800xxxx-range ROM address renders as a 9-digit
+                 decimal; the field's full Maximum, 4294967295, is 10 digits)
+                 plus spinner buttons; 120px clipped the value behind the
+                 spinner. SelectedAddressLabel shows a 0xXXXXXXXX track pointer
+                 (10 chars) and was likewise undersized at 120px. Widen both so
+                 the full address/pointer is visible. -->
             <NumericUpDown AutomationProperties.AutomationId="SongTrack_Address_Input"
                            Name="AddressBox" Width="170" Minimum="0" Maximum="4294967295"
                            FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
