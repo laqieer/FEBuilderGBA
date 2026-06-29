@@ -8,7 +8,7 @@
 //
 // Three layers of proof:
 //   1. AXAML source scan — each view's .axaml carries the per-view
-//      *_ExpandList_Button AutomationId AND the literal リストの拡張.
+//      *_ExpandList_Button AutomationId AND the English Content literal "Data Expansion".
 //   2. Code-behind source scan — each .axaml.cs wires the Click handler and
 //      routes through MapSettingCore.ExpandMapSettingTable under one
 //      UndoService scope (Begin + Rollback present). FE7/FE7U use _vm.LoadList()
@@ -54,17 +54,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         private static string ReadCode(string file)
             => File.ReadAllText(Path.Combine(ViewsDir(), file));
 
-        // ---- Layer 1: AXAML carries the button id + Japanese literal ----
+        // ---- Layer 1: AXAML carries the button id + English Content literal ----
 
         [Theory]
         [InlineData("MapSettingFE7View.axaml", "MapSettingFE7_ExpandList_Button")]
         [InlineData("MapSettingFE7UView.axaml", "MapSettingFE7U_ExpandList_Button")]
         [InlineData("MapSettingView.axaml", "MapSetting_ExpandList_Button")]
-        public void Axaml_HasExpandButton_AndJapaneseLiteral(string axamlFile, string buttonId)
+        public void Axaml_HasExpandButton_AndDataExpansionLiteral(string axamlFile, string buttonId)
         {
             string xaml = ReadAxaml(axamlFile);
             Assert.Contains(buttonId, xaml);
-            Assert.Contains("リストの拡張", xaml);
+            // #1691: Content literal must be the English source "Data Expansion"
+            // (routed through R._ + config/translate), NOT raw Japanese リストの拡張
+            // which ViewTranslationHelper.IsTranslatable skips (no ASCII letters).
+            Assert.Contains("Content=\"Data Expansion\"", xaml);
+            Assert.DoesNotContain("Content=\"リストの拡張\"", xaml);
             // The button must be named so the code-behind can wire it.
             Assert.Contains("Name=\"ExpandListButton\"", xaml);
         }
