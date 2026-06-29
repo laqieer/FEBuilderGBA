@@ -3672,7 +3672,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         if (OperatingSystem.IsWindows())
                         {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { UseShellExecute = true, ArgumentList = { "/select,", pngPath } });
+                            // Match the codebase-wide explorer-select convention (LogViewerView): a single
+                            // quoted "/select,\"<path>\"" argument string, which Explorer parses reliably.
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{pngPath}\"") { UseShellExecute = true });
                         }
                         else if (OperatingSystem.IsMacOS())
                         {
