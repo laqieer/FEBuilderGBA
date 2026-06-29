@@ -144,6 +144,10 @@ dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-all --out=docs/avaloni
 dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ```
 
+> **macOS / CJK text note:** The Avalonia GUI registers cross-platform CJK font fallbacks
+> (`FontManagerOptions.FontFallbacks`) so ROM-decoded names and Japanese labels render correctly
+> on macOS instead of as "tofu" boxes (#1692).
+
 ### Decomp Project Support (preview)
 
 FEBuilderGBA can open a **decompilation project** directory (a source tree that

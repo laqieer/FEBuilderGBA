@@ -10,7 +10,7 @@
       <TextBlock DockPanel.Dock="Top" Text="先頭アドレス" Margin="2,0,2,2" FontWeight="Bold" />
       <TextBlock DockPanel.Dock="Top" Text="読込数" Margin="2,0,2,2" Foreground="Gray" FontSize="11" />
       <Button AutomationProperties.AutomationId="MapSettingFE6_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListButton" Content="Data Expansion" Margin="2" />
-      <Button AutomationProperties.AutomationId="MapSettingFE6_Refetch_Button" DockPanel.Dock="Top" Name="RefetchButton" Content="再取得" Margin="2" />
+      <Button AutomationProperties.AutomationId="MapSettingFE6_Refetch_Button" DockPanel.Dock="Top" Name="RefetchButton" Content="Reload" Margin="2" />
       <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE6_Entry_List" Name="EntryList" />
     </DockPanel>
 
