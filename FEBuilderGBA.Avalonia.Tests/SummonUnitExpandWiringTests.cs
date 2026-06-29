@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1605 — wiring tests for the Summon Unit (FE8) editor's new List Expand
-// affordance (リストの拡張): an FE8-only table expand that grows the 2-byte
+// affordance (Data Expansion): an FE8-only table expand that grows the 2-byte
 // summon_unit_pointer table and repoints all references + the SPECIFIC
 // hardcoded engine sites (SummonUnitExpandCore.ExpandSummonUnitTable).
 //
@@ -45,7 +45,10 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             var expand = view.FindControl<Button>("ExpandListButton");
             Assert.NotNull(expand);
-            Assert.Equal("リストの拡張", expand!.Content);
+            // #1691: AvaloniaFact constructs the view WITHOUT .Show(), so the Opened
+            // handler (ViewTranslationHelper.TranslateAll) never fires; Content stays
+            // the raw AXAML literal, which is now the English source "Data Expansion".
+            Assert.Equal("Data Expansion", expand!.Content);
         }
 
         // ---- Layer 2: ROM-backed enabled-state + list parity -----------------
@@ -116,7 +119,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             string xaml = File.ReadAllText(Repo("FEBuilderGBA.Avalonia", "Views", "SummonUnitViewerView.axaml"));
             Assert.Contains("Name=\"ExpandListButton\"", xaml);
             Assert.Contains("SummonUnitViewer_Expand_Button", xaml);
-            Assert.Contains("リストの拡張", xaml);
+            // #1691: Content literal is now the English source "Data Expansion".
+            Assert.Contains("Content=\"Data Expansion\"", xaml);
         }
 
         [Fact]

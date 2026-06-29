@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1607 — wiring tests for the Status Screen Option (Game Option) editor's new
-// List Expand affordance (リストの拡張): a warning-gated table expand that grows
+// List Expand affordance (Data Expansion): a warning-gated table expand that grows
 // the 44-byte status_game_option table and repoints all references
 // (StatusGameOptionCore.ExpandGameOptionTable).
 //
@@ -32,7 +32,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             var expand = view.FindControl<Button>("ExpandListButton");
             Assert.NotNull(expand);
             Assert.True(expand!.IsEnabled, "ExpandListButton must be enabled (wired in #1607).");
-            Assert.Equal("リストの拡張", expand!.Content);
+            // #1691: AvaloniaFact constructs the view WITHOUT .Show(), so the Opened
+            // handler (ViewTranslationHelper.TranslateAll) never fires; Content stays
+            // the raw AXAML literal, which is now the English source "Data Expansion".
+            Assert.Equal("Data Expansion", expand!.Content);
         }
 
         // ---- Layer 2: source-text wiring scan (CI-safe, no runtime) ----
