@@ -31,15 +31,21 @@
         <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
+            <!-- #1687: AddressBox is a NumericUpDown over the full 0-4294967295
+                 range (a 0x0800xxxx-range address renders as a 9-10 digit
+                 decimal) plus spinner buttons; 120px clipped the value behind
+                 the spinner. SelectedAddressLabel shows a 0xXXXXXXXX track
+                 pointer (10 chars) and was likewise undersized at 120px.
+                 Widen both so the full address/pointer is visible. -->
             <NumericUpDown AutomationProperties.AutomationId="SongTrack_Address_Input"
-                           Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                           Name="AddressBox" Width="170" Minimum="0" Maximum="4294967295"
                            FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
             <TextBlock Text="Size:" VerticalAlignment="Center" Width="40" />
             <TextBox AutomationProperties.AutomationId="SongTrack_BlockSize_Input"
                      Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
             <TextBlock Text="Selected Address:" VerticalAlignment="Center" Width="120" />
             <TextBlock AutomationProperties.AutomationId="SongTrack_SelectedAddress_Label"
-                       Name="SelectedAddressLabel" Width="120" VerticalAlignment="Center" />
+                       Name="SelectedAddressLabel" Width="160" VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="SongTrack_Write_Button"
                     Name="WriteButton" Content="Write" Width="160" Click="Write_Click" />
           </StackPanel>

@@ -11,7 +11,22 @@
     </Grid>
 
     <!-- List -->
-    <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged">
+    <!--
+      #1687 fix: enable an Auto horizontal scrollbar on the shared name list.
+      The row template is an icon + a Text TextBlock with no width constraint;
+      a ListBox defaults to NO horizontal scrollbar, so when a row's name is
+      wider than the host column (every consuming view gives this control a
+      250px column) the name was SILENTLY clipped — no ellipsis, no scroll —
+      and long rows could paint over the vertical scrollbar (the Map Tile
+      Animation Type 1 "obscured scrollbar" report). HorizontalScrollBarVisibility
+      = Auto makes overflowing rows scrollable instead of clipped and keeps the
+      vertical scrollbar visible; short rows are unchanged (the bar only appears
+      when content actually overflows). Same Auto-scroll pattern already used by
+      LogViewerView / DisASMView / ImageTSAEditorView. Benefits all ~200 lists
+      that consume this control.
+    -->
+    <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged"
+             ScrollViewer.HorizontalScrollBarVisibility="Auto">
       <ListBox.ItemTemplate>
         <DataTemplate>
           <StackPanel Orientation="Horizontal" Spacing="4">
