@@ -38,7 +38,7 @@
                 <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_IdentifierBreakdown_Label"
                            Text="↓Identifier Breakdown" Margin="0,4,0,0" />
 
-                <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,120,Auto,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
                   <TextBlock Grid.Row="0" Grid.Column="0" Text="Id 0:" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_Id0_Input" FormatString="0"
                                  Grid.Row="0" Grid.Column="1" Name="Id0Box" Minimum="0" Maximum="255" />

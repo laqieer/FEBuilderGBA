@@ -77,28 +77,28 @@
         </Grid>
 
         <!-- B1 (X), B2 (Y): Coordinates -->
-        <Grid ColumnDefinitions="120,Auto,80,Auto,80" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="120,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="Coordinates:" VerticalAlignment="Center" />
           <Label Grid.Column="1" Content="X:" VerticalAlignment="Center" Margin="4,0,4,0" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B1_Input"
-                         Grid.Column="2" Name="B1Box" FormatString="0" Width="76"
+                         Grid.Column="2" Name="B1Box" FormatString="0"
                          Minimum="0" Maximum="255" />
           <Label Grid.Column="3" Content="Y:" VerticalAlignment="Center" Margin="4,0,4,0" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B2_Input"
-                         Grid.Column="4" Name="B2Box" FormatString="0" Width="76"
+                         Grid.Column="4" Name="B2Box" FormatString="0"
                          Minimum="0" Maximum="255" />
         </Grid>
 
         <!-- B3 (W), B4 (H): Size -->
-        <Grid ColumnDefinitions="120,Auto,80,Auto,80" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="120,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="Size:" VerticalAlignment="Center" />
           <Label Grid.Column="1" Content="W:" VerticalAlignment="Center" Margin="4,0,4,0" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B3_Input"
-                         Grid.Column="2" Name="B3Box" FormatString="0" Width="76"
+                         Grid.Column="2" Name="B3Box" FormatString="0"
                          Minimum="0" Maximum="255" />
           <Label Grid.Column="3" Content="H:" VerticalAlignment="Center" Margin="4,0,4,0" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B4_Input"
-                         Grid.Column="4" Name="B4Box" FormatString="0" Width="76"
+                         Grid.Column="4" Name="B4Box" FormatString="0"
                          Minimum="0" Maximum="255" />
         </Grid>
 

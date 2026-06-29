@@ -72,7 +72,7 @@
           </Border>
 
           <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
-            <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,*">
+            <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,*">
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_AddrLabel"
                          Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_Addr_Input"
@@ -187,7 +187,7 @@
                            Name="N1SkillTextTextBox" IsReadOnly="True" AcceptsReturn="True"
                            Height="60" Margin="0,4,0,0" />
 
-                  <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,*">
+                  <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,*">
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_AddrLabel"
                                Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_Addr_Input"

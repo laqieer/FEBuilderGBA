@@ -78,7 +78,7 @@
               <StackPanel Grid.Row="0" Grid.Column="7" Orientation="Horizontal" Spacing="4">
                 <NumericUpDown AutomationProperties.AutomationId="UnitEditor_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Margin="0,2" Width="100" />
                 <TextBlock AutomationProperties.AutomationId="UnitEditor_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
-                           MaxWidth="200" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                           MaxWidth="100" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                            ToolTip.Tip="{Binding #DescTextLabel.Text}" />
                 <Button AutomationProperties.AutomationId="UnitEditor_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                         ToolTip.Tip="Open text viewer for this description" />

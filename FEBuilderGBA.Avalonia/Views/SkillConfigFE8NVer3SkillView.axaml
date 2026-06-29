@@ -113,7 +113,7 @@
             </Grid>
 
             <!-- Text Detail row: textId + read-only resolved name -->
-            <Grid ColumnDefinitions="120,80,*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_TextDetail_Label"
                      Content="Text Detail" VerticalAlignment="Center" />
@@ -128,7 +128,7 @@
             </Grid>
 
             <!-- Palette row: u16 palette index -->
-            <Grid ColumnDefinitions="120,80,*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Palette_Label"
                      Content="Palette" VerticalAlignment="Center" />

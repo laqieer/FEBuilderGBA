@@ -516,7 +516,7 @@ namespace FEBuilderGBA
             {
                 // FE6: name text at offset 56
                 uint id = rom.u16(addr + 56);
-                return FETextDecode.Direct(id);
+                return StripControlChars(FETextDecode.Direct(id));
             }
 
             // FE7/FE8: chapter prefix + name text at offset 112
@@ -533,8 +533,22 @@ namespace FEBuilderGBA
             }
 
             uint textId = rom.u16(addr + 112);
-            string textName = FETextDecode.Direct(textId);
+            string textName = StripControlChars(FETextDecode.Direct(textId));
             return (mapCp + " " + textName).Trim();
+        }
+
+        /// <summary>
+        /// Removes control characters (U+0000–U+001F, excluding tab U+0009) from a
+        /// decoded ROM string. FE7/FE8 chapter names can embed U+001F (unit-separator)
+        /// as an internal formatting marker; this character renders as a tofu box in
+        /// Avalonia's event-condition chapter-name ComboBox on macOS (issue #1705).
+        /// </summary>
+        internal static string StripControlChars(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (char c in s) { if (c >= 0x20 || c == '\t') sb.Append(c); }
+            return sb.ToString();
         }
     }
 }

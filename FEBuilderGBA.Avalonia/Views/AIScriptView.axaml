@@ -63,7 +63,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6">
             <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
             <NumericUpDown AutomationProperties.AutomationId="AIScript_Address_Input"
-                           Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                           Name="AddressBox" Width="160" Minimum="0" Maximum="4294967295"
                            FormatString="0" VerticalAlignment="Center" />
             <TextBlock Text="Read Byte Count" VerticalAlignment="Center" Width="120" />
             <NumericUpDown AutomationProperties.AutomationId="AIScript_ReadByteCount_Input"

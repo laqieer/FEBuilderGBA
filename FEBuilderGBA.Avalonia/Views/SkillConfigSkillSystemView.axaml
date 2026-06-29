@@ -108,7 +108,7 @@
         </Grid>
 
         <!-- Text Detail row: text id + read-only resolved text TextBox (multiline) -->
-        <Grid ColumnDefinitions="120,80,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigSkillSystem_TextDetail_Label"
                  Content="Description:" VerticalAlignment="Center" />
