@@ -156,7 +156,7 @@
               <Button AutomationProperties.AutomationId="EventUnit_RemoveCoord_Button" Content="Remove Coord" Name="RemoveCoordBtn" Click="RemoveCoord_Click" IsEnabled="False" />
             </StackPanel>
             <TextBlock Text="Row 0 is the start position (X/Y/Ext persist to W4). Rows 1+ are the move-path steps." Foreground="Gray" TextWrapping="Wrap" />
-            <Grid ColumnDefinitions="40,70,70,70,80,90,70,70,80">
+            <Grid ColumnDefinitions="44,130,130,130,130,130,130,130,140">
               <TextBlock Grid.Column="0" Text="#" FontWeight="Bold" />
               <TextBlock Grid.Column="1" Text="X" FontWeight="Bold" />
               <TextBlock Grid.Column="2" Text="Y" FontWeight="Bold" />
@@ -171,16 +171,16 @@
                      SelectionChanged="AfterCoordsList_SelectionChanged" MaxHeight="280">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Grid ColumnDefinitions="40,70,70,70,80,90,70,70,80">
+                  <Grid ColumnDefinitions="44,130,130,130,130,130,130,130,140">
                     <TextBlock Grid.Column="0" Text="{Binding StartRowMarker}" VerticalAlignment="Center" />
-                    <NumericUpDown Grid.Column="1" FormatString="0" Minimum="0" Maximum="63" Width="64" Value="{Binding X}" />
-                    <NumericUpDown Grid.Column="2" FormatString="0" Minimum="0" Maximum="63" Width="64" Value="{Binding Y}" />
-                    <NumericUpDown Grid.Column="3" FormatString="0" Minimum="0" Maximum="7" Width="64" Value="{Binding Ext}" />
-                    <NumericUpDown Grid.Column="4" FormatString="0" Minimum="0" Maximum="255" Width="74" Value="{Binding Speed}" IsEnabled="{Binding IsAfterRow}" />
-                    <NumericUpDown Grid.Column="5" FormatString="0" Minimum="0" Maximum="255" Width="84" Value="{Binding UnitId}" IsEnabled="{Binding IsAfterRow}" />
-                    <NumericUpDown Grid.Column="6" FormatString="0" Minimum="0" Maximum="255" Width="64" Value="{Binding Unk1}" IsEnabled="{Binding IsAfterRow}" />
-                    <NumericUpDown Grid.Column="7" FormatString="0" Minimum="0" Maximum="255" Width="64" Value="{Binding Unk2}" IsEnabled="{Binding IsAfterRow}" />
-                    <NumericUpDown Grid.Column="8" FormatString="0" Minimum="0" Maximum="65535" Width="74" Value="{Binding Wait}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="1" FormatString="0" Minimum="0" Maximum="63" Width="120" Value="{Binding X}" />
+                    <NumericUpDown Grid.Column="2" FormatString="0" Minimum="0" Maximum="63" Width="120" Value="{Binding Y}" />
+                    <NumericUpDown Grid.Column="3" FormatString="0" Minimum="0" Maximum="7" Width="120" Value="{Binding Ext}" />
+                    <NumericUpDown Grid.Column="4" FormatString="0" Minimum="0" Maximum="255" Width="120" Value="{Binding Speed}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="5" FormatString="0" Minimum="0" Maximum="255" Width="120" Value="{Binding UnitId}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="6" FormatString="0" Minimum="0" Maximum="255" Width="120" Value="{Binding Unk1}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="7" FormatString="0" Minimum="0" Maximum="255" Width="120" Value="{Binding Unk2}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="8" FormatString="0" Minimum="0" Maximum="65535" Width="130" Value="{Binding Wait}" IsEnabled="{Binding IsAfterRow}" />
                   </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
