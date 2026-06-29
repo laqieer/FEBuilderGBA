@@ -58,6 +58,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 .FirstOrDefault(e => (string?)e.Attribute("Name") == "SourceUnitNameLabel");
             Assert.NotNull(nameLabel);
             Assert.Equal("CharacterEllipsis", (string?)nameLabel!.Attribute("TextTrimming"));
+            // #650: a trimmed preview must self-bind a tooltip so the full
+            // (possibly truncated) text is recoverable on hover.
+            AssertSelfBindingToolTip(nameLabel, "SourceUnitNameLabel");
 
             // Its grid's name column must be wider than the old cramped 150.
             var grid = nameLabel.Ancestors(Av + "Grid").First();
@@ -88,13 +91,15 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal("Left", (string?)nud.Attribute("HorizontalAlignment"));
             }
 
-            // Every partner-name label must trim with an ellipsis.
+            // Every partner-name label must trim with an ellipsis AND self-bind
+            // a tooltip (#650) so the truncated unit name is visible on hover.
             for (int i = 1; i <= 7; i++)
             {
                 var lbl = doc.Descendants(Av + "TextBlock")
                     .FirstOrDefault(e => (string?)e.Attribute("Name") == $"Partner{i}NameLabel");
                 Assert.NotNull(lbl);
                 Assert.Equal("CharacterEllipsis", (string?)lbl!.Attribute("TextTrimming"));
+                AssertSelfBindingToolTip(lbl, $"Partner{i}NameLabel");
             }
 
             // The partner grid's name column is now a star column (consumes
@@ -175,9 +180,37 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        [Fact]
+        public void MoveCostEditor_TerrainLabelTooltip_SetInCodeBehind()
+        {
+            // The terrain labels are built in code-behind and trimmed with an
+            // ellipsis, so #650 coverage is provided by mirroring the full text
+            // into a tooltip whenever the label text is (re)assigned.
+            string path = Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia", "Views",
+                "MoveCostEditorView.axaml.cs");
+            string src = File.ReadAllText(path);
+            Assert.Contains("ToolTip.SetTip(_labelFields[i], _labelFields[i].Text)", src);
+        }
+
         // -----------------------------------------------------------------
         // helpers
         // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Assert a TextBlock element declares the #650 element-name self-binding
+        /// tooltip — ToolTip.Tip="{Binding #&lt;name&gt;.Text}" — matching its own Name.
+        /// In unprefixed AXAML the attached-property attribute has the literal
+        /// local name "ToolTip.Tip" (the dot is part of the name, no namespace).
+        /// </summary>
+        static void AssertSelfBindingToolTip(XElement textBlock, string expectedName)
+        {
+            var tip = textBlock.Attributes()
+                .FirstOrDefault(a => a.Name.LocalName == "ToolTip.Tip" ||
+                                     a.Name.LocalName == "Tip");
+            Assert.True(tip != null,
+                $"{expectedName}: trimmed TextBlock must declare a ToolTip.Tip self-binding (#650)");
+            Assert.Equal($"{{Binding #{expectedName}.Text}}", tip!.Value);
+        }
 
         /// <summary>
         /// Parse the integer width of the Nth column from a Grid's

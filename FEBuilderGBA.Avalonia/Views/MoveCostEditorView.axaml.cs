@@ -220,13 +220,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 MoveCostAddrLabel.Text = $"Table: 0x{_vm.MoveCostAddr:X08}";
                 CostTypeLabel.Text = $"{_vm.SelectedCostType} (65 terrains: 0x00 - 0x40):";
 
-                // Update terrain labels with names
+                // Update terrain labels with names. The labels are trimmed with
+                // an ellipsis (#1685), so mirror the full text into a tooltip so
+                // a truncated terrain name is still recoverable on hover (#650).
                 for (int i = 0; i < MoveCostEditorViewModel.TerrainCount; i++)
                 {
                     if (_vm.TerrainNames != null && i < _vm.TerrainNames.Length)
                         _labelFields[i].Text = _vm.TerrainNames[i];
                     else
                         _labelFields[i].Text = $"0x{i:X2}";
+                    ToolTip.SetTip(_labelFields[i], _labelFields[i].Text);
                 }
 
                 // Update all 65 NumericUpDown values from the ViewModel
