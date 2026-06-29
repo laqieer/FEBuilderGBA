@@ -48,23 +48,32 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (index >= MoveCostEditorViewModel.TerrainCount)
                         break;
 
-                    var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 4, Margin = new Thickness(0, 1) };
+                    var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 1) };
 
+                    // #1685: terrain names can be long. Keep the fixed 140-wide
+                    // label column (so the rows stay aligned) but trim with an
+                    // ellipsis inside that width so a long name is truncated
+                    // cleanly instead of overflowing into the neighbouring cell.
                     var label = new TextBlock
                     {
                         Text = $"0x{index:X2}",
                         Width = 140,
+                        TextTrimming = global::Avalonia.Media.TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 4, 0),
                         FontSize = 11,
                     };
                     _labelFields[index] = label;
 
+                    // #1685: pin an explicit width + left alignment so the spinner buttons
+                    // stay inside the field and never overlap the adjacent column.
                     var nud = new NumericUpDown
                     {
                         Minimum = 0,
                         Maximum = 255,
                         Value = 0,
-                        MinWidth = 120,
+                        Width = 110,
+                        HorizontalAlignment = HorizontalAlignment.Left,
                         FontSize = 11,
                         Tag = index,
                     };
@@ -212,13 +221,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 MoveCostAddrLabel.Text = $"Table: 0x{_vm.MoveCostAddr:X08}";
                 CostTypeLabel.Text = $"{_vm.SelectedCostType} (65 terrains: 0x00 - 0x40):";
 
-                // Update terrain labels with names
+                // Update terrain labels with names. The labels are trimmed with
+                // an ellipsis (#1685), so mirror the full text into a tooltip so
+                // a truncated terrain name is still recoverable on hover (#650).
                 for (int i = 0; i < MoveCostEditorViewModel.TerrainCount; i++)
                 {
                     if (_vm.TerrainNames != null && i < _vm.TerrainNames.Length)
                         _labelFields[i].Text = _vm.TerrainNames[i];
                     else
                         _labelFields[i].Text = $"0x{i:X2}";
+                    ToolTip.SetTip(_labelFields[i], _labelFields[i].Text);
                 }
 
                 // Update all 65 NumericUpDown values from the ViewModel
