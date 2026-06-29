@@ -377,6 +377,12 @@ namespace FEBuilderGBA.Avalonia
                 global::Avalonia.Controls.Window window = viewName switch
                 {
                     "LogViewerView" => new Views.LogViewerView(),
+                    // #1700 PR proof: render the two cosmetic-fix editors with the
+                    // real desktop Skia rasterizer (the empty editor already lays
+                    // out the geometry under test — AIScript's MinWidth address
+                    // link and the palette index columns + swatches; no ROM needed).
+                    "AIScriptView" => new Views.AIScriptView(),
+                    "ImagePalletView" => new Views.ImagePalletView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 

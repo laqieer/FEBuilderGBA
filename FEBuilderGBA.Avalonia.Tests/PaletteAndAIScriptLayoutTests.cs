@@ -28,26 +28,25 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// </summary>
     public class PaletteAndAIScriptLayoutTests
     {
-        private static string FindProjectRoot()
+        // Walk parents of a starting directory looking for the solution file.
+        // Copilot review (#1700): replaces the earlier fixed-depth(12) double
+        // loop with an unbounded DirectoryInfo parent-walk, keeping the same
+        // BaseDirectory -> CWD fallback order.
+        private static string? WalkForSln(string? start)
         {
-            string dir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 12; i++)
+            for (DirectoryInfo? d = start == null ? null : new DirectoryInfo(start);
+                 d != null; d = d.Parent)
             {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
-                string? parent = Path.GetDirectoryName(dir);
-                if (parent == null || parent == dir) break;
-                dir = parent;
+                if (File.Exists(Path.Combine(d.FullName, "FEBuilderGBA.sln")))
+                    return d.FullName;
             }
-            string cwd = Directory.GetCurrentDirectory();
-            for (int i = 0; i < 12; i++)
-            {
-                if (File.Exists(Path.Combine(cwd, "FEBuilderGBA.sln"))) return cwd;
-                string? parent = Path.GetDirectoryName(cwd);
-                if (parent == null || parent == cwd) break;
-                cwd = parent;
-            }
-            throw new InvalidOperationException("Could not find project root (FEBuilderGBA.sln)");
+            return null;
         }
+
+        private static string FindProjectRoot()
+            => WalkForSln(AppDomain.CurrentDomain.BaseDirectory)
+               ?? WalkForSln(Directory.GetCurrentDirectory())
+               ?? throw new InvalidOperationException("Could not find project root (FEBuilderGBA.sln)");
 
         private static string ViewsDir()
             => Path.Combine(FindProjectRoot(), "FEBuilderGBA.Avalonia", "Views");
