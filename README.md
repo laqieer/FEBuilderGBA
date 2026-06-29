@@ -560,7 +560,7 @@ In some cases, you may earn some pocket money through affiliates. :)
 However, please do it at your own risk. :(
 
 If you have something you do not understand through hacking or the editor, please read "Manual" in "Help".
-If you find a bug that you can not solve by any means, use **Help → Report a Bug…** (Avalonia GUI), or the **Report a Bug on GitHub** button in the Problem Report Tool (WinForms GUI), to open a pre-filled GitHub issue form with a screenshot. Alternatively, please create a report.7z from **File → Problem Report Tool** and consult with the community.
+If you find a bug that you cannot solve by any means, use **Help → Report a Bug…** (Avalonia GUI), or the **Report a Bug on GitHub** button in the Problem Report Tool (WinForms GUI), to open a pre-filled GitHub issue form with a screenshot. Alternatively, please create a report.7z from **File → Problem Report Tool** and consult with the community.
 https://discordapp.com/invite/Yzztqqa
 Do NOT send your ROM (.gba) directly.
 

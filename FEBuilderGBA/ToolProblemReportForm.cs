@@ -598,13 +598,9 @@ namespace FEBuilderGBA
                 var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
                 string clipNote = screenshotCopied
-                    ? "A screenshot of an editor window is on the clipboard — paste it (Ctrl+V) into the issue's Screenshot box."
-                    : "Couldn't capture a screenshot automatically — please attach one manually.";
-                MessageBox.Show(
-                    "Opened a pre-filled bug report in your browser.\n\n" + clipNote + "\n\nNever attach your ROM (.gba).",
-                    "Report a Bug",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                    ? R._("A screenshot of an editor window is on the clipboard — paste it (Ctrl+V) into the issue's Screenshot box.")
+                    : R._("Couldn't capture a screenshot automatically — please attach one manually.");
+                R.ShowOK(R._("Opened a pre-filled bug report in your browser.") + "\n\n" + clipNote + "\n\n" + R._("Never attach your ROM (.gba)."));
             }
             catch (Exception ex) { Log.Error(ex.ToString()); }
         }
