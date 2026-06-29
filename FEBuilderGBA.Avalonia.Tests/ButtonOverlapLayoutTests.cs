@@ -153,5 +153,24 @@ namespace FEBuilderGBA.Avalonia.Tests
             var btn = v.FindControl<Button>("WriteButton");
             Assert.NotNull(btn);
         }
+
+        // ===================================================================
+        // EventScriptView: fixed-window + stable-combobox fixes (#1714, #1716)
+        // ===================================================================
+
+        [AvaloniaFact]
+        public void EventScriptView_CanInstantiate()
+        {
+            var v = new EventScriptView();
+            Assert.NotNull(v.Content);
+        }
+
+        [AvaloniaFact]
+        public void EventScriptView_CatalogCombo_Resolved()
+        {
+            var v = new EventScriptView();
+            var combo = v.FindControl<ComboBox>("CatalogCombo");
+            Assert.NotNull(combo);
+        }
     }
 }
