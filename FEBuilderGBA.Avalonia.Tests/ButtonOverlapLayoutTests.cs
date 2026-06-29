@@ -182,6 +182,17 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void ProcsScriptView_WindowIsFixedSize_NotSizeToContent()
+        {
+            // ProcsScriptView shares the EventScriptView layout/engine — the #1714
+            // fixed-size fix must hold on the sibling view too.
+            var v = new ProcsScriptView();
+            Assert.Equal(global::Avalonia.Controls.SizeToContent.Manual, v.SizeToContent);
+            Assert.True(v.MinWidth >= 1180);
+            Assert.True(v.MinHeight >= 780);
+        }
+
+        [AvaloniaFact]
         public void EventScriptView_CatalogCombo_HasFixedWidthDropdownStyle()
         {
             var v = new EventScriptView();
