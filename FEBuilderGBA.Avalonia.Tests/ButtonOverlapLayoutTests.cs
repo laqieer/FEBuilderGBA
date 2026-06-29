@@ -1,3 +1,4 @@
+using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Views;
@@ -186,11 +187,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var v = new EventScriptView();
             var combo = v.FindControl<ComboBox>("CatalogCombo");
             Assert.NotNull(combo);
-            // #1716: a ComboBoxItem style pins the dropdown item width so the
-            // popup does not snap between sizes while scrolling. Assert the
-            // style + its width setters survived.
-            var style = Assert.Single(combo!.Styles);
-            Assert.NotNull(combo.ItemTemplate);
+            AssertFixedWidthDropdown(combo!);
         }
 
         [AvaloniaFact]
@@ -201,8 +198,30 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(combo);
             // ProcsScriptView shares the same catalog engine — the #1716 fix
             // must be applied here too.
-            var style = Assert.Single(combo!.Styles);
+            AssertFixedWidthDropdown(combo!);
+        }
+
+        // #1716: the CatalogCombo dropdown must pin every item to a FIXED width so
+        // the popup doesn't snap between sizes while scrolling. Verify a ComboBoxItem
+        // style actually sets MinWidth == MaxWidth == 900, plus an ellipsis ItemTemplate.
+        // (Asserts the setters' VALUES, not just style count — adding another local
+        // style must not break this, and the width contract is checked.)
+        static void AssertFixedWidthDropdown(ComboBox combo)
+        {
             Assert.NotNull(combo.ItemTemplate);
+            var setters = combo.Styles
+                .OfType<global::Avalonia.Styling.Style>()
+                .SelectMany(s => s.Setters)
+                .OfType<global::Avalonia.Styling.Setter>()
+                .ToList();
+            var minSetters = setters.Where(s => s.Property == global::Avalonia.Layout.Layoutable.MinWidthProperty).ToList();
+            var maxSetters = setters.Where(s => s.Property == global::Avalonia.Layout.Layoutable.MaxWidthProperty).ToList();
+            // At least one of each, and EVERY Min/Max width setter pins 900 — so a
+            // later style can't silently override the dropdown width to a different value.
+            Assert.NotEmpty(minSetters);
+            Assert.NotEmpty(maxSetters);
+            Assert.All(minSetters, s => Assert.Equal(900d, s.Value));
+            Assert.All(maxSetters, s => Assert.Equal(900d, s.Value));
         }
     }
 }
