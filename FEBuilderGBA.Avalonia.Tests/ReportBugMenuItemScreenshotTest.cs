@@ -138,7 +138,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 float rowH = 30;
                 float panelH = rows.Count * rowH + 12;
                 c.DrawRect(panelX, panelTop, panelW, panelH, menuP);
-                c.DrawRect(panelX, panelTop, panelW, panelH, new SKPaint { Color = sep, IsStroke = true, StrokeWidth = 1, IsAntialias = true });
+                using var panelBorderP = new SKPaint { Color = sep, IsStroke = true, StrokeWidth = 1, IsAntialias = true };
+                c.DrawRect(panelX, panelTop, panelW, panelH, panelBorderP);
 
                 float ry = panelTop + 6;
                 foreach (var (text, isNew, isSeparator) in rows)

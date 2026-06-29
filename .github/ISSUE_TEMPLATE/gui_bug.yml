@@ -79,7 +79,7 @@ body:
     id: report7z
     attributes:
       label: report.7z (optional)
-      description: "File → Create Report Issue makes it (version + CRC32, NO ROM). Drag it here."
+      description: "File → Problem Report Tool makes it (version + CRC32, NO ROM). Drag it here."
     validations:
       required: false
   - type: checkboxes

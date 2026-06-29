@@ -20,7 +20,7 @@ Select the appropriate template and fill in all fields.
 - **ROM version** — shown in the bottom status bar (e.g., FE8U)
 - **Platform** — Windows/Linux/macOS/Android and architecture
 - **Screenshot** — drag-and-drop, do not link external services
-- **report.7z** (optional) — use File → Create Report Issue; contains version + CRC32, **no ROM data**
+- **report.7z** (optional) — use File → Problem Report Tool; contains version + CRC32, **no ROM data**
 
 ## What NOT to include
 

@@ -4,7 +4,7 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: "**Never attach your ROM (.gba).** Use Help → Create Report Issue to make a report.7z (version + CRC32, no ROM)."
+      value: "**Never attach your ROM (.gba).** If you have the GUI, use File → Problem Report Tool to make a report.7z (version + CRC32, no ROM)."
   - type: dropdown
     id: platform
     attributes:
