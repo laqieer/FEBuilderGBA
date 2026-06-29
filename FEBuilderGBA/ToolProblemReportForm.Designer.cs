@@ -35,6 +35,7 @@
             this.AboutReport7zText = new FEBuilderGBA.TextBoxEx();
             this.label8 = new FEBuilderGBA.LabelEx();
             this.label7 = new FEBuilderGBA.LabelEx();
+            this.ReportBugOnGitHubButton = new System.Windows.Forms.Button();
             this.StartButton = new System.Windows.Forms.Button();
             this.Step1Page = new System.Windows.Forms.TabPage();
             this.X_UnitIcon = new FEBuilderGBA.InterpolatedPictureBox();
@@ -105,6 +106,7 @@
             this.BeginPage.Controls.Add(this.AboutReport7zText);
             this.BeginPage.Controls.Add(this.label8);
             this.BeginPage.Controls.Add(this.label7);
+            this.BeginPage.Controls.Add(this.ReportBugOnGitHubButton);
             this.BeginPage.Controls.Add(this.StartButton);
             this.BeginPage.Location = new System.Drawing.Point(4, 28);
             this.BeginPage.Name = "BeginPage";
@@ -152,9 +154,19 @@
             this.label7.TabIndex = 9;
             this.label7.Text = "このツールは、あなたのROMに存在する問題のレポートを作成するツールです。\r\nどうしても解決できない問題がある場合は、このツールでレポートを作成して、コミニティに" +
     "質問してみてください。\r\n\r\nこのツールを利用することで、問題を再現させ、問題を解決させるためのデータを簡単に作ることができます。";
-            // 
+            //
+            // ReportBugOnGitHubButton
+            //
+            this.ReportBugOnGitHubButton.Location = new System.Drawing.Point(12, 480);
+            this.ReportBugOnGitHubButton.Name = "ReportBugOnGitHubButton";
+            this.ReportBugOnGitHubButton.Size = new System.Drawing.Size(300, 36);
+            this.ReportBugOnGitHubButton.TabIndex = 26;
+            this.ReportBugOnGitHubButton.Text = "GitHubでバグを報告";
+            this.ReportBugOnGitHubButton.UseVisualStyleBackColor = true;
+            this.ReportBugOnGitHubButton.Click += new System.EventHandler(this.ReportBugOnGitHubButton_Click);
+            //
             // StartButton
-            // 
+            //
             this.StartButton.Location = new System.Drawing.Point(603, 538);
             this.StartButton.Name = "StartButton";
             this.StartButton.Size = new System.Drawing.Size(172, 36);
@@ -564,5 +576,6 @@
         private TextBoxEx X_UnitName;
         private System.Windows.Forms.NumericUpDown X_UnitID;
         private InterpolatedPictureBox X_UnitIcon;
+        private System.Windows.Forms.Button ReportBugOnGitHubButton;
     }
 }

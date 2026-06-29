@@ -14233,6 +14233,9 @@ Avalonia 跨平台预览
 :_GitHub Discussions
 GitHub讨论(_G)
 
+:_Report a Bug…
+报告错误(_R)...
+
 :_About
 关于(_A)
 
@@ -27954,3 +27957,23 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 :Released build (no git repo)? Run: 
 发布版（无 git 仓库）？请运行: 
 
+:GitHubでバグを報告
+在GitHub上报告错误
+
+:Report a Bug
+报告错误
+
+:Opened a pre-filled bug report in your browser.
+已在浏览器中打开预填的错误报告。
+
+:Never attach your ROM (.gba).
+切勿附加您的ROM(.gba)。
+
+:Couldn't capture a screenshot automatically — please attach one manually in the issue's Screenshot box.
+无法自动截图——请在问题的截图框中手动附加一张。
+
+:A screenshot of this window was saved — drag it into the issue's Screenshot box:
+本窗口的截图已保存——请将其拖入问题的截图框:
+
+:Couldn't open your browser automatically. Please file the bug at this URL:
+无法自动打开浏览器。请通过以下网址报告错误:

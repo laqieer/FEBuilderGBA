@@ -557,5 +557,52 @@ namespace FEBuilderGBA
         {
             MainFormUtil.GotoReport7zURL();
         }
+
+        private void ReportBugOnGitHubButton_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Pick the window the user came from: the form that opened this dialog
+                // (Owner) is the most meaningful target. Fall back to the first visible
+                // non-report form only if there is no usable owner. (OpenForms is in
+                // creation order, so it is not a reliable "active window" signal.)
+                Form? targetForm = (this.Owner is Form owner && owner.Visible && !(owner is ToolProblemReportForm))
+                    ? owner : null;
+                if (targetForm == null)
+                {
+                    foreach (Form f in Application.OpenForms)
+                    {
+                        if (f != this && f.Visible && !(f is ToolProblemReportForm)) { targetForm = f; break; }
+                    }
+                }
+
+                // Capture that window to the clipboard
+                bool screenshotCopied = false;
+                try
+                {
+                    if (targetForm != null && targetForm.Width > 0 && targetForm.Height > 0)
+                    {
+                        using var screenshot = new System.Drawing.Bitmap(targetForm.Width, targetForm.Height);
+                        targetForm.DrawToBitmap(screenshot, new System.Drawing.Rectangle(0, 0, targetForm.Width, targetForm.Height));
+                        Clipboard.SetImage(screenshot);
+                        screenshotCopied = true;
+                    }
+                }
+                catch (Exception ex) { Log.Error(ex.ToString()); }
+
+                string? appVersion = U.getVersion();
+                string? romTag = null;
+                try { romTag = Program.ROM?.RomInfo?.VersionToFilename; } catch { }
+                string editorTitle = targetForm?.Text ?? "FEBuilderGBA";
+                var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, "WinForms GUI (Windows)");
+                var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                string clipNote = screenshotCopied
+                    ? R._("A screenshot of an editor window is on the clipboard — paste it (Ctrl+V) into the issue's Screenshot box.")
+                    : R._("Couldn't capture a screenshot automatically — please attach one manually.");
+                R.ShowOK(R._("Opened a pre-filled bug report in your browser.") + "\n\n" + clipNote + "\n\n" + R._("Never attach your ROM (.gba)."));
+            }
+            catch (Exception ex) { Log.Error(ex.ToString()); }
+        }
     }
 }

@@ -1,0 +1,66 @@
+name: "Bug (CLI / Core / other)"
+description: "A bug in CLI, Core library, or other non-GUI component."
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "**Never attach your ROM (.gba).** If you have the GUI, use File → Problem Report Tool to make a report.7z (version + CRC32, no ROM)."
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - "Windows x64"
+        - "Windows x86 (WinForms)"
+        - "Linux x64"
+        - "macOS Apple Silicon (arm64)"
+        - "macOS Intel (x64)"
+        - "Android"
+        - "Other"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: "Run `--version` or see Help → About."
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: "CLI command / args, or area affected, e.g. `--export-battle-anime`, Core text encoder."
+    validations:
+      required: false
+  - type: dropdown
+    id: rom
+    attributes:
+      label: ROM version
+      options:
+        - "FE6 (JP)"
+        - "FE7 (JP)"
+        - "FE7 (US)"
+        - "FE8 (JP)"
+        - "FE8 (US)"
+        - "Other / not sure"
+    validations:
+      required: false
+  - type: textarea
+    id: whatswrong
+    attributes:
+      label: What's wrong? (expected vs actual)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console / log output
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: false

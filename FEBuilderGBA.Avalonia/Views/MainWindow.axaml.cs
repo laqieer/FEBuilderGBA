@@ -258,6 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Help sub-items
             if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");
             if (DiscussionsMenuItem != null) DiscussionsMenuItem.Header = R._("_GitHub Discussions");
+            if (ReportBugMenuItem != null) ReportBugMenuItem.Header = R._("_Report a Bug…");
             if (AboutMenuItem != null) AboutMenuItem.Header = R._("_About");
         }
 
@@ -3625,6 +3626,101 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
             catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
+        }
+
+        private async void ReportBug_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 1. Capture screenshot of this window to temp PNG
+                string pngPath = Path.Combine(Path.GetTempPath(), $"febuilder-bugshot-{DateTime.Now:yyyyMMdd-HHmmss-fff}-{Guid.NewGuid():N}.png");
+                bool screenshotSaved = false;
+                try
+                {
+                    var win = TopLevel.GetTopLevel(this);
+                    if (win != null)
+                    {
+                        var bounds = win.Bounds;
+                        // Guard against non-finite/zero bounds (would yield an invalid 0x0 bitmap).
+                        int w = Math.Max((int)(double.IsFinite(bounds.Width) ? bounds.Width : 0), 1);
+                        int h = Math.Max((int)(double.IsFinite(bounds.Height) ? bounds.Height : 0), 1);
+                        if (w > 1 && h > 1)
+                        {
+                            using var rtb = new RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
+                            rtb.Render(win);
+                            rtb.Save(pngPath);
+                            // In headless/locked environments Save can be a no-op; only treat it as
+                            // saved if a non-empty file actually landed on disk.
+                            screenshotSaved = File.Exists(pngPath) && new System.IO.FileInfo(pngPath).Length > 0;
+                        }
+                    }
+                }
+                catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click screenshot: {0}", ex.Message); }
+
+                // 2. Build prefill fields
+                string? appVersion = U.getVersion();
+                string? romTag = CoreState.ROM?.RomInfo?.VersionToFilename;
+                string? editorTitle = this.Title ?? "Main Window";
+                string appLabel = "Avalonia GUI (cross-platform)";
+                var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, appLabel);
+                var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
+
+                // 3. Reveal screenshot in file browser (desktop only, and only if we saved one)
+                if (screenshotSaved && !OperatingSystem.IsAndroid())
+                {
+                    try
+                    {
+                        if (OperatingSystem.IsWindows())
+                        {
+                            // Match the codebase-wide explorer-select convention (LogViewerView): a single
+                            // quoted "/select,\"<path>\"" argument string, which Explorer parses reliably.
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{pngPath}\"") { UseShellExecute = true });
+                        }
+                        else if (OperatingSystem.IsMacOS())
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("open") { UseShellExecute = false, ArgumentList = { "-R", pngPath } });
+                        }
+                        else
+                        {
+                            var dir = Path.GetDirectoryName(pngPath);
+                            if (!string.IsNullOrEmpty(dir))
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open") { UseShellExecute = false, ArgumentList = { dir } });
+                        }
+                    }
+                    catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click reveal: {0}", ex.Message); }
+
+                    // 4. Copy screenshot path to clipboard
+                    try
+                    {
+                        await (TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(pngPath) ?? System.Threading.Tasks.Task.CompletedTask);
+                    }
+                    catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click clipboard: {0}", ex.Message); }
+                }
+
+                // 5. Open pre-filled issue URL in browser
+                bool browserOpened = false;
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                    browserOpened = true;
+                }
+                catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click open browser: {0}", ex.Message); }
+
+                // 6. Show info dialog (wording reflects what actually happened — every step is best-effort)
+                string head = browserOpened
+                    ? R._("Opened a pre-filled bug report in your browser.")
+                    : R._("Couldn't open your browser automatically. Please file the bug at this URL:") + "\n" + url;
+                string shotNote = screenshotSaved
+                    ? R._("A screenshot of this window was saved — drag it into the issue's Screenshot box:") + "\n" + pngPath
+                    : R._("Couldn't capture a screenshot automatically — please attach one manually in the issue's Screenshot box.");
+                await MessageBoxWindow.Show(this,
+                    head + "\n\n" + shotNote + "\n\n" + R._("Never attach your ROM (.gba)."),
+                    R._("Report a Bug"), MessageBoxMode.Ok);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.ReportBug_Click: {0}", ex.Message);
+            }
         }
 
         private async void RunEmulator_Click(object? sender, RoutedEventArgs e)
