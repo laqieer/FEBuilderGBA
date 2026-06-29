@@ -29,6 +29,13 @@ on:
 permissions:
   issues: write
 
+# Serialize runs per issue so that rapid edits don't race and leave
+# mutually-exclusive labels (e.g. os:linux + os:macos). Only the most
+# recent run for a given issue executes; in-flight older runs are cancelled.
+concurrency:
+  group: issue-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   triage:
     name: Auto-label bug issues
