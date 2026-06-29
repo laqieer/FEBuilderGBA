@@ -67,7 +67,7 @@
         </Border>
 
         <!-- Icon row: label + image + image import/export buttons -->
-        <Grid ColumnDefinitions="100,80,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Icon_Label"
                  Content="Icon" VerticalAlignment="Center" />
@@ -76,25 +76,23 @@
             <Image AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Icon_Image"
                    Name="IconImage" Width="40" Height="40" Stretch="Uniform" />
           </Border>
-          <Button Grid.Column="2"
-                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageImport_Button"
-                  Name="ImageImportButton" Content="Image Import" Margin="8,0,0,0"
-                  Click="ImageImport_Click"
-                  ToolTip.Tip="Import a 16x16 skill icon (128 raw 4bpp bytes, in-place, undoable)." />
-          <Button Grid.Column="3"
-                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageExport_Button"
-                  Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
-                  Click="ImageExport_Click"
-                  ToolTip.Tip="Export the 16x16 skill icon as a PNG." />
-          <Button Grid.Column="4"
-                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_FERepo_Button"
-                  Name="FERepoButton" Content="FE-Repo" Margin="8,0,0,0"
-                  Click="FERepo_Click"
-                  ToolTip.Tip="Import a 16x16 skill icon from the FE-Repo Skill Icons folder." />
-          <Label Grid.Column="5"
-                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_IconAddr_Label"
-                 Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
-                 FontFamily="Consolas" />
+          <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageImport_Button"
+                    Name="ImageImportButton" Content="Image Import" Margin="0,0,8,4"
+                    Click="ImageImport_Click"
+                    ToolTip.Tip="Import a 16x16 skill icon (128 raw 4bpp bytes, in-place, undoable)." />
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageExport_Button"
+                    Name="ImageExportButton" Content="Image Export" Margin="0,0,8,4"
+                    Click="ImageExport_Click"
+                    ToolTip.Tip="Export the 16x16 skill icon as a PNG." />
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_FERepo_Button"
+                    Name="FERepoButton" Content="FE-Repo" Margin="0,0,8,4"
+                    Click="FERepo_Click"
+                    ToolTip.Tip="Import a 16x16 skill icon from the FE-Repo Skill Icons folder." />
+            <Label AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_IconAddr_Label"
+                   Name="IconAddrLabel" VerticalAlignment="Center" Margin="0,0,8,4"
+                   FontFamily="Consolas" />
+          </WrapPanel>
         </Grid>
 
         <!-- Skill Name row: text id + resolved name TextBox -->
@@ -127,7 +125,7 @@
         </Grid>
 
         <!-- Animation row: label + animation pointer + animation import/export buttons -->
-        <Grid ColumnDefinitions="100,120,Auto,Auto" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="Auto,Auto,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Animation_Label"
                  Content="Animation" VerticalAlignment="Center" />
@@ -141,16 +139,16 @@
                          AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationPointer_Input"
                          FormatString="0" Name="AnimationPointerBox"
                          Minimum="0" Maximum="4294967295" />
-          <Button Grid.Column="2"
-                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationImport_Button"
-                  Name="AnimationImportButton" Content="Animation Import" Margin="8,0,0,0"
-                  Click="AnimationImport_Click"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
-          <Button Grid.Column="3"
-                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationExport_Button"
-                  Name="AnimationExportButton" Content="Animation Export" Margin="8,0,0,0"
-                  Click="AnimationExport_Click"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationImport_Button"
+                    Name="AnimationImportButton" Content="Animation Import" Margin="0,0,8,4"
+                    Click="AnimationImport_Click"
+                    ToolTip.Tip="Pending Core extraction - tracked by #500." />
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationExport_Button"
+                    Name="AnimationExportButton" Content="Animation Export" Margin="0,0,8,4"
+                    Click="AnimationExport_Click"
+                    ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          </WrapPanel>
         </Grid>
 
         <!-- Animation preview panel - visible only when D0 resolves safely -->

@@ -97,7 +97,7 @@
 
         <!-- Level-up Skill address bar -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-          <Grid ColumnDefinitions="280,160,80,80,Auto" RowDefinitions="Auto">
+          <Grid ColumnDefinitions="Auto,160,Auto,80,Auto" RowDefinitions="Auto">
             <Label Grid.Column="0"
                    AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_XLevelUpHeader_Label"
                    Name="XLevelUpHeaderLabel"
@@ -147,24 +147,24 @@
           <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="6">
 
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <StackPanel Orientation="Horizontal" Spacing="6">
-                <Label Content="Address" VerticalAlignment="Center" />
+              <WrapPanel Orientation="Horizontal">
+                <Label Content="Address" VerticalAlignment="Center" Margin="0,0,6,4" />
                 <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Address_Input"
                                FormatString="0" Name="N1AddressBox" Width="120"
                                Minimum="0" Maximum="4294967295"
-                               IsEnabled="False" VerticalAlignment="Center" />
-                <Label Content="Size:" VerticalAlignment="Center" />
+                               IsEnabled="False" VerticalAlignment="Center" Margin="0,0,6,4" />
+                <Label Content="Size:" VerticalAlignment="Center" Margin="0,0,6,4" />
                 <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1BlockSize_Input"
                                FormatString="0" Name="N1BlockSizeBox" Width="50"
                                Minimum="0" Maximum="65535"
-                               IsEnabled="False" VerticalAlignment="Center" Value="2" />
-                <Label Content="Selected Address:" VerticalAlignment="Center" />
+                               IsEnabled="False" VerticalAlignment="Center" Value="2" Margin="0,0,6,4" />
+                <Label Content="Selected Address:" VerticalAlignment="Center" Margin="0,0,6,4" />
                 <Label AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SelectedAddress_Label"
                        Name="N1SelectedAddressLabel" Width="100" VerticalAlignment="Center"
-                       FontFamily="Consolas" />
+                       FontFamily="Consolas" Margin="0,0,6,4" />
                 <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Write_Button"
-                        Name="N1WriteButton" Content="Write" Click="N1WriteButton_Click" />
-              </StackPanel>
+                        Name="N1WriteButton" Content="Write" Click="N1WriteButton_Click" Margin="0,0,6,4" />
+              </WrapPanel>
             </Border>
 
             <Grid ColumnDefinitions="160,80,*" RowDefinitions="Auto">

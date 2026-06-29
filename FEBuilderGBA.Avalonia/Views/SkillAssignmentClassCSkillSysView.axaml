@@ -52,7 +52,7 @@
         <StackPanel Grid.Column="1" Spacing="8">
 
           <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,80,Auto,Auto" RowDefinitions="Auto,Auto">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ClassSkillLabel"
                          Grid.Row="0" Grid.Column="0" Text="Class Skill" VerticalAlignment="Center"
                          Margin="0,0,8,0" FontWeight="Bold" />
@@ -72,7 +72,7 @@
           </Border>
 
           <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
-            <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,Auto">
+            <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,*">
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_AddrLabel"
                          Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_Addr_Input"
@@ -89,7 +89,8 @@
                              Grid.Column="5" Name="SelectedAddressBox" IsReadOnly="True" FormatString="0"
                              Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
               <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_Write_Button"
-                      Grid.Column="6" Name="WriteButton" Content="Write" Click="OnWrite" MinWidth="100" />
+                      Grid.Column="6" Name="WriteButton" Content="Write" Click="OnWrite" MinWidth="100"
+                      HorizontalAlignment="Left" />
             </Grid>
           </Border>
 
@@ -168,7 +169,7 @@
                     </Grid>
                   </Border>
 
-                  <Grid ColumnDefinitions="Auto,80,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="Auto,80,Auto,*,Auto">
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillLabel"
                                Grid.Column="0" Text="Skill" VerticalAlignment="Center"
                                Margin="0,0,8,0" FontWeight="Bold" />
@@ -180,13 +181,13 @@
                            Width="32" Height="32" Margin="0,0,8,0" />
                     <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillName_Label"
                              Grid.Column="3" Name="N1SkillNameTextBox" IsReadOnly="True"
-                             Width="200" Margin="0,0,8,0" />
+                             Margin="0,0,8,0" />
                   </Grid>
                   <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillText_Label"
                            Name="N1SkillTextTextBox" IsReadOnly="True" AcceptsReturn="True"
                            Height="60" Margin="0,4,0,0" />
 
-                  <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,Auto">
+                  <Grid ColumnDefinitions="Auto,140,Auto,80,Auto,140,*">
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_AddrLabel"
                                Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_Addr_Input"
@@ -203,7 +204,8 @@
                                    Grid.Column="5" Name="N1SelectedAddressBox" IsReadOnly="True" FormatString="0"
                                    Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
                     <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_Write_Button"
-                            Grid.Column="6" Name="N1WriteButton" Content="Write" Click="OnN1Write" MinWidth="100" />
+                            Grid.Column="6" Name="N1WriteButton" Content="Write" Click="OnN1Write" MinWidth="100"
+                            HorizontalAlignment="Left" />
                   </Grid>
 
                   <Border AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ZeroPointerPanel"

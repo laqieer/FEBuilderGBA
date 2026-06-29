@@ -23,23 +23,23 @@
     <!-- Row 1: AddressPanel (mirrors WF AddressPanel: Address / Size /
          Selected Address / Write button). Stretches across columns 1+2. -->
     <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Address" VerticalAlignment="Center" />
+      <WrapPanel Orientation="Horizontal" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" Margin="0,0,6,4" />
         <NumericUpDown AutomationProperties.AutomationId="EventMapChange_Address_Input"
                        FormatString="0" Name="AddressBox" Width="110"
                        Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Size:" VerticalAlignment="Center" />
+                       IsEnabled="False" VerticalAlignment="Center" Margin="0,0,6,4" />
+        <Label Content="Size:" VerticalAlignment="Center" Margin="0,0,6,4" />
         <TextBox AutomationProperties.AutomationId="EventMapChange_BlockSize_Input"
                  Name="BlockSizeBox" Width="60"
-                 IsReadOnly="True" VerticalAlignment="Center" />
-        <Label Content="Selected Address:" VerticalAlignment="Center" />
+                 IsReadOnly="True" VerticalAlignment="Center" Margin="0,0,6,4" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" Margin="0,0,6,4" />
         <TextBox AutomationProperties.AutomationId="EventMapChange_SelectedAddr_Input"
                  Name="SelectedAddressBox" Width="130"
-                 IsReadOnly="True" VerticalAlignment="Center" />
+                 IsReadOnly="True" VerticalAlignment="Center" Margin="0,0,6,4" />
         <Button AutomationProperties.AutomationId="EventMapChange_Write_Button"
-                Name="WriteButton" Content="Write" Click="Write_Click" Margin="8,0,0,0" />
-      </StackPanel>
+                Name="WriteButton" Content="Write" Click="Write_Click" Margin="8,0,0,4" />
+      </WrapPanel>
     </Border>
 
     <!-- Row 2 Column 0: Map list (mirrors WF panel5 + MAP_LISTBOX) -->
