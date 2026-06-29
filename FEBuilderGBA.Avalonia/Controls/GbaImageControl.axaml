@@ -5,12 +5,15 @@
     <!-- Zoom toolbar -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0" Spacing="4">
       <Button Name="ZoomOutButton" Content="-" Width="28" Height="28" FontSize="14"
+              VerticalAlignment="Center"
               Click="OnZoomOutClick" ToolTip.Tip="Zoom out" />
       <TextBlock Name="ZoomLabel" Text="1x" VerticalAlignment="Center" MinWidth="30"
                  TextAlignment="Center" />
       <Button Name="ZoomInButton" Content="+" Width="28" Height="28" FontSize="14"
+              VerticalAlignment="Center"
               Click="OnZoomInClick" ToolTip.Tip="Zoom in" />
       <Button Name="ZoomResetButton" Content="1:1" Height="28" Padding="6,0" FontSize="12"
+              VerticalAlignment="Center"
               Click="OnZoomResetClick" ToolTip.Tip="Reset zoom to 1x" />
     </StackPanel>
     <!-- Scrollable image area -->

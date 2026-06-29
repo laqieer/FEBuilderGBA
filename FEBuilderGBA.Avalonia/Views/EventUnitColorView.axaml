@@ -9,13 +9,14 @@
   <DockPanel Margin="10,9,10,10">
     <!-- Top row: MESSAGE label + Apply button (WinForms MESSAGE + ApplyButton) -->
     <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,5">
-      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40">
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Height="40" VerticalAlignment="Center">
         <TextBlock AutomationProperties.AutomationId="EventUnitColor_Message_Label" Name="MESSAGE"
                    Text="Please specify the color you want to change."
                    HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
       </Border>
       <Button AutomationProperties.AutomationId="EventUnitColor_Apply_Button" Grid.Column="1"
               Name="ApplyButton" Content="Apply" Width="150" Height="40"
+              VerticalAlignment="Center"
               Margin="8,0,0,0" Click="Apply_Click" />
     </Grid>
 
