@@ -98,11 +98,16 @@ jobs:
                 });
                 core.info(`Created label "${name}"`);
               } catch (err) {
-                if (
+                // GitHub returns HTTP 422 Validation Failed when the label
+                // already exists.  The `already_exists` code is in
+                // err.response.data.errors[0].code, NOT in err.message
+                // (which is always "Validation Failed" for 422s).
+                const isAlreadyExists =
                   err.status === 422 &&
-                  err.message &&
-                  err.message.toLowerCase().includes('already_exists')
-                ) {
+                  (err.response?.data?.errors ?? []).some(
+                    e => e.code === 'already_exists'
+                  );
+                if (isAlreadyExists) {
                   // Label already exists — that is fine.
                   core.info(`Label "${name}" already exists`);
                 } else {
@@ -123,11 +128,16 @@ jobs:
             const COMPONENT_LABELS = ['avalonia', 'winforms', 'cli', 'core'];
             const PLATFORM_LABELS  = ['os:windows', 'os:linux', 'os:macos', 'os:android'];
 
-            // Label definitions for labels that may not yet exist in the repo.
-            // Labels guaranteed to already exist (set by Issue Form or repo
-            // defaults) are not listed here: bug, avalonia, cli.
+            // Label definitions for labels this workflow may need to create.
+            // Every label that can appear in labelsToAdd must be listed here
+            // so ensureLabel() auto-creates it on first use (e.g. on a fresh
+            // fork or after accidental deletion).  `bug` is excluded because
+            // it is always pre-set by the Issue Form and GitHub guarantees it
+            // exists before this workflow fires.
             const LABEL_DEFS = [
+              { name: 'avalonia',     color: '1d76db', description: 'Avalonia cross-platform GUI component' },
               { name: 'winforms',     color: '0075ca', description: 'WinForms GUI component' },
+              { name: 'cli',          color: '0075ca', description: 'CLI component' },
               { name: 'core',         color: 'e4e669', description: 'Core library / engine component' },
               { name: 'needs-triage', color: 'fbca04', description: 'Needs triage by a maintainer' },
               { name: 'os:windows',   color: 'cfd3d7', description: 'Reported on Windows' },
@@ -176,10 +186,12 @@ jobs:
               if (!app) {
                 const area = extractField(body, 'Area');
                 if (area) {
-                  // Treat as CLI if it mentions a flag ("--") or the word "CLI".
-                  // This is heuristic; a future dropdown in bug_report.yml would
-                  // make the signal unambiguous (#1710 suggestion noted).
-                  if (/--|CLI/i.test(area)) {
+                  // Treat as CLI if the area value contains a CLI flag prefix
+                  // ("--<word>") or the standalone word "CLI" (word-boundary
+                  // anchored to avoid matching "click", "decline", etc.).
+                  // This is heuristic; a future dropdown in bug_report.yml
+                  // would make the signal unambiguous (#1710 suggestion noted).
+                  if (/--[a-z]/i.test(area) || /\bCLI\b/i.test(area)) {
                     labelsToAdd.push('cli');
                   } else {
                     labelsToAdd.push('core');
@@ -212,10 +224,14 @@ jobs:
               labelsToAdd = [];
             }
 
-            // ---- Always add needs-triage ------------------------------------
-            // Keep outside the parse block so it is always applied even if
-            // component/platform parsing fails.
-            labelsToAdd.push('needs-triage');
+            // ---- Add needs-triage on opened only ----------------------------
+            // On `opened`: always add needs-triage (new issue awaits review).
+            // On `edited`: do NOT re-add needs-triage — a maintainer may have
+            // already removed it to signal the issue is triaged, and silently
+            // re-adding it would undo that work and pollute the triage queue.
+            if (context.payload.action === 'opened') {
+              labelsToAdd.push('needs-triage');
+            }
 
             // ---- On `edited`: remove stale routing labels -------------------
             // Re-derive the full routing set from the current body, then remove

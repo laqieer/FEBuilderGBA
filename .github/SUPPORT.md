@@ -9,13 +9,13 @@ Please do **not** attach your ROM file (.gba) to any issue or discussion.
 
 ## Triage
 
-Every bug issue filed via the structured [Issue Forms](https://github.com/laqieer/FEBuilderGBA/issues/new/choose) is automatically labeled by a GitHub Actions workflow ([`.github/workflows/issue-triage.yml`](.github/workflows/issue-triage.yml)):
+Every bug issue filed via the structured [Issue Forms](https://github.com/laqieer/FEBuilderGBA/issues/new/choose) is automatically labeled by a GitHub Actions workflow ([`workflows/issue-triage.yml`](workflows/issue-triage.yml)):
 
 | Field | Label(s) applied |
 |-------|-----------------|
 | **App** = Avalonia GUI | `avalonia` |
 | **App** = WinForms GUI | `winforms` |
-| **Area** mentions `--` or "CLI" | `cli` |
+| **Area** starts with `--<flag>` or contains word "CLI" | `cli` |
 | **Area** = other / not specified | `core` |
 | **Platform** = Windows x64 / x86 | `os:windows` |
 | **Platform** = Linux x64 | `os:linux` |
