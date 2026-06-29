@@ -201,7 +201,8 @@ own legally-obtained ROMs in a **git-ignored `roms/`** folder at the repo root:
 `FE6.gba`, `FE7J.gba`, `FE7U.gba`, `FE8J.gba`, `FE8U.gba`.
 
 - They drive local GUI reproduction and the headless Avalonia screenshot recipe, e.g.
-  `FEBuilderGBA.Avalonia --rom roms/FE8U.gba --screenshot-all --screenshot-dir shots --screenshot-tab`.
+  `FEBuilderGBA.Avalonia --rom roms/FE8U.gba --screenshot-all --screenshot-dir shots`
+  (optionally add `--screenshot-tab=<AutomationId>` to activate a specific tab before capture).
 - `roms/` lives only in the **main working copy** — it is **not** copied into `git worktree`
   checkouts, so build/screenshot from the main repo (or pass an absolute ROM path) when
   reproducing GUI issues.
