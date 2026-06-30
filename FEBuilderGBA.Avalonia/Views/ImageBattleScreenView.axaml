@@ -155,6 +155,21 @@
 
               <!-- 16-column palette grid (Swatch + Index + R/G/B) -->
               <Grid Name="PaletteGrid">
+                <!-- #1724: collapse the 48 palette R/G/B spinner buttons AND drop
+                     the global 120px NumericUpDown MinWidth (set in App.axaml) so
+                     each NUD becomes a compact text field that fits the 56px inner
+                     column. Widening the NUDs to their 120px clamp minimum would
+                     push 16 colour columns to ~1920px (off-screen), so we shrink
+                     them instead. AllowSpin stays true, so focused mouse-wheel ±8
+                     and keyboard up/down ±8 still work. Scoped to PaletteGrid only
+                     — the read-only PaletteAddressBox (outside this grid) keeps the
+                     global 120px MinWidth. -->
+                <Grid.Styles>
+                  <Style Selector="NumericUpDown">
+                    <Setter Property="ShowButtonSpinner" Value="False" />
+                    <Setter Property="MinWidth" Value="0" />
+                  </Style>
+                </Grid.Styles>
                 <Grid.RowDefinitions>
                   <RowDefinition Height="36" />
                   <RowDefinition Height="32" />
