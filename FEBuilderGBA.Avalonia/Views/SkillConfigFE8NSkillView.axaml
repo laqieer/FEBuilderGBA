@@ -46,12 +46,12 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_Address_Input"
-                       FormatString="0" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120" ShowButtonSpinner="False" MinWidth="0"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NSkill_BlockSize_Input"
-                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       FormatString="0" Name="BlockSizeBox" Width="50" ShowButtonSpinner="False" MinWidth="0"
                        Minimum="0" Maximum="65535"
                        IsEnabled="False" VerticalAlignment="Center" Value="32" />
         <Label Content="Selected Address:" VerticalAlignment="Center" />
@@ -133,7 +133,7 @@
             </Grid>
 
             <!-- Icon ID row (W0): label + NumericUpDown. -->
-            <Grid ColumnDefinitions="140,80,*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="140,120,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_IconId_Label"
                      Content="Icon ID" VerticalAlignment="Center" />
@@ -149,7 +149,7 @@
             </Grid>
 
             <!-- Text Detail row (W2): label + NumericUpDown + read-only resolved name. -->
-            <Grid ColumnDefinitions="140,80,*" RowDefinitions="Auto">
+            <Grid ColumnDefinitions="140,120,*" RowDefinitions="Auto">
               <Label Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8NSkill_TextDetail_Label"
                      Content="Skill Name" VerticalAlignment="Center" />
@@ -197,19 +197,19 @@
                      Content="Unit" VerticalAlignment="Center" FontWeight="SemiBold" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondUnit1_Input"
-                             FormatString="0" Name="CondUnit1Box"
+                             FormatString="0" Name="CondUnit1Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="2"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondUnit2_Input"
-                             FormatString="0" Name="CondUnit2Box"
+                             FormatString="0" Name="CondUnit2Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="3"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondUnit3_Input"
-                             FormatString="0" Name="CondUnit3Box"
+                             FormatString="0" Name="CondUnit3Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="4"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondUnit4_Input"
-                             FormatString="0" Name="CondUnit4Box"
+                             FormatString="0" Name="CondUnit4Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
             </Grid>
 
@@ -220,19 +220,19 @@
                      Content="Class" VerticalAlignment="Center" FontWeight="SemiBold" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondClass1_Input"
-                             FormatString="0" Name="CondClass1Box"
+                             FormatString="0" Name="CondClass1Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="2"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondClass2_Input"
-                             FormatString="0" Name="CondClass2Box"
+                             FormatString="0" Name="CondClass2Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="3"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondClass3_Input"
-                             FormatString="0" Name="CondClass3Box"
+                             FormatString="0" Name="CondClass3Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="4"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondClass4_Input"
-                             FormatString="0" Name="CondClass4Box"
+                             FormatString="0" Name="CondClass4Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
             </Grid>
 
@@ -243,19 +243,19 @@
                      Content="Item" VerticalAlignment="Center" FontWeight="SemiBold" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondItem1_Input"
-                             FormatString="0" Name="CondItem1Box"
+                             FormatString="0" Name="CondItem1Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="2"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondItem2_Input"
-                             FormatString="0" Name="CondItem2Box"
+                             FormatString="0" Name="CondItem2Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="3"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondItem3_Input"
-                             FormatString="0" Name="CondItem3Box"
+                             FormatString="0" Name="CondItem3Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
               <NumericUpDown Grid.Column="4"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_CondItem4_Input"
-                             FormatString="0" Name="CondItem4Box"
+                             FormatString="0" Name="CondItem4Box" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="255" />
             </Grid>
 
@@ -266,7 +266,7 @@
                      Content="Animation" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationPointer_Input"
-                             FormatString="0" Name="AnimationPointerBox"
+                             FormatString="0" Name="AnimationPointerBox" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="4294967295" IsEnabled="False" />
               <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button AutomationProperties.AutomationId="SkillConfigFE8NSkill_AnimationImport_Button"
@@ -342,7 +342,7 @@
               <Label Grid.Row="0" Grid.Column="0" Content="B16" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="0" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB16_Input"
-                             FormatString="0" Name="ExtB16Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB16Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="0" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -352,7 +352,7 @@
               <Label Grid.Row="0" Grid.Column="3" Content="B17" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="0" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB17_Input"
-                             FormatString="0" Name="ExtB17Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB17Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="0" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -363,7 +363,7 @@
               <Label Grid.Row="1" Grid.Column="0" Content="B18" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB18_Input"
-                             FormatString="0" Name="ExtB18Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB18Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="1" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -373,7 +373,7 @@
               <Label Grid.Row="1" Grid.Column="3" Content="B19" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="1" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB19_Input"
-                             FormatString="0" Name="ExtB19Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB19Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="1" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -384,7 +384,7 @@
               <Label Grid.Row="2" Grid.Column="0" Content="B20" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="2" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB20_Input"
-                             FormatString="0" Name="ExtB20Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB20Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="2" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -394,7 +394,7 @@
               <Label Grid.Row="2" Grid.Column="3" Content="B21" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="2" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB21_Input"
-                             FormatString="0" Name="ExtB21Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB21Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="2" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -405,7 +405,7 @@
               <Label Grid.Row="3" Grid.Column="0" Content="B22" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="3" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB22_Input"
-                             FormatString="0" Name="ExtB22Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB22Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="3" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -415,7 +415,7 @@
               <Label Grid.Row="3" Grid.Column="3" Content="B23" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="3" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB23_Input"
-                             FormatString="0" Name="ExtB23Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB23Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="3" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -426,7 +426,7 @@
               <Label Grid.Row="4" Grid.Column="0" Content="B24" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="4" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB24_Input"
-                             FormatString="0" Name="ExtB24Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB24Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="4" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -436,7 +436,7 @@
               <Label Grid.Row="4" Grid.Column="3" Content="B25" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="4" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB25_Input"
-                             FormatString="0" Name="ExtB25Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB25Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="4" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -447,7 +447,7 @@
               <Label Grid.Row="5" Grid.Column="0" Content="B26" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="5" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB26_Input"
-                             FormatString="0" Name="ExtB26Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB26Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="5" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -457,7 +457,7 @@
               <Label Grid.Row="5" Grid.Column="3" Content="B27" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="5" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB27_Input"
-                             FormatString="0" Name="ExtB27Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB27Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="5" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -468,7 +468,7 @@
               <Label Grid.Row="6" Grid.Column="0" Content="B28" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="6" Grid.Column="1" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB28_Input"
-                             FormatString="0" Name="ExtB28Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB28Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="6" Grid.Column="2" Margin="0,0,16,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -478,7 +478,7 @@
               <Label Grid.Row="6" Grid.Column="3" Content="B29" VerticalAlignment="Center" Margin="0,0,4,6" />
               <NumericUpDown Grid.Row="6" Grid.Column="4" Margin="0,0,8,6"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB29_Input"
-                             FormatString="0" Name="ExtB29Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB29Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="6" Grid.Column="5" Margin="0,0,0,6" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -489,7 +489,7 @@
               <Label Grid.Row="7" Grid.Column="0" Content="B30" VerticalAlignment="Center" Margin="0,0,4,0" />
               <NumericUpDown Grid.Row="7" Grid.Column="1" Margin="0,0,8,0"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB30_Input"
-                             FormatString="0" Name="ExtB30Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB30Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="7" Grid.Column="2" Margin="0,0,16,0" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
@@ -499,7 +499,7 @@
               <Label Grid.Row="7" Grid.Column="3" Content="B31" VerticalAlignment="Center" Margin="0,0,4,0" />
               <NumericUpDown Grid.Row="7" Grid.Column="4" Margin="0,0,8,0"
                              AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB31_Input"
-                             FormatString="0" Name="ExtB31Box" Minimum="0" Maximum="255"
+                             FormatString="0" Name="ExtB31Box" ShowButtonSpinner="False" MinWidth="0" Minimum="0" Maximum="255"
                              ValueChanged="ExtByteBox_ValueChanged" />
               <TextBlock Grid.Row="7" Grid.Column="5" Margin="0,0,0,0" VerticalAlignment="Center"
                          TextTrimming="CharacterEllipsis" Foreground="Gray"
