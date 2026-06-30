@@ -482,7 +482,7 @@ Always check `Program.ROM.RomInfo.version` when implementing version-specific lo
 
 ## Development Workflow
 
-See **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** for the mandatory development workflow with Copilot CLI review gates. The `dev-flow` superpowers skill enforces this workflow automatically — it activates before any code changes and blocks implementation until the plan is reviewed. Key phases: Issue → Plan → Copilot Review → Implement → PR → Copilot Review → Merge. Plan-first, code-second.
+See **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** for the mandatory development workflow with developer-aware review gates (Copilot CLI when Claude Code develops; an in-session cross-model board when Copilot CLI develops). The `dev-flow` superpowers skill enforces this workflow automatically — it activates before any code changes and blocks implementation until the plan is reviewed. Key phases: Issue → Plan → Review Gate → Implement → PR → Review Gate → Merge. Plan-first, code-second.
 
 ## Workflow Preferences
 

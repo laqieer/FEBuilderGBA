@@ -12,6 +12,72 @@ Your role is to assist, not override this process.
 
 ---
 
+## Developer & Reviewer Roles (Review Gate)
+
+This workflow is driven by an AI **developer** that must pass an independent **Review Gate** at two points — the
+**plan** (Phase 2) and the **PR** (Phase 4). WHO performs the review depends on **which agent is the developer**.
+
+**Self-identify your runtime before every Review Gate:**
+- Running as **Claude Code CLI** → use **Branch A**.
+- Running as **Copilot CLI** → use **Branch B**.
+- A **human** contributor, or identity unclear / mixed handoff → stop and ask the human which gate applies.
+
+> `.claude/skills/dev-flow/SKILL.md` is written in Claude-Code voice ("Multiple Claude Code sessions") but it also
+> loads for Copilot CLI sessions. Identify by your **actual runtime**, not by the document's voice.
+
+| Developer | Review Gate consults | Mechanism |
+|-----------|----------------------|-----------|
+| **Claude Code CLI** | **Copilot CLI** | `copilot -p "..." --autopilot --enable-all-github-mcp-tools --allow-all-tools` (Branch A) |
+| **Copilot CLI** | **Its own other models** — an in-session cross-model board | `task` sub-agent per model → synthesize → post via `gh` (Branch B). **Never** `agency cc` / Claude Code. |
+
+### Branch A — developer = Claude Code CLI (consult Copilot CLI)
+
+Run the `copilot -p` invocations exactly as written in **Phase 2 step 4** and **Phase 4 step 10** (kept verbatim,
+including `--autopilot --enable-all-github-mcp-tools --allow-all-tools` and the worktree-prune tail). Copilot CLI posts
+the review on GitHub as the `Copilot` bot; verify by **bot author** + the 2-line `Copilot CLI:` / `Model:` footer.
+
+### Branch B — developer = Copilot CLI (convene the in-session cross-model board)
+
+Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session** and post one consolidated review.
+
+1. **Board roster:** `claude-opus-4.8` (Claude Opus 4.8), `gpt-5.5` (GPT-5.5), `gemini-3.5-flash` (Gemini 3.5 Flash).
+   **Independence:** if your own active model is one of these, swap that member for a **named same-tier alternate**
+   (`claude-opus-4.8`→`claude-sonnet-4.6`, `gpt-5.5`→`gpt-5.4`, `gemini-3.5-flash`→`gemini-3.1-pro-preview`) so all
+   three reviewers differ from you; keep ≥2 providers (Anthropic / OpenAI / Google). If a roster/alternate model is
+   unavailable, substitute another available model from a different provider and note the substitution.
+2. **Gather the artifact (full source-of-truth context)** and embed it in each reviewer's prompt:
+   - **Plan gate (Phase 2):** the issue title/body + acceptance criteria **and** the plan-comment body (+ URL/ID).
+   - **PR gate (Phase 4):** the **accepted plan** comment (+ link), the **issue** body/link, the PR body, the
+     changed-files list, `gh pr diff <N> -R laqieer/FEBuilderGBA`, and the test/screenshot evidence.
+3. **Spawn** one reviewer per model with the `task` tool (`model` set to each roster id), giving every member the
+   **same** criteria the Branch-A `copilot -p` prompt encodes — for the PR gate that is the full rubric: correctness,
+   test coverage, screenshot validity + feature-branch-URL rejection, `## GUI Test Report` presence, **all**
+   `## Test plan` items `[x]`, and scope creep. Each member labels findings **Blocking** / Non-blocking.
+4. **Aggregate (pessimistic veto):** any member's Blocking ⇒ consolidated verdict **Blocked**; approve only when all
+   members report zero blocking. Attribute each member's blocking findings **per-model**. As the developer you may
+   **not** self-override a board Blocking concern — fix it, or have the board withdraw it; if you believe a finding is
+   a false positive, record a **reasoned rebuttal** for the human (who owns final decisions) to adjudicate — never a
+   silent override.
+5. **Post** the consolidated review yourself (always `-R laqieer/FEBuilderGBA`):
+   - Plan gate: `gh issue comment <N> -R laqieer/FEBuilderGBA ...`
+   - PR gate: a clearly-labeled `## Cross-Model Review Board` PR comment (`gh pr comment <N> -R laqieer/FEBuilderGBA ...`). A self-authored
+     `--comment` review carries no "approved" state, so merge relies on CI + the resolved-feedback checklist (Phase 5),
+     not a GitHub approval.
+
+   End the posted review with a board-roster line **immediately above** the mandatory 2-line footer (so
+   `.github/copilot-instructions.md` stays satisfied):
+   ```
+   Review Board: claude-opus-4.8, gpt-5.5, gemini-3.5-flash
+   Copilot CLI: <version>
+   Model: <display-name> (<model-id>)
+   ```
+6. **Iterate & verify:** after any material plan/code change, re-run the full board; exit when no member reports
+   blocking. Confirm the gate fired by grepping the **PR-comments** endpoint
+   (`repos/laqieer/FEBuilderGBA/issues/<N>/comments` — where the `## Cross-Model Review Board` comment lives, **not**
+   `pulls/<N>/reviews`) for the `Review Board:` marker.
+
+---
+
 ## PHASE 1 — ISSUE ANALYSIS & PLAN DRAFTING
 
 ### 1. Issue Intake
@@ -73,11 +139,11 @@ For each unit:
 
 ---
 
-## PHASE 2 — PLAN REVIEW LOOP (Copilot CLI Gate)
+## PHASE 2 — PLAN REVIEW LOOP (Review Gate)
 
-### 4. Trigger Copilot CLI Review
-- The plan comment MUST be reviewed by Copilot CLI before proceeding
-- **Invocation** — Copilot CLI must post its review on GitHub (not just locally):
+### 4. Trigger the Review Gate
+- The plan comment MUST pass the **Review Gate** before proceeding. Pick your branch — see **Developer & Reviewer Roles** above.
+- **Branch A (Claude Code CLI → Copilot CLI)** — Copilot CLI must post its review on GitHub (not just locally):
   ```bash
   copilot -p "Review the plan comment on issue #<N> in laqieer/FEBuilderGBA. \
   Post your review findings as a comment on the issue. \
@@ -86,7 +152,8 @@ For each unit:
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
   > **Why `--allow-all-tools`?** Copilot CLI needs both read tools (to fetch the issue/PR) and write tools (to post comments/reviews). `--enable-all-github-mcp-tools` exposes the GitHub MCP tools, and `--allow-all-tools` auto-approves their use so the non-interactive `--autopilot` session can complete without prompts.
-- Copilot CLI checks for:
+- **Branch B (Copilot CLI → in-session board)** — convene the cross-model board per **Developer & Reviewer Roles → Branch B** with the **plan-comment body** (+ issue title/body & acceptance criteria) as the artifact, then post the consolidated review as an issue comment. **Never** `agency cc`.
+- The Review Gate checks for:
   - Design gaps or missing components
   - Risky assumptions about existing code
   - Missing test coverage or edge cases
@@ -104,7 +171,7 @@ For each unit:
 - Do NOT write code during revision
 
 ### 6. Iterate Until Accepted
-Repeat steps 4-5 until Copilot CLI reports **no blocking concerns**.
+Repeat steps 4-5 until the Review Gate reports **no blocking concerns**.
 
 **Exit condition:** Plan explicitly accepted with no unresolved design issues.
 
@@ -276,7 +343,12 @@ Ref #M (partial — <what remains>)
 ## Known limitations
 <anything not covered>
 
-Generated with Claude Code (claude-opus-4-6)
+<!-- Footer (developer-dependent) — KEEP the block matching your runtime, DELETE the other: -->
+<!-- Claude Code CLI developer: -->
+Generated with Claude Code (<model>)
+<!-- Copilot CLI developer: -->
+Copilot CLI: <version>
+Model: <display-name> (<model-id>)
 EOF
 )"
 ```
@@ -292,8 +364,9 @@ EOF
   - **Image URL rules** (all PRs): URLs MUST be permanent — commit to `pr-screenshots/` on master (via a docs PR) or use GitHub asset uploads. **NEVER use feature-branch URLs** (either `blob/{feature-branch}/` or `raw.githubusercontent.com/{owner}/{repo}/{feature-branch}/`) — both 404 after branch deletion.
   - For `docs` and `chore` PRs, screenshots are optional.
 
-### 10. Copilot CLI PR Review + Resolve ALL Comments
-- **Invocation** — trigger review and ensure it posts on the PR:
+### 10. Review Gate: PR Review + Resolve ALL Comments
+Pick your branch — see **Developer & Reviewer Roles** above.
+- **Branch A (Claude Code CLI → Copilot CLI)** — **Invocation:** trigger review and ensure it posts on the PR:
   ```bash
   copilot -p "Review pull request #<N> in laqieer/FEBuilderGBA. \
   Perform a full code review: check correctness, test coverage, style, potential bugs, and adherence to the plan. \
@@ -314,13 +387,21 @@ EOF
   Include your Copilot CLI version and model at the end." \
   --autopilot --enable-all-github-mcp-tools --allow-all-tools
   ```
-- Verify the review was posted by Copilot with the required footer:
-  ```bash
-  # Get the latest Copilot review (filter by bot author and check for footer)
-  gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
-    --jq '[.[] | select(.user.login == "Copilot" or .user.login == "copilot" or .user.type == "Bot")] | .[-1].body'
-  # The output MUST contain both "Copilot CLI:" and "Model:" lines
-  ```
+- **Branch B (Copilot CLI → in-session board)** — convene the cross-model board per **Developer & Reviewer Roles → Branch B**, passing `gh pr diff <N> -R laqieer/FEBuilderGBA` + the PR body + changed-files list + the **accepted plan** comment + the **issue** body as the artifact, and applying the **same** rubric the Branch-A prompt above encodes (screenshot validity + feature-branch-URL rejection, `## GUI Test Report`, `## Test plan` all-`[x]`, scope creep). Post the consolidated verdict as a clearly-labeled `## Cross-Model Review Board` PR comment. **Never** `agency cc`.
+- **Verify the Review Gate posted on the PR:**
+  - **Branch A** — a `Copilot`-bot review carrying the required footer:
+    ```bash
+    # Get the latest Copilot review (filter by bot author and check for footer)
+    gh api repos/laqieer/FEBuilderGBA/pulls/<N>/reviews \
+      --jq '[.[] | select(.user.login == "Copilot" or .user.login == "copilot" or .user.type == "Bot")] | .[-1].body'
+    # The output MUST contain both "Copilot CLI:" and "Model:" lines
+    ```
+  - **Branch B** — the developer-posted `## Cross-Model Review Board` PR comment (a `User`, not a bot), detected by the `Review Board:` marker on the **comments** endpoint:
+    ```bash
+    gh api repos/laqieer/FEBuilderGBA/issues/<N>/comments \
+      --jq '[.[] | select(.body | contains("Review Board:"))] | .[-1].body'
+    # The output MUST contain "Review Board:" plus the "Copilot CLI:" / "Model:" footer lines
+    ```
 
 Address feedback in categories:
 
@@ -330,7 +411,7 @@ Address feedback in categories:
 | **Scope overreach** | Update PR body, change `Closes` to `Ref` |
 | **Missing feature** | Add it if in plan scope, otherwise note as future work |
 | **Dead/conflicting UI** | Remove it (e.g., don't reintroduce removed features) |
-| **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger Copilot CLI review |
+| **Needs rebase** | Rebase onto default branch, resolve conflicts, `git push --force-with-lease`, then re-trigger the Review Gate |
 
 **After each push, check for ALL feedback across all three channels:**
 
@@ -383,15 +464,17 @@ gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "<THRE
   ```
 - Re-run ALL THREE checks from step 10 (issue comments + review bodies + inline threads) to catch **newly posted** feedback
 - Resolve all review threads after addressing them
-- Re-trigger Copilot CLI review using the same invocation from step 10
+- Re-trigger the Review Gate using the same branch mechanism from step 10
 - Repeat until: **all inline review threads resolved AND no unaddressed feedback in issue comments or PR review bodies**
 
-**Exit condition:** Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
-```
-Copilot CLI: <version>
-Model: <display-name> (<model-id>)
-```
-Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be present at the end of the review body.
+**Exit condition (by branch):**
+- **Branch A** — Copilot CLI posts a review with no blocking concerns AND includes its version/model footer in this exact format:
+  ```
+  Copilot CLI: <version>
+  Model: <display-name> (<model-id>)
+  ```
+  Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be present at the end of the review body.
+- **Branch B** — the developer posts a `## Cross-Model Review Board` PR comment with no member reporting blocking, carrying a `Review Board:` roster line immediately above the same 2-line `Copilot CLI:` / `Model:` footer.
 
 ---
 
@@ -401,7 +484,7 @@ Example: `Copilot CLI: 1.0.6-0` / `Model: GPT-5.4 (gpt-5.4)`. Both lines must be
 
 ### 12. Pre-Merge Checklist
 Before attempting merge, verify ALL of these:
-- [ ] Copilot CLI posted a review on the PR with **no blocking concerns** and a `Copilot CLI: <version>` + `Model: <name>` footer
+- [ ] The **Review Gate** posted its signoff on the PR with **no blocking concerns** — **Branch A:** a `Copilot`-bot review with the `Copilot CLI: <version>` + `Model: <name>` footer; **Branch B:** a `## Cross-Model Review Board` comment with the `Review Board:` roster line + the `Copilot CLI:` / `Model:` footer, no member blocking
 - [ ] All feedback addressed across all three channels (issue comments, PR review bodies, inline threads)
 - [ ] All **required** CI checks green (build via `check.yml`). E2E checks are informational — they run daily on master via cron, not required for merge.
 - [ ] Branch is up to date with master — verify with:
@@ -422,10 +505,10 @@ gh pr merge <N> -R laqieer/FEBuilderGBA --merge
 | Blocker | Diagnosis | Fix |
 |---------|-----------|-----|
 | **CI checks pending** | `gh pr checks <N> -R laqieer/FEBuilderGBA` | Wait, or set auto-merge: `gh pr merge <N> -R laqieer/FEBuilderGBA --merge --auto` |
-| **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger Copilot CLI review |
+| **CI checks failed** | `gh run view <RUN_ID> -R laqieer/FEBuilderGBA --log-failed` | Fix the failing test/build, push, re-trigger the Review Gate |
 | **Unresolved feedback** | Run all three checks from step 10 (issue comments + review bodies + inline threads) | Address all feedback and resolve threads |
-| **Branch outdated** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus --jq .mergeStateStatus` shows `BEHIND` | `git fetch origin master && git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review |
-| **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease`, then re-trigger Copilot CLI review (rebase can introduce changes) |
+| **Branch outdated** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeStateStatus --jq .mergeStateStatus` shows `BEHIND` | `git fetch origin master && git rebase origin/master && git push --force-with-lease`, then re-trigger the Review Gate |
+| **Merge conflicts** | `gh pr view <N> -R laqieer/FEBuilderGBA --json mergeable` | `git rebase origin/master && git push --force-with-lease`, then re-trigger the Review Gate (rebase can introduce changes) |
 | **Branch policy violation** | Read the error message carefully | Fix the specific rule violation (missing check, deployment, etc.) |
 | **"not mergeable" (unknown)** | Wait 15s — GitHub recalculates merge status | `sleep 15 && gh pr merge <N> -R laqieer/FEBuilderGBA --merge` |
 
@@ -519,7 +602,7 @@ Each merge changes master. Merging 5 PRs at once creates 5 rebase cascades.
 **Do:** Merge one at a time, rebase the next onto updated master.
 
 ### Don't: Claim `Closes #N` for partial work
-Copilot CLI will flag this every time.
+Copilot CLI (Branch A) or the cross-model board (Branch B) will flag this every time.
 **Do:** Use `Ref #N (partial — <what remains>)` and be specific.
 
 ### Don't: Reintroduce removed features
@@ -535,22 +618,22 @@ Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 **Do:** Use the file overlap analysis table. Overlapping files go in the same agent.
 
 ### Don't: Stop at "ready to merge" without confirming MERGED
-"All checks pass" and "Copilot signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
+"All checks pass" and "the Review Gate signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
 **Do:** Always run `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` and confirm the output is `MERGED`. If not, diagnose and fix.
 
 ### Don't: Ignore non-inline feedback
 Reviewers (human, Copilot bot, Copilot CLI) post feedback in three places: issue-level comments, top-level PR review bodies, and inline threads. Checking only inline threads misses the other two channels.
 **Do:** After each push, check all three channels (step 10: issue comments, review bodies, inline threads). Address all feedback before re-triggering review or attempting merge.
 
-### Don't: Merge before Copilot CLI posts its signoff on the PR
+### Don't: Merge before the Review Gate posts its signoff on the PR
 A local-only review doesn't count — the review must be visible on GitHub.
-**Do:** Use `--enable-all-github-mcp-tools --allow-all-tools` so Copilot CLI can post via GitHub MCP tools. Verify with `gh api repos/.../pulls/<N>/reviews`.
+**Do:** Branch A — use `--enable-all-github-mcp-tools --allow-all-tools` so Copilot CLI can post via GitHub MCP tools (verify with `gh api repos/.../pulls/<N>/reviews`). Branch B — post the `## Cross-Model Review Board` comment yourself via `gh` (verify the `Review Board:` marker on the issue/PR comments endpoint).
 
 ### Don't: Force-push without `--force-with-lease`
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
 ### Don't: Work directly on master
-Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
+Committing to master means no PR review, no Review Gate, and no clean revert path.
 **Do:** Always create a feature branch in an isolated worktree: `git fetch origin` then spawn a worktree agent that runs `git checkout -b feat/... origin/master` (see step 7).
 
 ### Don't: Switch branches or stash in the main worktree
@@ -566,7 +649,7 @@ A style-only XAML change can still break layout. A ViewModel tweak can disconnec
 **Do:** Always run GUI validation for GUI feat/fix PRs. Use `PrintWindow` API + PowerShell `UIAutomationClient` (Windows, works headlessly) or MCP computer-use (when screen is unlocked). The headless tests verify control properties; real screenshots verify the user sees the right thing.
 
 ### Don't: Open a feat/fix PR without real GUI screenshots
-A `feat` or `fix` PR without visual proof is incomplete. Copilot CLI reviews are expected to flag missing screenshots as a blocking issue for these PR types.
+A `feat` or `fix` PR without visual proof is incomplete. Review Gate reviews (either branch) are expected to flag missing screenshots as a blocking issue for these PR types.
 **Do:** For feat/fix PRs, always capture **real GUI screenshots** from the running application using `PrintWindow` API (`tools/capture-window.cs`) or MCP. For `docs`/`chore` PRs, screenshots are optional.
 
 ### Don't: Fabricate screenshots
@@ -600,9 +683,9 @@ Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing. These tests catch
 ## QUICK REFERENCE
 
 ```
-Issue → Plan Comment → Copilot Review → Revise → Accept
+Issue → Plan Comment → Review Gate → Revise → Accept
   → Branch → Implement → Tests → Push
-  → PR → Copilot Review + Bot Comments → Fix All → Resolve Threads
+  → PR → Review Gate + Bot Comments → Fix All → Resolve Threads
   → Re-review → Signoff → CI Green → Merge → Confirm MERGED
   ↑___________________________________________|  (loop until MERGED)
   → Prune ALL stale worktrees (own + Copilot review checkouts)
@@ -613,6 +696,8 @@ Issue → Plan Comment → Copilot Review → Revise → Accept
 
 **When using Claude Code / Copilot automation:**
 - Commits as `laqieer <laqieer@126.com>`
-- PR bodies end with `Generated with Claude Code (claude-opus-4-6)`
+- PR-body footer is **developer-dependent**:
+  - **Claude Code CLI:** `Generated with Claude Code (<model>)`
+  - **Copilot CLI:** `Copilot CLI: <version>` then `Model: <display-name> (<model-id>)`
 
 **Human contributors:** Use your own identity and commit signing workflow.
