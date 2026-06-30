@@ -20,6 +20,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             var apply = view.FindControl<Button>("ApplyButton");
             Assert.NotNull(apply);
             Assert.Equal(VerticalAlignment.Center, apply!.VerticalAlignment);
+            // #1727: VerticalContentAlignment must also be Center so the "Apply"
+            // glyph sits in the middle of the 40px button instead of above centre.
+            Assert.Equal(VerticalAlignment.Center, apply!.VerticalContentAlignment);
         }
 
         [AvaloniaFact]
