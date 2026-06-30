@@ -24,6 +24,7 @@ overview and quick start; the documents below go into depth on specific areas.
 | Doc | What it covers |
 |-----|----------------|
 | [CORE-SEAMS.md](CORE-SEAMS.md) | Full per-class catalog of the cross-platform `FEBuilderGBA.Core` seams (one paragraph each). |
+| [ENGINEERING-NOTES.md](ENGINEERING-NOTES.md) | Cross-cutting engineering gotchas, recurring failure modes, working conventions (the "why"), and campaign history. |
 | [avalonia-forms.md](avalonia-forms.md) | Avalonia editor/form inventory. |
 | [avalonia-gui-forms.md](avalonia-gui-forms.md) | Avalonia GUI form mapping details. |
 | [avalonia-gap-analysis.md](avalonia-gap-analysis.md) | Avalonia ↔ WinForms gap analysis. |
