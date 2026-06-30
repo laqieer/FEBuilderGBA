@@ -159,11 +159,12 @@ public class GbaImageControlWheelZoomTests
         Assert.Equal(GbaImageControl.ZoomMax, control.Zoom);
         Assert.True(up.Handled);
 
-        // At min zoom, Ctrl+wheel down stays clamped.
+        // At min zoom, Ctrl+wheel down stays clamped (and still consumes the event).
         control.Zoom = GbaImageControl.ZoomMin;
         var down = MakeWheelArgs(image!, control, KeyModifiers.Control, deltaY: -1);
         control.OnPointerWheelChanged(image, down);
         Assert.Equal(GbaImageControl.ZoomMin, control.Zoom);
+        Assert.True(down.Handled);
     }
 
     /// <summary>
@@ -191,22 +192,30 @@ public class GbaImageControlWheelZoomTests
         control.Zoom = 4; // 256x256 content in a 120x120 viewport => scrollable
 
         var window = new Window { Width = 140, Height = 140, Content = control };
-        window.Show();
-        Dispatcher.UIThread.RunJobs(DispatcherPriority.Loaded);
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs(DispatcherPriority.Loaded);
 
-        // Park at a non-extreme offset so the ScrollViewer COULD scroll the wheel
-        // (the case where a bubble-phase handler would never see the event).
-        scroller!.Offset = new Vector(30, 30);
-        Dispatcher.UIThread.RunJobs(DispatcherPriority.Render);
+            // Park at a non-extreme offset so the ScrollViewer COULD scroll the wheel
+            // (the case where a bubble-phase handler would never see the event).
+            scroller!.Offset = new Vector(30, 30);
+            Dispatcher.UIThread.RunJobs(DispatcherPriority.Render);
 
-        control.Zoom = 4;
-        image!.RaiseEvent(MakeWheelArgs(image, control, KeyModifiers.Control, deltaY: 1));
-        Assert.Equal(5, control.Zoom);
+            control.Zoom = 4;
+            image!.RaiseEvent(MakeWheelArgs(image, control, KeyModifiers.Control, deltaY: 1));
+            Assert.Equal(5, control.Zoom);
 
-        control.Zoom = 4;
-        image.RaiseEvent(MakeWheelArgs(image, control, KeyModifiers.None, deltaY: 1));
-        Assert.Equal(4, control.Zoom);
-
-        window.Close();
+            control.Zoom = 4;
+            image.RaiseEvent(MakeWheelArgs(image, control, KeyModifiers.None, deltaY: 1));
+            Assert.Equal(4, control.Zoom);
+        }
+        finally
+        {
+            // Always close the window — if an assertion above throws, leaving it
+            // open can leak visuals/dispatcher state and make later AvaloniaFact
+            // tests flaky (Copilot review on PR #1738).
+            window.Close();
+        }
     }
 }
