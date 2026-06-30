@@ -68,7 +68,6 @@ Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session*
    `.github/copilot-instructions.md` stays satisfied):
    ```
    Review Board: claude-opus-4.8, gpt-5.5, gemini-3.5-flash
-
    Copilot CLI: <version>
    Model: <display-name> (<model-id>)
    ```
