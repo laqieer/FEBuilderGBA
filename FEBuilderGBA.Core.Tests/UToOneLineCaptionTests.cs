@@ -14,8 +14,9 @@ namespace FEBuilderGBA.Core.Tests
     ///   - terrain names decode with a trailing U+001F control byte
     ///     (e.g. FETextDecode.Direct returns "Plain" for terrain 0x01);
     ///   - empty slots decode to U+007F U+007F (two DELETE chars).
-    /// We embed these via \u escapes so the compiler bakes the real control
-    /// code points into the test input (the test would be meaningless otherwise).
+    /// We embed these via <c>const char</c> casts (<c>(char)0x1F</c> / <c>(char)0x7F</c>)
+    /// so the compiler bakes the real control code points into the test input (the
+    /// test would be meaningless otherwise).
     /// </summary>
     public class UToOneLineCaptionTests
     {

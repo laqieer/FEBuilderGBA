@@ -1345,16 +1345,21 @@ namespace FEBuilderGBA
         /// terrain names) can carry trailing/embedded FE control or other
         /// non-printable characters which render as tofu (□) on macOS where no
         /// font has a glyph for them. We:
-        ///   - take only the first line (split on CR/LF), and
-        ///   - drop control characters (<see cref="char.IsControl(char)"/>) and
-        ///     other non-printable code points,
-        /// while PRESERVING all legitimate printable glyphs (incl. non-ASCII CJK,
-        /// accented letters, symbols) so localized names are unaffected.
-        /// Surrogate pairs are kept intact.
+        ///   - take only the first line (split on CR/LF),
+        ///   - drop control characters (<see cref="char.IsControl(char)"/>) plus
+        ///     the <see cref="System.Globalization.UnicodeCategory.Format"/>,
+        ///     lone-surrogate and unassigned categories, and
+        ///   - trim outer whitespace from the result.
+        /// All legitimate printable glyphs (incl. non-ASCII CJK, accented letters,
+        /// symbols) are PRESERVED so localized names are unaffected, and surrogate
+        /// pairs (real supplementary-plane glyphs) are kept intact.
+        /// Note: dropping the Format category also removes zero-width joiners and
+        /// variation selectors — harmless for ROM terrain/name captions.
+        /// Accepts <c>null</c> (returns an empty string).
         /// </summary>
-        public static string ToOneLineCaption(string text)
+        public static string ToOneLineCaption(string? text)
         {
-            if (string.IsNullOrEmpty(text)) return text ?? "";
+            if (string.IsNullOrEmpty(text)) return "";
 
             var sb = new System.Text.StringBuilder(text.Length);
             for (int i = 0; i < text.Length; i++)
