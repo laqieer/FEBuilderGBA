@@ -344,10 +344,12 @@ Ref #M (partial — <what remains>)
 ## Known limitations
 <anything not covered>
 
-<!-- Developer footer — use the line(s) matching your runtime:
-     Claude Code CLI:  Generated with Claude Code (<model>)
-     Copilot CLI:      Copilot CLI: <version>
-                       Model: <display-name> (<model-id>) -->
+<!-- Footer (developer-dependent) — KEEP the block matching your runtime, DELETE the other: -->
+<!-- Claude Code CLI developer: -->
+Generated with Claude Code (<model>)
+<!-- Copilot CLI developer: -->
+Copilot CLI: <version>
+Model: <display-name> (<model-id>)
 EOF
 )"
 ```
