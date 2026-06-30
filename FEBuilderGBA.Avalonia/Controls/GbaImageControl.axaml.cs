@@ -26,23 +26,38 @@ namespace FEBuilderGBA.Avalonia.Controls
         double _scrollStartX;
         double _scrollStartY;
 
+        // Pinch-to-zoom state (#1726). PinchEventArgs.Scale is cumulative from
+        // 1.0 for the duration of a gesture, so we capture the zoom at gesture
+        // start and scale from it, resetting when the gesture ends.
+        bool _isPinching;
+        int _pinchBaseZoom;
+
         /// <summary>Minimum zoom factor.</summary>
         public const int ZoomMin = 1;
 
         /// <summary>Maximum zoom factor.</summary>
         public const int ZoomMax = 8;
 
-        /// <summary>Zoom multiplier per wheel notch (1.1 = 10% per notch).</summary>
-        internal const double WheelZoomFactor = 1.1;
-
         public GbaImageControl()
         {
             InitializeComponent();
             UpdateZoomLabel();
-            PointerWheelChanged += OnPointerWheelChanged;
+
+            // #1726: intercept the wheel in the TUNNEL phase so this handler runs
+            // BEFORE the inner ScrollViewer's bubble-phase scroll handler. On the
+            // modifier-zoom path we set e.Handled (pure zoom, no competing scroll);
+            // on plain wheel we leave it unhandled so the ScrollViewer pans. Tunnel
+            // ONLY (PointerWheelChangedEvent is Tunnel|Bubble) to avoid a double-fire.
+            AddHandler(PointerWheelChangedEvent, OnPointerWheelChanged, RoutingStrategies.Tunnel);
+
             ImageScroller.PointerPressed += OnScrollerPointerPressed;
             ImageScroller.PointerMoved += OnScrollerPointerMoved;
             ImageScroller.PointerReleased += OnScrollerPointerReleased;
+
+            // #1726: pinch-to-zoom for macOS trackpads / touch screens.
+            ImageScroller.GestureRecognizers.Add(new PinchGestureRecognizer());
+            Gestures.AddPinchHandler(ImageScroller, OnPinch);
+            Gestures.AddPinchEndedHandler(ImageScroller, OnPinchEnded);
         }
 
         /// <summary>Zoom factor (1 = 1:1, 2 = 2x, etc.).</summary>
@@ -167,49 +182,100 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Mouse wheel zoom centered on cursor position.
-        /// Keeps the content point under the cursor stable after zoom.
+        /// Whether a wheel event should zoom (vs. let the ScrollViewer pan).
+        /// Zoom only when Control or Meta (⌘) is held; a plain wheel / macOS
+        /// two-finger scroll pans. Pure helper so it can be unit-tested (#1726).
+        /// </summary>
+        internal static bool ShouldWheelZoom(KeyModifiers modifiers)
+            => (modifiers & (KeyModifiers.Control | KeyModifiers.Meta)) != 0;
+
+        /// <summary>
+        /// Map a cumulative pinch scale (relative to the zoom captured at gesture
+        /// start) to a clamped integer zoom factor. Pure helper for unit tests (#1726).
+        /// </summary>
+        internal static int PinchScaleToZoom(int baseZoom, double scale)
+        {
+            int z = (int)Math.Round(baseZoom * scale, MidpointRounding.AwayFromZero);
+            return Math.Max(ZoomMin, Math.Min(ZoomMax, z));
+        }
+
+        /// <summary>
+        /// Mouse-wheel zoom centered on the cursor, gated behind Ctrl/⌘ (#1726).
+        /// Registered on the tunnel phase so it runs before the inner ScrollViewer:
+        /// a plain wheel returns unhandled (ScrollViewer pans); a modifier wheel
+        /// zooms and marks the event handled (suppressing the scroll).
         /// </summary>
         internal void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
         {
-            if (_bitmap == null)
-            {
-                e.Handled = true;
-                return;
-            }
+            // Nothing to zoom — let the event flow so the ScrollViewer can pan.
+            if (_bitmap == null) return;
+
+            // Plain wheel / two-finger scroll: don't handle, so the ScrollViewer pans.
+            if (!ShouldWheelZoom(e.KeyModifiers)) return;
 
             int oldZoom = _zoom;
             int newZoom = e.Delta.Y > 0 ? oldZoom + 1 : oldZoom - 1;
             newZoom = Math.Max(ZoomMin, Math.Min(ZoomMax, newZoom));
-            if (newZoom == oldZoom)
+
+            // Cursor-centered zoom keeps the content point under the cursor stable.
+            if (newZoom != oldZoom)
+                ZoomCenteredOn(newZoom, e.GetPosition(ImageScroller));
+
+            // Consume the modifier-wheel even at the zoom clamp so it doesn't fall
+            // through to the ScrollViewer and scroll instead of zooming.
+            e.Handled = true;
+        }
+
+        /// <summary>Pinch-to-zoom centered on the gesture origin (#1726).</summary>
+        void OnPinch(object? sender, PinchEventArgs e)
+        {
+            if (_bitmap == null) return;
+
+            // e.Scale is cumulative from 1.0 for the whole gesture, so capture the
+            // zoom at the first frame and scale from it.
+            if (!_isPinching)
             {
-                e.Handled = true;
-                return;
+                _isPinching = true;
+                _pinchBaseZoom = _zoom;
             }
 
-            // Get cursor position relative to the ScrollViewer viewport
-            Point cursorInScroller = e.GetPosition(ImageScroller);
+            int newZoom = PinchScaleToZoom(_pinchBaseZoom, e.Scale);
+            if (newZoom != _zoom)
+                ZoomCenteredOn(newZoom, e.ScaleOrigin);
+            e.Handled = true;
+        }
 
-            // Content coordinate under cursor before zoom
-            double contentX = ImageScroller.Offset.X + cursorInScroller.X;
-            double contentY = ImageScroller.Offset.Y + cursorInScroller.Y;
+        void OnPinchEnded(object? sender, PinchEndedEventArgs e)
+        {
+            _isPinching = false;
+            e.Handled = true;
+        }
 
-            // Apply zoom (bypassing property to avoid double UpdateDisplay)
+        /// <summary>
+        /// Apply a new zoom while keeping the content point under
+        /// <paramref name="centerInScroller"/> (a point in ScrollViewer-viewport
+        /// coordinates) stationary. Shared by wheel and pinch zoom (#1726).
+        /// </summary>
+        void ZoomCenteredOn(int newZoom, Point centerInScroller)
+        {
+            int oldZoom = _zoom;
+            if (newZoom == oldZoom) return;
+
+            // Content coordinate under the center before zoom.
+            double contentX = ImageScroller.Offset.X + centerInScroller.X;
+            double contentY = ImageScroller.Offset.Y + centerInScroller.Y;
+
+            // Apply zoom (bypassing the property to avoid a double UpdateDisplay).
             _zoom = newZoom;
             UpdateZoomLabel();
             UpdateDisplay();
 
-            // Scale the content coordinate to the new zoom and compute new scroll offset
-            // so the same image point stays under the cursor
+            // Scale the content coordinate to the new zoom and recompute the scroll
+            // offset so the same image point stays under the center.
             double scale = (double)newZoom / oldZoom;
-            double newOffsetX = contentX * scale - cursorInScroller.X;
-            double newOffsetY = contentY * scale - cursorInScroller.Y;
-
             ImageScroller.Offset = new Vector(
-                Math.Max(0, newOffsetX),
-                Math.Max(0, newOffsetY));
-
-            e.Handled = true;
+                Math.Max(0, contentX * scale - centerInScroller.X),
+                Math.Max(0, contentY * scale - centerInScroller.Y));
         }
 
         /// <summary>
