@@ -1338,6 +1338,60 @@ namespace FEBuilderGBA
         public static string nl2none(string lines) { return lines.Replace("\r\n", ""); }
         public static string nl2br(string lines) { return lines.Replace("\\r\\n", "\r\n"); }
         public static string br2nl(string lines) { return lines.Replace("\r\n", "\\r\\n"); }
+
+        /// <summary>
+        /// #1722: Reduce a decoded ROM string to a single clean caption line that
+        /// is safe to render as a UI list/label entry. Decoded names (e.g. FE8U
+        /// terrain names) can carry trailing/embedded FE control or other
+        /// non-printable characters which render as tofu (□) on macOS where no
+        /// font has a glyph for them. We:
+        ///   - take only the first line (split on CR/LF),
+        ///   - drop control characters (<see cref="char.IsControl(char)"/>) plus
+        ///     the <see cref="System.Globalization.UnicodeCategory.Format"/>,
+        ///     lone-surrogate and unassigned categories, and
+        ///   - trim outer whitespace from the result.
+        /// All legitimate printable glyphs (incl. non-ASCII CJK, accented letters,
+        /// symbols) are PRESERVED so localized names are unaffected, and surrogate
+        /// pairs (real supplementary-plane glyphs) are kept intact.
+        /// Note: dropping the Format category also removes zero-width joiners and
+        /// variation selectors — harmless for ROM terrain/name captions.
+        /// Accepts <c>null</c> (returns an empty string).
+        /// </summary>
+        public static string ToOneLineCaption(string? text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+
+            var sb = new System.Text.StringBuilder(text.Length);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+
+                // Stop at the first line break: a caption is a single line.
+                if (c == '\r' || c == '\n') break;
+
+                // Keep surrogate pairs (real supplementary-plane glyphs) intact.
+                if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+                {
+                    sb.Append(c);
+                    sb.Append(text[i + 1]);
+                    i++;
+                    continue;
+                }
+
+                // Drop control chars and any other non-printable code point
+                // (format chars, lone surrogates, etc.). Keep everything else,
+                // including printable non-ASCII glyphs.
+                if (char.IsControl(c)) continue;
+                System.Globalization.UnicodeCategory cat = char.GetUnicodeCategory(c);
+                if (cat == System.Globalization.UnicodeCategory.Format
+                    || cat == System.Globalization.UnicodeCategory.Surrogate
+                    || cat == System.Globalization.UnicodeCategory.OtherNotAssigned)
+                    continue;
+
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
+        }
         public static string ToUnicode(uint code) { return code == 0 ? "" : ((char)code).ToString(); }
         public static string Reverse(string str) { char[] arr = str.ToCharArray(); Array.Reverse(arr); return new string(arr); }
         public static uint UpdateCheckBitBox(bool ch, uint a, uint bit)

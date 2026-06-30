@@ -50,14 +50,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     var rowPanel = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 1) };
 
-                    // #1685: terrain names can be long. Keep the fixed 140-wide
-                    // label column (so the rows stay aligned) but trim with an
-                    // ellipsis inside that width so a long name is truncated
-                    // cleanly instead of overflowing into the neighbouring cell.
+                    // #1685: terrain names can be long. Keep a fixed label column
+                    // (so the rows stay aligned) but trim with an ellipsis inside
+                    // that width so a long name is truncated cleanly instead of
+                    // overflowing into the neighbouring cell.
+                    // #1721: narrow the label to 92 (was 140) so the 5 content-sized
+                    // (Auto) columns fit a 1440px macOS screen without compressing
+                    // and overlapping into the next column's label.
                     var label = new TextBlock
                     {
                         Text = $"0x{index:X2}",
-                        Width = 140,
+                        Width = 92,
                         TextTrimming = global::Avalonia.Media.TextTrimming.CharacterEllipsis,
                         VerticalAlignment = VerticalAlignment.Center,
                         Margin = new Thickness(0, 0, 4, 0),
@@ -67,12 +70,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     // #1685: pin an explicit width + left alignment so the spinner buttons
                     // stay inside the field and never overlap the adjacent column.
+                    // #1721: raise to 120 (was 110) so the NUD meets Avalonia's ~120px
+                    // minimum width and does not clamp-overflow its declared box.
                     var nud = new NumericUpDown
                     {
                         Minimum = 0,
                         Maximum = 255,
                         Value = 0,
-                        Width = 110,
+                        Width = 120,
                         HorizontalAlignment = HorizontalAlignment.Left,
                         FontSize = 11,
                         Tag = index,

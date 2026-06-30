@@ -14,9 +14,13 @@
                    Text="Please specify the color you want to change."
                    HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
       </Border>
+      <!-- #1727: VerticalContentAlignment=Center (+ symmetric Padding) so the
+           "Apply" glyph sits in the middle of the 40px button instead of above
+           centre. (HorizontalContentAlignment + VerticalAlignment came from #1703.) -->
       <Button AutomationProperties.AutomationId="EventUnitColor_Apply_Button" Grid.Column="1"
               Name="ApplyButton" Content="Apply" Width="150" Height="40"
               VerticalAlignment="Center" HorizontalContentAlignment="Center"
+              VerticalContentAlignment="Center" Padding="8,0"
               Margin="8,0,0,0" Click="Apply_Click" />
     </Grid>
 
