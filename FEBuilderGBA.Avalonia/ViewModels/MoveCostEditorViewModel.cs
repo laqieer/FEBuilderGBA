@@ -312,6 +312,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                     decoded = FETextDecode.Direct(textId);
                             }
                         }
+                        // #1722: decoded terrain names (esp. FE8U non-multibyte,
+                        // Huffman-decoded) can carry trailing/embedded FE control
+                        // or other non-printable characters that render as tofu (□)
+                        // on macOS. Reduce to one clean caption line before use.
+                        decoded = U.ToOneLineCaption(decoded);
                         if (!string.IsNullOrEmpty(decoded))
                             name = $"0x{i:X2} {decoded}";
                     }
