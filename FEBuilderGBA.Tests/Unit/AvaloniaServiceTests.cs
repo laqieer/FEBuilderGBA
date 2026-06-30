@@ -279,10 +279,12 @@ namespace FEBuilderGBA.Tests.Unit
         public void GbaImageControl_HasCursorCenteredZoom()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "GbaImageControl.axaml.cs"));
-            // Cursor-centered zoom: must read cursor position and adjust scroll offset
+            // Cursor-centered zoom: must read cursor position and adjust scroll offset.
+            // The offset math is shared by wheel (cursor) and pinch (gesture origin)
+            // zoom via the ZoomCenteredOn(newZoom, centerInScroller) helper (#1726).
             Assert.Contains("GetPosition", src);
             Assert.Contains("ImageScroller.Offset", src);
-            Assert.Contains("cursorInScroller", src);
+            Assert.Contains("centerInScroller", src);
         }
 
         [Fact]
