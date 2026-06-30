@@ -24,12 +24,12 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Address_Input"
-                       FormatString="0" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120" ShowButtonSpinner="False" MinWidth="0"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_BlockSize_Input"
-                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       FormatString="0" Name="BlockSizeBox" Width="50" ShowButtonSpinner="False" MinWidth="0"
                        Minimum="0" Maximum="65535"
                        IsEnabled="False" VerticalAlignment="Center" Value="8" />
         <Label Content="Selected Address:" VerticalAlignment="Center" />
@@ -96,7 +96,7 @@
         </Grid>
 
         <!-- Skill Name row: text id + resolved name TextBox -->
-        <Grid ColumnDefinitions="100,80,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="100,120,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillName_Label"
                  Content="Skill Name:" VerticalAlignment="Center" />
@@ -110,7 +110,7 @@
         </Grid>
 
         <!-- Description row: text id + resolved description TextBox (multiline) -->
-        <Grid ColumnDefinitions="100,80,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="100,120,*" RowDefinitions="Auto">
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Description_Label"
                  Content="Description:" VerticalAlignment="Center" />
@@ -175,7 +175,7 @@
                      Content="Frame" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ShowFrame_Input"
-                             FormatString="0" Name="ShowFrameUpDown" Width="80"
+                             FormatString="0" Name="ShowFrameUpDown" Width="120"
                              Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
             </Grid>
             <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">

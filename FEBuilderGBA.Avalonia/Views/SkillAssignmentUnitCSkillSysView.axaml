@@ -74,17 +74,17 @@
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Addr_Label"
                          Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Addr_Input"
-                             Grid.Column="1" Name="AddressBox" FormatString="0" IsReadOnly="True"
+                             Grid.Column="1" Name="AddressBox" FormatString="0" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Size_Label"
                          Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_BlockSize_Input"
-                             Grid.Column="3" Name="BlockSizeBox" IsReadOnly="True"
+                             Grid.Column="3" Name="BlockSizeBox" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0"
                              Minimum="0" Maximum="64" Margin="0,0,8,0" />
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SelectAddr_Label"
                          Grid.Column="4" Text="Selected:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_SelectedAddress_Input"
-                             Grid.Column="5" Name="SelectedAddressBox" IsReadOnly="True" FormatString="0"
+                             Grid.Column="5" Name="SelectedAddressBox" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0" FormatString="0"
                              Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
               <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_Write_Button"
                       Grid.Column="6" Name="WriteButton" Content="Write" Click="OnWrite" MinWidth="100" />
@@ -99,7 +99,7 @@
                   AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_LevelUp_Control"
                   Name="LevelUpGroup" IsVisible="{Binding HasLevelUpTable}">
             <StackPanel Spacing="6">
-              <Grid ColumnDefinitions="*,Auto,140,Auto,80,Auto">
+              <Grid ColumnDefinitions="*,Auto,140,Auto,120,Auto">
                 <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_LevelUpAddr_Label"
                            Grid.Column="0" Text="Level-up Skill Table Address"
                            VerticalAlignment="Center" FontWeight="Bold" />
@@ -128,7 +128,7 @@
 
                 <StackPanel Grid.Column="1" Spacing="6">
 
-                  <Grid ColumnDefinitions="Auto,80,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="Auto,120,Auto,Auto,Auto">
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Level_Label"
                                Grid.Column="0" Text="Acquired Level" VerticalAlignment="Center"
                                Margin="0,0,8,0" FontWeight="Bold" />
@@ -137,7 +137,7 @@
                                    Minimum="0" Maximum="255" Margin="0,0,8,0" />
                   </Grid>
 
-                  <Grid ColumnDefinitions="Auto,80,Auto,Auto,Auto">
+                  <Grid ColumnDefinitions="Auto,120,Auto,*,Auto">
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Skill_Label"
                                Grid.Column="0" Text="Skill" VerticalAlignment="Center"
                                Margin="0,0,8,0" FontWeight="Bold" />
@@ -149,7 +149,7 @@
                            Width="32" Height="32" Margin="0,0,8,0" />
                     <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SkillName_Label"
                              Grid.Column="3" Name="N1SkillNameTextBox" IsReadOnly="True"
-                             Width="200" Margin="0,0,8,0" />
+                             Margin="0,0,8,0" />
                   </Grid>
                   <TextBox AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SkillText_Label"
                            Name="N1SkillTextTextBox" IsReadOnly="True" AcceptsReturn="True"
@@ -159,17 +159,17 @@
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Addr_Label"
                                Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Addr_Input"
-                                   Grid.Column="1" Name="N1AddressBox" FormatString="0" IsReadOnly="True"
+                                   Grid.Column="1" Name="N1AddressBox" FormatString="0" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0"
                                    Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Size_Label"
                                Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_BlockSize_Input"
-                                   Grid.Column="3" Name="N1BlockSizeBox" IsReadOnly="True"
+                                   Grid.Column="3" Name="N1BlockSizeBox" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0"
                                    Minimum="0" Maximum="64" Margin="0,0,8,0" />
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SelectAddr_Label"
                                Grid.Column="4" Text="Selected:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_SelectedAddress_Input"
-                                   Grid.Column="5" Name="N1SelectedAddressBox" IsReadOnly="True" FormatString="0"
+                                   Grid.Column="5" Name="N1SelectedAddressBox" IsReadOnly="True" ShowButtonSpinner="False" MinWidth="0" FormatString="0"
                                    Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
                     <Button AutomationProperties.AutomationId="SkillAssignmentUnitCSkillSys_N1_Write_Button"
                             Grid.Column="6" Name="N1WriteButton" Content="Write" Click="OnN1Write" MinWidth="100" />
