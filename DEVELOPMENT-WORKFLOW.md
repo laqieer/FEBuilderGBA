@@ -59,8 +59,8 @@ Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session*
    a false positive, record a **reasoned rebuttal** for the human (who owns final decisions) to adjudicate — never a
    silent override.
 5. **Post** the consolidated review yourself (always `-R laqieer/FEBuilderGBA`):
-   - Plan gate: `gh issue comment <N> ...`
-   - PR gate: a clearly-labeled `## Cross-Model Review Board` PR comment (`gh pr comment <N> ...`). A self-authored
+   - Plan gate: `gh issue comment <N> -R laqieer/FEBuilderGBA ...`
+   - PR gate: a clearly-labeled `## Cross-Model Review Board` PR comment (`gh pr comment <N> -R laqieer/FEBuilderGBA ...`). A self-authored
      `--comment` review carries no "approved" state, so merge relies on CI + the resolved-feedback checklist (Phase 5),
      not a GitHub approval.
 
@@ -617,7 +617,7 @@ Two agents editing `MainWindow.axaml.cs` will create merge conflicts.
 **Do:** Use the file overlap analysis table. Overlapping files go in the same agent.
 
 ### Don't: Stop at "ready to merge" without confirming MERGED
-"All checks pass" and "Copilot signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
+"All checks pass" and "the Review Gate signed off" doesn't mean done — the merge itself can fail due to branch policies, ruleset requirements, or race conditions.
 **Do:** Always run `gh pr view <N> -R laqieer/FEBuilderGBA --json state --jq .state` and confirm the output is `MERGED`. If not, diagnose and fix.
 
 ### Don't: Ignore non-inline feedback
@@ -632,7 +632,7 @@ A local-only review doesn't count — the review must be visible on GitHub.
 **Do:** Always use `--force-with-lease` to avoid overwriting someone else's work.
 
 ### Don't: Work directly on master
-Committing to master means no PR review, no Copilot CLI gate, and no clean revert path.
+Committing to master means no PR review, no Review Gate, and no clean revert path.
 **Do:** Always create a feature branch in an isolated worktree: `git fetch origin` then spawn a worktree agent that runs `git checkout -b feat/... origin/master` (see step 7).
 
 ### Don't: Switch branches or stash in the main worktree
