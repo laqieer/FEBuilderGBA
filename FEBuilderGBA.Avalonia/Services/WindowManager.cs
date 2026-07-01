@@ -62,6 +62,12 @@ namespace FEBuilderGBA.Avalonia.Services
             set => _service.MainWindow = value;
         }
 
+        /// <summary>
+        /// The editor window the user is currently working in (desktop), or null when none is
+        /// open / on Android. Used by the in-app bug reporter (#1747) to target the real editor.
+        /// </summary>
+        public Window? ActiveEditorWindow => _service.ActiveEditorWindow;
+
         /// <summary>Open or activate a window of the specified type.</summary>
         public T Open<T>() where T : Window, new() => _service.Open<T>();
 

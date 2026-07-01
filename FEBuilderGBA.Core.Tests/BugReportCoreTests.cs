@@ -134,5 +134,44 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("screenshot", fields.Keys);
             Assert.DoesNotContain("report7z", fields.Keys);
         }
+
+        // ---- SelectVersion (#1747: show the release tag, not the build-time version) ----
+
+        [Theory]
+        [InlineData("ver_20260629.04")]
+        [InlineData("ver_20260628.21")]
+        [InlineData("ver_20260629.4")]   // single-digit sequence still valid
+        public void SelectVersion_ReturnsReleaseTag_WhenInformationalIsATag(string tag)
+        {
+            Assert.Equal(tag, BugReportCore.SelectVersion(tag, "20000101.00"));
+        }
+
+        [Fact]
+        public void SelectVersion_StripsSourceLinkBuildMetadata()
+        {
+            // .NET's IncludeSourceRevisionInInformationalVersion appends "+<sha>".
+            Assert.Equal(
+                "ver_20260629.04",
+                BugReportCore.SelectVersion("ver_20260629.04+9df0c7b39f3a1c0d", "20000101.00"));
+        }
+
+        [Fact]
+        public void SelectVersion_TrimsWhitespace()
+        {
+            Assert.Equal("ver_20260629.04", BugReportCore.SelectVersion("  ver_20260629.04  ", "fb"));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("1.0.0")]                 // SDK default informational version
+        [InlineData("9.0.1+abc")]             // non-tag with metadata
+        [InlineData("20260629.20")]           // getVersion() shape but missing ver_ prefix
+        [InlineData("ver_2026.04")]           // wrong date width
+        [InlineData("not a version")]
+        public void SelectVersion_FallsBack_WhenNotAReleaseTag(string? informational)
+        {
+            Assert.Equal("FALLBACK", BugReportCore.SelectVersion(informational, "FALLBACK"));
+        }
     }
 }

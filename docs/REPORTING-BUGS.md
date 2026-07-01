@@ -3,7 +3,7 @@
 ## The fastest way: the in-app Report a Bug tool
 
 1. In the **Avalonia** GUI, open **Help → Report a Bug…**. In the **WinForms** GUI, open **File → Problem Report Tool** and click **Report a Bug on GitHub**.
-2. The app captures a screenshot of the current window and opens a pre-filled GitHub issue form in your browser.
+2. The app captures a screenshot of the editor window you're working in (falling back to the main window if none is open) and opens a pre-filled GitHub issue form — with your exact release version, ROM version, editor and platform — in your browser.
 3. Attach that screenshot: Avalonia saves it to your temp folder and reveals it in your file browser (drag it into the **Screenshot(s)** box); WinForms copies it to the clipboard (paste it with **Ctrl+V**).
 4. Fill in **What's wrong?** and any missing details, then submit.
 

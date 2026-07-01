@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA
@@ -1028,6 +1029,32 @@ namespace FEBuilderGBA
             var revision = ver.Revision;
             var baseDate = new DateTime(2000, 1, 1);
             return baseDate.AddDays(build).AddSeconds(revision * 2).ToString("yyyyMMdd.HH");
+        }
+
+        /// <summary>
+        /// The user-facing application version. For release builds this is the exact
+        /// <c>ver_YYYYMMDD.NN</c> tag stamped into the entry assembly's
+        /// <c>AssemblyInformationalVersion</c> by <c>release.yml</c>; for local/dev
+        /// builds (no such stamp) it falls back to <see cref="getVersion"/>. This is
+        /// what should be shown to users (e.g. the in-app bug report, #1747), because
+        /// <see cref="getVersion"/> reflects the Core assembly's per-build wildcard
+        /// timestamp, which does not match the release the user downloaded.
+        /// </summary>
+        public static string getAppVersion()
+        {
+            string fallback = getVersion();
+            try
+            {
+                var entry = System.Reflection.Assembly.GetEntryAssembly();
+                var info = entry?
+                    .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+                    .InformationalVersion;
+                return BugReportCore.SelectVersion(info, fallback);
+            }
+            catch
+            {
+                return fallback;
+            }
         }
         public static int CountLines(string str)
         {

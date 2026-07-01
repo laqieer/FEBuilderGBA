@@ -27,6 +27,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>The application root window (desktop) used as a modal parent. Null on Android.</summary>
         Window? MainWindow { get; set; }
 
+        /// <summary>
+        /// The editor window the user is currently working in — the most-recently-activated
+        /// managed <see cref="IEditorView"/> window that is still visible — or null when none
+        /// is open. Used by the in-app bug reporter (#1747) to screenshot/label the actual
+        /// editor rather than the main window. Always null on the Android single-view host.
+        /// </summary>
+        Window? ActiveEditorWindow { get; }
+
         /// <summary>Open or activate a view of the specified type.</summary>
         T Open<T>() where T : Window, new();
 

@@ -3632,12 +3632,17 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // 1. Capture screenshot of this window to temp PNG
+                // #1747: target the editor window the user is actually working in
+                // (the most-recently-activated editor). Falls back to this main window
+                // when no editor is open — matching the previous behavior in that case.
+                Window target = WindowManager.Instance.ActiveEditorWindow ?? this;
+
+                // 1. Capture screenshot of the target window to temp PNG
                 string pngPath = Path.Combine(Path.GetTempPath(), $"febuilder-bugshot-{DateTime.Now:yyyyMMdd-HHmmss-fff}-{Guid.NewGuid():N}.png");
                 bool screenshotSaved = false;
                 try
                 {
-                    var win = TopLevel.GetTopLevel(this);
+                    var win = TopLevel.GetTopLevel(target);
                     if (win != null)
                     {
                         var bounds = win.Bounds;
@@ -3658,9 +3663,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex) { Log.ErrorF("MainWindow.ReportBug_Click screenshot: {0}", ex.Message); }
 
                 // 2. Build prefill fields
-                string? appVersion = U.getVersion();
+                string? appVersion = U.getAppVersion();
                 string? romTag = CoreState.ROM?.RomInfo?.VersionToFilename;
-                string? editorTitle = this.Title ?? "Main Window";
+                string? editorTitle = target.Title ?? "Main Window";
                 string appLabel = "Avalonia GUI (cross-platform)";
                 var fields = BugReportCore.BuildPrefill(appVersion, romTag, editorTitle, appLabel);
                 var url = BugReportCore.BuildIssueUrl(BugReportCore.Owner, BugReportCore.Repo, BugReportCore.GuiBugTemplate, fields);
