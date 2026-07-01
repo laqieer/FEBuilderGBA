@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA
 {
@@ -101,6 +102,35 @@ namespace FEBuilderGBA
             return appVersion.StartsWith("ver_", StringComparison.Ordinal)
                 ? appVersion
                 : "ver_" + appVersion;
+        }
+
+        /// <summary>
+        /// Release-tag pattern the app is versioned by: <c>ver_YYYYMMDD.NN</c>.
+        /// </summary>
+        static readonly Regex ReleaseTagPattern = new(@"^ver_\d{8}\.\d+$", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Picks the version string to show in a bug report. When the entry assembly's
+        /// <c>AssemblyInformationalVersion</c> carries the exact release tag the user
+        /// knows (<c>ver_YYYYMMDD.NN</c>, as stamped by <c>release.yml</c>), that is
+        /// returned; otherwise it falls back to <paramref name="fallback"/> (the
+        /// per-build <see cref="FEBuilderGBA.U.getVersion"/> value used for local/dev
+        /// builds). Any SemVer build-metadata suffix (e.g. <c>+&lt;sha&gt;</c> added by
+        /// SourceLink) is stripped before matching, so a future SourceLink change can't
+        /// silently revert this to the wrong computed version.
+        /// </summary>
+        public static string SelectVersion(string? informationalVersion, string fallback)
+        {
+            if (!string.IsNullOrEmpty(informationalVersion))
+            {
+                // Strip SemVer build metadata: "ver_20260629.04+9df0c7b" -> "ver_20260629.04".
+                string clean = informationalVersion.Split('+')[0].Trim();
+                if (ReleaseTagPattern.IsMatch(clean))
+                {
+                    return clean;
+                }
+            }
+            return fallback;
         }
 
         /// <summary>

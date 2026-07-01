@@ -30,6 +30,7 @@ sealed class RecordingNavigationService : INavigationService
     public Type? LastType;
     public uint LastAddress;
     public Window? MainWindow { get; set; }
+    public Window? ActiveEditorWindow => null;
 
     public T Open<T>() where T : Window, new()
     {

@@ -76,7 +76,7 @@ jobs:
         run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r win-x86 --self-contained true -o tools/publish
 
       - name: Build
-        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore .
+        run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} /p:Platform=x86 /t:build /restore /p:InformationalVersion=${{ github.ref_name }} .
 
       - name: Post Build (assemble desktop package)
         # Based on msbuild.yml's "Post Build" step: collect exe/dll/json + config
@@ -170,10 +170,10 @@ jobs:
         run: dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/tools-${{ matrix.rid }}
 
       - name: Publish CLI
-        run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }}
+        run: dotnet publish FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/cli-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Publish Avalonia
-        run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }}
+        run: dotnet publish FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c ${{ env.BUILD_CONFIGURATION }} -r ${{ matrix.rid }} --self-contained true -o publish/avalonia-${{ matrix.rid }} -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Bundle ColorzCore into CLI and Avalonia artifacts
         shell: bash
@@ -242,7 +242,7 @@ jobs:
         run: dotnet workload install android
 
       - name: Build Android APK
-        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c ${{ env.BUILD_CONFIGURATION }} -p:EnableAndroidTarget=true
+        run: dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj -c ${{ env.BUILD_CONFIGURATION }} -p:EnableAndroidTarget=true -p:InformationalVersion=${{ github.ref_name }} -p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Zip Android APK
         shell: bash

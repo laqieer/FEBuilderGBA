@@ -118,6 +118,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public Window? MainWindow { get; set; }
 
+        /// <inheritdoc />
+        // Single-view host: there are no separate editor windows to target, so the
+        // in-app bug reporter falls back to the main view (#1747).
+        public Window? ActiveEditorWindow => null;
+
         public T Open<T>() where T : Window, new()
         {
             // Re-activate an already-open singleton: bring its page to the top.

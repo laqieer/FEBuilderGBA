@@ -24,19 +24,70 @@ namespace FEBuilderGBA.Avalonia.Services
     {
         readonly Dictionary<Type, Window> _windows = new();
 
+        // #1747: most-recently-activated managed editor windows (MRU). The last
+        // still-visible entry is the editor the user is currently working in — used
+        // by the in-app bug reporter to target that window instead of MainWindow.
+        readonly List<Window> _mru = new();
+
         public Window? MainWindow { get; set; }
+
+        /// <inheritdoc />
+        public Window? ActiveEditorWindow
+        {
+            get
+            {
+                for (int i = _mru.Count - 1; i >= 0; i--)
+                {
+                    if (_mru[i].IsVisible)
+                    {
+                        return _mru[i];
+                    }
+                }
+                return null;
+            }
+        }
+
+        // Record a managed window becoming active (moves it to the MRU tail). Only
+        // IEditorView windows are tracked, and never MainWindow, so the shell and any
+        // transient/tool/dialog windows can never become the bug-report target (#1747).
+        // internal so the headless test can drive tracking deterministically without
+        // depending on Window.Activated firing under Avalonia.Headless.
+        internal void NoteActivated(Window? window)
+        {
+            if (window == null || ReferenceEquals(window, MainWindow) || window is not IEditorView)
+            {
+                return;
+            }
+            _mru.Remove(window);
+            _mru.Add(window);
+        }
+
+        // Record a managed window closing (drops it from the MRU so ActiveEditorWindow
+        // falls back to the next most-recent still-open editor). internal for the test seam.
+        internal void NoteClosed(Window? window)
+        {
+            if (window != null)
+            {
+                _mru.Remove(window);
+            }
+        }
 
         public T Open<T>() where T : Window, new()
         {
             if (_windows.TryGetValue(typeof(T), out var existing) && existing.IsVisible)
             {
                 existing.Activate();
+                NoteActivated(existing); // re-surface in the MRU on re-activation (#1747)
                 return (T)existing;
             }
 
             var window = new T();
             _windows[typeof(T)] = window;
-            window.Closed += (_, _) => _windows.Remove(typeof(T));
+            NoteActivated(window); // a freshly-opened editor is the active one (#1747)
+            // Subscribe once, on the creation path only (Navigate<T> calls Open<T>, so
+            // hooking here avoids double-subscription).
+            window.Activated += (_, _) => NoteActivated(window);
+            window.Closed += (_, _) => { _windows.Remove(typeof(T)); NoteClosed(window); };
             window.Show();
             return window;
         }
