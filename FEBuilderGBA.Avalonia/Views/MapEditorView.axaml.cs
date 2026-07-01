@@ -35,6 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportCsvButton.Click += ImportCsv_Click;
             ExportTmxButton.Click += ExportTmx_Click;
             ImportTmxButton.Click += ImportTmx_Click;
+            ResizeMapButton.Click += ResizeMap_Click;
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
@@ -682,6 +683,76 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapEditorView.ImportTmx_Click failed: " + ex.ToString());
                 CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Resize the currently-loaded map. Opens the existing resize dialog (pre-filled
+        /// with the current W×H), and on OK applies the T/L/R/B padding via
+        /// <see cref="MapEditorViewModel.ApplyMapResize"/> under one undo scope — the same
+        /// compress → free-space-write → repoint pipeline the CSV/TMX import uses, so a map
+        /// that grows is relocated to free space instead of overwriting trailing data.
+        /// Invalid sizes (below 15×10 or above the FE height-dependent width limit) are
+        /// rejected with an error and leave the ROM untouched. (#1735)
+        /// </summary>
+        async void ResizeMap_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] cachedMap = _vm.GetMapDataSnapshot();
+                if (cachedMap == null || cachedMap.Length < 2)
+                {
+                    CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
+                    return;
+                }
+
+                // Map tile layout is a source asset in decomp mode — block writes.
+                if (DecompMapAssetGuard.BlockIfDecomp(R._("map tile layout")))
+                    return;
+
+                var dialog = new MapEditorResizeDialogView();
+                dialog.SetPosition(0, 0, _vm.MapWidth, _vm.MapHeight);
+                bool confirmed = await dialog.ShowDialog<bool>(this);
+                if (!confirmed) return;
+
+                if (dialog.DataViewModel is not MapEditorResizeDialogViewModel dlgVm) return;
+
+                int top = dlgVm.PaddingTop, left = dlgVm.PaddingLeft;
+                int right = dlgVm.PaddingRight, bottom = dlgVm.PaddingBottom;
+                if (top == 0 && left == 0 && right == 0 && bottom == 0)
+                    return; // nothing to do
+
+                bool ok;
+                string applyErr;
+                uint addr;
+                _undo.Begin("MapEditor.Resize");
+                try
+                {
+                    ok = _vm.ApplyMapResize(top, left, right, bottom, 0, out applyErr, out addr);
+                }
+                catch (Exception)
+                {
+                    _undo.Rollback();
+                    throw;
+                }
+
+                if (ok)
+                {
+                    _undo.Commit();
+                    OnRefreshMap(this, new RoutedEventArgs());
+                    UpdateTilePalette();
+                    CoreState.Services?.ShowInfo(string.Format(R._("Resized map to {0}x{1} tiles."), _vm.MapWidth, _vm.MapHeight));
+                }
+                else
+                {
+                    _undo.Rollback();
+                    CoreState.Services?.ShowError(string.Format(R._("Resize failed: {0}"), applyErr));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.ResizeMap_Click failed: " + ex.ToString());
+                CoreState.Services?.ShowError(string.Format(R._("Resize failed: {0}"), ex.Message));
             }
         }
 

@@ -12251,6 +12251,15 @@ FE-Repoの汎用ミニ顔フォルダからインポート
 :Import Map (Tiled .tmx)
 マップをインポート (Tiled .tmx)
 
+:Resize Map…
+マップをリサイズ…
+
+:Resized map to {0}x{1} tiles.
+マップを {0}x{1} タイルにリサイズしました。
+
+:Resize failed: {0}
+リサイズに失敗しました: {0}
+
 :Tiled export requires a local file path (not supported on this storage provider).
 Tiledエクスポートにはローカルファイルパスが必要です（このストレージプロバイダーではサポートされていません）。
 

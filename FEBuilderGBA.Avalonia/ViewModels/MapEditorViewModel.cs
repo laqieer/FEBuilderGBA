@@ -702,6 +702,95 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Resize the currently-loaded map by per-edge padding (positive grows, negative
+        /// crops), writing the recompressed result to ROM. Reuses the exact fault-safe
+        /// write pipeline of <see cref="ApplyMapGrid"/>: build the resized buffer via
+        /// <see cref="MapEditorTilesetCore.BuildResizedMapData"/>, <c>LZ77.compress</c>,
+        /// <see cref="ImageImportCore.FindAndWriteData"/> (which finds fresh free space
+        /// sized to the compressed bytes, so a larger map is relocated rather than
+        /// overwriting the data after the original region), then repoint the map's
+        /// pointer-table entry. The in-memory cache and <see cref="MapWidth"/>/
+        /// <see cref="MapHeight"/> are updated only after every ROM write succeeds.
+        /// Returns false with <paramref name="error"/> on invalid dimensions (see
+        /// BuildResizedMapData's FE main-map limits), no ROM/map, or no free space,
+        /// leaving all state untouched. Call inside an undo scope so the data write and
+        /// pointer repoint revert together.
+        /// </summary>
+        public bool ApplyMapResize(int top, int left, int right, int bottom, ushort fillTile,
+            out string error, out uint writeAddr)
+        {
+            error = null;
+            writeAddr = 0;
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                error = "No ROM loaded";
+                return false;
+            }
+            if (_cachedMapData == null)
+            {
+                error = "No map loaded";
+                return false;
+            }
+
+            if (!MapEditorTilesetCore.BuildResizedMapData(
+                _cachedMapData, MapWidth, MapHeight, top, left, right, bottom, fillTile,
+                out byte[] resized, out int newW, out int newH, out string buildErr))
+            {
+                error = buildErr;
+                return false;
+            }
+
+            byte[] compressed;
+            try
+            {
+                compressed = LZ77.compress(resized);
+            }
+            catch (Exception ex)
+            {
+                error = "LZ77 compression threw: " + ex.Message;
+                return false;
+            }
+            if (compressed == null || compressed.Length == 0)
+            {
+                error = "LZ77 compression returned empty";
+                return false;
+            }
+
+            try
+            {
+                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            }
+            catch (Exception ex)
+            {
+                error = "ROM write threw: " + ex.Message;
+                return false;
+            }
+            if (writeAddr == U.NOT_FOUND)
+            {
+                error = "No free space in ROM for compressed map data";
+                return false;
+            }
+
+            try
+            {
+                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
+            }
+            catch (Exception ex)
+            {
+                error = "Pointer write threw: " + ex.Message;
+                return false;
+            }
+
+            // SUCCESS — swap the cache in and update dimensions only now.
+            _cachedMapData = resized;
+            MapWidth = newW;
+            MapHeight = newH;
+            return true;
+        }
+
+        /// <summary>
         /// Render a single 4bpp 8x8 tile into the RGBA pixel buffer.
         /// </summary>
         static void RenderTile4bpp(byte[] tileData, int tileIndex, byte[] palette, int palIndex,

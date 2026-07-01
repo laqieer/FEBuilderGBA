@@ -26095,6 +26095,15 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 :Import Map (Tiled .tmx)
 导入地图 (Tiled .tmx)
 
+:Resize Map…
+调整地图大小…
+
+:Resized map to {0}x{1} tiles.
+已将地图调整为 {0}x{1} 图块。
+
+:Resize failed: {0}
+调整大小失败：{0}
+
 :Tiled export requires a local file path (not supported on this storage provider).
 Tiled 导出需要本地文件路径（此存储提供程序不支持）。
 
