@@ -8,9 +8,10 @@
 // RenderTargetBitmap.Save produces no real PNG (see ReportBugMenuItemScreenshotTest).
 // So the PROOF is the assertion block — a real DesktopNavigationService selects the
 // most-recently-activated editor window as ActiveEditorWindow — and we render a
-// faithful, NON-fabricated before/after picture with SkiaSharp using that live value.
+// SCHEMATIC before/after DIAGRAM with SkiaSharp (NOT a capture of the actual dialog)
+// that embeds that live ActiveEditorWindow.Title value in the "After" card.
 //
-// Set FEBUILDERGBA_SCREENSHOT_DIR to regenerate the canonical PR screenshot into
+// Set FEBUILDERGBA_SCREENSHOT_DIR to regenerate the canonical PR diagram into
 // the repo's pr-screenshots/.
 using System;
 using System.IO;
