@@ -96,10 +96,20 @@ namespace FEBuilderGBA.Avalonia.Services
         internal const uint OFFSET_D4_MINI_FACE      = 4;   // D4: 32x32 mini face tiles pointer (FE6/7/8)
         internal const uint OFFSET_D8_PALETTE        = 8;   // D8: palette pointer (FE6/7/8)
         internal const uint OFFSET_D12_MOUTH_FRAMES  = 12;  // D12: mouth-frames tiles pointer (FE7/8 only — FE6 reuses bytes +12..+15 for coords)
+        internal const uint OFFSET_D16_CLASS_CARD    = 16;  // D16: class-card pointer (FE7/8 only)
         internal const uint OFFSET_B20_MOUTH_BLOCK_X = 20;  // B20: mouth block X (FE7/8 only)
         internal const uint OFFSET_B21_MOUTH_BLOCK_Y = 21;  // B21: mouth block Y (FE7/8 only)
         internal const uint OFFSET_B22_EYE_BLOCK_X   = 22;  // B22: eye block X (FE7/8 only)
         internal const uint OFFSET_B23_EYE_BLOCK_Y   = 23;  // B23: eye block Y (FE7/8 only)
+        const int HALFBODY_PALETTE_BYTES = 64;
+
+        static readonly PatchDetection.PatchTableSt[] HalfBodyPatchTable =
+        {
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8U", addr=0x8540, data=new byte[]{0x0A,0x1C} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8U", addr=0x8540, data=new byte[]{0x01,0x3A} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8J", addr=0x843C, data=new byte[]{0x0A,0x1C} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8J", addr=0x843C, data=new byte[]{0x01,0x3A} },
+        };
 
         /// <summary>
         /// FE7 / FE8 portrait entries are 28 bytes (D0 sheet, D4 mini-face,
@@ -150,6 +160,17 @@ namespace FEBuilderGBA.Avalonia.Services
             return true;
         }
 
+        static bool CanAccessEntryRange(ROM rom, uint entryAddr, uint fieldOffset, uint length)
+        {
+            ulong offset = (ulong)entryAddr + (ulong)fieldOffset;
+            return rom?.Data != null && offset + (ulong)length <= (ulong)rom.Data.Length;
+        }
+
+        static bool IsHalfBodyPatchInstalled(ROM rom)
+        {
+            return PatchDetection.SearchPatchBool(rom, HalfBodyPatchTable);
+        }
+
         public static ImportOutcome ImportPortrait(
             ROM rom,
             uint entryAddr,
@@ -187,10 +208,20 @@ namespace FEBuilderGBA.Avalonia.Services
                     mode, customPaletteBytes, fuchidori, undoLabel,
                     mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
             }
+            if (loadResult.Width == 160 && loadResult.Height == 160)
+            {
+                return ImportHalfBodyHackbox(rom, entryAddr, loadResult, undoService,
+                    mode, customPaletteBytes, fuchidori, undoLabel,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+            }
+            if (loadResult.Width == 144 && loadResult.Height == 304)
+            {
+                return ImportOutcome.Fail("Twoparter Hackbox (144x304) is not yet supported; no verified WinForms PART1/PART2 layout exists.");
+            }
 
             return ImportOutcome.Fail(
                 $"Unsupported portrait image size {loadResult.Width}x{loadResult.Height}. "
-                + "Use a 96x80 exported face PNG or a 128x112 FEditor portrait sheet.");
+                + "Use a 96x80 exported face PNG, a 128x112 Standard Hackbox, or an FE8 HALFBODY 160x160 Halfbody Hackbox.");
         }
 
         /// <summary>
@@ -741,6 +772,267 @@ namespace FEBuilderGBA.Avalonia.Services
             }
         }
 
+        static ImportOutcome ImportHalfBodyHackbox(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            PortraitPaletteMode mode,
+            byte[] customPaletteBytes,
+            bool fuchidori,
+            string undoLabel,
+            byte? mouthBlockX,
+            byte? mouthBlockY,
+            byte? eyeBlockX,
+            byte? eyeBlockY)
+        {
+            if (rom == null) return ImportOutcome.Fail("ROM not loaded");
+            if (loadResult == null || !loadResult.Success)
+                return ImportOutcome.Fail(loadResult?.Error ?? "No image to import");
+            if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
+            if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
+            if (loadResult.Width != 160 || loadResult.Height != 160)
+                return ImportOutcome.Fail("Halfbody Hackbox import requires a 160x160 image.");
+            if (rom.RomInfo == null || rom.RomInfo.version != 8)
+                return ImportOutcome.Fail("Halfbody Hackbox import requires an FE8 ROM; FE6/FE7 do not have the HALFBODY portrait-extension patch.");
+            if (!IsHalfBodyPatchInstalled(rom))
+                return ImportOutcome.Fail("Halfbody Hackbox import requires the FE8 HALFBODY portrait-extension patch. Install that patch before importing 160x160 portraits.");
+            if (!CanAccessEntryRange(rom, entryAddr, OFFSET_D16_CLASS_CARD, 4)
+                || !CanAccessEntryRange(rom, entryAddr, OFFSET_B23_EYE_BLOCK_Y, 1))
+                return ImportOutcome.Fail("Target portrait entry is outside ROM bounds.");
+
+            byte[] rgbaPixels = BuildColorKeyedRgba(loadResult);
+            if (rgbaPixels == null)
+                return ImportOutcome.Fail("Failed to reconstruct halfbody pixels.");
+
+            var parts = PortraitRendererCore.SplitHalfBodyPortraitSheet(
+                rgbaPixels, loadResult.Width, loadResult.Height);
+            if (parts == null)
+                return ImportOutcome.Fail("Failed to split Halfbody Hackbox.");
+
+            byte[] palette64;
+            byte[] sheetIndexed;
+            byte[] miniIndexed;
+            byte[] mouthIndexed;
+
+            switch (mode)
+            {
+                case PortraitPaletteMode.SharePalette:
+                {
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
+                    uint paletteOffset = U.toOffset(palettePtr);
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, HALFBODY_PALETTE_BYTES))
+                        return ImportOutcome.Fail("Target slot does not have a valid 64-byte halfbody palette at D8 — use AutoQuantize or CustomPalette.");
+                    palette64 = rom.getBinaryData(paletteOffset, HALFBODY_PALETTE_BYTES);
+                    if (palette64 == null || palette64.Length < HALFBODY_PALETTE_BYTES)
+                        return ImportOutcome.Fail("Could not read the existing 64-byte halfbody palette at D8.");
+                    if (!BuildHalfBodyIndexedWithPalette(parts, palette64, fuchidori,
+                        out sheetIndexed, out miniIndexed, out mouthIndexed))
+                        return ImportOutcome.Fail("Failed to remap Halfbody Hackbox to the existing palette.");
+                    break;
+                }
+                case PortraitPaletteMode.CustomPalette:
+                {
+                    if (customPaletteBytes == null || customPaletteBytes.Length != HALFBODY_PALETTE_BYTES)
+                        return ImportOutcome.Fail(
+                            $"Invalid halfbody custom palette — expected 32 colors (64 bytes), got {customPaletteBytes?.Length ?? 0}.");
+                    palette64 = customPaletteBytes;
+                    if (!BuildHalfBodyIndexedWithPalette(parts, palette64, fuchidori,
+                        out sheetIndexed, out miniIndexed, out mouthIndexed))
+                        return ImportOutcome.Fail("Failed to remap Halfbody Hackbox to the custom palette.");
+                    break;
+                }
+                default:
+                {
+                    if (!BuildHalfBodyIndexedAuto(parts, fuchidori,
+                        out palette64, out sheetIndexed, out miniIndexed, out mouthIndexed))
+                        return ImportOutcome.Fail("Failed to quantize Halfbody Hackbox to two 16-color palette banks.");
+                    break;
+                }
+            }
+
+            undoService.Begin(undoLabel);
+            try
+            {
+                byte[] sheetTiles = ImageImportCore.EncodeDirectTiles4bpp(
+                    sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH);
+                if (sheetTiles == null)
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode halfbody sprite sheet tiles"); }
+
+                byte[] withHeader = new byte[4 + sheetTiles.Length];
+                withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x20; withHeader[3] = 0x00;
+                Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                uint sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
+                if (sheetAddr == U.NOT_FOUND)
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for halfbody sprite sheet"); }
+
+                byte[] miniTiles = ImageImportCore.EncodeDirectTiles4bpp(
+                    miniIndexed, parts.MiniW, parts.MiniH);
+                if (miniTiles == null)
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
+                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
+                if (miniAddr == U.NOT_FOUND)
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
+
+                if (mode != PortraitPaletteMode.SharePalette)
+                {
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, palette64, entryAddr + OFFSET_D8_PALETTE);
+                    if (palAddr == U.NOT_FOUND)
+                    { undoService.Rollback(); return ImportOutcome.Fail("No free space for halfbody palette"); }
+                }
+
+                byte[] mouthTiles = ImageImportCore.EncodeDirectTiles4bpp(
+                    mouthIndexed, parts.MouthW, parts.MouthH);
+                if (mouthTiles == null)
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
+                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + OFFSET_D12_MOUTH_FRAMES);
+                if (mouthAddr == U.NOT_FOUND)
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
+
+                rom.write_p32(entryAddr + OFFSET_D16_CLASS_CARD, 0);
+                WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+
+                undoService.Commit();
+                return ImportOutcome.Ok();
+            }
+            catch (Exception ex)
+            {
+                undoService.Rollback();
+                return ImportOutcome.Fail($"Halfbody import failed: {ex.Message}");
+            }
+        }
+
+        static bool BuildHalfBodyIndexedAuto(
+            HalfBodyPortraitSheetParts parts,
+            bool fuchidori,
+            out byte[] palette64,
+            out byte[] sheetIndexed,
+            out byte[] miniIndexed,
+            out byte[] mouthIndexed)
+        {
+            palette64 = null;
+            sheetIndexed = null;
+            miniIndexed = null;
+            mouthIndexed = null;
+            if (parts == null) return false;
+
+            byte[] topRgba = CopyRgbaRect(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 0, parts.SpriteSheetW, 32);
+            byte[] bottomRgba = CopyRgbaRect(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 32, parts.SpriteSheetW, 32);
+            var topQr = DecreaseColorCore.Quantize(topRgba, parts.SpriteSheetW, 32, 16);
+            var bottomQr = DecreaseColorCore.Quantize(bottomRgba, parts.SpriteSheetW, 32, 16);
+            if (topQr == null || bottomQr == null) return false;
+
+            byte[] bank0 = PadPaletteBank(topQr.GBAPalette);
+            byte[] bank1 = PadPaletteBank(bottomQr.GBAPalette);
+            palette64 = new byte[HALFBODY_PALETTE_BYTES];
+            Array.Copy(bank0, 0, palette64, 0, 32);
+            Array.Copy(bank1, 0, palette64, 32, 32);
+
+            byte[] topIndexed = topQr.IndexData;
+            byte[] bottomIndexed = bottomQr.IndexData;
+            miniIndexed = ImageImportCore.RemapToExistingPalette(parts.MiniPixels, parts.MiniW, parts.MiniH, bank0, 16);
+            mouthIndexed = ImageImportCore.RemapToExistingPalette(parts.MouthPixels, parts.MouthW, parts.MouthH, bank0, 16);
+            if (topIndexed == null || bottomIndexed == null || miniIndexed == null || mouthIndexed == null) return false;
+
+            ApplyHalfBodyFuchidoriIfNeeded(fuchidori, bank0, bank1, topIndexed, bottomIndexed,
+                parts.SpriteSheetW, miniIndexed, parts.MiniW, parts.MiniH, mouthIndexed, parts.MouthW, parts.MouthH);
+
+            sheetIndexed = CombineHalfBodySheetIndices(topIndexed, bottomIndexed, parts.SpriteSheetW);
+            return sheetIndexed != null;
+        }
+
+        static bool BuildHalfBodyIndexedWithPalette(
+            HalfBodyPortraitSheetParts parts,
+            byte[] palette64,
+            bool fuchidori,
+            out byte[] sheetIndexed,
+            out byte[] miniIndexed,
+            out byte[] mouthIndexed)
+        {
+            sheetIndexed = null;
+            miniIndexed = null;
+            mouthIndexed = null;
+            if (parts == null || palette64 == null || palette64.Length < HALFBODY_PALETTE_BYTES) return false;
+
+            byte[] bank0 = new byte[32];
+            byte[] bank1 = new byte[32];
+            Array.Copy(palette64, 0, bank0, 0, 32);
+            Array.Copy(palette64, 32, bank1, 0, 32);
+
+            byte[] topRgba = CopyRgbaRect(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 0, parts.SpriteSheetW, 32);
+            byte[] bottomRgba = CopyRgbaRect(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 32, parts.SpriteSheetW, 32);
+            byte[] topIndexed = ImageImportCore.RemapToExistingPalette(topRgba, parts.SpriteSheetW, 32, bank0, 16);
+            byte[] bottomIndexed = ImageImportCore.RemapToExistingPalette(bottomRgba, parts.SpriteSheetW, 32, bank1, 16);
+            miniIndexed = ImageImportCore.RemapToExistingPalette(parts.MiniPixels, parts.MiniW, parts.MiniH, bank0, 16);
+            mouthIndexed = ImageImportCore.RemapToExistingPalette(parts.MouthPixels, parts.MouthW, parts.MouthH, bank0, 16);
+            if (topIndexed == null || bottomIndexed == null || miniIndexed == null || mouthIndexed == null) return false;
+
+            ApplyHalfBodyFuchidoriIfNeeded(fuchidori, bank0, bank1, topIndexed, bottomIndexed,
+                parts.SpriteSheetW, miniIndexed, parts.MiniW, parts.MiniH, mouthIndexed, parts.MouthW, parts.MouthH);
+
+            sheetIndexed = CombineHalfBodySheetIndices(topIndexed, bottomIndexed, parts.SpriteSheetW);
+            return sheetIndexed != null;
+        }
+
+        static void ApplyHalfBodyFuchidoriIfNeeded(
+            bool fuchidori,
+            byte[] bank0,
+            byte[] bank1,
+            byte[] topIndexed,
+            byte[] bottomIndexed,
+            int sheetW,
+            byte[] miniIndexed,
+            int miniW,
+            int miniH,
+            byte[] mouthIndexed,
+            int mouthW,
+            int mouthH)
+        {
+            if (!fuchidori) return;
+            byte black0 = (byte)ImageUtilCore.FindBlackColorIndex(bank0, 1, 16);
+            byte black1 = (byte)ImageUtilCore.FindBlackColorIndex(bank1, 1, 16);
+            ImageUtilCore.Fuchidori(topIndexed, sheetW, 32, black0);
+            ImageUtilCore.Fuchidori(bottomIndexed, sheetW, 32, black1);
+            ImageUtilCore.Fuchidori(miniIndexed, miniW, miniH, black0);
+            ImageUtilCore.Fuchidori(mouthIndexed, mouthW, mouthH, black0);
+        }
+
+        static byte[] PadPaletteBank(byte[] palette)
+        {
+            byte[] bank = new byte[32];
+            if (palette != null)
+                Array.Copy(palette, 0, bank, 0, Math.Min(palette.Length, bank.Length));
+            return bank;
+        }
+
+        static byte[] CopyRgbaRect(byte[] src, int srcW, int srcX, int srcY, int w, int h)
+        {
+            if (src == null || srcW <= 0 || w <= 0 || h <= 0) return null;
+            byte[] dst = new byte[w * h * 4];
+            for (int y = 0; y < h; y++)
+            {
+                int srcOffset = ((srcY + y) * srcW + srcX) * 4;
+                int dstOffset = y * w * 4;
+                if (srcOffset < 0 || srcOffset + w * 4 > src.Length) return null;
+                Array.Copy(src, srcOffset, dst, dstOffset, w * 4);
+            }
+            return dst;
+        }
+
+        static byte[] CombineHalfBodySheetIndices(byte[] topIndexed, byte[] bottomIndexed, int width)
+        {
+            if (topIndexed == null || bottomIndexed == null || width <= 0) return null;
+            int halfPixels = width * 32;
+            if (topIndexed.Length < halfPixels || bottomIndexed.Length < halfPixels) return null;
+            byte[] combined = new byte[halfPixels * 2];
+            Array.Copy(topIndexed, 0, combined, 0, halfPixels);
+            Array.Copy(bottomIndexed, 0, combined, halfPixels, halfPixels);
+            return combined;
+        }
+
         /// <summary>
         /// #663 Slice A: write any non-null mouth/eye block coords to bytes
         /// B20-B23 of the portrait entry. Called inside an open
@@ -1157,9 +1449,11 @@ namespace FEBuilderGBA.Avalonia.Services
                     RecordSourceFile(slotId, filePath);
                     string mode = loadResult.Width == 128 && loadResult.Height == 112
                         ? " (sheet)"
-                        : loadResult.Width == 96 && loadResult.Height == 80
-                            ? " (face)"
-                            : "";
+                        : loadResult.Width == 160 && loadResult.Height == 160
+                            ? " (halfbody)"
+                            : loadResult.Width == 96 && loadResult.Height == 80
+                                ? " (face)"
+                                : "";
                     string line = $"{fileName} → slot 0x{slotId:X2}{mode} → OK";
                     lines.Add(line);
                     progress?.Report(line);

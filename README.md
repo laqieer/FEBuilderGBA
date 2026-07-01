@@ -72,6 +72,8 @@ dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux
 
 Until then the Resource Browser shows an actionable empty-state listing **both** the `git submodule update` (source) and `git clone` (released-build) commands, with a **Copy git command** button, instead of an empty tree. See [docs/RELEASE.md → FE-Repo / FE-Repo-Music resources](docs/RELEASE.md#fe-repo--fe-repo-music-resources-on-demand) for the release-notes wording.
 
+**Avalonia portrait imports:** the Portrait Editor / Portrait Import Wizard accept 96×80 face PNGs, FE-Repo Standard Hackboxes (128×112), and FE8 HALFBODY Halfbody Hackboxes (160×160) when the HALFBODY portrait-extension patch is installed. FE-Repo Twoparter Hackboxes (144×304) are rejected with guidance until a verified PART1/PART2 layout is implemented.
+
 ### Cross-Platform Build (Linux / macOS / Windows)
 
 The Core library, CLI, SkiaSharp backend, and Avalonia GUI scaffold all target `net9.0` and build on any platform:

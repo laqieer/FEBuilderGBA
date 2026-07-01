@@ -624,6 +624,85 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(255, parts.SpriteSheetPixels[skinOff + 3]);
         }
 
+
+
+        [Fact]
+        public void ImportPortrait_TwoparterHackbox_ReturnsExplicitUnsupportedBeforeUndoScope()
+        {
+            var undo = new UndoServiceSpy();
+            var outcome = PortraitImportHelper.ImportPortrait(
+                new ROM(), 0x100, MakeSyntheticLoadResult(144, 304), undo);
+
+            Assert.False(outcome.Success);
+            Assert.Contains("Twoparter Hackbox", outcome.Error);
+            Assert.Contains("not yet supported", outcome.Error);
+            Assert.Equal(0, undo.BeginCount);
+        }
+
+        [Fact]
+        public void ImportPortrait_HalfBodyHackbox_RequiresHalfBodyPatchBeforeUndoScope()
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeSyntheticFe8URom();
+            var undo = new UndoServiceSpy();
+
+            var outcome = PortraitImportHelper.ImportPortrait(
+                rom, 0x1000, MakeHalfBodyLoadResult(), undo);
+
+            Assert.False(outcome.Success);
+            Assert.Contains("HALFBODY", outcome.Error);
+            Assert.Equal(0, undo.BeginCount);
+        }
+
+        [Fact]
+        public void ImportPortrait_HalfBodyHackbox_CustomPaletteRequires64Bytes()
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeSyntheticFe8URom();
+            InstallHalfBodyPatch(rom);
+            var undo = new UndoServiceSpy();
+
+            var outcome = PortraitImportHelper.ImportPortrait(
+                rom, 0x1000, MakeHalfBodyLoadResult(), undo,
+                PortraitPaletteMode.CustomPalette, BuildSimplePalette(16), false,
+                "Halfbody custom palette test");
+
+            Assert.False(outcome.Success);
+            Assert.Contains("64 bytes", outcome.Error);
+            Assert.Equal(0, undo.BeginCount);
+        }
+
+        [Fact]
+        public void ImportPortrait_HalfBodyHackbox_AutoQuantizeWritesHalfBodyHeaderAnd64BytePalette()
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeSyntheticFe8URom();
+            InstallHalfBodyPatch(rom);
+            uint entryAddr = 0x1000;
+
+            var outcome = PortraitImportHelper.ImportPortrait(
+                rom, entryAddr, MakeHalfBodyLoadResult(), new UndoServiceSpy(),
+                "Halfbody import test");
+
+            Assert.True(outcome.Success, outcome.Error);
+            uint d0 = U.toOffset(rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET));
+            uint d8 = U.toOffset(rom.p32(entryAddr + PortraitImportHelper.OFFSET_D8_PALETTE));
+            Assert.True(U.isSafetyOffset(d0, rom));
+            Assert.True(U.isSafetyOffset(d8, rom));
+            Assert.Equal((byte)0x00, rom.u8(d0 + 0));
+            Assert.Equal((byte)0x04, rom.u8(d0 + 1));
+            Assert.Equal((byte)0x20, rom.u8(d0 + 2));
+            Assert.Equal((byte)0x00, rom.u8(d0 + 3));
+
+            byte[] palette64 = rom.getBinaryData(d8, 64);
+            Assert.Equal(64, palette64.Length);
+            Assert.Contains(palette64[32..], b => b != 0);
+            Assert.Equal((uint)0, rom.p32(entryAddr + PortraitImportHelper.OFFSET_D16_CLASS_CARD));
+
+            byte[] tileData = rom.getBinaryData(d0 + 4, 256 / 8 * 64 / 8 * 32);
+            Assert.NotEqual(0, GetTilePixel(tileData, 256, 0, 32));
+        }
+
         [Fact]
         public void Wizard_View_HasDragAndDropWiring()
         {
@@ -892,6 +971,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(new FileInfo(outPath).Length > 0);
         }
 
+
+
+        [Fact]
+        public void PortraitImport_HalfBodyProofPng_SavesDeterministicImage()
+        {
+            using var _ = EnsureImageService();
+            var lr = MakeHalfBodyLoadResult();
+            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            var parts = PortraitRendererCore.SplitHalfBodyPortraitSheet(keyed, 160, 160);
+            Assert.NotNull(parts);
+
+            const int outW = 160 + 8 + 256;
+            const int outH = 160;
+            byte[] canvas = SolidRgba(outW, outH, 32, 32, 32, 255);
+            BlitOpaque(lr.RGBAPixels, 160, 160, canvas, outW, 0, 0);
+            BlitAlpha(parts.SpriteSheetPixels, 256, 64, canvas, outW, 168, 0);
+            BlitAlpha(parts.MiniPixels, 32, 32, canvas, outW, 168, 72);
+            BlitAlpha(parts.MouthPixels, 32, 96, canvas, outW, 208, 64);
+
+            Assert.Contains((byte)220, canvas);
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(overrideDir))
+                return;
+
+            string repoRoot = FindRepoRoot();
+            string outDir = Path.GetFullPath(overrideDir);
+            string relativeOutDir = Path.GetRelativePath(repoRoot, outDir);
+            if (Path.IsPathRooted(relativeOutDir)
+                || relativeOutDir == ".."
+                || relativeOutDir.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Screenshot output must stay inside the repository.");
+            }
+            Directory.CreateDirectory(outDir);
+            string outPath = Path.Combine(outDir, "portrait-import-halfbody-1752-proof.png");
+            using IImage img = CoreState.ImageService.CreateImage(outW, outH);
+            img.SetPixelData(canvas);
+            img.Save(outPath);
+
+            Assert.True(File.Exists(outPath));
+            Assert.True(new FileInfo(outPath).Length > 0);
+        }
+
         // ------------------------------------------------------------------
         // Helpers.
         // ------------------------------------------------------------------
@@ -1032,6 +1154,46 @@ namespace FEBuilderGBA.Avalonia.Tests
                     dst[di + 3] = 255;
                 }
             }
+        }
+
+
+
+        static ImageImportService.LoadResult MakeHalfBodyLoadResult()
+        {
+            byte[] rgba = new byte[160 * 160 * 4];
+            SetRect(rgba, 160, 32, 0, 64, 32, 220, 40, 40, 255);
+            SetRect(rgba, 160, 0, 80, 128, 32, 40, 40, 220, 255);
+            SetRect(rgba, 160, 128, 64, 32, 32, 40, 220, 40, 255);
+            SetRect(rgba, 160, 128, 96, 32, 16, 220, 220, 40, 255);
+            SetRect(rgba, 160, 0, 128, 96, 32, 220, 40, 220, 255);
+            var qr = DecreaseColorCore.Quantize(rgba, 160, 160, 16);
+            return new ImageImportService.LoadResult
+            {
+                Success = true,
+                Width = 160,
+                Height = 160,
+                IndexedPixels = qr.IndexData,
+                GBAPalette = qr.GBAPalette,
+                RGBAPixels = rgba,
+                SourcePath = "C:\\repo\\halfbody.png",
+            };
+        }
+
+        static void SetRect(byte[] rgba, int w, int x, int y, int rw, int rh, byte r, byte g, byte b, byte a)
+        {
+            for (int yy = 0; yy < rh; yy++)
+            {
+                for (int xx = 0; xx < rw; xx++)
+                {
+                    SetPixel(rgba, w, x + xx, y + yy, r, g, b, a);
+                }
+            }
+        }
+
+        static void InstallHalfBodyPatch(ROM rom)
+        {
+            rom.write_u8(0x8540, 0x0A);
+            rom.write_u8(0x8541, 0x1C);
         }
 
         static ROM MakeSyntheticFe8URom()

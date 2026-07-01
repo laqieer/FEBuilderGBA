@@ -21,6 +21,15 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
+    /// Result of splitting a 160x160 FE-Repo Halfbody Hackbox template.
+    /// The sprite sheet is 256x64 (32x8 tiles) and uses the FE8 HALFBODY
+    /// two-bank palette convention.
+    /// </summary>
+    public class HalfBodyPortraitSheetParts : PortraitSheetParts
+    {
+    }
+
+    /// <summary>
     /// Cross-platform portrait rendering for GBA Fire Emblem ROMs.
     /// Ports the assembly logic from WinForms ImagePortraitForm to use IImage/IImageService.
     /// </summary>
@@ -663,6 +672,95 @@ namespace FEBuilderGBA
             BlitPixels(rgba, w, PartsWidth * 2, FaceHeight + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 5);
 
             return new PortraitSheetParts
+            {
+                SpriteSheetPixels = sheet,
+                SpriteSheetW = sheetW,
+                SpriteSheetH = sheetH,
+                MiniPixels = mini,
+                MiniW = miniW,
+                MiniH = miniH,
+                MouthPixels = mouth,
+                MouthW = mouthW,
+                MouthH = mouthH,
+            };
+        }
+
+        /// <summary>
+        /// Split a 160x160 FE-Repo Halfbody Hackbox into the ROM-facing
+        /// sprite sheet, mini face, and mouth-frame strip.
+        /// Mirrors WinForms ImagePortraitForm.BuildPortraitSeetHalfBody.
+        /// Returns null if the image is not a complete 160x160 RGBA buffer.
+        /// </summary>
+        public static HalfBodyPortraitSheetParts SplitHalfBodyPortraitSheet(byte[] rgba, int w, int h)
+        {
+            if (w != 160 || h != 160) return null;
+            if (rgba == null || rgba.Length < w * h * 4) return null;
+
+            int sheetW = 256, sheetH = 64;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+
+            // Standard 96x80 face, shifted +16 px in the halfbody template.
+            BlitPixels(rgba, w, PartsWidth / 2 + 16, 0, PartsWidth * 2, PartsHeight * 2,
+                sheet, sheetW, 0, 0);
+            BlitPixels(rgba, w, PartsWidth / 2 + 16, PartsHeight * 2, PartsWidth * 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 2, 0);
+            BlitPixels(rgba, w, PartsWidth / 2 + 16, PartsHeight * 4, PartsWidth, PartsHeight,
+                sheet, sheetW, PartsWidth * 4, 0);
+            BlitPixels(rgba, w, 16, PartsHeight * 3, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 5, 0);
+            BlitPixels(rgba, w, PartsWidth + PartsWidth / 2 + 16, PartsHeight * 4, PartsWidth, PartsHeight,
+                sheet, sheetW, PartsWidth * 4, PartsHeight);
+            BlitPixels(rgba, w, PartsWidth * 2 + PartsWidth / 2 + 16, PartsHeight * 3,
+                PartsWidth / 2, PartsHeight * 2, sheet, sheetW, PartsWidth * 5 + PartsWidth / 2, 0);
+
+            // Eye frames and mouth7 in the standard sheet area.
+            BlitPixels(rgba, w, 128, 96, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth * 2, 0);
+            BlitPixels(rgba, w, 128, 112, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth * 2, PartsHeight);
+            BlitPixels(rgba, w, PartsWidth * 3, 128, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, 0);
+
+            // Halfbody extension blocks.
+            BlitPixels(rgba, w, 0, PartsHeight * 5, PartsWidth * 4, PartsHeight * 2,
+                sheet, sheetW, 0, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth / 2, PartsHeight * 7, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, PartsHeight);
+            BlitPixels(rgba, w, 0, PartsHeight * 7, PartsWidth / 2, PartsHeight,
+                sheet, sheetW, PartsWidth * 4, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth * 3 + PartsWidth / 2, PartsHeight * 7,
+                PartsWidth / 2, PartsHeight, sheet, sheetW, PartsWidth * 4, PartsHeight * 3);
+            BlitPixels(rgba, w, PartsWidth / 2, PartsHeight, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 4 + PartsWidth / 2, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth * 3, PartsHeight, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 5, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth * 3 + PartsWidth / 2, PartsHeight * 3,
+                PartsWidth / 2, PartsHeight * 2, sheet, sheetW, PartsWidth * 5 + PartsWidth / 2, PartsHeight * 2);
+            BlitPixels(rgba, w, 0, PartsHeight * 3, PartsWidth / 2, PartsHeight * 2,
+                sheet, sheetW, PartsWidth * 6, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth + PartsWidth / 2, PartsHeight * 7, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, PartsHeight * 2);
+            BlitPixels(rgba, w, PartsWidth * 2 + PartsWidth / 2, PartsHeight * 7, PartsWidth, PartsHeight,
+                sheet, sheetW, sheetW - PartsWidth, PartsHeight * 3);
+            BlitPixels(rgba, w, PartsWidth * 3, 0, 8, PartsHeight,
+                sheet, sheetW, 208, PartsHeight * 3);
+            BlitPixels(rgba, w, 24, 0, 8, PartsHeight,
+                sheet, sheetW, 216, PartsHeight * 2);
+
+            int miniW = 32, miniH = 32;
+            byte[] mini = new byte[miniW * miniH * 4];
+            BlitPixels(rgba, w, 128, 64, miniW, miniH, mini, miniW, 0, 0);
+
+            int mouthW = 32, mouthH = 96;
+            byte[] mouth = new byte[mouthW * mouthH * 4];
+            BlitPixels(rgba, w, 0, 128, PartsWidth, PartsHeight, mouth, mouthW, 0, 0);
+            BlitPixels(rgba, w, PartsWidth, 128, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight);
+            BlitPixels(rgba, w, PartsWidth * 2, 128, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 2);
+            BlitPixels(rgba, w, 0, 128 + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 3);
+            BlitPixels(rgba, w, PartsWidth, 128 + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 4);
+            BlitPixels(rgba, w, PartsWidth * 2, 128 + PartsHeight, PartsWidth, PartsHeight, mouth, mouthW, 0, PartsHeight * 5);
+
+            return new HalfBodyPortraitSheetParts
             {
                 SpriteSheetPixels = sheet,
                 SpriteSheetW = sheetW,
