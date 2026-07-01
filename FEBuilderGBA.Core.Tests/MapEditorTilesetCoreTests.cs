@@ -703,5 +703,20 @@ namespace FEBuilderGBA.Core.Tests
                 out _, out _, out _, out _);
             Assert.Equal(before, src);
         }
+
+        [Fact]
+        public void BuildResizedMapData_OversizedSourceDims_Rejected()
+        {
+            // Dimensions come from a u8 header, so anything >255 is corrupt input. The
+            // old `int` length math (oldW*oldH*2) would overflow and could pass the
+            // short-buffer check; the guard must reject before that.
+            byte[] tiny = new byte[2];
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                tiny, 100000, 100000, 0, 0, 0, 0, 0,
+                out byte[] dst, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.Null(dst);
+            Assert.Contains("invalid source dimensions", err);
+        }
     }
 }

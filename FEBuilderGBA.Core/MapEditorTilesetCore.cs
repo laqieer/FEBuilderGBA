@@ -306,12 +306,15 @@ namespace FEBuilderGBA
                 error = "map data is null";
                 return false;
             }
-            if (oldW <= 0 || oldH <= 0)
+            if (oldW <= 0 || oldH <= 0 || oldW > 255 || oldH > 255)
             {
+                // Dimensions are stored as single bytes in the buffer header, so a real
+                // map is always 1..255 on each axis; anything else is a corrupt/crafted
+                // input. Bounding here also keeps the length math below overflow-free.
                 error = $"invalid source dimensions {oldW}x{oldH}";
                 return false;
             }
-            int srcNeeded = 2 + oldW * oldH * 2;
+            long srcNeeded = 2L + (long)oldW * oldH * 2;
             if (old.Length < srcNeeded)
             {
                 error = $"map data too short ({old.Length} < {srcNeeded})";
