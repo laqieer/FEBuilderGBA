@@ -322,13 +322,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadedImage = loadResult;
                 SourceFileLabel.Text = filePath;
                 ImageSizeLabel.Text = $"Quantized to 16 colors — {loadResult.Width} x {loadResult.Height}";
-                bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
-                bool isFace = loadResult.Width == 96 && loadResult.Height == 80;
-                SheetModeLabel.Text = isSheet
-                    ? "128 x 112 composite sheet — will write face, mini, mouth, palette (FE7/FE8 only)"
-                    : isFace
-                        ? "96 x 80 face — will reverse-assemble face, palette, and clear mini/mouth"
-                        : "Unsupported portrait size — use 96 x 80 face or 128 x 112 sheet";
+                UpdateSheetModeLabel(loadResult);
 
                 // Preview — see SetQuantizedPreview (single BuildPreviewImage
                 // call site so all entry points share the leak-safe preview path).
@@ -541,6 +535,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CustomPalettePickerRow.IsVisible = PaletteCustomRadio.IsChecked == true;
             }
+            if (_vm.LoadedImage != null)
+            {
+                UpdateSheetModeLabel(_vm.LoadedImage);
+            }
         }
 
         // #662: pick a .pal/.act/.gpl/.txt/.gbapal palette file and stage its
@@ -625,6 +623,25 @@ namespace FEBuilderGBA.Avalonia.Views
         // files (Copilot bot PR #684 inline review). Single BuildPreviewImage
         // call site shared by LoadImageFromPath + the #975 screenshot seed so
         // all entry points use the same preview path.
+        void UpdateSheetModeLabel(ImageImportService.LoadResult loadResult)
+        {
+            if (SheetModeLabel == null || loadResult == null) return;
+
+            string paletteAction = CurrentPaletteMode == PortraitPaletteMode.SharePalette
+                ? "reuse the existing D8 palette (no palette write)"
+                : CurrentPaletteMode == PortraitPaletteMode.CustomPalette
+                    ? "write the selected custom palette"
+                    : "write the quantized palette";
+
+            bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
+            bool isFace = loadResult.Width == 96 && loadResult.Height == 80;
+            SheetModeLabel.Text = isSheet
+                ? $"128 x 112 composite sheet — will write face, mini, mouth, and {paletteAction} (FE7/FE8 only)"
+                : isFace
+                    ? $"96 x 80 face — will reverse-assemble face, clear mini/mouth, and {paletteAction}"
+                    : "Unsupported portrait size — use 96 x 80 face or 128 x 112 sheet";
+        }
+
         void SetQuantizedPreview(ImageImportService.LoadResult loadResult)
         {
             using IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult);

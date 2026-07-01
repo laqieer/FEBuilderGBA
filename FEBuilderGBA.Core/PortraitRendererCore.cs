@@ -113,7 +113,7 @@ namespace FEBuilderGBA
                     sheetHeight = 10 * 8;
                 uint dataOffset = unitFace + 4;
                 int dataLen = (SheetWidthPx / 8) * (sheetHeight / 8) * 32; // 4bpp: 32 bytes per tile
-                if (dataOffset + dataLen > (uint)rom.Data.Length) return null;
+                if ((ulong)dataOffset + (ulong)dataLen > (ulong)rom.Data.Length) return null;
                 tileData = new byte[dataLen];
                 Array.Copy(rom.Data, dataOffset, tileData, 0, dataLen);
             }
@@ -234,7 +234,7 @@ namespace FEBuilderGBA
 
             int totalTiles = MouthTilesX * MouthTilesY * MouthFrameCount; // 4*2*6 = 48 tiles
             int dataLen = totalTiles * 32; // 32 bytes per 4bpp tile
-            if (mouth + dataLen > (uint)rom.Data.Length) return null;
+            if ((ulong)mouth + (ulong)dataLen > (ulong)rom.Data.Length) return null;
 
             byte[] tileData = new byte[dataLen];
             Array.Copy(rom.Data, mouth, tileData, 0, dataLen);
@@ -298,7 +298,7 @@ namespace FEBuilderGBA
                 int sheetH = IsHalfBodyFlag(unitFace) ? 10 * 8 : SheetHeightPx;
                 uint dataOffset = unitFace + 4;
                 int dataLen = (SheetWidthPx / 8) * (sheetH / 8) * 32;
-                if (dataOffset + dataLen > (uint)rom.Data.Length) return null;
+                if ((ulong)dataOffset + (ulong)dataLen > (ulong)rom.Data.Length) return null;
                 tileData = new byte[dataLen];
                 Array.Copy(rom.Data, dataOffset, tileData, 0, dataLen);
             }
@@ -425,6 +425,7 @@ namespace FEBuilderGBA
             uint ptr = rom.RomInfo.portrait_pointer;
             if (ptr == 0) return null;
 
+            if ((ulong)ptr + 4u > (ulong)rom.Data.Length) return null;
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return null;
 
@@ -436,7 +437,7 @@ namespace FEBuilderGBA
             // out-of-range reads in rom.u32 / rom.u8 below.
             ulong addr64 = (ulong)baseAddr + (ulong)portraitId * (ulong)dataSize;
             ulong romLen = (ulong)rom.Data.Length;
-            if (addr64 + dataSize > romLen) return null;
+            if (addr64 > romLen || (ulong)dataSize > romLen - addr64) return null;
             uint addr = (uint)addr64;
 
             // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY.

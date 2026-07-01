@@ -115,6 +115,41 @@ namespace FEBuilderGBA.Avalonia.Services
             return v == 7 || v == 8;
         }
 
+        static bool CanReadRomRange(ROM rom, uint offset, uint length)
+        {
+            if (rom?.Data == null) return false;
+            return (ulong)offset + (ulong)length <= (ulong)rom.Data.Length;
+        }
+
+        static bool TryReadP32(ROM rom, uint offset, string label, out uint value, out string error)
+        {
+            value = 0;
+            if (!CanReadRomRange(rom, offset, 4))
+            {
+                error = $"{label} pointer field is outside ROM bounds.";
+                return false;
+            }
+
+            value = rom.p32(offset);
+            error = null;
+            return true;
+        }
+
+        static bool TryReadEntryP32(ROM rom, uint entryAddr, uint fieldOffset, string label, out uint value, out string error)
+        {
+            value = 0;
+            ulong offset = (ulong)entryAddr + (ulong)fieldOffset;
+            if (rom?.Data == null || offset + 4u > (ulong)rom.Data.Length)
+            {
+                error = $"{label} pointer field is outside ROM bounds.";
+                return false;
+            }
+
+            value = rom.p32((uint)offset);
+            error = null;
+            return true;
+        }
+
         public static ImportOutcome ImportPortrait(
             ROM rom,
             uint entryAddr,
@@ -250,9 +285,11 @@ namespace FEBuilderGBA.Avalonia.Services
                     // Critical fix #1: dereference the D8 pointer rather than
                     // reading bytes directly from entryAddr + OFFSET_D8_PALETTE
                     // (those are pointer bytes, not palette bytes).
-                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
                     uint paletteOffset = U.toOffset(palettePtr);
-                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
                     effectivePalette = rom.getBinaryData(paletteOffset, 32);
                     if (effectivePalette == null || effectivePalette.Length < 32)
@@ -445,9 +482,11 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 case PortraitPaletteMode.SharePalette:
                 {
-                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
                     uint paletteOffset = U.toOffset(palettePtr);
-                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
                     effectivePalette = rom.getBinaryData(paletteOffset, 32);
                     if (effectivePalette == null || effectivePalette.Length < 32)
@@ -501,7 +540,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                uint currentD0 = rom.p32(entryAddr + OFFSET_D0_TILE_SHEET);
+                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
+                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
+                {
+                    undoService.Rollback();
+                    return ImportOutcome.Fail(pointerError);
+                }
                 // Use the rom-aware isSafetyOffset overload + reuse the
                 // computed offset (Copilot bot PR #684 inline review:
                 // avoid reaching back through `CoreState.ROM` from helper
@@ -600,9 +644,11 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 case PortraitPaletteMode.SharePalette:
                 {
-                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
                     uint paletteOffset = U.toOffset(palettePtr);
-                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
                     effectivePalette = rom.getBinaryData(paletteOffset, 32);
                     if (effectivePalette == null || effectivePalette.Length < 32)
@@ -647,7 +693,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                uint currentD0 = rom.p32(entryAddr + OFFSET_D0_TILE_SHEET);
+                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
+                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
+                {
+                    undoService.Rollback();
+                    return ImportOutcome.Fail(pointerError);
+                }
                 uint currentD0Offset = U.toOffset(currentD0);
                 bool isCompressed = U.isSafetyOffset(currentD0Offset, rom)
                     && LZ77.iscompress(rom.Data, currentD0Offset);
@@ -872,7 +923,8 @@ namespace FEBuilderGBA.Avalonia.Services
             uint dataSize = rom.RomInfo.portrait_datasize;
             if (pointer == 0 || dataSize == 0) return 0;
 
-            uint baseAddr = rom.p32(pointer);
+            if (dataSize < 4) return 0;
+            if (!TryReadP32(rom, pointer, "Portrait table", out uint baseAddr, out _)) return 0;
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
             int count = 0;
@@ -881,8 +933,9 @@ namespace FEBuilderGBA.Avalonia.Services
             // it; the sentinel terminates the scan first.
             for (int i = 0; i < 512; i++)
             {
-                uint addr = baseAddr + (uint)(i * dataSize);
-                if (addr + dataSize > (uint)rom.Data.Length) break;
+                ulong addr64 = (ulong)baseAddr + (ulong)i * (ulong)dataSize;
+                if (addr64 + (ulong)dataSize > (ulong)rom.Data.Length) break;
+                uint addr = (uint)addr64;
                 if (rom.u32(addr) == 0)
                 {
                     nullCount++;
@@ -961,11 +1014,16 @@ namespace FEBuilderGBA.Avalonia.Services
             // `portrait_pointer` dereferenced (it's a pointer into the
             // portrait table). Doing slotId * datasize off the raw pointer
             // field address would land in completely unrelated ROM bytes.
-            uint portraitBase = rom.p32(rom.RomInfo.portrait_pointer);
             uint dataSize = rom.RomInfo.portrait_datasize;
             if (dataSize == 0)
             {
                 lines.Add("Invalid portrait_datasize.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (!TryReadP32(rom, rom.RomInfo.portrait_pointer,
+                "Portrait table", out uint portraitBase, out string pointerError))
+            {
+                lines.Add(pointerError);
                 return new FolderImportResult(0, 0, 0, 0, lines);
             }
 
@@ -1070,8 +1128,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 // Defense-in-depth: also check the underlying ROM bounds in
                 // case the table cap was computed against a smaller ROM than
                 // the one we're writing to (should be impossible, but cheap).
-                long addrLong = (long)portraitBase + (long)slotId * dataSize;
-                if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
+                ulong addrLong = (ulong)portraitBase + (ulong)(uint)slotId * (ulong)dataSize;
+                if (addrLong + (ulong)dataSize > (ulong)rom.Data.Length)
                 {
                     failed++;
                     string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";

@@ -875,8 +875,13 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             string repoRoot = FindRepoRoot();
             string outDir = Path.GetFullPath(overrideDir);
-            if (!outDir.StartsWith(repoRoot, StringComparison.OrdinalIgnoreCase))
+            string relativeOutDir = Path.GetRelativePath(repoRoot, outDir);
+            if (Path.IsPathRooted(relativeOutDir)
+                || relativeOutDir == ".."
+                || relativeOutDir.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            {
                 throw new InvalidOperationException("Screenshot output must stay inside the repository.");
+            }
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, "portrait-import-1750-1751-proof.png");
             using IImage img = CoreState.ImageService.CreateImage(outW, outH);
