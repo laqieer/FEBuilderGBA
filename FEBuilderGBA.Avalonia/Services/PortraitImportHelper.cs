@@ -103,6 +103,14 @@ namespace FEBuilderGBA.Avalonia.Services
         internal const uint OFFSET_B23_EYE_BLOCK_Y   = 23;  // B23: eye block Y (FE7/8 only)
         const int HALFBODY_PALETTE_BYTES = 64;
 
+        static readonly PatchDetection.PatchTableSt[] HalfBodyPatchTable =
+        {
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8U", addr=0x8540, data=new byte[]{0x0A,0x1C} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8U", addr=0x8540, data=new byte[]{0x01,0x3A} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8J", addr=0x843C, data=new byte[]{0x0A,0x1C} },
+            new PatchDetection.PatchTableSt{ name="HALFBODY", ver="FE8J", addr=0x843C, data=new byte[]{0x01,0x3A} },
+        };
+
         /// <summary>
         /// FE7 / FE8 portrait entries are 28 bytes (D0 sheet, D4 mini-face,
         /// D8 palette, D12 mouth frames, D16 class card, B20-B27 coords).
@@ -160,23 +168,7 @@ namespace FEBuilderGBA.Avalonia.Services
 
         static bool IsHalfBodyPatchInstalled(ROM rom)
         {
-            if (rom?.RomInfo == null || rom.RomInfo.version != 8) return false;
-            string version = rom.RomInfo.VersionToFilename;
-            (string Ver, uint Addr, byte[] Data)[] table =
-            {
-                ("FE8U", 0x8540, new byte[] { 0x0A, 0x1C }),
-                ("FE8J", 0x843C, new byte[] { 0x0A, 0x1C }),
-                ("FE8U", 0x8540, new byte[] { 0x01, 0x3A }),
-                ("FE8J", 0x843C, new byte[] { 0x01, 0x3A }),
-            };
-            foreach (var t in table)
-            {
-                if (t.Ver != version) continue;
-                if (!CanReadRomRange(rom, t.Addr, (uint)t.Data.Length)) continue;
-                byte[] data = rom.getBinaryData(t.Addr, t.Data.Length);
-                if (U.memcmp(t.Data, data) == 0) return true;
-            }
-            return false;
+            return PatchDetection.SearchPatchBool(rom, HalfBodyPatchTable);
         }
 
         public static ImportOutcome ImportPortrait(
