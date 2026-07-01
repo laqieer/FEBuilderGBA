@@ -86,6 +86,25 @@ public class DesktopNavigationServiceActiveEditorTests
     }
 
     [AvaloniaFact]
+    public void ActiveEditorWindow_Reorders_WhenAlreadyOpenEditorIsReactivated()
+    {
+        var svc = new DesktopNavigationService();
+        var a = svc.Open<EditorDoubleA>();
+        var b = svc.Open<EditorDoubleB>();
+        Assert.Same(b, svc.ActiveEditorWindow);
+
+        // The user clicks back into the already-open editor A — a focus switch
+        // that does NOT go through Open<T>. In the app Window.Activated drives
+        // this; here we invoke the same internal hook the service subscribes,
+        // because Window.Activated does not fire reliably under Avalonia.Headless.
+        svc.NoteActivated(a);
+        Assert.Same(a, svc.ActiveEditorWindow);
+
+        a.Close();
+        b.Close();
+    }
+
+    [AvaloniaFact]
     public void MainWindow_IsNeverTracked()
     {
         var svc = new DesktopNavigationService();
