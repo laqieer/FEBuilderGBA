@@ -624,5 +624,61 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(30, parts.MouthPixels[2]);
             Assert.Equal(255, parts.MouthPixels[3]);
         }
+
+        [Fact]
+        public void SplitHalfBodyPortraitSheet_MapsWinFormsRegions()
+        {
+            byte[] rgba = new byte[160 * 160 * 4];
+            FillRect(rgba, 160, 32, 0, 64, 32, 10, 20, 30);       // face upper -> sheet 0,0
+            FillRect(rgba, 160, 0, 80, 128, 32, 40, 50, 60);      // halfbody base -> sheet 0,32
+            FillRect(rgba, 160, 128, 64, 32, 32, 70, 80, 90);     // mini -> mini 0,0
+            FillRect(rgba, 160, 128, 96, 32, 16, 100, 110, 120);  // half-eye -> sheet 192,0
+            FillRect(rgba, 160, 64, 144, 32, 16, 130, 140, 150);  // mouth frame 6 -> mouth 0,80
+            FillRect(rgba, 160, 96, 128, 32, 16, 160, 170, 180);  // mouth7 -> sheet 224,0
+
+            var parts = PortraitRendererCore.SplitHalfBodyPortraitSheet(rgba, 160, 160);
+
+            Assert.NotNull(parts);
+            Assert.Equal(256, parts.SpriteSheetW);
+            Assert.Equal(64, parts.SpriteSheetH);
+            AssertPixel(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 0, 10, 20, 30);
+            AssertPixel(parts.SpriteSheetPixels, parts.SpriteSheetW, 0, 32, 40, 50, 60);
+            AssertPixel(parts.MiniPixels, parts.MiniW, 0, 0, 70, 80, 90);
+            AssertPixel(parts.SpriteSheetPixels, parts.SpriteSheetW, 192, 0, 100, 110, 120);
+            AssertPixel(parts.MouthPixels, parts.MouthW, 0, 80, 130, 140, 150);
+            AssertPixel(parts.SpriteSheetPixels, parts.SpriteSheetW, 224, 0, 160, 170, 180);
+        }
+
+        [Fact]
+        public void SplitHalfBodyPortraitSheet_RejectsWrongSizeOrShortBuffer()
+        {
+            Assert.Null(PortraitRendererCore.SplitHalfBodyPortraitSheet(new byte[128 * 112 * 4], 128, 112));
+            Assert.Null(PortraitRendererCore.SplitHalfBodyPortraitSheet(new byte[10], 160, 160));
+        }
+
+        static void FillRect(byte[] rgba, int w, int x, int y, int rw, int rh, byte r, byte g, byte b)
+        {
+            for (int yy = 0; yy < rh; yy++)
+            {
+                for (int xx = 0; xx < rw; xx++)
+                {
+                    int off = ((y + yy) * w + x + xx) * 4;
+                    rgba[off + 0] = r;
+                    rgba[off + 1] = g;
+                    rgba[off + 2] = b;
+                    rgba[off + 3] = 255;
+                }
+            }
+        }
+
+        static void AssertPixel(byte[] rgba, int w, int x, int y, byte r, byte g, byte b)
+        {
+            int off = (y * w + x) * 4;
+            Assert.Equal(r, rgba[off + 0]);
+            Assert.Equal(g, rgba[off + 1]);
+            Assert.Equal(b, rgba[off + 2]);
+            Assert.Equal(255, rgba[off + 3]);
+        }
+
     }
 }

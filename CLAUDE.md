@@ -559,6 +559,8 @@ Critical runtime dependencies in `config/` directory:
 ### Browsing FE-Repo Resources
 The FE-Repo submodule (`resources/FE-Repo/`) contains public GBA Fire Emblem graphics (portraits, battle animations, sprites, icons). Users can browse and insert these resources from the portrait editor via the "FE-Repo" button (WinForms) or the FE-Repo Resource Browser window (Avalonia). The `FERepoResourceBrowser` Core class provides cross-platform resource discovery.
 
+Avalonia portrait import supports FE-Repo Standard Hackboxes (128×112) and FE8 HALFBODY Halfbody Hackboxes (160×160, requires the HALFBODY portrait-extension patch). Twoparter Hackboxes (144×304) are intentionally rejected until a verified PART1/PART2 slicing layout exists.
+
 ### Adding Form/Feature
 1. Create Form class (inherit from `Form`)
 2. Use Designer for UI layout
