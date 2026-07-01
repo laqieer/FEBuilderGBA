@@ -114,17 +114,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by the Portrait Import Wizard (#657 first slice).
-                ImportOutcome outcome;
-                if (loadResult.Width == 128 && loadResult.Height == 112)
-                {
-                    outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService,
-                        "Import Portrait Sheet (Drop)");
-                }
-                else
-                {
-                    outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService,
-                        "Import Portrait Image (Drop)");
-                }
+                ImportOutcome outcome = PortraitImportHelper.ImportPortrait(
+                    rom, addr, loadResult, _undoService, "Import Portrait Image (Drop)");
                 if (!outcome.Success) { CoreState.Services.ShowError(outcome.Error); return; }
 
                 // Record the source file path so the Open / Select Source
@@ -321,15 +312,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by the Portrait Import Wizard (#657 first slice).
-                ImportOutcome outcome;
-                if (loadResult.Width == 128 && loadResult.Height == 112)
-                {
-                    outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService);
-                }
-                else
-                {
-                    outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService);
-                }
+                ImportOutcome outcome = PortraitImportHelper.ImportPortrait(
+                    rom, addr, loadResult, _undoService);
                 if (!outcome.Success) { CoreState.Services.ShowError(outcome.Error); return; }
 
                 // Record source file path (matches WF ImagePortraitForm.ImportButton_Click).

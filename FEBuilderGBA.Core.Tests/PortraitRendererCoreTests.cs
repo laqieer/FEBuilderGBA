@@ -374,6 +374,101 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(255, parts.SpriteSheetPixels[3]);
         }
 
+        [Fact]
+        public void PromoteFaceToPortraitSheet_CopiesFaceAtCanvasOrigin_NotX16()
+        {
+            byte[] face = new byte[96 * 80 * 4];
+            int edgeIdx = (48 * 96 + 0) * 4;
+            face[edgeIdx + 0] = 10;
+            face[edgeIdx + 1] = 20;
+            face[edgeIdx + 2] = 30;
+            face[edgeIdx + 3] = 255;
+
+            int upperIdx = (0 * 96 + 16) * 4;
+            face[upperIdx + 0] = 40;
+            face[upperIdx + 1] = 50;
+            face[upperIdx + 2] = 60;
+            face[upperIdx + 3] = 255;
+
+            byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(face, 96, 80);
+
+            Assert.NotNull(sheet);
+            Assert.Equal(10, sheet[(48 * 128 + 0) * 4 + 0]);
+            Assert.Equal(40, sheet[(0 * 128 + 16) * 4 + 0]);
+            Assert.Equal(0, sheet[(0 * 128 + 112) * 4 + 3]);
+        }
+
+        [Fact]
+        public void PromoteFaceToPortraitSheet_ThenSplit_PlacesFaceTilesInSpriteSheetLayout()
+        {
+            byte[] face = new byte[96 * 80 * 4];
+            int upperIdx = (0 * 96 + 16) * 4;
+            face[upperIdx + 0] = 100;
+            face[upperIdx + 1] = 110;
+            face[upperIdx + 2] = 120;
+            face[upperIdx + 3] = 255;
+
+            byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(face, 96, 80);
+            var parts = PortraitRendererCore.SplitPortraitSheet(sheet, 128, 112);
+
+            Assert.NotNull(parts);
+            Assert.Equal(100, parts.SpriteSheetPixels[0]);
+            Assert.Equal(110, parts.SpriteSheetPixels[1]);
+            Assert.Equal(120, parts.SpriteSheetPixels[2]);
+            Assert.Equal(255, parts.SpriteSheetPixels[3]);
+        }
+
+        [Fact]
+        public void ApplyPortraitBackgroundColorKey_UsesWinFormsCornerOrder()
+        {
+            byte[] rgba = SolidRgba(16, 16, 1, 2, 3, 255);
+            SetPixel(rgba, 16, 15, 0, 9, 9, 9, 255);
+            SetPixel(rgba, 16, 15, 15, 8, 8, 8, 255);
+            SetPixel(rgba, 16, 0, 0, 7, 7, 7, 255);
+            SetPixel(rgba, 16, 4, 4, 9, 9, 9, 255);
+
+            Assert.True(PortraitRendererCore.ApplyPortraitBackgroundColorKey(rgba, 16, 16));
+
+            Assert.Equal(0, rgba[(0 * 16 + 15) * 4 + 3]);
+            Assert.Equal(0, rgba[(4 * 16 + 4) * 4 + 3]);
+            Assert.Equal(255, rgba[(15 * 16 + 15) * 4 + 3]);
+            Assert.Equal(255, rgba[3]);
+        }
+
+        [Fact]
+        public void ApplyPortraitBackgroundColorKey_AllTransparentCorners_PreservesOpaquePixels()
+        {
+            byte[] rgba = SolidRgba(16, 16, 10, 20, 30, 255);
+            SetPixel(rgba, 16, 15, 0, 0, 0, 0, 0);
+            SetPixel(rgba, 16, 15, 15, 0, 0, 0, 0);
+            SetPixel(rgba, 16, 0, 0, 0, 0, 0, 0);
+
+            Assert.False(PortraitRendererCore.ApplyPortraitBackgroundColorKey(rgba, 16, 16));
+            Assert.Equal(255, rgba[(4 * 16 + 4) * 4 + 3]);
+        }
+
+        static byte[] SolidRgba(int w, int h, byte r, byte g, byte b, byte a)
+        {
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = r;
+                rgba[i * 4 + 1] = g;
+                rgba[i * 4 + 2] = b;
+                rgba[i * 4 + 3] = a;
+            }
+            return rgba;
+        }
+
+        static void SetPixel(byte[] rgba, int w, int x, int y, byte r, byte g, byte b, byte a)
+        {
+            int off = (y * w + x) * 4;
+            rgba[off + 0] = r;
+            rgba[off + 1] = g;
+            rgba[off + 2] = b;
+            rgba[off + 3] = a;
+        }
+
         // ================================================================
         // FE6-specific portrait renderer tests
         // ================================================================

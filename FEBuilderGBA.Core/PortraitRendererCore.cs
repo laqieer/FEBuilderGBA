@@ -113,7 +113,7 @@ namespace FEBuilderGBA
                     sheetHeight = 10 * 8;
                 uint dataOffset = unitFace + 4;
                 int dataLen = (SheetWidthPx / 8) * (sheetHeight / 8) * 32; // 4bpp: 32 bytes per tile
-                if (dataOffset + dataLen > (uint)rom.Data.Length) return null;
+                if ((ulong)dataOffset + (ulong)dataLen > (ulong)rom.Data.Length) return null;
                 tileData = new byte[dataLen];
                 Array.Copy(rom.Data, dataOffset, tileData, 0, dataLen);
             }
@@ -234,7 +234,7 @@ namespace FEBuilderGBA
 
             int totalTiles = MouthTilesX * MouthTilesY * MouthFrameCount; // 4*2*6 = 48 tiles
             int dataLen = totalTiles * 32; // 32 bytes per 4bpp tile
-            if (mouth + dataLen > (uint)rom.Data.Length) return null;
+            if ((ulong)mouth + (ulong)dataLen > (ulong)rom.Data.Length) return null;
 
             byte[] tileData = new byte[dataLen];
             Array.Copy(rom.Data, mouth, tileData, 0, dataLen);
@@ -298,7 +298,7 @@ namespace FEBuilderGBA
                 int sheetH = IsHalfBodyFlag(unitFace) ? 10 * 8 : SheetHeightPx;
                 uint dataOffset = unitFace + 4;
                 int dataLen = (SheetWidthPx / 8) * (sheetH / 8) * 32;
-                if (dataOffset + dataLen > (uint)rom.Data.Length) return null;
+                if ((ulong)dataOffset + (ulong)dataLen > (ulong)rom.Data.Length) return null;
                 tileData = new byte[dataLen];
                 Array.Copy(rom.Data, dataOffset, tileData, 0, dataLen);
             }
@@ -425,6 +425,7 @@ namespace FEBuilderGBA
             uint ptr = rom.RomInfo.portrait_pointer;
             if (ptr == 0) return null;
 
+            if ((ulong)ptr + 4u > (ulong)rom.Data.Length) return null;
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return null;
 
@@ -436,7 +437,7 @@ namespace FEBuilderGBA
             // out-of-range reads in rom.u32 / rom.u8 below.
             ulong addr64 = (ulong)baseAddr + (ulong)portraitId * (ulong)dataSize;
             ulong romLen = (ulong)rom.Data.Length;
-            if (addr64 + dataSize > romLen) return null;
+            if (addr64 > romLen || (ulong)dataSize > romLen - addr64) return null;
             uint addr = (uint)addr64;
 
             // FE6: 16-byte struct, +0 face, +4 mapface, +8 palette, +12 mouthX/mouthY.
@@ -588,7 +589,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Split a 128x112 composite portrait sheet into sprite sheet, mini face, and mouth frames.
         /// The 128x112 sheet layout matches the WinForms export format:
-        ///   Face (96x80) at (16, 0) — assembled portrait
+        ///   Face (96x80) occupies (0, 0); visible portrait content starts at x=16
         ///   Mini face (32x32) at (96, 16)
         ///   Half-closed eyes (32x16) at (96, 48)
         ///   Closed eyes (32x16) at (96, 64)
@@ -673,6 +674,67 @@ namespace FEBuilderGBA
                 MouthW = mouthW,
                 MouthH = mouthH,
             };
+        }
+
+        /// <summary>
+        /// Promote a 96x80 composed face export into the 128x112 composite
+        /// sheet layout consumed by <see cref="SplitPortraitSheet"/>.
+        /// The whole face is copied to canvas (0,0); its visible content is
+        /// already inset by 16px inside that 96px-wide face.
+        /// </summary>
+        public static byte[] PromoteFaceToPortraitSheet(byte[] faceRgba, int w, int h)
+        {
+            if (w != FaceWidth || h != FaceHeight) return null;
+            if (faceRgba == null || faceRgba.Length < w * h * 4) return null;
+
+            int sheetW = 128, sheetH = 112;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+            BlitPixels(faceRgba, w, 0, 0, w, h, sheet, sheetW, 0, 0);
+            return sheet;
+        }
+
+        /// <summary>
+        /// Map the opaque portrait backdrop color to transparent alpha.
+        /// Uses the same corner order WinForms checks for palette-0
+        /// transparency: top-right, bottom-right, then top-left.
+        /// </summary>
+        public static bool ApplyPortraitBackgroundColorKey(byte[] rgba, int w, int h)
+        {
+            if (rgba == null || w <= 0 || h <= 0 || rgba.Length < w * h * 4) return false;
+
+            int[] corners =
+            {
+                (0 * w + (w - 1)) * 4,
+                ((h - 1) * w + (w - 1)) * 4,
+                0,
+            };
+
+            int key = -1;
+            foreach (int off in corners)
+            {
+                if (rgba[off + 3] >= 128)
+                {
+                    key = off;
+                    break;
+                }
+            }
+            if (key < 0) return false;
+
+            byte kr = rgba[key + 0], kg = rgba[key + 1], kb = rgba[key + 2];
+            bool changed = false;
+            for (int i = 0; i < w * h; i++)
+            {
+                int off = i * 4;
+                if (rgba[off + 3] >= 128
+                    && rgba[off + 0] == kr
+                    && rgba[off + 1] == kg
+                    && rgba[off + 2] == kb)
+                {
+                    rgba[off + 3] = 0;
+                    changed = true;
+                }
+            }
+            return changed;
         }
 
         /// <summary>

@@ -322,10 +322,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadedImage = loadResult;
                 SourceFileLabel.Text = filePath;
                 ImageSizeLabel.Text = $"Quantized to 16 colors — {loadResult.Width} x {loadResult.Height}";
-                bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
-                SheetModeLabel.Text = isSheet
-                    ? "128 x 112 composite sheet — will write face, mini, mouth, palette (FE7/FE8 only)"
-                    : "Simple image — will write sheet (D0) + palette (D8) only";
+                UpdateSheetModeLabel(loadResult);
 
                 // Preview — see SetQuantizedPreview (single BuildPreviewImage
                 // call site so all entry points share the leak-safe preview path).
@@ -498,21 +495,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by ImagePortraitView (drag-drop + Import PNG button).
-                ImportOutcome outcome;
-                if (loadResult.Width == 128 && loadResult.Height == 112)
-                {
-                    outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService,
-                        mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Sheet (Wizard)",
-                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
-                }
-                else
-                {
-                    outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService,
-                        mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Image (Wizard)",
-                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
-                }
+                ImportOutcome outcome = PortraitImportHelper.ImportPortrait(
+                    rom, addr, loadResult, _undoService,
+                    mode, _customPaletteBytes, FuchidoriEnabled,
+                    "Import Portrait Image (Wizard)",
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
 
                 if (!outcome.Success)
                 {
@@ -547,6 +534,10 @@ namespace FEBuilderGBA.Avalonia.Views
             if (CustomPalettePickerRow != null)
             {
                 CustomPalettePickerRow.IsVisible = PaletteCustomRadio.IsChecked == true;
+            }
+            if (_vm.LoadedImage != null)
+            {
+                UpdateSheetModeLabel(_vm.LoadedImage);
             }
         }
 
@@ -632,6 +623,25 @@ namespace FEBuilderGBA.Avalonia.Views
         // files (Copilot bot PR #684 inline review). Single BuildPreviewImage
         // call site shared by LoadImageFromPath + the #975 screenshot seed so
         // all entry points use the same preview path.
+        void UpdateSheetModeLabel(ImageImportService.LoadResult loadResult)
+        {
+            if (SheetModeLabel == null || loadResult == null) return;
+
+            string paletteAction = CurrentPaletteMode == PortraitPaletteMode.SharePalette
+                ? "reuse the existing D8 palette (no palette write)"
+                : CurrentPaletteMode == PortraitPaletteMode.CustomPalette
+                    ? "write the selected custom palette"
+                    : "write the quantized palette";
+
+            bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
+            bool isFace = loadResult.Width == 96 && loadResult.Height == 80;
+            SheetModeLabel.Text = isSheet
+                ? $"128 x 112 composite sheet — will write face, mini, mouth, and {paletteAction} (FE7/FE8 only)"
+                : isFace
+                    ? $"96 x 80 face — will reverse-assemble face, clear mini/mouth, and {paletteAction}"
+                    : "Unsupported portrait size — use 96 x 80 face or 128 x 112 sheet";
+        }
+
         void SetQuantizedPreview(ImageImportService.LoadResult loadResult)
         {
             using IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult);

@@ -115,6 +115,84 @@ namespace FEBuilderGBA.Avalonia.Services
             return v == 7 || v == 8;
         }
 
+        static bool CanReadRomRange(ROM rom, uint offset, uint length)
+        {
+            if (rom?.Data == null) return false;
+            return (ulong)offset + (ulong)length <= (ulong)rom.Data.Length;
+        }
+
+        static bool TryReadP32(ROM rom, uint offset, string label, out uint value, out string error)
+        {
+            value = 0;
+            if (!CanReadRomRange(rom, offset, 4))
+            {
+                error = $"{label} pointer field is outside ROM bounds.";
+                return false;
+            }
+
+            value = rom.p32(offset);
+            error = null;
+            return true;
+        }
+
+        static bool TryReadEntryP32(ROM rom, uint entryAddr, uint fieldOffset, string label, out uint value, out string error)
+        {
+            value = 0;
+            ulong offset = (ulong)entryAddr + (ulong)fieldOffset;
+            if (rom?.Data == null || offset + 4u > (ulong)rom.Data.Length)
+            {
+                error = $"{label} pointer field is outside ROM bounds.";
+                return false;
+            }
+
+            value = rom.p32((uint)offset);
+            error = null;
+            return true;
+        }
+
+        public static ImportOutcome ImportPortrait(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            string undoLabel = "Import Portrait Image")
+            => ImportPortrait(rom, entryAddr, loadResult, undoService,
+                PortraitPaletteMode.AutoQuantize, null, false, undoLabel);
+
+        public static ImportOutcome ImportPortrait(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            PortraitPaletteMode mode,
+            byte[] customPaletteBytes,
+            bool fuchidori,
+            string undoLabel = "Import Portrait Image",
+            byte? mouthBlockX = null,
+            byte? mouthBlockY = null,
+            byte? eyeBlockX = null,
+            byte? eyeBlockY = null)
+        {
+            if (loadResult == null || !loadResult.Success)
+                return ImportOutcome.Fail(loadResult?.Error ?? "No image to import");
+            if (loadResult.Width == 96 && loadResult.Height == 80)
+            {
+                return ImportFaceImage(rom, entryAddr, loadResult, undoService,
+                    mode, customPaletteBytes, fuchidori, undoLabel,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+            }
+            if (loadResult.Width == 128 && loadResult.Height == 112)
+            {
+                return ImportSheet(rom, entryAddr, loadResult, undoService,
+                    mode, customPaletteBytes, fuchidori, undoLabel,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+            }
+
+            return ImportOutcome.Fail(
+                $"Unsupported portrait image size {loadResult.Width}x{loadResult.Height}. "
+                + "Use a 96x80 exported face PNG or a 128x112 FEditor portrait sheet.");
+        }
+
         /// <summary>
         /// Import a single PNG into the portrait sheet (D0) + palette (D8)
         /// slots of the entry at <paramref name="entryAddr"/>. Safe on all
@@ -191,6 +269,10 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
             if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
 
+            byte[] keyedRgba = BuildColorKeyedRgba(loadResult);
+            if (keyedRgba == null)
+                return ImportOutcome.Fail("Failed to prepare portrait pixels.");
+
             // Resolve mode-specific palette + indexed pixels BEFORE opening the
             // undo scope (Copilot CLI plan v2 review #1: a bad palette / pointer
             // must fail without leaving a no-op rollback entry on the stack).
@@ -203,16 +285,17 @@ namespace FEBuilderGBA.Avalonia.Services
                     // Critical fix #1: dereference the D8 pointer rather than
                     // reading bytes directly from entryAddr + OFFSET_D8_PALETTE
                     // (those are pointer bytes, not palette bytes).
-                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
                     uint paletteOffset = U.toOffset(palettePtr);
-                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
                     effectivePalette = rom.getBinaryData(paletteOffset, 32);
                     if (effectivePalette == null || effectivePalette.Length < 32)
                         return ImportOutcome.Fail("Could not read existing palette at D8 pointer.");
                     indexedPixels = ImageImportCore.RemapToExistingPalette(
-                        ReconstructRgbaWithPaletteZeroTransparent(loadResult),
-                        loadResult.Width, loadResult.Height, effectivePalette, 16);
+                        keyedRgba, loadResult.Width, loadResult.Height, effectivePalette, 16);
                     if (indexedPixels == null)
                         return ImportOutcome.Fail("Failed to remap pixels to existing palette.");
                     break;
@@ -225,16 +308,19 @@ namespace FEBuilderGBA.Avalonia.Services
                             $"Invalid custom palette — expected 16 colors (32 bytes), got {customPaletteBytes?.Length ?? 0}.");
                     effectivePalette = customPaletteBytes;
                     indexedPixels = ImageImportCore.RemapToExistingPalette(
-                        ReconstructRgbaWithPaletteZeroTransparent(loadResult),
-                        loadResult.Width, loadResult.Height, effectivePalette, 16);
+                        keyedRgba, loadResult.Width, loadResult.Height, effectivePalette, 16);
                     if (indexedPixels == null)
                         return ImportOutcome.Fail("Failed to remap pixels to custom palette.");
                     break;
                 }
                 default: // AutoQuantize
-                    effectivePalette = loadResult.GBAPalette;
-                    indexedPixels = loadResult.IndexedPixels;
+                {
+                    var qr = DecreaseColorCore.Quantize(keyedRgba, loadResult.Width, loadResult.Height, 16);
+                    if (qr == null) return ImportOutcome.Fail("Color quantization failed");
+                    effectivePalette = qr.GBAPalette;
+                    indexedPixels = qr.IndexData;
                     break;
+                }
             }
 
             if (fuchidori && indexedPixels != null && effectivePalette != null)
@@ -381,6 +467,14 @@ namespace FEBuilderGBA.Avalonia.Services
                 return ImportOutcome.Fail("128x112 composite sheets are FE7/FE8 only "
                     + "— use the FE6 portrait editor for FE6 ROMs.");
 
+            // Reconstruct RGBA from the original source and apply the
+            // portrait color key before any split/remap step. The older
+            // palette-index-0 reconstruction is intentionally not used here:
+            // opaque backgrounds are still non-zero before this fix.
+            byte[] rgbaPixels = BuildColorKeyedRgba(loadResult);
+            if (rgbaPixels == null)
+                return ImportOutcome.Fail("Failed to reconstruct RGBA pixels");
+
             // Resolve mode-specific palette BEFORE opening the undo scope so
             // a pointer/format failure can't leave a no-op rollback entry.
             byte[] effectivePalette;
@@ -388,9 +482,11 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 case PortraitPaletteMode.SharePalette:
                 {
-                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
                     uint paletteOffset = U.toOffset(palettePtr);
-                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
                     effectivePalette = rom.getBinaryData(paletteOffset, 32);
                     if (effectivePalette == null || effectivePalette.Length < 32)
@@ -404,15 +500,13 @@ namespace FEBuilderGBA.Avalonia.Services
                     effectivePalette = customPaletteBytes;
                     break;
                 default:
-                    effectivePalette = loadResult.GBAPalette;
+                {
+                    var qr = DecreaseColorCore.Quantize(rgbaPixels, loadResult.Width, loadResult.Height, 16);
+                    if (qr == null) return ImportOutcome.Fail("Color quantization failed");
+                    effectivePalette = qr.GBAPalette;
                     break;
+                }
             }
-
-            // Reconstruct RGBA from indexed for the splitter (palette index
-            // 0 = transparent, matching WF / ImagePortraitView behavior).
-            byte[] rgbaPixels = ReconstructRgbaWithPaletteZeroTransparent(loadResult);
-            if (rgbaPixels == null)
-                return ImportOutcome.Fail("Failed to reconstruct RGBA pixels");
 
             var parts = PortraitRendererCore.SplitPortraitSheet(rgbaPixels, loadResult.Width, loadResult.Height);
             if (parts == null)
@@ -446,7 +540,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                uint currentD0 = rom.p32(entryAddr + OFFSET_D0_TILE_SHEET);
+                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
+                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
+                {
+                    undoService.Rollback();
+                    return ImportOutcome.Fail(pointerError);
+                }
                 // Use the rom-aware isSafetyOffset overload + reuse the
                 // computed offset (Copilot bot PR #684 inline review:
                 // avoid reaching back through `CoreState.ROM` from helper
@@ -510,6 +609,135 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 undoService.Rollback();
                 return ImportOutcome.Fail($"Sheet import failed: {ex.Message}");
+            }
+        }
+
+        static ImportOutcome ImportFaceImage(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            PortraitPaletteMode mode,
+            byte[] customPaletteBytes,
+            bool fuchidori,
+            string undoLabel,
+            byte? mouthBlockX,
+            byte? mouthBlockY,
+            byte? eyeBlockX,
+            byte? eyeBlockY)
+        {
+            if (rom == null) return ImportOutcome.Fail("ROM not loaded");
+            if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
+            if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
+            if (!IsFe7Or8EntryLayout(rom))
+                return ImportOutcome.Fail("96x80 face imports are FE7/FE8 only in the Avalonia portrait importer.");
+
+            byte[] keyedFace = BuildColorKeyedRgba(loadResult);
+            if (keyedFace == null) return ImportOutcome.Fail("Failed to prepare portrait pixels.");
+
+            byte[] sheetRgba = PortraitRendererCore.PromoteFaceToPortraitSheet(
+                keyedFace, loadResult.Width, loadResult.Height);
+            if (sheetRgba == null) return ImportOutcome.Fail("Failed to promote 96x80 face to portrait sheet.");
+
+            byte[] effectivePalette;
+            switch (mode)
+            {
+                case PortraitPaletteMode.SharePalette:
+                {
+                    if (!TryReadEntryP32(rom, entryAddr, OFFSET_D8_PALETTE,
+                        "Target slot D8 palette", out uint palettePtr, out string pointerError))
+                        return ImportOutcome.Fail(pointerError);
+                    uint paletteOffset = U.toOffset(palettePtr);
+                    if (paletteOffset == 0 || !CanReadRomRange(rom, paletteOffset, 32))
+                        return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
+                    effectivePalette = rom.getBinaryData(paletteOffset, 32);
+                    if (effectivePalette == null || effectivePalette.Length < 32)
+                        return ImportOutcome.Fail("Could not read existing palette at D8 pointer.");
+                    break;
+                }
+                case PortraitPaletteMode.CustomPalette:
+                    if (customPaletteBytes == null || customPaletteBytes.Length != 32)
+                        return ImportOutcome.Fail(
+                            $"Invalid custom palette — expected 16 colors (32 bytes), got {customPaletteBytes?.Length ?? 0}.");
+                    effectivePalette = customPaletteBytes;
+                    break;
+                default:
+                {
+                    var qr = DecreaseColorCore.Quantize(sheetRgba, 128, 112, 16);
+                    if (qr == null) return ImportOutcome.Fail("Color quantization failed");
+                    effectivePalette = qr.GBAPalette;
+                    break;
+                }
+            }
+
+            var parts = PortraitRendererCore.SplitPortraitSheet(sheetRgba, 128, 112);
+            if (parts == null) return ImportOutcome.Fail("Failed to split promoted portrait sheet.");
+
+            byte[] sheetIndexed = ImageImportCore.RemapToExistingPalette(
+                parts.SpriteSheetPixels, parts.SpriteSheetW, parts.SpriteSheetH,
+                effectivePalette, 16);
+            if (sheetIndexed == null)
+                return ImportOutcome.Fail("Failed to remap promoted face to palette.");
+
+            if (fuchidori)
+            {
+                int blackIdx = ImageUtilCore.FindBlackColorIndex(effectivePalette, 1, 16);
+                ImageUtilCore.Fuchidori(sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH, (byte)blackIdx);
+            }
+
+            undoService.Begin(undoLabel);
+            try
+            {
+                byte[] sheetTiles = ImageImportCore.EncodeDirectTiles4bpp(
+                    sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH);
+                if (sheetTiles == null)
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
+
+                if (!TryReadEntryP32(rom, entryAddr, OFFSET_D0_TILE_SHEET,
+                    "Target slot D0 sprite sheet", out uint currentD0, out string pointerError))
+                {
+                    undoService.Rollback();
+                    return ImportOutcome.Fail(pointerError);
+                }
+                uint currentD0Offset = U.toOffset(currentD0);
+                bool isCompressed = U.isSafetyOffset(currentD0Offset, rom)
+                    && LZ77.iscompress(rom.Data, currentD0Offset);
+
+                uint sheetAddr;
+                if (isCompressed)
+                {
+                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
+                }
+                else
+                {
+                    byte[] withHeader = new byte[4 + sheetTiles.Length];
+                    withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
+                    Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
+                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
+                }
+                if (sheetAddr == U.NOT_FOUND)
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
+
+                if (mode != PortraitPaletteMode.SharePalette)
+                {
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
+                    if (palAddr == U.NOT_FOUND)
+                    { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
+                }
+
+                WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+
+                rom.write_p32(entryAddr + OFFSET_D4_MINI_FACE, 0);
+                rom.write_p32(entryAddr + OFFSET_D12_MOUTH_FRAMES, 0);
+
+                undoService.Commit();
+                return ImportOutcome.Ok();
+            }
+            catch (Exception ex)
+            {
+                undoService.Rollback();
+                return ImportOutcome.Fail($"Face import failed: {ex.Message}");
             }
         }
 
@@ -594,6 +822,58 @@ namespace FEBuilderGBA.Avalonia.Services
             return rgba;
         }
 
+        public static byte[] BuildColorKeyedRgba(ImageImportService.LoadResult loadResult)
+        {
+            byte[] rgba = GetSourceRgba(loadResult);
+            if (rgba == null) return null;
+            ApplyPortraitBackgroundColorKey(rgba, loadResult.Width, loadResult.Height);
+            return rgba;
+        }
+
+        static byte[] GetSourceRgba(ImageImportService.LoadResult loadResult)
+        {
+            if (loadResult == null || loadResult.Width <= 0 || loadResult.Height <= 0) return null;
+            int bytes = loadResult.Width * loadResult.Height * 4;
+            if (loadResult.RGBAPixels != null && loadResult.RGBAPixels.Length >= bytes)
+            {
+                byte[] copy = new byte[bytes];
+                Array.Copy(loadResult.RGBAPixels, copy, bytes);
+                return copy;
+            }
+            return ReconstructRgbaIndexAgnostic(loadResult);
+        }
+
+        static byte[] ReconstructRgbaIndexAgnostic(ImageImportService.LoadResult loadResult)
+        {
+            if (loadResult == null || loadResult.IndexedPixels == null
+                || loadResult.GBAPalette == null) return null;
+
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            int w = loadResult.Width, h = loadResult.Height;
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < loadResult.IndexedPixels.Length && i < w * h; i++)
+            {
+                int palIdx = loadResult.IndexedPixels[i];
+                int palOff = palIdx * 2;
+                if (palOff + 2 <= loadResult.GBAPalette.Length)
+                {
+                    ushort gbaColor = (ushort)(loadResult.GBAPalette[palOff]
+                        | (loadResult.GBAPalette[palOff + 1] << 8));
+                    svc.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+                    rgba[i * 4 + 0] = r;
+                    rgba[i * 4 + 1] = g;
+                    rgba[i * 4 + 2] = b;
+                    rgba[i * 4 + 3] = 255;
+                }
+            }
+            return rgba;
+        }
+
+        public static bool ApplyPortraitBackgroundColorKey(byte[] rgba, int w, int h)
+            => PortraitRendererCore.ApplyPortraitBackgroundColorKey(rgba, w, h);
+
         /// <summary>
         /// Parse a portrait slot ID from a filename. Accepts:
         ///   - Hexadecimal prefix: "0x1F.png", "0x1f_anything.bmp" → 31
@@ -643,7 +923,8 @@ namespace FEBuilderGBA.Avalonia.Services
             uint dataSize = rom.RomInfo.portrait_datasize;
             if (pointer == 0 || dataSize == 0) return 0;
 
-            uint baseAddr = rom.p32(pointer);
+            if (dataSize < 4) return 0;
+            if (!TryReadP32(rom, pointer, "Portrait table", out uint baseAddr, out _)) return 0;
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
             int count = 0;
@@ -652,8 +933,9 @@ namespace FEBuilderGBA.Avalonia.Services
             // it; the sentinel terminates the scan first.
             for (int i = 0; i < 512; i++)
             {
-                uint addr = baseAddr + (uint)(i * dataSize);
-                if (addr + dataSize > (uint)rom.Data.Length) break;
+                ulong addr64 = (ulong)baseAddr + (ulong)i * (ulong)dataSize;
+                if (addr64 + (ulong)dataSize > (ulong)rom.Data.Length) break;
+                uint addr = (uint)addr64;
                 if (rom.u32(addr) == 0)
                 {
                     nullCount++;
@@ -732,11 +1014,16 @@ namespace FEBuilderGBA.Avalonia.Services
             // `portrait_pointer` dereferenced (it's a pointer into the
             // portrait table). Doing slotId * datasize off the raw pointer
             // field address would land in completely unrelated ROM bytes.
-            uint portraitBase = rom.p32(rom.RomInfo.portrait_pointer);
             uint dataSize = rom.RomInfo.portrait_datasize;
             if (dataSize == 0)
             {
                 lines.Add("Invalid portrait_datasize.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (!TryReadP32(rom, rom.RomInfo.portrait_pointer,
+                "Portrait table", out uint portraitBase, out string pointerError))
+            {
+                lines.Add(pointerError);
                 return new FolderImportResult(0, 0, 0, 0, lines);
             }
 
@@ -841,8 +1128,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 // Defense-in-depth: also check the underlying ROM bounds in
                 // case the table cap was computed against a smaller ROM than
                 // the one we're writing to (should be impossible, but cheap).
-                long addrLong = (long)portraitBase + (long)slotId * dataSize;
-                if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
+                ulong addrLong = (ulong)portraitBase + (ulong)(uint)slotId * (ulong)dataSize;
+                if (addrLong + (ulong)dataSize > (ulong)rom.Data.Length)
                 {
                     failed++;
                     string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";
@@ -856,16 +1143,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 // Per-file undo scope (Copilot PR review #1 fix). Each file
                 // owns its own scope so a mid-write failure rolls back only
                 // ITS partial ROM bytes — successful files in the batch stay
-                // committed. Route 128x112 composite sheets to ImportSheet so
-                // D4 (mini-face) + D12 (mouth frames) get written alongside
-                // D0/D8 (Copilot PR review #2 fix). On FE6 ROMs ImportSheet
-                // self-rejects with a clear error.
-                bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
-                ImportOutcome outcome = isSheet
-                    ? ImportSheet(rom, entryAddr, loadResult, undo,
-                        undoLabel: $"Import Portrait Sheet (Batch slot 0x{slotId:X2})")
-                    : ImportSimple(rom, entryAddr, loadResult, undo,
-                        undoLabel: $"Import Portrait Image (Batch slot 0x{slotId:X2})");
+                // committed. Use the same shared dispatch as the editor and
+                // wizard so 96x80 faces and 128x112 sheets share validation,
+                // color-keying, and reverse assembly.
+                ImportOutcome outcome = ImportPortrait(rom, entryAddr, loadResult, undo,
+                    undoLabel: $"Import Portrait Image (Batch slot 0x{slotId:X2})");
 
                 if (outcome.Success)
                 {
@@ -873,7 +1155,11 @@ namespace FEBuilderGBA.Avalonia.Services
                     // Record the source file so the per-slot Open/Select
                     // Source buttons light up after a batch import.
                     RecordSourceFile(slotId, filePath);
-                    string mode = isSheet ? " (sheet)" : "";
+                    string mode = loadResult.Width == 128 && loadResult.Height == 112
+                        ? " (sheet)"
+                        : loadResult.Width == 96 && loadResult.Height == 80
+                            ? " (face)"
+                            : "";
                     string line = $"{fileName} → slot 0x{slotId:X2}{mode} → OK";
                     lines.Add(line);
                     progress?.Report(line);
