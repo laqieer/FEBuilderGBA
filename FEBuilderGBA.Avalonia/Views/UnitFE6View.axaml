@@ -96,8 +96,10 @@
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_SortOrder_Input" FormatString="0" Grid.Row="2" Grid.Column="7" Name="SortOrderBox" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
             <!-- Portrait Image -->
-            <Border Grid.Column="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                    Margin="8,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Left">
+            <Border Grid.Column="1" Name="PortraitViewport"
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    Margin="8,0,0,0" VerticalAlignment="Top" HorizontalAlignment="Left"
+                    MaxWidth="160" MaxHeight="176">
               <controls:GbaImageControl AutomationProperties.AutomationId="UnitFE6_Portrait_Image" Name="PortraitImage" />
             </Border>
           </Grid>
