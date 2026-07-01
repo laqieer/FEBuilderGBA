@@ -14147,3 +14147,9 @@ ROM（.gba）は絶対に添付しないでください。
 
 :Couldn't open your browser automatically. Please file the bug at this URL:
 ブラウザーを自動で開けませんでした。次のURLからバグを報告してください:
+
+:Filter...
+フィルター...
+
+:Type to filter the command list (case-insensitive substring).
+コマンド一覧を絞り込む文字列を入力します（大文字小文字を区別しない部分一致）。

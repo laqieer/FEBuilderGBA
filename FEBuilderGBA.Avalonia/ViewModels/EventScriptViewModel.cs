@@ -33,6 +33,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Insert support: the command catalog (names) + raw-hex entry.
         ObservableCollection<string> _availableCommands = new();
         int _selectedCommandCatalogIndex = -1;
+        readonly ObservableCollection<CommandCatalogEntry> _filteredCommands = new();
+        string _commandFilterText = "";
         string _insertHexText = "";
         string _importText = "";
 
@@ -119,6 +121,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>Index of the command chosen in the Insert command-picker.</summary>
         public int SelectedCommandCatalogIndex { get => _selectedCommandCatalogIndex; set => SetField(ref _selectedCommandCatalogIndex, value); }
+
+        /// <summary>The catalog filtered by <see cref="CommandFilterText"/> — what the
+        /// searchable Insert-command picker shows. Each entry keeps its ORIGINAL index
+        /// into <see cref="AvailableCommands"/> so filtering never changes what gets
+        /// inserted (#1736).</summary>
+        public ObservableCollection<CommandCatalogEntry> FilteredCommands => _filteredCommands;
+
+        /// <summary>Case-insensitive substring filter for the Insert-command picker;
+        /// empty shows the whole catalog (#1736).</summary>
+        public string CommandFilterText
+        {
+            get => _commandFilterText;
+            set { if (SetField(ref _commandFilterText, value ?? "")) ApplyCommandFilter(); }
+        }
+
+        /// <summary>A catalog entry for the searchable Insert-command picker: the display
+        /// text plus its ORIGINAL index in <see cref="AvailableCommands"/> (#1736). The
+        /// explicit <see cref="ToString"/> keeps the record printing just the text.</summary>
+        public sealed record CommandCatalogEntry(int Index, string Text)
+        {
+            public override string ToString() => Text;
+        }
 
         /// <summary>Raw hex text for the "Insert (hex)" path (e.g. "0100 4200").</summary>
         public string InsertHexText { get => _insertHexText; set => SetField(ref _insertHexText, value); }
@@ -257,11 +281,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         void BuildCommandCatalog()
         {
             AvailableCommands.Clear();
-            if (_es?.Scripts == null) return;
+            if (_es?.Scripts == null) { ApplyCommandFilter(); return; }
             foreach (var sc in _es.Scripts)
             {
                 if (sc == null) continue;
                 AvailableCommands.Add(EventScript.makeCommandComboText(sc, false));
+            }
+            ApplyCommandFilter();
+        }
+
+        /// <summary>Rebuild <see cref="FilteredCommands"/> from <see cref="AvailableCommands"/>,
+        /// keeping (with their ORIGINAL indices) the entries whose text contains
+        /// <see cref="CommandFilterText"/> — case-insensitive; an empty filter keeps all.
+        /// The preserved index is the position in <see cref="AvailableCommands"/>, i.e. the
+        /// same value the un-filtered ComboBox's SelectedIndex fed to
+        /// <see cref="SelectedCommandCatalogIndex"/>, so insertion is byte-for-byte unchanged (#1736).</summary>
+        void ApplyCommandFilter()
+        {
+            _filteredCommands.Clear();
+            string f = _commandFilterText;
+            for (int i = 0; i < _availableCommands.Count; i++)
+            {
+                string text = _availableCommands[i] ?? "";
+                if (f.Length == 0 || text.IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0)
+                    _filteredCommands.Add(new CommandCatalogEntry(i, text));
             }
         }
 

@@ -147,6 +147,83 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("MOVE", vm.Commands[1]);
         }
 
+        // ── #1736 searchable Insert-command picker ──────────────────────
+
+        [Fact]
+        public void FilteredCommands_EmptyFilter_MirrorsFullCatalogWithOriginalIndices()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            Assert.Equal(vm.AvailableCommands.Count, vm.FilteredCommands.Count);
+            for (int i = 0; i < vm.AvailableCommands.Count; i++)
+            {
+                Assert.Equal(i, vm.FilteredCommands[i].Index);
+                Assert.Equal(vm.AvailableCommands[i], vm.FilteredCommands[i].Text);
+            }
+        }
+
+        [Fact]
+        public void CommandFilterText_NarrowsCatalog_PreservingOriginalIndex()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            // AvailableCommands[1] is MOVE; its text is distinct from LOAD1/ENDA.
+            string moveText = vm.AvailableCommands[1];
+
+            vm.CommandFilterText = moveText;
+            Assert.Single(vm.FilteredCommands);
+            Assert.Equal(1, vm.FilteredCommands[0].Index);        // ORIGINAL index preserved
+            Assert.Equal(moveText, vm.FilteredCommands[0].Text);
+        }
+
+        [Fact]
+        public void CommandFilterText_IsCaseInsensitive()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            string moveText = vm.AvailableCommands[1];
+
+            vm.CommandFilterText = moveText.ToLowerInvariant();
+            Assert.Contains(vm.FilteredCommands, en => en.Index == 1);
+            vm.CommandFilterText = moveText.ToUpperInvariant();
+            Assert.Contains(vm.FilteredCommands, en => en.Index == 1);
+        }
+
+        [Fact]
+        public void CommandFilterText_NoMatch_YieldsEmpty_ThenClearRestoresAll()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            int all = vm.AvailableCommands.Count;
+
+            vm.CommandFilterText = "zzz_no_such_command";
+            Assert.Empty(vm.FilteredCommands);
+
+            vm.CommandFilterText = "";
+            Assert.Equal(all, vm.FilteredCommands.Count);
+        }
+
+        [Fact]
+        public void InsertSelectedCatalogCommand_FromFilteredEntryIndex_InsertsSameCommand()
+        {
+            var vm = MakeVmDisassembled(LoadEnda());
+            vm.SelectedCommandIndex = 0;
+            vm.CommandFilterText = vm.AvailableCommands[1]; // filter down to MOVE
+            Assert.Single(vm.FilteredCommands);
+
+            // The view feeds the filtered entry's ORIGINAL index into the picker index.
+            vm.SelectedCommandCatalogIndex = vm.FilteredCommands[0].Index;
+            Assert.True(vm.InsertSelectedCatalogCommand());
+            Assert.Equal(3, vm.CommandCount);
+            Assert.Contains("MOVE", vm.Commands[1]);
+        }
+
+        [Fact]
+        public void InsertSelectedCatalogCommand_NoSelection_IsRejected()
+        {
+            // Mirrors the view path when filtering clears the ComboBox selection
+            // (SelectedItem == null -> index -1).
+            var vm = MakeVmDisassembled(LoadEnda());
+            vm.SelectedCommandCatalogIndex = -1;
+            Assert.False(vm.InsertSelectedCatalogCommand());
+        }
+
         [Fact]
         public void DeleteSelected_RemovesCommand()
         {
