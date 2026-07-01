@@ -39,6 +39,11 @@
                   Content="Import Map (Tiled .tmx)"
                   Margin="8,0,0,0"
                   VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="MapEditor_ResizeMap_Button"
+                  Name="ResizeMapButton"
+                  Content="Resize Map…"
+                  Margin="16,0,0,0"
+                  VerticalAlignment="Center" />
         </StackPanel>
       </StackPanel>
 

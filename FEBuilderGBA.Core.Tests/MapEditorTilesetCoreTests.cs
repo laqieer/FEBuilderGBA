@@ -532,5 +532,191 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0xBE, staged[12]);
             Assert.Equal(0xEF, staged[13]);
         }
+
+        // --------- BuildResizedMapData / GetLimitMapWidth (#1735) ----------------
+
+        [Theory]
+        [InlineData(10, 63u)]
+        [InlineData(24, 63u)]
+        [InlineData(25, 62u)]
+        [InlineData(30, 52u)]
+        [InlineData(44, 34u)]
+        [InlineData(63, 23u)]
+        public void GetLimitMapWidth_KnownValues(int height, uint expected)
+        {
+            Assert.Equal(expected, MapEditorTilesetCore.GetLimitMapWidth(height));
+        }
+
+        [Theory]
+        [InlineData(9)]
+        [InlineData(64)]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void GetLimitMapWidth_OutOfRange_ReturnsZero(int height)
+        {
+            Assert.Equal(0u, MapEditorTilesetCore.GetLimitMapWidth(height));
+        }
+
+        // Build a map whose every tile encodes its own row-major index (0x1000 | idx)
+        // so a resize can be verified positionally. idx stays well below 0x1000 for all
+        // test sizes used here, so the OR never collides.
+        static byte[] BuildUniqueMap(int w, int h)
+        {
+            byte[] map = new byte[2 + w * h * 2];
+            map[0] = (byte)w; map[1] = (byte)h;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int off = 2 + (y * w + x) * 2;
+                    ushort v = (ushort)(0x1000 | (y * w + x));
+                    map[off] = (byte)(v & 0xFF);
+                    map[off + 1] = (byte)((v >> 8) & 0xFF);
+                }
+            return map;
+        }
+
+        static ushort ReadTileAt(byte[] map, int w, int x, int y)
+        {
+            int off = 2 + (y * w + x) * 2;
+            return (ushort)(map[off] | (map[off + 1] << 8));
+        }
+
+        [Fact]
+        public void BuildResizedMapData_GrowRight_CopiesAndFills()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 0, 0, 5, 0, 0,
+                out byte[] dst, out int nw, out int nh, out string err);
+            Assert.True(ok, err);
+            Assert.Equal(20, nw);
+            Assert.Equal(10, nh);
+            Assert.Equal(20, dst[0]);
+            Assert.Equal(10, dst[1]);
+            Assert.Equal(2 + 20 * 10 * 2, dst.Length);
+            // Original tiles preserved in place
+            Assert.Equal(ReadTileAt(src, 15, 14, 9), ReadTileAt(dst, 20, 14, 9));
+            Assert.Equal(ReadTileAt(src, 15, 0, 0), ReadTileAt(dst, 20, 0, 0));
+            // New right columns are fill (0)
+            Assert.Equal(0, ReadTileAt(dst, 20, 15, 0));
+            Assert.Equal(0, ReadTileAt(dst, 20, 19, 9));
+        }
+
+        [Fact]
+        public void BuildResizedMapData_GrowTopLeft_ShiftsContent()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            // add 3 rows on top, 2 cols on left → old (0,0) lands at (2,3)
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 3, 2, 0, 0, 0,
+                out byte[] dst, out int nw, out int nh, out string err);
+            Assert.True(ok, err);
+            Assert.Equal(17, nw);
+            Assert.Equal(13, nh);
+            Assert.Equal(ReadTileAt(src, 15, 0, 0), ReadTileAt(dst, 17, 2, 3));
+            Assert.Equal(ReadTileAt(src, 15, 14, 9), ReadTileAt(dst, 17, 16, 12));
+            // top-left new area is fill
+            Assert.Equal(0, ReadTileAt(dst, 17, 0, 0));
+            Assert.Equal(0, ReadTileAt(dst, 17, 1, 2));
+        }
+
+        [Fact]
+        public void BuildResizedMapData_FillTileNonZero_UsedForNewCells()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 0, 0, 1, 0, 0x0ABC,
+                out byte[] dst, out int nw, out int nh, out string err);
+            Assert.True(ok, err);
+            Assert.Equal(0x0ABC, ReadTileAt(dst, 16, 15, 0));
+            Assert.Equal(0x0ABC, ReadTileAt(dst, 16, 15, 9));
+            Assert.Equal(ReadTileAt(src, 15, 0, 0), ReadTileAt(dst, 16, 0, 0));
+        }
+
+        [Fact]
+        public void BuildResizedMapData_Crop_DropsOutOfBoundsTiles()
+        {
+            // 20x15 map, crop 5 off right and 5 off bottom → 15x10
+            byte[] src = BuildUniqueMap(20, 15);
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 20, 15, 0, 0, -5, -5, 0,
+                out byte[] dst, out int nw, out int nh, out string err);
+            Assert.True(ok, err);
+            Assert.Equal(15, nw);
+            Assert.Equal(10, nh);
+            Assert.Equal(ReadTileAt(src, 20, 0, 0), ReadTileAt(dst, 15, 0, 0));
+            Assert.Equal(ReadTileAt(src, 20, 14, 9), ReadTileAt(dst, 15, 14, 9));
+        }
+
+        [Fact]
+        public void BuildResizedMapData_TooSmall_Rejected()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 0, -1, 0, 0, 0,
+                out byte[] dst, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.Null(dst);
+            Assert.Contains("smaller", err);
+        }
+
+        [Fact]
+        public void BuildResizedMapData_TooTall_Rejected()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            // grow height to 64 (>63) → rejected
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 54, 0, 0, 0, 0,
+                out byte[] dst, out _, out _, out _);
+            Assert.False(ok);
+            Assert.Null(dst);
+        }
+
+        [Fact]
+        public void BuildResizedMapData_TooWideForHeight_Rejected_LimitAllowed()
+        {
+            // At height 30 the max width is 52. 15 + 38 = 53 > 52 → reject.
+            byte[] src = BuildUniqueMap(15, 30);
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 30, 0, 0, 38, 0, 0,
+                out byte[] dst, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.Null(dst);
+            Assert.Contains("wide", err);
+
+            // 15 + 37 = 52 == limit → allowed
+            byte[] src2 = BuildUniqueMap(15, 30);
+            bool ok2 = MapEditorTilesetCore.BuildResizedMapData(
+                src2, 15, 30, 0, 0, 37, 0, 0,
+                out byte[] dst2, out int nw2, out _, out string err2);
+            Assert.True(ok2, err2);
+            Assert.Equal(52, nw2);
+        }
+
+        [Fact]
+        public void BuildResizedMapData_DoesNotMutateInput()
+        {
+            byte[] src = BuildUniqueMap(15, 10);
+            byte[] before = (byte[])src.Clone();
+            MapEditorTilesetCore.BuildResizedMapData(
+                src, 15, 10, 1, 1, 1, 1, 0,
+                out _, out _, out _, out _);
+            Assert.Equal(before, src);
+        }
+
+        [Fact]
+        public void BuildResizedMapData_OversizedSourceDims_Rejected()
+        {
+            // Dimensions come from a u8 header, so anything >255 is corrupt input. The
+            // old `int` length math (oldW*oldH*2) would overflow and could pass the
+            // short-buffer check; the guard must reject before that.
+            byte[] tiny = new byte[2];
+            bool ok = MapEditorTilesetCore.BuildResizedMapData(
+                tiny, 100000, 100000, 0, 0, 0, 0, 0,
+                out byte[] dst, out _, out _, out string err);
+            Assert.False(ok);
+            Assert.Null(dst);
+            Assert.Contains("invalid source dimensions", err);
+        }
     }
 }

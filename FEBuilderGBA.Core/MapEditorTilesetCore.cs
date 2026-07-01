@@ -238,6 +238,145 @@ namespace FEBuilderGBA
             return true;
         }
 
+        // ── Map dimension limits (ported verbatim from WinForms ImageUtilMap.cs) ──
+        // Main-map dimensions live only in the decompressed buffer's 2-byte header;
+        // the FE engine imposes a minimum playable size and a height-dependent maximum
+        // width (taller maps must be narrower to fit the tile budget). These bounds are
+        // enforced on resize so the result stays loadable and does not glitch/crash the
+        // game. See MapEditorResizeDialogForm.ChangeButton_Click (main-map path).
+
+        /// <summary>Minimum main-map width in 16x16 tiles.</summary>
+        public const int MAP_MIN_WIDTH = 15;
+        /// <summary>Minimum main-map height in 16x16 tiles.</summary>
+        public const int MAP_MIN_HEIGHT = 10;
+        /// <summary>Maximum main-map height in 16x16 tiles.</summary>
+        public const int MAP_MAX_HEIGHT = 63;
+
+        // Height-indexed maximum width table (index 0 == height 10 .. index 53 == height 63).
+        static readonly uint[] MapWidthLimit = new uint[]{
+            63, 63, 63, 63, 63, 63, 63, 63, 63, 63, // h=10..19
+            63, 63, 63, 63, 63,                     // h=20..24
+            62, 60, 58, 56, 54, 52, 49, 48, 47, 46, // h=25..34
+            44, 43, 42, 41, 39, 38, 37, 36, 35, 34, // h=35..44
+            34, 33, 32, 32, 30, 30, 29, 28, 28, 27, // h=45..54
+            27, 26, 26, 25, 25, 24, 24, 23, 23,     // h=55..63
+        };
+
+        /// <summary>
+        /// Maximum permitted main-map width for a given height (in 16x16 tiles), or 0
+        /// when the height itself is out of the valid 10..63 range. Mirrors WinForms
+        /// <c>ImageUtilMap.GetLimitMapWidth</c>.
+        /// </summary>
+        public static uint GetLimitMapWidth(int height)
+        {
+            if (height < MAP_MIN_HEIGHT) return 0;
+            if (height > MAP_MAX_HEIGHT) return 0;
+            return MapWidthLimit[height - MAP_MIN_HEIGHT];
+        }
+
+        /// <summary>
+        /// Build a NEW decompressed map buffer resized from <paramref name="old"/> by the
+        /// given per-edge padding (positive grows, negative crops), mirroring WinForms
+        /// <c>MapEditorForm.MapSizeChange</c>. The new size is
+        /// <c>newW = oldW + left + right</c>, <c>newH = oldH + top + bottom</c>; each old
+        /// tile <c>(x,y)</c> is copied to <c>(x+left, y+top)</c> where it lands in-bounds
+        /// (out-of-bounds tiles are cropped), and every uncopied cell is set to
+        /// <paramref name="fillTile"/> (WinForms fills new rows/cols with tile 0).
+        ///
+        /// <para>Validates the result against the FE main-map limits exactly like WinForms
+        /// (<see cref="MAP_MIN_WIDTH"/>x<see cref="MAP_MIN_HEIGHT"/> minimum and
+        /// <see cref="GetLimitMapWidth"/> maximum); on an invalid request it returns false
+        /// with an explanatory <paramref name="error"/> and never clamps.</para>
+        ///
+        /// PURE — no ROM access, never mutates <paramref name="old"/>.
+        /// </summary>
+        public static bool BuildResizedMapData(
+            byte[] old, int oldW, int oldH,
+            int top, int left, int right, int bottom,
+            ushort fillTile,
+            out byte[] resized, out int newW, out int newH, out string error)
+        {
+            resized = null;
+            newW = 0;
+            newH = 0;
+            error = null;
+
+            if (old == null)
+            {
+                error = "map data is null";
+                return false;
+            }
+            if (oldW <= 0 || oldH <= 0 || oldW > 255 || oldH > 255)
+            {
+                // Dimensions are stored as single bytes in the buffer header, so a real
+                // map is always 1..255 on each axis; anything else is a corrupt/crafted
+                // input. Bounding here also keeps the length math below overflow-free.
+                error = $"invalid source dimensions {oldW}x{oldH}";
+                return false;
+            }
+            long srcNeeded = 2L + (long)oldW * oldH * 2;
+            if (old.Length < srcNeeded)
+            {
+                error = $"map data too short ({old.Length} < {srcNeeded})";
+                return false;
+            }
+
+            int w = oldW + left + right;
+            int h = oldH + top + bottom;
+
+            if (w < MAP_MIN_WIDTH || h < MAP_MIN_HEIGHT)
+            {
+                error = $"map cannot be smaller than {MAP_MIN_WIDTH}x{MAP_MIN_HEIGHT} tiles (requested {w}x{h})";
+                return false;
+            }
+            uint limitWidth = GetLimitMapWidth(h);
+            if (limitWidth == 0)
+            {
+                error = $"map height {h} is out of range ({MAP_MIN_HEIGHT}..{MAP_MAX_HEIGHT})";
+                return false;
+            }
+            if (w > limitWidth)
+            {
+                error = $"map is too wide: width {w} exceeds the maximum {limitWidth} for height {h}";
+                return false;
+            }
+
+            byte[] dst = new byte[2 + w * h * 2];
+            dst[0] = (byte)w;
+            dst[1] = (byte)h;
+
+            // Pre-fill every tile with fillTile, then overwrite cells covered by the copy.
+            if (fillTile != 0)
+            {
+                for (int i = 0; i < w * h; i++)
+                {
+                    int d = 2 + i * 2;
+                    dst[d] = (byte)(fillTile & 0xFF);
+                    dst[d + 1] = (byte)((fillTile >> 8) & 0xFF);
+                }
+            }
+
+            for (int oy = 0; oy < oldH; oy++)
+            {
+                int ny = oy + top;
+                if (ny < 0 || ny >= h) continue;
+                for (int ox = 0; ox < oldW; ox++)
+                {
+                    int nx = ox + left;
+                    if (nx < 0 || nx >= w) continue;
+                    int so = 2 + (oy * oldW + ox) * 2;
+                    int dOff = 2 + (ny * w + nx) * 2;
+                    dst[dOff] = old[so];
+                    dst[dOff + 1] = old[so + 1];
+                }
+            }
+
+            resized = dst;
+            newW = w;
+            newH = h;
+            return true;
+        }
+
         /// <summary>
         /// Render a single 4bpp 8x8 tile from the OBJ tile graphics into an
         /// RGBA8888 destination buffer at (destX, destY) inside an image of
