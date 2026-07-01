@@ -693,7 +693,7 @@ An unattended agent (GitHub Copilot CLI) runs a **daily maintenance routine** ov
 ### Non-negotiable rules for the routine
 
 - **Never stop early, never ask.** Resolve every open issue no matter how long it takes; make the best safe decision and proceed. Only merge/close on clearly-met criteria — otherwise leave the item open with feedback.
-- **Mandatory completion loop.** After clearing the current issue list, **re-scan** `gh issue list --state open` (and `gh pr list --state open`). New issues/PRs frequently appear *during* processing (e.g. from ongoing user testing). Keep resolving until **both open issues and open PRs are zero**. Never declare the routine complete while any open issue or PR remains.
+- **Mandatory completion loop.** After clearing the current issue list, **re-scan** `gh issue list -R laqieer/FEBuilderGBA --state open` (and `gh pr list -R laqieer/FEBuilderGBA --state open`). New issues/PRs frequently appear *during* processing (e.g. from ongoing user testing). Keep resolving until **both open issues and open PRs are zero**. Never declare the routine complete while any open issue or PR remains.
 - **All three PR feedback channels** must be cleared before merge: unresolved inline review threads (including the `copilot-pull-request-reviewer` bot), PR-level comments, and top-level review bodies. Fix every point, reply, and resolve the threads.
 
 ---
