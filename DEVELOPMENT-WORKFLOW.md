@@ -680,6 +680,24 @@ Run `dotnet test FEBuilderGBA.Avalonia.Tests/` before pushing. These tests catch
 
 ---
 
+## Autonomous Daily Maintenance Routine
+
+An unattended agent (GitHub Copilot CLI) runs a **daily maintenance routine** over this fork. It executes end-to-end without asking for confirmation, following every rule in this document. The routine has five steps:
+
+1. **Open PRs** — cross-model review each; post a consolidated review comment. Merge if ready with no concerns; close with a posted reason if unacceptable; leave open with actionable feedback if author work is needed; edit the branch directly if `maintainerCanModify` and a small change makes it mergeable.
+2. **Discussions** — review all open discussions and any new replies; reply; check Google Docs / image links; create issues to track surfaced bugfixes/feature-requests (no coding in this step).
+3. **Issues** — resolve **and reply to every open issue, one by one**, via the full workflow above (plan → Review Gate → worktree → tests → PR → Review Gate → all-channel comment resolution → merge). Prioritize issues that break core tooling (in-app bug reporter, build, CLI).
+4. **Docs / wiki** — update README, `docs/`, and the wiki whenever code or behavior changed.
+5. **Release** — cut a tag-triggered release when warranted.
+
+### Non-negotiable rules for the routine
+
+- **Never stop early, never ask.** Resolve every open issue no matter how long it takes; make the best safe decision and proceed. Only merge/close on clearly-met criteria — otherwise leave the item open with feedback.
+- **Mandatory completion loop.** After clearing the current issue list, **re-scan** `gh issue list --state open` (and `gh pr list --state open`). New issues/PRs frequently appear *during* processing (e.g. from ongoing user testing). Keep resolving until **both open issues and open PRs are zero**. Never declare the routine complete while any open issue or PR remains.
+- **All three PR feedback channels** must be cleared before merge: unresolved inline review threads (including the `copilot-pull-request-reviewer` bot), PR-level comments, and top-level review bodies. Fix every point, reply, and resolve the threads.
+
+---
+
 ## QUICK REFERENCE
 
 ```
