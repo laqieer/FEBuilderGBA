@@ -27977,3 +27977,9 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :Couldn't open your browser automatically. Please file the bug at this URL:
 无法自动打开浏览器。请通过以下网址报告错误:
+
+:Filter...
+筛选...
+
+:Type to filter the command list (case-insensitive substring).
+输入以筛选命令列表（不区分大小写的子串匹配）。

@@ -17,7 +17,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             CommandsList.ItemsSource = _vm.Commands;
-            CatalogCombo.ItemsSource = _vm.AvailableCommands;
+            // #1736: the picker shows the FILTERED catalog; each entry keeps its
+            // original catalog index so insertion is unaffected by filtering.
+            CatalogCombo.ItemsSource = _vm.FilteredCommands;
         }
 
         void Disassemble_Click(object? sender, RoutedEventArgs e)
@@ -51,11 +53,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.SelectedCommandIndex = CommandsList.SelectedIndex;
         }
 
+        void CatalogFilter_TextChanged(object? sender, TextChangedEventArgs e)
+        {
+            // #1736: live case-insensitive substring filter of the Insert-command catalog.
+            _vm.CommandFilterText = CatalogFilterBox.Text ?? "";
+        }
+
         // ── structural-edit handlers ───────────────────────────────────
 
         void Insert_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SelectedCommandCatalogIndex = CatalogCombo.SelectedIndex;
+            // #1736: map the selected FILTERED entry back to its ORIGINAL catalog index
+            // (the filtered list's position differs from the full catalog).
+            _vm.SelectedCommandCatalogIndex =
+                (CatalogCombo.SelectedItem as EventScriptViewModel.CommandCatalogEntry)?.Index ?? -1;
             _vm.InsertSelectedCatalogCommand();
             AfterEdit();
         }

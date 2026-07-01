@@ -21,6 +21,10 @@
       <StackPanel Spacing="6">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <TextBlock Text="Insert command:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="EventScript_CatalogFilter_Input" Name="CatalogFilterBox"
+                   Width="150" Watermark="Filter..." VerticalAlignment="Center"
+                   TextChanged="CatalogFilter_TextChanged"
+                   ToolTip.Tip="Type to filter the command list (case-insensitive substring)." />
           <ComboBox AutomationProperties.AutomationId="EventScript_Catalog_Combo" Name="CatalogCombo" Width="260">
             <ComboBox.Styles>
               <Style Selector="ComboBoxItem">
@@ -30,7 +34,7 @@
             </ComboBox.Styles>
             <ComboBox.ItemTemplate>
               <DataTemplate>
-                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+                <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Text}" />
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
