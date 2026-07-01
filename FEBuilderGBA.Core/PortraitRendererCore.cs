@@ -588,7 +588,7 @@ namespace FEBuilderGBA
         /// <summary>
         /// Split a 128x112 composite portrait sheet into sprite sheet, mini face, and mouth frames.
         /// The 128x112 sheet layout matches the WinForms export format:
-        ///   Face (96x80) at (16, 0) — assembled portrait
+        ///   Face (96x80) occupies (0, 0); visible portrait content starts at x=16
         ///   Mini face (32x32) at (96, 16)
         ///   Half-closed eyes (32x16) at (96, 48)
         ///   Closed eyes (32x16) at (96, 64)
@@ -673,6 +673,67 @@ namespace FEBuilderGBA
                 MouthW = mouthW,
                 MouthH = mouthH,
             };
+        }
+
+        /// <summary>
+        /// Promote a 96x80 composed face export into the 128x112 composite
+        /// sheet layout consumed by <see cref="SplitPortraitSheet"/>.
+        /// The whole face is copied to canvas (0,0); its visible content is
+        /// already inset by 16px inside that 96px-wide face.
+        /// </summary>
+        public static byte[] PromoteFaceToPortraitSheet(byte[] faceRgba, int w, int h)
+        {
+            if (w != FaceWidth || h != FaceHeight) return null;
+            if (faceRgba == null || faceRgba.Length < w * h * 4) return null;
+
+            int sheetW = 128, sheetH = 112;
+            byte[] sheet = new byte[sheetW * sheetH * 4];
+            BlitPixels(faceRgba, w, 0, 0, w, h, sheet, sheetW, 0, 0);
+            return sheet;
+        }
+
+        /// <summary>
+        /// Map the opaque portrait backdrop color to transparent alpha.
+        /// Uses the same corner order WinForms checks for palette-0
+        /// transparency: top-right, bottom-right, then top-left.
+        /// </summary>
+        public static bool ApplyPortraitBackgroundColorKey(byte[] rgba, int w, int h)
+        {
+            if (rgba == null || w <= 0 || h <= 0 || rgba.Length < w * h * 4) return false;
+
+            int[] corners =
+            {
+                (0 * w + (w - 1)) * 4,
+                ((h - 1) * w + (w - 1)) * 4,
+                0,
+            };
+
+            int key = -1;
+            foreach (int off in corners)
+            {
+                if (rgba[off + 3] >= 128)
+                {
+                    key = off;
+                    break;
+                }
+            }
+            if (key < 0) return false;
+
+            byte kr = rgba[key + 0], kg = rgba[key + 1], kb = rgba[key + 2];
+            bool changed = false;
+            for (int i = 0; i < w * h; i++)
+            {
+                int off = i * 4;
+                if (rgba[off + 3] >= 128
+                    && rgba[off + 0] == kr
+                    && rgba[off + 1] == kg
+                    && rgba[off + 2] == kb)
+                {
+                    rgba[off + 3] = 0;
+                    changed = true;
+                }
+            }
+            return changed;
         }
 
         /// <summary>

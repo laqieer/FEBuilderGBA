@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for PortraitImportHelper — the shared portrait-import pipeline used
 // by both ImagePortraitView and the Portrait Import Wizard (#657).
 //
@@ -56,6 +56,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             readonly IImageService _prev;
             public RestoreImageService(IImageService prev) { _prev = prev; }
             public void Dispose() { CoreState.ImageService = _prev; }
+        }
+
+        sealed class UndoServiceSpy : UndoService
+        {
+            public int BeginCount { get; private set; }
+            public override void Begin(string name) { BeginCount++; }
+            public override void Commit() { }
+            public override void Rollback() { }
         }
 
         // ------------------------------------------------------------------
@@ -523,6 +531,100 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void PortraitColorKey_WithOpaqueCornerColor_MapsBackgroundToTransparentIndexZero()
+        {
+            using var _ = EnsureImageService();
+            var lr = MakeOpaqueBackgroundLoadResult(128, 112);
+
+            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            var qr = DecreaseColorCore.Quantize(keyed, lr.Width, lr.Height, 16);
+
+            Assert.NotNull(qr);
+            Assert.Equal(0, qr.IndexData[0 * lr.Width + (lr.Width - 1)]);
+            Assert.Equal(0, qr.IndexData[(lr.Height - 1) * lr.Width + (lr.Width - 1)]);
+            Assert.Equal(0, qr.IndexData[0]);
+            Assert.NotEqual(0, qr.IndexData[(16 * lr.Width) + 16]);
+        }
+
+        [Fact]
+        public void PortraitColorKey_UsesWinFormsCornerOrder_AndRunsBeforeQuantize()
+        {
+            byte[] rgba = SolidRgba(16, 16, 1, 2, 3, 255);
+            SetPixel(rgba, 16, 15, 0, 9, 9, 9, 255);      // top-right wins
+            SetPixel(rgba, 16, 15, 15, 8, 8, 8, 255);    // bottom-right ignored
+            SetPixel(rgba, 16, 0, 0, 7, 7, 7, 255);      // top-left ignored
+            SetPixel(rgba, 16, 4, 4, 9, 9, 9, 255);
+
+            Assert.True(PortraitImportHelper.ApplyPortraitBackgroundColorKey(rgba, 16, 16));
+
+            Assert.Equal(0, GetAlpha(rgba, 16, 15, 0));
+            Assert.Equal(0, GetAlpha(rgba, 16, 4, 4));
+            Assert.Equal(255, GetAlpha(rgba, 16, 15, 15));
+            Assert.Equal(255, GetAlpha(rgba, 16, 0, 0));
+        }
+
+        [Fact]
+        public void PortraitColorKey_AllCornersTransparent_PreservesImage()
+        {
+            byte[] rgba = SolidRgba(16, 16, 10, 20, 30, 255);
+            SetPixel(rgba, 16, 15, 0, 0, 0, 0, 0);
+            SetPixel(rgba, 16, 15, 15, 0, 0, 0, 0);
+            SetPixel(rgba, 16, 0, 0, 0, 0, 0, 0);
+
+            Assert.False(PortraitImportHelper.ApplyPortraitBackgroundColorKey(rgba, 16, 16));
+            Assert.Equal(255, GetAlpha(rgba, 16, 4, 4));
+        }
+
+        [Fact]
+        public void ImportPortrait_UnsupportedSize_ReturnsGuidanceBeforeUndoScope()
+        {
+            var undo = new UndoServiceSpy();
+            var outcome = PortraitImportHelper.ImportPortrait(
+                new ROM(), 0x100, MakeSyntheticLoadResult(16, 16), undo);
+
+            Assert.False(outcome.Success);
+            Assert.Contains("Unsupported portrait image size", outcome.Error);
+            Assert.Equal(0, undo.BeginCount);
+        }
+
+        [Fact]
+        public void PortraitImportHelper_ImportSheet_OpaqueBackdrop_AutoQuantize_IsTransparentAfterImport()
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeSyntheticFe8URom();
+            var lr = MakeOpaqueBackgroundLoadResult(128, 112);
+            uint entryAddr = 0x1000;
+            var outcome = PortraitImportHelper.ImportPortrait(
+                rom, entryAddr, lr, new UndoServiceSpy(), "Import sheet test");
+            Assert.True(outcome.Success, outcome.Error);
+
+            byte[] tileData = ReadRawD0TileData(rom, entryAddr);
+            byte bg = GetTilePixel(tileData, 256, 0, 0);
+            byte skin = GetTilePixel(tileData, 256, 0, 16);
+
+            Assert.Equal(0, bg);
+            Assert.NotEqual(0, skin);
+        }
+
+        [Fact]
+        public void PortraitImportHelper_Import96x80Face_UsesSheetReverseAssembly()
+        {
+            using var _ = EnsureImageService();
+            var lr = MakeOpaqueBackgroundLoadResult(96, 80);
+
+            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(keyed, 96, 80);
+            var parts = PortraitRendererCore.SplitPortraitSheet(sheet, 128, 112);
+
+            Assert.Equal(0, parts.SpriteSheetPixels[3]);
+            int skinOff = (16 * parts.SpriteSheetW + 0) * 4;
+            Assert.Equal(200, parts.SpriteSheetPixels[skinOff + 0]);
+            Assert.Equal(80, parts.SpriteSheetPixels[skinOff + 1]);
+            Assert.Equal(40, parts.SpriteSheetPixels[skinOff + 2]);
+            Assert.Equal(255, parts.SpriteSheetPixels[skinOff + 3]);
+        }
+
+        [Fact]
         public void Wizard_View_HasDragAndDropWiring()
         {
             string repoRoot = FindRepoRoot();
@@ -647,8 +749,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 "ImagePortraitImporterView.axaml.cs");
             string source = File.ReadAllText(viewCsPath);
 
-            Assert.Contains("PortraitImportHelper.ImportSimple", source);
-            Assert.Contains("PortraitImportHelper.ImportSheet", source);
+            Assert.Contains("PortraitImportHelper.ImportPortrait", source);
+            Assert.DoesNotMatch(new Regex(@"PortraitImportHelper\.ImportSimple\s*\("), source);
+            Assert.DoesNotMatch(new Regex(@"PortraitImportHelper\.ImportSheet\s*\("), source);
             Assert.Contains("PortraitImportHelper.BuildPreviewImage", source);
             Assert.Contains("PortraitImportHelper.RecordSourceFile", source);
         }
@@ -664,8 +767,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 "ImagePortraitView.axaml.cs");
             string source = File.ReadAllText(viewCsPath);
 
-            Assert.Contains("PortraitImportHelper.ImportSimple", source);
-            Assert.Contains("PortraitImportHelper.ImportSheet", source);
+            Assert.Contains("PortraitImportHelper.ImportPortrait", source);
+            Assert.DoesNotMatch(new Regex(@"PortraitImportHelper\.ImportSimple\s*\("), source);
+            Assert.DoesNotMatch(new Regex(@"PortraitImportHelper\.ImportSheet\s*\("), source);
 
             // The old inline write methods should be gone.
             Assert.DoesNotMatch(new Regex(@"\s+void\s+ImportPortraitSheet\s*\(\s*ROM\s+rom"), source);
@@ -745,6 +849,44 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+
+        [Fact]
+        public void PortraitImport_ProofPng_SavesDeterministicImage()
+        {
+            using var _ = EnsureImageService();
+            var lr = MakeOpaqueBackgroundLoadResult(96, 80);
+            byte[] keyed = PortraitImportHelper.BuildColorKeyedRgba(lr);
+            byte[] sheet = PortraitRendererCore.PromoteFaceToPortraitSheet(keyed, 96, 80);
+            var parts = PortraitRendererCore.SplitPortraitSheet(sheet, 128, 112);
+
+            const int outW = 96 + 8 + 256;
+            const int outH = 80;
+            byte[] canvas = SolidRgba(outW, outH, 32, 32, 32, 255);
+            BlitOpaque(lr.RGBAPixels, 96, 80, canvas, outW, 0, 0);
+            BlitAlpha(keyed, 96, 80, canvas, outW, 104, 0);
+            BlitAlpha(parts.SpriteSheetPixels, 256, 32, canvas, outW, 104, 48);
+
+            Assert.Contains((byte)200, canvas);
+            Assert.Contains((byte)32, canvas);
+
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (string.IsNullOrEmpty(overrideDir))
+                return;
+
+            string repoRoot = FindRepoRoot();
+            string outDir = Path.GetFullPath(overrideDir);
+            if (!outDir.StartsWith(repoRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Screenshot output must stay inside the repository.");
+            Directory.CreateDirectory(outDir);
+            string outPath = Path.Combine(outDir, "portrait-import-1750-1751-proof.png");
+            using IImage img = CoreState.ImageService.CreateImage(outW, outH);
+            img.SetPixelData(canvas);
+            img.Save(outPath);
+
+            Assert.True(File.Exists(outPath));
+            Assert.True(new FileInfo(outPath).Length > 0);
+        }
+
         // ------------------------------------------------------------------
         // Helpers.
         // ------------------------------------------------------------------
@@ -777,7 +919,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 indexed[i] = (byte)((i / 8) % 16);
             }
-            return new ImageImportService.LoadResult
+            var result = new ImageImportService.LoadResult
             {
                 Success = true,
                 Width = w,
@@ -786,6 +928,133 @@ namespace FEBuilderGBA.Avalonia.Tests
                 GBAPalette = BuildSimplePalette(16),
                 SourcePath = "C:\\tmp\\synthetic.png",
             };
+            byte[] rgba = new byte[w * h * 4];
+            var svc = CoreState.ImageService;
+            if (svc != null)
+            {
+                for (int i = 0; i < indexed.Length; i++)
+                {
+                    ushort color = (ushort)(result.GBAPalette[indexed[i] * 2]
+                        | (result.GBAPalette[indexed[i] * 2 + 1] << 8));
+                    svc.GBAColorToRGBA(color, out byte r, out byte g, out byte b);
+                    rgba[i * 4 + 0] = r;
+                    rgba[i * 4 + 1] = g;
+                    rgba[i * 4 + 2] = b;
+                    rgba[i * 4 + 3] = 255;
+                }
+            }
+            result.RGBAPixels = rgba;
+            return result;
+        }
+
+        static ImageImportService.LoadResult MakeOpaqueBackgroundLoadResult(int w, int h)
+        {
+            byte[] rgba = SolidRgba(w, h, 0, 255, 0, 255);
+            for (int y = 16; y < Math.Min(h, 64); y++)
+            {
+                for (int x = 16; x < Math.Min(w, 64); x++)
+                {
+                    SetPixel(rgba, w, x, y, 200, 80, 40, 255);
+                }
+            }
+            var qr = DecreaseColorCore.Quantize(rgba, w, h, 16);
+            return new ImageImportService.LoadResult
+            {
+                Success = true,
+                Width = w,
+                Height = h,
+                IndexedPixels = qr.IndexData,
+                GBAPalette = qr.GBAPalette,
+                RGBAPixels = rgba,
+                SourcePath = "C:\\tmp\\opaque.png",
+            };
+        }
+
+        static byte[] SolidRgba(int w, int h, byte r, byte g, byte b, byte a)
+        {
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = r;
+                rgba[i * 4 + 1] = g;
+                rgba[i * 4 + 2] = b;
+                rgba[i * 4 + 3] = a;
+            }
+            return rgba;
+        }
+
+        static void SetPixel(byte[] rgba, int w, int x, int y, byte r, byte g, byte b, byte a)
+        {
+            int off = (y * w + x) * 4;
+            rgba[off + 0] = r;
+            rgba[off + 1] = g;
+            rgba[off + 2] = b;
+            rgba[off + 3] = a;
+        }
+
+        static byte GetAlpha(byte[] rgba, int w, int x, int y)
+            => rgba[(y * w + x) * 4 + 3];
+
+
+        static void BlitOpaque(byte[] src, int srcW, int srcH, byte[] dst, int dstW, int dstX, int dstY)
+        {
+            for (int y = 0; y < srcH; y++)
+            {
+                for (int x = 0; x < srcW; x++)
+                {
+                    int si = (y * srcW + x) * 4;
+                    int di = ((dstY + y) * dstW + (dstX + x)) * 4;
+                    dst[di + 0] = src[si + 0];
+                    dst[di + 1] = src[si + 1];
+                    dst[di + 2] = src[si + 2];
+                    dst[di + 3] = 255;
+                }
+            }
+        }
+
+        static void BlitAlpha(byte[] src, int srcW, int srcH, byte[] dst, int dstW, int dstX, int dstY)
+        {
+            for (int y = 0; y < srcH; y++)
+            {
+                for (int x = 0; x < srcW; x++)
+                {
+                    int si = (y * srcW + x) * 4;
+                    int di = ((dstY + y) * dstW + (dstX + x)) * 4;
+                    if (src[si + 3] < 128) continue;
+                    dst[di + 0] = src[si + 0];
+                    dst[di + 1] = src[si + 1];
+                    dst[di + 2] = src[si + 2];
+                    dst[di + 3] = 255;
+                }
+            }
+        }
+
+        static ROM MakeSyntheticFe8URom()
+        {
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("synthetic-fe8u.gba", new byte[0x1000000], "BE8E01"));
+            return rom;
+        }
+
+        static byte[] ReadRawD0TileData(ROM rom, uint entryAddr)
+        {
+            uint d0 = U.toOffset(rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET));
+            Assert.True(U.isSafetyOffset(d0, rom));
+            Assert.Equal((byte)0x00, rom.u8(d0 + 0));
+            Assert.Equal((byte)0x04, rom.u8(d0 + 1));
+            Assert.Equal((byte)0x10, rom.u8(d0 + 2));
+            Assert.Equal((byte)0x00, rom.u8(d0 + 3));
+            return rom.getBinaryData(d0 + 4, 256 / 8 * 32 / 8 * 32);
+        }
+
+        static byte GetTilePixel(byte[] tileData, int imageWidth, int x, int y)
+        {
+            int tilesX = imageWidth / 8;
+            int tileIndex = (y / 8) * tilesX + (x / 8);
+            int inTileX = x % 8;
+            int inTileY = y % 8;
+            byte packed = tileData[tileIndex * 32 + inTileY * 4 + inTileX / 2];
+            return (byte)((inTileX & 1) == 0 ? packed & 0x0F : packed >> 4);
         }
 
         static string FindRepoRoot()

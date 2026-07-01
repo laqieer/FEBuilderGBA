@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
@@ -21,6 +21,8 @@ namespace FEBuilderGBA.Avalonia.Services
             public byte[] GBAPalette { get; set; }
             public int Width { get; set; }
             public int Height { get; set; }
+            /// <summary>RGBA pixel data used as the quantizer/remap source.</summary>
+            public byte[] RGBAPixels { get; set; }
             /// <summary>
             /// Number of distinct colors the quantizer produced (&lt;= maxColors).
             /// Lets callers detect when a source genuinely needed more colors than
@@ -140,6 +142,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 result.Success = true;
                 result.IndexedPixels = qr.IndexData;
                 result.GBAPalette = qr.GBAPalette;
+                result.RGBAPixels = rgbaPixels;
                 result.Width = qr.Width;
                 result.Height = qr.Height;
                 result.ColorCount = qr.ColorCount;
@@ -258,6 +261,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 result.Success = true;
                 result.IndexedPixels = indexed;
                 result.GBAPalette = existingGBAPalette;
+                result.RGBAPixels = rgbaPixels;
                 result.Width = image.Width;
                 result.Height = image.Height;
             }
@@ -336,6 +340,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 result.Success = true;
                 result.IndexedPixels = remap.IndexedPixels;
                 result.GBAPalette = existingGBAPalette;
+                result.RGBAPixels = rgbaPixels;
                 result.Width = image.Width;
                 result.Height = image.Height;
             }

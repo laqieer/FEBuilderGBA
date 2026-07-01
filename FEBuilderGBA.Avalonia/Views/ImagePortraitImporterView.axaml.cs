@@ -323,9 +323,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 SourceFileLabel.Text = filePath;
                 ImageSizeLabel.Text = $"Quantized to 16 colors — {loadResult.Width} x {loadResult.Height}";
                 bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
+                bool isFace = loadResult.Width == 96 && loadResult.Height == 80;
                 SheetModeLabel.Text = isSheet
                     ? "128 x 112 composite sheet — will write face, mini, mouth, palette (FE7/FE8 only)"
-                    : "Simple image — will write sheet (D0) + palette (D8) only";
+                    : isFace
+                        ? "96 x 80 face — will reverse-assemble face, palette, and clear mini/mouth"
+                        : "Unsupported portrait size — use 96 x 80 face or 128 x 112 sheet";
 
                 // Preview — see SetQuantizedPreview (single BuildPreviewImage
                 // call site so all entry points share the leak-safe preview path).
@@ -498,21 +501,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by ImagePortraitView (drag-drop + Import PNG button).
-                ImportOutcome outcome;
-                if (loadResult.Width == 128 && loadResult.Height == 112)
-                {
-                    outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService,
-                        mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Sheet (Wizard)",
-                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
-                }
-                else
-                {
-                    outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService,
-                        mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Image (Wizard)",
-                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
-                }
+                ImportOutcome outcome = PortraitImportHelper.ImportPortrait(
+                    rom, addr, loadResult, _undoService,
+                    mode, _customPaletteBytes, FuchidoriEnabled,
+                    "Import Portrait Image (Wizard)",
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
 
                 if (!outcome.Success)
                 {
