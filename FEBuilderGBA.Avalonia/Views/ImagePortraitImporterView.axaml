@@ -128,12 +128,12 @@
                      Mouth W min 1 max 32 default 14  (WF line 454-473)
                      Mouth H min 1 max 16 default 8   (WF line 486-505) -->
               <TextBlock Text="Eye crop" FontWeight="SemiBold" Margin="0,8,0,0" />
-              <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+              <Grid ColumnDefinitions="Auto,120,Auto,120" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropX_Input"
                                Name="EyeCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="6" />
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
                 <NumericUpDown Grid.Row="0" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropY_Input"
                                Name="EyeCropYInput" Minimum="0" Maximum="16" FormatString="0" Value="1" />
@@ -141,19 +141,19 @@
                 <NumericUpDown Grid.Row="1" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropW_Input"
                                Name="EyeCropWInput" Minimum="1" Maximum="32" FormatString="0" Value="23" />
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" Margin="8,0,0,0" />
                 <NumericUpDown Grid.Row="1" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropH_Input"
                                Name="EyeCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="10" />
               </Grid>
 
               <TextBlock Text="Mouth crop" FontWeight="SemiBold" Margin="0,8,0,0" />
-              <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+              <Grid ColumnDefinitions="Auto,120,Auto,120" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropX_Input"
                                Name="MouthCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="8" />
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" Margin="8,0,0,0" />
                 <NumericUpDown Grid.Row="0" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropY_Input"
                                Name="MouthCropYInput" Minimum="0" Maximum="16" FormatString="0" Value="0" />
@@ -161,7 +161,7 @@
                 <NumericUpDown Grid.Row="1" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropW_Input"
                                Name="MouthCropWInput" Minimum="1" Maximum="32" FormatString="0" Value="14" />
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" Margin="8,0,0,0" />
                 <NumericUpDown Grid.Row="1" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropH_Input"
                                Name="MouthCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="8" />
