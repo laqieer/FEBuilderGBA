@@ -12,6 +12,14 @@ namespace FEBuilderGBA
 
         public static int ShortLength { get; private set; }
 
+        public static bool IsInitialized
+        {
+            get
+            {
+                return s_voiceSpeech != null;
+            }
+        }
+
         public static int Rate
         {
             get

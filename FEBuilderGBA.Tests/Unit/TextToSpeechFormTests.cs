@@ -27,6 +27,57 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("StopInitializedSpeech", textToSpeechForm, StringComparison.Ordinal);
         }
 
+        [Fact]
+        public void EnsureSpeechInitialized_WhenFlagWasStale_RechecksEngineBoundary()
+        {
+            int initializeCalls = 0;
+            TextToSpeechForm.SetSpeechInitializedForTests(true);
+            TextToSpeechForm.SetTryInitializeSpeechForTests((bool isMultibyte, out string errorMessage) =>
+            {
+                initializeCalls++;
+                errorMessage = "";
+                return true;
+            });
+
+            try
+            {
+                bool initialized = TextToSpeechForm.EnsureSpeechInitialized(false, out string errorMessage);
+
+                Assert.True(initialized);
+                Assert.Equal("", errorMessage);
+                Assert.Equal(1, initializeCalls);
+                Assert.True(TextToSpeechForm.IsSpeechInitializedForTests);
+            }
+            finally
+            {
+                TextToSpeechForm.ResetSpeechTestHooksForTests();
+            }
+        }
+
+        [Fact]
+        public void EnsureSpeechInitialized_WhenEngineBoundaryFails_ClearsInitializedFlag()
+        {
+            TextToSpeechForm.SetSpeechInitializedForTests(true);
+            TextToSpeechForm.SetTryInitializeSpeechForTests((bool isMultibyte, out string errorMessage) =>
+            {
+                errorMessage = "speech unavailable";
+                return false;
+            });
+
+            try
+            {
+                bool initialized = TextToSpeechForm.EnsureSpeechInitialized(false, out string errorMessage);
+
+                Assert.False(initialized);
+                Assert.Equal("speech unavailable", errorMessage);
+                Assert.False(TextToSpeechForm.IsSpeechInitializedForTests);
+            }
+            finally
+            {
+                TextToSpeechForm.ResetSpeechTestHooksForTests();
+            }
+        }
+
         [Theory]
         [InlineData("Hello!", false, false, "Hello.")]
         [InlineData("Hello. World", true, false, "Hello.\r\n World")]

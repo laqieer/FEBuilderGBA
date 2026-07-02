@@ -8,7 +8,10 @@ namespace FEBuilderGBA
 {
     public partial class TextToSpeechForm : Form
     {
+        internal delegate bool TryInitializeSpeechHandler(bool isMultibyte, out string errorMessage);
+
         static bool s_speechInitialized;
+        static TryInitializeSpeechHandler s_tryInitializeSpeech = TryInitializeSpeech;
         string DefString;
         bool IsEmulatorMode;
 
@@ -63,18 +66,24 @@ namespace FEBuilderGBA
 
         bool Init()
         {
-            if (s_speechInitialized)
-            {
-                return true;
-            }
-
             string errorMessage;
-            if (!TryInitializeSpeech(Program.ROM.RomInfo.is_multibyte, out errorMessage))
+            if (!EnsureSpeechInitialized(Program.ROM.RomInfo.is_multibyte, out errorMessage))
             {
                 if (!string.IsNullOrEmpty(errorMessage))
                 {
                     R.ShowStopError(errorMessage);
                 }
+                return false;
+            }
+
+            return true;
+        }
+
+        internal static bool EnsureSpeechInitialized(bool isMultibyte, out string errorMessage)
+        {
+            if (!s_tryInitializeSpeech(isMultibyte, out errorMessage))
+            {
+                s_speechInitialized = false;
                 return false;
             }
 
@@ -243,12 +252,29 @@ namespace FEBuilderGBA
         {
             try
             {
-                return TextToSpeechEngine.GetInstalledVoiceLabels();
+                string[] labels = TextToSpeechEngine.GetInstalledVoiceLabels();
+                s_speechInitialized = IsSpeechEngineInitialized();
+                return labels;
             }
             catch (Exception ex)
             {
                 Log.Error(BuildSpeechUnavailableMessage(ex));
+                s_speechInitialized = false;
                 return Array.Empty<string>();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool IsSpeechEngineInitialized()
+        {
+            try
+            {
+                return TextToSpeechEngine.IsInitialized;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
             }
         }
 
@@ -356,6 +382,30 @@ namespace FEBuilderGBA
                 ex = ex.InnerException;
             }
             return ex;
+        }
+
+        internal static bool IsSpeechInitializedForTests
+        {
+            get
+            {
+                return s_speechInitialized;
+            }
+        }
+
+        internal static void SetSpeechInitializedForTests(bool initialized)
+        {
+            s_speechInitialized = initialized;
+        }
+
+        internal static void SetTryInitializeSpeechForTests(TryInitializeSpeechHandler handler)
+        {
+            s_tryInitializeSpeech = handler ?? TryInitializeSpeech;
+        }
+
+        internal static void ResetSpeechTestHooksForTests()
+        {
+            s_speechInitialized = false;
+            s_tryInitializeSpeech = TryInitializeSpeech;
         }
     }
 }
