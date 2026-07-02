@@ -22,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         private const double EditorHeight = 800;
         private const double LeftColumnWidth = 250;
         private const double EditorBodyHorizontalMargin = 16;
+        private const double MinimumUsableMapHeight = 240;
 
         [AvaloniaFact]
         public void DarkMapPanels_UseLocalDarkThemeScope()
@@ -88,26 +89,41 @@ namespace FEBuilderGBA.Avalonia.Tests
             var navToolbar = Required<StackPanel>(view, "MapNavigationToolbar");
             var csvToolbar = Required<StackPanel>(view, "MapCsvCommandToolbar");
             var tmxToolbar = Required<StackPanel>(view, "MapTmxCommandToolbar");
+            var mapCanvas = Required<Border>(view, "MapCanvasPanel");
 
             view.Measure(new Size(EditorWidth, EditorHeight));
             view.Arrange(new Rect(0, 0, EditorWidth, EditorHeight));
             view.UpdateLayout();
 
-            navToolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            csvToolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            tmxToolbar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double navWidth = MeasureNaturalWidth(navToolbar);
+            double csvWidth = MeasureNaturalWidth(csvToolbar);
+            double tmxWidth = MeasureNaturalWidth(tmxToolbar);
 
             double availableBodyWidth = EditorWidth - LeftColumnWidth - EditorBodyHorizontalMargin;
+            double availableMinBodyWidth = view.MinWidth - LeftColumnWidth - EditorBodyHorizontalMargin;
+            double widestSplitToolbarRow = Math.Max(navWidth, Math.Max(csvWidth, tmxWidth));
 
-            Assert.True(csvToolbar.DesiredSize.Width <= availableBodyWidth,
-                $"CSV command toolbar desired width ({csvToolbar.DesiredSize.Width:F1}) exceeds " +
+            Assert.True(csvWidth <= availableBodyWidth,
+                $"CSV command toolbar desired width ({csvWidth:F1}) exceeds " +
                 $"the declared editor body width ({availableBodyWidth:F1}).");
-            Assert.True(tmxToolbar.DesiredSize.Width <= availableBodyWidth,
-                $"TMX command toolbar desired width ({tmxToolbar.DesiredSize.Width:F1}) exceeds " +
+            Assert.True(tmxWidth <= availableBodyWidth,
+                $"TMX command toolbar desired width ({tmxWidth:F1}) exceeds " +
                 $"the declared editor body width ({availableBodyWidth:F1}).");
+            Assert.True(widestSplitToolbarRow <= availableMinBodyWidth,
+                $"Widest split toolbar row ({widestSplitToolbarRow:F1}) exceeds the MinWidth body width " +
+                $"({availableMinBodyWidth:F1}); manual resize could clip the toolbar.");
+            Assert.True(view.MinHeight >= MinimumUsableMapHeight,
+                $"MapEditorView MinHeight ({view.MinHeight:F1}) should leave a usable map canvas area.");
 
-            Assert.True(navToolbar.DesiredSize.Width + csvToolbar.DesiredSize.Width + tmxToolbar.DesiredSize.Width > availableBodyWidth,
-                "The split toolbar test must discriminate against the previous single-row layout.");
+            Assert.True(navWidth + csvWidth + tmxWidth > availableMinBodyWidth,
+                "The MinWidth fit test must discriminate against the previous single-row layout.");
+
+            view.Measure(new Size(view.MinWidth, view.MinHeight));
+            view.Arrange(new Rect(0, 0, view.MinWidth, view.MinHeight));
+            view.UpdateLayout();
+
+            Assert.True(mapCanvas.Bounds.Height >= MinimumUsableMapHeight,
+                $"Map canvas height at MinHeight ({mapCanvas.Bounds.Height:F1}) should remain usable.");
         }
 
         [AvaloniaTheory]
@@ -134,6 +150,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             var control = root.FindControl<T>(name);
             Assert.NotNull(control);
             return control!;
+        }
+
+        private static double MeasureNaturalWidth(Control control)
+        {
+            control.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            return control.DesiredSize.Width;
         }
 
         private static string FindButtonTag(string name)
