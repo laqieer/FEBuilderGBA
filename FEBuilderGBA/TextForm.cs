@@ -1950,7 +1950,7 @@ namespace FEBuilderGBA
             RichTextBoxEx editor = (RichTextBoxEx)sender;
             string str = editor.Text2;
             str = TextForm.StripAllCode(TextForm.ConvertEscapeTextRev(str));
-            str = TextToSpeechForm.TextJoinCopy(str, useSentensLineBreak: true);
+            str = TextToSpeechTextUtil.TextJoinCopy(str, useSentensLineBreak: true);
             Clipboard.SetText(str);
         }
         void OptionConvertAnrrowFont(Object sender, EventArgs e)
