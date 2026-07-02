@@ -3,14 +3,14 @@
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorView"
         Title="Visual Map Editor" Width="1200" Height="800"
-        MinWidth="1160" MinHeight="640"
+        MinWidth="1170" MinHeight="640"
         SizeToContent="Manual">
-  <Grid ColumnDefinitions="250,*">
+  <Grid Name="MapEditorRootGrid" ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="MapEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="4">
       <!-- Info panel -->
-      <StackPanel Grid.Row="0" Spacing="4" Margin="8,4,8,4">
+      <StackPanel Grid.Row="0" Name="MapEditorInfoPanel" Spacing="4" Margin="8,4,8,4">
         <TextBlock Text="Visual Map Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock AutomationProperties.AutomationId="MapEditor_MapInfo_Label" Name="MapInfoLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
         <StackPanel Orientation="Horizontal" Spacing="8" Name="MapNavigationToolbar">

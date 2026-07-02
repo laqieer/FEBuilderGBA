@@ -20,8 +20,6 @@ namespace FEBuilderGBA.Avalonia.Tests
     {
         private const double EditorWidth = 1200;
         private const double EditorHeight = 800;
-        private const double LeftColumnWidth = 250;
-        private const double EditorBodyHorizontalMargin = 16;
         private const double MinimumUsableMapHeight = 240;
 
         [AvaloniaFact]
@@ -91,26 +89,22 @@ namespace FEBuilderGBA.Avalonia.Tests
             var tmxToolbar = Required<StackPanel>(view, "MapTmxCommandToolbar");
             var mapCanvas = Required<Border>(view, "MapCanvasPanel");
 
-            view.Measure(new Size(EditorWidth, EditorHeight));
-            view.Arrange(new Rect(0, 0, EditorWidth, EditorHeight));
-            view.UpdateLayout();
-
             double navWidth = MeasureNaturalWidth(navToolbar);
             double csvWidth = MeasureNaturalWidth(csvToolbar);
             double tmxWidth = MeasureNaturalWidth(tmxToolbar);
 
-            double availableBodyWidth = EditorWidth - LeftColumnWidth - EditorBodyHorizontalMargin;
-            double availableMinBodyWidth = view.MinWidth - LeftColumnWidth - EditorBodyHorizontalMargin;
+            double availableBodyWidth = ArrangeAndGetToolbarWidth(view, EditorWidth, EditorHeight);
+            double availableMinBodyWidth = ArrangeAndGetToolbarWidth(view, view.MinWidth, view.MinHeight);
             double widestSplitToolbarRow = Math.Max(navWidth, Math.Max(csvWidth, tmxWidth));
 
             Assert.True(csvWidth <= availableBodyWidth,
                 $"CSV command toolbar desired width ({csvWidth:F1}) exceeds " +
-                $"the declared editor body width ({availableBodyWidth:F1}).");
+                $"the arranged toolbar content width ({availableBodyWidth:F1}).");
             Assert.True(tmxWidth <= availableBodyWidth,
                 $"TMX command toolbar desired width ({tmxWidth:F1}) exceeds " +
-                $"the declared editor body width ({availableBodyWidth:F1}).");
+                $"the arranged toolbar content width ({availableBodyWidth:F1}).");
             Assert.True(widestSplitToolbarRow <= availableMinBodyWidth,
-                $"Widest split toolbar row ({widestSplitToolbarRow:F1}) exceeds the MinWidth body width " +
+                $"Widest split toolbar row ({widestSplitToolbarRow:F1}) exceeds the MinWidth toolbar content width " +
                 $"({availableMinBodyWidth:F1}); manual resize could clip the toolbar.");
             Assert.True(view.MinHeight >= MinimumUsableMapHeight,
                 $"MapEditorView MinHeight ({view.MinHeight:F1}) should leave a usable map canvas area.");
@@ -156,6 +150,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             control.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             return control.DesiredSize.Width;
+        }
+
+        private static double ArrangeAndGetToolbarWidth(MapEditorView view, double width, double height)
+        {
+            var root = Required<Grid>(view, "MapEditorRootGrid");
+            root.Measure(new Size(width, height));
+            root.Arrange(new Rect(0, 0, width, height));
+            root.UpdateLayout();
+
+            return Required<StackPanel>(view, "MapEditorInfoPanel").Bounds.Width;
         }
 
         private static string FindButtonTag(string name)
