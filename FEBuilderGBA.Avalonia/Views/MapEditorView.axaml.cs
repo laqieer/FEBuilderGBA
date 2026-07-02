@@ -4,6 +4,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using global::Avalonia.VisualTree;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -36,6 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ExportTmxButton.Click += ExportTmx_Click;
             ImportTmxButton.Click += ImportTmx_Click;
             ResizeMapButton.Click += ResizeMap_Click;
+            AddHandler(KeyDownEvent, OnEditorKeyDown, RoutingStrategies.Tunnel);
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
@@ -43,6 +45,60 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wiring both would double-fire the handler. The handler converts pointer
             // coords to image-pixel coords via e.GetPosition(TilePaletteImage).
             TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
+        }
+
+        void OnEditorKeyDown(object? sender, KeyEventArgs e)
+        {
+            if (HandleEditorKeyDown(e.Key, e.KeyModifiers, e.Source))
+                e.Handled = true;
+        }
+
+        internal bool HandleEditorKeyDown(Key key, KeyModifiers modifiers)
+            => IsUndoGesture(key, modifiers) && TryRunEditorUndo();
+
+        internal bool HandleEditorKeyDown(Key key, KeyModifiers modifiers, object? source)
+            => !IsTextInputSource(source) && HandleEditorKeyDown(key, modifiers);
+
+        internal static bool IsTextInputSource(object? source)
+        {
+            if (source is TextBox) return true;
+            return source is Control control && control.FindAncestorOfType<TextBox>() != null;
+        }
+
+        internal static bool IsUndoGesture(Key key, KeyModifiers modifiers)
+        {
+            if (key != Key.Z) return false;
+            if ((modifiers & KeyModifiers.Shift) != 0) return false;
+            return (modifiers & KeyModifiers.Control) != 0
+                || (modifiers & KeyModifiers.Meta) != 0;
+        }
+
+        internal bool TryRunEditorUndo()
+        {
+            var undo = CoreState.Undo;
+            if (undo == null || undo.Postion <= 0) return false;
+
+            int before = undo.Postion;
+            try
+            {
+                undo.RunUndo();
+                if (undo.Postion == before) return false;
+                OnEditorUndoApplied();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MapEditorView.TryRunEditorUndo failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Undo failed: {0}", ex.Message));
+                return false;
+            }
+        }
+
+        protected virtual void OnEditorUndoApplied()
+        {
+            OnRefreshMap(this, new RoutedEventArgs());
+            UpdateTileUI();
+            UndoService.NotifyUnsavedChanges();
         }
 
         void LoadList()
