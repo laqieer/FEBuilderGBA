@@ -1,17 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
+using System;
+using System.IO;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows.Forms;
-using System.Diagnostics;
-using System.Speech.Synthesis;
 
 namespace FEBuilderGBA
 {
     public partial class TextToSpeechForm : Form
     {
+        static bool s_speechInitialized;
+        string DefString;
+        bool IsEmulatorMode;
+
         public TextToSpeechForm()
         {
             InitializeComponent();
@@ -20,12 +20,11 @@ namespace FEBuilderGBA
             U.AddCancelButton(this);
         }
 
-        string DefString;
         public void SetDefString(string str)
         {
             DefString = str;
         }
-        bool IsEmulatorMode;
+
         public void SetEmulatorMode(bool isEmulatorMode)
         {
             this.IsEmulatorMode = isEmulatorMode;
@@ -39,8 +38,8 @@ namespace FEBuilderGBA
                 return;
             }
 
-            Rate.Value = g_VoiceSpeeach.Rate;
-            ShortNum.Value = g_ShortLength;
+            Rate.Value = GetSpeechRate();
+            ShortNum.Value = GetSpeechShortLength();
 
             if (this.IsEmulatorMode)
             {
@@ -52,147 +51,79 @@ namespace FEBuilderGBA
                 ShortNumLabel.Hide();
                 ShortNum.Hide();
             }
+
             this.VoiceComboBox.BeginUpdate();
             this.VoiceComboBox.Items.Clear();
-            foreach (InstalledVoice voiceperson in g_VoiceSpeeach.GetInstalledVoices())
+            foreach (string voice in GetInstalledVoiceLabels())
             {
-                // Updated to use the VoiceInfo property of InstalledVoice  
-                string language = voiceperson.VoiceInfo.Culture.Name;
-                string name = voiceperson.VoiceInfo.Name;
-                this.VoiceComboBox.Items.Add(name + " Language:" + language);
+                this.VoiceComboBox.Items.Add(voice);
             }
             this.VoiceComboBox.EndUpdate();
         }
 
         bool Init()
         {
-            if (g_VoiceSpeeach == null)
-            {//nullなら初期化する.
-                try
-                {
-                    //合成音声エンジンを初期化する.
-                    g_VoiceSpeeach = new SpeechSynthesizer();
-                    g_VoiceSpeeach.Rate = 0;
-
-                    if (Program.ROM.RomInfo.is_multibyte)
-                    {
-                        g_ShortLength = 10;
-                    }
-                    else
-                    {
-                        g_ShortLength = 20;
-                    }
-                }
-                catch (Exception ee)
-                {
-                    R.ShowStopError(ee.ToString());
-                    return false;
-                }
+            if (s_speechInitialized)
+            {
+                return true;
             }
+
+            string errorMessage;
+            if (!TryInitializeSpeech(Program.ROM.RomInfo.is_multibyte, out errorMessage))
+            {
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    R.ShowStopError(errorMessage);
+                }
+                return false;
+            }
+
+            s_speechInitialized = true;
             return true;
         }
-        static SpeechSynthesizer g_VoiceSpeeach = null;
 
-        static string g_CurrentString;
-        static int g_ShortLength;
-        static string[] ConvertTable = new string[]{
-                 "・",""    ///No Translate
-                ,"【",""    ///No Translate
-                ,"】",""    ///No Translate
-                ,"「",""    ///No Translate
-                ,"」",""    ///No Translate
-                ,"！","。"    ///No Translate
-                ,"!","."    ///No Translate
-                ,"\r\n","、"    ///No Translate
-                ,"。。","。"    ///No Translate
-                ,"、、","、"    ///No Translate
-                ,",,",","    ///No Translate
-                ,"..","."    ///No Translate
-                ,"\"",""    ///No Translate
-        };
-        static string[] ConvertTableEN = new string[]{
-                 "・",""    ///No Translate
-                ,"【",""    ///No Translate
-                ,"】",""    ///No Translate
-                ,"「",""    ///No Translate
-                ,"」",""    ///No Translate
-                ,"！","。"    ///No Translate
-                ,"!","."    ///No Translate
-                ,"\r\n"," "    ///No Translate
-                ,"。。","."    ///No Translate
-                ,"、、","、"    ///No Translate
-                ,",,",","    ///No Translate
-                ,"..","."    ///No Translate
-                ,"\"",""    ///No Translate
-        };
         public static string TextJoinCopy(string str, bool useSentensLineBreak)
         {
-            string text;
-            if (Program.ROM.RomInfo.is_multibyte)
-            {
-                text = U.table_replace(str, ConvertTable);
-            }
-            else
-            {
-                text = U.table_replace(str, ConvertTableEN);
-            }
-            if (useSentensLineBreak)
-            {
-                if (Program.ROM.RomInfo.is_multibyte)
-                {
-                    text = text.Replace("。", "。\r\n");   ///No Translate
-                    text = text.Replace("\r\n、", "\r\n");   ///No Translate
-                }
-                else
-                {
-                    text = text.Replace(".", ".\r\n");   ///No Translate
-                    text = text.Replace("\r\n,", "\r\n");   ///No Translate
-                }
-            }
-
-            return text;
+            return TextToSpeechTextUtil.TextJoinCopy(str, useSentensLineBreak);
         }
+
         public static void Speak(string str, bool isForce = false)
         {
-            if (g_VoiceSpeeach == null)
-            {//未初期化
+            if (!s_speechInitialized)
+            {
                 return;
             }
 
-            str = TextJoinCopy(str, useSentensLineBreak: false);
+            str = TextToSpeechTextUtil.TextJoinCopy(str, useSentensLineBreak: false);
             if (str.Length <= 0)
             {
                 return;
             }
-            if (isForce == false)
+
+            if (!isForce && IsCurrentSpeechText(str))
             {
-                if (g_CurrentString == str)
-                {//既に読み上げた文字列は再度読み上げしない
-                    return;
-                }
-            }
-            if (str.Length < g_ShortLength)
-            {//短すぎ
                 return;
             }
-            g_CurrentString = str;
-
-            // Check if the synthesizer is currently speaking  
-            if (g_VoiceSpeeach.State == SynthesizerState.Speaking)
+            if (str.Length < GetSpeechShortLength())
             {
-                g_VoiceSpeeach.SpeakAsyncCancelAll();
+                return;
             }
-            // SpeakAsync is non-blocking, so it will not wait for the speech to finish before continuing
-            g_VoiceSpeeach.SpeakAsync(g_CurrentString);
+
+            if (!TrySpeakInitialized(str, isForce))
+            {
+                s_speechInitialized = false;
+            }
         }
+
         public static void Stop()
         {
-            if (g_VoiceSpeeach == null)
+            if (!s_speechInitialized)
             {
                 return;
             }
-            g_VoiceSpeeach.SpeakAsyncCancelAll();
-            g_VoiceSpeeach = null;
+
+            StopInitializedSpeech();
+            s_speechInitialized = false;
         }
 
         private void EndButton_Click(object sender, EventArgs e)
@@ -207,25 +138,33 @@ namespace FEBuilderGBA
             {
                 return;
             }
-            Speak(this.DefString , true);
+            Speak(this.DefString, true);
             this.Close();
         }
 
-
         private void Rate_ValueChanged(object sender, EventArgs e)
         {
-            if (g_VoiceSpeeach == null)
+            if (!s_speechInitialized)
             {
                 return;
             }
-            g_VoiceSpeeach.Rate = (int)Rate.Value;
+            if (!TrySetSpeechRate((int)Rate.Value))
+            {
+                s_speechInitialized = false;
+            }
         }
 
         private void ShortNum_ValueChanged(object sender, EventArgs e)
         {
-            g_ShortLength = (int)ShortNum.Value;
+            if (!s_speechInitialized)
+            {
+                return;
+            }
+            if (!TrySetSpeechShortLength((int)ShortNum.Value))
+            {
+                s_speechInitialized = false;
+            }
         }
-
 
         public static bool OptionTextToSpeech(string text, bool isEmulatorMode = false)
         {
@@ -235,26 +174,188 @@ namespace FEBuilderGBA
             f.SetEmulatorMode(isEmulatorMode);
             f.ShowDialog();
 
-            return g_VoiceSpeeach != null;
+            return s_speechInitialized;
         }
 
         private void VoiceComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (!s_speechInitialized)
+            {
+                return;
+            }
+
             int selected = this.VoiceComboBox.SelectedIndex;
             if (selected < 0)
             {
                 return;
             }
-
-            // Use InstalledVoice collection from GetInstalledVoices instead of GetVoices
-            var installedVoices = g_VoiceSpeeach.GetInstalledVoices();
-            if (selected >= installedVoices.Count)
+            if (!TrySelectVoice(selected))
             {
-                return;
+                s_speechInitialized = false;
             }
+        }
 
-            // Set the selected voice using VoiceInfo.Name
-            g_VoiceSpeeach.SelectVoice(installedVoices[selected].VoiceInfo.Name);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool TryInitializeSpeech(bool isMultibyte, out string errorMessage)
+        {
+            try
+            {
+                return TextToSpeechEngine.TryInitialize(isMultibyte, out errorMessage);
+            }
+            catch (Exception ex)
+            {
+                errorMessage = BuildSpeechUnavailableMessage(ex);
+                Log.Error(errorMessage);
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static int GetSpeechRate()
+        {
+            try
+            {
+                return TextToSpeechEngine.Rate;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return 0;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static int GetSpeechShortLength()
+        {
+            try
+            {
+                return TextToSpeechEngine.ShortLength;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return int.MaxValue;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static string[] GetInstalledVoiceLabels()
+        {
+            try
+            {
+                return TextToSpeechEngine.GetInstalledVoiceLabels();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return Array.Empty<string>();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool IsCurrentSpeechText(string str)
+        {
+            try
+            {
+                return TextToSpeechEngine.IsCurrentText(str);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool TrySpeakInitialized(string str, bool isForce)
+        {
+            try
+            {
+                return TextToSpeechEngine.TrySpeak(str, isForce);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool TrySetSpeechRate(int rate)
+        {
+            try
+            {
+                return TextToSpeechEngine.TrySetRate(rate);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool TrySetSpeechShortLength(int shortLength)
+        {
+            try
+            {
+                return TextToSpeechEngine.TrySetShortLength(shortLength);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool TrySelectVoice(int selected)
+        {
+            try
+            {
+                return TextToSpeechEngine.TrySelectVoice(selected);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+                return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void StopInitializedSpeech()
+        {
+            try
+            {
+                TextToSpeechEngine.Stop();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(BuildSpeechUnavailableMessage(ex));
+            }
+        }
+
+        static string BuildSpeechUnavailableMessage(Exception ex)
+        {
+            Exception root = UnwrapSpeechException(ex);
+            if (root is FileNotFoundException
+                || root is FileLoadException
+                || root is TypeLoadException
+                || root is BadImageFormatException
+                || root is PlatformNotSupportedException)
+            {
+                return "Text-to-speech is unavailable: " + root.Message;
+            }
+            return "Text-to-speech failed: " + R.ExceptionToString(ex);
+        }
+
+        static Exception UnwrapSpeechException(Exception ex)
+        {
+            while ((ex is TypeInitializationException || ex is TargetInvocationException) && ex.InnerException != null)
+            {
+                ex = ex.InnerException;
+            }
+            return ex;
         }
     }
 }
