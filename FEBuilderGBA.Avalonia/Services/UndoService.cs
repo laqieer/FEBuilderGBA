@@ -88,7 +88,7 @@ namespace FEBuilderGBA.Avalonia.Services
         public Undo.UndoData? GetActiveUndoData() => _currentUndoData;
 
         /// <summary>Notify the main window of the current unsaved-changes state.</summary>
-        static void NotifyUnsavedChanges()
+        public static void NotifyUnsavedChanges()
         {
             // The dirty indicator lives on the MainWindow (an Avalonia UI object).
             // Commit()/Rollback() are public and may run off the UI thread (e.g.
