@@ -16,8 +16,6 @@ README
 [![Android Emulator Parity](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml)
 [![Release](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml)
 
-Mirrors for Chinese mainland users (面向中国大陆用户的镜像发布地址): [![Gitee Release](https://gitee-badge.vercel.app/svg/release/laqieer/FEBuilderGBA?style=flat)](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) [![Gitee Go Build](https://gitee.com/laqieer/FEBuilderGBA/widgets/widget_5.svg)](https://gitee.com/laqieer/FEBuilderGBA/gitee_go/pipelines?tab=release)
-
 ## 🚀 Getting Started
 
 ### Project Structure
@@ -425,7 +423,7 @@ The step lists every zip entry with its uncompressed size before extraction, so 
 
 ## 🔄 Update System
 
-> **Cutting a release?** See the full-suite release runbook in **[docs/RELEASE.md](docs/RELEASE.md)** — it covers tagging (`ver_YYYYMMDD.NN`), the per-platform artifacts (WinForms / CLI / Avalonia / Android), the GitHub-release step, and the automatic Gitee mirror.
+> **Cutting a release?** See the full-suite release runbook in **[docs/RELEASE.md](docs/RELEASE.md)** — it covers tagging (`ver_YYYYMMDD.NN`), the per-platform artifacts (WinForms / CLI / Avalonia / Android), and the GitHub-release step.
 
 FEBuilderGBA uses a two-track update model that keeps the application and patch data independent:
 
@@ -444,9 +442,7 @@ When you check for updates the app compares the remote version against the local
 > every platform package attached as a zipped asset. The release body is **auto-generated** from the
 > conventional-commit history by [`scripts/generate-changelog.sh`](scripts/generate-changelog.sh) — grouped into
 > Features / Bug Fixes / Documentation / CI / Maintenance sections (#1632); the full backlog log lives in
-> [`CHANGELOG.md`](CHANGELOG.md). Publishing the release auto-fires
-> [`sync-release-to-gitee.yml`](.github/workflows/sync-release-to-gitee.yml) so the Gitee mirror gets the full
-> asset set. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#option-0-automated-tag-triggered-release-recommended) for details.
+> [`CHANGELOG.md`](CHANGELOG.md). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#option-0-automated-tag-triggered-release-recommended) for details.
 
 ### Updating Patch2 via Git
 
@@ -456,13 +452,9 @@ Patch2 is a [git submodule](https://github.com/laqieer/FEBuilderGBA-patch2) upda
 - **Manual:** `cd config/patch2 && git pull`
 - **First run:** The app detects missing patch2 directories and offers to clone them automatically. If Git is not installed, empty directories are created so the app still starts.
 
-The app automatically selects the patch2 git source based on your **Options → Release Source** setting — the same setting that controls where the core update is downloaded from:
-
-| Release Source setting | Patch2 git remote used |
-|------------------------|------------------------|
-| Auto (Chinese language detected) | `gitee.com/laqieer/FEBuilderGBA-patch2` |
-| Gitee | `gitee.com/laqieer/FEBuilderGBA-patch2` |
-| GitHub / Nightly | `github.com/laqieer/FEBuilderGBA-patch2` |
+The patch2 git source defaults to `github.com/laqieer/FEBuilderGBA-patch2`. To use a
+different remote (for example a private mirror), set a custom `submodule_patch2_url`
+value in `config.xml`; when present it overrides the default GitHub remote.
 
 ### Benefits
 

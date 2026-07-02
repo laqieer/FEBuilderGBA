@@ -143,7 +143,6 @@ namespace FEBuilderGBA
             U.SelectedIndexSafety(func_textextencodingtencoding, (int)textencoding());
             U.SelectedIndexSafety(func_auto_update, (int)FindComboboxText(auto_update().ToString(), func_auto_update));
             U.SelectedIndexSafety(func_update_source, (int)FindComboboxText(update_source().ToString(), func_update_source));
-            U.SelectedIndexSafety(func_release_source, (int)FindComboboxText(release_source().ToString(), func_release_source));
             U.SelectedIndexSafety(func_text_escape, (int)text_escape());
             U.SelectedIndexSafety(func_write_notify_time, (int)FindComboboxText(write_notify_time().ToString(), func_write_notify_time));
             U.SelectedIndexSafety(func_write_out_of_range, (int)write_out_of_range());
@@ -320,7 +319,6 @@ namespace FEBuilderGBA
             Program.Config["func_textencoding"] = func_textextencodingtencoding.SelectedIndex.ToString();
             Program.Config["func_auto_update"] = U.atoi(func_auto_update.Text).ToString();
             Program.Config["func_update_source"] = U.atoi(func_update_source.Text).ToString();
-            Program.Config["func_release_source"] = U.atoi(func_release_source.Text).ToString();
             Program.Config["func_text_escape"] = func_text_escape.SelectedIndex.ToString();
             Program.Config["func_write_notify_time"] = U.SelectValueComboboxText(func_write_notify_time.Text);
             Program.Config["func_write_out_of_range"] = U.SelectValueComboboxText(func_write_out_of_range.Text);
@@ -891,11 +889,6 @@ namespace FEBuilderGBA
         public static int update_source()
         {
             return (int)U.atoi(Program.Config.at("func_update_source", "0"));
-        }
-
-        public static int release_source()
-        {
-            return (int)U.atoi(Program.Config.at("func_release_source", "0"));
         }
 
         public static string git_path()
@@ -1637,7 +1630,6 @@ namespace FEBuilderGBA
             explain_func_first_form.AccessibleDescription = R._("ROMを開いたとの最初の画面を決定します。\r\nディフォルトは、マップを表示する簡易メニューです。\r\n");
             explain_func_auto_update.AccessibleDescription = R._("このソフトウェアを自動的に更新する更新間隔を設定します。");
             explain_func_update_source.AccessibleDescription = R._("アップデートのバージョンを設定します。");
-            explain_func_release_source.AccessibleDescription = R._("リリースの元を設定します。");
             explain_func_text_escape.AccessibleDescription = R._("テキストに利用するエスケープシーケンスをどうするかを決定します。\r\nProjectFEGBA形式(@0003)、\r\nFEditor形式[A]、\r\nどちらを利用するかを決定します");
             explain_func_write_notify_time.AccessibleDescription = R._("データを書き込んだときに、書き込み増したという通知を画面下に出しますが、\r\nあの表示の表示時間を決定します");
             explain_func_write_out_of_range.AccessibleDescription = R._("範囲外に書き込みそうになった時に、\r\n自動的に拒否するか、警告を出すか、何もしないかを決定します。");

@@ -584,7 +584,6 @@ namespace FEBuilderGBA
             CoreState.Undo = Undo;
             CoreState.Language = OptionForm.lang();
             CoreState.GitPath = OptionForm.git_path();
-            CoreState.ReleaseSource = OptionForm.release_source();
 
             // Wire Core callbacks to WinForms implementations
             CoreState.AppendBinaryData = InputFormRef.AppendBinaryData;

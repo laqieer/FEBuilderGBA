@@ -86,7 +86,7 @@ themes are:
 - **CLI maturity** — many new headless commands (data export/import, portrait/
   battle-anime/MIDI render, palette I/O, ROM diff/merge/rebuild, decomp tools).
 - **Release readiness** — tag-triggered multi-platform release workflow (#1629),
-  Gitee mirror sync, conventional-commit PR/commit linting (#1647), and this
+  conventional-commit PR/commit linting (#1647), and this
   automated changelog generation (#1632).
 - **~1000 bug fixes** across the editors, ROM-write fault-safety, and CI/E2E
   stability (5-version nightly E2E matrix).

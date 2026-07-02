@@ -270,8 +270,6 @@
             explain_func_write_out_of_range = new System.Windows.Forms.Label();
             explain_func_show_class_extends = new System.Windows.Forms.Label();
             tabPageFunc3 = new System.Windows.Forms.TabPage();
-            func_release_source = new System.Windows.Forms.ComboBox();
-            explain_func_release_source = new System.Windows.Forms.Label();
             func_update_source = new System.Windows.Forms.ComboBox();
             explain_func_update_source = new System.Windows.Forms.Label();
             label3 = new System.Windows.Forms.Label();
@@ -3107,8 +3105,6 @@
             // tabPageFunc3
             // 
             tabPageFunc3.BackColor = System.Drawing.SystemColors.Control;
-            tabPageFunc3.Controls.Add(func_release_source);
-            tabPageFunc3.Controls.Add(explain_func_release_source);
             tabPageFunc3.Controls.Add(func_update_source);
             tabPageFunc3.Controls.Add(explain_func_update_source);
             tabPageFunc3.Controls.Add(label3);
@@ -3142,28 +3138,6 @@
             tabPageFunc3.Size = new System.Drawing.Size(1118, 932);
             tabPageFunc3.TabIndex = 4;
             tabPageFunc3.Text = "機能3";
-            // 
-            // func_release_source
-            // 
-            func_release_source.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            func_release_source.FormattingEnabled = true;
-            func_release_source.Items.AddRange(new object[] { "0=言語に基づいて自動決定", "1=GitHub", "2=Gitee" });
-            func_release_source.Location = new System.Drawing.Point(546, 664);
-            func_release_source.Margin = new System.Windows.Forms.Padding(2);
-            func_release_source.Name = "func_release_source";
-            func_release_source.Size = new System.Drawing.Size(554, 40);
-            func_release_source.TabIndex = 56;
-            // 
-            // explain_func_release_source
-            // 
-            explain_func_release_source.AccessibleDescription = "";
-            explain_func_release_source.Location = new System.Drawing.Point(10, 663);
-            explain_func_release_source.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            explain_func_release_source.Name = "explain_func_release_source";
-            explain_func_release_source.Size = new System.Drawing.Size(532, 40);
-            explain_func_release_source.TabIndex = 55;
-            explain_func_release_source.Text = "リリース元";
-            explain_func_release_source.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // func_update_source
             // 
@@ -3756,8 +3730,6 @@
         private System.Windows.Forms.Label explain_func_write_00;
         private System.Windows.Forms.ComboBox func_update_source;
         private System.Windows.Forms.Label explain_func_update_source;
-        private System.Windows.Forms.ComboBox func_release_source;
-        private System.Windows.Forms.Label explain_func_release_source;
         private System.Windows.Forms.Label X_EXPLAIN_GIT;
         private System.Windows.Forms.Label label_git_path;
         private TextBoxEx git_path_textbox;

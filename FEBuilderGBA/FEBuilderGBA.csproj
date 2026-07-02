@@ -211,7 +211,6 @@
     <Compile Remove="MyTranslateResourceLow.cs" />
     <Compile Remove="EtcCacheResource.cs" />
     <Compile Remove="GitInstaller.cs" />
-    <Compile Remove="GitUtil.cs" />
     <Compile Remove="EtcCacheFLag.cs" />
     <Compile Remove="ArchSevenZip.cs" />
     <Compile Remove="UpdateInfo.cs" />

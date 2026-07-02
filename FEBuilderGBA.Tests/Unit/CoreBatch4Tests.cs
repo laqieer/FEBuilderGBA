@@ -7,26 +7,23 @@ namespace FEBuilderGBA.Tests.Unit
 {
     /// <summary>
     /// Tests for batch 4 Core migration: GitInstaller, GitUtil (now using CoreState),
-    /// CoreState.GitPath/ReleaseSource properties, and Core U.HttpGet.
+    /// CoreState.GitPath property, and Core U.HttpGet.
     /// </summary>
     [Collection("SharedState")]
     public class CoreBatch4Tests : IDisposable
     {
         private readonly string _savedLanguage;
-        private readonly int _savedReleaseSource;
         private readonly string _savedGitPath;
 
         public CoreBatch4Tests()
         {
             _savedLanguage = CoreState.Language;
-            _savedReleaseSource = CoreState.ReleaseSource;
             _savedGitPath = CoreState.GitPath;
         }
 
         public void Dispose()
         {
             CoreState.Language = _savedLanguage;
-            CoreState.ReleaseSource = _savedReleaseSource;
             CoreState.GitPath = _savedGitPath;
         }
 
@@ -40,23 +37,10 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void CoreState_ReleaseSource_DefaultIsZero()
-        {
-            Assert.Equal(0, CoreState.ReleaseSource);
-        }
-
-        [Fact]
         public void CoreState_GitPath_CanBeSetAndRead()
         {
             CoreState.GitPath = @"C:\Program Files\Git\cmd\git.exe";
             Assert.Equal(@"C:\Program Files\Git\cmd\git.exe", CoreState.GitPath);
-        }
-
-        [Fact]
-        public void CoreState_ReleaseSource_CanBeSetAndRead()
-        {
-            CoreState.ReleaseSource = 2;
-            Assert.Equal(2, CoreState.ReleaseSource);
         }
 
         // ---- GitInstaller ----
@@ -90,29 +74,6 @@ namespace FEBuilderGBA.Tests.Unit
             var type = typeof(GitUtil);
             Assert.True(type.IsPublic);
             Assert.True(type.IsAbstract && type.IsSealed); // static class
-        }
-
-        [Fact]
-        public void GitUtil_GetPatch2RemoteUrl_UsesCoreSateLanguage()
-        {
-            CoreState.ReleaseSource = 0;
-            CoreState.Language = "zh";
-            Assert.Equal(GitUtil.Patch2RemoteUrlGitee, GitUtil.GetPatch2RemoteUrl());
-
-            CoreState.Language = "en";
-            Assert.Equal(GitUtil.Patch2RemoteUrl, GitUtil.GetPatch2RemoteUrl());
-        }
-
-        [Fact]
-        public void GitUtil_GetPatch2RemoteUrl_UsesCoreStateReleaseSource()
-        {
-            CoreState.Language = "ja"; // not Chinese
-
-            CoreState.ReleaseSource = 1; // GitHub explicit
-            Assert.Equal(GitUtil.Patch2RemoteUrl, GitUtil.GetPatch2RemoteUrl());
-
-            CoreState.ReleaseSource = 2; // Gitee explicit
-            Assert.Equal(GitUtil.Patch2RemoteUrlGitee, GitUtil.GetPatch2RemoteUrl());
         }
 
         [Fact]

@@ -45,7 +45,7 @@ overview and quick start; the documents below go into depth on specific areas.
 |-----|----------------|
 | [BUILD-OUTPUT-STRUCTURE.md](BUILD-OUTPUT-STRUCTURE.md) | Build output / packaging directory layout. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Package creation and deployment. |
-| [RELEASE.md](RELEASE.md) | Full-suite release runbook (tagging, per-platform artifacts, Gitee mirror). |
+| [RELEASE.md](RELEASE.md) | Full-suite release runbook (tagging, per-platform artifacts). |
 | [CI-CD-STATUS.md](CI-CD-STATUS.md) | CI/CD pipeline status notes. |
 | [submodule-workflow-quickref.md](submodule-workflow-quickref.md) | Git-submodule workflow quick reference. |
 

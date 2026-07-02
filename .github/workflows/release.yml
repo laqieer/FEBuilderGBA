@@ -16,18 +16,6 @@
 #     * `crossplatform` -> crossplatform.yml (publish job, per-RID)
 #     * `android`       -> android.yml  (workload build + *-Signed.apk)
 #
-# GITEE MIRROR (AC3)
-#   Publishing the release fires the existing `sync-release-to-gitee.yml`
-#   (`on: release: types: [published]`), which mirrors the full asset set to
-#   Gitee. NOTE: a release created with the default `GITHUB_TOKEN` does NOT
-#   trigger other workflows. The `RELEASE_TOKEN` secret is OPTIONAL:
-#     * absent  -> the release still publishes via `GITHUB_TOKEN`, but the Gitee
-#                  sync does NOT auto-fire, so run `sync-release-to-gitee.yml`
-#                  manually via its `workflow_dispatch` trigger after publishing.
-#     * present -> set a repo secret `RELEASE_TOKEN` (a PAT with `contents:
-#                  write`); this workflow uses it when present and the Gitee sync
-#                  auto-fires. (Falls back to `GITHUB_TOKEN` when absent.)
-#
 # DRY RUN (AC4)
 #   `workflow_dispatch` runs the build jobs only and does NOT create a release
 #   (the release job's create step is gated on `refs/tags/ver_*`). Pushing a real
@@ -312,26 +300,6 @@ jobs:
           fi
           echo "All required platform assets present."
 
-      - name: Check RELEASE_TOKEN for Gitee auto-sync (AC3)
-        # Only checked for a real ver_* tag release (workflow_dispatch is a
-        # build-only dry run that never publishes, so it does not need the PAT).
-        # RELEASE_TOKEN is OPTIONAL:
-        #   * absent  -> the release still publishes via the default GITHUB_TOKEN,
-        #                but that does NOT trigger sync-release-to-gitee.yml, so the
-        #                Gitee mirror must be run manually (workflow_dispatch).
-        #   * present -> the release auto-fires sync-release-to-gitee.yml.
-        # We therefore emit a WARNING (not an error) when it is absent, so a
-        # release can publish without a PAT.
-        if: startsWith(github.ref, 'refs/tags/ver_')
-        env:
-          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: |
-          if [ -z "${RELEASE_TOKEN}" ]; then
-            echo "::warning::Secret RELEASE_TOKEN is not set. The release will still publish via the default GITHUB_TOKEN, but that does NOT trigger sync-release-to-gitee.yml (GitHub suppresses workflow events from GITHUB_TOKEN). Run sync-release-to-gitee.yml manually (workflow_dispatch) after publishing to mirror to Gitee, or add a repo secret RELEASE_TOKEN (a PAT with contents: write) so the Gitee mirror auto-syncs."
-          else
-            echo "RELEASE_TOKEN is configured; the published release will auto-fire sync-release-to-gitee.yml."
-          fi
-
       - name: Generate grouped release notes from conventional commits (#1632)
         # Build a type-grouped (feat/fix/docs/...) release body from the commit
         # subjects between the previous ver_* tag and this one. GitHub's native
@@ -371,9 +339,4 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: release-artifacts/**/*.zip
-          # Use the PAT (RELEASE_TOKEN) when present so publishing auto-fires
-          # sync-release-to-gitee.yml. RELEASE_TOKEN is OPTIONAL (see the
-          # preceding check + the GITEE MIRROR header): when it is absent the
-          # release still publishes via github.token (the built-in default
-          # fallback, always populated) and the Gitee mirror is run manually.
-          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+          token: ${{ github.token }}
