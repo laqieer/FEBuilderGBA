@@ -1,8 +1,8 @@
 # Deployment Guide: Core Artifact + In-App Patch2 Git Updater
 
-> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android + Gitee sync), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers the **core application artifact** built by CI and the **two-track update model** that delivers patch data separately.
+> **For the full-suite release flow** (WinForms + CLI + Avalonia + Android), see **[RELEASE.md](RELEASE.md)** — that runbook is the entry point for cutting a release. This guide covers the **core application artifact** built by CI and the **two-track update model** that delivers patch data separately.
 >
-> **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §7.1 Code-signing & notarization](RELEASE.md#71-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround. (Windows Authenticode signing is wired into the build job below.)
+> **Code-signing / notarization** of the Windows exe and macOS bundles is conditional and secret-gated — see **[RELEASE.md → §6.1 Code-signing & notarization](RELEASE.md#61-code-signing--notarization-1634)** for the required GitHub Actions secrets and the unsigned-artifact SmartScreen/Gatekeeper workaround. (Windows Authenticode signing is wired into the build job below.)
 
 This guide explains how the application is packaged and how its updates reach users.
 
@@ -97,15 +97,6 @@ All four build jobs are **required** — if any platform build fails, the releas
 is **not** published (no partial release missing a platform download). A
 preflight step also verifies every expected zip is present before publishing.
 
-**Gitee mirror (`RELEASE_TOKEN` required):** publishing the release fires the
-existing `sync-release-to-gitee.yml` (`on: release: published`), so the full
-asset set is mirrored to Gitee. Because a release created with the default
-`GITHUB_TOKEN` does **not** trigger downstream workflows, the workflow
-**requires** a repo secret `RELEASE_TOKEN` (a PAT with `contents: write`) and
-fails before creating the release if it is absent — guaranteeing the Gitee sync
-auto-fires. (If you ever publish a release without `RELEASE_TOKEN`, run
-`sync-release-to-gitee.yml` manually via its `workflow_dispatch` trigger.)
-
 **Dry run:** triggering the workflow via `workflow_dispatch` (the "Run workflow"
 button) runs the build jobs only and does **not** create a release — the
 release-creation step is gated on `refs/tags/ver_*`. To exercise the full path
@@ -133,7 +124,7 @@ gh release create "$TAG" \
 ```
 
 > Prefer Option 0 (push the `ver_*` tag) whenever you want the full platform set — it builds and attaches every
-> platform package, runs the same `generate-changelog.sh`, and fires the Gitee mirror automatically.
+> platform package and runs the same `generate-changelog.sh`.
 
 ### Verify the release
 
@@ -167,16 +158,11 @@ Patch data is updated independently via Git, driven by
 
 - **First install / missing `config/patch2/`:** `GitUtil.Clone` runs `git clone --progress --depth=1 <url> <path>`.
 - **Subsequent updates:** `GitUtil.Update` runs `git fetch --progress --depth=1 origin` followed by
-  `git reset --hard FETCH_HEAD` (it can also `git remote set-url origin` first to switch GitHub ↔ Gitee).
+  `git reset --hard FETCH_HEAD` (it can also `git remote set-url origin` first to switch to a custom remote).
 
-The patch2 remote is selected by `GitUtil.GetPatch2RemoteUrl()` from the user's **Options → Release Source**
-setting (and a custom `submodule_patch2_url` override, if set):
-
-| Release Source setting | Patch2 git remote used |
-|------------------------|------------------------|
-| Auto (Chinese language detected) | `gitee.com/laqieer/FEBuilderGBA-patch2` |
-| Gitee | `gitee.com/laqieer/FEBuilderGBA-patch2` |
-| GitHub / Nightly | `github.com/laqieer/FEBuilderGBA-patch2` |
+The patch2 remote is returned by `GitUtil.GetPatch2RemoteUrl()`: it defaults to
+`github.com/laqieer/FEBuilderGBA-patch2`, unless a custom `submodule_patch2_url`
+override is set in `config.xml`, in which case that value is used instead.
 
 In the UI this is **Tools → Check for Updates** ([`FEBuilderGBA/ToolUpdateDialogForm.cs`](../FEBuilderGBA/ToolUpdateDialogForm.cs)):
 when Git is found, a dedicated **Git Patch2** button performs the clone/update; if Git is absent, the app keeps
@@ -259,7 +245,7 @@ git -C config/patch2 log -1 --format="%h %s"
 **Solutions:**
 - Confirm Git is installed and discoverable — `GitUtil.FindGitExecutable()` checks the configured path, then
   `git` on `PATH`, then common Windows install locations. If none is found the button is hidden.
-- Check network access to the selected remote (GitHub vs Gitee per **Release Source**).
+- Check network access to the patch2 remote (`github.com/laqieer/FEBuilderGBA-patch2`, or a custom `submodule_patch2_url`).
 - The patch2 repo is public; `GIT_TERMINAL_PROMPT=0` is set, so a credential prompt would surface as a failure
   rather than a hang — re-run with a clean `config/patch2/` to force a fresh `--depth=1` clone.
 
@@ -374,7 +360,6 @@ production signing key is committed to the repo.
 - CI/CD Workflows: `.github/workflows/msbuild.yml` (core artifact), `.github/workflows/crossplatform.yml`, `.github/workflows/android.yml`
 - Tag-triggered Release Workflow: `.github/workflows/release.yml` (#1629)
 - Changelog Generator: `scripts/generate-changelog.sh` + `CHANGELOG.md` + `.github/release.yml` (#1632)
-- Gitee Mirror Sync: `.github/workflows/sync-release-to-gitee.yml`
 - Core update check: `FEBuilderGBA/UpdateCheckSplitPackage.cs` + `FEBuilderGBA.Core/UpdateInfo.cs`
 - Patch2 Git updater: `FEBuilderGBA.Core/GitUtil.cs` + `FEBuilderGBA/ToolUpdateDialogForm.cs`
 - Android build + signing: `.github/workflows/android.yml`, [docs/ANDROID.md §7](ANDROID.md#7-build-status-in-this-environment)

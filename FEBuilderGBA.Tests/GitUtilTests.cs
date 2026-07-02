@@ -9,60 +9,48 @@ namespace FEBuilderGBA.Tests
     {
         // Save/restore CoreState to avoid leaking into other test classes
         private readonly string _savedLanguage;
-        private readonly int _savedReleaseSource;
         private readonly string _savedGitPath;
+        private readonly Config _savedConfig;
 
         public GitUtilTests()
         {
             _savedLanguage = CoreState.Language;
-            _savedReleaseSource = CoreState.ReleaseSource;
             _savedGitPath = CoreState.GitPath;
+            _savedConfig = CoreState.Config;
         }
 
         public void Dispose()
         {
             CoreState.Language = _savedLanguage;
-            CoreState.ReleaseSource = _savedReleaseSource;
             CoreState.GitPath = _savedGitPath;
+            CoreState.Config = _savedConfig;
         }
 
         // -----------------------------------------------------------------------
-        // GetPatch2RemoteUrl — mirrors UseChinaMainlandMirror() logic
+        // GetPatch2RemoteUrl — custom-URL override, else the default GitHub remote
         // -----------------------------------------------------------------------
 
-        // Helper: set CoreState properties for testing.
-        private static void SetCoreState(int releaseSource, string lang)
+        [Fact]
+        public void GetPatch2RemoteUrl_ReturnsGitHub_WhenNoCustomUrl()
         {
-            CoreState.ReleaseSource = releaseSource;
-            CoreState.Language = lang;
-        }
-
-        [Theory]
-        [InlineData(0, "ja",  false)]  // Auto + Japanese  → GitHub
-        [InlineData(0, "en",  false)]  // Auto + English   → GitHub
-        [InlineData(0, "zh",  true)]   // Auto + Chinese   → Gitee  (auto-detect)
-        [InlineData(1, "ja",  false)]  // GitHub explicit  → GitHub
-        [InlineData(1, "zh",  false)]  // GitHub explicit overrides lang
-        [InlineData(2, "ja",  true)]   // Gitee explicit   → Gitee
-        [InlineData(2, "zh",  true)]   // Gitee + Chinese  → Gitee
-        public void GetPatch2RemoteUrl_ReturnsCorrectSource(
-            int releaseSource, string lang, bool expectGitee)
-        {
-            SetCoreState(releaseSource, lang);
-
-            string url = GitUtil.GetPatch2RemoteUrl();
-
-            if (expectGitee)
-                Assert.Equal(GitUtil.Patch2RemoteUrlGitee, url);
-            else
-                Assert.Equal(GitUtil.Patch2RemoteUrl, url);
+            CoreState.Config = new Config(); // no submodule_patch2_url key
+            Assert.Equal(GitUtil.Patch2RemoteUrl, GitUtil.GetPatch2RemoteUrl());
         }
 
         [Fact]
-        public void Patch2RemoteUrlGitee_PointsToGitee()
+        public void GetPatch2RemoteUrl_ReturnsGitHub_WhenConfigNull()
         {
-            Assert.Contains("gitee.com", GitUtil.Patch2RemoteUrlGitee);
-            Assert.Contains("FEBuilderGBA-patch2", GitUtil.Patch2RemoteUrlGitee);
+            CoreState.Config = null;
+            Assert.Equal(GitUtil.Patch2RemoteUrl, GitUtil.GetPatch2RemoteUrl());
+        }
+
+        [Fact]
+        public void GetPatch2RemoteUrl_ReturnsCustomUrl_WhenSet()
+        {
+            const string custom = "https://example.com/laqieer/FEBuilderGBA-patch2.git";
+            CoreState.Config = new Config();
+            CoreState.Config["submodule_patch2_url"] = custom;
+            Assert.Equal(custom, GitUtil.GetPatch2RemoteUrl());
         }
 
         [Fact]

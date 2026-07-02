@@ -9,7 +9,7 @@ End-to-end runbook for cutting a FEBuilderGBA release across **all four ship tar
 | **Avalonia desktop** | `avalonia-{rid}` self-contained bundle (+ bundled ColorzCore) | [`crossplatform.yml`](../.github/workflows/crossplatform.yml) | Linux / macOS / Windows |
 | **Android APK** | `*-Signed.apk` (debug keystore — see caveat) | [`android.yml`](../.github/workflows/android.yml) | Android |
 
-> **What's live today:** the release process is **automated** — [`release.yml`](../.github/workflows/release.yml) ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)) is **merged and in-tree**. Pushing a `ver_*` tag builds every platform and runs `softprops/action-gh-release` to create the GitHub release with all assets attached (Section 5, the primary path). The manual `gh release create` flow (Section 4) remains as a **fallback** for hand-cut releases. The `RELEASE_TOKEN` secret is **optional** (Section 6): absent ⇒ the tag-triggered release still publishes via the built-in `GITHUB_TOKEN` and the Gitee mirror is run manually; present (a PAT) ⇒ the Gitee sync auto-fires.
+> **What's live today:** the release process is **automated** — [`release.yml`](../.github/workflows/release.yml) ([#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)) is **merged and in-tree**. Pushing a `ver_*` tag builds every platform and runs `softprops/action-gh-release` to create the GitHub release with all assets attached (Section 5, the primary path). The manual `gh release create` flow (Section 4) remains as a **fallback** for hand-cut releases.
 >
 > This runbook is part of the release-readiness umbrella **[#1628](https://github.com/laqieer/FEBuilderGBA/issues/1628)**. For the WinForms split-package update system see [DEPLOYMENT.md](DEPLOYMENT.md) (and its **Status** caveat below).
 
@@ -89,7 +89,7 @@ For the WinForms package, build the solution (`Release`/`x86`) then stage with *
 The automated tag-push flow (Section 5) is the **primary** path. This manual
 process is the **fallback** for hand-cutting a release (e.g. re-attaching an
 asset, or publishing outside CI). It produces a GitHub release with all-platform
-assets, which then auto-mirrors to Gitee (Section 6).
+assets.
 
 ### 4.1 Stage the WinForms package — `release.ps1`
 
@@ -139,15 +139,13 @@ gh release create "$VER" -R laqieer/FEBuilderGBA \
   FEBuilderGBA-android-Signed.apk
 ```
 
-Publishing the release (`release: published`) auto-fires the Gitee sync (Section 6).
-
 ### 4.4 Verify
 
 ```bash
 gh release view "$VER" -R laqieer/FEBuilderGBA --json assets --jq '.assets[].name'
 ```
 
-Confirm every platform download is listed and downloadable, then check the [Gitee release](https://gitee.com/laqieer/FEBuilderGBA/releases/latest) mirrored the same asset set.
+Confirm every platform download is listed and downloadable.
 
 ---
 
@@ -159,62 +157,22 @@ The workflow is triggered on `push: tags: ['ver_*']` and
 
 1. builds/collects the WinForms package, the per-RID `cli-{rid}` and `avalonia-{rid}` bundles, and the Android APK,
 2. runs `softprops/action-gh-release` and attaches all of them as release assets (one zip per platform),
-3. thereby publishes the GitHub release that the Gitee sync mirrors (Section 6).
+3. thereby publishes the GitHub release with all assets attached.
 
 The release flow is therefore: **bump the tag → push it → CI does the rest.**
 
-> **`RELEASE_TOKEN` is optional.** The create step uses `token: ${{ secrets.RELEASE_TOKEN || github.token }}`, so the release publishes whether or not the secret is set:
-> - **absent** ⇒ the release is created with the built-in `GITHUB_TOKEN`. GitHub suppresses workflow events from `GITHUB_TOKEN`, so this does **not** auto-fire `sync-release-to-gitee.yml` — run the Gitee mirror manually (Section 6, `workflow_dispatch`) after publishing. The workflow logs a `::warning::` (not an error) reminding you to do so.
-> - **present** (a PAT with `contents: write`) ⇒ publishing auto-fires the Gitee sync.
-
 ---
 
-## 6. Gitee sync (already wired — document only)
-
-[`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml) triggers automatically on **`release: published`** (and is manually re-runnable via `workflow_dispatch`). It uses `H-TWINKLE/sync-action` with the `gitee_token` secret to mirror the GitHub release — title, notes, and **all attached assets** — to [`gitee.com/laqieer/FEBuilderGBA`](https://gitee.com/laqieer/FEBuilderGBA/releases/latest), the mirror for users in mainland China.
-
-**Whether it auto-fires depends on which token created the release**, and that differs between the automated and the manual path:
-
-- **Automated `release.yml` (Section 5)** — the create step uses `token: ${{ secrets.RELEASE_TOKEN || github.token }}`, so it depends on the **optional** `RELEASE_TOKEN` secret:
-  - **set** (a PAT with `contents: write`) ⇒ publishing fires `sync-release-to-gitee.yml` automatically. No action required.
-  - **absent** ⇒ the release is created with the built-in `GITHUB_TOKEN`, whose workflow events GitHub suppresses, so the sync does **not** auto-fire. Run it manually from the Actions tab via **Run workflow** (`workflow_dispatch`) after publishing. (`release.yml` logs a `::warning::` reminding you.)
-- **Manual `gh release create` (Section 4.3)** — publishes with the operator's **local `gh` user token** (a real user token, not `GITHUB_TOKEN`), so it fires `sync-release-to-gitee.yml` automatically **regardless of whether `RELEASE_TOKEN` is set**.
-
-If a sync fails (e.g. transient upload error), re-run it the same way (`workflow_dispatch`).
-
-> **Gitee mirror & full-suite asset sizes (known limitation).** A full-suite release ships the
-> cross-platform CLI/Avalonia bundles (**96–114 MB each**) plus a WinForms package that is
-> **~36 MB as `.zip` / ~23 MB re-packed as `.7z`** (it now bundles self-contained ColorzCore under
-> `tools/bin/`; the historical WinForms `.7z` that Gitee hosted was **~6 MB** and did *not* bundle
-> it). `H-TWINKLE/sync-action` reports success but **silently skips** the oversized release, so
-> nothing lands on Gitee.
->
-> The CI upload path (GitHub US runner → Gitee `attach_files`) is only **reliable for small
-> assets (~6 MB)**; the current ~23 MB `.7z` **stalls and times out**. The dedicated
-> [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml) workflow
-> (`gh workflow run mirror-winforms-to-gitee.yml -R laqieer/FEBuilderGBA -f tag=<tag>`) downloads
-> only the WinForms zip, re-packs it to `.7z`, is idempotent, and **fails loudly** on any Gitee
-> error — but it can only succeed for a package small enough to upload (~6 MB). For the current
-> full-suite package the **WinForms download is GitHub-only** (mainland China users are directed to
-> the [GitHub release](https://github.com/laqieer/FEBuilderGBA/releases) and any per-release
-> announcement in [Discussions](https://github.com/laqieer/FEBuilderGBA/discussions)). To put a
-> binary on Gitee, either strip the
-> bundled `tools/bin/` (ColorzCore) to shrink the package toward the historical ~6 MB, or upload
-> the `.7z` manually from a reliable China-side connection using the `GITEE_TOKEN`.
-
----
-
-## 7. Pre-release checklist
+## 6. Pre-release checklist
 
 - [ ] `master` is green on `msbuild.yml`, `crossplatform.yml`, and `check.yml`.
 - [ ] Tag name follows `ver_YYYYMMDD.NN` and does not already exist.
-- [ ] **`RELEASE_TOKEN` is optional** — confirm whether the secret is set. If **absent**, the tag-triggered release still publishes (via `GITHUB_TOKEN`) but the Gitee mirror does **not** auto-fire, so plan to run `sync-release-to-gitee.yml` manually (`workflow_dispatch`) after publishing. If **set** (a PAT with `contents: write`), the Gitee sync auto-fires.
 - [ ] `config/patch2/version.txt` is current if patches changed (see [DEPLOYMENT.md](DEPLOYMENT.md#patch2-version-management)).
 - [ ] All four platform assets collected (WinForms zip, 3× CLI, 3× Avalonia, Android APK).
 - [ ] `LICENSE` + `THIRD-PARTY-NOTICES.md` present inside every artifact: the WinForms zip via `release.ps1`, the CLI/Avalonia bundles via `crossplatform.yml`, and the Android APK via `<AndroidAsset>` entries in `FEBuilderGBA.Android/FEBuilderGBA.Android.csproj` (both files land under the APK's `assets/`) — GPLv3 compliance, [#1633](https://github.com/laqieer/FEBuilderGBA/issues/1633).
 - [ ] Release notes / changelog drafted (changelog automation tracked by [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632)).
 - [ ] `gh release create` run with every asset attached.
-- [ ] GitHub release verified, then Gitee mirror verified.
+- [ ] GitHub release verified.
 
 ### Known release-readiness gaps (umbrella #1628)
 
@@ -226,12 +184,12 @@ These do **not** block a manual WinForms release, but flag them in release notes
 | FE-Repo / FE-Repo-Music resources not bundled — fetch on demand (see [§2 → FE-Repo / FE-Repo-Music resources](#fe-repo--fe-repo-music-resources-on-demand)) | [#1644](https://github.com/laqieer/FEBuilderGBA/issues/1644) |
 | Release-signed (non-debug) Android APK/AAB | [#1631](https://github.com/laqieer/FEBuilderGBA/issues/1631) |
 | Changelog / release-notes generation | [#1632](https://github.com/laqieer/FEBuilderGBA/issues/1632) |
-| Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§7.1](#71-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
+| Code-sign / notarize Windows + macOS artifacts — **conditional, secret-gated** ([§6.1](#61-code-signing--notarization-1634)): the CI wiring is in place, but artifacts stay **unsigned until the maintainer adds the certificate secrets** | [#1634](https://github.com/laqieer/FEBuilderGBA/issues/1634) |
 | Android: patch2 binary-patch library + FE-Repo resources not delivered on-device (desktop-only; in-app empty-state notice shown — see [docs/ANDROID.md §5.1](ANDROID.md)) | [#1641](https://github.com/laqieer/FEBuilderGBA/issues/1641) |
 
 ---
 
-## 7.1. Code-signing & notarization (#1634)
+## 6.1. Code-signing & notarization (#1634)
 
 Code-signing (Windows Authenticode) and macOS codesign + notarization are wired
 into the build workflows but are **conditional**: they activate **only when the
@@ -301,7 +259,7 @@ then a `ditto` zip of each bundle is submitted to `notarytool submit --wait`.
 
 ---
 
-## 8. Rollback
+## 7. Rollback
 
 If a release has critical issues, mark it as not-latest and ship a hotfix:
 
@@ -319,7 +277,7 @@ See [DEPLOYMENT.md → Rollback Procedure](DEPLOYMENT.md#rollback-procedure) for
 - [DEPLOYMENT.md](DEPLOYMENT.md) — WinForms split-package (FULL/CORE/PATCH2) update system.
 
   > **Status:** the split-package `.7z` generator (`scripts/create-split-packages.ps1`) and a `split-packages_{buildTime}` CI artifact described in DEPLOYMENT.md are **not present in the current tree** — `msbuild.yml` uploads only the single `FEBuilderGBA_{build_time}` artifact (Section 2). Treat the split-package flow in DEPLOYMENT.md as the design of the in-app updater, not a step you can run today. The live artifact set is the one in Section 2.
-- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml) · [`sync-release-to-gitee.yml`](../.github/workflows/sync-release-to-gitee.yml) · [`mirror-winforms-to-gitee.yml`](../.github/workflows/mirror-winforms-to-gitee.yml)
+- Workflows: [`msbuild.yml`](../.github/workflows/msbuild.yml) · [`crossplatform.yml`](../.github/workflows/crossplatform.yml) · [`android.yml`](../.github/workflows/android.yml)
 - Scripts: [`release.ps1`](../release.ps1) (WinForms staging) · [`scripts/publish-all.sh`](../scripts/publish-all.sh) (CLI/Avalonia bundles) · [`scripts/release.test.ps1`](../scripts/release.test.ps1) (release.ps1 smoke test)
 - [docs/ANDROID.md](ANDROID.md) — Android build & signing details.
 - Umbrella: [#1628](https://github.com/laqieer/FEBuilderGBA/issues/1628) (release readiness) · automation: [#1629](https://github.com/laqieer/FEBuilderGBA/issues/1629)
