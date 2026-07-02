@@ -42,7 +42,7 @@ Do **not** call `agency cc` / Claude Code. Convene a 3-model board **in-session*
 
 1. **Board roster:** `claude-opus-4.8` (Claude Opus 4.8), `gpt-5.5` (GPT-5.5), `gemini-3.5-flash` (Gemini 3.5 Flash).
    **Independence:** if your own active model is one of these, swap that member for a **named same-tier alternate**
-   (`claude-opus-4.8`→`claude-sonnet-4.6`, `gpt-5.5`→`gpt-5.4`, `gemini-3.5-flash`→`gemini-3.1-pro-preview`) so all
+   (`claude-opus-4.8`→`claude-sonnet-5`, `gpt-5.5`→`gpt-5.4`, `gemini-3.5-flash`→`gemini-3.1-pro-preview`) so all
    three reviewers differ from you; keep ≥2 providers (Anthropic / OpenAI / Google). If a roster/alternate model is
    unavailable, substitute another available model from a different provider and note the substitution.
 2. **Gather the artifact (full source-of-truth context)** and embed it in each reviewer's prompt:
