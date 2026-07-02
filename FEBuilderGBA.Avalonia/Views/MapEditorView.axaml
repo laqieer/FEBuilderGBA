@@ -2,8 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorView"
-        Title="Visual Map Editor" Width="1200" Height="800"
-        SizeToContent="WidthAndHeight">
+        Title="Visual Map Editor" Width="1200" Height="800">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="MapEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
@@ -12,86 +11,105 @@
       <StackPanel Grid.Row="0" Spacing="4" Margin="8,4,8,4">
         <TextBlock Text="Visual Map Editor" FontSize="18" FontWeight="Bold" />
         <TextBlock AutomationProperties.AutomationId="MapEditor_MapInfo_Label" Name="MapInfoLabel" TextWrapping="Wrap" FontFamily="Consolas,Courier New,monospace" FontSize="12" />
-        <StackPanel Orientation="Horizontal" Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8" Name="MapNavigationToolbar">
           <TextBlock Text="Zoom:" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomInBtn_Button" Name="ZoomInBtn" Content="+" Width="30" />
           <TextBlock AutomationProperties.AutomationId="MapEditor_Zoom_Label" Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
           <CheckBox AutomationProperties.AutomationId="MapEditor_PaintMode_Check" Name="PaintModeCheck" Content="Paint Mode" VerticalAlignment="Center" Margin="16,0,0,0" />
           <TextBlock Text="(click palette to pick a chipset, then click map to paint)" VerticalAlignment="Center" Foreground="Gray" FontSize="11" />
-          <Button AutomationProperties.AutomationId="MapEditor_ExportCsv_Button"
-                  Name="ExportCsvButton"
-                  Content="Export Map (CSV)"
-                  Margin="16,0,0,0"
-                  VerticalAlignment="Center" />
-          <Button AutomationProperties.AutomationId="MapEditor_ImportCsv_Button"
-                  Name="ImportCsvButton"
-                  Content="Import Map (CSV)"
-                  Margin="8,0,0,0"
-                  VerticalAlignment="Center" />
-          <Button AutomationProperties.AutomationId="MapEditor_ExportTmx_Button"
-                  Name="ExportTmxButton"
-                  Content="Export Map (Tiled .tmx)"
-                  Margin="16,0,0,0"
-                  VerticalAlignment="Center" />
-          <Button AutomationProperties.AutomationId="MapEditor_ImportTmx_Button"
-                  Name="ImportTmxButton"
-                  Content="Import Map (Tiled .tmx)"
-                  Margin="8,0,0,0"
-                  VerticalAlignment="Center" />
-          <Button AutomationProperties.AutomationId="MapEditor_ResizeMap_Button"
-                  Name="ResizeMapButton"
-                  Content="Resize Map…"
-                  Margin="16,0,0,0"
-                  VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Spacing="4" Name="MapCommandToolbar">
+          <StackPanel Orientation="Horizontal" Spacing="8" Name="MapCsvCommandToolbar">
+            <Button AutomationProperties.AutomationId="MapEditor_ExportCsv_Button"
+                    Name="ExportCsvButton"
+                    Content="Export Map (CSV)"
+                    VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="MapEditor_ImportCsv_Button"
+                    Name="ImportCsvButton"
+                    Content="Import Map (CSV)"
+                    VerticalAlignment="Center" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" Name="MapTmxCommandToolbar">
+            <Button AutomationProperties.AutomationId="MapEditor_ExportTmx_Button"
+                    Name="ExportTmxButton"
+                    Content="Export Map (Tiled .tmx)"
+                    VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="MapEditor_ImportTmx_Button"
+                    Name="ImportTmxButton"
+                    Content="Import Map (Tiled .tmx)"
+                    VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="MapEditor_ResizeMap_Button"
+                    Name="ResizeMapButton"
+                    Content="Resize Map…"
+                    VerticalAlignment="Center" />
+          </StackPanel>
         </StackPanel>
       </StackPanel>
 
       <!-- Chipset palette panel (first slice of #658) -->
-      <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
+      <Border Grid.Row="1" Name="TilePalettePanel" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
               Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
-        <StackPanel Spacing="4">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <TextBlock Text="Tile Palette" FontWeight="SemiBold" VerticalAlignment="Center" />
-            <TextBlock AutomationProperties.AutomationId="MapEditor_ChipsetInfo_Label" Name="ChipsetInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" VerticalAlignment="Center" Text="No chipset selected" />
+        <ThemeVariantScope Name="TilePaletteThemeScope" RequestedThemeVariant="Dark">
+          <ThemeVariantScope.Styles>
+            <Style Selector="TextBlock">
+              <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            </Style>
+          </ThemeVariantScope.Styles>
+          <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Tile Palette" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="MapEditor_ChipsetInfo_Label" Name="ChipsetInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" VerticalAlignment="Center" Text="No chipset selected" />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Height="180">
+              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <!-- Border with transparent background catches pointer events
+                     anywhere over the palette grid, even on transparent chipset pixels. -->
+                <Border Background="Transparent" Name="TilePaletteHitArea">
+                  <Image AutomationProperties.AutomationId="MapEditor_TilePalette_Image"
+                         Name="TilePaletteImage"
+                         Stretch="None"
+                         HorizontalAlignment="Left" VerticalAlignment="Top"
+                         RenderOptions.BitmapInterpolationMode="None" />
+                </Border>
+              </ScrollViewer>
+            </Border>
           </StackPanel>
-          <Border BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Height="180">
-            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-              <!-- Border with transparent background catches pointer events
-                   anywhere over the palette grid, even on transparent chipset pixels. -->
-              <Border Background="Transparent" Name="TilePaletteHitArea">
-                <Image AutomationProperties.AutomationId="MapEditor_TilePalette_Image"
-                       Name="TilePaletteImage"
-                       Stretch="None"
-                       HorizontalAlignment="Left" VerticalAlignment="Top"
-                       RenderOptions.BitmapInterpolationMode="None" />
-              </Border>
-            </ScrollViewer>
-          </Border>
-        </StackPanel>
+        </ThemeVariantScope>
       </Border>
 
       <!-- Tile editing panel -->
-      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
+      <Border Grid.Row="2" Name="TileEditorPanel" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
               Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
-        <StackPanel Spacing="4">
-          <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
-          <TextBlock AutomationProperties.AutomationId="MapEditor_TileInfo_Label" Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
-                     Text="No tile selected" />
-          <StackPanel Orientation="Horizontal" Spacing="8" Name="TileEditPanel" IsVisible="false">
-            <TextBlock Text="Tile ID (hex):" VerticalAlignment="Center" />
-            <TextBox AutomationProperties.AutomationId="MapEditor_TileIdText_Input" Name="TileIdTextBox" Width="80" FontFamily="Consolas,Courier New,monospace" />
-            <Button AutomationProperties.AutomationId="MapEditor_WriteTileBtn_Button" Name="WriteTileBtn" Content="Write Tile" />
-            <Button AutomationProperties.AutomationId="MapEditor_RefreshMapBtn_Button" Name="RefreshMapBtn" Content="Refresh Map" />
+        <ThemeVariantScope Name="TileEditorThemeScope" RequestedThemeVariant="Dark">
+          <ThemeVariantScope.Styles>
+            <Style Selector="TextBlock">
+              <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
+            </Style>
+          </ThemeVariantScope.Styles>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
+            <TextBlock AutomationProperties.AutomationId="MapEditor_TileInfo_Label" Name="TileInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12"
+                       Text="No tile selected" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Name="TileEditPanel" IsVisible="false">
+              <TextBlock Text="Tile ID (hex):" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MapEditor_TileIdText_Input" Name="TileIdTextBox" Width="80" FontFamily="Consolas,Courier New,monospace" />
+              <Button AutomationProperties.AutomationId="MapEditor_WriteTileBtn_Button" Name="WriteTileBtn" Content="Write Tile" />
+              <Button AutomationProperties.AutomationId="MapEditor_RefreshMapBtn_Button" Name="RefreshMapBtn" Content="Refresh Map" />
+            </StackPanel>
           </StackPanel>
-        </StackPanel>
+        </ThemeVariantScope>
       </Border>
 
       <!-- Map image in scrollable area -->
-      <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-          <controls:GbaImageControl AutomationProperties.AutomationId="MapEditor_MapImage_Image" Name="MapImageControl" />
-        </ScrollViewer>
+      <Border Grid.Row="3" Name="MapCanvasPanel" BorderBrush="Gray" BorderThickness="1"
+              Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
+        <ThemeVariantScope Name="MapCanvasThemeScope" RequestedThemeVariant="Dark">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <controls:GbaImageControl AutomationProperties.AutomationId="MapEditor_MapImage_Image"
+                                      Name="MapImageControl" />
+          </ScrollViewer>
+        </ThemeVariantScope>
       </Border>
     </Grid>
   </Grid>
