@@ -24,11 +24,11 @@ Use the **running session's** version (the value injected in the system prompt a
 
 **(d) Worktree isolation.** Use an isolated worktree for ANY code change — never `git checkout`/`switch`/`stash`/`reset` in the main worktree (other sessions share it). In the main worktree only `git fetch origin` is allowed. Prune all worktrees after every merge.
 
-**(e) Review Gate (developer-aware).** Follow `DEVELOPMENT-WORKFLOW.md`; activate the `dev-flow` skill BEFORE any code change. For Copilot-CLI-authored code the Review Gate is the **in-session cross-model board** (`claude-opus-4.8`, `gpt-5.5`, `gemini-3.5-flash`): launch one reviewer per model (`code-review` for PRs, `rubber-duck` for plans), synthesize, and post the consolidated `## Cross-Model Review Board` review via `gh`. Never `agency cc` / Claude Code. Instruct `gemini` to verify any claimed test/build failure on a clean PR-head build (it has produced stale-build false positives).
+**(e) Review Gate (developer-aware).** Follow `DEVELOPMENT-WORKFLOW.md`; activate the `dev-flow` skill BEFORE any code change. For Copilot-CLI-authored code the Review Gate is the **in-session cross-model board** (`claude-opus-4.8`, `gpt-5.5`, `gemini-3.5-flash`): launch one `task` sub-agent per model — the `code-review` agent type for PR reviews, the `rubber-duck` agent type for plan/design reviews (both are valid `task` agent types) — then synthesize and post the consolidated `## Cross-Model Review Board` review via `gh`. Never `agency cc` / Claude Code. Instruct `gemini` to verify any claimed test/build failure on a clean PR-head build (it has produced stale-build false positives).
 
 **(f) Pre-Commit Checklist.** Tests + docs for every code change. For `feat`/`fix` GUI PRs (Avalonia/WinForms), capture a **real** GUI screenshot — the automation-free path is `dotnet run --project FEBuilderGBA.Avalonia -- --rom roms/FE8U.gba --screenshot-all` (headless `RenderTargetBitmap` yields 0-byte files here); or `PrintWindow`/`tools/WinCapture`. NEVER fabricate images; NEVER use feature-branch URLs (master raw URLs only). Screenshots are OPTIONAL for `docs`/`chore` PRs.
 
-**(g) Clear ALL feedback before merge.** Check ALL THREE channels — unresolved inline review threads (incl. the `copilot-pull-request-reviewer` bot), PR-level conversation comments, and top-level review bodies. Fix every point (never just "acknowledged"), reply, and resolve threads. The repo ruleset blocks merge unless: CI green, branch up-to-date with base (`gh pr update-branch` after other merges land), AND all conversations resolved.
+**(g) Clear ALL feedback before merge.** Check ALL THREE channels — unresolved inline review threads (incl. the `copilot-pull-request-reviewer` bot), PR-level conversation comments, and top-level review bodies. Fix every point (never just "acknowledged"), reply, and resolve threads. The repo ruleset blocks merge unless: CI green, branch up-to-date with base (`gh pr update-branch -R laqieer/FEBuilderGBA` after other merges land), AND all conversations resolved.
 
 ## Steps
 
@@ -46,15 +46,16 @@ Use the **running session's** version (the value injected in the system prompt a
 
 5. **RELEASE.** Cut a release when warranted via the tag-triggered pipeline. From up-to-date master:
    ```bash
-   TAG="ver_$(date +%Y%m%d.%H)"      # scheme: ver_YYYYMMDD.HH
-   git tag "$TAG" <master-sha>
-   git push origin "$TAG"            # fires .github/workflows/release.yml
+   git fetch origin master
+   TAG="ver_$(date +%Y%m%d.%H)"          # scheme: ver_YYYYMMDD.HH
+   git tag "$TAG" origin/master          # tag the up-to-date master tip (no working-tree checkout)
+   git push origin "$TAG"                # fires .github/workflows/release.yml
    ```
    **Decide the version number yourself — never ask.** The workflow builds all platforms (WinForms, CLI ×3 RIDs, Avalonia ×3 RIDs, Android APK) and publishes the GitHub Release with auto-generated grouped notes. The Gitee mirror was removed (#1766) — GitHub is the sole release source; there is no Gitee sync to run. Hold a release when the accumulated change since the last tag is a single same-day chore.
 
 ## Mandatory completion loop
 
-After finishing the current issue list, **RE-SCAN** `gh issue list --state open` AND `gh pr list --state open`. New issues/PRs may have appeared during processing. Keep resolving until **BOTH open issues AND open PRs are zero**. Only then report done. Never declare completion while any open issue/PR remains.
+After finishing the current issue list, **RE-SCAN** `gh issue list -R laqieer/FEBuilderGBA --state open` AND `gh pr list -R laqieer/FEBuilderGBA --state open`. New issues/PRs may have appeared during processing. Keep resolving until **BOTH open issues AND open PRs are zero**. Only then report done. Never declare completion while any open issue/PR remains.
 
 ## Hygiene at the end of every run
 
