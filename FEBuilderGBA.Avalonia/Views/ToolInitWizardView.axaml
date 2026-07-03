@@ -102,7 +102,7 @@
           <Button Content="Start"
                   AutomationProperties.AutomationId="ToolInitWizard_Start_Button"
                   Width="200" Height="50"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Margin="0,12,0,0"
                   Click="OnStartButton_Click" />
         </StackPanel>
@@ -158,7 +158,7 @@
                   Click="OnDownloadMGBA_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step1Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep1Prev_Click" />
@@ -213,7 +213,7 @@
                   Click="OnSkipStep2_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step2Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep2Prev_Click" />
@@ -277,7 +277,7 @@
                   Click="OnSkipStep3_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step3Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep3Prev_Click" />
@@ -343,7 +343,7 @@
                   Click="OnSkipStep4_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step4Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep4Prev_Click" />
@@ -420,7 +420,7 @@
                   Click="OnSkipStep5_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step5Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep5Prev_Click" />
@@ -475,7 +475,7 @@
                   Click="OnSkipStep6_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step6Prev_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="100" Height="36"
                   Margin="0,16,0,0"
                   Click="OnStep6Prev_Click" />
@@ -519,7 +519,7 @@
           </Border>
           <Button Content="Finish"
                   AutomationProperties.AutomationId="ToolInitWizard_End_Button"
-                  HorizontalAlignment="Right"
+                  HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Width="170" Height="36"
                   Click="OnEndButton_Click" />
         </StackPanel>

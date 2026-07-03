@@ -19,7 +19,7 @@
     </Grid>
     <!-- Change button (WinForms ChangeButton 344x42 right-aligned) -->
     <Button AutomationProperties.AutomationId="ToolChangeProjectname_OK_Button" Content="Change Project Name" Width="344" Height="42"
-            HorizontalAlignment="Right" Click="OK_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
     <!-- Status message -->
     <TextBlock Text="{Binding StatusMessage}" Foreground="Red" />
     <!-- Help text (WinForms textBox1 readonly multiline) -->

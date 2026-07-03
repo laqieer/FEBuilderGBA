@@ -402,6 +402,9 @@ namespace FEBuilderGBA.Avalonia
                     // real PNG proof of the centered Resize / Apply action buttons.
                     "MapEditorResizeDialogView" => new Views.MapEditorResizeDialogView(),
                     "MapEditorMarSizeDialogView" => new Views.MapEditorMarSizeDialogView(),
+                    // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
+                    // it renders real PNG proof of the centered "Apply" action button.
+                    "MapSettingDifficultyDialogView" => new Views.MapSettingDifficultyDialogView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 
