@@ -8,6 +8,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Styling;
 using FEBuilderGBA.Avalonia.Controls;
@@ -145,6 +146,28 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(control);
             return control!;
         }
+
+        // #1772: the map-resize dialog family declares fixed-width action buttons
+        // (Resize 134px, Apply 99px). Without explicit content alignment the short
+        // label sits left-shifted inside the wide box (visible on macOS). Assert the
+        // button's effective content alignment centers its label, mirroring the #1703 fix.
+        // (The app-wide sweep of other dialogs with the same signature is tracked in #1784.)
+        [AvaloniaTheory]
+        [InlineData(typeof(MapEditorResizeDialogView), "MapEditorResizeDialog_OK_Button")]
+        [InlineData(typeof(MapEditorMarSizeDialogView), "MapEditorMarSizeDialog_Apply_Button")]
+        public void MapResizeDialogActionButton_CentersItsLabel(Type dialogType, string automationId)
+        {
+            var dialog = (Window)Activator.CreateInstance(dialogType)!;
+
+            var button = dialog.GetLogicalDescendants()
+                .OfType<Button>()
+                .FirstOrDefault(b => AutomationProperties.GetAutomationId(b) == automationId);
+
+            Assert.NotNull(button);
+            Assert.Equal(HorizontalAlignment.Center, button!.HorizontalContentAlignment);
+            Assert.Equal(VerticalAlignment.Center, button.VerticalContentAlignment);
+        }
+
 
         private static double MeasureNaturalWidth(Control control)
         {

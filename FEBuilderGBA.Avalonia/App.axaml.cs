@@ -397,6 +397,11 @@ namespace FEBuilderGBA.Avalonia
                     // fixed-width dropdown style. No ROM needed.
                     "EventScriptView" => new Views.EventScriptView(),
                     "ProcsScriptView" => new Views.ProcsScriptView(),
+                    // #1772 PR proof: the map-resize dialog family is ROM-independent
+                    // (each VM's Initialize() just sets IsLoaded=true), so they render
+                    // real PNG proof of the centered Resize / Apply action buttons.
+                    "MapEditorResizeDialogView" => new Views.MapEditorResizeDialogView(),
+                    "MapEditorMarSizeDialogView" => new Views.MapEditorMarSizeDialogView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 

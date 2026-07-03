@@ -76,7 +76,7 @@
     </Grid>
     <!-- OK button (WinForms 134x35 right-aligned) -->
     <Button AutomationProperties.AutomationId="MapEditorResizeDialog_OK_Button" Content="Resize" Width="134" Height="35"
-            HorizontalAlignment="Right" Click="OK_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>
 </Window>

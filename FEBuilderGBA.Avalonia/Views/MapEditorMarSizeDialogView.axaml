@@ -24,7 +24,7 @@
                Margin="2,12,0,20" IsVisible="False" />
     <!-- OK button (WinForms OKButton 99x43 right-aligned) -->
     <Button AutomationProperties.AutomationId="MapEditorMarSizeDialog_Apply_Button" Content="Apply" Width="99" Height="43"
-            HorizontalAlignment="Right" Click="OK_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>
 </Window>
