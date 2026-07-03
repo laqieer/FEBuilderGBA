@@ -306,6 +306,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("voicegroup003:", r.Text);
         }
 
+        // #1775: prove Export() forwards is_multibyte into the FE8J section directives.
+        [Fact]
+        public void Export_FE8J_RomInfoMultibyte_EmitsNamedSectionAndWordAlign()
+        {
+            var rom = new ROM();
+            rom.LoadLow("synth-fe8j.gba", new byte[0x0100_0000], "BE8J01");
+            Assert.True(rom.RomInfo != null && rom.RomInfo.is_multibyte);
+
+            uint a = 0x3000;
+            WriteDirectSound(rom, a, key: 60, panByte: 0, samplePtr: 0x08005000, adsr: new byte[] { 1, 2, 3, 4 });
+            WriteTerminator(rom, a + 12);
+
+            var r = VoicegroupAsmExportCore.Export(rom, a, 5);
+            Assert.True(r.Ok, string.Join("; ", r.Diagnostics));
+            Assert.Contains(".section .rodata.voicegroup005, \"a\", %progbits", r.Text);
+            Assert.Contains("\t.align 4\n", r.Text);
+            Assert.DoesNotContain("\t.section .rodata\n", r.Text); // not the generic fe8u section
+        }
+
         // ---- raw ROM writers ----------------------------------------------
 
         static void WriteBytes(ROM rom, uint addr, byte[] bytes)
