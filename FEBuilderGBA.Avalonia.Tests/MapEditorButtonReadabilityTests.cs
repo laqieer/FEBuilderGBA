@@ -149,8 +149,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         // #1772: the map-resize dialog family declares fixed-width action buttons
         // (Resize 134px, Apply 99px). Without explicit content alignment the short
-        // label renders left-shifted inside the wide box (visible on macOS). Assert the
-        // rendered button centers its label, mirroring the #1703 HorizontalContentAlignment fix.
+        // label sits left-shifted inside the wide box (visible on macOS). Assert the
+        // button's effective content alignment centers its label, mirroring the #1703 fix.
         [AvaloniaTheory]
         [InlineData(typeof(MapEditorResizeDialogView), "MapEditorResizeDialog_OK_Button")]
         [InlineData(typeof(MapEditorMarSizeDialogView), "MapEditorMarSizeDialog_Apply_Button")]
