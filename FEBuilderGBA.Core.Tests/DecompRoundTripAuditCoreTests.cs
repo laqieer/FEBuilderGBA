@@ -22,6 +22,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TextRow_DocumentsFE8JJpTextsVariant()
+        {
+            // #1776: the text-export row must record the FE8J divergence (jp_texts.txt)
+            // so the matrix can't silently drift back to a US-only note now that #1774
+            // emits texts/jp_texts.txt for FE8J.
+            var textRow = DecompRoundTripAuditCore.BuildMatrix()
+                .Single(r => r.Table == "text" && r.Action == "Text export");
+            Assert.Contains("jp_texts.txt", textRow.Notes);
+            Assert.Contains("#1774", textRow.Notes);
+        }
+
+        [Fact]
         public void EveryRow_HasDefinedEnum_AndNonNullStrings()
         {
             var defined = new HashSet<DecompCoverage>((DecompCoverage[])Enum.GetValues(typeof(DecompCoverage)));

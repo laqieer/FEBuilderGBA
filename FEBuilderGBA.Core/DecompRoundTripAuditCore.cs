@@ -229,7 +229,7 @@ namespace FEBuilderGBA
             rows.Add(new DecompAuditRow("Map Editor", "map_tileanime1_graphics", "Map tile-animation-1 graphics import/verify",
                 DecompCoverage.SourceTreeExporter, "Raw uncompressed 4bpp graphics data block (the entry +2 byte length, reached by each anime-1 entry's +4 pointer — the inverse of anime-2's +0) — export (--export-asset --kind=mapanime1gfx --addr=<deref +4> --length=<+2>) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapanime1gfx) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact RAW ROM compare; the WF read/import/rebuild paths treat this block as raw ImageToByte16Tile 4bpp bytes (a rebuild IMG block), NOT LZ77 (so NOT the objtiles/mapchipconfig decompress pattern). NOT the anime-1 ENTRY/PLIST table and NOT the .mar layout"));
             rows.Add(new DecompAuditRow("Text Editor", "text", "Text export",
-                DecompCoverage.SourceTreeExporter, "texts.txt + textdefs.txt (migration format, not lossless macro round-trip)"));
+                DecompCoverage.SourceTreeExporter, "texts.txt + textdefs.txt (fe8u migration format, not lossless macro round-trip); FE8J emits texts/jp_texts.txt #0xNNNN instead (#1774)"));
 
             // ---- ManualMigration rows: variable-length / raw-binary / pointer data. ----
             rows.Add(new DecompAuditRow("Item Shop Editor", "shops", "Shop list save",
