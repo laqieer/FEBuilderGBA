@@ -49,7 +49,7 @@ namespace FEBuilderGBA
     ///   <item><description><c>ExportPalette</c> — JASC .pal file (faithful, lossless round-trip)</description></item>
     ///   <item><description><c>ExportGraphics</c> — indexed PNG (color type 3) + sidecar .pal (faithful)</description></item>
     ///   <item><description><c>ExportMap</c> — .mar tilemap + sidecar JSON (faithful)</description></item>
-    ///   <item><description><c>ExportText</c> — texts.txt + textdefs.txt (migration format, not lossless macro round-trip)</description></item>
+    ///   <item><description><c>ExportText</c> — texts.txt + textdefs.txt (fe8u migration format, not lossless macro round-trip); FE8J emits texts/jp_texts.txt #0xNNNN instead (#1774)</description></item>
     /// </list>
     ///
     /// Asset types that require existing exporters (not reimplemented here):

@@ -206,7 +206,7 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Map Editor | map_obj_tileset | OBJ tileset import/verify | SourceTreeExporter | LZ77 OBJ tile block — export the DECOMPRESSED 4bpp payload (--export-asset --kind=objtiles) + import (--import-asset) + read-only decompress-and-byte-compare ROM verify (--verify-asset --kind=objtiles) + structural roundtrip; never mutates the preview ROM. Decompressed-payload equivalence, NOT compressed-stream byte identity (FEBuilder's LZ77 packer is non-canonical so the build re-compresses); --addr is the DEREFERENCED OBJ LZ77 stream address (FE7 obj2 secondary tileset is a separate stream/address, never concatenated). NOT chipset TSA/config, NOT tile animations 1/2 |
 | Map Editor | map_chipset_config | Chipset TSA/config import/verify | SourceTreeExporter | LZ77 chipset TSA/config block — export the DECOMPRESSED config payload (--export-asset --kind=mapchipconfig) + import (--import-asset) + read-only decompress-and-byte-compare ROM verify (--verify-asset --kind=mapchipconfig) + structural roundtrip; never mutates the preview ROM. Decompressed-payload equivalence, NOT compressed-stream byte identity (FEBuilder's LZ77 packer is non-canonical so the build re-compresses); --addr is the DEREFERENCED config LZ77 stream address (e.g. the CONFIG-PLIST pointer dereferenced, NOT RomInfo.map_config_pointer; FE7 split layouts use a separate per-plist --addr). NOT the anime-1/anime-2 entry tables, NOT the map-change record chain, NOT the .mar layout |
 | Map Editor | map_tileanime1_graphics | Map tile-animation-1 graphics import/verify | SourceTreeExporter | Raw uncompressed 4bpp graphics data block (the entry +2 byte length, reached by each anime-1 entry's +4 pointer — the inverse of anime-2's +0) — export (--export-asset --kind=mapanime1gfx --addr=<deref +4> --length=<+2>) + import (--import-asset) + byte-exact ROM verify (--verify-asset --kind=mapanime1gfx) + structural roundtrip; never mutates the preview ROM. Source-level structure-exact identity AND byte-exact RAW ROM compare; the WF read/import/rebuild paths treat this block as raw ImageToByte16Tile 4bpp bytes (a rebuild IMG block), NOT LZ77 (so NOT the objtiles/mapchipconfig decompress pattern). NOT the anime-1 ENTRY/PLIST table and NOT the .mar layout |
-| Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (migration format, not lossless macro round-trip) |
+| Text Editor | text | Text export | SourceTreeExporter | texts.txt + textdefs.txt (fe8u migration format, not lossless macro round-trip); FE8J emits texts/jp_texts.txt #0xNNNN instead (#1774) |
 | Item Shop Editor | shops | Shop list save | ManualMigration | Decomp-mode GUI save now routes to SOURCE when the shop's ROM address resolves to a manifest u16-list owner (symbol-resolved) for BOTH literal raw-hex lists AND resolvable symbolic ITEM_* item-id-only lists (#1354) (#1347 Slice 5a); otherwise ROM-only/manual (variable-length ITEM_NONE-terminated lists via scattered hensei/worldmap/event-cond pointers; nonzero-quantity symbolic writes, unknown/ambiguous macros, and unresolved/unnamed shops degrade to --export-asset --kind=shop) |
 | Item Shop Editor | shops | Shop list export | SourceTreeExporter | EA .event migration artifact via --export-asset --kind=shop; recreates each u16 ITEM_NONE-terminated list at its source address (migration aid, not source-backed in-place editing, not a byte-pinned round-trip) |
 | Item Shop Editor | shops | Shop list source save | SourceBackedWriter | In-place source-backed rewrite of a u16 ITEM_NONE-terminated list (manifest list-owner: format=u16-list, symbol-resolved) via --write-shop; requires decomp-mode .map/.elf carrying the list symbol AND a manifest list-owner; degrades to --export-asset --kind=shop otherwise (#1347). Supports BOTH a LITERAL raw-hex list AND a SYMBOLIC ITEM_* (item-id-only, quantity 0) list whose macro names resolve from the constants header (owner.constantsHeader / artifacts.itemConstants / include/constants/items.h); a non-zero quantity or an id with no ITEM_* constant is an actionable refusal, not a clobber (#1354) |
@@ -219,6 +219,27 @@ required for variable-length / pointer / raw-binary data), **RomOnlyUnsupported*
 | Patch Manager | patches | Patch install/uninstall | RomOnlyUnsupported | ASM/binary patches apply to the built ROM; not a decomp source migration |
 
 <!-- decomp-audit-matrix:end -->
+
+#### FE8J (JP decomp) coverage notes
+
+The matrix above is region-agnostic except where a Notes cell calls out a JP
+divergence. For the **FE8J** (`fireemblem8j`, `version 8 + is_multibyte`) tree
+specifically:
+
+- **Text export** — emits `texts/jp_texts.txt` in `#0xNNNN` format (consumed by
+  `msg_jp.py`), **not** the fe8u `texts.txt`/`textdefs.txt`; `jp_textdefs.txt` /
+  `jp_huffman_tiebreaks.txt` are hand/ROM-maintained and left untouched (#1774).
+- **Voicegroup asm export** — emits the named `.section .rodata.voicegroupNNN,
+  "a", %progbits` + `.align 4` sub-section, not the fe8u `.section .rodata` /
+  `.align 2` (#1775).
+- **Symbol resolution** — the JP `sym_jp.txt` linker-assignment table is
+  auto-discovered and parsed alongside `.map`/`.elf` (#1773).
+- **Build enablement** — drop in the
+  [`docs/decomp/febuilder.project.fe8j.json`](docs/decomp/febuilder.project.fe8j.json)
+  manifest template to opt into `--build-project` (#1778).
+
+All other rows are format-only and region-agnostic (palette / graphics / icon /
+map / portrait), so they apply to FE8J unchanged.
 
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
 symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant;
