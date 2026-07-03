@@ -1053,9 +1053,32 @@ namespace FEBuilderGBA
                 if (entries == null)
                     entries = new List<(uint, string)>();
 
-                var (textsTxt, textdefsTxt) = FormatTexts(entries);
-
                 Directory.CreateDirectory(absOutDir);
+
+                // #1774: the FE8J (JP) decomp tree consumes text from texts/jp_texts.txt
+                // (header "#0xNNNN", no blank separator) via msg_jp.py — NOT the fe8u
+                // texts.txt/textdefs.txt "# msg" migration format. jp_textdefs.txt
+                // (control-token table) and jp_huffman_tiebreaks.txt (ROM-derived) are
+                // hand/ROM-maintained and must NOT be overwritten by a text dump.
+                bool isJp = rom.RomInfo?.is_multibyte ?? false;
+                if (isJp)
+                {
+                    string textsDir = Path.Combine(absOutDir, "texts");
+                    Directory.CreateDirectory(textsDir);
+                    string jpTextsPath = Path.Combine(textsDir, "jp_texts.txt");
+                    File.WriteAllText(jpTextsPath, FormatTextsJp(entries), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                    var jpResult = new DecompAssetResult
+                    {
+                        Status = DecompAssetStatus.Ok,
+                        Message = $"Exported {entries.Count} JP text entries to texts/jp_texts.txt " +
+                                  "(jp_textdefs.txt and jp_huffman_tiebreaks.txt are hand/ROM-maintained and were left untouched)"
+                    };
+                    jpResult.WrittenPaths.Add(jpTextsPath);
+                    return jpResult;
+                }
+
+                var (textsTxt, textdefsTxt) = FormatTexts(entries);
                 string textsPath = Path.Combine(absOutDir, "texts.txt");
                 string textdefsPath = Path.Combine(absOutDir, "textdefs.txt");
                 File.WriteAllText(textsPath, textsTxt, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
@@ -1312,6 +1335,27 @@ namespace FEBuilderGBA
             }
 
             return (texts.ToString(), defs.ToString());
+        }
+
+        /// <summary>
+        /// #1774: format text entries for the FE8J (JP) decomp tree's
+        /// <c>texts/jp_texts.txt</c>, which <c>msg_jp.py</c> consumes: a
+        /// <c>#0xNNNN</c> header line followed by the decoded text line, with NO
+        /// <c># msg</c> prefix and NO blank separator between entries. LF line
+        /// endings (decomp convention). ROM-free so it is unit-tested directly.
+        /// </summary>
+        internal static string FormatTextsJp(List<(uint textId, string text)> entries)
+        {
+            var texts = new StringBuilder();
+            if (entries != null)
+            {
+                foreach (var (id, text) in entries)
+                {
+                    texts.Append("#0x" + id.ToString("X4") + "\n");
+                    texts.Append((text ?? "") + "\n");
+                }
+            }
+            return texts.ToString();
         }
 
         // ---- Private helpers ----

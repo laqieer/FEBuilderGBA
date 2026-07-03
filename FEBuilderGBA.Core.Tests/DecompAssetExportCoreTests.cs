@@ -1671,6 +1671,40 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("#define MSG_0x00FF 255", defs);
         }
 
+        // ---- FormatTextsJp (#1774, FE8J texts/jp_texts.txt format) ----
+
+        [Fact]
+        public void FormatTextsJp_SingleEntry_HashHexHeader_NoMsgPrefix()
+        {
+            var entries = new System.Collections.Generic.List<(uint, string)> { (1, "ＦＥ３ダミーＴＸＴ") };
+            string s = DecompAssetExportCore.FormatTextsJp(entries);
+
+            Assert.Equal("#0x0001\nＦＥ３ダミーＴＸＴ\n", s);
+            Assert.DoesNotContain("# msg", s);   // not the fe8u header
+            Assert.DoesNotContain("#define", s); // no textdefs macros
+        }
+
+        [Fact]
+        public void FormatTextsJp_MultipleEntries_NoBlankSeparator()
+        {
+            var entries = new System.Collections.Generic.List<(uint, string)>
+            {
+                (0, "A"),
+                (1, "B"),
+                (0xFF, "C"),
+            };
+            string s = DecompAssetExportCore.FormatTextsJp(entries);
+            // Header + text lines back-to-back, no blank separator between entries.
+            Assert.Equal("#0x0000\nA\n#0x0001\nB\n#0x00FF\nC\n", s);
+        }
+
+        [Fact]
+        public void FormatTextsJp_NullOrEmpty_ReturnsEmpty()
+        {
+            Assert.Equal("", DecompAssetExportCore.FormatTextsJp(null));
+            Assert.Equal("", DecompAssetExportCore.FormatTextsJp(new System.Collections.Generic.List<(uint, string)>()));
+        }
+
         // ---- ExportText ----
 
         [Fact]
@@ -1679,6 +1713,32 @@ namespace FEBuilderGBA.Core.Tests
             var result = DecompAssetExportCore.ExportText(null, "/tmp/textdir");
             Assert.False(result.Ok);
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+        }
+
+        [Fact]
+        public void ExportText_FE8J_WritesJpTextsTxt_NotTextsAndTextdefs()
+        {
+            var rom = new ROM();
+            rom.LoadLow("synth-fe8j.gba", new byte[0x0100_0000], "BE8J01");
+            Assert.True(rom.RomInfo != null && rom.RomInfo.is_multibyte);
+
+            string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "fe8j-text-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                var r = DecompAssetExportCore.ExportText(rom, dir);
+                Assert.True(r.Ok, r.Message);
+                // JP tree: texts/jp_texts.txt is written; the fe8u files are NOT.
+                Assert.Contains(r.WrittenPaths, p => p.Replace('\\', '/').EndsWith("texts/jp_texts.txt"));
+                Assert.True(System.IO.File.Exists(System.IO.Path.Combine(dir, "texts", "jp_texts.txt")));
+                Assert.False(System.IO.File.Exists(System.IO.Path.Combine(dir, "texts.txt")));
+                Assert.False(System.IO.File.Exists(System.IO.Path.Combine(dir, "textdefs.txt")));
+                Assert.Contains("jp_texts.txt", r.Message);
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(dir)) System.IO.Directory.Delete(dir, true);
+            }
         }
 
         // ---- ExportGraphics (null IImageService) ----
