@@ -124,7 +124,13 @@ namespace FEBuilderGBA.Core.Tests
 
                 string content;
                 try { content = File.ReadAllText(file); }
-                catch { continue; }
+                catch (Exception ex)
+                {
+                    // A first-party source/doc file we expected to scan is unreadable —
+                    // fail loudly rather than silently skip, which could hide a dead link.
+                    violations.Add(GetRelative(root, file) + " (unreadable: " + ex.GetType().Name + ")");
+                    continue;
+                }
 
                 if (content.IndexOf(DeadLinkPattern, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
