@@ -415,7 +415,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("FE8J", project!.ForceVersion);
                 project.NeedsRebuild = true;
 
-                string seenForceVersion = null;
+                string? seenForceVersion = null;
                 var status = DecompBuildCore.ReloadBuiltRom(project, (p, fv) =>
                 {
                     seenForceVersion = fv;
