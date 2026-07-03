@@ -398,5 +398,34 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally { Directory.Delete(dir, true); }
         }
+
+        [Fact]
+        public void ReloadBuiltRom_PassesForceVersionFE8J_ToLoadSeam()
+        {
+            // #1777: the JP (FE8J) manifest forceVersion must reach the reload seam so
+            // the Avalonia/CLI loaders pin the FE8J variant (parity with the FE8U test).
+            string dir = NewTempDir();
+            try
+            {
+                WriteManifest(dir,
+                    "{\"schemaVersion\":1,\"builtRom\":\"out.gba\",\"forceVersion\":\"FE8J\"}");
+                CopyTinyGba(dir); // create out.gba
+                var project = DecompProjectDetector.Detect(dir);
+                Assert.NotNull(project);
+                Assert.Equal("FE8J", project!.ForceVersion);
+                project.NeedsRebuild = true;
+
+                string? seenForceVersion = null;
+                var status = DecompBuildCore.ReloadBuiltRom(project, (p, fv) =>
+                {
+                    seenForceVersion = fv;
+                    return true;
+                });
+
+                Assert.Equal(DecompResolveStatus.Ok, status);
+                Assert.Equal("FE8J", seenForceVersion);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
     }
 }
