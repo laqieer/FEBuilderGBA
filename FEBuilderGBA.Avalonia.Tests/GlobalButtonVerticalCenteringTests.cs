@@ -112,25 +112,38 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.True(File.Exists(appAxaml), $"missing {appAxaml}");
             Assert.True(File.Exists(testAppAxaml), $"missing {testAppAxaml}");
 
-            // A global Button style setting VerticalContentAlignment=Center must exist in
-            // BOTH files (production + the headless test mirror, #315).
-            var rx = new Regex(
-                "(?s)<Style\\s+Selector=\"Button\"\\s*>.*?VerticalContentAlignment\"\\s+Value=\"Center\".*?</Style>");
-            Assert.True(rx.IsMatch(File.ReadAllText(appAxaml)),
-                "App.axaml must declare a global <Style Selector=\"Button\"> with " +
-                "VerticalContentAlignment=\"Center\" (#1793).");
-            Assert.True(rx.IsMatch(File.ReadAllText(testAppAxaml)),
-                "TestApp.axaml must mirror App.axaml's global Button VerticalContentAlignment=" +
-                "\"Center\" style (#315) so headless tests exercise the production behaviour.");
+            // Extract the <Style Selector="Button"> ... </Style> block from each file.
+            var blockRx = new Regex("(?s)<Style\\s+Selector=\"Button\"\\s*>.*?</Style>");
+            var appBlock = blockRx.Match(File.ReadAllText(appAxaml));
+            var testBlock = blockRx.Match(File.ReadAllText(testAppAxaml));
+            Assert.True(appBlock.Success,
+                "App.axaml must declare a global <Style Selector=\"Button\"> (#1793).");
+            Assert.True(testBlock.Success,
+                "TestApp.axaml must mirror the global <Style Selector=\"Button\"> (#315) so " +
+                "headless tests exercise the production behaviour.");
+
+            // Each block must set exactly VerticalContentAlignment="Center".
+            var setterRx = new Regex(
+                "<Setter\\s+Property=\"VerticalContentAlignment\"\\s+Value=\"Center\"\\s*/>");
+            Assert.True(setterRx.IsMatch(appBlock.Value),
+                "App.axaml Button style must set VerticalContentAlignment=\"Center\" (#1793).");
+            Assert.True(setterRx.IsMatch(testBlock.Value),
+                "TestApp.axaml Button style must set VerticalContentAlignment=\"Center\" (#315).");
+
+            // The two declarations must be IDENTICAL (whitespace-normalized) so they can't
+            // silently diverge: an extra setter, a different value, or reordering in only
+            // one file would break the App.axaml <-> TestApp.axaml mirror and fail here.
+            static string Norm(string s) => Regex.Replace(s, "\\s+", " ").Trim();
+            Assert.Equal(Norm(appBlock.Value), Norm(testBlock.Value));
         }
 
         private static string? FindRepoRoot()
         {
             // Walk parents to the drive root (no fixed depth cap) so a deeper/shallower
             // test output path can't silently turn this sync guard into a no-op (#1794
-            // review). Matches the repo-root-walk convention (e.g. ClassEditorParityTests).
-            // The only null case is a genuinely source-less run (packaged CI), in which
-            // there is nothing to scan.
+            // review). This parent-walk-to-FEBuilderGBA.sln pattern is the repo-root
+            // convention used across the test suite. The only null case is a genuinely
+            // source-less run (packaged CI), in which there is nothing to scan.
             for (DirectoryInfo? dir = new DirectoryInfo(System.AppContext.BaseDirectory);
                  dir != null; dir = dir.Parent)
             {
