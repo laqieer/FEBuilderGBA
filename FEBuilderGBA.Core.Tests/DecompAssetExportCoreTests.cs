@@ -1720,7 +1720,7 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.LoadLow("synth-fe8j.gba", new byte[0x0100_0000], "BE8J01");
-            Assert.True(rom.RomInfo != null && rom.RomInfo.is_multibyte);
+            Assert.True(rom.RomInfo != null && rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte);
 
             string dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                 "fe8j-text-" + System.Guid.NewGuid().ToString("N"));

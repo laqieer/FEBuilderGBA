@@ -1060,8 +1060,10 @@ namespace FEBuilderGBA
                 // texts.txt/textdefs.txt "# msg" migration format. jp_textdefs.txt
                 // (control-token table) and jp_huffman_tiebreaks.txt (ROM-derived) are
                 // hand/ROM-maintained and must NOT be overwritten by a text dump.
-                bool isJp = rom.RomInfo?.is_multibyte ?? false;
-                if (isJp)
+                // Gate on FE8J specifically (version 8 + multibyte): is_multibyte alone is
+                // also true for FE6J/FE7J, whose decomp trees use a different text format.
+                bool isFe8j = rom.RomInfo != null && rom.RomInfo.version == 8 && rom.RomInfo.is_multibyte;
+                if (isFe8j)
                 {
                     string textsDir = Path.Combine(absOutDir, "texts");
                     Directory.CreateDirectory(textsDir);
@@ -1351,8 +1353,8 @@ namespace FEBuilderGBA
             {
                 foreach (var (id, text) in entries)
                 {
-                    texts.Append("#0x" + id.ToString("X4") + "\n");
-                    texts.Append((text ?? "") + "\n");
+                    texts.Append("#0x").Append(id.ToString("X4")).Append('\n');
+                    texts.Append(text ?? "").Append('\n');
                 }
             }
             return texts.ToString();
