@@ -383,6 +383,12 @@ namespace FEBuilderGBA.Avalonia
                     // link and the palette index columns + swatches; no ROM needed).
                     "AIScriptView" => new Views.AIScriptView(),
                     "ImagePalletView" => new Views.ImagePalletView(),
+                    // #1793 PR proof: the "unknown ROM" chooser is ROM-independent
+                    // (its VM.Initialize() is self-contained) and has 7 tall (66px)
+                    // action buttons that were NOT touched by #1727 — so it renders
+                    // real before/after PNG proof of the global Button vertical-
+                    // centering style.
+                    "ErrorUnknownROMView" => new Views.ErrorUnknownROMView(),
                     // #1681: the alignment-fix clone dialogs are ROM-independent
                     // (each constructs its own ViewModel + Load(0)/Initialize()),
                     // so they render real PNG proof of the centered Apply button.
