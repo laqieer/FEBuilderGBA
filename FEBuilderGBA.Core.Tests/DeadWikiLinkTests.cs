@@ -24,16 +24,20 @@ namespace FEBuilderGBA.Core.Tests
         private const string DeadDispatcher = "/doku.php";
         private static readonly string DeadLinkPattern = DeadHost + DeadDispatcher;
 
-        // Directories to skip: git-ignored build output, submodules, and bundled
-        // third-party/resource trees that are not part of this repo's source.
+        // Directories to skip: git-ignored build output, generated data, and git
+        // submodules (separate repos, out of scope for this repo's dead-link guard).
+        // Note: tools/ and resources/ are NOT blanket-skipped — only their submodule
+        // subpaths are — so first-party tools (tools/WinCapture, tools/TextToPng,
+        // tools/capture-window.cs, etc.) remain guarded against dead-link reintroduction.
         private static readonly string[] SkipSegments =
         {
             Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar,
             Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar,
             Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar,
-            Path.DirectorySeparatorChar + "config" + Path.DirectorySeparatorChar,   // config/patch2 submodule + generated data
-            Path.DirectorySeparatorChar + "tools" + Path.DirectorySeparatorChar,     // bundled EA/ColorzCore submodules
-            Path.DirectorySeparatorChar + "resources" + Path.DirectorySeparatorChar, // FE-Repo submodule
+            Path.DirectorySeparatorChar + "config" + Path.DirectorySeparatorChar,              // generated game data + config/patch2 submodule
+            Path.DirectorySeparatorChar + "tools" + Path.DirectorySeparatorChar + "Event-Assembler" + Path.DirectorySeparatorChar, // submodule
+            Path.DirectorySeparatorChar + "tools" + Path.DirectorySeparatorChar + "ColorzCore" + Path.DirectorySeparatorChar,       // submodule
+            Path.DirectorySeparatorChar + "resources" + Path.DirectorySeparatorChar + "FE-Repo",  // FE-Repo + FE-Repo-Music-No-Preview submodules
         };
 
         private static readonly string[] ScanExtensions =
