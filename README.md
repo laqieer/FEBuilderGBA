@@ -526,7 +526,7 @@ Much of this project's functions are thanks to the data collected by various com
 We would like to thank our hacking predecessors who have publicly shared any analyzed data.
 
 Details (There is a commentary at the bottom of the page, and the wiki provides other instructions)
-https://dw.ngmansion.xyz/doku.php?id=en:guide:febuildergba:index
+https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide/febuildergba/index.html
 
 ### FE8 Skill Systems
 
@@ -588,7 +588,7 @@ C#でありますが、特にパフォーマンスに注意しているので、
 
 
 詳細 (ページ下部に解説集があるよ)
-https://dw.ngmansion.xyz/doku.php?id=guide:febuildergba:index
+https://laqieer.github.io/dw.ngmansion.xyz/wiki/guide/febuildergba/index.html
 
 一部の出来の悪いアンチウイルスソフトが、FEBuilderGBAをウイルスと誤認することがあるようです。
 これは、FEBuilderGBAがエミュレータと通信するためにWindowsDebugAPIを利用しているからだと思います。
@@ -640,7 +640,7 @@ FE_Builder_GBA
 
 
 详细信息（页面底部有评论）
-https://dw.ngmansion.xyz/doku.php?id=zh:guide:febuildergba:index
+https://laqieer.github.io/dw.ngmansion.xyz/wiki/zh/guide/febuildergba/index.html
 
 Some poorly designed anti-virus software may misidentify FEBuilderGBA as a virus.
 This is because FEBuilderGBA uses the WindowsDebugAPI to communicate with the emulator.

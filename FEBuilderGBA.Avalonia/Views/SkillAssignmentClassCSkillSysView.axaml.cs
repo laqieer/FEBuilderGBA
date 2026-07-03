@@ -496,7 +496,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnLearnInfo(object? sender, RoutedEventArgs e)
         {
-            const string url = "https://dw.ngmansion.xyz/doku.php?id=en:guide_febuildergba_learnskillinfo";
+            const string url = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html";
             try
             {
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });

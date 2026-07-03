@@ -16,11 +16,11 @@ namespace FEBuilderGBA
             string lang = OptionForm.lang();
             if (lang == "ja")
             {
-                HelpTextBox.Text = "https://dw.ngmansion.xyz/doku.php?id=guide:febuildergba:%E3%82%BF%E3%82%A4%E3%83%AB%E3%83%91%E3%83%AC%E3%83%83%E3%83%88%E3%81%AE%E5%A4%89%E6%9B%B4";
+                HelpTextBox.Text = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/guide/febuildergba/%E3%82%BF%E3%82%A4%E3%83%AB%E3%83%91%E3%83%AC%E3%83%83%E3%83%88%E3%81%AE%E5%A4%89%E6%9B%B4.html";
             }
             else
             {
-                HelpTextBox.Text = "https://dw.ngmansion.xyz/doku.php?id=en:guide:febuildergba:how_to_change_tile_style_en";
+                HelpTextBox.Text = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide/febuildergba/how_to_change_tile_style_en.html";
             }
         }
 

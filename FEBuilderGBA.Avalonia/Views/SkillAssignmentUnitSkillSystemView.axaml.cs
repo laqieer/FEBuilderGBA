@@ -460,7 +460,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "https://dw.ngmansion.xyz/doku.php?id=en:guide_febuildergba_learnskillinfo",
+                    FileName = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html",
                     UseShellExecute = true,
                 };
                 System.Diagnostics.Process.Start(psi);
