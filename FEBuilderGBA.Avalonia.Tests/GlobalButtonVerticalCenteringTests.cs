@@ -126,12 +126,16 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         private static string? FindRepoRoot()
         {
-            var dir = System.AppContext.BaseDirectory;
-            for (int i = 0; i < 12 && dir != null; i++)
+            // Walk parents to the drive root (no fixed depth cap) so a deeper/shallower
+            // test output path can't silently turn this sync guard into a no-op (#1794
+            // review). Matches the repo-root-walk convention (e.g. ClassEditorParityTests).
+            // The only null case is a genuinely source-less run (packaged CI), in which
+            // there is nothing to scan.
+            for (DirectoryInfo? dir = new DirectoryInfo(System.AppContext.BaseDirectory);
+                 dir != null; dir = dir.Parent)
             {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
-                    return dir;
-                dir = Path.GetDirectoryName(dir);
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
             }
             return null;
         }
