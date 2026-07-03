@@ -151,6 +151,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // (Resize 134px, Apply 99px). Without explicit content alignment the short
         // label sits left-shifted inside the wide box (visible on macOS). Assert the
         // button's effective content alignment centers its label, mirroring the #1703 fix.
+        // (The app-wide sweep of other dialogs with the same signature is tracked in #1784.)
         [AvaloniaTheory]
         [InlineData(typeof(MapEditorResizeDialogView), "MapEditorResizeDialog_OK_Button")]
         [InlineData(typeof(MapEditorMarSizeDialogView), "MapEditorMarSizeDialog_Apply_Button")]
