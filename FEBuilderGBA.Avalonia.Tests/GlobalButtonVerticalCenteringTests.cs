@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// #1793: generalize the #1727 fix into a single app-wide rule. Avalonia's Fluent
+// Button defaults VerticalContentAlignment to Stretch, so a button taller than its
+// intrinsic height renders its label above vertical centre (the #1727 "Apply"
+// symptom). Instead of patching each tall button, App.axaml declares a global
+//   <Style Selector="Button"><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
+// which fixes every plain <Button> in one place. The exact-match `Button` selector
+// leaves subclasses (CheckBox/ToggleButton/RadioButton/RepeatButton) untouched, and
+// a local VerticalContentAlignment on a specific button still wins.
+//
+// TestApp.axaml mirrors App.axaml's global styles (#315), so these headless
+// [AvaloniaFact] tests exercise the real production style. The source-scan [Fact]
+// keeps the two declarations in sync.
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using global::Avalonia;
+using global::Avalonia.Controls;
+using global::Avalonia.Controls.Presenters;
+using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Layout;
+using global::Avalonia.VisualTree;
+using Xunit;
+
+namespace FEBuilderGBA.Avalonia.Tests
+{
+    public class GlobalButtonVerticalCenteringTests
+    {
+        // Host a bare Button in a top-level Window and realize its template so the
+        // rendered content element (AccessText/TextBlock) has real Bounds.
+        static Window ShowHosted(Button b)
+        {
+            var w = new Window { Width = 220, Height = 180, Content = b };
+            w.Show();
+            w.UpdateLayout();
+            return w;
+        }
+
+        [AvaloniaFact]
+        public void PlainButton_GetsCenterVerticalContentAlignment_FromGlobalStyle()
+        {
+            var b = new Button { Content = "Tall", Height = 66, Width = 150 };
+            var w = ShowHosted(b);
+            try
+            {
+                // The global `Selector="Button"` style (mirrored into TestApp.axaml)
+                // overrides the Fluent default (Stretch) to Center.
+                Assert.Equal(VerticalAlignment.Center, b.VerticalContentAlignment);
+            }
+            finally { w.Close(); }
+        }
+
+        [AvaloniaFact]
+        public void TallButton_RendersContentVerticallyCentered_NotStretchedOrTop()
+        {
+            var b = new Button { Content = "Tall", Height = 66, Width = 150 };
+            var w = ShowHosted(b);
+            try
+            {
+                var presenter = b.GetVisualDescendants().OfType<ContentPresenter>().FirstOrDefault();
+                Assert.NotNull(presenter);
+                var child = presenter!.Child;
+                Assert.NotNull(child);
+
+                double contentH = presenter.Bounds.Height;      // full content area (~66)
+                Rect cb = child!.Bounds;                          // relative to the presenter
+                double childMid = cb.Y + cb.Height / 2;
+
+                // 1) Natural line height — NOT stretched to fill the 66px button.
+                //    (The Fluent Stretch default gives a child ~= the full height.)
+                Assert.True(cb.Height < contentH * 0.5,
+                    $"content should keep its natural height (was {cb.Height:F1} of {contentH:F1}) — " +
+                    "button content is stretched, i.e. NOT centered (#1793 regression).");
+                // 2) Not hugging the top edge (the "glyph above centre" symptom).
+                Assert.True(cb.Y > contentH * 0.25,
+                    $"content top {cb.Y:F1} hugs the top of {contentH:F1} — label is above centre (#1727/#1793).");
+                // 3) Actually vertically centered.
+                Assert.True(System.Math.Abs(childMid - contentH / 2) < contentH * 0.2,
+                    $"content mid {childMid:F1} is not near button centre {contentH / 2:F1} (#1793).");
+            }
+            finally { w.Close(); }
+        }
+
+        [AvaloniaFact]
+        public void LocalVerticalContentAlignment_WinsOverGlobalStyle()
+        {
+            var b = new Button
+            {
+                Content = "Top",
+                Height = 66,
+                Width = 150,
+                VerticalContentAlignment = VerticalAlignment.Top,
+            };
+            var w = ShowHosted(b);
+            try
+            {
+                // A directly-set (local) value out-prioritizes the global style setter,
+                // preserving any intentional per-button exception.
+                Assert.Equal(VerticalAlignment.Top, b.VerticalContentAlignment);
+            }
+            finally { w.Close(); }
+        }
+
+        [Fact]
+        public void GlobalButtonStyle_IsDeclaredIn_App_And_TestApp_InSync()
+        {
+            var root = FindRepoRoot();
+            if (root == null) return; // packaged CI without repo checkout — nothing to scan
+
+            var appAxaml = Path.Combine(root, "FEBuilderGBA.Avalonia", "App.axaml");
+            var testAppAxaml = Path.Combine(root, "FEBuilderGBA.Avalonia.Tests", "TestApp.axaml");
+            Assert.True(File.Exists(appAxaml), $"missing {appAxaml}");
+            Assert.True(File.Exists(testAppAxaml), $"missing {testAppAxaml}");
+
+            // A global Button style setting VerticalContentAlignment=Center must exist in
+            // BOTH files (production + the headless test mirror, #315).
+            var rx = new Regex(
+                "(?s)<Style\\s+Selector=\"Button\"\\s*>.*?VerticalContentAlignment\"\\s+Value=\"Center\".*?</Style>");
+            Assert.True(rx.IsMatch(File.ReadAllText(appAxaml)),
+                "App.axaml must declare a global <Style Selector=\"Button\"> with " +
+                "VerticalContentAlignment=\"Center\" (#1793).");
+            Assert.True(rx.IsMatch(File.ReadAllText(testAppAxaml)),
+                "TestApp.axaml must mirror App.axaml's global Button VerticalContentAlignment=" +
+                "\"Center\" style (#315) so headless tests exercise the production behaviour.");
+        }
+
+        private static string? FindRepoRoot()
+        {
+            var dir = System.AppContext.BaseDirectory;
+            for (int i = 0; i < 12 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+    }
+}

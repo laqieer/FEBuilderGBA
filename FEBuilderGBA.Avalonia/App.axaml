@@ -6,6 +6,15 @@
         <Style Selector="NumericUpDown">
             <Setter Property="MinWidth" Value="120"/>
         </Style>
+        <!-- #1793: vertically center Button content app-wide. Avalonia's Fluent Button
+             defaults VerticalContentAlignment to Stretch, so a button taller than its
+             intrinsic height renders its label above centre (#1727). This exact-match
+             `Button` selector (subclasses like CheckBox/ToggleButton are unaffected)
+             fixes all tall action buttons in one place; a local VerticalContentAlignment
+             on a specific button still wins over this style. Mirrored in TestApp.axaml. -->
+        <Style Selector="Button">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
         <!-- Clickable hyperlink labels for cross-editor navigation (#318) -->
         <Style Selector="TextBlock.Hyperlink">
             <Setter Property="Foreground" Value="#0066CC"/>

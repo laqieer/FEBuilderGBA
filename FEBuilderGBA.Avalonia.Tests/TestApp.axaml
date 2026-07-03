@@ -7,6 +7,12 @@
     <Style Selector="NumericUpDown">
       <Setter Property="MinWidth" Value="120"/>
     </Style>
+    <!-- #1793: mirror App.axaml's global Button vertical-content-centering style so
+         headless [AvaloniaFact] tests (which run under this TestApp) see the same
+         behaviour as production. Keep in sync with App.axaml. -->
+    <Style Selector="Button">
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
     <!-- Clickable hyperlink labels for cross-editor navigation (#318) -->
     <Style Selector="TextBlock.Hyperlink">
       <Setter Property="Foreground" Value="#0066CC"/>
