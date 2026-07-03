@@ -141,7 +141,7 @@ namespace FEBuilderGBA
 
                 result.VoiceCount = voices.Count;
                 List<string> diags;
-                result.Text = FormatVoicegroup(voices, voicegroupNumber, baseOffset, out diags);
+                result.Text = FormatVoicegroup(voices, voicegroupNumber, baseOffset, rom.RomInfo?.is_multibyte ?? false, out diags);
                 result.Diagnostics.AddRange(diags);
                 result.Ok = true;
                 return result;
@@ -191,6 +191,22 @@ namespace FEBuilderGBA
             int voicegroupNumber,
             uint provenanceBaseOffset,
             out List<string> diagnostics)
+            => FormatVoicegroup(voices, voicegroupNumber, provenanceBaseOffset, false, out diagnostics);
+
+        /// <summary>
+        /// #1775: region-aware overload. When <paramref name="isMultibyte"/> is true
+        /// (FE8J / JP decomp tree) the voicegroup is placed in its own named
+        /// <c>.rodata.voicegroupNNN, "a", %progbits</c> sub-section with word (<c>.align 4</c>)
+        /// alignment — matching the FE8J <c>ldscript.txt</c> placement and M4A's fixed-stride
+        /// voice lookup. When false (fe8u) it keeps the generic <c>.section .rodata</c> /
+        /// <c>.align 2</c> output (regression-safe). Still ROM-FREE.
+        /// </summary>
+        public static string FormatVoicegroup(
+            IReadOnlyList<VoiceRecord> voices,
+            int voicegroupNumber,
+            uint provenanceBaseOffset,
+            bool isMultibyte,
+            out List<string> diagnostics)
         {
             diagnostics = new List<string>();
             var sb = new StringBuilder();
@@ -200,8 +216,17 @@ namespace FEBuilderGBA
             sb.Append("@ Exported by FEBuilderGBA (#1362) -- review before building.\n");
             sb.Append("@ Source voicegroup ROM offset: 0x" + provenanceBaseOffset.ToString("X") + "\n");
             sb.Append(".include \"asm/macros/music_voice.inc\"\n\n");
-            sb.Append("\t.section .rodata\n");
-            sb.Append("\t.align 2\n");
+            if (isMultibyte)
+            {
+                // FE8J: named sub-section (SHF_ALLOC) + word alignment, per ldscript.txt.
+                sb.Append("\t.section .rodata." + label + ", \"a\", %progbits\n");
+                sb.Append("\t.align 4\n");
+            }
+            else
+            {
+                sb.Append("\t.section .rodata\n");
+                sb.Append("\t.align 2\n");
+            }
             sb.Append("\t.global " + label + "\n");
             sb.Append(label + ":\n");
 

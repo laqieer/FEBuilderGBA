@@ -62,6 +62,46 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("0x08123456 @", s); // no inline comment after the arg
         }
 
+        // #1775: FE8J voicegroup section directives ---------------------------
+
+        [Fact]
+        public void Format_FE8J_Multibyte_EmitsNamedSectionAndWordAlign()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 0, 0x08207470, isMultibyte: true, out _);
+
+            // FE8J: named .rodata.voicegroupNNN sub-section with SHF_ALLOC + word align.
+            Assert.Contains(".section .rodata.voicegroup000, \"a\", %progbits", s);
+            Assert.Contains("\t.align 4\n", s);
+            Assert.Contains("voicegroup000:", s);
+            // Must NOT emit the generic fe8u directives.
+            Assert.DoesNotContain("\t.section .rodata\n", s);
+            Assert.DoesNotContain("\t.align 2\n", s);
+        }
+
+        [Fact]
+        public void Format_FE8U_Default_KeepsGenericSectionAndHalfwordAlign()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 43, 0x500, isMultibyte: false, out _);
+
+            Assert.Contains("\t.section .rodata\n", s);
+            Assert.Contains("\t.align 2\n", s);
+            Assert.DoesNotContain(".rodata.voicegroup", s);   // no FE8J named section
+        }
+
+        [Fact]
+        public void Format_FourArgOverload_DefaultsToFe8u()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 0, 0x500, out _);
+            Assert.Contains("\t.section .rodata\n", s);
+            Assert.DoesNotContain(".rodata.voicegroup", s);
+        }
+
         [Fact]
         public void Format_DirectSound_NoResample_And_Alt_UseCorrectMacroNames()
         {
@@ -264,6 +304,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(before.Length, rom.Data.Length);
             Assert.Equal(before, rom.Data);
             Assert.Contains("voicegroup003:", r.Text);
+        }
+
+        // #1775: prove Export() forwards is_multibyte into the FE8J section directives.
+        [Fact]
+        public void Export_FE8J_RomInfoMultibyte_EmitsNamedSectionAndWordAlign()
+        {
+            var rom = new ROM();
+            rom.LoadLow("synth-fe8j.gba", new byte[0x0100_0000], "BE8J01");
+            Assert.True(rom.RomInfo != null && rom.RomInfo.is_multibyte);
+
+            uint a = 0x3000;
+            WriteDirectSound(rom, a, key: 60, panByte: 0, samplePtr: 0x08005000, adsr: new byte[] { 1, 2, 3, 4 });
+            WriteTerminator(rom, a + 12);
+
+            var r = VoicegroupAsmExportCore.Export(rom, a, 5);
+            Assert.True(r.Ok, string.Join("; ", r.Diagnostics));
+            Assert.Contains(".section .rodata.voicegroup005, \"a\", %progbits", r.Text);
+            Assert.Contains("\t.align 4\n", r.Text);
+            Assert.DoesNotContain("\t.section .rodata\n", r.Text); // not the generic fe8u section
         }
 
         // ---- raw ROM writers ----------------------------------------------
