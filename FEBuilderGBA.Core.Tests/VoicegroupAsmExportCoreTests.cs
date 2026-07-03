@@ -62,6 +62,46 @@ namespace FEBuilderGBA.Core.Tests
             Assert.DoesNotContain("0x08123456 @", s); // no inline comment after the arg
         }
 
+        // #1775: FE8J voicegroup section directives ---------------------------
+
+        [Fact]
+        public void Format_FE8J_Multibyte_EmitsNamedSectionAndWordAlign()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 0, 0x08207470, isMultibyte: true, out _);
+
+            // FE8J: named .rodata.voicegroupNNN sub-section with SHF_ALLOC + word align.
+            Assert.Contains(".section .rodata.voicegroup000, \"a\", %progbits", s);
+            Assert.Contains("\t.align 4\n", s);
+            Assert.Contains("voicegroup000:", s);
+            // Must NOT emit the generic fe8u directives.
+            Assert.DoesNotContain("\t.section .rodata\n", s);
+            Assert.DoesNotContain("\t.align 2\n", s);
+        }
+
+        [Fact]
+        public void Format_FE8U_Default_KeepsGenericSectionAndHalfwordAlign()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 43, 0x500, isMultibyte: false, out _);
+
+            Assert.Contains("\t.section .rodata\n", s);
+            Assert.Contains("\t.align 2\n", s);
+            Assert.DoesNotContain(".rodata.voicegroup", s);   // no FE8J named section
+        }
+
+        [Fact]
+        public void Format_FourArgOverload_DefaultsToFe8u()
+        {
+            var v = Rec(0x01, VoicegroupAsmExportCore.VoiceKind.Square1);
+            string s = VoicegroupAsmExportCore.FormatVoicegroup(
+                new List<VoicegroupAsmExportCore.VoiceRecord> { v }, 0, 0x500, out _);
+            Assert.Contains("\t.section .rodata\n", s);
+            Assert.DoesNotContain(".rodata.voicegroup", s);
+        }
+
         [Fact]
         public void Format_DirectSound_NoResample_And_Alt_UseCorrectMacroNames()
         {
