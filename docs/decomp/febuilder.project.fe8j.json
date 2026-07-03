@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "Fire Emblem: The Sacred Stones (JP) decomp (fireemblem8j)",
+  "builtRom": "fireemblem8.gba",
+  "forceVersion": "FE8J",
+  "sym": "sym_jp.txt",
+  "build": {
+    "command": "make",
+    "compareTarget": "make compare"
+  }
+}
