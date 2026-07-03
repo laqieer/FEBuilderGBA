@@ -4,9 +4,9 @@
         Title="Options"
         Width="620" Height="560"
         WindowStartupLocation="CenterOwner"
-        CanResize="False"
+        CanResize="True"
         ShowInTaskbar="False"
-        SizeToContent="Height">
+        SizeToContent="Manual">
   <Grid RowDefinitions="*,Auto" Margin="16">
     <TabControl AutomationProperties.AutomationId="Options_TabControl1_TabControl" Grid.Row="0">
       <!-- General Tab -->

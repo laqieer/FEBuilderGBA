@@ -402,6 +402,10 @@ namespace FEBuilderGBA.Avalonia
                     // real PNG proof of the centered Resize / Apply action buttons.
                     "MapEditorResizeDialogView" => new Views.MapEditorResizeDialogView(),
                     "MapEditorMarSizeDialogView" => new Views.MapEditorMarSizeDialogView(),
+                    // #1781 PR proof: the Options window is ROM-independent (its Opened
+                    // handler loads config, not a ROM), so it renders real PNG proof that
+                    // the window is a screen-safe fixed height with OK/Cancel visible.
+                    "OptionsView" => new Views.OptionsView(),
                     // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
                     // it renders real PNG proof of the centered "Apply" action button.
                     "MapSettingDifficultyDialogView" => new Views.MapSettingDifficultyDialogView(),
