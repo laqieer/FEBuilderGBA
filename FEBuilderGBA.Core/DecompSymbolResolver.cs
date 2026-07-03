@@ -116,7 +116,7 @@ namespace FEBuilderGBA
 
                 string mapPath  = DiscoverArtifact(project, root, stem, "map", project.MapPath, ".map");
                 string elfPath  = DiscoverArtifact(project, root, stem, "elf", project.ElfPath, ".elf");
-                string symPath  = DiscoverArtifact(project, root, stem, "sym", project.SymPath, ".sym");
+                string symPath  = DiscoverArtifact(project, root, stem, "sym", project.SymPath, ".sym", new[] { "sym_jp.txt" });
                 string jsonPath = DiscoverArtifact(project, root, stem, "symbolJson", null, ".sym.json");
 
                 // .map (primary)
@@ -183,7 +183,8 @@ namespace FEBuilderGBA
         // auto-discover <stem><ext> in root. project-relative + containment guarded.
         static string DiscoverArtifact(
             DecompProject project, string root, string stem,
-            string manifestKey, string topLevelValue, string ext)
+            string manifestKey, string topLevelValue, string ext,
+            string[] knownNames = null)
         {
             try
             {
@@ -202,11 +203,24 @@ namespace FEBuilderGBA
                     if (r != null) return r;
                 }
 
-                // 3. auto-discover <stem><ext> in the project root.
+                // 3. auto-discover <stem><ext> in the project root (must actually exist,
+                //    else fall through to the known-name fallbacks below).
                 if (!string.IsNullOrEmpty(stem))
                 {
                     string r = DecompProjectDetector.ResolveArtifact(root, stem + ext);
-                    if (r != null) return r;
+                    if (r != null && File.Exists(r)) return r;
+                }
+
+                // 4. well-known artifact filenames not derived from the built-ROM stem
+                //    (e.g. the FE8J JP symbol table sym_jp.txt, #1773).
+                if (knownNames != null)
+                {
+                    foreach (string kn in knownNames)
+                    {
+                        if (string.IsNullOrEmpty(kn)) continue;
+                        string r = DecompProjectDetector.ResolveArtifact(root, kn);
+                        if (r != null && File.Exists(r)) return r;
+                    }
                 }
             }
             catch { }

@@ -234,6 +234,77 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Empty(DecompSymParser.Parse("\x00\x01\xff garbage"));
         }
 
+        // #1773: FE8J sym_jp.txt linker-assignment form ("Name = 0x08XXXXXX;").
+
+        [Fact]
+        public void Sym_LinkerAssign_FE8J_ParsesNameEqualsHex()
+        {
+            string sym = string.Join("\n", new[]
+            {
+                "ColorFadeTick = 0x08000234;",
+                "ApplyColorAddition_ClampMax = 0x080014C4;",
+                "ProcCmd_DELETE = 0x08003A48;",
+            });
+
+            List<DecompSymbol> syms = DecompSymParser.Parse(sym);
+            var byName = syms.ToDictionary(s => s.Name, s => s.Addr);
+
+            Assert.Equal(0x08000234u, byName["ColorFadeTick"]);
+            Assert.Equal(0x080014C4u, byName["ApplyColorAddition_ClampMax"]);
+            Assert.Equal(0x08003A48u, byName["ProcCmd_DELETE"]);
+        }
+
+        [Fact]
+        public void Sym_LinkerAssign_TolerantOfCommentsWhitespaceAndSkipsNonSymbols()
+        {
+            string sym = string.Join("\n", new[]
+            {
+                "  spaced_symbol   =   0x08001000 ;",              // extra whitespace + space before ;
+                "commented = 0x08002000; /* trailing comment */",  // trailing block comment
+                "/* block */ inline_before = 0x08003000;",         // leading block comment
+                "valid_symbol = 0x08004000;",
+                ". = 0x08005000;",                                 // linker location counter -> skipped
+                "low_skipped = 0x00000050;",                       // addr <= 0x100 -> skipped
+            });
+
+            List<DecompSymbol> syms = DecompSymParser.Parse(sym);
+            var byName = syms.ToDictionary(s => s.Name, s => s.Addr);
+
+            Assert.Equal(0x08001000u, byName["spaced_symbol"]);
+            Assert.Equal(0x08002000u, byName["commented"]);
+            Assert.Equal(0x08003000u, byName["inline_before"]);
+            Assert.Equal(0x08004000u, byName["valid_symbol"]);
+            Assert.False(byName.ContainsKey("."));            // location counter is not a symbol
+            Assert.False(byName.ContainsKey("low_skipped"));  // addr <= 0x100
+            Assert.All(syms, s => Assert.InRange(s.Addr, 0x08000000u, 0x09FFFFFFu));
+        }
+
+        [Fact]
+        public void Sym_MixedLinkerAssignAndNoGba_BothParsed()
+        {
+            string sym = string.Join("\n", new[]
+            {
+                "0800D07C event_engine_main",   // no$gba form
+                "ColorFadeTick = 0x08000234;",  // linker-assign form
+            });
+            List<DecompSymbol> syms = DecompSymParser.Parse(sym);
+            var byName = syms.ToDictionary(s => s.Name, s => s.Addr);
+            Assert.Equal(0x0800D07Cu, byName["event_engine_main"]);
+            Assert.Equal(0x08000234u, byName["ColorFadeTick"]);
+        }
+
+        [Fact]
+        public void Sym_LinkerAssign_MultiLineComment_DoesNotMergeLines()
+        {
+            // #1789: a /* ... */ comment spanning a newline with content after the closing
+            // */ must not merge the two logical lines (which would drop both symbols).
+            string sym = "foo = 0x08000010; /* uh\noh */ bar = 0x08000020;";
+            List<DecompSymbol> syms = DecompSymParser.Parse(sym);
+            var byName = syms.ToDictionary(s => s.Name, s => s.Addr);
+            Assert.Equal(0x08000010u, byName["foo"]);
+            Assert.Equal(0x08000020u, byName["bar"]);
+        }
+
         [Fact]
         public void Json_ArrayForm_HexAndNumericAddr()
         {

@@ -190,6 +190,40 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(dir, true); } catch { } }
         }
 
+        // #1773: an FE8J project ships sym_jp.txt (linker-assign format), NOT a
+        // <stem>.sym — the resolver must auto-discover it and resolve its symbols.
+        [Fact]
+        public void SymJpTxt_AutoDiscovered_ForFE8JProject_ResolvesNames()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), $"decompsymjp_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(dir);
+            try
+            {
+                // stem = "fireemblem8"; there is NO fireemblem8.sym, only sym_jp.txt.
+                File.WriteAllText(Path.Combine(dir, "fireemblem8.gba"), "x");
+                File.WriteAllText(Path.Combine(dir, "sym_jp.txt"), string.Join("\n", new[]
+                {
+                    "ApplyColorAddition_ClampMax = 0x080014C4;",
+                    "ProcCmd_DELETE = 0x08003A48;",
+                }));
+                var project = new DecompProject { ProjectRoot = dir, BuiltRomPath = Path.Combine(dir, "fireemblem8.gba") };
+                var resolver = DecompSymbolResolver.Load(project);
+
+                // sym_jp.txt was auto-discovered and its linker-assign lines parsed.
+                Assert.True(resolver.CountSym >= 2);
+                Assert.Contains(resolver.Symbols.Values, v => v.Name == "ApplyColorAddition_ClampMax");
+                Assert.Contains(resolver.Symbols.Values, v => v.Name == "ProcCmd_DELETE");
+
+                // Resolve-by-address through the merged view (acceptance #3).
+                var shipped = new AsmMapSymbolFile(new ROM());
+                shipped.LoadFromLines(MakeFe8uRom(), new string[0]);
+                var merged = new MergedAsmMapFile(shipped, resolver);
+                Assert.Equal("ApplyColorAddition_ClampMax", merged.GetName(0x080014C4u));
+                Assert.Equal("ProcCmd_DELETE", merged.GetName(0x08003A48u));
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+        }
+
         [Fact]
         public void Merged_Precedence_ProjectWinsAtSameAddr()
         {
