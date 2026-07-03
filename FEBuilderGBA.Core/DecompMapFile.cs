@@ -281,12 +281,28 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
-    /// Tolerant no$gba <c>.sym</c> parser: each line is <c>HEXADDR&lt;space&gt;name</c>
-    /// (mirrors <see cref="SymbolUtil"/>'s RegistSymbolByNoDoll split). Addresses
-    /// &lt;= 0x100 are skipped. NEVER throws.
+    /// Tolerant symbol-table parser. Handles BOTH:
+    /// <list type="bullet">
+    /// <item>no$gba <c>.sym</c>: <c>HEXADDR&lt;space&gt;name</c> (mirrors
+    /// <see cref="SymbolUtil"/>'s RegistSymbolByNoDoll split).</item>
+    /// <item>linker-assignment (#1773, FE8J <c>sym_jp.txt</c>):
+    /// <c>Name = 0x08XXXXXX;</c> — tolerant of a trailing <c>;</c> and
+    /// <c>/* … */</c> block comments.</item>
+    /// </list>
+    /// Format is auto-detected per line. Addresses &lt;= 0x100 are skipped. NEVER throws.
     /// </summary>
     public static class DecompSymParser
     {
+        // #1773: FE8J sym_jp.txt linker assignment, e.g. "ColorFadeTick = 0x08000234;".
+        // Name must start with a letter/underscore (so the linker location counter "."
+        // and no$gba "HEXADDR name" lines never match and fall through to the no$gba path).
+        static readonly Regex LinkerAssignRx = new Regex(
+            @"^\s*([A-Za-z_][A-Za-z0-9_.$]*)\s*=\s*0[xX]([0-9A-Fa-f]+)\s*;?\s*$",
+            RegexOptions.Compiled);
+
+        static readonly Regex BlockCommentRx = new Regex(@"/\*.*?\*/",
+            RegexOptions.Compiled | RegexOptions.Singleline);
+
         public static List<DecompSymbol> Parse(string symText)
         {
             var result = new List<DecompSymbol>();
@@ -295,6 +311,9 @@ namespace FEBuilderGBA
                 if (string.IsNullOrEmpty(symText))
                     return result;
 
+                // Strip /* ... */ block comments (sym_jp.txt annotates some assignments).
+                symText = BlockCommentRx.Replace(symText, " ");
+
                 string[] lines = symText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 var seen = new HashSet<uint>();
                 foreach (string line in lines)
@@ -302,14 +321,28 @@ namespace FEBuilderGBA
                     if (line == null) continue;
                     string trimmed = line.Trim();
                     if (trimmed.Length == 0) continue;
-                    // no$gba line: "100109C MMBDrawInventoryObjs". Column-aligned dumps
-                    // use repeated spaces/tabs between addr and name, so split on any
-                    // run of whitespace and take the first two tokens (Copilot PR #1138).
-                    string[] sp = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (sp.Length < 2) continue;
 
-                    uint addr = U.atoh(sp[0]);
-                    string name = sp[1];
+                    string name;
+                    uint addr;
+
+                    Match la = LinkerAssignRx.Match(trimmed);
+                    if (la.Success)
+                    {
+                        // FE8J sym_jp.txt: "Name = 0xADDR;"
+                        name = la.Groups[1].Value;
+                        addr = ParseHexU(la.Groups[2].Value);
+                    }
+                    else
+                    {
+                        // no$gba line: "100109C MMBDrawInventoryObjs". Column-aligned dumps
+                        // use repeated spaces/tabs between addr and name, so split on any
+                        // run of whitespace and take the first two tokens (Copilot PR #1138).
+                        string[] sp = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (sp.Length < 2) continue;
+                        addr = U.atoh(sp[0]);
+                        name = sp[1];
+                    }
+
                     if (string.IsNullOrEmpty(name)) continue;
                     if (name[0] == '$') continue;
                     if (addr <= 0x100) continue;
@@ -324,6 +357,16 @@ namespace FEBuilderGBA
                 return result;
             }
             return result;
+        }
+
+        // Parse a bare hex string (no 0x prefix) to u32; clamps a 64-bit value to low 32.
+        static uint ParseHexU(string hex)
+        {
+            if (uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint v))
+                return v;
+            if (ulong.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong lv))
+                return unchecked((uint)lv);
+            return 0;
         }
     }
 
