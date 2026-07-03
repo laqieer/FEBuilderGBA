@@ -312,7 +312,15 @@ namespace FEBuilderGBA
                     return result;
 
                 // Strip /* ... */ block comments (sym_jp.txt annotates some assignments).
-                symText = BlockCommentRx.Replace(symText, " ");
+                // Preserve any newlines the comment spanned so two logical lines can't be
+                // merged (which would silently drop the symbols on the merged line, #1789).
+                symText = BlockCommentRx.Replace(symText, m =>
+                {
+                    int nl = 0;
+                    for (int i = 0; i < m.Value.Length; i++)
+                        if (m.Value[i] == '\n') nl++;
+                    return nl > 0 ? new string('\n', nl) : " ";
+                });
 
                 string[] lines = symText.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 var seen = new HashSet<uint>();

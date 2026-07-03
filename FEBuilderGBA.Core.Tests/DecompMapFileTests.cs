@@ -294,6 +294,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void Sym_LinkerAssign_MultiLineComment_DoesNotMergeLines()
+        {
+            // #1789: a /* ... */ comment spanning a newline with content after the closing
+            // */ must not merge the two logical lines (which would drop both symbols).
+            string sym = "foo = 0x08000010; /* uh\noh */ bar = 0x08000020;";
+            List<DecompSymbol> syms = DecompSymParser.Parse(sym);
+            var byName = syms.ToDictionary(s => s.Name, s => s.Addr);
+            Assert.Equal(0x08000010u, byName["foo"]);
+            Assert.Equal(0x08000020u, byName["bar"]);
+        }
+
+        [Fact]
         public void Json_ArrayForm_HexAndNumericAddr()
         {
             string json = @"[
