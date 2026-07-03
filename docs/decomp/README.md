@@ -30,7 +30,7 @@ It enables:
 | `forceVersion: "FE8J"` | Pins the JP variant for the reload seam so the rebuilt ROM is loaded as FE8J. |
 | `sym: "sym_jp.txt"` | Points the symbol resolver at the JP `sym_jp.txt` (linker-assignment table). It is also auto-discovered, so this is belt-and-suspenders. |
 | `build.command: "make"` | Presence of a `build` section flips `IsBuildEnabled` on → `--build-project --yes` returns `Ok` instead of `NotOptedIn`, and source-backed writes are enabled. |
-| `build.compareTarget: "make compare"` | The target FEBuilder runs to verify a byte-identical rebuild. |
+| `build.compareTarget: "make compare"` | The declared `make compare` target for a byte-identical rebuild check. It is **parsed and exposed** (`DecompProject.CompareTarget`) for reference/tooling; `--build-project` currently runs only `command` (run the compare target yourself). |
 
 > This template is a **FEBuilderGBA-side** artifact — you drop it into *your own*
 > decomp checkout. Do **not** commit it into the decomp repo.
