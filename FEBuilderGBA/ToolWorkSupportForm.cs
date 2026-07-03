@@ -159,11 +159,11 @@ namespace FEBuilderGBA
             string url;
             if (lang == "ja")
             {
-                url = "https://dw.ngmansion.xyz/doku.php?id=guide:febuildergba:%E4%BD%9C%E5%93%81%E6%94%AF%E6%8F%B4";
+                url = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/guide/febuildergba/%E4%BD%9C%E5%93%81%E6%94%AF%E6%8F%B4.html";
             }
             else
             {
-                url = "https://dw.ngmansion.xyz/doku.php?id=en:guid:febuildergba:work_support";
+                url = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guid/febuildergba/work_support.html";
             }
             return url;
         }

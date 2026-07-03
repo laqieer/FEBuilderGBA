@@ -242,7 +242,7 @@ cat config/patch2/version.txt
 
 - **Bug Reports:** [GitHub Issues](https://github.com/laqieer/FEBuilderGBA/issues)
 - **Community Support:** [Discord Server](https://discordapp.com/invite/Yzztqqa)
-- **Documentation:** [Wiki](https://dw.ngmansion.xyz/doku.php?id=en:guide:febuildergba:index)
+- **Documentation:** [Wiki](https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide/febuildergba/index.html)
 
 ---
 

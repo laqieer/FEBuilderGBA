@@ -586,7 +586,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                //TSA see https://dw.ngmansion.xyz/doku.php?id=column:tsa
+                //TSA see https://laqieer.github.io/dw.ngmansion.xyz/wiki/column/tsa.html
                 UInt16 tileNumber = (UInt16)(tsatile & 0x03FF);
 
                 //TSAのtileNumberの場所にソースデータがある.
@@ -791,7 +791,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                //TSA see https://dw.ngmansion.xyz/doku.php?id=column:tsa
+                //TSA see https://laqieer.github.io/dw.ngmansion.xyz/wiki/column/tsa.html
                 UInt16 tileNumber = (UInt16)(tsatile & 0x03FF);
 
                 //TSAのtileNumberの場所にソースデータがある.
@@ -1199,7 +1199,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                //TSA see https://dw.ngmansion.xyz/doku.php?id=column:tsa
+                //TSA see https://laqieer.github.io/dw.ngmansion.xyz/wiki/column/tsa.html
                 UInt16 tileNumber = (UInt16)(tsatile & 0x03FF);
 
                 //TSAのtileNumberの場所にソースデータがある.
@@ -2004,7 +2004,7 @@ namespace FEBuilderGBA
                 {
                     continue;
                 }
-                //TSA see https://dw.ngmansion.xyz/doku.php?id=column:tsa
+                //TSA see https://laqieer.github.io/dw.ngmansion.xyz/wiki/column/tsa.html
                 UInt16 tileNumber = (UInt16)(tsatile & 0x03FF);
 
                 //TSAのtileNumberの場所にソースデータがある.

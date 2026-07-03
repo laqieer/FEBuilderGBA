@@ -455,7 +455,7 @@ namespace FEBuilderGBA
 
         private void X_LEARNINFO_Click(object sender, EventArgs e)
         {
-            string url = "https://dw.ngmansion.xyz/doku.php?id=en:guide_febuildergba_learnskillinfo";
+            string url = "https://laqieer.github.io/dw.ngmansion.xyz/wiki/en/guide_febuildergba_learnskillinfo.html";
             U.OpenURLOrFile(url);
         }
 
