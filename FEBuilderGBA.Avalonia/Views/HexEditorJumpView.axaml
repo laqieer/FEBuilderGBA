@@ -20,7 +20,7 @@
               Margin="3,0,0,15" />
     <!-- OK button -->
     <Button AutomationProperties.AutomationId="HexEditorJump_OK_Button" Content="Jump" Width="158" Height="39"
-            HorizontalAlignment="Right" Click="OK_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>
 </Window>

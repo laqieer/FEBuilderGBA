@@ -16,7 +16,7 @@
     </Border>
     <!-- Jump button at bottom -->
     <Button AutomationProperties.AutomationId="HexEditorMark_JumpTo_Button" DockPanel.Dock="Bottom" Content="Jump To" Width="272" Height="43"
-            HorizontalAlignment="Right" Margin="0,6,0,0" Click="JumpTo_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Margin="0,6,0,0" Click="JumpTo_Click" />
     <!-- Address list -->
     <ListBox AutomationProperties.AutomationId="HexEditorMark_Address_List" x:Name="AddressList" ItemsSource="{Binding Marks}" />
   </DockPanel>

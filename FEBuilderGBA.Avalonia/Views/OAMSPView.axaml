@@ -28,7 +28,7 @@
       <TextBlock Text="Data:" DockPanel.Dock="Top" Margin="0,0,0,4" />
 
       <Button AutomationProperties.AutomationId="OAMSP_Close_Button" Content="Close" Width="90"
-              HorizontalAlignment="Right" DockPanel.Dock="Bottom" Margin="0,8,0,0" Click="Close_Click" />
+              HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" DockPanel.Dock="Bottom" Margin="0,8,0,0" Click="Close_Click" />
 
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
         <TextBox AutomationProperties.AutomationId="OAMSP_Detail_Input" Name="DetailBox"

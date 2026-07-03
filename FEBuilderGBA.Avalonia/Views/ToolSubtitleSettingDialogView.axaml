@@ -42,7 +42,7 @@
       <Button AutomationProperties.AutomationId="ToolSubtitleSettingDialog_Show_Button" Grid.Column="0" Content="Show Subtitles" Height="44" Width="238"
               HorizontalAlignment="Left" Click="Show_Click" />
       <Button AutomationProperties.AutomationId="ToolSubtitleSettingDialog_Hide_Button" Grid.Column="1" Content="Hide" Height="44" Width="238"
-              HorizontalAlignment="Right" Click="Hide_Click" />
+              HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="Hide_Click" />
     </Grid>
   </StackPanel>
   </ScrollViewer>

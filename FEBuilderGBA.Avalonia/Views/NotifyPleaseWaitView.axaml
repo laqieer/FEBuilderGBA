@@ -29,7 +29,7 @@
 
     <!-- Cancel button -->
     <Button AutomationProperties.AutomationId="NotifyPleaseWait_Cancel_Button" Grid.Row="3" Content="Cancel"
-            HorizontalAlignment="Right"
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
             IsVisible="{Binding IsCancelVisible}"
             Click="Cancel_Click"
             MinWidth="80" />

@@ -406,6 +406,9 @@ namespace FEBuilderGBA.Avalonia
                     // handler loads config, not a ROM), so it renders real PNG proof that
                     // the window is a screen-safe fixed height with OK/Cancel visible.
                     "OptionsView" => new Views.OptionsView(),
+                    // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
+                    // it renders real PNG proof of the centered "Apply" action button.
+                    "MapSettingDifficultyDialogView" => new Views.MapSettingDifficultyDialogView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 

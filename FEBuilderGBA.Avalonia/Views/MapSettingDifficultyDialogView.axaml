@@ -61,7 +61,7 @@
                Margin="0,0,0,10" />
     <!-- OK button (WinForms OKButton 272x43 right-aligned) -->
     <Button AutomationProperties.AutomationId="MapSettingDifficultyDialog_OK_Button" Content="Apply" Width="272" Height="43"
-            HorizontalAlignment="Right" Click="OK_Click" />
+            HorizontalAlignment="Right" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OK_Click" />
   </StackPanel>
   </ScrollViewer>
 </Window>
