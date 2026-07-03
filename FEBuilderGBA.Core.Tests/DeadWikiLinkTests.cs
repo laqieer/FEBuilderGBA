@@ -24,20 +24,20 @@ namespace FEBuilderGBA.Core.Tests
         private const string DeadDispatcher = "/doku.php";
         private static readonly string DeadLinkPattern = DeadHost + DeadDispatcher;
 
-        // Directories to skip: git-ignored build output, generated data, and git
-        // submodules (separate repos, out of scope for this repo's dead-link guard).
-        // Note: tools/ and resources/ are NOT blanket-skipped — only their submodule
-        // subpaths are — so first-party tools (tools/WinCapture, tools/TextToPng,
+        // Build output and git trees pruned by directory NAME during the walk.
+        private static readonly string[] SkipDirNames = { "bin", "obj", ".git" };
+
+        // Repo-root-relative directories to prune (forward-slash). config/ is generated
+        // game data + the config/patch2 submodule; the rest are git submodules (separate
+        // repos, out of scope). tools/ and resources/ are NOT blanket-pruned — only their
+        // submodule subpaths are — so first-party tools (tools/WinCapture, tools/TextToPng,
         // tools/capture-window.cs, etc.) remain guarded against dead-link reintroduction.
-        private static readonly string[] SkipSegments =
+        private static readonly string[] SkipRelDirs =
         {
-            Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar,
-            Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar,
-            Path.DirectorySeparatorChar + ".git" + Path.DirectorySeparatorChar,
-            Path.DirectorySeparatorChar + "config" + Path.DirectorySeparatorChar,              // generated game data + config/patch2 submodule
-            Path.DirectorySeparatorChar + "tools" + Path.DirectorySeparatorChar + "Event-Assembler" + Path.DirectorySeparatorChar, // submodule
-            Path.DirectorySeparatorChar + "tools" + Path.DirectorySeparatorChar + "ColorzCore" + Path.DirectorySeparatorChar,       // submodule
-            Path.DirectorySeparatorChar + "resources" + Path.DirectorySeparatorChar + "FE-Repo",  // FE-Repo + FE-Repo-Music-No-Preview submodules
+            "config",                 // generated game data + config/patch2 submodule
+            "tools/Event-Assembler",  // submodule
+            "tools/ColorzCore",       // submodule
+            "resources/FE-Repo",      // FE-Repo + FE-Repo-Music-No-Preview submodules
         };
 
         private static readonly string[] ScanExtensions =
@@ -58,14 +58,52 @@ namespace FEBuilderGBA.Core.Tests
             return null;
         }
 
-        private static bool IsSkipped(string path)
+        // Recursive walk that PRUNES skipped directories before descending, so the large
+        // build-output, .git, generated-data, and submodule trees are never enumerated.
+        // Yields only first-party source/doc files with a scanned extension.
+        private static IEnumerable<string> EnumerateSourceFiles(string root)
         {
-            foreach (var seg in SkipSegments)
+            var stack = new Stack<string>();
+            stack.Push(root);
+            while (stack.Count > 0)
             {
-                if (path.IndexOf(seg, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
+                var dir = stack.Pop();
+
+                string[] files;
+                try { files = Directory.GetFiles(dir); }
+                catch { files = Array.Empty<string>(); }
+                foreach (var f in files)
+                {
+                    var ext = Path.GetExtension(f);
+                    foreach (var e in ScanExtensions)
+                    {
+                        if (string.Equals(ext, e, StringComparison.OrdinalIgnoreCase)) { yield return f; break; }
+                    }
+                }
+
+                string[] subdirs;
+                try { subdirs = Directory.GetDirectories(dir); }
+                catch { subdirs = Array.Empty<string>(); }
+                foreach (var sub in subdirs)
+                {
+                    var name = Path.GetFileName(sub);
+                    bool prune = false;
+                    foreach (var d in SkipDirNames)
+                    {
+                        if (string.Equals(d, name, StringComparison.OrdinalIgnoreCase)) { prune = true; break; }
+                    }
+                    if (!prune)
+                    {
+                        var rel = Path.GetRelativePath(root, sub).Replace(Path.DirectorySeparatorChar, '/');
+                        foreach (var s in SkipRelDirs)
+                        {
+                            if (rel.Equals(s, StringComparison.OrdinalIgnoreCase) ||
+                                rel.StartsWith(s + "/", StringComparison.OrdinalIgnoreCase)) { prune = true; break; }
+                        }
+                    }
+                    if (!prune) stack.Push(sub);
+                }
             }
-            return false;
         }
 
         [Fact]
@@ -78,17 +116,11 @@ namespace FEBuilderGBA.Core.Tests
                 return;
             }
 
+            int scanned = 0;
             var violations = new List<string>();
-            foreach (var file in Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories))
+            foreach (var file in EnumerateSourceFiles(root))
             {
-                var ext = Path.GetExtension(file);
-                bool wanted = false;
-                foreach (var e in ScanExtensions)
-                {
-                    if (string.Equals(ext, e, StringComparison.OrdinalIgnoreCase)) { wanted = true; break; }
-                }
-                if (!wanted) continue;
-                if (IsSkipped(file)) continue;
+                scanned++;
 
                 string content;
                 try { content = File.ReadAllText(file); }
@@ -99,6 +131,13 @@ namespace FEBuilderGBA.Core.Tests
                     violations.Add(GetRelative(root, file));
                 }
             }
+
+            // When the repo root resolves (the normal dev/CI case), a green pass MUST mean the
+            // tree was actually walked — not a silent no-op. The repo has far more than 200
+            // scanned source/doc files, so this floor proves real coverage occurred.
+            Assert.True(scanned > 200,
+                $"Expected to scan the first-party source tree, but only saw {scanned} files " +
+                "(directory-prune/walk bug?).");
 
             Assert.True(violations.Count == 0,
                 "The dead DokuWiki host '" + DeadLinkPattern + "' must not be referenced " +
