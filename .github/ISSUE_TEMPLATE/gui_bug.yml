@@ -5,6 +5,9 @@ body:
   - type: markdown
     attributes:
       value: "**One bug per issue.** Drag your screenshot straight onto the box below — do not link a Google Doc/Imgur. **Never attach your ROM (.gba).**"
+  - type: markdown
+    attributes:
+      value: "This form is for **bugs**. New **features** go to [Ideas Discussions](https://github.com/laqieer/FEBuilderGBA/discussions/categories/ideas), not here — and the **WinForms GUI is stable (bug fixes only)**, so new GUI features ship to the **Avalonia GUI**. See the [GUI Strategy](https://github.com/laqieer/FEBuilderGBA/blob/master/docs/GUI-STRATEGY.md)."
   - type: dropdown
     id: app
     attributes:

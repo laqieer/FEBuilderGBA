@@ -23,7 +23,7 @@ README
 | Project | Target | Description |
 |---------|--------|-------------|
 | `FEBuilderGBA.Core` | net9.0 | Cross-platform core library: ROM manipulation, undo, LZ77, Huffman/text encoding, patch detection, translation, caching, git/archive, event ASM/disassembler, struct export, and ~100 other per-class seams. See [docs/CORE-SEAMS.md](docs/CORE-SEAMS.md) for the full catalog. |
-| `FEBuilderGBA` | net9.0-windows | WinForms GUI application |
+| `FEBuilderGBA` | net9.0-windows | WinForms GUI application — **stable; bug fixes only** (see [GUI strategy](docs/GUI-STRATEGY.md)) |
 | `FEBuilderGBA.CLI` | net9.0 | Cross-platform command-line tool (67 commands<sup>[†](#cli-command-count)</sup> — UPS/patch, lint, rebuild, disasm, translate, struct/data export-import, portrait/MIDI/battle-anime/palette, decomp project mode, and more). Full reference: [docs/cli-reference.md](docs/cli-reference.md) · arg table: [docs/cli-args.md](docs/cli-args.md). |
 | `FEBuilderGBA.SkiaSharp` | net9.0 | SkiaSharp `IImageService` (GBA 4bpp/8bpp tiles, palette conversion) + `SkiaFontRasterizer` (cross-platform GDI-parity glyph rendering for translation-font auto-generation). |
 | `FEBuilderGBA.Avalonia` | net9.0 | Cross-platform Avalonia GUI: 324 editors (unit/item/class/map/event/AI/text/audio/graphics/portrait/world-map/support/arena/monster/summon/menu/credits) with read/write + undo, image PNG import, hex editor, pointer/free-space tools, cross-editor jump/pick navigation, and decomp-project mode. Full editor inventory: [docs/avalonia-forms.md](docs/avalonia-forms.md) · gap analysis: [docs/avalonia-gap-analysis.md](docs/avalonia-gap-analysis.md). |
@@ -34,6 +34,14 @@ README
 | `FEBuilderGBA.E2ETests` | net9.0-windows | End-to-end GUI/CLI tests |
 
 <a id="cli-command-count">†</a> **CLI command count = 67**: distinct top-level command branches in the `FEBuilderGBA.CLI/Program.cs` dispatch table, collapsing the two documented aliases (`--help`/`-h`, `--test`/`--testonly`); `--project` and `--resolve-addr` are counted as separate user-facing commands. The canonical full list is [docs/cli-reference.md](docs/cli-reference.md).
+
+> **🧭 GUI strategy — two front-ends, two standards.** The **WinForms GUI**
+> (`FEBuilderGBA`) is the mature, widely-used desktop app; its goal is
+> **stability**, so it accepts **bug fixes only — no new features**. The
+> **Avalonia GUI** (`FEBuilderGBA.Avalonia`) is a cross-platform **preview**,
+> so **all new GUI features ship there**. `FEBuilderGBA.Core` / `FEBuilderGBA.CLI`
+> are shared and cross-platform and are **not** restricted by this policy. See
+> **[docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md)**.
 
 ### Cloning the Repository
 
