@@ -19,7 +19,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 #if DEBUG
                 VersionInfo = "Version: Debug Build";
 #else
-                VersionInfo = $"Version: {U.getVersion()}";
+                VersionInfo = $"Version: {U.getAppVersion()}";
 #endif
             }
             catch

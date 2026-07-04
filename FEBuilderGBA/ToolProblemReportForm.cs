@@ -484,7 +484,7 @@ namespace FEBuilderGBA
                 FEVersion += " @CRC32: " + U.ToHexString8(crc32.Calc(Program.ROM.Data));
             }
 
-            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getVersion());
+            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getAppVersion());
             sb.AppendLine("FEVersion:" + FEVersion);
             sb.AppendLine("Emu:" + OptionForm.GetEmulatorName() + " Ver:" + OptionForm.GetEmulatorVersion());
 
@@ -590,7 +590,7 @@ namespace FEBuilderGBA
                 }
                 catch (Exception ex) { Log.Error(ex.ToString()); }
 
-                string? appVersion = U.getVersion();
+                string? appVersion = U.getAppVersion();
                 string? romTag = null;
                 try { romTag = Program.ROM?.RomInfo?.VersionToFilename; } catch { }
                 string editorTitle = targetForm?.Text ?? "FEBuilderGBA";

@@ -63,7 +63,7 @@ namespace FEBuilderGBA
             }
 
             string errorMessage = "ErrorMessage:" + ex.GetType().ToString() + " " + ex.Message + "\r\n"
-              + typeof(U).Assembly.GetName().Name + ":" + U.getVersion() + "\r\n"
+              + typeof(U).Assembly.GetName().Name + ":" + U.getAppVersion() + "\r\n"
               + "FEVersion:" + FEVersion + "\r\n"
               + inputformref_debuginfo
               + "MessageName:" + threadname + "\r\n"

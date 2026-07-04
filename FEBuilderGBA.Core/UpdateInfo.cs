@@ -34,17 +34,33 @@ namespace FEBuilderGBA
         /// </summary>
         public UpdateInfo()
         {
-            VERSION_CORE = U.getVersion();
+            VERSION_CORE = U.getAppVersion();
+        }
+
+        /// <summary>
+        /// Parses a version string to a comparable number, tolerating an optional
+        /// <c>ver_</c> release-tag prefix (e.g. <c>ver_20260704.04</c> → 20260704.04).
+        /// <see cref="FEBuilderGBA.U.getAppVersion"/> returns the tag WITH the prefix, so a
+        /// raw <see cref="FEBuilderGBA.U.atof"/> would yield 0 and make every remote look newer.
+        /// </summary>
+        public static double ParseVersion(string version)
+        {
+            if (string.IsNullOrEmpty(version)) return 0;
+            string v = version.Trim();
+            if (v.StartsWith("ver_", StringComparison.Ordinal))
+                v = v.Substring(4);
+            return U.atof(v);
         }
 
         /// <summary>
         /// Compares two version strings and returns which is newer.
-        /// Returns: &lt;0 if v1 &lt; v2, 0 if equal, &gt;0 if v1 &gt; v2
+        /// Returns: &lt;0 if v1 &lt; v2, 0 if equal, &gt;0 if v1 &gt; v2.
+        /// Tolerates an optional <c>ver_</c> prefix on either side (see <see cref="ParseVersion"/>).
         /// </summary>
         public static int CompareVersions(string v1, string v2)
         {
-            double version1 = U.atof(v1);
-            double version2 = U.atof(v2);
+            double version1 = ParseVersion(v1);
+            double version2 = ParseVersion(v2);
 
             if (version1 < version2) return -1;
             if (version1 > version2) return 1;
@@ -99,7 +115,7 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(version))
                 return false;
 
-            return System.Text.RegularExpressions.Regex.IsMatch(version, @"^\d{8}\.\d{2}$");
+            return System.Text.RegularExpressions.Regex.IsMatch(version, @"^(?:ver_)?\d{8}\.\d{2}$");
         }
     }
 }

@@ -577,7 +577,7 @@ namespace FEBuilderGBA
         //ROM読みこみに伴うシステムの初期化.
         static void InitSystem(string fullfilename)
         {
-            Log.Notify("InitSystem:", Path.GetFileName(ROM.Filename), "ver:", ROM.RomInfo.VersionToFilename, "length:", ROM.Data.Length.ToString("X"), "FEBuilderGBA:", U.getVersion());
+            Log.Notify("InitSystem:", Path.GetFileName(ROM.Filename), "ver:", ROM.RomInfo.VersionToFilename, "length:", ROM.Data.Length.ToString("X"), "FEBuilderGBA:", U.getAppVersion());
 
             //Undoバッファの準備
             Undo = new Undo();

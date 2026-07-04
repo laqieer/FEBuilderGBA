@@ -38,7 +38,8 @@ namespace FEBuilderGBA
             }
 
             string escapedBase = Regex.Escape(baseUrl);
-            string corePattern = escapedBase + @"/FEBuilderGBA_(\d{8}\.\d{2})\.zip";
+            // Accept the optional "ver_" release-tag prefix (asset is FEBuilderGBA_ver_YYYYMMDD.NN.zip). #1803
+            string corePattern = escapedBase + @"/(FEBuilderGBA_(?:ver_)?\d{8}\.\d{2}\.zip)";
 
             Match coreMatch = RegexCache.Match(contents, corePattern);
 
@@ -48,8 +49,9 @@ namespace FEBuilderGBA
                     + "Package not found on nightly.link";
             }
 
-            string remoteCoreVersion = coreMatch.Groups[1].Value;
-            updateInfo.URL_CORE = baseUrl + "/FEBuilderGBA_" + remoteCoreVersion + ".zip";
+            string coreFile = coreMatch.Groups[1].Value;
+            string remoteCoreVersion = ExtractVersionFromUrl(coreFile);
+            updateInfo.URL_CORE = baseUrl + "/" + coreFile;
 
             UpdateInfo.PackageType packageType = updateInfo.DetermineUpdateType(remoteCoreVersion);
 
@@ -90,7 +92,7 @@ namespace FEBuilderGBA
 #endif
             }
 
-            string corePattern = @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip))""";
+            string corePattern = @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_(?:ver_)?(\d{8}\.\d{2})\.(7z|zip))""";
             Match coreMatch = RegexCache.Match(contents, corePattern);
 
             if (coreMatch.Success && coreMatch.Groups.Count >= 3)
@@ -137,12 +139,30 @@ namespace FEBuilderGBA
             if (string.IsNullOrEmpty(url))
                 return "00000000.00";
 
-            // FEBuilderGBA_20260226.00.(7z|zip)
-            Match coreMatch = RegexCache.Match(url, @"FEBuilderGBA_(\d{8}\.\d{2})\.(7z|zip)");
+            // FEBuilderGBA_[ver_]20260226.00.(7z|zip)
+            Match coreMatch = RegexCache.Match(url, @"FEBuilderGBA_(?:ver_)?(\d{8}\.\d{2})\.(7z|zip)");
             if (coreMatch.Success && coreMatch.Groups.Count >= 2)
                 return coreMatch.Groups[1].Value;
 
             return "00000000.00";
+        }
+
+        /// <summary>
+        /// Selects the WinForms desktop package download URL from a GitHub
+        /// <c>/releases/latest</c> JSON body, ignoring the platform bundles
+        /// (<c>FEBuilderGBA-android-apk.zip</c>, <c>-avalonia-*</c>, <c>-cli-*</c>).
+        /// The desktop asset uses an underscore separator:
+        /// <c>FEBuilderGBA_[ver_]YYYYMMDD.NN.(7z|zip)</c>. Returns "" when none is present.
+        /// This prevents the legacy first-<c>browser_download_url</c> fallback from grabbing
+        /// the Android APK asset (#1803).
+        /// </summary>
+        public static string SelectCoreAssetUrl(string releaseJson)
+        {
+            if (string.IsNullOrEmpty(releaseJson))
+                return "";
+            Match m = RegexCache.Match(releaseJson,
+                @"""browser_download_url"":\s*""([^""]+/FEBuilderGBA_(?:ver_)?\d{8}\.\d{2}\.(?:7z|zip))""");
+            return (m.Success && m.Groups.Count >= 2) ? m.Groups[1].Value : "";
         }
     }
 }

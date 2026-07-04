@@ -31,7 +31,7 @@ namespace FEBuilderGBA
 #if DEBUG
             ver = "-Debug Build-";
 #else
-            ver = U.getVersion();
+            ver = U.getAppVersion();
 #endif
 
             StringBuilder sb = new StringBuilder();

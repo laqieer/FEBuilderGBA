@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 #if DEBUG
             ver = "-Debug Build-";
 #else
-            ver = U.getVersion();
+            ver = U.getAppVersion();
 #endif
             var sb = new StringBuilder();
             string asmName = typeof(U).Assembly.GetName().Name ?? "FEBuilderGBA";
