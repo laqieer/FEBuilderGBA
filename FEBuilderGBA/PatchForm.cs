@@ -112,6 +112,14 @@ namespace FEBuilderGBA
                 return patchs;
             }
 
+            // #1811: config/patch2/<version> is delivered via git (since #1766) and is missing on a
+            // fresh install. Treat a missing patch directory as "no patches" rather than raising the
+            // generic "パッチ探索中にエラー" dialog from the DirectoryNotFoundException below.
+            if (!Directory.Exists(path))
+            {
+                return patchs;
+            }
+
             try
             {
                 string[] files = Directory.GetFiles(path, "PATCH_*.txt", SearchOption.AllDirectories);
@@ -5861,6 +5869,22 @@ namespace FEBuilderGBA
 
         private void PatchOpenButton_Click(object sender, EventArgs e)
         {
+            if (string.IsNullOrEmpty(PatchFilename.Text))
+            {
+                // #1811: on a fresh install config/patch2 is empty (delivered via git since
+                // #1766), so no patch is selected and PatchFilename.Text is "". Calling
+                // U.OpenURLOrFile("") -> Process.Start("") throws and dumps a raw exception.
+                // Show a friendly, actionable notice instead.
+                if (PatchMetadataCore.IsPatchLibraryEmpty(GetPatchDirectory()))
+                {
+                    R.ShowOK(PatchMetadataCore.NotInitializedMessage);
+                }
+                else
+                {
+                    R.ShowOK("パッチを選択してください。\r\nPlease select a patch first.");
+                }
+                return;
+            }
             U.OpenURLOrFile(PatchFilename.Text);
         }
 

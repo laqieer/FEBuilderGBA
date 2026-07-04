@@ -1246,5 +1246,54 @@ namespace FEBuilderGBA.Core.Tests
                 Directory.Delete(tempDir, true);
             }
         }
+
+        // ---- #1811: empty/uninitialized patch2 detection ----
+
+        [Fact]
+        public void IsPatchLibraryEmpty_MissingOrNullDirectory_ReturnsTrue()
+        {
+            string missing = Path.Combine(Path.GetTempPath(), "fe_no_patch2_" + System.Guid.NewGuid().ToString("N"));
+            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing));
+            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(null));
+            Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(""));
+        }
+
+        [Fact]
+        public void IsPatchLibraryEmpty_ExistingEmptyDirectory_ReturnsTrue()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "fe_empty_patch2_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try { Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(dir)); }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void IsPatchLibraryEmpty_DirectoryWithOnlyNonPatchFiles_ReturnsTrue()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "fe_nonpatch_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "README.txt"), "x");
+            try { Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(dir)); }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void IsPatchLibraryEmpty_DirectoryWithNestedPatch_ReturnsFalse()
+        {
+            // Matches EnumeratePatches' recursive PATCH_*.txt scan (e.g. FE8U/SYSTEM/PATCH_*.txt).
+            string dir = Path.Combine(Path.GetTempPath(), "fe_patch2_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(dir, "SYSTEM"));
+            File.WriteAllText(Path.Combine(dir, "SYSTEM", "PATCH_Test.txt"), "NAME:Test");
+            try { Assert.False(PatchMetadataCore.IsPatchLibraryEmpty(dir)); }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void NotInitializedMessage_IsNonEmpty_MentionsDownload_AndDistinctFromAndroidNotice()
+        {
+            Assert.False(string.IsNullOrWhiteSpace(PatchMetadataCore.NotInitializedMessage));
+            Assert.Contains("download", PatchMetadataCore.NotInitializedMessage, System.StringComparison.OrdinalIgnoreCase);
+            Assert.NotEqual(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, PatchMetadataCore.NotInitializedMessage);
+        }
     }
 }

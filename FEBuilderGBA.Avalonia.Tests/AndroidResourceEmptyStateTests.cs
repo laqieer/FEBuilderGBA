@@ -32,6 +32,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             ((List<PatchEntry>)field.GetValue(vm)).Clear();
         }
 
+        // Add one dummy patch so the "list populated" clear-path can be exercised deterministically.
+        static void AddDummyPatch(PatchManagerViewModel vm)
+        {
+            var field = typeof(PatchManagerViewModel)
+                .GetField("_allPatches", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(field);
+            ((List<PatchEntry>)field.GetValue(vm))
+                .Add(PatchEntry.FromPatchInfo(new PatchMetadataCore.PatchInfo { Name = "dummy" }));
+        }
+
+        // A guaranteed-nonexistent patch dir so PatchMetadataCore.IsPatchLibraryEmpty() returns true
+        // (the fresh-install "not initialized" state) deterministically, matching the cleared list.
+        static readonly string EmptyPatchDir =
+            Path.Combine(Path.GetTempPath(), "fe_empty_patch2_" + Guid.NewGuid().ToString("N"));
+
         [Fact]
         public void PatchManager_OnAndroid_WithNoPatches_ShowsLimitationNotice()
         {
@@ -42,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 var vm = new PatchManagerViewModel();
                 ClearAllPatches(vm);          // simulate the on-device empty patch list
-                vm.ApplyAndroidEmptyStateNotice();
+                vm.ApplyEmptyStateNotice(EmptyPatchDir);
 
                 Assert.Equal(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, vm.StatusMessage);
             }
@@ -53,7 +68,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void PatchManager_AndroidNotice_IsClearedWhenConditionNoLongerHolds()
+        public void PatchManager_EmptyStateNotice_ClearedWhenListPopulated()
         {
             var savedSeam = AndroidResourceNoticeCore.IsAndroidOverride;
             try
@@ -62,13 +77,13 @@ namespace FEBuilderGBA.Avalonia.Tests
                 ClearAllPatches(vm);
 
                 AndroidResourceNoticeCore.IsAndroidOverride = () => true;  // Android + empty
-                vm.ApplyAndroidEmptyStateNotice();
+                vm.ApplyEmptyStateNotice(EmptyPatchDir);
                 Assert.Equal(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, vm.StatusMessage);
 
-                // Condition flips false (e.g. VM reuse on desktop / future on-device delivery):
-                // the stale Android notice must be cleared, not stick around.
-                AndroidResourceNoticeCore.IsAndroidOverride = () => false;
-                vm.ApplyAndroidEmptyStateNotice();
+                // The list becomes populated (e.g. patch2 downloaded, or VM reused): the stale
+                // empty-state notice must be cleared, not stick around.
+                AddDummyPatch(vm);
+                vm.ApplyEmptyStateNotice(EmptyPatchDir);
                 Assert.Equal("", vm.StatusMessage);
             }
             finally
@@ -78,7 +93,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void PatchManager_OnDesktop_WithNoPatches_DoesNotShowAndroidNotice()
+        public void PatchManager_OnDesktop_WithNoPatches_ShowsNotInitializedNotice()
         {
             var savedSeam = AndroidResourceNoticeCore.IsAndroidOverride;
             try
@@ -87,9 +102,11 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 var vm = new PatchManagerViewModel();
                 ClearAllPatches(vm);
-                vm.ApplyAndroidEmptyStateNotice();
+                vm.ApplyEmptyStateNotice(EmptyPatchDir);
 
-                // Desktop keeps the existing (blank) status — no Android notice even with an empty list.
+                // #1811: desktop with an empty/uninitialized patch2 now surfaces the
+                // not-downloaded-yet notice (not the Android limitation, and not a silent blank).
+                Assert.Equal(PatchMetadataCore.NotInitializedMessage, vm.StatusMessage);
                 Assert.NotEqual(AndroidResourceNoticeCore.PatchLibraryUnavailableMessage, vm.StatusMessage);
             }
             finally
