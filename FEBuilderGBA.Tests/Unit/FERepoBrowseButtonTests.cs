@@ -1,6 +1,5 @@
 using System;
 using System.Drawing;
-using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -34,7 +33,7 @@ namespace FEBuilderGBA.Tests.Unit
                     Button feRepo = FERepoResourceBrowserForm.AddBrowseButton(import, export, (s, e) => { });
 
                     Assert.NotNull(feRepo);
-                    Assert.Contains(feRepo, panel.Controls.Cast<Control>());
+                    Assert.True(panel.Controls.Contains(feRepo), "FE-Repo button must be added to the panel");
                     // The whole button must fit within the (grown) panel — no clipping (#1806).
                     Assert.True(feRepo.Bottom <= panel.Height,
                         $"FE-Repo button Bottom ({feRepo.Bottom}) must fit within panel Height ({panel.Height})");
