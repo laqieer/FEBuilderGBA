@@ -195,8 +195,8 @@ namespace FEBuilderGBA
             out_url = "";
             out_version = "";
 
-            string versionString = U.getVersion();
-            double version = U.atof(versionString);
+            string versionString = U.getAppVersion();
+            double version = UpdateInfo.ParseVersion(versionString);
 
             string url = "https://api.github.com/repos/laqieer/FEBuilderGBA/releases/latest";
             string contents;
@@ -215,19 +215,12 @@ namespace FEBuilderGBA
             }
 
 
-            string downloadurl;
+            string downloadurl = UpdateCheckSplitPackage.SelectCoreAssetUrl(contents);
+            if (string.IsNullOrEmpty(downloadurl))
             {
-                System.Text.RegularExpressions.Match match = RegexCache.Match(contents
-                , "\"browser_download_url\": \"(.+)\""
-                );
-                if (match.Groups.Count < 2)
-                {
-                    return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n" 
-                        + "browser_download_url not found" + "\r\n"
-                        + "contents:\r\n" +  contents + "\r\n"
-                        + "match.Groups:\r\n" +  U.var_dump(match.Groups);
-                }
-                downloadurl = match.Groups[1].Value;
+                return R._("サイトの結果が期待外でした。\r\n{0}", url) + "\r\n\r\n"
+                    + "FEBuilderGBA desktop asset not found" + "\r\n"
+                    + "contents:\r\n" + contents;
             }
 
             {
@@ -271,8 +264,8 @@ namespace FEBuilderGBA
             out_url = "";
             out_version = "";
 
-            string versionString = U.getVersion();
-            double version = U.atof(versionString);
+            string versionString = U.getAppVersion();
+            double version = UpdateInfo.ParseVersion(versionString);
 
             string url = "https://nightly.link/laqieer/FEBuilderGBA/workflows/msbuild/master";
             string contents;
@@ -326,8 +319,8 @@ namespace FEBuilderGBA
             out_url = "";
             out_version = "";
 
-            string versionString = U.getVersion();
-            double version = U.atof(versionString);
+            string versionString = U.getAppVersion();
+            double version = UpdateInfo.ParseVersion(versionString);
 
             string url = "https://ux.getuploader.com/FE4/";
             string contents;

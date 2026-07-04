@@ -150,7 +150,7 @@ namespace FEBuilderGBA
             sb.Append(Log.LogToString(1024));
             sb.Append("\r\n------\r\n");
 
-            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getVersion());
+            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getAppVersion());
 
             if (rom != null && rom.RomInfo != null && rom.Data != null)
             {

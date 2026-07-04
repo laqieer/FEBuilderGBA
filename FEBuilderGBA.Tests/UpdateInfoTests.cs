@@ -117,5 +117,56 @@ namespace FEBuilderGBA.Tests
             Assert.Contains("20260226.00", display);
             Assert.Contains("Core:", display);
         }
+
+        // ---- #1805 / #1803: ver_ release-tag prefix handling ----
+        // getAppVersion() returns the stamped release tag "ver_YYYYMMDD.NN"; the raw
+        // U.atof would parse a leading 'v' as 0 and make every remote look newer.
+
+        [Theory]
+        [InlineData("ver_20260704.04", "20260704.04", 0)]   // local tag == remote numeric → up to date (no false positive)
+        [InlineData("ver_20260704.04", "20260704.05", -1)]  // genuinely older
+        [InlineData("ver_20260704.05", "20260704.04", 1)]   // genuinely newer
+        [InlineData("ver_20260704.04", "ver_20260704.04", 0)]
+        [InlineData("20260704.04", "ver_20260704.05", -1)]
+        public void CompareVersions_TolerantOfVerPrefix(string v1, string v2, int expected)
+        {
+            int result = UpdateInfo.CompareVersions(v1, v2);
+            if (expected < 0) Assert.True(result < 0, $"Expected {v1} < {v2}");
+            else if (expected > 0) Assert.True(result > 0, $"Expected {v1} > {v2}");
+            else Assert.Equal(0, result);
+        }
+
+        [Theory]
+        [InlineData("ver_20260704.04", 20260704.04)]
+        [InlineData("20260704.04", 20260704.04)]
+        [InlineData("  ver_20260704.04  ", 20260704.04)]
+        [InlineData("", 0)]
+        [InlineData(null, 0)]
+        public void ParseVersion_StripsVerPrefix(string version, double expected)
+        {
+            Assert.Equal(expected, UpdateInfo.ParseVersion(version), 3);
+        }
+
+        [Theory]
+        [InlineData("ver_20260226.00", true)]
+        [InlineData("20260226.00", true)]
+        [InlineData("ver_20260226.0", false)]   // missing hour digit even with prefix
+        [InlineData("ver_2026.00", false)]       // wrong width
+        public void IsValidVersion_AcceptsOptionalVerPrefix(string version, bool expected)
+        {
+            Assert.Equal(expected, UpdateInfo.IsValidVersion(version));
+        }
+
+        [Fact]
+        public void DetermineUpdateType_VerPrefixedLocal_NotFalsePositive()
+        {
+            // #1805: the installed WinForms build is stamped with the release tag; the
+            // latest GitHub release exposes the numeric version. Must NOT claim an update.
+            var updateInfo = new UpdateInfo();
+            typeof(UpdateInfo).GetProperty("VERSION_CORE").SetValue(updateInfo, "ver_20260704.04");
+            Assert.Equal(UpdateInfo.PackageType.None, updateInfo.DetermineUpdateType("20260704.04"));
+            // A genuinely newer remote is still detected.
+            Assert.Equal(UpdateInfo.PackageType.CoreOnly, updateInfo.DetermineUpdateType("20260704.05"));
+        }
     }
 }

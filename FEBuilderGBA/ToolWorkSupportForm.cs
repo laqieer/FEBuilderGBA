@@ -960,7 +960,7 @@ namespace FEBuilderGBA
             FEVersion = Program.ROM.RomInfo.VersionToFilename;
             FEVersion += " @ROMSize: " + Program.ROM.Data.Length;
 
-            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getVersion());
+            sb.AppendLine(typeof(U).Assembly.GetName().Name + ":" + U.getAppVersion());
             sb.AppendLine("FEVersion:" + FEVersion);
             sb.AppendLine("Emu:" + OptionForm.GetEmulatorName() + " Ver:" + OptionForm.GetEmulatorVersion());
 

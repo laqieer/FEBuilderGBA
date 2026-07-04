@@ -47,6 +47,7 @@
         </MenuItem>
         <Separator />
         <MenuItem AutomationProperties.AutomationId="Main_OptionsMenuItem_Button" Header="_Options..." Click="Options_Click" Name="OptionsMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_VersionMenuItem_Button" Header="_Version Information" Click="Version_Click" Name="VersionMenuItem" />
       </MenuItem>
       <MenuItem AutomationProperties.AutomationId="Main_HelpMenu_Button" Header="_Help" Name="HelpMenu">
         <MenuItem AutomationProperties.AutomationId="Main_OnlineManualMenuItem_Button" Header="_Online Manual" Click="OnlineManual_Click" Name="OnlineManualMenuItem" />

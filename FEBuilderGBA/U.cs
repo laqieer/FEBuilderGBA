@@ -4124,6 +4124,32 @@ namespace FEBuilderGBA
 
             return baseDate.AddDays(build).AddSeconds(revision * 2).ToString("yyyyMMdd.HH");
         }
+
+        /// <summary>
+        /// The user-facing application version. For release builds this is the exact
+        /// <c>ver_YYYYMMDD.NN</c> tag stamped into the entry assembly's
+        /// <c>AssemblyInformationalVersion</c> by <c>release.yml</c>; for local/dev
+        /// builds (no such stamp) it falls back to <see cref="getVersion"/>. This is
+        /// what should be shown to users, because <see cref="getVersion"/> reflects the
+        /// Core assembly's per-build wildcard timestamp, which does not match the
+        /// release the user downloaded (#1805).
+        /// </summary>
+        public static string getAppVersion()
+        {
+            string fallback = getVersion();
+            try
+            {
+                var entry = System.Reflection.Assembly.GetEntryAssembly();
+                if (entry == null) return fallback;
+                var attr = (System.Reflection.AssemblyInformationalVersionAttribute?)
+                    System.Attribute.GetCustomAttribute(entry, typeof(System.Reflection.AssemblyInformationalVersionAttribute));
+                return BugReportCore.SelectVersion(attr?.InformationalVersion, fallback);
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
         //NumUpDownControlの範囲を安全に再設定します
         public static void SelectedIndexSafety(NumericUpDown nud, int value)
         {

@@ -3370,10 +3370,17 @@ namespace FEBuilderGBA.Avalonia.Views
             TryStartAutoSave(currentTarget);
         }
 
+        private void Version_Click(object? sender, RoutedEventArgs e)
+        {
+            WindowManager.Instance.Open<VersionView>();
+        }
+
         private async void About_Click(object? sender, RoutedEventArgs e)
         {
             await MessageBoxWindow.Show(this,
-                R._("FEBuilderGBA") + "\n" + R._("Avalonia Cross-Platform Preview") + "\n" + R._("Copyright 2017- GPLv3"),
+                R._("FEBuilderGBA") + "\n" + R._("Avalonia Cross-Platform Preview") + "\n"
+                    + R._("Version") + ": " + U.getAppVersion() + "\n"
+                    + R._("Copyright 2017- GPLv3"),
                 R._("About"), MessageBoxMode.Ok);
         }
 

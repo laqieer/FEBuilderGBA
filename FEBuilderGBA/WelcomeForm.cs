@@ -30,7 +30,7 @@ namespace FEBuilderGBA
 #if DEBUG
             VersionLabel.Text = "-Debug Build-";
 #else
-            VersionLabel.Text = "Ver:" + U.getVersion();
+            VersionLabel.Text = "Ver:" + U.getAppVersion();
 #endif
             AllowDropFilename();
 

@@ -439,7 +439,7 @@ namespace FEBuilderGBA.CLI
 
         static void PrintVersion()
         {
-            string version = U.getVersion();
+            string version = U.getAppVersion();
             Console.WriteLine($"FEBuilderGBA Version:{version}");
             Console.WriteLine("Copyright: 2017-");
             Console.WriteLine("License: GPLv3");

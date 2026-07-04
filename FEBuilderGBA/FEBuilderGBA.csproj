@@ -245,6 +245,24 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
+  <!-- #1805: Stamp the release tag into AssemblyInformationalVersion so U.getAppVersion()
+       returns the user-facing ver_YYYYMMDD.NN. GenerateAssemblyInfo is false here (this
+       project uses a hand-written AssemblyInfo.cs), so the SDK will NOT emit the attribute
+       from /p:InformationalVersion=<tag>; we generate the one attribute ourselves when the
+       property is supplied (release.yml passes github.ref_name). Local/dev builds omit
+       InformationalVersion, so getAppVersion() keeps falling back to the build-stamp. -->
+  <Target Name="StampInformationalVersion" BeforeTargets="CoreCompile" Condition="'$(InformationalVersion)' != ''">
+    <PropertyGroup>
+      <_InfoVerFile>$(IntermediateOutputPath)InformationalVersion.g.cs</_InfoVerFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_InfoVerFile)"
+                      Lines="[assembly: System.Reflection.AssemblyInformationalVersion(&quot;$(InformationalVersion)&quot;)]"
+                      Overwrite="true" />
+    <ItemGroup>
+      <Compile Include="$(_InfoVerFile)" />
+    </ItemGroup>
+  </Target>
+
   <!-- Copy config directories to build output directory -->
   <Target Name="CopyConfigDirectories" AfterTargets="Build">
     <Message Text="========================================" Importance="high" />
