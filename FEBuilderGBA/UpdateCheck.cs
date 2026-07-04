@@ -41,7 +41,22 @@ namespace FEBuilderGBA
                     else if (error.Contains("最新です"))
                     {
                         OverradeLastUpdateTime();
-                        R.ShowOK(error);
+                        // #1816: the core app is up-to-date, but a fresh install can still have an
+                        // empty config/patch2 (git-delivered since #1766). Open the split-package
+                        // dialog so the patch2 Initialize/Update (Git Patch2) button is reachable,
+                        // instead of the dead-end "you're on the latest" message. Checks the patch2
+                        // ROOT recursively so it works from the Welcome Update Check with no ROM.
+                        string patch2Root = System.IO.Path.Combine(Program.BaseDirectory, "config", "patch2");
+                        if (PatchMetadataCore.IsPatchLibraryEmpty(patch2Root))
+                        {
+                            ToolUpdateDialogForm f = (ToolUpdateDialogForm)InputFormRef.JumpFormLow<ToolUpdateDialogForm>();
+                            f.InitSplitPackage(updateInfo, patch2Only: true); // core is current — only offer patch2 init
+                            f.ShowDialog();
+                        }
+                        else
+                        {
+                            R.ShowOK(error);
+                        }
                         return;
                     }
                     // Otherwise fall through to legacy check
