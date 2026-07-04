@@ -58,15 +58,23 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Null(MainWindow.GetVersionVisibilityByName(name, 8, true));
         }
 
-        // Documents WHY name-based gating is required: the Japanese full-width-paren
-        // Content defeats the ASCII-paren Content check (this is the #1798 root cause).
+        // Documents the #1798 root cause AND why the fix is robust: version gating must
+        // not depend on the (localized) Content. The Name-based gate hides the FE6 button
+        // on FE8J regardless of whether Content uses ASCII "(FE6)" or Japanese full-width
+        // "（FE6）" — it never reads Content at all. The old Content-based check only
+        // recognizes ASCII parens (asserted here as the stable contract); a future
+        // improvement could teach it full-width parens, but the Name-based gate — the
+        // actual fix — does not depend on that, so this test won't regress if it does.
         [Fact]
-        public void GetVersionVisibility_FullWidthParens_ReturnsNull_MotivatesNameGating()
+        public void NameGating_IsContentIndependent_UnlikeContentGating()
         {
-            // ASCII parens → recognized and gated.
+            // Name-based gate (the fix): FE6 button hidden on FE8J for ANY Content shape.
+            Assert.Equal(false, MainWindow.GetVersionVisibilityByName("UnitFE6Button", 8, true));
+
+            // Content-based gate recognizes ASCII parens (stable, asserted contract)...
             Assert.Equal(false, MainWindow.GetVersionVisibility("Unit (FE6)", 8, true));
-            // Full-width parens (ja.txt "ユニット（FE6）") → NOT recognized → always shown.
-            Assert.Null(MainWindow.GetVersionVisibility("ユニット\uFF08FE6\uFF09", 8, true));
+            // ...but the Name-based gate is what guarantees correctness in localized UIs,
+            // where Content becomes "ユニット（FE6）" with full-width parens.
         }
     }
 }

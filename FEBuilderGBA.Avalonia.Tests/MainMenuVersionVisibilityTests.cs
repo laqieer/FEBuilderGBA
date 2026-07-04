@@ -24,6 +24,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         private readonly IEtcCache? _prevComment, _prevLint, _prevWork;
         private readonly ISystemTextEncoder? _prevEncoder;
         private readonly string? _prevBaseDir;
+        private readonly Config? _prevConfig;
 
         public MainMenuVersionVisibilityTests(ITestOutputHelper output)
         {
@@ -34,6 +35,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             _prevWork = CoreState.WorkSupportCache;
             _prevEncoder = CoreState.SystemTextEncoder;
             _prevBaseDir = CoreState.BaseDirectory;
+            _prevConfig = CoreState.Config;
 
             string? path = TestRomLocator.FindRom("FE8J");
             if (path == null) { _available = false; return; }
@@ -67,7 +69,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.LintCache = _prevLint;
             CoreState.WorkSupportCache = _prevWork;
             CoreState.SystemTextEncoder = _prevEncoder;
-            if (_prevBaseDir != null) CoreState.BaseDirectory = _prevBaseDir;
+            CoreState.BaseDirectory = _prevBaseDir;
+            CoreState.Config = _prevConfig;
         }
 
         [AvaloniaFact]

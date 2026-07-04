@@ -3925,15 +3925,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (string.IsNullOrEmpty(name))
                 return null;
-            if (name.EndsWith("FE7UButton"))
+            if (name.EndsWith("FE7UButton", StringComparison.Ordinal))
                 return ver == 7 && !isMultibyte;
-            if (name.EndsWith("FE8UButton"))
+            if (name.EndsWith("FE8UButton", StringComparison.Ordinal))
                 return ver == 8 && !isMultibyte;
-            if (name.EndsWith("FE6Button"))
+            if (name.EndsWith("FE6Button", StringComparison.Ordinal))
                 return ver == 6;
-            if (name.EndsWith("FE7Button"))
+            if (name.EndsWith("FE7Button", StringComparison.Ordinal))
                 return ver == 7;
-            if (name.EndsWith("FE8Button"))
+            if (name.EndsWith("FE8Button", StringComparison.Ordinal))
                 return ver == 8;
             return null; // no version suffix in the name
         }
