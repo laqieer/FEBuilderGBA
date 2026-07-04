@@ -42,6 +42,11 @@ public class OptionsConfigPersistenceTests : IDisposable
         CoreState.BaseDirectory = _savedBaseDir;
         CoreState.Language = _savedLanguage;
         CoreState.GitPath = _savedGitPath;
+        // OptionsViewModel.Save() reloads the *global* MyTranslateResource for the temp
+        // BaseDirectory (clearing it here). Restore it for the saved language/base dir so
+        // it doesn't leak into other [Collection("SharedState")] tests (matches the L10n
+        // restore convention). Best-effort; never fail Dispose over it.
+        try { OptionsViewModel.ReloadTranslations(); } catch { /* best effort */ }
         try { if (Directory.Exists(_baseDir)) Directory.Delete(_baseDir, true); } catch { /* best effort */ }
     }
 
