@@ -65,17 +65,24 @@ namespace FEBuilderGBA
         /// <param name="patchBaseDir">The <c>config/patch2/{version}</c> directory.</param>
         public static bool IsPatchLibraryEmpty(string patchBaseDir)
         {
-            if (string.IsNullOrEmpty(patchBaseDir) || !Directory.Exists(patchBaseDir))
+            if (string.IsNullOrEmpty(patchBaseDir))
                 return true;
             try
             {
                 return Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories).Length == 0;
             }
+            catch (DirectoryNotFoundException)
+            {
+                // Genuinely missing directory -> the fresh-install / not-initialized state.
+                return true;
+            }
             catch
             {
                 // An existing directory that fails to enumerate (permission / path-too-long) is a real
-                // error, not the fresh-install "not initialized" state — return false so callers do NOT
-                // mislead the user with the not-downloaded-yet notice and mask the actual failure.
+                // error, not the fresh-install state — return false so callers do NOT mislead the user
+                // with the not-downloaded-yet notice and mask the actual failure. (Directory.Exists is
+                // deliberately NOT used to gate this: it also returns false on an existence-probe error,
+                // which would misclassify an inaccessible dir as "not initialized".)
                 return false;
             }
         }
