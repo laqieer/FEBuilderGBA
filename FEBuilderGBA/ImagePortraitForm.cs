@@ -49,15 +49,11 @@ namespace FEBuilderGBA
             U.SetIcon(ExportButton, Properties.Resources.icon_arrow);
             U.SetIcon(ImportButton, Properties.Resources.icon_upload);
 
-            // Add FE-Repo browse button below Import
-            var feRepoButton = new Button
-            {
-                Text = R._("FE-Repo"),
-                Size = new System.Drawing.Size(107, 20),
-                Location = new System.Drawing.Point(ImportButton.Left, ImportButton.Bottom + 2)
-            };
-            feRepoButton.Click += FERepoButton_Click;
-            ImportButton.Parent?.Controls.Add(feRepoButton);
+            // #1806 — use the shared FE-Repo browse-button helper (#1397), which places the button
+            // below the bottom-most control in the panel AND grows the panel's Height/MinimumSize so
+            // it can't fall out of the display range. The previous manual placement put the button at
+            // ImportButton.Bottom+2 without growing the fixed-size panel, so it was clipped (#1806).
+            FERepoResourceBrowserForm.AddBrowseButton(ImportButton, ExportButton, FERepoButton_Click);
 
             U.AllowDropFilename(this, ImageFormRef.IMAGE_FILE_FILTER, (string filename) =>
             {
