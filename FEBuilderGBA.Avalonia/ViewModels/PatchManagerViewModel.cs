@@ -156,33 +156,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TotalCount = _allPatches.Count;
             InstalledCount = _allPatches.Count(p => p.Status == PatchMetadataCore.PatchStatus.Installed);
 
-            ApplyAndroidEmptyStateNotice();
+            ApplyEmptyStateNotice(patchDir);
 
             ApplyFilter();
             IsLoaded = true;
         }
 
         /// <summary>
-        /// Android empty-state notice (#1641): patch2 is not delivered on-device, so the patch list
-        /// resolves empty there. Surface the canonical limitation instead of a silent blank list.
-        /// Desktop (resource delivery supported) keeps its existing behaviour untouched. Extracted so
-        /// the platform-gated branch is directly unit-testable via the
+        /// Empty-state notice for the Patch Manager. When the patch list resolves empty, explain WHY
+        /// instead of showing a silent blank list: on desktop (#1811) <c>config/patch2</c> has not
+        /// been downloaded yet (git-delivered since #1766) → <see cref="PatchMetadataCore.NotInitializedMessage"/>;
+        /// on Android (#1641) patch2 is not delivered on-device → <see cref="AndroidResourceNoticeCore.PatchLibraryUnavailableMessage"/>.
+        /// When the list is populated, any stale empty-state notice we set is cleared (never clobbers
+        /// an unrelated status). Platform is routed through the test-injectable
         /// <see cref="AndroidResourceNoticeCore.IsAndroidOverride"/> seam.
         /// </summary>
-        public void ApplyAndroidEmptyStateNotice()
+        public void ApplyEmptyStateNotice(string patchDir)
         {
-            bool shouldShow = !AndroidResourceNoticeCore.IsResourceDeliverySupported && _allPatches.Count == 0;
-            if (shouldShow)
+            if (_allPatches.Count != 0)
             {
-                StatusMessage = AndroidResourceNoticeCore.PatchLibraryUnavailableMessage;
+                // Populated: clear our own stale empty-state notice (VM reuse / list refilled).
+                if (StatusMessage == AndroidResourceNoticeCore.PatchLibraryUnavailableMessage ||
+                    StatusMessage == PatchMetadataCore.NotInitializedMessage)
+                {
+                    StatusMessage = "";
+                }
+                return;
             }
-            else if (StatusMessage == AndroidResourceNoticeCore.PatchLibraryUnavailableMessage)
+
+            // Only claim "not initialized" when the library is genuinely empty/missing (#1811) — an
+            // empty list from an enumeration failure (files present but unreadable) must not be
+            // mislabelled as not-downloaded-yet.
+            if (!PatchMetadataCore.IsPatchLibraryEmpty(patchDir))
             {
-                // Idempotent: if the condition no longer holds (e.g. the VM is reused, or a future
-                // on-device delivery populates the list), clear our own stale notice so it cannot
-                // stick around. Only clears the Android notice — never clobbers an unrelated status.
-                StatusMessage = "";
+                return;
             }
+
+            StatusMessage = AndroidResourceNoticeCore.IsResourceDeliverySupported
+                ? PatchMetadataCore.NotInitializedMessage                    // desktop: patch2 not downloaded yet (#1811)
+                : AndroidResourceNoticeCore.PatchLibraryUnavailableMessage;  // Android: not available on-device (#1641)
         }
 
         /// <summary>

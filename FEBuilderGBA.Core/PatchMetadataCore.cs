@@ -41,6 +41,53 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Desktop empty-state message for the Patch Manager when <c>config/patch2/{version}</c>
+        /// has not been downloaded yet (#1811). Since #1766 the patch library is delivered over
+        /// git (repo <c>laqieer/FEBuilderGBA-patch2</c>) rather than bundled, so a fresh install
+        /// ships five empty <c>FE6/FE7J/FE7U/FE8J/FE8U</c> stub dirs. Unlike the Android-only
+        /// <see cref="AndroidResourceNoticeCore.PatchLibraryUnavailableMessage"/>, this points the
+        /// user at the in-app Initialize / Check-for-Updates flow. Bilingual (JA+EN) to match the
+        /// startup patch2 prompt.
+        /// </summary>
+        public const string NotInitializedMessage =
+            "パッチデータがまだダウンロードされていません。\r\n" +
+            "「更新の確認」からパッチデータベースをダウンロードしてください。\r\n\r\n" +
+            "The patch database has not been downloaded yet.\r\n" +
+            "Use Check for Updates / Initialize Repository to fetch it.";
+
+        /// <summary>
+        /// True when the patch library for a version has no installable patches — the directory is
+        /// missing, or exists but a successful scan finds no <c>PATCH_*.txt</c> (the fresh-install
+        /// state, #1811). Never throws. An <em>existing</em> directory that fails to enumerate
+        /// (permission / path-too-long) returns <c>false</c>: that is a real error, not the
+        /// not-initialized state, so callers won't mislead the user with the download notice.
+        /// </summary>
+        /// <param name="patchBaseDir">The <c>config/patch2/{version}</c> directory.</param>
+        public static bool IsPatchLibraryEmpty(string patchBaseDir)
+        {
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+            try
+            {
+                return Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories).Length == 0;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Genuinely missing directory -> the fresh-install / not-initialized state.
+                return true;
+            }
+            catch
+            {
+                // An existing directory that fails to enumerate (permission / path-too-long) is a real
+                // error, not the fresh-install state — return false so callers do NOT mislead the user
+                // with the not-downloaded-yet notice and mask the actual failure. (Directory.Exists is
+                // deliberately NOT used to gate this: it also returns false on an existence-probe error,
+                // which would misclassify an inaccessible dir as "not initialized".)
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Enumerate all patch directories for a given ROM version and parse metadata.
         /// </summary>
         /// <param name="patchBaseDir">The config/patch2/{version} directory.</param>
