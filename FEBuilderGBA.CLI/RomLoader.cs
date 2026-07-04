@@ -24,13 +24,11 @@ namespace FEBuilderGBA.CLI
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             // Load config
+            // #1799: always create the Config so CoreState.Config is never null on a
+            // fresh install (shared with the Avalonia GUI via Config.LoadOrCreate) —
+            // otherwise config writers like --lastrom persistence silently no-op.
             string configPath = Path.Combine(baseDir, "config", "config.xml");
-            if (File.Exists(configPath))
-            {
-                var config = new Config();
-                config.Load(configPath);
-                CoreState.Config = config;
-            }
+            CoreState.Config = Config.LoadOrCreate(configPath);
         }
 
         /// <summary>

@@ -217,13 +217,12 @@ namespace FEBuilderGBA.Avalonia
 
             // Load config
             // #1124: baseDir is the exe dir on desktop and Context.FilesDir (app-private) on Android (#1123), so config.xml is already redirected to app-private storage on Android.
+            // #1799: always create the Config (even when config.xml doesn't exist yet on a
+            // fresh install) so CoreState.Config is never null and the Options dialog can
+            // persist settings. Previously the File.Exists guard left it null on first run,
+            // silently discarding tool paths, theme, recent files, etc.
             string configPath = Path.Combine(baseDir, "config", "config.xml");
-            if (File.Exists(configPath))
-            {
-                var config = new Config();
-                config.Load(configPath);
-                CoreState.Config = config;
-            }
+            CoreState.Config = Config.LoadOrCreate(configPath);
 
             // Initialize language from config (backward-compatible: try "Language", then "func_lang")
             if (CoreState.Config != null)

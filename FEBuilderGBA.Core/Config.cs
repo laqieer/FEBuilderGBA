@@ -96,5 +96,37 @@ namespace FEBuilderGBA
             //設定されていないっぽい
             return def;
         }
+
+        /// <summary>
+        /// #1799: create a usable <see cref="Config"/> for <paramref name="fullfilename"/>
+        /// whether or not the file exists yet. Ensures the parent directory exists (so a
+        /// first-run <see cref="Save()"/> can create it) and sets <see cref="ConfigFilename"/>
+        /// via <see cref="Load(string)"/>. Both the Avalonia GUI (App.axaml.cs) and the CLI
+        /// (RomLoader) startup use this so <c>CoreState.Config</c> is never null on a fresh
+        /// install — previously a <c>File.Exists</c> guard left it null, and every config
+        /// writer (Options dialog, theme, recent files, init wizard) silently no-op'd.
+        /// </summary>
+        public static Config LoadOrCreate(string fullfilename)
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(fullfilename);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: Save() is itself exception-safe and surfaces a clear error
+                // if the location is genuinely unwritable. Log once so a first-run
+                // directory-creation failure is diagnosable from the logs.
+                Log.Error("Config.LoadOrCreate: could not ensure config directory for", fullfilename, ex.ToString());
+            }
+
+            var config = new Config();
+            config.Load(fullfilename); // sets ConfigFilename; no-op when the file is absent
+            return config;
+        }
     }
 }
