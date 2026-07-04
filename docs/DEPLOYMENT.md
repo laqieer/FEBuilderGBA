@@ -164,9 +164,14 @@ The patch2 remote is returned by `GitUtil.GetPatch2RemoteUrl()`: it defaults to
 `github.com/laqieer/FEBuilderGBA-patch2`, unless a custom `submodule_patch2_url`
 override is set in `config.xml`, in which case that value is used instead.
 
-In the UI this is **Tools → Check for Updates** ([`FEBuilderGBA/ToolUpdateDialogForm.cs`](../FEBuilderGBA/ToolUpdateDialogForm.cs)):
-when Git is found, a dedicated **Git Patch2** button performs the clone/update; if Git is absent, the app keeps
-the five empty `config/patch2/{FE6,FE7J,FE7U,FE8J,FE8U}` directories so startup still succeeds.
+In the UI this is the **Welcome screen** update button ("Update FEBuilderGBA to the Latest Version"), which opens the update
+dialog ([`FEBuilderGBA/ToolUpdateDialogForm.cs`](../FEBuilderGBA/ToolUpdateDialogForm.cs)): a dedicated
+**Git Patch2** button performs the clone/update. Since #1816 that button is reachable even when the
+core app is already up-to-date (as long as `config/patch2/` is empty) and is shown even when Git is
+absent — clicking it offers to auto-install Git first. A fresh install keeps the five empty
+`config/patch2/{FE6,FE7J,FE7U,FE8J,FE8U}` stub directories so startup still succeeds, and the Patch
+Manager shows a "patch database not downloaded yet" notice rather than an error (#1811). Avalonia has
+no equivalent in-app flow yet ([#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817)).
 
 See **[README → 🔄 Update System / Updating Patch2 via Git](../README.md#-update-system)** for the user-facing summary.
 
@@ -244,7 +249,8 @@ git -C config/patch2 log -1 --format="%h %s"
 
 **Solutions:**
 - Confirm Git is installed and discoverable — `GitUtil.FindGitExecutable()` checks the configured path, then
-  `git` on `PATH`, then common Windows install locations. If none is found the button is hidden.
+  `git` on `PATH`, then common Windows install locations. Since #1816 the button stays visible even when
+  Git is absent and offers to **auto-install Git** on click (rather than hiding the entry).
 - Check network access to the patch2 remote (`github.com/laqieer/FEBuilderGBA-patch2`, or a custom `submodule_patch2_url`).
 - The patch2 repo is public; `GIT_TERMINAL_PROMPT=0` is set, so a credential prompt would surface as a failure
   rather than a hang — re-run with a clean `config/patch2/` to force a fresh `--depth=1` clone.
