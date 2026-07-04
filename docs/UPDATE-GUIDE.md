@@ -27,8 +27,10 @@ If automatic updates don't work:
 1. Go to [Latest Release](https://github.com/laqieer/FEBuilderGBA/releases/latest)
 2. Download the appropriate package (see "Which Package to Download" below)
 3. Extract the archive
-4. **For FULL/CORE packages:** Replace your existing FEBuilderGBA folder
-5. **For PATCH2 packages:** Extract into your existing FEBuilderGBA folder (merge/replace files)
+4. **For the desktop application package:** Replace your existing FEBuilderGBA folder.
+5. **Patch database (`config/patch2/`):** since #1766 this is delivered over **git**, not as a
+   downloadable package — see [First-time patch2 setup](#first-time-patch2-setup) below if
+   `config/patch2/` is empty.
 
 ## First-time patch2 setup
 
@@ -99,7 +101,13 @@ empty state is handled gracefully (a friendly notice, not a crash).
   - You have the latest patches already
   - **Automatic updater selects this for you**
 
-### 🔹 PATCH2 Package (Patch database updates only)
+### 🔹 PATCH2 Package (Patch database updates only) — *historical*
+
+> **Note (#1766):** the patch database is now delivered over **git**, not as a downloadable
+> `.7z` asset — see [First-time patch2 setup](#first-time-patch2-setup). The
+> `FEBuilderGBA_PATCH2_{version}.7z` package described below is no longer produced; this entry is
+> kept for older releases only.
+
 - **Filename:** `FEBuilderGBA_PATCH2_{version}.7z`
 - **Size:** ~10-20MB
 - **Contains:** Patch database only (~44,000 patch files)
