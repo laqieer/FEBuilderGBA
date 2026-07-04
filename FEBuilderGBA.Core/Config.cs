@@ -116,10 +116,12 @@ namespace FEBuilderGBA
                     Directory.CreateDirectory(dir);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Non-fatal: Save() is itself exception-safe and surfaces a clear error
-                // if the location is genuinely unwritable.
+                // if the location is genuinely unwritable. Log once so a first-run
+                // directory-creation failure is diagnosable from the logs.
+                Log.Error("Config.LoadOrCreate: could not ensure config directory for", fullfilename, ex.ToString());
             }
 
             var config = new Config();

@@ -19,6 +19,7 @@ public class OptionsConfigPersistenceTests : IDisposable
     readonly Config? _savedConfig;
     readonly string? _savedBaseDir;
     readonly string? _savedLanguage;
+    readonly string _savedGitPath;
     readonly string _baseDir;
 
     public OptionsConfigPersistenceTests()
@@ -26,6 +27,7 @@ public class OptionsConfigPersistenceTests : IDisposable
         _savedConfig = CoreState.Config;
         _savedBaseDir = CoreState.BaseDirectory;
         _savedLanguage = CoreState.Language;
+        _savedGitPath = CoreState.GitPath;
 
         // Isolated temp base dir OUTSIDE the repo (and not a git repo) so Save()'s
         // ApplySubmoduleRemotes() cannot touch the real config/patch2 submodule.
@@ -39,6 +41,7 @@ public class OptionsConfigPersistenceTests : IDisposable
         CoreState.Config = _savedConfig;
         CoreState.BaseDirectory = _savedBaseDir;
         CoreState.Language = _savedLanguage;
+        CoreState.GitPath = _savedGitPath;
         try { if (Directory.Exists(_baseDir)) Directory.Delete(_baseDir, true); } catch { /* best effort */ }
     }
 
