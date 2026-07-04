@@ -9,7 +9,7 @@ FEBuilderGBA features an intelligent update system that automatically downloads 
 ### Simple Method (Recommended)
 
 1. **Open FEBuilderGBA**
-2. On the **Welcome screen**, click **"Update Check"** (WinForms). *(Avalonia has no in-app update checker yet — [#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817).)*
+2. On the **Welcome screen**, click the **update button** ("Update FEBuilderGBA to the Latest Version") (WinForms). *(Avalonia has no in-app update checker yet — [#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817).)*
 3. **Review what's being updated:**
    - The dialog shows which components have updates
    - Current version vs. latest version displayed
@@ -42,11 +42,12 @@ downloaded yet — use Check for Updates / Initialize Repository to fetch it"* n
 
 ### In-app (WinForms)
 
-1. On the **Welcome screen**, click **"Update Check"**.
+1. On the **Welcome screen**, click the **update button** ("Update FEBuilderGBA to the Latest Version").
 2. Even when the core app is already up-to-date, if `config/patch2/` is empty the dialog offers a
    **"Git Patch2"** button (`Gitでパッチデータを更新します`) — #1816.
 3. Click it. If Git is not installed the app offers to auto-install it first, then clones the patch
-   database. No restart is needed.
+   database. **Restart FEBuilderGBA afterwards** to apply the new patch data (patch definitions are
+   loaded at startup).
 
 > **Avalonia:** a discoverable in-app initialize/update flow is not available yet
 > ([#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817)); the Options window can set the

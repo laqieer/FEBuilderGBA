@@ -480,11 +480,13 @@ The patch database (`config/patch2/`, ~44,000 files) is delivered over git from 
 **not** bundled in the release, so a freshly-downloaded standalone build ships empty
 `FE6/FE7J/FE7U/FE8J/FE8U` stub folders that you fetch on first use.
 
-- **In-app (WinForms):** on the **Welcome screen** click **"Update Check"**. When `config/patch2/`
+- **In-app (WinForms):** on the **Welcome screen** click the **update button** ("Update FEBuilderGBA
+  to the Latest Version"). When `config/patch2/`
   is empty (a fresh install) the dialog offers a **"Git Patch2"** button
   (`Gitでパッチデータを更新します`) — shown even when the core app is already up-to-date (#1816), and
   even if Git is not installed (it offers to auto-install Git first). Clicking it clones/updates
-  patch2. The **Patch Manager** also shows a *"patch database has not been downloaded yet — use
+  patch2 (restart FEBuilderGBA afterwards to apply the new patch data). The **Patch Manager** also
+  shows a *"patch database has not been downloaded yet — use
   Check for Updates"* notice when `config/patch2/` is empty, instead of an error (#1811).
 - **Manual (any platform):** delete the empty stub folders, then either
   `git clone --depth=1 https://github.com/laqieer/FEBuilderGBA-patch2.git config/patch2`, or
