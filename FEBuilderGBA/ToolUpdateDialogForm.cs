@@ -26,7 +26,6 @@ namespace FEBuilderGBA
         string URL;
         UpdateInfo UpdateInfoData;
         UpdateInfo.PackageType PackageType;
-        private string _gitExe = null;  // cached in InitSplitPackage
 
         public void Init(string version, string url)
         {
@@ -49,11 +48,17 @@ namespace FEBuilderGBA
         /// </summary>
         public void InitSplitPackage(UpdateInfo updateInfo)
         {
-            this.UpdateInfoData = updateInfo;
+            InitSplitPackage(updateInfo, patch2Only: false);
+        }
 
-            // Detect git once and cache it
-            _gitExe = GitUtil.FindGitExecutable();
-            bool useGit = (_gitExe != null);
+        /// <summary>
+        /// #1816: when <paramref name="patch2Only"/> is true the core app is already up-to-date and
+        /// only the patch2 Initialize/Update action is offered (Core button hidden, patch2-focused
+        /// message). Reaches the Git Patch2 button on a fresh install with an empty config/patch2.
+        /// </summary>
+        public void InitSplitPackage(UpdateInfo updateInfo, bool patch2Only)
+        {
+            this.UpdateInfoData = updateInfo;
 
             // Always hide the legacy Full button in split-package mode
             this.AutoUpdateButton.Visible = false;
@@ -64,23 +69,29 @@ namespace FEBuilderGBA
             const int btnH   = 34;
             const int btnGap = 6;
 
-            // Core-only button — always shown
-            bool hasCore = !string.IsNullOrEmpty(updateInfo.URL_CORE);
+            // Core-only button — shown when a newer core exists (never in patch2-only mode)
+            bool hasCore = !patch2Only && !string.IsNullOrEmpty(updateInfo.URL_CORE);
             this.UpdateCoreButton.Visible  = hasCore;
             this.UpdateCoreButton.Enabled  = hasCore;
             this.UpdateCoreButton.Location = new System.Drawing.Point(17, y);
             if (hasCore) y += btnH + btnGap;
 
-            // Git Patch2 button — shown when git is found
-            this.UpdatePatch2GitButton.Visible  = useGit;
-            this.UpdatePatch2GitButton.Enabled  = useGit;
+            // #1816: always show the patch2 Git button in split-package mode. The click handler
+            // auto-installs Git when it is missing (AutoUpdatePatch2Git -> TryAutoInstallGit), so
+            // gating visibility on `useGit` hid the entry and made that fallback dead code — leaving
+            // a fresh install (empty config/patch2) with no in-app path to fetch the patch database.
+            this.UpdatePatch2GitButton.Visible  = true;
+            this.UpdatePatch2GitButton.Enabled  = true;
             this.UpdatePatch2GitButton.Location = new System.Drawing.Point(17, y);
-            if (useGit) y += btnH + btnGap;
+            y += btnH + btnGap;
 
-            // Push OpenBrowser and Ignore below all visible update buttons
-            // (keep at least the original gap from y=182 so layout isn't cramped)
+            // #1816: in patch2-only mode "Open Browser" would point at the core release URL
+            // (irrelevant — patch2 is a separate git repo, not a release asset), so hide it and let
+            // Ignore take its slot. Push the remaining buttons below all visible update buttons.
+            this.OpenBrowserButton.Visible = !patch2Only;
+            this.OpenBrowserButton.Enabled = !patch2Only;
             int openY   = Math.Max(234, y);
-            int ignoreY = openY + btnH + btnGap;
+            int ignoreY = patch2Only ? openY : openY + btnH + btnGap;
             this.OpenBrowserButton.Location = new System.Drawing.Point(17, openY);
             this.IgnoreButton.Location      = new System.Drawing.Point(17, ignoreY);
 
@@ -94,7 +105,13 @@ namespace FEBuilderGBA
             this.URL         = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out pt);
             this.PackageType = pt;
 
-            this.Message.Text = BuildUpdateMessage(updateInfo);
+            // #1816: bilingual literal (JA + EN, both always shown) — matching the
+            // PatchMetadataCore.NotInitializedMessage pattern from #1811. Deliberately NOT wrapped in
+            // R._ so a future translation of one half can't duplicate the other.
+            this.Message.Text = patch2Only
+                ? "プログラム本体は最新です。\r\nパッチデータ(config/patch2)がまだダウンロードされていません。\r\n下のボタンでパッチデータベースを取得してください。\r\n\r\n"
+                  + "The application is up to date. The patch database (config/patch2) has not been downloaded yet.\r\nUse the button below to fetch it."
+                : BuildUpdateMessage(updateInfo);
         }
 
         private string BuildUpdateMessage(UpdateInfo updateInfo)
