@@ -486,8 +486,8 @@ The patch database (`config/patch2/`, ~44,000 files) is delivered over git from 
   (`Gitでパッチデータを更新します`) — shown even when the core app is already up-to-date (#1816), and
   even if Git is not installed (it offers to auto-install Git first). Clicking it clones/updates
   patch2 (restart FEBuilderGBA afterwards to apply the new patch data). The **Patch Manager** also
-  shows a *"patch database has not been downloaded yet — use
-  Check for Updates"* notice when `config/patch2/` is empty, instead of an error (#1811).
+  shows the *"The patch database has not been downloaded yet. Use Check for Updates / Initialize
+  Repository to fetch it."* notice when `config/patch2/` is empty, instead of an error (#1811).
 - **Manual (any platform):** delete the empty stub folders, then either
   `git clone --depth=1 https://github.com/laqieer/FEBuilderGBA-patch2.git config/patch2`, or
   download & extract the repo's `master.zip` into `config/patch2/`, or reuse a populated

@@ -249,7 +249,8 @@ git -C config/patch2 log -1 --format="%h %s"
 
 **Solutions:**
 - Confirm Git is installed and discoverable — `GitUtil.FindGitExecutable()` checks the configured path, then
-  `git` on `PATH`, then common Windows install locations. If none is found the button is hidden.
+  `git` on `PATH`, then common Windows install locations. Since #1816 the button stays visible even when
+  Git is absent and offers to **auto-install Git** on click (rather than hiding the entry).
 - Check network access to the patch2 remote (`github.com/laqieer/FEBuilderGBA-patch2`, or a custom `submodule_patch2_url`).
 - The patch2 repo is public; `GIT_TERMINAL_PROMPT=0` is set, so a credential prompt would surface as a failure
   rather than a hang — re-run with a clean `config/patch2/` to force a fresh `--depth=1` clone.
