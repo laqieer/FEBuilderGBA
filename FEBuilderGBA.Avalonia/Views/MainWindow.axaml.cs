@@ -3873,8 +3873,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 foreach (var item in wp.Children)
                 {
                     if (item is not Button btn) continue;
-                    string content = btn.Content?.ToString() ?? "";
-                    bool? visible = GetVersionVisibility(content, ver, isMultibyte);
+                    // #1798: gate by the STABLE, version-encoding button Name (never
+                    // localized) — NOT the translatable Content. In Japanese,
+                    // RefreshEditorButtons sets Content to full-width parens (e.g.
+                    // "ユニット（FE6）"), so the ASCII "(FE6)" check in GetVersionVisibility
+                    // silently failed and left FE6/FE7/FE7U/FE8U buttons visible on FE8J.
+                    // Fall back to the Content check only when the Name carries no tag.
+                    bool? visible = GetVersionVisibilityByName(btn.Name, ver, isMultibyte)
+                        ?? GetVersionVisibility(btn.Content?.ToString() ?? "", ver, isMultibyte);
                     if (visible.HasValue)
                     {
                         btn.IsVisible = visible.Value;
@@ -3903,6 +3909,33 @@ namespace FEBuilderGBA.Avalonia.Views
             if (content.Contains("(FE8)"))
                 return ver == 8;
             return null; // no tag — always show
+        }
+
+        /// <summary>
+        /// #1798: translation-independent version gating. Version-specific editor buttons
+        /// are named "&lt;Editor&gt;FE&lt;n&gt;[U]Button" (e.g. UnitFE6Button,
+        /// MapSettingsFE7UButton, OPDemoFE8UButton) — a stable identifier that is never
+        /// localized, unlike Content (which becomes full-width "（FE6）" in Japanese and
+        /// defeats GetVersionVisibility's ASCII "(FE6)" check). Matches the version token
+        /// immediately before the "Button" suffix so a generic name can't be misread.
+        /// Returns null when the name has no version suffix (caller falls back to Content).
+        /// Order matters: region-specific (FE7U, FE8U) before generic (FE7, FE8).
+        /// </summary>
+        internal static bool? GetVersionVisibilityByName(string? name, int ver, bool isMultibyte)
+        {
+            if (string.IsNullOrEmpty(name))
+                return null;
+            if (name.EndsWith("FE7UButton"))
+                return ver == 7 && !isMultibyte;
+            if (name.EndsWith("FE8UButton"))
+                return ver == 8 && !isMultibyte;
+            if (name.EndsWith("FE6Button"))
+                return ver == 6;
+            if (name.EndsWith("FE7Button"))
+                return ver == 7;
+            if (name.EndsWith("FE8Button"))
+                return ver == 8;
+            return null; // no version suffix in the name
         }
 
         // ===================== #1411 Portrait Editor version gating =====================
