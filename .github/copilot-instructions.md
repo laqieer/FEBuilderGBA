@@ -82,9 +82,9 @@ FEBuilderGBA\bin\Release\FEBuilderGBA.exe --rom roms\FE8U.gba --lint
 ## High-level architecture
 
 - `FEBuilderGBA.Core` is the canonical shared domain layer. It contains ROM loading and version detection (`Rom.cs`, `ROMFE*.cs`), undo (`Undo.cs`), text encoding, event scripts, export/import, patch detection, lint scanning, rebuild logic, and platform abstraction points exposed through `CoreState`.
-- `FEBuilderGBA` is the WinForms host. `FEBuilderGBA\Program.cs` does early command-line detection so `--version` and other non-GUI flows can run before WinForms or GDI initialization.
+- `FEBuilderGBA` is the WinForms host. `FEBuilderGBA\Program.cs` does early command-line detection so `--version` and other non-GUI flows can run before WinForms or GDI initialization. **The WinForms GUI is in stable mode: bug fixes only — do NOT add new features here** (see [docs/GUI-STRATEGY.md](../docs/GUI-STRATEGY.md)).
 - `FEBuilderGBA.CLI` is a separate cross-platform host. Its `Program.cs` sets `CoreState.Services` to headless services, sets `CoreState.ImageService` to the SkiaSharp implementation, and routes the CLI commands.
-- `FEBuilderGBA.Avalonia` is the newer cross-platform GUI. It reuses `FEBuilderGBA.Core` and adds its own lightweight editor auto-binding via `FEBuilderGBA.Core\EditorFormRef.cs`.
+- `FEBuilderGBA.Avalonia` is the newer cross-platform GUI. It reuses `FEBuilderGBA.Core` and adds its own lightweight editor auto-binding via `FEBuilderGBA.Core\EditorFormRef.cs`. **The Avalonia GUI is in preview and is where all new GUI features ship** (`FEBuilderGBA.Core`/`FEBuilderGBA.CLI` are shared and not restricted by this policy).
 - `FEBuilderGBA.SkiaSharp` supplies the image service implementation used by CLI and Avalonia code paths.
 - `FEBuilderGBA.Tests`, `FEBuilderGBA.Core.Tests`, and `FEBuilderGBA.E2ETests` split coverage across Windows-host behavior, pure Core behavior, and black-box executable behavior.
 

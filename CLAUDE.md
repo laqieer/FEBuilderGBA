@@ -562,6 +562,10 @@ The FE-Repo submodule (`resources/FE-Repo/`) contains public GBA Fire Emblem gra
 Avalonia portrait import supports FE-Repo Standard Hackboxes (128×112) and FE8 HALFBODY Halfbody Hackboxes (160×160, requires the HALFBODY portrait-extension patch). Twoparter Hackboxes (144×304) are intentionally rejected until a verified PART1/PART2 slicing layout exists.
 
 ### Adding Form/Feature
+> **GUI policy:** new **features** target the **Avalonia GUI** (`FEBuilderGBA.Avalonia`).
+> The WinForms GUI is in **stable mode — bug fixes only**; touch a WinForms form only
+> to fix a bug/regression, never to add a new feature. See
+> [docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md).
 1. Create Form class (inherit from `Form`)
 2. Use Designer for UI layout
 3. Call `InputFormRef.MakeLinkEvent(this)` in constructor

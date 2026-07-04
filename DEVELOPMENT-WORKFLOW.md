@@ -212,6 +212,7 @@ Never work directly on master — always create a feature branch.
 **Scope discipline:**
 - Follow the accepted plan exactly
 - No bonus refactoring, no extra features, no "while I'm here" changes
+- **New GUI features target the Avalonia GUI (`FEBuilderGBA.Avalonia`).** The WinForms GUI (`FEBuilderGBA`) is in stable mode — bug fixes only; do not implement or accept new features there (see [docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md)). Core/CLI are shared and unaffected.
 - If you discover something that needs fixing, file a new issue — don't scope-creep
 
 **Test requirements:**

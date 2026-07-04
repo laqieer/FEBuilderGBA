@@ -62,6 +62,19 @@ Every PR reviewer (human or automated) should verify:
 3. For large doc restructuring, open a dedicated docs PR
 4. For wiki updates, edit via the web UI or clone and push
 
+## GUI Strategy & Feature Policy
+
+FEBuilderGBA has **two GUIs held to different standards** (full policy:
+[docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md)):
+
+- **WinForms GUI (`FEBuilderGBA`)** — stable and widely used → **bug fixes only, no new features.**
+- **Avalonia GUI (`FEBuilderGBA.Avalonia`)** — cross-platform **preview** → **all new GUI features ship here.**
+
+So: build/propose a **new GUI feature against Avalonia**; a WinForms change is in
+scope only when it fixes a bug/regression. `FEBuilderGBA.Core` / `FEBuilderGBA.CLI`
+are shared and cross-platform and are **not** restricted by this policy. Reviewers
+should reject or redirect new-feature PRs that target the WinForms GUI.
+
 ## Code Contribution Guidelines
 
 See [DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md) for the mandatory development workflow including plan review, implementation, and PR review gates.

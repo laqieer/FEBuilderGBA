@@ -24,6 +24,7 @@ overview and quick start; the documents below go into depth on specific areas.
 | Doc | What it covers |
 |-----|----------------|
 | [CORE-SEAMS.md](CORE-SEAMS.md) | Full per-class catalog of the cross-platform `FEBuilderGBA.Core` seams (one paragraph each). |
+| [GUI-STRATEGY.md](GUI-STRATEGY.md) | **Dual-GUI policy** — WinForms (`FEBuilderGBA`) is stable/bug-fixes-only; the Avalonia GUI (`FEBuilderGBA.Avalonia`) is preview and receives all new GUI features. |
 | [ENGINEERING-NOTES.md](ENGINEERING-NOTES.md) | Cross-cutting engineering gotchas, recurring failure modes, working conventions (the "why"), and campaign history. |
 | [avalonia-forms.md](avalonia-forms.md) | Avalonia editor/form inventory. |
 | [avalonia-gui-forms.md](avalonia-gui-forms.md) | Avalonia GUI form mapping details. |
