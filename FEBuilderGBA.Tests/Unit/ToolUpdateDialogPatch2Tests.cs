@@ -67,6 +67,8 @@ namespace FEBuilderGBA.Tests.Unit
                 Assert.True(patch2.Enabled, "Git Patch2 button must be enabled even if git is missing (auto-install path)");
                 Assert.False(OwnVisible(core), "Core button must be hidden when the core is already up-to-date");
                 Assert.False(OwnVisible(full), "Full/Auto button is always hidden in split-package mode");
+                var openBrowser = Get<Button>(f, "OpenBrowserButton");
+                Assert.False(OwnVisible(openBrowser), "Open-Browser must be hidden in patch2-only mode (it would point at the core release, not patch2)");
                 // The patch2-only message must NOT show the bogus "core -> 00000000.00" transition.
                 Assert.DoesNotContain("00000000.00", msg.Text);
             });

@@ -85,10 +85,13 @@ namespace FEBuilderGBA
             this.UpdatePatch2GitButton.Location = new System.Drawing.Point(17, y);
             y += btnH + btnGap;
 
-            // Push OpenBrowser and Ignore below all visible update buttons
-            // (keep at least the original gap from y=182 so layout isn't cramped)
+            // #1816: in patch2-only mode "Open Browser" would point at the core release URL
+            // (irrelevant — patch2 is a separate git repo, not a release asset), so hide it and let
+            // Ignore take its slot. Push the remaining buttons below all visible update buttons.
+            this.OpenBrowserButton.Visible = !patch2Only;
+            this.OpenBrowserButton.Enabled = !patch2Only;
             int openY   = Math.Max(234, y);
-            int ignoreY = openY + btnH + btnGap;
+            int ignoreY = patch2Only ? openY : openY + btnH + btnGap;
             this.OpenBrowserButton.Location = new System.Drawing.Point(17, openY);
             this.IgnoreButton.Location      = new System.Drawing.Point(17, ignoreY);
 
