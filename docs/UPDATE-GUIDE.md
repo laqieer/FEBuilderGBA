@@ -9,7 +9,7 @@ FEBuilderGBA features an intelligent update system that automatically downloads 
 ### Simple Method (Recommended)
 
 1. **Open FEBuilderGBA**
-2. **Click "Tools" → "Check for Updates"** (or press the update button)
+2. On the **Welcome screen**, click **"Update Check"** (WinForms). *(Avalonia has no in-app update checker yet — [#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817).)*
 3. **Review what's being updated:**
    - The dialog shows which components have updates
    - Current version vs. latest version displayed
@@ -29,6 +29,54 @@ If automatic updates don't work:
 3. Extract the archive
 4. **For FULL/CORE packages:** Replace your existing FEBuilderGBA folder
 5. **For PATCH2 packages:** Extract into your existing FEBuilderGBA folder (merge/replace files)
+
+## First-time patch2 setup
+
+Since #1766 the **patch database** (`config/patch2/`, ~44,000 files) is delivered over **git** from
+the separate [FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2) repository rather
+than bundled in the download. A freshly-extracted standalone build therefore ships **empty**
+`FE6/FE7J/FE7U/FE8J/FE8U` stub folders under `config/patch2/`, and you fetch the patches on first use.
+
+If you open the **Patch Manager** before fetching them, it shows a *"The patch database has not been
+downloaded yet — use Check for Updates / Initialize Repository to fetch it"* notice (not an error, #1811).
+
+### In-app (WinForms)
+
+1. On the **Welcome screen**, click **"Update Check"**.
+2. Even when the core app is already up-to-date, if `config/patch2/` is empty the dialog offers a
+   **"Git Patch2"** button (`Gitでパッチデータを更新します`) — #1816.
+3. Click it. If Git is not installed the app offers to auto-install it first, then clones the patch
+   database. No restart is needed.
+
+> **Avalonia:** a discoverable in-app initialize/update flow is not available yet
+> ([#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817)); the Options window can set the
+> remote URL, but use a manual method below to fetch patch2 for now.
+
+### Manual (any platform)
+
+Delete the empty stub folders under `config/patch2/` first, then choose one:
+
+1. **git clone** (recommended — supports incremental updates later):
+   ```
+   git clone --depth=1 https://github.com/laqieer/FEBuilderGBA-patch2.git config/patch2
+   ```
+2. **Download the zip:** grab
+   `https://github.com/laqieer/FEBuilderGBA-patch2/archive/refs/heads/master.zip`
+   and extract its contents into `config/patch2/`.
+3. **Reuse** a populated `config/patch2/` from an older FEBuilderGBA release.
+
+To refresh an existing clone later: `cd config/patch2 && git pull`.
+
+### Custom / mirror remote
+
+The patch2 git source defaults to `github.com/laqieer/FEBuilderGBA-patch2`. To use a different remote
+(e.g. a private mirror), set `submodule_patch2_url` in `config.xml`; when present it overrides the default.
+
+### Troubleshooting: "Open Patch File" shows an error / the patch list is empty
+
+This means `config/patch2/` has not been fetched yet (the fresh-install state above). Follow the
+first-time setup steps to download the patch database, then reopen the Patch Manager. As of #1811 the
+empty state is handled gracefully (a friendly notice, not a crash).
 
 ## Which Package to Download?
 

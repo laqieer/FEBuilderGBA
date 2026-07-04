@@ -475,15 +475,30 @@ When you check for updates the app compares the remote version against the local
 
 ### Updating Patch2 via Git
 
-Patch2 is a [git submodule](https://github.com/laqieer/FEBuilderGBA-patch2) updated independently of core releases.
+The patch database (`config/patch2/`, ~44,000 files) is delivered over git from the separate
+[FEBuilderGBA-patch2](https://github.com/laqieer/FEBuilderGBA-patch2) repository — since #1766 it is
+**not** bundled in the release, so a freshly-downloaded standalone build ships empty
+`FE6/FE7J/FE7U/FE8J/FE8U` stub folders that you fetch on first use.
 
-- **In-app:** Tools → Check for Updates → "Gitでパッチデータを更新します"
-- **Manual:** `cd config/patch2 && git pull`
-- **First run:** The app detects missing patch2 directories and offers to clone them automatically. If Git is not installed, empty directories are created so the app still starts.
+- **In-app (WinForms):** on the **Welcome screen** click **"Update Check"**. When `config/patch2/`
+  is empty (a fresh install) the dialog offers a **"Git Patch2"** button
+  (`Gitでパッチデータを更新します`) — shown even when the core app is already up-to-date (#1816), and
+  even if Git is not installed (it offers to auto-install Git first). Clicking it clones/updates
+  patch2. The **Patch Manager** also shows a *"patch database has not been downloaded yet — use
+  Check for Updates"* notice when `config/patch2/` is empty, instead of an error (#1811).
+- **Manual (any platform):** delete the empty stub folders, then either
+  `git clone --depth=1 https://github.com/laqieer/FEBuilderGBA-patch2.git config/patch2`, or
+  download & extract the repo's `master.zip` into `config/patch2/`, or reuse a populated
+  `config/patch2/` from an older release. To refresh an existing clone: `cd config/patch2 && git pull`.
+- **Avalonia:** a discoverable in-app patch2 initialize/update flow is not available yet
+  ([#1817](https://github.com/laqieer/FEBuilderGBA/issues/1817)) — the Options window can set the
+  remote URL, but use one of the manual methods above to fetch patch2 for now.
 
 The patch2 git source defaults to `github.com/laqieer/FEBuilderGBA-patch2`. To use a
 different remote (for example a private mirror), set a custom `submodule_patch2_url`
-value in `config.xml`; when present it overrides the default GitHub remote.
+value in `config.xml`; when present it overrides the default GitHub remote. See
+[docs/UPDATE-GUIDE.md](docs/UPDATE-GUIDE.md#first-time-patch2-setup) for a step-by-step
+first-time setup and troubleshooting guide.
 
 ### Benefits
 
