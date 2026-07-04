@@ -47,8 +47,8 @@ When triaging an issue or scoping a PR:
 2. **Is it a WinForms bug/regression?** → fixing it is in scope.
 3. **Is it Core/CLI/SkiaSharp?** → not covered by this policy; scope normally.
 
-This policy is also recorded in
+This policy is also recorded across the repository's contributor docs:
 [`README.md`](../README.md), [`CONTRIBUTING.md`](../CONTRIBUTING.md),
 [`DEVELOPMENT-WORKFLOW.md`](../DEVELOPMENT-WORKFLOW.md),
-[`.github/SUPPORT.md`](../.github/SUPPORT.md), `CLAUDE.md`,
-`.github/copilot-instructions.md`, and the project wiki.
+[`.github/SUPPORT.md`](../.github/SUPPORT.md), `CLAUDE.md`, and
+`.github/copilot-instructions.md`.
