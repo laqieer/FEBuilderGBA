@@ -105,8 +105,11 @@ namespace FEBuilderGBA
             this.URL         = UpdateCheckSplitPackage.GetDownloadUrl(updateInfo, out pt);
             this.PackageType = pt;
 
+            // #1816: bilingual literal (JA + EN, both always shown) — matching the
+            // PatchMetadataCore.NotInitializedMessage pattern from #1811. Deliberately NOT wrapped in
+            // R._ so a future translation of one half can't duplicate the other.
             this.Message.Text = patch2Only
-                ? R._("プログラム本体は最新です。\r\nパッチデータ(config/patch2)がまだダウンロードされていません。\r\n下のボタンでパッチデータベースを取得してください。") + "\r\n\r\n"
+                ? "プログラム本体は最新です。\r\nパッチデータ(config/patch2)がまだダウンロードされていません。\r\n下のボタンでパッチデータベースを取得してください。\r\n\r\n"
                   + "The application is up to date. The patch database (config/patch2) has not been downloaded yet.\r\nUse the button below to fetch it."
                 : BuildUpdateMessage(updateInfo);
         }

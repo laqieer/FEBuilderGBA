@@ -28,6 +28,7 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var m = typeof(Control).GetMethod("GetState",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(m); // guard: GetState(int) must exist on this .NET WinForms build
             return (bool)m.Invoke(c, new object[] { 2 }); // STATE_VISIBLE = 0x02
         }
 
