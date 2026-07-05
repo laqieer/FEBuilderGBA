@@ -14181,8 +14181,8 @@ FE-Repo-Musicを今すぐ初期化／更新
 :Check for _Updates…
 更新を確認(_U)…
 
-:Could not check for updates (offline?).
-更新を確認できませんでした（オフラインの可能性があります）。
+:Could not check for updates (offline or GitHub unavailable).
+更新を確認できませんでした（オフライン、または GitHub に接続できません）。
 
 :You are running the latest version (current {0}).
 最新バージョンを使用しています（現在 {0}）。

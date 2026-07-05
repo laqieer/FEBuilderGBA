@@ -28002,8 +28002,8 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 :Check for _Updates…
 检查更新(_U)…
 
-:Could not check for updates (offline?).
-无法检查更新（可能处于离线状态）。
+:Could not check for updates (offline or GitHub unavailable).
+无法检查更新（处于离线状态或无法连接 GitHub）。
 
 :You are running the latest version (current {0}).
 你正在使用最新版本（当前 {0}）。

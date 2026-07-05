@@ -3666,15 +3666,24 @@ namespace FEBuilderGBA.Avalonia.Views
                     // CoreState.Config.Save) and any dialog must NOT run on the background thread.
                     Dispatcher.UIThread.Post(async () =>
                     {
-                        // Only consume the interval on a SUCCESSFUL check — a failed (offline/
-                        // rate-limited) check retries on the next launch instead of being suppressed
-                        // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
-                        if (!result.CheckSucceeded)
-                            return;
-                        MarkAutoUpdateChecked(today);
-                        if (!result.IsUpdateAvailable)
-                            return;
-                        await ShowUpdateCheckResultAsync(result, manual: false);
+                        try
+                        {
+                            // Only consume the interval on a SUCCESSFUL check — a failed (offline/
+                            // rate-limited) check retries on the next launch instead of being suppressed
+                            // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
+                            if (!result.CheckSucceeded)
+                                return;
+                            MarkAutoUpdateChecked(today);
+                            if (!result.IsUpdateAvailable)
+                                return;
+                            await ShowUpdateCheckResultAsync(result, manual: false);
+                        }
+                        catch (Exception ex)
+                        {
+                            // async-void fire-and-forget: swallow+log so an exception (e.g. the window
+                            // closing during startup) can never become an unobserved crash.
+                            Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
+                        }
                     });
                 });
             }
@@ -3705,7 +3714,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!result.CheckSucceeded)
             {
                 if (manual)
-                    await MessageBoxWindow.Show(this, R._("Could not check for updates (offline?)."), R._("FEBuilderGBA"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Could not check for updates (offline or GitHub unavailable)."), R._("FEBuilderGBA"), MessageBoxMode.Ok);
                 return;
             }
 
