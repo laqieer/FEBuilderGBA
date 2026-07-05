@@ -83,6 +83,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
+        /// <summary>
+        /// Label for the in-app patch2 Initialize/Update button (#1817). "Update Patch Database" when the
+        /// repo-root <c>config/patch2</c> is already a git repo, otherwise "Initialize Patch Database".
+        /// Uses <see cref="Patch2GitService.GetPatch2Dir"/> on <see cref="CoreState.BaseDirectory"/> (the
+        /// repo root) — NOT the per-version <c>ResolvePatchDirectory</c> subfolder, which is never itself a
+        /// git repo and would permanently mislabel the button.
+        /// </summary>
+        public string Patch2ButtonText
+        {
+            get
+            {
+                string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+                return GitUtil.IsGitRepo(Patch2GitService.GetPatch2Dir(baseDir))
+                    ? "Update Patch Database"
+                    : "Initialize Patch Database";
+            }
+        }
+
         public string FilterText
         {
             get => _filterText;

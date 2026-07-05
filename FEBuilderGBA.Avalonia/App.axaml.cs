@@ -414,6 +414,11 @@ namespace FEBuilderGBA.Avalonia
                     // #1784 PR proof: MapSettingDifficultyDialogView is ROM-independent, so
                     // it renders real PNG proof of the centered "Apply" action button.
                     "MapSettingDifficultyDialogView" => new Views.MapSettingDifficultyDialogView(),
+                    // #1817 PR proof: the Patch Manager is ROM-independent for the empty-state
+                    // screenshot (LoadPatches catches a missing ROM/patch2), so it renders real
+                    // PNG proof of the new "Initialize / Update Patch Database" button and the
+                    // empty-state notice in the left panel.
+                    "PatchManagerView" => new Views.PatchManagerView(),
                     _ => throw new ArgumentException($"Unsupported --screenshot-window view: {viewName}"),
                 };
 

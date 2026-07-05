@@ -37,6 +37,10 @@
                 <TextBlock Text="Leave blank for defaults. Set custom URLs for forks/mirrors." FontSize="11" Foreground="Gray" />
                 <TextBlock Text="Patch2 Remote URL" Margin="0,4,0,0" />
                 <TextBox AutomationProperties.AutomationId="Options_Patch2UrlText_Input" Name="Patch2UrlTextBox" Watermark="https://github.com/laqieer/FEBuilderGBA-patch2.git" />
+                <!-- #1817: in-app Initialize/Update of the patch2 database, next to its URL field. -->
+                <Button AutomationProperties.AutomationId="Options_InitUpdatePatch2_Button" Name="InitUpdatePatch2Button"
+                        Content="Initialize / Update Patch Database Now" Click="InitUpdatePatch2_Click"
+                        HorizontalAlignment="Left" Margin="0,4,0,0" />
                 <TextBlock Text="FE-Repo Remote URL" Margin="0,4,0,0" />
                 <TextBox AutomationProperties.AutomationId="Options_FERepoUrlText_Input" Name="FERepoUrlTextBox" Watermark="https://github.com/Klokinator/FE-Repo" />
                 <TextBlock Text="FE-Repo-Music Remote URL" Margin="0,4,0,0" />

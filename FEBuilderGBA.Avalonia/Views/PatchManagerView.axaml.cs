@@ -1,6 +1,9 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -22,6 +25,7 @@ namespace FEBuilderGBA.Avalonia.Views
             InstallButton.Click += OnInstallClick;
             ForceInstallButton.Click += OnForceInstallClick;
             UninstallButton.Click += OnUninstallClick;
+            InitUpdatePatch2Button.Click += OnInitUpdatePatch2Click;
         }
 
         void LoadPatches()
@@ -31,6 +35,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadPatchList();
                 PatchListBox.ItemsSource = _vm.FilteredPatches;
                 UpdateSummary();
+                InitUpdatePatch2Button.Content = _vm.Patch2ButtonText;
                 // Surface the VM's load-time status (e.g. the Android patch2-unavailable
                 // empty-state notice, #1641) into the status label. Always assign so a
                 // cleared StatusMessage ("") also resets the label — never leaves a stale notice.
@@ -176,6 +181,72 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (PatchListBox.ItemCount > 0)
                 PatchListBox.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// #1817: in-app patch2 Initialize (clone) / Update (fetch+reset), the Avalonia half of #1812.
+        /// Runs <see cref="Patch2GitService.InitializeOrUpdate"/> off the UI thread; the button is
+        /// disabled synchronously on click and re-enabled in a finally so a mid-run exception can't leave
+        /// it stuck. git progress lines are throttled to ~150 ms to avoid saturating the UI thread
+        /// (a single clone emits hundreds of progress lines).
+        /// </summary>
+        async void OnInitUpdatePatch2Click(object? sender, RoutedEventArgs e)
+        {
+            InitUpdatePatch2Button.IsEnabled = false;   // synchronous re-entrancy guard
+            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+
+            long lastPost = 0;
+            Action<string> progress = line =>
+            {
+                if (string.IsNullOrEmpty(line)) return;
+                long now = Environment.TickCount64;
+                if (now - Interlocked.Read(ref lastPost) < 150) return;   // throttle UI posts
+                Interlocked.Exchange(ref lastPost, now);
+                Dispatcher.UIThread.Post(() => StatusMessageLabel.Text = "Git: " + line);
+            };
+
+            try
+            {
+                StatusMessageLabel.Text = "Working…";
+                var result = await Task.Run(() => Patch2GitService.InitializeOrUpdate(baseDir, progress));
+                switch (result.Kind)
+                {
+                    case Patch2GitResultKind.GitNotFound:
+                        StatusMessageLabel.Text = "Git was not found. Install Git and try again, or set up config/patch2 manually — see the Patch Database Setup wiki page.";
+                        break;
+                    case Patch2GitResultKind.AlreadyRunning:
+                        StatusMessageLabel.Text = "A patch database operation is already running.";
+                        break;
+                    case Patch2GitResultKind.Failed:
+                        StatusMessageLabel.Text = string.Format("Patch database {0} failed (git exit {1}). {2}",
+                            result.WasClone ? "initialize" : "update", result.ExitCode, LastLogLine(result.Log));
+                        break;
+                    case Patch2GitResultKind.Success:
+                        LoadPatches();   // re-scan config/patch2 from disk so new patches appear immediately
+                        StatusMessageLabel.Text = "Patch database updated — list refreshed. Restart recommended for all changes to take full effect.";
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PatchManagerView", ex.ToString());
+                StatusMessageLabel.Text = "Patch database operation failed: " + ex.Message;
+            }
+            finally
+            {
+                InitUpdatePatch2Button.Content = _vm.Patch2ButtonText;
+                InitUpdatePatch2Button.IsEnabled = true;
+            }
+        }
+
+        static string LastLogLine(string log)
+        {
+            if (string.IsNullOrEmpty(log)) return "";
+            var lines = log.Replace("\r", "").Split('\n');
+            for (int i = lines.Length - 1; i >= 0; i--)
+                if (!string.IsNullOrWhiteSpace(lines[i]))
+                    return lines[i].Trim();
+            return "";
         }
 
         /// <summary>

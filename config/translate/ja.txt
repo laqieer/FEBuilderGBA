@@ -14162,3 +14162,12 @@ ROM（.gba）は絶対に添付しないでください。
 
 :Type to filter the command list (case-insensitive substring).
 コマンド一覧を絞り込む文字列を入力します（大文字小文字を区別しない部分一致）。
+
+:Initialize Patch Database
+パッチデータベースを初期化
+
+:Initialize / Update Patch Database Now
+パッチデータベースを今すぐ初期化／更新
+
+:This screen does not check for application updates yet. To initialize or update the patch database (patch2), use the Patch Manager or the Options window.
+この画面はまだアプリケーションの更新を確認しません。パッチデータベース（patch2）を初期化または更新するには、パッチマネージャまたはオプション画面を使用してください。

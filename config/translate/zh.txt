@@ -27983,3 +27983,12 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :Type to filter the command list (case-insensitive substring).
 输入以筛选命令列表（不区分大小写的子串匹配）。
+
+:Initialize Patch Database
+初始化补丁数据库
+
+:Initialize / Update Patch Database Now
+立即初始化/更新补丁数据库
+
+:This screen does not check for application updates yet. To initialize or update the patch database (patch2), use the Patch Manager or the Options window.
+此界面尚不检查应用程序更新。要初始化或更新补丁数据库（patch2），请使用补丁管理器或选项窗口。
