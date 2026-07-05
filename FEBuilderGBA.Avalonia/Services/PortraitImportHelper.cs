@@ -1482,7 +1482,21 @@ namespace FEBuilderGBA.Avalonia.Services
             IImageService svc = CoreState.ImageService;
             if (svc == null) return null;
 
-            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(loadResult);
+            byte[] keyed = BuildColorKeyedRgba(loadResult);
+            if (keyed == null) return null;
+
+            var qr = DecreaseColorCore.Quantize(keyed, loadResult.Width, loadResult.Height, 16);
+            if (qr == null || qr.IndexData == null || qr.GBAPalette == null) return null;
+
+            var previewResult = new ImageImportService.LoadResult
+            {
+                Success = true,
+                Width = loadResult.Width,
+                Height = loadResult.Height,
+                IndexedPixels = qr.IndexData,
+                GBAPalette = qr.GBAPalette,
+            };
+            byte[] rgba = ReconstructRgbaWithPaletteZeroTransparent(previewResult);
             if (rgba == null) return null;
 
             IImage img = svc.CreateImage(loadResult.Width, loadResult.Height);
