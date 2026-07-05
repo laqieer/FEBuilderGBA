@@ -23,6 +23,32 @@ namespace FEBuilderGBA
             return Patch2RemoteUrl;
         }
 
+        /// <summary>Returns the FE-Repo remote URL: a user-configured custom URL when set, else the default (#1813).</summary>
+        public static string GetFERepoRemoteUrl()
+        {
+            string custom = CoreState.Config?.at("submodule_fe_repo_url", "");
+            if (!string.IsNullOrWhiteSpace(custom))
+                return custom;
+            return FERepoDefaultUrl;
+        }
+
+        /// <summary>Returns the FE-Repo-Midi (music) remote URL: a user-configured custom URL when set, else the default (#1813).</summary>
+        public static string GetFERepoMusicRemoteUrl()
+        {
+            string custom = CoreState.Config?.at("submodule_fe_repo_music_url", "");
+            if (!string.IsNullOrWhiteSpace(custom))
+                return custom;
+            return FERepoMusicDefaultUrl;
+        }
+
+        /// <summary>Repo-root FE-Repo resource directory: <c>&lt;baseDir&gt;/resources/FE-Repo</c> (#1813).</summary>
+        public static string GetFERepoDir(string baseDir)
+            => Path.Combine(baseDir ?? "", "resources", "FE-Repo");
+
+        /// <summary>Repo-root FE-Repo-Midi resource directory: <c>&lt;baseDir&gt;/resources/FE-Repo-Music-No-Preview</c> (#1813).</summary>
+        public static string GetFERepoMusicDir(string baseDir)
+            => Path.Combine(baseDir ?? "", "resources", "FE-Repo-Music-No-Preview");
+
         /// <summary>
         /// Returns path to git exe, or null if not found.
         /// Priority: configured path → "git" on system PATH → common Windows install locations.

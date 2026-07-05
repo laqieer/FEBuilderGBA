@@ -1962,6 +1962,8 @@ namespace FEBuilderGBA
         TextBox _submoduleFERepoUrl;
         TextBox _submoduleFERepoMusicUrl;
         Button _optionPatch2InitUpdateButton;
+        Button _optionFERepoInitUpdateButton;      // #1813
+        Button _optionFERepoMusicInitUpdateButton; // #1813
 
         void LoadSubmoduleUrls()
         {
@@ -1973,54 +1975,88 @@ namespace FEBuilderGBA
             _submoduleFERepoUrl = new TextBox { Text = Program.Config.at("submodule_fe_repo_url", "") };
             _submoduleFERepoMusicUrl = new TextBox { Text = Program.Config.at("submodule_fe_repo_music_url", "") };
 
-            // Add a GroupBox to the "Etc" tab if it exists
+            // #1813 fix: the original code only attached the GroupBox to a tab whose text contains
+            // "Etc"/"etc"/その他 — but no such tab exists (the tabs are Path/Path2/Color/Shortcut Key/
+            // FELint/Function/Function2/Function3), so the URL fields + the #1812 patch2 button were
+            // invisible dead UI in every language. Prefer a matching tab if one ever exists, otherwise
+            // attach to the LAST tab so the group is always visible.
             foreach (Control c in this.Controls)
             {
-                if (c is TabControl tc)
+                if (c is TabControl tc && tc.TabPages.Count > 0)
                 {
+                    TabPage target = null;
                     foreach (TabPage tp in tc.TabPages)
                     {
                         if (tp.Text.Contains("Etc") || tp.Text.Contains("etc") || tp.Text.Contains(R._("その他")))
                         {
-                            var grp = new GroupBox
-                            {
-                                Text = R._("Submodule Remote URLs"),
-                                Dock = DockStyle.Bottom,
-                                Height = 150
-                            };
-                            var panel = new TableLayoutPanel
-                            {
-                                Dock = DockStyle.Fill,
-                                ColumnCount = 2,
-                                RowCount = 4,
-                                Padding = new Padding(4)
-                            };
-                            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-                            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-                            panel.Controls.Add(new Label { Text = "Patch2 URL:", Dock = DockStyle.Fill }, 0, 0);
-                            panel.Controls.Add(_submodulePatch2Url, 1, 0);
-                            _submodulePatch2Url.Dock = DockStyle.Fill;
-                            // #1812: one-click in-app patch2 Initialize/Update, directly under its URL field.
-                            _optionPatch2InitUpdateButton = new Button
-                            {
-                                Name = "OptionPatch2InitUpdateButton",
-                                Text = R._("Initialize / Update Patch2 Now"),
-                                AutoSize = true,
-                                Anchor = AnchorStyles.Left
-                            };
-                            _optionPatch2InitUpdateButton.Click += OptionPatch2InitUpdateButton_Click;
-                            panel.Controls.Add(_optionPatch2InitUpdateButton, 1, 1);
-                            panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 2);
-                            panel.Controls.Add(_submoduleFERepoUrl, 1, 2);
-                            _submoduleFERepoUrl.Dock = DockStyle.Fill;
-                            panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 3);
-                            panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 3);
-                            _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
-                            grp.Controls.Add(panel);
-                            tp.Controls.Add(grp);
-                            return;
+                            target = tp;
+                            break;
                         }
                     }
+                    if (target == null)
+                        target = tc.TabPages[tc.TabPages.Count - 1];
+
+                    var grp = new GroupBox
+                    {
+                        Text = R._("Submodule Remote URLs"),
+                        Dock = DockStyle.Bottom,
+                        Height = 230 // #1813: 6 rows (3 URLs + 3 Init/Update buttons)
+                    };
+                    var panel = new TableLayoutPanel
+                    {
+                        Dock = DockStyle.Fill,
+                        ColumnCount = 2,
+                        RowCount = 6,
+                        Padding = new Padding(4)
+                    };
+                    panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
+                    panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+                    // Patch2 URL + Initialize/Update button (#1812)
+                    panel.Controls.Add(new Label { Text = "Patch2 URL:", Dock = DockStyle.Fill }, 0, 0);
+                    panel.Controls.Add(_submodulePatch2Url, 1, 0);
+                    _submodulePatch2Url.Dock = DockStyle.Fill;
+                    _optionPatch2InitUpdateButton = new Button
+                    {
+                        Name = "OptionPatch2InitUpdateButton",
+                        Text = R._("Initialize / Update Patch2 Now"),
+                        AutoSize = true,
+                        Anchor = AnchorStyles.Left
+                    };
+                    _optionPatch2InitUpdateButton.Click += OptionPatch2InitUpdateButton_Click;
+                    panel.Controls.Add(_optionPatch2InitUpdateButton, 1, 1);
+
+                    // FE-Repo URL + Initialize/Update button (#1813)
+                    panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 2);
+                    panel.Controls.Add(_submoduleFERepoUrl, 1, 2);
+                    _submoduleFERepoUrl.Dock = DockStyle.Fill;
+                    _optionFERepoInitUpdateButton = new Button
+                    {
+                        Name = "OptionFERepoInitUpdateButton",
+                        Text = R._("Initialize / Update FE-Repo Now"),
+                        AutoSize = true,
+                        Anchor = AnchorStyles.Left
+                    };
+                    _optionFERepoInitUpdateButton.Click += OptionFERepoInitUpdateButton_Click;
+                    panel.Controls.Add(_optionFERepoInitUpdateButton, 1, 3);
+
+                    // FE-Repo-Midi (music) URL + Initialize/Update button (#1813)
+                    panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 4);
+                    panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 4);
+                    _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
+                    _optionFERepoMusicInitUpdateButton = new Button
+                    {
+                        Name = "OptionFERepoMusicInitUpdateButton",
+                        Text = R._("Initialize / Update FE-Repo-Midi Now"),
+                        AutoSize = true,
+                        Anchor = AnchorStyles.Left
+                    };
+                    _optionFERepoMusicInitUpdateButton.Click += OptionFERepoMusicInitUpdateButton_Click;
+                    panel.Controls.Add(_optionFERepoMusicInitUpdateButton, 1, 5);
+
+                    grp.Controls.Add(panel);
+                    target.Controls.Add(grp);
+                    return;
                 }
             }
         }
@@ -2043,6 +2079,43 @@ namespace FEBuilderGBA
             finally
             {
                 _optionPatch2InitUpdateButton.Enabled = true;
+            }
+        }
+
+        void OptionFERepoInitUpdateButton_Click(object sender, EventArgs e) // #1813
+        {
+            RunSubmoduleInitUpdate(_optionFERepoInitUpdateButton, _submoduleFERepoUrl,
+                "submodule_fe_repo_url", GitUtil.FERepoDefaultUrl,
+                GitUtil.GetFERepoDir(Program.BaseDirectory), "FE-Repo");
+        }
+
+        void OptionFERepoMusicInitUpdateButton_Click(object sender, EventArgs e) // #1813
+        {
+            RunSubmoduleInitUpdate(_optionFERepoMusicInitUpdateButton, _submoduleFERepoMusicUrl,
+                "submodule_fe_repo_music_url", GitUtil.FERepoMusicDefaultUrl,
+                GitUtil.GetFERepoMusicDir(Program.BaseDirectory), "FE-Repo-Midi");
+        }
+
+        // #1813: shared handler for the FE-Repo / FE-Repo-Midi Initialize/Update buttons — persists ONLY
+        // that repo's own URL key (never SaveSubmoduleUrls, which also applies the other fields), passes
+        // the effective URL (textbox else default) to the generic WinForms host, and disables the button
+        // for the duration.
+        void RunSubmoduleInitUpdate(Button button, TextBox urlTextBox, string configKey, string defaultUrl, string repoDir, string displayName)
+        {
+            string url = (urlTextBox.Text ?? "").Trim();
+            urlTextBox.Text = url; // reflect the trim back so a stray space can't be re-saved
+            Program.Config[configKey] = url;
+            Program.Config.Save();
+
+            button.Enabled = false;
+            try
+            {
+                string effUrl = string.IsNullOrWhiteSpace(url) ? defaultUrl : url;
+                ContentRepoGitWinForms.RunInitUpdate(this, repoDir, effUrl, displayName);
+            }
+            finally
+            {
+                button.Enabled = true;
             }
         }
 

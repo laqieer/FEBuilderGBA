@@ -14171,3 +14171,9 @@ ROM（.gba）は絶対に添付しないでください。
 
 :This screen does not check for application updates yet. To initialize or update the patch database (patch2), use the Patch Manager or the Options window.
 この画面はまだアプリケーションの更新を確認しません。パッチデータベース（patch2）を初期化または更新するには、パッチマネージャまたはオプション画面を使用してください。
+
+:Initialize / Update FE-Repo Now
+FE-Repoを今すぐ初期化／更新
+
+:Initialize / Update FE-Repo-Midi Now
+FE-Repo-Midiを今すぐ初期化／更新
