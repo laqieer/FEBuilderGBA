@@ -180,7 +180,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async void InitUpdatePatch2_Click(object? sender, RoutedEventArgs e)
             => await RunContentRepoInitUpdate(InitUpdatePatch2Button, Patch2UrlTextBox,
-                "submodule_patch2_url", GitUtil.GetPatch2RemoteUrl(),
+                "submodule_patch2_url", GitUtil.Patch2RemoteUrl,
                 Patch2GitService.GetPatch2Dir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
                 "Patch database");
 
@@ -227,7 +227,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 switch (result.Kind)
                 {
                     case Patch2GitResultKind.GitNotFound:
-                        CoreState.Services?.ShowError($"Git was not found. Install Git and try again, or set up {displayName} manually — see the Patch Database Setup wiki page.");
+                        CoreState.Services?.ShowError($"Git was not found. Install Git and try again, or set up {displayName} manually.");
                         break;
                     case Patch2GitResultKind.AlreadyRunning:
                         CoreState.Services?.ShowInfo("A content repository operation is already running.");

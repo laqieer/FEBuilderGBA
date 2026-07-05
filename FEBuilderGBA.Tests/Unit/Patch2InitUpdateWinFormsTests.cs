@@ -70,36 +70,45 @@ namespace FEBuilderGBA.Tests.Unit
                 {
                     Type prog = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.Program");
                     Type cfgT = typeof(OptionForm).Assembly.GetType("FEBuilderGBA.ConfigWinForms");
+                    var cfgProp = prog.GetProperty("Config");
+                    object prevCfg = cfgProp.GetValue(null); // restore afterwards so we don't leak shared state
                     object cfg = Activator.CreateInstance(cfgT);
-                    prog.GetProperty("Config").GetSetMethod(true).Invoke(null, new[] { cfg });
-
-                    using var form = new OptionForm();
-                    form.CreateControl();
-                    typeof(OptionForm).GetMethod("LoadSubmoduleUrls", NPI).Invoke(form, null);
-
-                    var found = form.Controls.Find("OptionPatch2InitUpdateButton", true);
-                    Assert.Single(found);
-
-                    // Walk up to confirm a TabPage ancestor (i.e. it is attached to a real, visible tab).
-                    Control cur = found[0];
-                    bool onTab = false;
-                    while (cur != null)
+                    cfgProp.GetSetMethod(true).Invoke(null, new[] { cfg });
+                    try
                     {
-                        if (cur is TabPage) { onTab = true; break; }
-                        cur = cur.Parent;
-                    }
-                    Assert.True(onTab, "Submodule GroupBox/patch2 button is not attached to any TabPage (dead UI).");
+                        using var form = new OptionForm();
+                        form.CreateControl();
+                        typeof(OptionForm).GetMethod("LoadSubmoduleUrls", NPI).Invoke(form, null);
 
-                    // The FE-Repo + Music buttons must be present too.
-                    Assert.Single(form.Controls.Find("OptionFERepoInitUpdateButton", true));
-                    Assert.Single(form.Controls.Find("OptionFERepoMusicInitUpdateButton", true));
+                        var found = form.Controls.Find("OptionPatch2InitUpdateButton", true);
+                        Assert.Single(found);
+
+                        // Walk up to confirm a TabPage ancestor (i.e. it is attached to a real, visible tab).
+                        Control cur = found[0];
+                        bool onTab = false;
+                        while (cur != null)
+                        {
+                            if (cur is TabPage) { onTab = true; break; }
+                            cur = cur.Parent;
+                        }
+                        Assert.True(onTab, "Submodule GroupBox/patch2 button is not attached to any TabPage (dead UI).");
+
+                        // The FE-Repo + Music buttons must be present too.
+                        Assert.Single(form.Controls.Find("OptionFERepoInitUpdateButton", true));
+                        Assert.Single(form.Controls.Find("OptionFERepoMusicInitUpdateButton", true));
+                    }
+                    finally
+                    {
+                        cfgProp.GetSetMethod(true).Invoke(null, new[] { prevCfg });
+                    }
                 }
                 catch (Exception ex) { err = ex.ToString(); }
             });
             t.SetApartmentState(ApartmentState.STA);
             t.IsBackground = true;
             t.Start();
-            t.Join(TimeSpan.FromSeconds(30));
+            bool completed = t.Join(TimeSpan.FromSeconds(30));
+            Assert.True(completed, "STA thread did not complete within the timeout.");
             Assert.True(err == null, err);
         }
     }

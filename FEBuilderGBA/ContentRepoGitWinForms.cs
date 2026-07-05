@@ -78,7 +78,7 @@ namespace FEBuilderGBA
             switch (result.Kind)
             {
                 case Patch2GitResultKind.GitNotFound:
-                    R.ShowStopError("Git was not found. Install Git and try again, or set up {0} manually — see the Patch Database Setup wiki page.", displayName);
+                    R.ShowStopError("Git was not found. Install Git and try again, or set up {0} manually.", displayName);
                     break;
                 case Patch2GitResultKind.AlreadyRunning:
                     R.ShowStopError("A content repository operation is already running.");

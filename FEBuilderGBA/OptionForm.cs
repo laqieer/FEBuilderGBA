@@ -2013,7 +2013,7 @@ namespace FEBuilderGBA
                     panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
                     // Patch2 URL + Initialize/Update button (#1812)
-                    panel.Controls.Add(new Label { Text = "Patch2 URL:", Dock = DockStyle.Fill }, 0, 0);
+                    panel.Controls.Add(new Label { Text = R._("Patch2 URL:"), Dock = DockStyle.Fill }, 0, 0);
                     panel.Controls.Add(_submodulePatch2Url, 1, 0);
                     _submodulePatch2Url.Dock = DockStyle.Fill;
                     _optionPatch2InitUpdateButton = new Button
@@ -2027,7 +2027,7 @@ namespace FEBuilderGBA
                     panel.Controls.Add(_optionPatch2InitUpdateButton, 1, 1);
 
                     // FE-Repo URL + Initialize/Update button (#1813)
-                    panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 2);
+                    panel.Controls.Add(new Label { Text = R._("FE-Repo URL:"), Dock = DockStyle.Fill }, 0, 2);
                     panel.Controls.Add(_submoduleFERepoUrl, 1, 2);
                     _submoduleFERepoUrl.Dock = DockStyle.Fill;
                     _optionFERepoInitUpdateButton = new Button
@@ -2041,7 +2041,7 @@ namespace FEBuilderGBA
                     panel.Controls.Add(_optionFERepoInitUpdateButton, 1, 3);
 
                     // FE-Repo-Midi (music) URL + Initialize/Update button (#1813)
-                    panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 4);
+                    panel.Controls.Add(new Label { Text = R._("Music URL:"), Dock = DockStyle.Fill }, 0, 4);
                     panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 4);
                     _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
                     _optionFERepoMusicInitUpdateButton = new Button
