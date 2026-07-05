@@ -630,7 +630,13 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshLabels();
             _vm.UpdateFromRom();
             SetStatusText(_vm.StatusText);
-            StartAutoUpdateCheckIfDue();
+            // Only run the startup update check on a real interactive GUI session —
+            // never in headless/smoke/CLI modes (--screenshot-all / --validate-import /
+            // --data-verify / --list-parity set SmokeTestMode), which would fire a
+            // background network call and could pop a dialog (nondeterminism / hang).
+            // (#1849 review, gpt-5.5.)
+            if (!App.SmokeTestMode)
+                StartAutoUpdateCheckIfDue();
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))
