@@ -83,7 +83,11 @@ namespace FEBuilderGBA
                 if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
                     return false;
 
-                return Directory.EnumerateFileSystemEntries(dir).Any();
+                // Ignore a bare ".git" gitdir-link (an UNINITIALIZED submodule working tree
+                // contains only that) so an un-cloned FE-Repo/FE-Repo-Music is not mistaken for
+                // "ready"; still .git-independent for manually-extracted ZIP contents.
+                return Directory.EnumerateFileSystemEntries(dir)
+                    .Any(e => !string.Equals(Path.GetFileName(e), ".git", StringComparison.OrdinalIgnoreCase));
             }
             catch
             {

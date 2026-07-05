@@ -121,6 +121,22 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(ContentRepoSetupCore.NeedsSetup(badBase, _cfg));
         }
 
+        [Fact]
+        public void FeRepo_WithOnlyGitLink_IsNotReady()
+        {
+            // An UNINITIALIZED git submodule working tree contains only a ".git" gitdir-link
+            // file — that must NOT count as "ready" (else the wizard never offers to clone it).
+            var feRepo = Repo("fe-repo");
+            string dir = ContentRepoSetupCore.ResolveDir(feRepo, _baseDir);
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, ".git"), "gitdir: ../../.git/modules/resources/FE-Repo");
+            Assert.False(ContentRepoSetupCore.IsRepoReady(feRepo, _baseDir));
+
+            // Real content alongside (or without) a .git -> ready (manual ZIP extract works too).
+            File.WriteAllText(Path.Combine(dir, "portrait.png"), "x");
+            Assert.True(ContentRepoSetupCore.IsRepoReady(feRepo, _baseDir));
+        }
+
         void CreateReadyPatch2()
         {
             string dir = Path.Combine(ContentRepoSetupCore.ResolveDir(Repo("patch2"), _baseDir), "FE8U");

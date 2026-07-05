@@ -19,7 +19,7 @@
               <TextBlock Grid.Column="2" Text="{Binding StatusHeader}" FontWeight="SemiBold" />
               <TextBlock Grid.Column="3" Text="{Binding ActionHeader}" FontWeight="SemiBold" />
             </Grid>
-            <ItemsControl AutomationProperties.AutomationId="ContentRepoSetup_Rows_Items" ItemsSource="{Binding Rows}">
+            <ItemsControl AutomationProperties.AutomationId="ContentRepoSetupWizard_Rows_List" ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <Border BorderBrush="#22000000" BorderThickness="0,1,0,0" Padding="0,8">
@@ -39,14 +39,14 @@
         <Border BorderBrush="#AA8844" Background="#22FFCC66" BorderThickness="1" CornerRadius="4" Padding="10" IsVisible="{Binding IsManualInstructionsVisible}">
           <StackPanel Spacing="6">
             <TextBlock Text="{Binding ManualHeader}" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBox Text="{Binding ManualInstructions}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
+            <TextBox AutomationProperties.AutomationId="ContentRepoSetupWizard_ManualInstructions_Input" Text="{Binding ManualInstructions}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
           </StackPanel>
         </Border>
       </StackPanel>
     </ScrollViewer>
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
-      <Button AutomationProperties.AutomationId="ContentRepoSetup_DontShowAgain_Button" Content="{Binding DontShowAgainText}" Click="DontShowAgain_Click" Padding="12,6" />
-      <Button AutomationProperties.AutomationId="ContentRepoSetup_Close_Button" Content="{Binding CloseText}" Click="Close_Click" Padding="12,6" MinWidth="90" />
+      <Button AutomationProperties.AutomationId="ContentRepoSetupWizard_DontShowAgain_Button" Content="{Binding DontShowAgainText}" Click="DontShowAgain_Click" Padding="12,6" />
+      <Button AutomationProperties.AutomationId="ContentRepoSetupWizard_Close_Button" Content="{Binding CloseText}" Click="Close_Click" Padding="12,6" MinWidth="90" />
     </StackPanel>
   </Grid>
 </Window>
