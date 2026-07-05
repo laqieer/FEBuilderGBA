@@ -227,6 +227,52 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void PreExistingDir_CloneThrows_RestoresBackupAndReturnsFailed()
+        {
+            string baseDir = NewBaseDir();
+            try
+            {
+                string patchDir = Patch2GitService.GetPatch2Dir(baseDir);
+                Directory.CreateDirectory(patchDir);
+                File.WriteAllText(Path.Combine(patchDir, "stray.txt"), "old");
+
+                Patch2GitService.CloneOp throwingClone =
+                    (g, u, t, p, l) => throw new InvalidOperationException("boom");
+
+                var r = Patch2GitService.InitializeOrUpdateCore(
+                    baseDir, "git", "url", _ => false, throwingClone, new FakeUpdate().Op, null);
+
+                // The clone threw after the move, but no exception escapes and the original dir is restored.
+                Assert.Equal(Patch2GitResultKind.Failed, r.Kind);
+                Assert.True(r.WasClone);
+                Assert.Contains("boom", r.Log);
+                Assert.True(File.Exists(Path.Combine(patchDir, "stray.txt")));
+                Assert.Equal("old", File.ReadAllText(Path.Combine(patchDir, "stray.txt")));
+                Assert.Equal(0, BackupCount(baseDir));   // no dangling backup left behind
+            }
+            finally { Cleanup(baseDir); }
+        }
+
+        [Fact]
+        public void ExistingRepo_UpdateThrows_ReturnsFailedNoThrow()
+        {
+            string baseDir = NewBaseDir();
+            try
+            {
+                Patch2GitService.UpdateOp throwingUpdate =
+                    (g, r, p, l, u) => throw new InvalidOperationException("kaboom");
+
+                var res = Patch2GitService.InitializeOrUpdateCore(
+                    baseDir, "git", "url", _ => true, new FakeClone().Op, throwingUpdate, null);
+
+                Assert.Equal(Patch2GitResultKind.Failed, res.Kind);
+                Assert.False(res.WasClone);
+                Assert.Contains("kaboom", res.Log);
+            }
+            finally { Cleanup(baseDir); }
+        }
+
+        [Fact]
         public void SingleFlight_SecondConcurrentCall_ReturnsAlreadyRunning()
         {
             Assert.True(Patch2GitService.TryEnter());   // simulate an in-progress operation

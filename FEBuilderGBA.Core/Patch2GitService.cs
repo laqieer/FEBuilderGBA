@@ -96,7 +96,25 @@ namespace FEBuilderGBA
             // UPDATE path — the directory is already a real git repo.
             if (isGitRepo(patchDir))
             {
-                int code = updateOp(gitExe, patchDir, progress, log, url);
+                int code;
+                try
+                {
+                    code = updateOp(gitExe, patchDir, progress, log, url);
+                }
+                catch (Exception ex)
+                {
+                    // Report as Failed (with the exception in the log) rather than letting it escape,
+                    // so both entry points get a uniform result-based error path. Nothing was moved,
+                    // so there is no backup to restore here.
+                    log.AppendLine(ex.ToString());
+                    return new Patch2GitResult
+                    {
+                        Kind = Patch2GitResultKind.Failed,
+                        ExitCode = -1,
+                        Log = log.ToString(),
+                        WasClone = false,
+                    };
+                }
                 return new Patch2GitResult
                 {
                     Kind = code == 0 ? Patch2GitResultKind.Success : Patch2GitResultKind.Failed,
@@ -126,21 +144,31 @@ namespace FEBuilderGBA
                 Directory.Move(patchDir, backupPath);
             }
 
-            int cloneCode = cloneOp(gitExe, url, patchDir, progress, log);
+            int cloneCode;
+            try
+            {
+                cloneCode = cloneOp(gitExe, url, patchDir, progress, log);
+            }
+            catch (Exception ex)
+            {
+                // The clone op threw AFTER we moved the existing directory aside — restore the backup so
+                // the patch database is never left stranded under _patch2_backup_*, capture the exception
+                // in the log, and report Failed (no exception escapes to strand state).
+                log.AppendLine(ex.ToString());
+                RestoreBackup(patchDir, backupPath);
+                return new Patch2GitResult
+                {
+                    Kind = Patch2GitResultKind.Failed,
+                    ExitCode = -1,
+                    Log = log.ToString(),
+                    WasClone = true,
+                };
+            }
+
             if (cloneCode != 0)
             {
                 // Restore the backup on failure — best-effort, leaving the tree as we found it.
-                try
-                {
-                    if (Directory.Exists(patchDir))
-                        Directory.Delete(patchDir, true);
-                    if (backupPath != null && Directory.Exists(backupPath))
-                        Directory.Move(backupPath, patchDir);
-                }
-                catch
-                {
-                    // Restore is best-effort; the accumulated log still explains the clone failure.
-                }
+                RestoreBackup(patchDir, backupPath);
 
                 return new Patch2GitResult
                 {
@@ -172,6 +200,22 @@ namespace FEBuilderGBA
                 Log = log.ToString(),
                 WasClone = true,
             };
+        }
+
+        /// <summary>Best-effort restore of a backed-up patch2 directory after a failed/throwing clone.</summary>
+        static void RestoreBackup(string patchDir, string backupPath)
+        {
+            try
+            {
+                if (Directory.Exists(patchDir))
+                    Directory.Delete(patchDir, true);
+                if (backupPath != null && Directory.Exists(backupPath))
+                    Directory.Move(backupPath, patchDir);
+            }
+            catch
+            {
+                // Restore is best-effort; the accumulated log / thrown exception still explains the failure.
+            }
         }
 
         /// <summary>Acquire the single-flight guard. Internal for deterministic re-entrancy tests.</summary>

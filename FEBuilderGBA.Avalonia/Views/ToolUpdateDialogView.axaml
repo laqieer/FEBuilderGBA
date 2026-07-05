@@ -15,7 +15,7 @@
              about what it does rather than implying update functionality it lacks, and point users to the
              real in-app patch database Initialize/Update surfaces. -->
         <TextBlock TextWrapping="Wrap" Foreground="Gray"
-                   Text="This screen does not check for application updates yet (tracked in issue #1804). To initialize or update the patch database (patch2), use the Patch Manager, or Options → Submodule Remote URLs → “Initialize / Update Patch Database Now”." />
+                   Text="This screen does not check for application updates yet. To initialize or update the patch database (patch2), use the Patch Manager or the Options window." />
 
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
