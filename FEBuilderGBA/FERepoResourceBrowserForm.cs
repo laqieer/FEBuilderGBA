@@ -307,41 +307,63 @@ namespace FEBuilderGBA
 
             bool labelByRelativePath = extensionFilter != null && extensionFilter.Length > 0;
 
-            int maxThumbnails = files.Length;
-            for (int i = 0; i < maxThumbnails; i++)
+            // #1807 — a filtered (Battle Animations) listing can contain many
+            // hundreds of preview GIFs; decoding a 48x48 thumbnail for each on
+            // the UI thread would otherwise freeze the window on open. For large
+            // lists, batch the ListView updates and keep the UI responsive with
+            // a please-wait + periodic message pump. Small lists (every existing
+            // single-image editor is <=200) take the unchanged fast path.
+            bool heavy = files.Length > DefaultMaxResults;
+            InputFormRef.AutoPleaseWait pleaseWait = heavy ? new InputFormRef.AutoPleaseWait(this) : null;
+            fileListView.BeginUpdate();
+            try
             {
-                var entry = files[i];
-                string key = i.ToString();
-                try
+                int maxThumbnails = files.Length;
+                for (int i = 0; i < maxThumbnails; i++)
                 {
-                    using (var img = Image.FromFile(entry.FullPath))
+                    if (heavy && (i % 64) == 0)
                     {
-                        thumbnailList.Images.Add(key, new Bitmap(img, 48, 48));
+                        InputFormRef.DoEvents(null, "FE-Repo " + i + "/" + maxThumbnails);
                     }
-                }
-                catch
-                {
-                    thumbnailList.Images.Add(key, new Bitmap(48, 48));
-                }
 
-                // #1807 — for the filtered (Battle Animations) listing, label by
-                // the animation folder path so otherwise-identical "Sword.gif"
-                // entries are distinguishable; the directory portion of the
-                // relative path (e.g. "FF9 Beatrix/1. Sword") is the animation.
-                string label = entry.FileName;
-                if (labelByRelativePath && !string.IsNullOrEmpty(entry.RelativePath))
-                {
-                    string dir = Path.GetDirectoryName(entry.RelativePath);
-                    label = string.IsNullOrEmpty(dir)
-                        ? entry.FileName
-                        : dir.Replace(Path.DirectorySeparatorChar, '/');
-                }
+                    var entry = files[i];
+                    string key = i.ToString();
+                    try
+                    {
+                        using (var img = Image.FromFile(entry.FullPath))
+                        {
+                            thumbnailList.Images.Add(key, new Bitmap(img, 48, 48));
+                        }
+                    }
+                    catch
+                    {
+                        thumbnailList.Images.Add(key, new Bitmap(48, 48));
+                    }
 
-                var item = new ListViewItem(label, key)
-                {
-                    Tag = entry.FullPath
-                };
-                fileListView.Items.Add(item);
+                    // #1807 — for the filtered (Battle Animations) listing, label by
+                    // the animation folder path so otherwise-identical "Sword.gif"
+                    // entries are distinguishable; the directory portion of the
+                    // relative path (e.g. "FF9 Beatrix/1. Sword") is the animation.
+                    string label = entry.FileName;
+                    if (labelByRelativePath && !string.IsNullOrEmpty(entry.RelativePath))
+                    {
+                        string dir = Path.GetDirectoryName(entry.RelativePath);
+                        label = string.IsNullOrEmpty(dir)
+                            ? entry.FileName
+                            : dir.Replace(Path.DirectorySeparatorChar, '/');
+                    }
+
+                    var item = new ListViewItem(label, key)
+                    {
+                        Tag = entry.FullPath
+                    };
+                    fileListView.Items.Add(item);
+                }
+            }
+            finally
+            {
+                fileListView.EndUpdate();
+                pleaseWait?.Dispose();
             }
 
             if (files.Length >= MaxResults)
