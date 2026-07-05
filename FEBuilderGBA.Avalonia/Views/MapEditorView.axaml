@@ -35,11 +35,13 @@
           <StackPanel Orientation="Horizontal" Spacing="8" Name="MapTmxCommandToolbar">
             <Button AutomationProperties.AutomationId="MapEditor_ExportTmx_Button"
                     Name="ExportTmxButton"
-                    Content="Export Map (Tiled .tmx)"
+                    Content="Export Map (Tiled)"
+                    ToolTip.Tip="Export the map as a Tiled project (.tmx XML or .tmj JSON) plus its .tsx tileset and chipset .png"
                     VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="MapEditor_ImportTmx_Button"
                     Name="ImportTmxButton"
-                    Content="Import Map (Tiled .tmx)"
+                    Content="Import Map (Tiled)"
+                    ToolTip.Tip="Import a Tiled map (.tmx XML or .tmj JSON) onto the current map"
                     VerticalAlignment="Center" />
             <Button AutomationProperties.AutomationId="MapEditor_ResizeMap_Button"
                     Name="ResizeMapButton"

@@ -26080,11 +26080,17 @@ ROM 重建成功。已写入 {0}（{1} 字节）。
 从 FE-Repo 通用小头像文件夹导入
 
 
-:Export Map (Tiled .tmx)
-导出地图 (Tiled .tmx)
+:Export Map (Tiled)
+导出地图 (Tiled)
 
-:Import Map (Tiled .tmx)
-导入地图 (Tiled .tmx)
+:Import Map (Tiled)
+导入地图 (Tiled)
+
+:Export the map as a Tiled project (.tmx XML or .tmj JSON) plus its .tsx tileset and chipset .png
+将地图导出为 Tiled 工程（.tmx XML 或 .tmj JSON），并附带其 .tsx 图块集和棋盘组 .png
+
+:Import a Tiled map (.tmx XML or .tmj JSON) onto the current map
+将 Tiled 地图（.tmx XML 或 .tmj JSON）导入到当前地图
 
 :Resize Map…
 调整地图大小…
