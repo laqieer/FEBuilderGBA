@@ -50,6 +50,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 using var ready = new SKPaint { Color = accent, IsAntialias = true, TextSize = 16, FakeBoldText = true };
                 using var needs = new SKPaint { Color = warn, IsAntialias = true, TextSize = 16, FakeBoldText = true };
                 using var cardPaint = new SKPaint { Color = card, IsAntialias = true };
+                using var badgePaint = new SKPaint { Color = new SKColor(0x3B, 0x61, 0x54), IsAntialias = true };
 
                 c.DrawText("Content Repository Setup Wizard — #1814 proof", 28, 44, title);
                 c.DrawText("Real descriptors: patch2 / FE-Repo / FE-Repo-Music, config-resolved URLs, sample readiness", 30, 74, label);
@@ -66,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     c.DrawText("dir", 48, y + 90, label);
                     c.DrawText(TrimMiddle(r.Dir, 92), 150, y + 90, text);
                     c.DrawText(r.Ready, W - 280, y + 4, r.Ready.Contains("Needs") ? needs : ready);
-                    c.DrawRoundRect(W - 280, y + 24, 210, 34, 6, 6, new SKPaint { Color = new SKColor(0x3B, 0x61, 0x54), IsAntialias = true });
+                    c.DrawRoundRect(W - 280, y + 24, 210, 34, 6, 6, badgePaint);
                     c.DrawText(r.Ready.Contains("Needs") ? "Initialize" : "Update", W - 250, y + 47, h);
                     y += 150;
                 }
@@ -74,16 +75,30 @@ namespace FEBuilderGBA.Avalonia.Tests
                 c.DrawText("Git unavailable fallback: manual ZIP download/extract instructions list each URL and target folder.", 30, H - 32, label);
             }
 
-            string outDir = ResolveScreenshotOutputDir();
-            Directory.CreateDirectory(outDir);
-            string outPath = Path.Combine(outDir, "pr1814-content-repo-wizard.png");
-            using (var img = SKImage.FromBitmap(bmp))
-            using (var data = img.Encode(SKEncodedImageFormat.Png, 100))
-            using (var fs = File.Open(outPath, FileMode.Create, FileAccess.Write))
-                data.SaveTo(fs);
+            using var img = SKImage.FromBitmap(bmp);
+            using var data = img.Encode(SKEncodedImageFormat.Png, 100);
+            byte[] pngBytes = data.ToArray();
 
-            Assert.True(new FileInfo(outPath).Length > 0);
-            _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
+            // The proof is valid as long as the wizard descriptors render to
+            // non-empty PNG bytes. Saving to disk is best-effort so a
+            // read-only/unavailable screenshot dir on CI doesn't turn this into
+            // a flaky failure (matches the other proof-image tests). (Copilot
+            // bot PR #1851 review.)
+            Assert.NotNull(pngBytes);
+            Assert.True(pngBytes.Length > 0);
+
+            try
+            {
+                string outDir = ResolveScreenshotOutputDir();
+                Directory.CreateDirectory(outDir);
+                string outPath = Path.Combine(outDir, "pr1814-content-repo-wizard.png");
+                File.WriteAllBytes(outPath, pngBytes);
+                _output.WriteLine($"Saved proof image to: {outPath} ({pngBytes.Length} bytes)");
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"Proof image not saved to disk (best-effort): {ex.Message}");
+            }
         }
 
         static string TrimMiddle(string value, int max)
