@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
@@ -167,6 +168,62 @@ namespace FEBuilderGBA.Avalonia.Views
         void CancelButton_Click(object? sender, RoutedEventArgs e)
         {
             Close(false);
+        }
+
+        /// <summary>
+        /// #1817: initialize (clone) or update (fetch+reset) the patch2 database in-app, next to its
+        /// remote-URL field. Passes the current textbox value directly to the service as an override so a
+        /// just-typed custom fork URL takes effect immediately, and persists ONLY the
+        /// <c>submodule_patch2_url</c> config key (not the whole Options form) so the custom URL survives
+        /// later auto-updates without committing other pending edits. Button disabled synchronously and
+        /// re-enabled in a finally.
+        /// </summary>
+        async void InitUpdatePatch2_Click(object? sender, RoutedEventArgs e)
+        {
+            InitUpdatePatch2Button.IsEnabled = false;
+            try
+            {
+                string url = (Patch2UrlTextBox.Text ?? "").Trim();
+
+                // Persist only the patch2 URL key so it survives subsequent auto-updates, without
+                // side-effecting other unsaved Options fields (do NOT call the full _vm.Save()).
+                var cfg = CoreState.Config;
+                if (cfg != null)
+                {
+                    cfg["submodule_patch2_url"] = url;
+                    cfg.Save();
+                }
+
+                string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+                string urlOverride = string.IsNullOrWhiteSpace(url) ? null : url;
+
+                var result = await Task.Run(() => Patch2GitService.InitializeOrUpdate(baseDir, null, urlOverride));
+                switch (result.Kind)
+                {
+                    case Patch2GitResultKind.GitNotFound:
+                        CoreState.Services?.ShowError("Git was not found. Install Git and try again, or set up config/patch2 manually — see the Patch Database Setup wiki page.");
+                        break;
+                    case Patch2GitResultKind.AlreadyRunning:
+                        CoreState.Services?.ShowInfo("A patch database operation is already running.");
+                        break;
+                    case Patch2GitResultKind.Failed:
+                        CoreState.Services?.ShowError(string.Format("Patch database {0} failed (git exit {1}).",
+                            result.WasClone ? "initialize" : "update", result.ExitCode));
+                        break;
+                    case Patch2GitResultKind.Success:
+                        CoreState.Services?.ShowInfo("Patch database updated. Restart recommended for all changes to take full effect.");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OptionsView", ex.ToString());
+                CoreState.Services?.ShowError("Patch database operation failed: " + ex.Message);
+            }
+            finally
+            {
+                InitUpdatePatch2Button.IsEnabled = true;
+            }
         }
     }
 }

@@ -17,7 +17,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Update Checker", 0));
+            // #1817: honest placeholder — this view is not an app update-checker (that is tracked in
+            // #1804). Point users to the real in-app patch2 Initialize/Update in the Patch Manager /
+            // Options rather than implying update functionality this stub does not have.
+            result.Add(new AddrResult(0, "Patch database: use Patch Manager or Options", 0));
             return result;
         }
 
