@@ -20,12 +20,48 @@ namespace FEBuilderGBA
         {
             InitializeComponent();
 
+            AddPatch2InitUpdateButton(); // #1812
             fixDocsBugs = new U.FixDocsBugs(this);
 //            InputFormRef.TabControlHideTabOption(this.TAB);
             ClearCheckIF();
             ReScan();
             this.PatchList.OwnerDraw(ListBoxEx.DrawTextOnly, DrawMode.Normal);
             InputFormRef.markupJumpLabel(this.FilterExLabel);
+        }
+
+        // #1812: one-click in-app patch2 Initialize/Update surfaced directly in the Patch Manager, next
+        // to Open/Reload, so when the #1811 empty-patch2 notice appears the user can fix it in one click.
+        // Added programmatically (widening the existing right-docked button panel) to avoid Designer churn.
+        void AddPatch2InitUpdateButton()
+        {
+            var btn = new Button
+            {
+                Name = "PatchFormPatch2InitUpdateButton",
+                Text = R._("Init/Update Patch2"),
+                Location = new Point(426, -2),
+                Size = new Size(195, 41),
+                Margin = new Padding(2),
+                UseVisualStyleBackColor = true,
+            };
+            btn.Click += Patch2InitUpdateButton_Click;
+            this.panel5.Size = new Size(625, this.panel5.Size.Height);
+            this.panel5.Controls.Add(btn);
+        }
+
+        void Patch2InitUpdateButton_Click(object sender, EventArgs e)
+        {
+            Control btn = sender as Control;
+            if (btn != null) btn.Enabled = false;
+            try
+            {
+                Patch2GitResult r = Patch2GitWinForms.RunInitUpdate(this, null);
+                if (r.Success)
+                    ReScan(); // patches were just fetched → rescan so they appear without a restart
+            }
+            finally
+            {
+                if (btn != null) btn.Enabled = true;
+            }
         }
 
         U.FixDocsBugs fixDocsBugs;

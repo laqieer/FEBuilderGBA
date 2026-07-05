@@ -156,6 +156,17 @@ namespace FEBuilderGBA
                 return;
             }
 
+            // #1812: participate in Patch2GitService's single-flight guard so this legacy inline path and
+            // the new OptionForm/PatchForm buttons (which go through Patch2GitService) never mutate
+            // config/patch2 concurrently. Non-blocking: a concurrent trigger is rejected here.
+            if (!Patch2GitService.TryEnter())
+            {
+                R.ShowStopError("A patch database operation is already running.");
+                return;
+            }
+            try
+            {
+
             // Resolve git executable — auto-install if not found
             string gitExe = GitUtil.FindGitExecutable();
             if (gitExe == null)
@@ -256,6 +267,12 @@ namespace FEBuilderGBA
             R.ShowOK("パッチデータの更新が完了しました。\r\n変更を反映するには再起動してください。");
             this.DialogResult = System.Windows.Forms.DialogResult.OK;
             this.Close();
+
+            }
+            finally
+            {
+                Patch2GitService.Exit();
+            }
         }
 
         /// <summary>
