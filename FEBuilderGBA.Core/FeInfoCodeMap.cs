@@ -103,20 +103,16 @@ namespace FEBuilderGBA
             if (element.ValueKind == JsonValueKind.String)
                 return element.GetString();
 
-            if (element.ValueKind != JsonValueKind.Object)
-                return null;
-
-            if (!string.IsNullOrEmpty(region)
+            // Region-keyed object: use ONLY the loaded ROM's region. If this entry has no
+            // value for that region (e.g. a J-only symbol in an FE8U map), skip it — do NOT
+            // fall back to another region's address, which would place a wrong label at an
+            // address that does not exist in this ROM. (#1853 review)
+            if (element.ValueKind == JsonValueKind.Object
+                && !string.IsNullOrEmpty(region)
                 && element.TryGetProperty(region, out JsonElement regionElement)
                 && regionElement.ValueKind == JsonValueKind.String)
             {
                 return regionElement.GetString();
-            }
-
-            foreach (JsonProperty property in element.EnumerateObject())
-            {
-                if (property.Value.ValueKind == JsonValueKind.String)
-                    return property.Value.GetString();
             }
 
             return null;

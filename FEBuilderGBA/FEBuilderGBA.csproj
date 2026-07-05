@@ -168,11 +168,6 @@
     <Content Include="Icon1.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\resources\fe-info\json\*\code.json"
-             CopyToOutputDirectory="PreserveNewest"
-             Link="resources\fe-info\json\%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
   </ItemGroup>
   <ItemGroup>

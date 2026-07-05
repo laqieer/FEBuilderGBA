@@ -123,7 +123,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
             if (!string.IsNullOrEmpty(overrideDir))
                 return overrideDir;
-            return Path.Combine(Directory.GetCurrentDirectory(), "pr-screenshots");
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
     }
 }

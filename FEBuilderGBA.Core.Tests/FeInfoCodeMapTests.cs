@@ -38,14 +38,19 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Parse_RegionObjectFallsBackToAnyPresentKey()
+        public void Parse_RegionObjectMissingRegion_SkipsEntry()
         {
-            string json = """[{"label":"FallbackFunc","addr":{"J":"900"},"params":null,"return":null}]""";
+            // A J-only symbol must NOT be imported for region U — that would place a wrong
+            // label at an address that does not exist in the U ROM. (#1853 review)
+            string json = """[{"label":"JOnlyFunc","addr":{"J":"900"},"params":null,"return":null}]""";
 
-            Dictionary<uint, AsmMapSt> map = FeInfoCodeMap.Parse(json, "U");
+            Dictionary<uint, AsmMapSt> mapU = FeInfoCodeMap.Parse(json, "U");
+            Assert.Empty(mapU);
 
-            Assert.Single(map);
-            Assert.Equal("FallbackFunc", map[U.atoh("900")].Name);
+            // The SAME entry for region J resolves to its J address.
+            Dictionary<uint, AsmMapSt> mapJ = FeInfoCodeMap.Parse(json, "J");
+            Assert.Single(mapJ);
+            Assert.Equal("JOnlyFunc", mapJ[U.atoh("900")].Name);
         }
 
         [Fact]
