@@ -180,18 +180,5 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             return compressed;
         }
-
-        static string FindRepoRoot()
-        {
-            string dir = AppContext.BaseDirectory;
-            while (!string.IsNullOrEmpty(dir))
-            {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
-                string? parent = Directory.GetParent(dir)?.FullName;
-                if (parent == dir) break;
-                dir = parent ?? "";
-            }
-            return Directory.GetCurrentDirectory();
-        }
     }
 }

@@ -484,7 +484,7 @@ namespace FEBuilderGBA
             // allocation-free early-return scan on a single-digit-ms,
             // click-driven path, and fresh data avoids stale cache risks before
             // deciding whether an old blob may be freed.
-            bool isShared = hasSafeOldAddr && IsPointerTargetSharedExcluding(rom, oldAddr, pointerEntryAddr);
+            bool isShared = oldSize > 0 && IsPointerTargetSharedExcluding(rom, oldAddr, pointerEntryAddr);
 
             if (oldSize > 0 && newSize <= oldSize && !isShared)
             {
