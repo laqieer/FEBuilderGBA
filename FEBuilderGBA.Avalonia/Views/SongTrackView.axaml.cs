@@ -491,8 +491,9 @@ namespace FEBuilderGBA.Avalonia.Views
         // #1383: the FE-Repo-Music button opens the music-mode FE-Repo browser
         // and feeds the selected music file through the SAME dispatcher as the
         // "Import Music File" button (ImportMusicPath) — no second import path.
-        // The button is only visible when the music submodule is checked out
-        // (FERepoPickHelper.IsMusicSupported, bound to VM.IsFERepoMusicAvailable).
+        // #1815: the button is ALWAYS visible (like the graphics FE-Repo button);
+        // when the music submodule is absent the browser shows a "not found /
+        // clone" empty-state, so it is discoverable rather than hidden.
         // -----------------------------------------------------------------
         async void FERepoMusic_Click(object? sender, RoutedEventArgs e)
         {

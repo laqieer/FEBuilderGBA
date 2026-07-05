@@ -37,12 +37,17 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void FERepoMusicButton_IsGatedByAvailability()
+        public void FERepoMusicButton_IsAlwaysVisible_NotGated()
         {
             string axaml = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongTrackView.axaml"));
-            // The button visibility binds to the VM availability flag.
+            // #1815: the button is ALWAYS visible (like the graphics FE-Repo
+            // button), so it is discoverable even before the music submodule is
+            // cloned; the browser then shows the "not found / clone" empty-state.
             Assert.Contains("SongTrack_FERepoMusic_Button", axaml);
-            Assert.Contains("IsVisible=\"{Binding IsFERepoMusicAvailable}\"", axaml);
+            // Assert the availability property is absent entirely (not just one
+            // exact IsVisible-binding string) so a reintroduced gate with
+            // different whitespace/formatting is caught (#1845 bot review).
+            Assert.DoesNotContain("IsFERepoMusicAvailable", axaml);
         }
 
         [Fact]
@@ -67,7 +72,9 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             string axaml = ReadSource(Path.Combine("FEBuilderGBA.Avalonia", "Views", "SongExchangeView.axaml"));
             Assert.Contains("SongExchange_FERepoMusic_Button", axaml);
-            Assert.Contains("IsVisible=\"{Binding IsFERepoMusicAvailable}\"", axaml);
+            // #1815: always visible — assert the availability property is absent
+            // entirely so a reformatted gate is still caught (#1845 bot review).
+            Assert.DoesNotContain("IsFERepoMusicAvailable", axaml);
         }
 
         [Fact]

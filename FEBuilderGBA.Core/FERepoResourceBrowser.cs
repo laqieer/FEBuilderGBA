@@ -152,9 +152,12 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// True when the FE-Repo-Music submodule is checked out (resolves to a
-        /// real, populated root from <paramref name="baseDir"/>). Shared guard
-        /// used by both GUIs to decide whether to show/enable the
-        /// "FE-Repo-Music" button on the Song editors (#1383). Reuses the #1380
+        /// real, populated root from <paramref name="baseDir"/>). Retained as a
+        /// public, test-covered helper: as of #1815 the Song-editor
+        /// "FE-Repo-Music" button is ALWAYS shown (like the graphics FE-Repo
+        /// button) and its browser surfaces the missing-repo empty-state, so this
+        /// no longer gates the button — but it remains available for callers that
+        /// need to probe music-repo presence. Reuses the #1380
         /// empty-placeholder-as-not-found semantics of
         /// <see cref="FindMusicRepoRoot"/>. Never throws.
         /// </summary>
