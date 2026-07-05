@@ -106,11 +106,11 @@ namespace FEBuilderGBA
             if (!int.TryParse(funcAutoUpdate, out int intervalDays) || intervalDays <= 0)
                 return false;
 
-            if (!DateTime.TryParseExact(todayYyyyMmdd, "yyyyMMdd", null,
+            if (!DateTime.TryParseExact(todayYyyyMmdd, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None, out DateTime today))
                 today = DateTime.Now.Date;
 
-            string dueDay = today.AddDays(-intervalDays).ToString("yyyyMMdd");
+            string dueDay = today.AddDays(-intervalDays).ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
             if (!uint.TryParse(dueDay, out uint due))
                 return true;
             if (!uint.TryParse(lastCheckYyyyMmdd, out uint last))

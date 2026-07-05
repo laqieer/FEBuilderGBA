@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _autoUpdateEnabled = true;
         // Preserve the raw func_auto_update interval (0/1/3/7 — off/daily/every-3-days/weekly, per
         // the WinForms OptionForm combo) so toggling the Avalonia checkbox doesn't silently collapse
-        // a user's chosen 1/7 interval to 3 in the shared config.xml (#1849 review).
+        // a user's chosen 1/7 interval to 3 in the shared config.xml (#1804).
         string _autoUpdateRaw = "3";
         bool _autoSaveEnabled = false;
         int _autoSaveIntervalMinutes = 5;

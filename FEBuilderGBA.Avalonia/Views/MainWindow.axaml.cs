@@ -633,8 +633,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Only run the startup update check on a real interactive GUI session —
             // never in headless/smoke/CLI modes (--screenshot-all / --validate-import /
             // --data-verify / --list-parity set SmokeTestMode), which would fire a
-            // background network call and could pop a dialog (nondeterminism / hang).
-            // (#1849 review, gpt-5.5.)
+            // background network call and could pop a dialog (nondeterminism / hang). (#1804)
             if (!App.SmokeTestMode)
                 StartAutoUpdateCheckIfDue();
 
@@ -3656,24 +3655,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 Config? cfg = CoreState.Config;
                 string interval = cfg?.at("func_auto_update", "3") ?? "3";
                 string last = cfg?.at("LastUpdateCheck", "0") ?? "0";
-                string today = DateTime.Now.ToString("yyyyMMdd");
+                string today = DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
                 if (!UpdateCheckCore.ShouldAutoCheck(interval, last, today))
                     return;
 
                 _ = Task.Run(() =>
                 {
                     UpdateCheckCore.UpdateCheckResult result = UpdateCheckCore.CheckLatest();
-                    // Only consume the interval on a SUCCESSFUL check — a failed (offline/rate-limited)
-                    // check must retry on the next launch instead of being suppressed for a full
-                    // interval, matching WinForms UpdateCheck.IsAutoUpdateTime semantics (#1849 review).
-                    if (!result.CheckSucceeded)
-                        return;
-                    MarkAutoUpdateChecked(today);
-                    if (!result.IsUpdateAvailable)
-                        return;
-
+                    // Marshal back to the UI thread: the config write (MarkAutoUpdateChecked ->
+                    // CoreState.Config.Save) and any dialog must NOT run on the background thread.
                     Dispatcher.UIThread.Post(async () =>
                     {
+                        // Only consume the interval on a SUCCESSFUL check — a failed (offline/
+                        // rate-limited) check retries on the next launch instead of being suppressed
+                        // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
+                        if (!result.CheckSucceeded)
+                            return;
+                        MarkAutoUpdateChecked(today);
+                        if (!result.IsUpdateAvailable)
+                            return;
                         await ShowUpdateCheckResultAsync(result, manual: false);
                     });
                 });
