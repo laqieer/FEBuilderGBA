@@ -75,5 +75,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             var btn = view.FindControl<Button>("InitUpdatePatch2Button");
             Assert.NotNull(btn);
         }
+
+        [AvaloniaFact]
+        public void OptionsView_HasFERepoAndMusicInitUpdateButtons() // #1813
+        {
+            var view = new OptionsView();
+            Assert.NotNull(view.FindControl<Button>("InitUpdateFERepoButton"));
+            Assert.NotNull(view.FindControl<Button>("InitUpdateFERepoMusicButton"));
+        }
     }
 }

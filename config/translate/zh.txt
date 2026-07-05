@@ -27992,3 +27992,9 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :This screen does not check for application updates yet. To initialize or update the patch database (patch2), use the Patch Manager or the Options window.
 此界面尚不检查应用程序更新。要初始化或更新补丁数据库（patch2），请使用补丁管理器或选项窗口。
+
+:Initialize / Update FE-Repo Now
+立即初始化/更新 FE-Repo
+
+:Initialize / Update FE-Repo-Midi Now
+立即初始化/更新 FE-Repo-Midi

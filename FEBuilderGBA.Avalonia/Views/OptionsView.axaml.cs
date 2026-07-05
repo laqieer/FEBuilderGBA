@@ -179,50 +179,75 @@ namespace FEBuilderGBA.Avalonia.Views
         /// re-enabled in a finally.
         /// </summary>
         async void InitUpdatePatch2_Click(object? sender, RoutedEventArgs e)
+            => await RunContentRepoInitUpdate(InitUpdatePatch2Button, Patch2UrlTextBox,
+                "submodule_patch2_url", GitUtil.Patch2RemoteUrl,
+                Patch2GitService.GetPatch2Dir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+                "Patch database");
+
+        async void InitUpdateFERepo_Click(object? sender, RoutedEventArgs e)
+            => await RunContentRepoInitUpdate(InitUpdateFERepoButton, FERepoUrlTextBox,
+                "submodule_fe_repo_url", GitUtil.FERepoDefaultUrl,
+                GitUtil.GetFERepoDir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+                "FE-Repo");
+
+        async void InitUpdateFERepoMusic_Click(object? sender, RoutedEventArgs e)
+            => await RunContentRepoInitUpdate(InitUpdateFERepoMusicButton, FERepoMusicUrlTextBox,
+                "submodule_fe_repo_music_url", GitUtil.FERepoMusicDefaultUrl,
+                GitUtil.GetFERepoMusicDir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+                "FE-Repo-Midi");
+
+        /// <summary>
+        /// #1813: shared in-app Initialize (clone) / Update (fetch+reset) of a git-delivered content repo
+        /// (patch2 / FE-Repo / FE-Repo-Midi), next to its remote-URL field. Trims + persists ONLY that
+        /// repo's own URL config key (never the whole Options form), passes the effective URL directly
+        /// (falling back to <paramref name="defaultUrl"/> when blank), and runs off the UI thread. All
+        /// user-facing messages use <paramref name="displayName"/> so a failure names the correct repo.
+        /// The button is disabled synchronously and re-enabled in a finally.
+        /// </summary>
+        async System.Threading.Tasks.Task RunContentRepoInitUpdate(
+            Button button, TextBox urlTextBox, string configKey, string defaultUrl, string repoDir, string displayName)
         {
-            InitUpdatePatch2Button.IsEnabled = false;
+            button.IsEnabled = false;
             try
             {
-                string url = (Patch2UrlTextBox.Text ?? "").Trim();
+                string url = (urlTextBox.Text ?? "").Trim();
+                urlTextBox.Text = url; // reflect the trim so a stray space can't be re-saved
 
-                // Persist only the patch2 URL key so it survives subsequent auto-updates, without
-                // side-effecting other unsaved Options fields (do NOT call the full _vm.Save()).
+                // Persist ONLY this repo's URL key (do NOT call the full _vm.Save()).
                 var cfg = CoreState.Config;
                 if (cfg != null)
                 {
-                    cfg["submodule_patch2_url"] = url;
+                    cfg[configKey] = url;
                     cfg.Save();
                 }
 
-                string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-                string urlOverride = string.IsNullOrWhiteSpace(url) ? null : url;
+                string effUrl = string.IsNullOrWhiteSpace(url) ? defaultUrl : url;
 
-                var result = await Task.Run(() => Patch2GitService.InitializeOrUpdate(baseDir, null, urlOverride));
+                var result = await Task.Run(() => ContentRepoGitService.InitializeOrUpdate(repoDir, effUrl, null));
                 switch (result.Kind)
                 {
                     case Patch2GitResultKind.GitNotFound:
-                        CoreState.Services?.ShowError("Git was not found. Install Git and try again, or set up config/patch2 manually — see the Patch Database Setup wiki page.");
+                        CoreState.Services?.ShowError($"Git was not found. Install Git and try again, or set up {displayName} manually.");
                         break;
                     case Patch2GitResultKind.AlreadyRunning:
-                        CoreState.Services?.ShowInfo("A patch database operation is already running.");
+                        CoreState.Services?.ShowInfo("A content repository operation is already running.");
                         break;
                     case Patch2GitResultKind.Failed:
-                        CoreState.Services?.ShowError(string.Format("Patch database {0} failed (git exit {1}).",
-                            result.WasClone ? "initialize" : "update", result.ExitCode));
+                        CoreState.Services?.ShowError($"{displayName} {(result.WasClone ? "initialize" : "update")} failed (git exit {result.ExitCode}).");
                         break;
                     case Patch2GitResultKind.Success:
-                        CoreState.Services?.ShowInfo("Patch database updated. Restart recommended for all changes to take full effect.");
+                        CoreState.Services?.ShowInfo($"{displayName} updated. Restart recommended for all changes to take full effect.");
                         break;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("OptionsView", ex.ToString());
-                CoreState.Services?.ShowError("Patch database operation failed: " + ex.Message);
+                CoreState.Services?.ShowError($"{displayName} operation failed: " + ex.Message);
             }
             finally
             {
-                InitUpdatePatch2Button.IsEnabled = true;
+                button.IsEnabled = true;
             }
         }
     }
