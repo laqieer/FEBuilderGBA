@@ -329,10 +329,12 @@ namespace FEBuilderGBA
                     foreach (JsonElement ts in tilesets.EnumerateArray())
                     {
                         if (ts.ValueKind == JsonValueKind.Object
-                            && ts.TryGetProperty("firstgid", out JsonElement fg)
-                            && fg.ValueKind == JsonValueKind.Number)
+                            && ts.TryGetProperty("firstgid", out JsonElement fg))
                         {
-                            if (!fg.TryGetInt32(out int firstgid) || firstgid != 1)
+                            // firstgid present -> it MUST be the number 1. A present-but-non-numeric
+                            // firstgid (e.g. "5") is rejected too, never silently treated as 1
+                            // (mirrors ParseTmx, so the gid-1==chipsetIndex assumption can't be wrong).
+                            if (fg.ValueKind != JsonValueKind.Number || !fg.TryGetInt32(out int firstgid) || firstgid != 1)
                             {
                                 error = $"unsupported firstgid={fg} (only firstgid=1 is supported)";
                                 return false;

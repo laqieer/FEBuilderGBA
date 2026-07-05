@@ -529,6 +529,18 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ParseTmj_NonNumericFirstgid_Refused()
+        {
+            // A present-but-non-numeric firstgid ("5" as a string) must be rejected,
+            // never silently treated as firstgid==1 (mirrors ParseTmx).
+            string json = "{\"width\":1,\"height\":1,\"infinite\":false," +
+                          "\"tilesets\":[{\"firstgid\":\"5\",\"source\":\"t.tsx\"}]," +
+                          "\"layers\":[{\"type\":\"tilelayer\",\"data\":[1]}]}";
+            Assert.False(MapTmxCore.ParseTmj(json, out _, out _, out _, out string err));
+            Assert.Contains("firstgid", err);
+        }
+
+        [Fact]
         public void ParseTmj_MissingFirstgid_Accepted()
         {
             // firstgid absent -> defaults to 1 (mirrors ParseTmx_MissingFirstgid_Accepted).
