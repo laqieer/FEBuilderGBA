@@ -3646,7 +3646,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
         {
             UpdateCheckCore.UpdateCheckResult result = await Task.Run(() => UpdateCheckCore.CheckLatest());
-            await Dispatcher.UIThread.InvokeAsync(() => ShowUpdateCheckResultAsync(result, manual: true));
+            await Dispatcher.UIThread.InvokeAsync(async () => await ShowUpdateCheckResultAsync(result, manual: true));
         }
 
         void StartAutoUpdateCheckIfDue()
@@ -3663,8 +3663,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 _ = Task.Run(() =>
                 {
                     UpdateCheckCore.UpdateCheckResult result = UpdateCheckCore.CheckLatest();
+                    // Only consume the interval on a SUCCESSFUL check — a failed (offline/rate-limited)
+                    // check must retry on the next launch instead of being suppressed for a full
+                    // interval, matching WinForms UpdateCheck.IsAutoUpdateTime semantics (#1849 review).
+                    if (!result.CheckSucceeded)
+                        return;
                     MarkAutoUpdateChecked(today);
-                    if (!result.CheckSucceeded || !result.IsUpdateAvailable)
+                    if (!result.IsUpdateAvailable)
                         return;
 
                     Dispatcher.UIThread.Post(async () =>
