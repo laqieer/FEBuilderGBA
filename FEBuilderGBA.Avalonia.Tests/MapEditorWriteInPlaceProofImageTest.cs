@@ -80,7 +80,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             try
             {
-                string outDir = Path.Combine(FindRepoRoot(), "pr-screenshots");
+                string outDir = ResolveScreenshotOutputDir();
                 Directory.CreateDirectory(outDir);
                 string outPath = Path.Combine(outDir, "pr-map-write-1846.png");
                 File.WriteAllBytes(outPath, pngBytes);
@@ -95,6 +95,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void DrawCard(SKCanvas c, SKPaint paint, float x, float y, float w, float h)
         {
             c.DrawRoundRect(x, y, w, h, 12, 12, paint);
+        }
+
+        static string ResolveScreenshotOutputDir()
+        {
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (!string.IsNullOrEmpty(overrideDir)) return overrideDir;
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
 
         static (int LeakedRelocations, bool SentinelIntact, bool SharedSiblingIntact) SimulateFixedWrites()

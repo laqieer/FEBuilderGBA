@@ -480,9 +480,10 @@ namespace FEBuilderGBA
             }
 
             uint newSize = (uint)U.Padding4((uint)compressed.Length);
-            // Always scan current ROM pointers instead of caching: this is a
-            // single-digit-ms, click-driven path, and fresh data avoids stale
-            // cache risks before deciding whether an old blob may be freed.
+            // Always scan current ROM pointers instead of caching: this is an
+            // allocation-free early-return scan on a single-digit-ms,
+            // click-driven path, and fresh data avoids stale cache risks before
+            // deciding whether an old blob may be freed.
             bool isShared = hasSafeOldAddr && IsPointerTargetSharedExcluding(rom, oldAddr, pointerEntryAddr);
 
             if (oldSize > 0 && newSize <= oldSize && !isShared)
@@ -508,11 +509,17 @@ namespace FEBuilderGBA
             if (rom == null || rom.Data == null || targetAddr == 0 || targetAddr == U.NOT_FOUND)
                 return false;
 
-            var refs = U.GrepPointerAll(rom.Data, targetAddr);
-            foreach (uint refAddr in refs)
+            byte[] data = rom.Data;
+            uint end = (uint)data.Length;
+            if (end < 4) return false;
+            end -= 4;
+
+            uint targetPointer = U.toPointer(targetAddr);
+
+            for (uint i = 0x100; i <= end; i += 4)
             {
-                if (refAddr != pointerEntryAddr)
-                    return true;
+                if (U.u32(data, i) != targetPointer) continue;
+                if (i != pointerEntryAddr) return true;
             }
             return false;
         }
