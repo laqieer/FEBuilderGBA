@@ -16,6 +16,7 @@ namespace FEBuilderGBA
         public MainFE8Form()
         {
             InitializeComponent();
+            MainFormUtil.InstallContentRepoSetupMenuItem(this);
 
             FixedButton();
             ToolRunHintMessageForm.RemoveRunTestMenuIfUserWant(this.menuStrip1, this.TestRunStripMenuItem);

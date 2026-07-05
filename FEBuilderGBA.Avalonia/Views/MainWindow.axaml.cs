@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -254,6 +254,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (RunProgram2MenuItem != null) RunProgram2MenuItem.Header = R._("Run Program _2...");
             if (RunProgram3MenuItem != null) RunProgram3MenuItem.Header = R._("Run Program _3...");
             if (OptionsMenuItem != null) OptionsMenuItem.Header = R._("_Options...");
+            if (ContentRepoSetupMenuItem != null) ContentRepoSetupMenuItem.Header = R._("Content Repositories…");
 
             // Help sub-items
             if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");
@@ -703,6 +704,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     RunSmokeTest();
                     return;
                 }
+            }
+
+            if (!App.SmokeTestMode && ContentRepoSetupCore.ShouldAutoShow(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory, CoreState.Config))
+            {
+                await WindowManager.Instance.OpenModal<ContentRepoSetupWizardView>(this);
             }
         }
 
@@ -3553,6 +3559,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenLogViewer_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<LogViewerView>();
         private void OpenGrowSimulator_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<GrowSimulatorView>();
         private void OpenOptions_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<OptionsView>();
+        private void ContentRepoSetup_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.OpenModal<ContentRepoSetupWizardView>(this);
 
         // ===================== Gap Closure: New Editors =====================
 

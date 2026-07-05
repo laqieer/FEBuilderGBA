@@ -27998,3 +27998,73 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :Initialize / Update FE-Repo-Music Now
 立即初始化/更新 FE-Repo-Music
+
+:Content Repository Setup
+内容仓库设置
+
+:FEBuilderGBA uses separate content repositories for patches and community assets. Configure the remote URL for each repository, then initialize any repository that is not ready.
+FEBuilderGBA 使用独立的内容仓库存放补丁和社区资源。请为每个仓库配置远程 URL，然后初始化尚未准备好的仓库。
+
+:Don't show this again
+不再显示
+
+:Repository
+仓库
+
+:Remote URL
+远程 URL
+
+:Starting...
+正在开始...
+
+:Running...
+正在运行...
+
+:Needs initialization
+需要初始化
+
+:Initialized successfully.
+初始化成功。
+
+:Updated successfully.
+更新成功。
+
+:Git not found
+未找到 Git
+
+:Install Git or use the manual download instructions below.
+请安装 Git，或使用下面的手动下载说明。
+
+:Already running
+已在运行
+
+:Another content repository operation is already running.
+另一个内容仓库操作已在运行。
+
+:Git operation failed with exit code {0}.
+Git 操作失败，退出代码 {0}。
+
+:Download each repository ZIP, extract it, and place the extracted contents in the matching folder:
+下载每个仓库的 ZIP，解压后将内容放入对应文件夹：
+
+:Git was not found. Initialize buttons are hidden; download and extract these repositories manually:
+未找到 Git。初始化按钮已隐藏；请手动下载并解压这些仓库：
+
+:Content Repositories…
+内容仓库…
+
+:Configure content repositories (patch2 / FE-Repo / FE-Repo-Music).
+配置内容仓库（patch2 / FE-Repo / FE-Repo-Music）。
+
+
+:Action
+操作
+
+:Failed
+失败
+
+:Initialize
+初始化
+
+:Initialize / Update
+初始化 / 更新

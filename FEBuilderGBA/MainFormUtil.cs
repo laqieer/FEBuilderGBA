@@ -2954,6 +2954,62 @@ namespace FEBuilderGBA
             }
             while (true);
         }
+        public static void RunContentRepoSetupWizard(Form owner = null)
+        {
+            using (ContentRepoSetupWizardForm f = new ContentRepoSetupWizardForm())
+            {
+                if (owner == null)
+                    f.ShowDialog();
+                else
+                    f.ShowDialog(owner);
+            }
+        }
+
+        public static void TryAutoShowContentRepoSetupWizard(Form owner)
+        {
+            if (Program.ShouldAutoShowContentRepoSetupWizard())
+            {
+                RunContentRepoSetupWizard(owner);
+            }
+        }
+
+        public static void InstallContentRepoSetupMenuItem(Form form)
+        {
+            if (form == null) return;
+            foreach (Control control in form.Controls)
+            {
+                if (control is MenuStrip menuStrip)
+                    InstallContentRepoSetupMenuItem(menuStrip.Items);
+            }
+        }
+
+        static bool InstallContentRepoSetupMenuItem(ToolStripItemCollection items)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i] is ToolStripMenuItem existing && existing.Name == "ContentRepoSetupToolStripMenuItem")
+                    return true;
+                if (items[i] is ToolStripMenuItem item)
+                {
+                    if (item.Name == "InitWizardToolStripMenuItem")
+                    {
+                        var contentItem = new ToolStripMenuItem
+                        {
+                            Name = "ContentRepoSetupToolStripMenuItem",
+                            Text = R._("Content Repositories…"),
+                            Size = item.Size,
+                        };
+                        contentItem.Click += (sender, e) => RunContentRepoSetupWizard(item.GetCurrentParent()?.FindForm());
+                        items.Insert(i + 1, contentItem);
+                        return true;
+                    }
+                    if (item.DropDownItems.Count > 0 && InstallContentRepoSetupMenuItem(item.DropDownItems))
+                        return true;
+                }
+            }
+            return false;
+        }
+
         public static void RunToolWelcomeDialog()
         {
             do

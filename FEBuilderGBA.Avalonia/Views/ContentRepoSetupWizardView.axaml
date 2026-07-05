@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="FEBuilderGBA.Avalonia.Views.ContentRepoSetupWizardView"
+        Title="Content Repository Setup"
+        Width="920" Height="620"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SizeToContent="Manual">
+  <Grid RowDefinitions="*,Auto" Margin="16">
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="12">
+        <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="Bold" />
+        <TextBlock Text="{Binding IntroText}" TextWrapping="Wrap" />
+        <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="8">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="140,*,140,130">
+              <TextBlock Grid.Column="0" Text="{Binding DisplayNameHeader}" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="1" Text="{Binding UrlHeader}" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="2" Text="{Binding StatusHeader}" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="3" Text="{Binding ActionHeader}" FontWeight="SemiBold" />
+            </Grid>
+            <ItemsControl AutomationProperties.AutomationId="ContentRepoSetup_Rows_Items" ItemsSource="{Binding Rows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border BorderBrush="#22000000" BorderThickness="0,1,0,0" Padding="0,8">
+                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="140,*,140,130">
+                      <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Url, Mode=TwoWay}" Watermark="Remote URL" />
+                      <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                      <Button Grid.Row="0" Grid.Column="3" Content="{Binding InitializeButtonText}" IsEnabled="{Binding CanInitialize}" IsVisible="{Binding IsInitializeVisible}" Click="Initialize_Click" />
+                      <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Progress}" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border BorderBrush="#AA8844" Background="#22FFCC66" BorderThickness="1" CornerRadius="4" Padding="10" IsVisible="{Binding IsManualInstructionsVisible}">
+          <StackPanel Spacing="6">
+            <TextBlock Text="{Binding ManualHeader}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBox Text="{Binding ManualInstructions}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,16,0,0">
+      <Button AutomationProperties.AutomationId="ContentRepoSetup_DontShowAgain_Button" Content="{Binding DontShowAgainText}" Click="DontShowAgain_Click" Padding="12,6" />
+      <Button AutomationProperties.AutomationId="ContentRepoSetup_Close_Button" Content="{Binding CloseText}" Click="Close_Click" Padding="12,6" MinWidth="90" />
+    </StackPanel>
+  </Grid>
+</Window>
+

@@ -153,6 +153,7 @@ namespace FEBuilderGBA
                 Program.DoReOpen = false;
                 Form f = MainForm();
                 MainFormUtil.SetMainFormIcon(f);
+                f.Shown += (sender, e) => MainFormUtil.TryAutoShowContentRepoSetupWizard(f);
                 Application.Run(f);
             }
             while (Program.DoReOpen); //メインフォームを作り直すためループにする.
@@ -171,6 +172,12 @@ namespace FEBuilderGBA
         /// Used to set IsCommandLine early, before InitSystem, so that expensive
         /// GUI-only initialisation (AsmMapFileAsmCache) can be skipped.
         /// </summary>
+        internal static bool ShouldAutoShowContentRepoSetupWizard()
+        {
+            return !Program.IsCommandLine
+                && ContentRepoSetupCore.ShouldAutoShow(Program.BaseDirectory, Program.Config);
+        }
+
         static bool HasCommandLineCommand(Dictionary<string, string> args)
         {
             return args.ContainsKey("--lint")
@@ -803,32 +810,6 @@ namespace FEBuilderGBA
                 }
             }
             if (!anyMissing) return;
-
-            // Offer git download if git is available
-            string gitExe = GitUtil.FindGitExecutable();
-            if (gitExe != null)
-            {
-                DialogResult dr = R.ShowQ(
-                    "パッチデータのディレクトリが見つかりません。\r\nGitを使用してパッチデータをダウンロードしますか？\r\n\r\nPatch2 directories not found.\r\nDownload via Git now?");
-                if (dr == DialogResult.Yes)
-                {
-                    bool success = false;
-                    try
-                    {
-                        int code;
-                        string remoteUrl = GitUtil.GetPatch2RemoteUrl();
-                        if (GitUtil.IsGitRepo(patch2Root))
-                            code = GitUtil.Update(gitExe, patch2Root, null, null, remoteUrl);
-                        else
-                            code = GitUtil.Clone(gitExe, remoteUrl, patch2Root, null);
-                        success = (code == 0);
-                    }
-                    catch { }
-
-                    if (success) return;
-                    R.ShowOK("パッチデータのダウンロードに失敗しました。空のディレクトリを作成します。\r\nFailed to download patch2. Creating empty directories.");
-                }
-            }
 
             // Fallback: create empty version directories so the app doesn't crash
             Directory.CreateDirectory(patch2Root);
