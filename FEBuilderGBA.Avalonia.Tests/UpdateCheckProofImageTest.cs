@@ -71,15 +71,26 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
 
             string outDir = ResolveScreenshotOutputDir();
-            Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, "pr1804-avalonia-updater.png");
             using (var img = SKImage.FromBitmap(bmp))
             using (var data = img.Encode(SKEncodedImageFormat.Png, 100))
-            using (var fs = File.Open(outPath, FileMode.Create, FileAccess.Write))
-                data.SaveTo(fs);
-
-            Assert.True(new FileInfo(outPath).Length > 0);
-            _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
+            {
+                // The render itself is the assertion — the encode must produce real bytes.
+                Assert.True(data != null && data.Size > 0);
+                // Writing the file is best-effort: a read-only CI output dir must not fail the
+                // test (it only matters when generating the committed proof image locally).
+                try
+                {
+                    Directory.CreateDirectory(outDir);
+                    using var fs = File.Open(outPath, FileMode.Create, FileAccess.Write);
+                    data.SaveTo(fs);
+                    _output.WriteLine($"Saved proof image to: {outPath} ({new FileInfo(outPath).Length} bytes)");
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"Proof image save skipped (dir not writable?): {ex.Message}");
+                }
+            }
         }
 
         static void DrawOutcome(SKCanvas c, int x, int y, string title, UpdateCheckCore.UpdateCheckResult result, string message, SKColor color)
@@ -101,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
             if (!string.IsNullOrEmpty(overrideDir))
                 return overrideDir;
-            return Path.Combine(AppContext.BaseDirectory, "pr-screenshots");
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
     }
 }
