@@ -32,7 +32,7 @@ namespace FEBuilderGBA
             return FERepoDefaultUrl;
         }
 
-        /// <summary>Returns the FE-Repo-Midi (music) remote URL: a user-configured custom URL when set, else the default (#1813).</summary>
+        /// <summary>Returns the FE-Repo-Music (music) remote URL: a user-configured custom URL when set, else the default (#1813).</summary>
         public static string GetFERepoMusicRemoteUrl()
         {
             string custom = CoreState.Config?.at("submodule_fe_repo_music_url", "");
@@ -45,7 +45,7 @@ namespace FEBuilderGBA
         public static string GetFERepoDir(string baseDir)
             => Path.Combine(baseDir ?? "", "resources", "FE-Repo");
 
-        /// <summary>Repo-root FE-Repo-Midi resource directory: <c>&lt;baseDir&gt;/resources/FE-Repo-Music-No-Preview</c> (#1813).</summary>
+        /// <summary>Repo-root FE-Repo-Music resource directory: <c>&lt;baseDir&gt;/resources/FE-Repo-Music-No-Preview</c> (#1813).</summary>
         public static string GetFERepoMusicDir(string baseDir)
             => Path.Combine(baseDir ?? "", "resources", "FE-Repo-Music-No-Preview");
 

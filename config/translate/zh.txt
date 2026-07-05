@@ -27996,5 +27996,5 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 :Initialize / Update FE-Repo Now
 立即初始化/更新 FE-Repo
 
-:Initialize / Update FE-Repo-Midi Now
-立即初始化/更新 FE-Repo-Midi
+:Initialize / Update FE-Repo-Music Now
+立即初始化/更新 FE-Repo-Music

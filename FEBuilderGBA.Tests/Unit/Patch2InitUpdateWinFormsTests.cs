@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Tests.Unit
     /// <summary>
     /// #1812/#1813: verifies the WinForms in-app content-repo Initialize/Update wiring — the shared
     /// <see cref="ContentRepoGitWinForms.RunInitUpdate"/> host + the patch2 facade, the OptionForm patch2 /
-    /// FE-Repo / FE-Repo-Midi buttons + handlers, and the PatchForm button. Also a BEHAVIORAL test that
+    /// FE-Repo / FE-Repo-Music buttons + handlers, and the PatchForm button. Also a BEHAVIORAL test that
     /// the "Submodule Remote URLs" GroupBox actually attaches to a visible tab (regression guard for the
     /// #1813 dead-UI fix — the pre-existing condition only matched a non-existent "Etc" tab). The
     /// clone/update logic itself is covered by the Core Patch2GitService/ContentRepoGitService tests.

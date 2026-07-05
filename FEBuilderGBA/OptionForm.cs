@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -2040,14 +2040,14 @@ namespace FEBuilderGBA
                     _optionFERepoInitUpdateButton.Click += OptionFERepoInitUpdateButton_Click;
                     panel.Controls.Add(_optionFERepoInitUpdateButton, 1, 3);
 
-                    // FE-Repo-Midi (music) URL + Initialize/Update button (#1813)
+                    // FE-Repo-Music (music) URL + Initialize/Update button (#1813)
                     panel.Controls.Add(new Label { Text = R._("Music URL:"), Dock = DockStyle.Fill }, 0, 4);
                     panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 4);
                     _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
                     _optionFERepoMusicInitUpdateButton = new Button
                     {
                         Name = "OptionFERepoMusicInitUpdateButton",
-                        Text = R._("Initialize / Update FE-Repo-Midi Now"),
+                        Text = R._("Initialize / Update FE-Repo-Music Now"),
                         AutoSize = true,
                         Anchor = AnchorStyles.Left
                     };
@@ -2093,10 +2093,10 @@ namespace FEBuilderGBA
         {
             RunSubmoduleInitUpdate(_optionFERepoMusicInitUpdateButton, _submoduleFERepoMusicUrl,
                 "submodule_fe_repo_music_url", GitUtil.FERepoMusicDefaultUrl,
-                GitUtil.GetFERepoMusicDir(Program.BaseDirectory), "FE-Repo-Midi");
+                GitUtil.GetFERepoMusicDir(Program.BaseDirectory), "FE-Repo-Music");
         }
 
-        // #1813: shared handler for the FE-Repo / FE-Repo-Midi Initialize/Update buttons — persists ONLY
+        // #1813: shared handler for the FE-Repo / FE-Repo-Music Initialize/Update buttons — persists ONLY
         // that repo's own URL key (never SaveSubmoduleUrls, which also applies the other fields), passes
         // the effective URL (textbox else default) to the generic WinForms host, and disables the button
         // for the duration.

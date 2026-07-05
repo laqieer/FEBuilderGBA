@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // #1813 — ContentRepoGitService: the generic in-app clone-or-update engine shared by patch2, FE-Repo,
-// and FE-Repo-Midi. The full clone/backup/restore matrix is already covered by the 12 Patch2GitServiceTests
+// and FE-Repo-Music. The full clone/backup/restore matrix is already covered by the 12 Patch2GitServiceTests
 // (which now exercise this core via the patch2 shim); this file adds the generic-API coverage plus the
 // cross-service single-flight exclusion the review board required.
 using System;

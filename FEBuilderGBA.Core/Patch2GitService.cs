@@ -12,7 +12,7 @@ namespace FEBuilderGBA
         AlreadyRunning,
     }
 
-    /// <summary>Result of an in-app content-repo initialize/update operation (shared across patch2 / FE-Repo / FE-Repo-Midi).</summary>
+    /// <summary>Result of an in-app content-repo initialize/update operation (shared across patch2 / FE-Repo / FE-Repo-Music).</summary>
     public sealed class Patch2GitResult
     {
         public Patch2GitResultKind Kind { get; init; }

@@ -49,9 +49,9 @@
                         HorizontalAlignment="Left" Margin="0,4,0,0" />
                 <TextBlock Text="FE-Repo-Music Remote URL" Margin="0,4,0,0" />
                 <TextBox AutomationProperties.AutomationId="Options_FERepoMusicUrlText_Input" Name="FERepoMusicUrlTextBox" Watermark="https://github.com/laqieer/FE-Repo-Music-No-Preview" />
-                <!-- #1813: in-app Initialize/Update of the FE-Repo-Midi (music) repository, next to its URL. -->
+                <!-- #1813: in-app Initialize/Update of the FE-Repo-Music (music) repository, next to its URL. -->
                 <Button AutomationProperties.AutomationId="Options_InitUpdateFERepoMusic_Button" Name="InitUpdateFERepoMusicButton"
-                        Content="Initialize / Update FE-Repo-Midi Now" Click="InitUpdateFERepoMusic_Click"
+                        Content="Initialize / Update FE-Repo-Music Now" Click="InitUpdateFERepoMusic_Click"
                         HorizontalAlignment="Left" Margin="0,4,0,0" />
               </StackPanel>
             </Expander>
