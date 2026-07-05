@@ -6,7 +6,7 @@ namespace FEBuilderGBA
     /// <summary>
     /// #1813: WinForms host for the cross-platform <see cref="ContentRepoGitService"/> — runs an in-app
     /// Initialize (clone) / Update (fetch+reset) of any git-delivered content repo (patch2 / FE-Repo /
-    /// FE-Repo-Midi) with the standard <see cref="InputFormRef.AutoPleaseWait"/> progress pump, mirroring
+    /// FE-Repo-Music) with the standard <see cref="InputFormRef.AutoPleaseWait"/> progress pump, mirroring
     /// <c>ToolUpdateDialogForm.AutoUpdatePatch2Git</c>. All user-facing messages are parametrized by a
     /// repo <c>displayName</c> so a failure names the correct repo (not always "patch2"). Every WinForms
     /// content-repo entry point goes through the same single-flight guard inside

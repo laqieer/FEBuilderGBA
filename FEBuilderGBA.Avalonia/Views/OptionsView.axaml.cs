@@ -194,11 +194,11 @@ namespace FEBuilderGBA.Avalonia.Views
             => await RunContentRepoInitUpdate(InitUpdateFERepoMusicButton, FERepoMusicUrlTextBox,
                 "submodule_fe_repo_music_url", GitUtil.FERepoMusicDefaultUrl,
                 GitUtil.GetFERepoMusicDir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
-                "FE-Repo-Midi");
+                "FE-Repo-Music");
 
         /// <summary>
         /// #1813: shared in-app Initialize (clone) / Update (fetch+reset) of a git-delivered content repo
-        /// (patch2 / FE-Repo / FE-Repo-Midi), next to its remote-URL field. Trims + persists ONLY that
+        /// (patch2 / FE-Repo / FE-Repo-Music), next to its remote-URL field. Trims + persists ONLY that
         /// repo's own URL config key (never the whole Options form), passes the effective URL directly
         /// (falling back to <paramref name="defaultUrl"/> when blank), and runs off the UI thread. All
         /// user-facing messages use <paramref name="displayName"/> so a failure names the correct repo.

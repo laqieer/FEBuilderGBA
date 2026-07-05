@@ -14175,5 +14175,5 @@ ROM（.gba）は絶対に添付しないでください。
 :Initialize / Update FE-Repo Now
 FE-Repoを今すぐ初期化／更新
 
-:Initialize / Update FE-Repo-Midi Now
-FE-Repo-Midiを今すぐ初期化／更新
+:Initialize / Update FE-Repo-Music Now
+FE-Repo-Musicを今すぐ初期化／更新
