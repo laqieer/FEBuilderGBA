@@ -1961,6 +1961,7 @@ namespace FEBuilderGBA
         TextBox _submodulePatch2Url;
         TextBox _submoduleFERepoUrl;
         TextBox _submoduleFERepoMusicUrl;
+        Button _optionPatch2InitUpdateButton;
 
         void LoadSubmoduleUrls()
         {
@@ -1985,13 +1986,13 @@ namespace FEBuilderGBA
                             {
                                 Text = R._("Submodule Remote URLs"),
                                 Dock = DockStyle.Bottom,
-                                Height = 110
+                                Height = 150
                             };
                             var panel = new TableLayoutPanel
                             {
                                 Dock = DockStyle.Fill,
                                 ColumnCount = 2,
-                                RowCount = 3,
+                                RowCount = 4,
                                 Padding = new Padding(4)
                             };
                             panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
@@ -1999,11 +2000,21 @@ namespace FEBuilderGBA
                             panel.Controls.Add(new Label { Text = "Patch2 URL:", Dock = DockStyle.Fill }, 0, 0);
                             panel.Controls.Add(_submodulePatch2Url, 1, 0);
                             _submodulePatch2Url.Dock = DockStyle.Fill;
-                            panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 1);
-                            panel.Controls.Add(_submoduleFERepoUrl, 1, 1);
+                            // #1812: one-click in-app patch2 Initialize/Update, directly under its URL field.
+                            _optionPatch2InitUpdateButton = new Button
+                            {
+                                Name = "OptionPatch2InitUpdateButton",
+                                Text = R._("Initialize / Update Patch2 Now"),
+                                AutoSize = true,
+                                Anchor = AnchorStyles.Left
+                            };
+                            _optionPatch2InitUpdateButton.Click += OptionPatch2InitUpdateButton_Click;
+                            panel.Controls.Add(_optionPatch2InitUpdateButton, 1, 1);
+                            panel.Controls.Add(new Label { Text = "FE-Repo URL:", Dock = DockStyle.Fill }, 0, 2);
+                            panel.Controls.Add(_submoduleFERepoUrl, 1, 2);
                             _submoduleFERepoUrl.Dock = DockStyle.Fill;
-                            panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 2);
-                            panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 2);
+                            panel.Controls.Add(new Label { Text = "Music URL:", Dock = DockStyle.Fill }, 0, 3);
+                            panel.Controls.Add(_submoduleFERepoMusicUrl, 1, 3);
                             _submoduleFERepoMusicUrl.Dock = DockStyle.Fill;
                             grp.Controls.Add(panel);
                             tp.Controls.Add(grp);
@@ -2011,6 +2022,26 @@ namespace FEBuilderGBA
                         }
                     }
                 }
+            }
+        }
+
+        void OptionPatch2InitUpdateButton_Click(object sender, EventArgs e)
+        {
+            // #1812: persist ONLY the patch2 URL key (not the whole form / not SaveSubmoduleUrls, which
+            // would also commit + SetSubmoduleRemote the unsaved FE-Repo/Music fields) so a custom fork
+            // URL survives later auto-updates, then run the init/update passing that URL directly.
+            string url = _submodulePatch2Url.Text ?? "";
+            Program.Config["submodule_patch2_url"] = url;
+            Program.Config.Save();
+
+            _optionPatch2InitUpdateButton.Enabled = false;
+            try
+            {
+                Patch2GitWinForms.RunInitUpdate(this, string.IsNullOrWhiteSpace(url) ? null : url);
+            }
+            finally
+            {
+                _optionPatch2InitUpdateButton.Enabled = true;
             }
         }
 
