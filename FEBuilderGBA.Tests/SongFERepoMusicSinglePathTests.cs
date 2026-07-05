@@ -72,7 +72,10 @@ namespace FEBuilderGBA.Tests
             // empty-state. It must NOT be wrapped in an availability gate.
             string src = ReadSource("SongTrackForm.cs");
             Assert.Contains("feRepoMusicButton.Click += FERepoMusicButton_Click", src);
-            Assert.DoesNotContain("if (FERepoResourceBrowser.IsMusicRepoAvailable", src);
+            // Assert the absence of the availability PROBE itself (not just the
+            // "if (...)" wording) so a reintroduced gate — even reformatted or via
+            // a temp variable — is caught (#1845 bot review).
+            Assert.DoesNotContain("FERepoResourceBrowser.IsMusicRepoAvailable", src);
         }
 
         [Fact]
@@ -107,7 +110,8 @@ namespace FEBuilderGBA.Tests
             // FE-Repo button), not gated on music-submodule availability.
             string src = ReadSource("SongExchangeForm.cs");
             Assert.Contains("feRepoMusicButton.Click += FERepoMusicButton_Click", src);
-            Assert.DoesNotContain("if (FERepoResourceBrowser.IsMusicRepoAvailable", src);
+            // Absence of the availability probe itself (#1845 bot review).
+            Assert.DoesNotContain("FERepoResourceBrowser.IsMusicRepoAvailable", src);
         }
 
         static string ReadSource(string fileName)
