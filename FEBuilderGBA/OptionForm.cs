@@ -2030,7 +2030,8 @@ namespace FEBuilderGBA
             // #1812: persist ONLY the patch2 URL key (not the whole form / not SaveSubmoduleUrls, which
             // would also commit + SetSubmoduleRemote the unsaved FE-Repo/Music fields) so a custom fork
             // URL survives later auto-updates, then run the init/update passing that URL directly.
-            string url = _submodulePatch2Url.Text ?? "";
+            string url = (_submodulePatch2Url.Text ?? "").Trim();
+            _submodulePatch2Url.Text = url; // reflect the trim back so a stray space can't be re-saved
             Program.Config["submodule_patch2_url"] = url;
             Program.Config.Save();
 
