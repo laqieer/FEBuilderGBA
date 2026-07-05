@@ -32,6 +32,9 @@ namespace FEBuilderGBA.Tests
         [InlineData("ImageGenericEnemyPortraitForm.cs", "ImportBitmap", "GenericEnemyPortrait")]
         [InlineData("ImageBGForm.cs", "ImportFromFilename", "BackgroundImage")]
         [InlineData("ImagePortraitFE6Form.cs", "ImportFromFilename", "Portrait")]
+        // #1807 — Battle Animations editor routes the FE-Repo .gif's resolved
+        // sibling script through the existing public BattleAnimeImportDirect.
+        [InlineData("ImageBattleAnimeForm.cs", "BattleAnimeImportDirect", "BattleAnimation")]
         public void WinForms_FERepoButton_RoutesThroughSharedImportBody(
             string fileName, string sharedBody, string kind)
         {
@@ -172,7 +175,6 @@ namespace FEBuilderGBA.Tests
 
         [Theory]
         [InlineData("ClassForm.cs")]            // CSV stats import, not a graphic.
-        [InlineData("ImageBattleAnimeForm.cs")] // .bin/.txt/.gif anime script.
         [InlineData("ImageMagicFEditorForm.cs")]
         [InlineData("ImageMagicCSACreatorForm.cs")]
         [InlineData("ImageUnitPaletteForm.cs")] // palette, not image.

@@ -63,6 +63,13 @@ namespace FEBuilderGBA
             public string Category { get; set; }
             public string SubCategory { get; set; }
             public long FileSize { get; set; }
+
+            // #1807 — path of the file relative to the searched category/
+            // subcategory folder (e.g. "FF9 Beatrix/1. Sword/Sword.gif"). For
+            // flat single-image editors this equals <see cref="FileName"/>; for
+            // the deeply-nested Battle Animations folder it lets the browser
+            // label otherwise-identical "Sword.gif" entries by their animation.
+            public string RelativePath { get; set; }
         }
 
         static readonly string[] IgnoredDirs = {
@@ -234,10 +241,23 @@ namespace FEBuilderGBA
         /// Get image resource files within a category and optional subcategory.
         /// Recursively searches all subdirectories.
         /// </summary>
-        public static ResourceEntry[] GetResourceFiles(string repoRoot, string category, string subCategory = null, int maxResults = 0)
+        /// <param name="extensionFilter">
+        /// #1807 — optional set of lower-case extensions (e.g. <c>{".gif"}</c>)
+        /// to list instead of the default image extensions. Used by the Battle
+        /// Animations editor to surface exactly one preview <c>.gif</c> per
+        /// weapon-animation folder (frames are <c>.png</c>). <c>null</c>/empty
+        /// keeps the default <c>.png/.bmp/.gif</c> behaviour so the existing
+        /// single-image editors are unaffected.
+        /// </param>
+        public static ResourceEntry[] GetResourceFiles(string repoRoot, string category, string subCategory = null, int maxResults = 0, string[] extensionFilter = null)
         {
             if (string.IsNullOrEmpty(repoRoot) || string.IsNullOrEmpty(category))
                 return Array.Empty<ResourceEntry>();
+
+            bool useFilter = extensionFilter != null && extensionFilter.Length > 0;
+            string[] allowedExts = useFilter
+                ? extensionFilter.Select(x => (x ?? "").ToLowerInvariant()).ToArray()
+                : ImageExtensions;
 
             string searchDir = string.IsNullOrEmpty(subCategory)
                 ? Path.Combine(repoRoot, category)
@@ -252,7 +272,7 @@ namespace FEBuilderGBA
                 foreach (string file in Directory.EnumerateFiles(searchDir, "*", SearchOption.AllDirectories))
                 {
                     string ext = Path.GetExtension(file).ToLowerInvariant();
-                    if (!ImageExtensions.Contains(ext)) continue;
+                    if (!allowedExts.Contains(ext)) continue;
 
                     var info = new FileInfo(file);
                     string relativePath = file.Substring(searchDir.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -269,6 +289,7 @@ namespace FEBuilderGBA
                         FileName = Path.GetFileName(file),
                         Category = category,
                         SubCategory = subCat,
+                        RelativePath = relativePath,
                         FileSize = info.Length
                     });
 
@@ -281,7 +302,39 @@ namespace FEBuilderGBA
                 // Directory access errors — return what we have
             }
 
-            return entries.OrderBy(e => e.SubCategory).ThenBy(e => e.FileName).ToArray();
+            // #1807 — when a filter is active (nested Battle Animations), order
+            // by the relative path so entries group by animation folder; the
+            // default single-image editors keep the historical FileName order.
+            return useFilter
+                ? entries.OrderBy(e => e.SubCategory).ThenBy(e => e.RelativePath, StringComparer.OrdinalIgnoreCase).ToArray()
+                : entries.OrderBy(e => e.SubCategory).ThenBy(e => e.FileName).ToArray();
+        }
+
+        /// <summary>
+        /// #1807 — given a selected FE-Repo battle-animation preview
+        /// (<c>Sword.gif</c>), resolve the sibling importable FEditor file next
+        /// to it: prefer the <c>.txt</c> script, else the <c>.bin</c> serialize.
+        /// Returns <c>null</c> when neither exists so the caller can show a clear
+        /// error instead of passing the <c>.gif</c> (a stray non-animation
+        /// preview) through to the extension-dispatching importer. Pure; never
+        /// throws.
+        /// </summary>
+        public static string ResolveBattleAnimeImportFile(string previewFilePath)
+        {
+            if (string.IsNullOrEmpty(previewFilePath))
+                return null;
+            try
+            {
+                string txt = Path.ChangeExtension(previewFilePath, ".txt");
+                if (File.Exists(txt)) return txt;
+                string bin = Path.ChangeExtension(previewFilePath, ".bin");
+                if (File.Exists(bin)) return bin;
+            }
+            catch (Exception)
+            {
+                // treat any path/IO error as "not resolvable"
+            }
+            return null;
         }
 
         // -----------------------------------------------------------------

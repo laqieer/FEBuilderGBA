@@ -26,6 +26,23 @@ namespace FEBuilderGBA
         readonly string seedCategory;
         readonly string seedSubCategory;
 
+        // #1807 — optional extension filter (e.g. {".gif"}). When set, the file
+        // list is filtered to these extensions instead of the default image
+        // extensions, the truncation cap is raised (a filtered listing strips
+        // the noisy sheet .png files), and entries are labelled by their path
+        // relative to the category so nested Battle Animations are
+        // distinguishable. null keeps the historical single-image behaviour.
+        readonly string[] extensionFilter;
+
+        // #1807 — raised cap for the filtered (Battle Animations) listing so a
+        // whole class-category of weapon previews is reachable; a gif-only list
+        // is far smaller than the recursive all-images list the default cap
+        // guards against.
+        const int DefaultMaxResults = 200;
+        const int FilteredMaxResults = 2000;
+
+        int MaxResults => extensionFilter != null && extensionFilter.Length > 0 ? FilteredMaxResults : DefaultMaxResults;
+
         /// <summary>
         /// The full path to the selected resource file, or null if cancelled.
         /// </summary>
@@ -91,9 +108,18 @@ namespace FEBuilderGBA
         /// resolve the seed for an editor kind (#1380 Part B).
         /// </summary>
         public FERepoResourceBrowserForm(string seedCategory, string seedSubCategory)
+            : this(seedCategory, seedSubCategory, null) { }
+
+        /// <summary>
+        /// #1807 — open the browser with an optional extension filter (e.g.
+        /// <c>{".gif"}</c>) so the deeply-nested Battle Animations folder shows
+        /// one preview per weapon-animation instead of thousands of sheet PNGs.
+        /// </summary>
+        public FERepoResourceBrowserForm(string seedCategory, string seedSubCategory, string[] extensionFilter)
         {
             this.seedCategory = seedCategory;
             this.seedSubCategory = seedSubCategory;
+            this.extensionFilter = extensionFilter;
             InitializeComponent();
             LoadCategories();
             SelectSeed();
@@ -276,8 +302,10 @@ namespace FEBuilderGBA
             insertButton.Enabled = false;
             SelectedFilePath = null;
 
-            var files = FERepoResourceBrowser.GetResourceFiles(repoRoot, category, subCategory, maxResults: 200);
+            var files = FERepoResourceBrowser.GetResourceFiles(repoRoot, category, subCategory, maxResults: MaxResults, extensionFilter: extensionFilter);
             statusLabel.Text = string.Format(R._("{0} resources found"), files.Length);
+
+            bool labelByRelativePath = extensionFilter != null && extensionFilter.Length > 0;
 
             int maxThumbnails = files.Length;
             for (int i = 0; i < maxThumbnails; i++)
@@ -296,16 +324,29 @@ namespace FEBuilderGBA
                     thumbnailList.Images.Add(key, new Bitmap(48, 48));
                 }
 
-                var item = new ListViewItem(entry.FileName, key)
+                // #1807 — for the filtered (Battle Animations) listing, label by
+                // the animation folder path so otherwise-identical "Sword.gif"
+                // entries are distinguishable; the directory portion of the
+                // relative path (e.g. "FF9 Beatrix/1. Sword") is the animation.
+                string label = entry.FileName;
+                if (labelByRelativePath && !string.IsNullOrEmpty(entry.RelativePath))
+                {
+                    string dir = Path.GetDirectoryName(entry.RelativePath);
+                    label = string.IsNullOrEmpty(dir)
+                        ? entry.FileName
+                        : dir.Replace(Path.DirectorySeparatorChar, '/');
+                }
+
+                var item = new ListViewItem(label, key)
                 {
                     Tag = entry.FullPath
                 };
                 fileListView.Items.Add(item);
             }
 
-            if (files.Length >= 200)
+            if (files.Length >= MaxResults)
             {
-                statusLabel.Text += R._(" (limited to 200)");
+                statusLabel.Text += string.Format(R._(" (limited to {0})"), MaxResults);
             }
         }
 

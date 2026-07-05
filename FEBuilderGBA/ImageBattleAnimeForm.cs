@@ -60,6 +60,52 @@ namespace FEBuilderGBA
                     this.BattleAnimeImportButton_Click(null,null);
                 }
             });
+
+            //#1807 FE-Repoのバトルアニメを直接読み込むボタンを追加する.
+            FERepoResourceBrowserForm.AddBrowseButton(BattleAnimeImportButton, BattleAnimeExportButton, FERepoButton_Click);
+        }
+
+        //#1807 FE-Repoリソースブラウザからバトルアニメを選んでインポートする.
+        private void FERepoButton_Click(object sender, EventArgs e)
+        {
+            if (InputFormRef.IsPleaseWaitDialog(this))
+            {//2重割り込み禁止
+                return;
+            }
+
+            var folder = FERepoResourceBrowser.GetFERepoFolderForEditor(
+                FERepoResourceBrowser.FERepoEditorKind.BattleAnimation);
+            // .gif のみに絞ることで、ネストしたバトルアニメの各武器フォルダが
+            // プレビュー1件ずつ表示される(フレームは .png のため埋もれない).
+            using (var browser = new FERepoResourceBrowserForm(folder.Category, folder.SubCategory, new string[] { ".gif" }))
+            {
+                if (browser.ShowDialog(this) != DialogResult.OK || string.IsNullOrEmpty(browser.SelectedFilePath))
+                {
+                    return;
+                }
+
+                // 選んだプレビュー(.gif)の隣にあるインポート可能ファイルを解決する
+                // (.txt優先、なければ.bin). どちらも無い(アニメではない野良gif)
+                // 場合は、.gifをそのまま拡張子ディスパッチに渡さず明確なエラーを出す.
+                string importFile = FERepoResourceBrowser.ResolveBattleAnimeImportFile(browser.SelectedFilePath);
+                if (string.IsNullOrEmpty(importFile))
+                {
+                    R.ShowStopError(R._("このプレビューの隣にインポート可能な戦闘アニメスクリプト(.txt/.bin)が見つかりません。\r\n{0}"), browser.SelectedFilePath);
+                    return;
+                }
+
+                //OAM最適化パッチ
+                HowDoYouLikePatchForm.CheckAndShowPopupDialog(HowDoYouLikePatchForm.TYPE.AutoGenLeftOAMPatch);
+
+                uint id = (uint)N_AddressList.SelectedIndex + 1;
+                string error = BattleAnimeImportDirect(id, importFile);
+                if (error != "")
+                {
+                    R.ShowStopError(error);
+                    InputFormRef.IfAdditionalErrorMessagesForIdiotsWhoDontKnowHowToUnzipTheZip(importFile);
+                    return;
+                }
+            }
         }
         void PostWriteHandler(object sender, EventArgs e)
         {

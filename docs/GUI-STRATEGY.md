@@ -38,6 +38,21 @@ held to **different standards** on purpose.
   is specifically about **GUI feature work**, i.e. new editors/screens/UI
   behaviour, which belongs in Avalonia.
 
+## Narrow carve-out — completing an in-flight parity rollout
+
+The policy governs **new** feature work. A rollout that was already **in
+flight before the freeze** may be *completed* in WinForms when the maintainer
+explicitly asks for it, because finishing an existing, tested pattern across the
+last few editors is lower-risk than leaving it half-applied.
+
+- **FE-Repo browse buttons.** The FE-Repo Resource Browser buttons were rolled
+  out across the graphics editors in #1380/#1394 (2026-06-24), *before* the
+  freeze (#1800, 2026-07-04). Completing that parity on a remaining graphics
+  editor (e.g. the Battle Animations editor, #1807 — reopened by the maintainer
+  for parity) is treated as **finishing the in-flight rollout**, not as opening
+  WinForms to new feature work. Such a carve-out must be (a) explicitly
+  requested by the maintainer and (b) recorded here.
+
 ## For reviewers & AI agents
 
 When triaging an issue or scoping a PR:
