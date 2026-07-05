@@ -216,7 +216,7 @@ it work under Android scoped storage:
   keep working with **no call-site change**. Save flows route a path-based writer
   through `FileDialogHelper.WriteViaAsync` (temp + write-back via `OpenWriteAsync`,
   truncating first). Flows that genuinely need desktop access — Event Assembler /
-  ASM insert / custom build / executable-path config / Tiled (.tmx) sibling-file
+  ASM insert / custom build / executable-path config / Tiled (.tmx / .tmj) sibling-file
   export / `.instrument` + `.s` song imports that resolve sibling files — are
   **disabled on Android with an explicit message**, never silently. The stream
   core (`CopyStreamToTempAsync` / `WriteViaStreamsAsync`) is covered by

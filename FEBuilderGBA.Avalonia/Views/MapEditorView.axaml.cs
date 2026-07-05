@@ -561,12 +561,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Export the current map as a Tiled project: a <c>.tmx</c> (default
-        /// <c>&lt;tile gid&gt;</c> XML layer), a matching <c>.tsx</c> tileset, and the
-        /// chipset PNG so Tiled renders the canvas faithfully. The three files are
+        /// Export the current map as a Tiled project: a map file — <c>.tmx</c> (XML,
+        /// default <c>&lt;tile gid&gt;</c> layer) or <c>.tmj</c> (JSON, GID array), chosen
+        /// by the picked filename's extension (#1796) — plus a matching <c>.tsx</c> tileset
+        /// and the chipset PNG so Tiled renders the canvas faithfully. The three files are
         /// written as siblings (same base name) from a single save dialog. Read-only —
         /// does not touch the ROM. See <see cref="MapTmxCore"/> for the GID↔MAR
-        /// convention. (#1387)
+        /// convention. (#1387, #1796)
         /// </summary>
         async void ExportTmx_Click(object? sender, RoutedEventArgs e)
         {
@@ -582,11 +583,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
-                    Title = R._("Export Map (Tiled .tmx)"),
+                    Title = R._("Export Map (Tiled)"),
                     DefaultExtension = "tmx",
                     FileTypeChoices = new[]
                     {
-                        new FilePickerFileType("Tiled map files") { Patterns = new[] { "*.tmx" } },
+                        new FilePickerFileType("Tiled map (XML)") { Patterns = new[] { "*.tmx" } },
+                        new FilePickerFileType("Tiled map (JSON)") { Patterns = new[] { "*.tmj" } },
                         new FilePickerFileType("All files") { Patterns = new[] { "*" } }
                     }
                 });
@@ -624,8 +626,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // failure can't leave a stray PNG/TSX behind ("validate-all-before-write").
                 int tileCount = (pw / MapTmxCore.TILE_PIXELS) * (ph / MapTmxCore.TILE_PIXELS);
                 string tsx = MapTmxCore.SerializeTsx(pngName, pw, ph, tileCount);
-                string tmx = MapTmxCore.SerializeTmx(cachedMap, tsxName);
-                if (string.IsNullOrEmpty(tmx))
+                // Dispatch on the actual chosen filename's extension: .tmj -> JSON, else .tmx.
+                bool exportJson = Path.GetExtension(tmxPath).Equals(".tmj", StringComparison.OrdinalIgnoreCase);
+                string mapText = exportJson
+                    ? MapTmxCore.SerializeTmj(cachedMap, tsxName)
+                    : MapTmxCore.SerializeTmx(cachedMap, tsxName);
+                if (string.IsNullOrEmpty(mapText))
                 {
                     CoreState.Services?.ShowError(R._("Map data is invalid or too small."));
                     return;
@@ -643,7 +649,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 File.WriteAllText(tsxPath, tsx);
-                File.WriteAllText(tmxPath, tmx);
+                File.WriteAllText(tmxPath, mapText);
                 CoreState.Services?.ShowInfo(string.Format(
                     R._("Exported Tiled map to {0} (+ {1}, {2})."), file.Name, tsxName, pngName));
             }
@@ -655,12 +661,14 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Import a Tiled <c>.tmx</c> file (any common encoding: CSV / default XML /
-        /// Base64 / Base64+gzip / Base64+zlib) and apply its tile layer to the
-        /// currently-loaded map. Reuses the exact CSV import path:
-        /// <see cref="MapTmxCore.ParseTmx"/> → <see cref="MapEditorViewModel.ApplyMapGrid"/>
+        /// Import a Tiled map — <c>.tmx</c> (XML) or <c>.tmj</c> (JSON), auto-detected by
+        /// extension with a content sniff fallback (#1796); any common tile-layer encoding
+        /// (CSV / default XML / GID array / Base64 / Base64+gzip / Base64+zlib) — and apply
+        /// its tile layer to the currently-loaded map. Reuses the exact CSV import path:
+        /// <see cref="MapTmxCore.ParseTmx"/> / <see cref="MapTmxCore.ParseTmj"/> →
+        /// <see cref="MapEditorViewModel.ApplyMapGrid"/>
         /// under one undo scope. Requires an exact W×H match; resize is not supported.
-        /// Blocked in decomp mode (map tile layout is a source asset). (#1387)
+        /// Blocked in decomp mode (map tile layout is a source asset). (#1387, #1796)
         /// </summary>
         async void ImportTmx_Click(object? sender, RoutedEventArgs e)
         {
@@ -681,11 +689,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = R._("Import Map (Tiled .tmx)"),
+                    Title = R._("Import Map (Tiled)"),
                     AllowMultiple = false,
                     FileTypeFilter = new[]
                     {
-                        new FilePickerFileType("Tiled map files") { Patterns = new[] { "*.tmx" } },
+                        new FilePickerFileType("Tiled map files") { Patterns = new[] { "*.tmx", "*.tmj" } },
                         new FilePickerFileType("All files") { Patterns = new[] { "*" } }
                     }
                 });
@@ -702,7 +710,22 @@ namespace FEBuilderGBA.Avalonia.Views
                     xml = await reader.ReadToEndAsync();
                 }
 
-                if (!MapTmxCore.ParseTmx(xml, out int w, out int h, out ushort[] mars, out string parseErr))
+                // Dispatch on the chosen filename's extension, with a content sniff
+                // fallback: a leading '{' (after any BOM/whitespace) means JSON (.tmj).
+                string chosenName = file.Name ?? "";
+                string sniff = xml.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+                bool importJson = chosenName.EndsWith(".tmj", StringComparison.OrdinalIgnoreCase)
+                                  || sniff.StartsWith("{", StringComparison.Ordinal);
+
+                bool parsed;
+                int w, h;
+                ushort[] mars;
+                string parseErr;
+                if (importJson)
+                    parsed = MapTmxCore.ParseTmj(xml, out w, out h, out mars, out parseErr);
+                else
+                    parsed = MapTmxCore.ParseTmx(xml, out w, out h, out mars, out parseErr);
+                if (!parsed)
                 {
                     CoreState.Services?.ShowError(string.Format(R._("Import failed: {0}"), parseErr));
                     return;
