@@ -702,5 +702,21 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(w1, w2);
             Assert.Equal(h1, h2);
         }
+
+        // ---- LooksLikeTmj: import dispatch decision (#1796) ----
+
+        [Theory]
+        [InlineData("map.tmj", "<map/>", true)]      // .tmj extension wins even over XML content
+        [InlineData("MAP.TMJ", "", true)]            // case-insensitive extension
+        [InlineData("map.tmx", "<?xml?><map/>", false)] // .tmx extension, XML content
+        [InlineData("map.tmx", "{\"type\":\"map\"}", true)]  // extension .tmx but JSON content -> sniff wins
+        [InlineData("", "   \r\n{ }", true)]         // leading whitespace then '{'
+        [InlineData("", "\uFEFF{ }", true)]          // UTF-8 BOM then '{'
+        [InlineData("", "<map/>", false)]            // XML content, no name
+        [InlineData(null, null, false)]              // null-safe
+        public void LooksLikeTmj_DetectsJson(string fileName, string text, bool expected)
+        {
+            Assert.Equal(expected, MapTmxCore.LooksLikeTmj(fileName, text));
+        }
     }
 }

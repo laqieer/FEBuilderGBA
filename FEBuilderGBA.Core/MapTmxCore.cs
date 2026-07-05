@@ -473,6 +473,23 @@ namespace FEBuilderGBA
         public static int MarToGid(ushort mar) => MapEditorTilesetCore.MarToChipsetIndex(mar) + 1;
 
         /// <summary>
+        /// Decide whether a picked file should be parsed as Tiled JSON (<c>.tmj</c>) rather
+        /// than XML (<c>.tmx</c>): true when the filename ends with <c>.tmj</c>, or the file
+        /// text (after any UTF-8 BOM / leading whitespace) begins with <c>{</c>. Used by the
+        /// Avalonia importer to dispatch <see cref="ParseTmj"/> vs <see cref="ParseTmx"/>
+        /// (#1796). Pure and null-safe.
+        /// </summary>
+        public static bool LooksLikeTmj(string fileName, string text)
+        {
+            if (!string.IsNullOrEmpty(fileName)
+                && fileName.EndsWith(".tmj", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.IsNullOrEmpty(text)) return false;
+            string sniff = text.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            return sniff.StartsWith("{", StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Serialize map data (the in-memory <c>width|height|u16[]</c> cache, as produced by
         /// <c>MapDecompressCore</c> / consumed by <see cref="MapExportCsv.Serialize"/>) to a
         /// Tiled <c>.tmx</c> using the default <c>&lt;tile gid=".."/&gt;</c> XML layer encoding

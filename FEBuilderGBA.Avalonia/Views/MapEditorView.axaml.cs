@@ -711,11 +711,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 // Dispatch on the chosen filename's extension, with a content sniff
-                // fallback: a leading '{' (after any BOM/whitespace) means JSON (.tmj).
+                // fallback (a leading '{' after any BOM/whitespace means JSON) —
+                // MapTmxCore.LooksLikeTmj encapsulates and unit-tests this decision.
                 string chosenName = file.Name ?? "";
-                string sniff = xml.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
-                bool importJson = chosenName.EndsWith(".tmj", StringComparison.OrdinalIgnoreCase)
-                                  || sniff.StartsWith("{", StringComparison.Ordinal);
+                bool importJson = MapTmxCore.LooksLikeTmj(chosenName, xml);
 
                 bool parsed;
                 int w, h;
