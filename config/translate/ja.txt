@@ -12245,11 +12245,17 @@ FE-RepoのCG画像フォルダからインポート
 FE-Repoの汎用ミニ顔フォルダからインポート
 
 
-:Export Map (Tiled .tmx)
-マップをエクスポート (Tiled .tmx)
+:Export Map (Tiled)
+マップをエクスポート (Tiled)
 
-:Import Map (Tiled .tmx)
-マップをインポート (Tiled .tmx)
+:Import Map (Tiled)
+マップをインポート (Tiled)
+
+:Export the map as a Tiled project (.tmx XML or .tmj JSON) plus its .tsx tileset and chipset .png
+マップをTiledプロジェクト（.tmx XML または .tmj JSON）として、.tsxタイルセットとチップセット.pngと一緒にエクスポートします
+
+:Import a Tiled map (.tmx XML or .tmj JSON) onto the current map
+Tiledマップ（.tmx XML または .tmj JSON）を現在のマップにインポートします
 
 :Resize Map…
 マップをリサイズ…
