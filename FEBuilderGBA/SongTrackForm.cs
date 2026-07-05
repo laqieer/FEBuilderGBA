@@ -59,14 +59,15 @@ namespace FEBuilderGBA
                 }
             });
 
-            // #1383: "FE-Repo-Music" import button — only shown when the
-            // FE-Repo-Music submodule is checked out. Imports the chosen file via
-            // the same path as ImportButton (AutoDrag -> ImportButton_Click).
-            // The existing action row (Y=23) is full, so the button goes on a new
-            // row directly under Import; panel5 is Dock=Top, so growing its height
-            // pushes the content below down instead of clipping the button.
-            string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
-            if (FERepoResourceBrowser.IsMusicRepoAvailable(baseDir))
+            // #1815: "FE-Repo-Music" import button — ALWAYS shown (like the
+            // graphics FE-Repo button), so it is discoverable even before the
+            // FE-Repo-Music submodule is checked out; its browser
+            // (FERepoMusicBrowserForm) then shows the actionable "not found /
+            // clone" empty-state. Imports the chosen file via the same path as
+            // ImportButton (AutoDrag -> ImportButton_Click). The existing action
+            // row (Y=23) is full, so the button goes on a new row directly under
+            // Import; panel5 is Dock=Top, so growing its height pushes the content
+            // below down instead of clipping the button.
             {
                 System.Windows.Forms.Control row = this.ImportButton.Parent;
                 int newY = this.ImportButton.Location.Y + this.ImportButton.Height + 2;

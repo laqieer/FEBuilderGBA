@@ -64,10 +64,15 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
-        public void SongTrackForm_FERepoButton_GuardedByMusicRepoAvailability()
+        public void SongTrackForm_FERepoButton_IsAlwaysCreated_NotGated()
         {
+            // #1815: the FE-Repo-Music button is ALWAYS created (like the graphics
+            // FE-Repo button), so it is discoverable even before the music
+            // submodule is cloned; its browser then shows the "not found / clone"
+            // empty-state. It must NOT be wrapped in an availability gate.
             string src = ReadSource("SongTrackForm.cs");
-            Assert.Contains("FERepoResourceBrowser.IsMusicRepoAvailable", src);
+            Assert.Contains("feRepoMusicButton.Click += FERepoMusicButton_Click", src);
+            Assert.DoesNotContain("if (FERepoResourceBrowser.IsMusicRepoAvailable", src);
         }
 
         [Fact]
@@ -75,9 +80,10 @@ namespace FEBuilderGBA.Tests
         {
             // #1383 review: the existing action row is full, so the button goes on
             // a new row and the (Dock=Top) host panel must be grown to fit it,
-            // otherwise it would be clipped below the panel.
+            // otherwise it would be clipped below the panel. (#1815 re-anchored the
+            // search from the removed availability gate to the button's Name.)
             string src = ReadSource("SongTrackForm.cs");
-            int handler = src.IndexOf("FERepoResourceBrowser.IsMusicRepoAvailable", StringComparison.Ordinal);
+            int handler = src.IndexOf("Name = \"FERepoMusicButton\"", StringComparison.Ordinal);
             Assert.True(handler >= 0);
             string block = src.Substring(handler);
             Assert.Contains("row.Height", block);
@@ -95,10 +101,13 @@ namespace FEBuilderGBA.Tests
         }
 
         [Fact]
-        public void SongExchangeForm_FERepoButton_GuardedByMusicRepoAvailability()
+        public void SongExchangeForm_FERepoButton_IsAlwaysCreated_NotGated()
         {
+            // #1815: always created (consistent with SongTrackForm + the graphics
+            // FE-Repo button), not gated on music-submodule availability.
             string src = ReadSource("SongExchangeForm.cs");
-            Assert.Contains("FERepoResourceBrowser.IsMusicRepoAvailable", src);
+            Assert.Contains("feRepoMusicButton.Click += FERepoMusicButton_Click", src);
+            Assert.DoesNotContain("if (FERepoResourceBrowser.IsMusicRepoAvailable", src);
         }
 
         static string ReadSource(string fileName)

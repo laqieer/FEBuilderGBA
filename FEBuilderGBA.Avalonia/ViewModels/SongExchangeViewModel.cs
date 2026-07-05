@@ -19,16 +19,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        /// <summary>
-        /// True when the FE-Repo-Music submodule is checked out, so the
-        /// "FE-Repo-Music" button is shown (#1383). Cached — submodule presence
-        /// does not change at runtime, so the directory probe runs at most once.
-        /// </summary>
-        bool? _isFERepoMusicAvailable;
-        public bool IsFERepoMusicAvailable
-            => _isFERepoMusicAvailable ??= FERepoResourceBrowser.IsMusicRepoAvailable(
-                CoreState.BaseDirectory ?? System.AppContext.BaseDirectory);
-
         // Parsed song lists (Core SongSt) for the current + other ROM.
         public List<SongExchangeCore.SongSt> MySongList { get; private set; } = new();
         public List<SongExchangeCore.SongSt> OtherSongList { get; private set; } = new();

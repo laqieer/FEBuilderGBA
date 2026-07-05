@@ -45,13 +45,13 @@
           <Button AutomationProperties.AutomationId="SongExchange_Convert_Button"
                   Name="ConvertButton" Content="Convert (transplant -&gt;)" Click="Convert_Click"
                   HorizontalAlignment="Left" />
-          <!-- #1383: import the selected destination song from the FE-Repo-Music
+          <!-- #1815: import the selected destination song from the FE-Repo-Music
                submodule. Routes through the Song Track Editor's ONE shared import
-               dispatcher (no duplicate importer). Shown only when the music
-               submodule exists. -->
+               dispatcher (no duplicate importer). ALWAYS visible (like the
+               graphics FE-Repo button) so it is discoverable; the browser shows a
+               "not found / clone" empty-state when the music submodule is absent. -->
           <Button AutomationProperties.AutomationId="SongExchange_FERepoMusic_Button"
                   Name="FERepoMusicButton" Content="FE-Repo-Music" Click="FERepoMusic_Click"
-                  IsVisible="{Binding IsFERepoMusicAvailable}"
                   ToolTip.Tip="Browse the FE-Repo-Music submodule and import the selected destination song via the Song Track Editor's import (same import path as Import Music File)." />
         </StackPanel>
       </StackPanel>
