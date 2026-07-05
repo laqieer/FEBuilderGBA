@@ -13,6 +13,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         List<string> _availableLanguages = new();
         string _gitPath = "git";
         bool _autoBackup = true;
+        bool _autoUpdateEnabled = true;
+        // Preserve the raw func_auto_update interval (0/1/3/7 — off/daily/every-3-days/weekly, per
+        // the WinForms OptionForm combo) so toggling the Avalonia checkbox doesn't silently collapse
+        // a user's chosen 1/7 interval to 3 in the shared config.xml (#1804).
+        string _autoUpdateRaw = "3";
         bool _autoSaveEnabled = false;
         int _autoSaveIntervalMinutes = 5;
 
@@ -69,6 +74,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => _autoBackup;
             set => SetField(ref _autoBackup, value);
+        }
+
+        /// <summary>Whether Avalonia should periodically check GitHub releases for app updates.</summary>
+        public bool AutoUpdateEnabled
+        {
+            get => _autoUpdateEnabled;
+            set => SetField(ref _autoUpdateEnabled, value);
         }
 
         /// <summary>Whether auto-save to sidecar file is enabled.</summary>
@@ -136,6 +148,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     int backupVal = 2;
                     int.TryParse(cfg.at("func_auto_backup", "2"), out backupVal);
                     AutoBackup = backupVal > 0;
+                    _autoUpdateRaw = cfg.at("func_auto_update", "3");
+                    AutoUpdateEnabled = _autoUpdateRaw != "0";
 
                     // Auto-save settings
                     AutoSaveEnabled = cfg.at("autosave_enabled", "false") == "true";
@@ -217,6 +231,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 cfg["git_path"] = GitPath ?? "git";
                 cfg["func_auto_backup"] = AutoBackup ? "2" : "0";
+                // Preserve the loaded interval (1/3/7) when still enabled; only default to "3" if it
+                // was previously off. Never collapses a WinForms-chosen 1/7 to 3 on an unrelated save.
+                cfg["func_auto_update"] = AutoUpdateEnabled ? (_autoUpdateRaw != "0" ? _autoUpdateRaw : "3") : "0";
                 cfg["Language"] = langCode;
                 cfg["func_lang"] = langCode; // backward compat with WinForms
 

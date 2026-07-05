@@ -31,6 +31,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // General tab
             GitPathTextBox.Text = _vm.GitPath;
             AutoBackupCheckBox.IsChecked = _vm.AutoBackup;
+            AutoUpdateCheckBox.IsChecked = _vm.AutoUpdateEnabled;
             AutoSaveCheckBox.IsChecked = _vm.AutoSaveEnabled;
             AutoSaveIntervalBox.Value = _vm.AutoSaveIntervalMinutes;
             Patch2UrlTextBox.Text = _vm.SubmodulePatch2Url;
@@ -122,6 +123,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Language = lang;  // e.g. "ja — 日本語"
             _vm.GitPath = GitPathTextBox.Text ?? "git";
             _vm.AutoBackup = AutoBackupCheckBox.IsChecked == true;
+            _vm.AutoUpdateEnabled = AutoUpdateCheckBox.IsChecked == true;
             _vm.AutoSaveEnabled = AutoSaveCheckBox.IsChecked == true;
             _vm.AutoSaveIntervalMinutes = (int)(AutoSaveIntervalBox.Value ?? 5);
             _vm.SubmodulePatch2Url = Patch2UrlTextBox.Text ?? "";

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -52,6 +53,17 @@ namespace FEBuilderGBA
         /// allocating unbounded memory. ParseTmx independently rejects by tile count.
         /// </summary>
         const int MAX_DECODED_BYTES = 64 * 64 * 4 * 4; // 65,536 bytes (64 KB) = 4x the 16 KB max layer
+
+        /// <summary>
+        /// Hard upper bound on the raw <c>.tmj</c> JSON text length. A valid 64×64 map
+        /// (the largest we accept) is well under 100 KB even fully indented, so this
+        /// generous 512 KB ceiling never rejects a real map but caps a hostile file
+        /// (e.g. one declaring <c>width:1,height:1</c> but carrying a multi-megabyte
+        /// <c>data</c> array) BEFORE it is handed to <see cref="JsonDocument.Parse"/> —
+        /// a cheap, zero-allocation first line of defence. <see cref="ParseTmj"/> then
+        /// independently rejects by array length before allocating the tile grid.
+        /// </summary>
+        const int MAX_TMJ_CHARS = 512 * 1024;
 
         /// <summary>
         /// Parse a Tiled <c>.tmx</c> document's first tile layer into width, height and a
@@ -207,13 +219,24 @@ namespace FEBuilderGBA
                 return false;
             }
 
+            return TryGidsToMars(gids, width, height, out mars, out error);
+        }
+
+        /// <summary>
+        /// Shared tail for <see cref="ParseTmx"/> / <see cref="ParseTmj"/>: validate the
+        /// decoded GID count against <paramref name="width"/>×<paramref name="height"/> and
+        /// convert each GID to a MAR via <see cref="GidToMar"/>. Never throws.
+        /// </summary>
+        static bool TryGidsToMars(uint[] gids, int width, int height, out ushort[] mars, out string error)
+        {
+            mars = null;
+            error = null;
             int expected = width * height;
-            if (gids.Length != expected)
+            if (gids == null || gids.Length != expected)
             {
-                error = $"tile count {gids.Length} does not match map dimensions {width}x{height} ({expected})";
+                error = $"tile count {(gids?.Length ?? 0)} does not match map dimensions {width}x{height} ({expected})";
                 return false;
             }
-
             mars = new ushort[expected];
             for (int i = 0; i < expected; i++)
             {
@@ -225,6 +248,200 @@ namespace FEBuilderGBA
                 mars[i] = mar;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Parse a Tiled <c>.tmj</c> (JSON) document's first tile layer into width, height
+        /// and a row-major array of MAR values — the JSON sibling of <see cref="ParseTmx"/>
+        /// (#1796). Handles both tile-layer <c>data</c> representations: a native JSON GID
+        /// array (default / <c>"csv"</c> encoding in Tiled) and a Base64 string
+        /// (<c>"base64"</c> encoding, optional <c>gzip</c>/<c>zlib</c> compression — the
+        /// same binary blob as <c>.tmx</c>, decoded by the shared <see cref="DecodeBase64"/>).
+        ///
+        /// <para>Never throws on malformed input: every JSON access is guarded
+        /// (<c>TryGetProperty</c> + <c>ValueKind</c> + <c>TryGet*</c>, one outer try/catch),
+        /// mirroring the repo idiom in <c>DecompAssetValidatorCore</c>. Applies the same
+        /// validations and refusals as <see cref="ParseTmx"/> (dimensions 1..64, single
+        /// <c>firstgid==1</c> tileset, layer dimension match, tile-count match) and rejects
+        /// oversized payloads BEFORE allocating (raw length cap + array-length check).</para>
+        /// </summary>
+        /// <param name="json">The full <c>.tmj</c> JSON text.</param>
+        /// <param name="width">Parsed map width (tiles).</param>
+        /// <param name="height">Parsed map height (tiles).</param>
+        /// <param name="mars">Row-major MAR values, length == width*height.</param>
+        /// <param name="error">Human-readable error message, or null on success.</param>
+        public static bool ParseTmj(string json, out int width, out int height, out ushort[] mars, out string error)
+        {
+            width = 0;
+            height = 0;
+            mars = null;
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                error = "TMJ is empty";
+                return false;
+            }
+            // Reject a hostile oversized payload BEFORE parsing (cheap, no allocation).
+            if (json.Length > MAX_TMJ_CHARS)
+            {
+                error = $"TMJ payload too large ({json.Length} chars, max {MAX_TMJ_CHARS})";
+                return false;
+            }
+
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(json);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    error = "TMJ root is not a JSON object";
+                    return false;
+                }
+
+                // Infinite maps store chunked data we do not support.
+                if (root.TryGetProperty("infinite", out JsonElement inf) && inf.ValueKind == JsonValueKind.True)
+                {
+                    error = "infinite Tiled maps are not supported (set Map -> Map Properties -> Infinite = false)";
+                    return false;
+                }
+
+                if (!TryGetJsonInt(root, "width", out width) || !TryGetJsonInt(root, "height", out height))
+                {
+                    error = "missing or non-numeric map width/height";
+                    return false;
+                }
+                if (width <= 0 || height <= 0 || width > 64 || height > 64)
+                {
+                    error = $"invalid dimensions {width}x{height} (must be 1..64 in each dimension)";
+                    return false;
+                }
+
+                // Validate the tileset reference(s): at most one, and firstgid==1 if present
+                // (so the gid->chipset mapping assumption gid-1==chipsetIndex is never wrong).
+                if (root.TryGetProperty("tilesets", out JsonElement tilesets) && tilesets.ValueKind == JsonValueKind.Array)
+                {
+                    if (tilesets.GetArrayLength() > 1)
+                    {
+                        error = "multiple tilesets are not supported (Avalonia maps use a single chipset)";
+                        return false;
+                    }
+                    foreach (JsonElement ts in tilesets.EnumerateArray())
+                    {
+                        if (ts.ValueKind == JsonValueKind.Object
+                            && ts.TryGetProperty("firstgid", out JsonElement fg))
+                        {
+                            // firstgid present -> it MUST be the number 1. A present-but-non-numeric
+                            // firstgid (e.g. "5") is rejected too, never silently treated as 1
+                            // (mirrors ParseTmx, so the gid-1==chipsetIndex assumption can't be wrong).
+                            if (fg.ValueKind != JsonValueKind.Number || !fg.TryGetInt32(out int firstgid) || firstgid != 1)
+                            {
+                                error = $"unsupported firstgid={fg} (only firstgid=1 is supported)";
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                // First tile layer.
+                JsonElement layer = default;
+                bool foundLayer = false;
+                if (root.TryGetProperty("layers", out JsonElement layers) && layers.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement l in layers.EnumerateArray())
+                    {
+                        if (l.ValueKind == JsonValueKind.Object
+                            && l.TryGetProperty("type", out JsonElement lt)
+                            && lt.ValueKind == JsonValueKind.String
+                            && string.Equals(lt.GetString(), "tilelayer", StringComparison.Ordinal))
+                        {
+                            layer = l;
+                            foundLayer = true;
+                            break;
+                        }
+                    }
+                }
+                if (!foundLayer)
+                {
+                    error = "no tilelayer found";
+                    return false;
+                }
+
+                // If the layer declares its own width/height, they MUST match the map's.
+                if (TryGetJsonInt(layer, "width", out int layerW) && layerW != width)
+                {
+                    error = $"layer width {layerW} does not match map width {width}";
+                    return false;
+                }
+                if (TryGetJsonInt(layer, "height", out int layerH) && layerH != height)
+                {
+                    error = $"layer height {layerH} does not match map height {height}";
+                    return false;
+                }
+
+                if (!layer.TryGetProperty("data", out JsonElement dataEl))
+                {
+                    error = "the first tilelayer has no data";
+                    return false;
+                }
+
+                int expected = width * height;
+                uint[] gids;
+                if (dataEl.ValueKind == JsonValueKind.Array)
+                {
+                    // Reject a mismatched (possibly hostile huge) array BEFORE allocating.
+                    int actual = dataEl.GetArrayLength();
+                    if (actual != expected)
+                    {
+                        error = $"tile count {actual} does not match map dimensions {width}x{height} ({expected})";
+                        return false;
+                    }
+                    gids = new uint[expected];
+                    int idx = 0;
+                    foreach (JsonElement g in dataEl.EnumerateArray())
+                    {
+                        if (g.ValueKind != JsonValueKind.Number || !g.TryGetUInt32(out uint v))
+                        {
+                            error = $"tile {idx}: non-integer or out-of-range gid";
+                            return false;
+                        }
+                        gids[idx++] = v;
+                    }
+                }
+                else if (dataEl.ValueKind == JsonValueKind.String)
+                {
+                    // Base64-encoded layer data: require encoding=="base64", reuse the
+                    // shared base64/gzip/zlib decoder (which caps size & inflate).
+                    string encoding = "";
+                    if (layer.TryGetProperty("encoding", out JsonElement enc) && enc.ValueKind == JsonValueKind.String)
+                        encoding = (enc.GetString() ?? "").Trim().ToLowerInvariant();
+                    if (encoding != "base64")
+                    {
+                        error = $"string tilelayer data requires encoding=\"base64\" (got \"{encoding}\")";
+                        return false;
+                    }
+                    string compression = "";
+                    if (layer.TryGetProperty("compression", out JsonElement comp) && comp.ValueKind == JsonValueKind.String)
+                        compression = (comp.GetString() ?? "").Trim().ToLowerInvariant();
+                    if (!DecodeBase64(dataEl.GetString(), compression, out gids, out error))
+                        return false;
+                }
+                else
+                {
+                    error = "tilelayer data must be a GID array or a base64 string";
+                    return false;
+                }
+
+                return TryGidsToMars(gids, width, height, out mars, out error);
+            }
+            catch (Exception ex)
+            {
+                error = "malformed TMJ JSON: " + ex.Message;
+                width = 0;
+                height = 0;
+                mars = null;
+                return false;
+            }
         }
 
         /// <summary>
@@ -254,6 +471,23 @@ namespace FEBuilderGBA
 
         /// <summary>Convert a MAR value to its Tiled GID: <c>(MAR &gt;&gt; 2) + 1</c>.</summary>
         public static int MarToGid(ushort mar) => MapEditorTilesetCore.MarToChipsetIndex(mar) + 1;
+
+        /// <summary>
+        /// Decide whether a picked file should be parsed as Tiled JSON (<c>.tmj</c>) rather
+        /// than XML (<c>.tmx</c>): true when the filename ends with <c>.tmj</c>, or the file
+        /// text (after any UTF-8 BOM / leading whitespace) begins with <c>{</c>. Used by the
+        /// Avalonia importer to dispatch <see cref="ParseTmj"/> vs <see cref="ParseTmx"/>
+        /// (#1796). Pure and null-safe.
+        /// </summary>
+        public static bool LooksLikeTmj(string fileName, string text)
+        {
+            if (!string.IsNullOrEmpty(fileName)
+                && fileName.EndsWith(".tmj", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.IsNullOrEmpty(text)) return false;
+            string sniff = text.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            return sniff.StartsWith("{", StringComparison.Ordinal);
+        }
 
         /// <summary>
         /// Serialize map data (the in-memory <c>width|height|u16[]</c> cache, as produced by
@@ -292,6 +526,88 @@ namespace FEBuilderGBA
             sb.AppendLine(" </layer>");
             sb.AppendLine("</map>");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Serialize map data (the in-memory <c>width|height|u16[]</c> cache) to a Tiled
+        /// <c>.tmj</c> (JSON) map — the JSON sibling of <see cref="SerializeTmx"/> (#1796).
+        /// Emits the canonical Tiled fields (<c>type</c>, <c>version</c>, orientation, layer
+        /// id/name/visible/opacity, …) so other Tiled-JSON consumers accept it, references
+        /// the external <c>.tsx</c> tileset by source (fully supported by Tiled), and writes
+        /// the tile layer as a plain GID array via <see cref="MarToGid"/>. Returns empty
+        /// string for null/undersized input (same guard as <see cref="SerializeTmx"/>).
+        /// </summary>
+        /// <param name="mapData">width|height|row-major u16 MAR cache.</param>
+        /// <param name="tilesetSource">The <c>.tsx</c> source filename to reference (e.g. <c>"foo.tsx"</c>).</param>
+        public static string SerializeTmj(byte[] mapData, string tilesetSource)
+        {
+            if (mapData == null || mapData.Length < 2) return "";
+            int w = mapData[0];
+            int h = mapData[1];
+            if (w == 0 || h == 0) return "";
+            int needed = 2 + w * h * 2;
+            if (mapData.Length < needed) return "";
+            if (string.IsNullOrEmpty(tilesetSource)) tilesetSource = "tileset.tsx";
+
+            using var ms = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(ms, new JsonWriterOptions
+            {
+                Indented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            }))
+            {
+                writer.WriteStartObject();
+                writer.WriteString("type", "map");
+                writer.WriteString("version", "1.0");
+                writer.WriteString("tiledversion", "1.10");
+                writer.WriteString("orientation", "orthogonal");
+                writer.WriteString("renderorder", "right-down");
+                writer.WriteNumber("width", w);
+                writer.WriteNumber("height", h);
+                writer.WriteNumber("tilewidth", TILE_PIXELS);
+                writer.WriteNumber("tileheight", TILE_PIXELS);
+                writer.WriteBoolean("infinite", false);
+                writer.WriteNumber("nextlayerid", 2);
+                writer.WriteNumber("nextobjectid", 1);
+
+                writer.WritePropertyName("tilesets");
+                writer.WriteStartArray();
+                writer.WriteStartObject();
+                writer.WriteNumber("firstgid", 1);
+                writer.WriteString("source", tilesetSource);
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+
+                writer.WritePropertyName("layers");
+                writer.WriteStartArray();
+                writer.WriteStartObject();
+                writer.WriteNumber("id", 1);
+                writer.WriteString("name", "Tile Layer 1");
+                writer.WriteString("type", "tilelayer");
+                writer.WriteNumber("x", 0);
+                writer.WriteNumber("y", 0);
+                writer.WriteNumber("width", w);
+                writer.WriteNumber("height", h);
+                writer.WriteBoolean("visible", true);
+                writer.WriteNumber("opacity", 1);
+                writer.WritePropertyName("data");
+                writer.WriteStartArray();
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int offset = 2 + (y * w + x) * 2;
+                        ushort mar = (ushort)(mapData[offset] | (mapData[offset + 1] << 8));
+                        writer.WriteNumberValue(MarToGid(mar));
+                    }
+                }
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+                writer.WriteEndArray();
+
+                writer.WriteEndObject();
+            }
+            return Encoding.UTF8.GetString(ms.ToArray());
         }
 
         /// <summary>
@@ -476,6 +792,20 @@ namespace FEBuilderGBA
             var a = el.Attribute(name);
             if (a == null) return false;
             return int.TryParse(a.Value.Trim(), out value);
+        }
+
+        /// <summary>
+        /// Null-safe read of an integer JSON property. Returns false (leaving
+        /// <paramref name="value"/>=0) when the parent is not an object, the property is
+        /// absent, is not a JSON number, or is not a 32-bit integer. Never throws.
+        /// </summary>
+        static bool TryGetJsonInt(JsonElement el, string name, out int value)
+        {
+            value = 0;
+            if (el.ValueKind != JsonValueKind.Object) return false;
+            if (!el.TryGetProperty(name, out JsonElement p)) return false;
+            if (p.ValueKind != JsonValueKind.Number) return false;
+            return p.TryGetInt32(out value);
         }
 
         static string XmlEscapeAttr(string s)
