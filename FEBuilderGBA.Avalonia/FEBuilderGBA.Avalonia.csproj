@@ -69,5 +69,8 @@
        so patch2 is automatically kept out of the APK. -->
   <ItemGroup Condition="'$(TargetFramework)' != 'net9.0-android'">
     <Content Include="..\config\**\*.*" Exclude="..\config\patch2\.git;..\config\patch2\.git\**\*.*" LinkBase="config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\resources\fe-info\json\*\code.json"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="resources\fe-info\json\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

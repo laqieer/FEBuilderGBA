@@ -84,7 +84,7 @@ jobs:
       run: ./scripts/validate-automation-ids.ps1
 
     - name: Init build-required submodules
-      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+      run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2

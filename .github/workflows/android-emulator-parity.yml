@@ -104,7 +104,7 @@ jobs:
         # resolve (globbed as AndroidAsset in the main Android head; the test
         # head does not bundle it, but the submodule dir must exist for sibling
         # project restore). tool submodules are referenced transitively.
-        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
       - name: Setup .NET 9.0
         uses: actions/setup-dotnet@v4
@@ -217,7 +217,7 @@ jobs:
         # the main Android head globs config/** (excluding patch2) as
         # AndroidAsset; the tool submodules are referenced transitively by the
         # Avalonia -> Core chain.
-        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
       - name: Setup .NET 9.0
         uses: actions/setup-dotnet@v4

@@ -23,6 +23,48 @@ listed below); the GPLv3 text in `LICENSE` does **not** substitute for it.
 | Event Assembler / `lyn.exe` | GNU GPL v3.0 | `tools/bin/Tools/lyn.exe` in the CLI and Avalonia bundles (when present) | https://github.com/laqieer/Event-Assembler |
 | 7-zip32.dll (optional native archive DLL) | GNU LGPL v2.1 | `7-zip32.dll` next to `FEBuilderGBA.exe` in the WinForms zip (optional) | https://github.com/HBhcraft/7-Zip32 / http://www.7-zip.org/ |
 
+## Bundled data files
+
+| Component | License | Where it ships | Upstream |
+|-----------|---------|----------------|----------|
+| fe-info (decomp symbol maps — `resources/fe-info/json/{fe6,fe8}/code.json`) | BSD 3-Clause | `resources/fe-info/json/` in the CLI and Avalonia bundles | https://github.com/laqieer/fe-info |
+
+The bundled fe-info `code.json` files (decomp function symbols used to enrich the
+disassembler) are distributed under the **BSD 3-Clause License**. As required by
+its condition 2, the full copyright notice, conditions, and disclaimer are
+reproduced here:
+
+```
+BSD 3-Clause License
+
+Copyright (c) 2026, laqieer
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
 ## Bundled .NET / NuGet runtime dependencies
 
 These managed dependencies are published into the self-contained CLI and

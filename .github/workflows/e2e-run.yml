@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Init build-required submodules
-        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
       # ---------------------------------------------------------------- Build bundled tools
       - name: Build ColorzCore (bundled EA tool)

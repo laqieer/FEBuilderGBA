@@ -71,6 +71,11 @@ dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
 
+**Disassembler symbol enrichment:** [fe-info](https://github.com/laqieer/fe-info) ships BSD-3-Clause
+`json/{fe6,fe8}/code.json` function metadata. FEBuilderGBA includes only those `code.json`
+files in app outputs and merges them behind the existing disassembler symbol-map seam so FE6/FE8
+disassembly can show decompilation-derived function names when the shipped asmmap has no entry.
+
 **Public Resources:** [FE-Repo](https://github.com/Klokinator/FE-Repo) (graphics) and [FE-Repo-Music-No-Preview](https://github.com/laqieer/FE-Repo-Music-No-Preview) (music) ship as submodules under `resources/`. They are wired into the **FE-Repo** / **FE-Repo-Music** buttons on the portrait, icon, background, CG, battle-background, skill-icon, battle-animation, and song editors (WinForms + Avalonia) to browse and import community assets directly. The **battle-animation** button filters the deeply-nested FE-Repo `Battle Animations/` tree to one preview per weapon-animation and imports the picked animation's FEditor script (`.txt`/`.bin`) in place (#1807). **They are intentionally not bundled into released artifacts** (their payload is too large to attach to every release), so the Resource Browser is empty until you fetch them on demand:
 
 - **Source clone:** `git submodule update --init resources/FE-Repo` (and `resources/FE-Repo-Music-No-Preview` for music), or run the convenience helper `scripts/fetch-fe-repo.sh` / `pwsh scripts/fetch-fe-repo.ps1`.
