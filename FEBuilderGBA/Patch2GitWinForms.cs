@@ -84,7 +84,11 @@ namespace FEBuilderGBA
                     break;
                 case Patch2GitResultKind.Failed:
                     string logTail = string.IsNullOrEmpty(result.Log) ? "" : "\r\n\r\n" + result.Log.Trim();
-                    if (result.WasClone)
+                    if (result.ExitCode < 0)
+                        // Exception-synthesized fallback (a rare backup file-move I/O failure) — the
+                        // clone/update distinction isn't reliably known here, so use neutral wording.
+                        R.ShowStopError("Patch database operation failed.{0}", logTail);
+                    else if (result.WasClone)
                         R.ShowStopError("Patch database initialization failed (git exit {0}).{1}", result.ExitCode, logTail);
                     else
                         R.ShowStopError("Patch database update failed (git exit {0}).{1}", result.ExitCode, logTail);
