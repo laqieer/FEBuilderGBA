@@ -55,6 +55,8 @@ last few editors is lower-risk than leaving it half-applied.
   WinForms to new feature work. Such a carve-out must be (a) explicitly
   requested by the maintainer and (b) recorded here.
 
+- **Content repository setup wizard.** Issue #1814 was explicitly maintainer-requested to ship to **both** WinForms and Avalonia despite the WinForms feature freeze, because first-run setup of `patch2`, FE-Repo, and FE-Repo-Music is a cross-GUI onboarding and supportability requirement. The WinForms surface for this carve-out is limited to the content-repo setup wizard entry points; it does not reopen WinForms for unrelated feature work.
+
 ## For reviewers & AI agents
 
 When triaging an issue or scoping a PR:

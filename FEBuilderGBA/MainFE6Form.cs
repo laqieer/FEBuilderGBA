@@ -13,6 +13,7 @@ namespace FEBuilderGBA
         public MainFE6Form()
         {
             InitializeComponent();
+            MainFormUtil.InstallContentRepoSetupMenuItem(this);
             FixedButton();
             ToolRunHintMessageForm.RemoveRunTestMenuIfUserWant(this.menuStrip1, this.TestRunStripMenuItem);
             InputFormRef.RecolorMenuStrip(this.menuStrip1);

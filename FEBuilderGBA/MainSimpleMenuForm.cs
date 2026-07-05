@@ -22,6 +22,7 @@ namespace FEBuilderGBA
         private void MainSimpleMenuForm_Load(object sender, EventArgs e)
         {
             ToolRunHintMessageForm.RemoveRunTestMenuIfUserWant(this.menuStrip1, this.TestRunStripMenuItem);
+            MainFormUtil.InstallContentRepoSetupMenuItem(this);
             InputFormRef.RecolorMenuStrip(this.menuStrip1);
 
             this.EventList.OwnerDraw(DrawEventList, DrawMode.OwnerDrawFixed);

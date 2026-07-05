@@ -2954,6 +2954,72 @@ namespace FEBuilderGBA
             }
             while (true);
         }
+        public static void RunContentRepoSetupWizard(Form owner = null)
+        {
+            using (ContentRepoSetupWizardForm f = new ContentRepoSetupWizardForm())
+            {
+                if (owner == null)
+                    f.ShowDialog();
+                else
+                    f.ShowDialog(owner);
+            }
+        }
+
+        static bool _contentRepoWizardAutoShownThisSession = false;
+        public static void TryAutoShowContentRepoSetupWizard(Form owner)
+        {
+            // Show the first-run wizard at most ONCE per process. This hook fires from the main
+            // form's Shown event, which re-fires every time the main form is recreated (File ->
+            // Open ROM, .7z/UPS open, ROM rebuild, project rename all set Program.DoReOpen). Skip
+            // deliberately does NOT set a persisted opt-out, so without this in-memory session
+            // guard the modal would re-pop on every ROM reopen. It still re-evaluates next launch
+            // (fresh process => fresh flag) while repos remain incomplete. (#1851 review)
+            if (_contentRepoWizardAutoShownThisSession)
+                return;
+            if (Program.ShouldAutoShowContentRepoSetupWizard())
+            {
+                _contentRepoWizardAutoShownThisSession = true;
+                RunContentRepoSetupWizard(owner);
+            }
+        }
+
+        public static void InstallContentRepoSetupMenuItem(Form form)
+        {
+            if (form == null) return;
+            foreach (Control control in form.Controls)
+            {
+                if (control is MenuStrip menuStrip)
+                    InstallContentRepoSetupMenuItem(menuStrip.Items);
+            }
+        }
+
+        static bool InstallContentRepoSetupMenuItem(ToolStripItemCollection items)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                if (items[i] is ToolStripMenuItem existing && existing.Name == "ContentRepoSetupToolStripMenuItem")
+                    return true;
+                if (items[i] is ToolStripMenuItem item)
+                {
+                    if (item.Name == "InitWizardToolStripMenuItem")
+                    {
+                        var contentItem = new ToolStripMenuItem
+                        {
+                            Name = "ContentRepoSetupToolStripMenuItem",
+                            Text = R._("Content Repositories…"),
+                            Size = item.Size,
+                        };
+                        contentItem.Click += (sender, e) => RunContentRepoSetupWizard(item.GetCurrentParent()?.FindForm());
+                        items.Insert(i + 1, contentItem);
+                        return true;
+                    }
+                    if (item.DropDownItems.Count > 0 && InstallContentRepoSetupMenuItem(item.DropDownItems))
+                        return true;
+                }
+            }
+            return false;
+        }
+
         public static void RunToolWelcomeDialog()
         {
             do

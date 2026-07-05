@@ -14184,6 +14184,76 @@ FE-Repoを今すぐ初期化／更新
 :Initialize / Update FE-Repo-Music Now
 FE-Repo-Musicを今すぐ初期化／更新
 
+:Content Repository Setup
+コンテンツリポジトリ設定
+
+:FEBuilderGBA uses separate content repositories for patches and community assets. Configure the remote URL for each repository, then initialize any repository that is not ready.
+FEBuilderGBAはパッチとコミュニティ素材に別々のコンテンツリポジトリを使用します。各リポジトリのリモートURLを設定し、未準備のリポジトリを初期化してください。
+
+:Don't show this again
+今後表示しない
+
+:Repository
+リポジトリ
+
+:Remote URL
+リモートURL
+
+:Starting...
+開始中...
+
+:Running...
+実行中...
+
+:Needs initialization
+初期化が必要です
+
+:Initialized successfully.
+初期化しました。
+
+:Updated successfully.
+更新しました。
+
+:Git not found
+Gitが見つかりません
+
+:Install Git or use the manual download instructions below.
+Gitをインストールするか、下の手動ダウンロード手順を使用してください。
+
+:Already running
+すでに実行中です
+
+:Another content repository operation is already running.
+別のコンテンツリポジトリ操作がすでに実行中です。
+
+:Git operation failed with exit code {0}.
+Git操作が終了コード {0} で失敗しました。
+
+:Download each repository ZIP, extract it, and place the extracted contents in the matching folder:
+各リポジトリのZIPをダウンロードして展開し、展開した内容を対応するフォルダに配置してください:
+
+:Git was not found. Initialize buttons are hidden; download and extract these repositories manually:
+Gitが見つかりません。初期化ボタンは非表示です。これらのリポジトリを手動でダウンロードして展開してください:
+
+:Content Repositories…
+コンテンツリポジトリ…
+
+:Configure content repositories (patch2 / FE-Repo / FE-Repo-Music).
+コンテンツリポジトリ（patch2 / FE-Repo / FE-Repo-Music）を設定します。
+
+
+:Action
+操作
+
+:Failed
+失敗
+
+:Initialize
+初期化
+
+:Initialize / Update
+初期化 / 更新
+
 :Check for _Updates…
 更新を確認(_U)…
 

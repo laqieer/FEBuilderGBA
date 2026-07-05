@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -23,6 +23,16 @@ namespace FEBuilderGBA
             func_lang.Items.Add("zh=中文");       ///No Translate
 
             InputFormRef.markupJumpLabel(X_EXPLAIN_NECESSARY_PROGRAM);
+            var X_EXPLAIN_CONTENT_REPOSITORIES = new Label
+            {
+                AutoSize = true,
+                Location = new Point(X_EXPLAIN_NECESSARY_PROGRAM.Left, X_EXPLAIN_NECESSARY_PROGRAM.Bottom + 8),
+                Name = "X_EXPLAIN_CONTENT_REPOSITORIES",
+                Text = R._("Configure content repositories (patch2 / FE-Repo / FE-Repo-Music).")
+            };
+            X_EXPLAIN_CONTENT_REPOSITORIES.Click += X_EXPLAIN_CONTENT_REPOSITORIES_Click;
+            tabPagePath.Controls.Add(X_EXPLAIN_CONTENT_REPOSITORIES);
+            InputFormRef.markupJumpLabel(X_EXPLAIN_CONTENT_REPOSITORIES);
             this.Icon = Properties.Resources.icon_settings;
 
             U.SetIcon(ColorSaveASbutton, Properties.Resources.icon_arrow);
@@ -1537,6 +1547,10 @@ namespace FEBuilderGBA
         {
             this.Close();
             MainFormUtil.RunToolInitWizard();
+        }
+        private void X_EXPLAIN_CONTENT_REPOSITORIES_Click(object sender, EventArgs e)
+        {
+            MainFormUtil.RunContentRepoSetupWizard(this);
         }
 
         //利用しているエミュレータの種類を知りたいので、名前を取得する
