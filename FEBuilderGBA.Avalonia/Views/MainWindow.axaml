@@ -55,6 +55,7 @@
         <Separator />
         <MenuItem AutomationProperties.AutomationId="Main_ReportBugMenuItem_Button" Header="_Report a Bug…" Click="ReportBug_Click" Name="ReportBugMenuItem" />
         <MenuItem AutomationProperties.AutomationId="Main_AboutMenuItem_Button" Header="_About" Click="About_Click" Name="AboutMenuItem" />
+        <MenuItem AutomationProperties.AutomationId="Main_CheckUpdatesMenuItem_Button" Header="Check for _Updates…" Click="CheckUpdates_Click" Name="CheckUpdatesMenuItem" />
       </MenuItem>
     </Menu>
 

@@ -30,6 +30,7 @@
 
             <!-- Auto-Backup -->
             <CheckBox AutomationProperties.AutomationId="Options_AutoBackupCheck_Check" Name="AutoBackupCheckBox" Content="Auto-backup ROM before saving" Margin="0,8,0,0" />
+            <CheckBox AutomationProperties.AutomationId="Options_AutoUpdateCheck_Check" Name="AutoUpdateCheckBox" Content="Automatically check for updates" Margin="0,4,0,0" />
 
             <!-- Submodule Remote URLs -->
             <Expander AutomationProperties.AutomationId="Options_SubmoduleRemoteURLsadvanced_Expander" Header="Submodule Remote URLs (advanced)" Margin="0,12,0,0" IsExpanded="False">

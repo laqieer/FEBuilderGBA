@@ -21,7 +21,9 @@ held to **different standards** on purpose.
 - **Avalonia is still in preview.** It is cross-platform (Windows/Linux/macOS,
   plus an Android head) and not yet the primary tool for most users, so a
   regression there has a **limited blast radius**. That makes it the right place
-  to build and iterate on **new features**.
+  to build and iterate on **new features**, including cross-platform conveniences
+  such as Help → Check for Updates (a safe release check that opens the downloads
+  page, rather than WinForms' Windows-only self-replacing updater).
 
 ## What this means in practice
 

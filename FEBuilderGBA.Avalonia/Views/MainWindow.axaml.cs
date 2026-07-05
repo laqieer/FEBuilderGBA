@@ -260,6 +260,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (DiscussionsMenuItem != null) DiscussionsMenuItem.Header = R._("_GitHub Discussions");
             if (ReportBugMenuItem != null) ReportBugMenuItem.Header = R._("_Report a Bug…");
             if (AboutMenuItem != null) AboutMenuItem.Header = R._("_About");
+            if (CheckUpdatesMenuItem != null) CheckUpdatesMenuItem.Header = R._("Check for _Updates…");
         }
 
         /// <summary>
@@ -629,6 +630,12 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshLabels();
             _vm.UpdateFromRom();
             SetStatusText(_vm.StatusText);
+            // Only run the startup update check on a real interactive GUI session —
+            // never in headless/smoke/CLI modes (--screenshot-all / --validate-import /
+            // --data-verify / --list-parity set SmokeTestMode), which would fire a
+            // background network call and could pop a dialog (nondeterminism / hang). (#1804)
+            if (!App.SmokeTestMode)
+                StartAutoUpdateCheckIfDue();
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))
@@ -3633,6 +3640,105 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/laqieer/FEBuilderGBA/discussions") { UseShellExecute = true }); }
             catch (Exception ex) { Log.ErrorF("MainWindow.Discussions_Click launch browser: {0}", ex.Message); }
+        }
+
+        private async void CheckUpdates_Click(object? sender, RoutedEventArgs e)
+        {
+            UpdateCheckCore.UpdateCheckResult result = await Task.Run(() => UpdateCheckCore.CheckLatest());
+            await Dispatcher.UIThread.InvokeAsync(async () => await ShowUpdateCheckResultAsync(result, manual: true));
+        }
+
+        void StartAutoUpdateCheckIfDue()
+        {
+            try
+            {
+                Config? cfg = CoreState.Config;
+                string interval = cfg?.at("func_auto_update", "3") ?? "3";
+                string last = cfg?.at("LastUpdateCheck", "0") ?? "0";
+                string today = DateTime.Now.ToString("yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+                if (!UpdateCheckCore.ShouldAutoCheck(interval, last, today))
+                    return;
+
+                _ = Task.Run(() =>
+                {
+                    UpdateCheckCore.UpdateCheckResult result = UpdateCheckCore.CheckLatest();
+                    // Marshal back to the UI thread: the config write (MarkAutoUpdateChecked ->
+                    // CoreState.Config.Save) and any dialog must NOT run on the background thread.
+                    Dispatcher.UIThread.Post(async () =>
+                    {
+                        try
+                        {
+                            // Only consume the interval on a SUCCESSFUL check — a failed (offline/
+                            // rate-limited) check retries on the next launch instead of being suppressed
+                            // for a full interval, matching WinForms IsAutoUpdateTime semantics. (#1804)
+                            if (!result.CheckSucceeded)
+                                return;
+                            MarkAutoUpdateChecked(today);
+                            if (!result.IsUpdateAvailable)
+                                return;
+                            await ShowUpdateCheckResultAsync(result, manual: false);
+                        }
+                        catch (Exception ex)
+                        {
+                            // async-void fire-and-forget: swallow+log so an exception (e.g. the window
+                            // closing during startup) can never become an unobserved crash.
+                            Log.ErrorF("MainWindow auto-update dialog: {0}", ex.Message);
+                        }
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.StartAutoUpdateCheckIfDue: {0}", ex.Message);
+            }
+        }
+
+        static void MarkAutoUpdateChecked(string todayYyyyMmdd)
+        {
+            try
+            {
+                Config? cfg = CoreState.Config;
+                if (cfg == null)
+                    return;
+                cfg["LastUpdateCheck"] = todayYyyyMmdd;
+                cfg.Save();
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MainWindow.MarkAutoUpdateChecked: {0}", ex.Message);
+            }
+        }
+
+        async Task ShowUpdateCheckResultAsync(UpdateCheckCore.UpdateCheckResult result, bool manual)
+        {
+            if (!result.CheckSucceeded)
+            {
+                if (manual)
+                    await MessageBoxWindow.Show(this, R._("Could not check for updates (offline or GitHub unavailable)."), R._("FEBuilderGBA"), MessageBoxMode.Ok);
+                return;
+            }
+
+            if (!result.IsUpdateAvailable)
+            {
+                if (manual)
+                    await MessageBoxWindow.Show(this,
+                        string.Format(R._("You are running the latest version (current {0})."), result.CurrentVersion),
+                        R._("FEBuilderGBA"), MessageBoxMode.Ok);
+                return;
+            }
+
+            var answer = await MessageBoxWindow.Show(this,
+                string.Format(R._("A new version is available: {0} (you have {1}). Open the releases page to download and install it?"),
+                    result.LatestVersion, result.CurrentVersion),
+                R._("FEBuilderGBA"), MessageBoxMode.YesNo);
+            if (answer == MessageBoxResult.Yes)
+                OpenUrlInBrowser(result.ReleasePageUrl);
+        }
+
+        static void OpenUrlInBrowser(string url)
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception ex) { Log.ErrorF("MainWindow.OpenUrlInBrowser: {0}", ex.Message); }
         }
 
         private async void ReportBug_Click(object? sender, RoutedEventArgs e)
