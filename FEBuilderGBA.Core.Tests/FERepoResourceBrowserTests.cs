@@ -392,5 +392,98 @@ namespace FEBuilderGBA.Core.Tests
                 .Substring(FERepoResourceBrowser.MusicCloneCommand.LastIndexOf(' ') + 1);
             Assert.Equal("resources/FE-Repo-Music-No-Preview", musicTarget);
         }
+
+        // -----------------------------------------------------------------
+        // #1807 — extension filter + RelativePath for the nested Battle
+        // Animations folder, and the .gif -> sibling-script resolver.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void GetResourceFiles_ExtensionFilter_ListsOnlyGif_OnePerAnimation()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            // Battle Animations/<class>/<animation>/<weapon>/{Sword.gif, Sword.txt, Sword Sheet 1.png}
+            string weapon = Path.Combine(tempDir, "Battle Animations", "Lords", "FF9 Beatrix", "1. Sword");
+            Directory.CreateDirectory(weapon);
+            File.WriteAllText(Path.Combine(weapon, "Sword.gif"), "mock");
+            File.WriteAllText(Path.Combine(weapon, "Sword.txt"), "mock");
+            File.WriteAllText(Path.Combine(weapon, "Sword Sheet 1.png"), "mock");
+            File.WriteAllText(Path.Combine(weapon, "Sword Sheet 2.png"), "mock");
+            try
+            {
+                // Default (no filter) picks up every image (gif + 2 png sheets).
+                var all = FERepoResourceBrowser.GetResourceFiles(tempDir, "Battle Animations", "Lords");
+                Assert.Equal(3, all.Length);
+
+                // gif-only filter → exactly one entry per weapon-animation.
+                var gifs = FERepoResourceBrowser.GetResourceFiles(
+                    tempDir, "Battle Animations", "Lords", maxResults: 0, extensionFilter: new[] { ".gif" });
+                Assert.Single(gifs);
+                Assert.EndsWith(".gif", gifs[0].FileName);
+                // RelativePath distinguishes otherwise-identical "Sword.gif" names.
+                Assert.Contains("FF9 Beatrix", gifs[0].RelativePath);
+                Assert.Contains("1. Sword", gifs[0].RelativePath);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void GetResourceFiles_RelativePath_PopulatedForFlatEditors()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            string catDir = Path.Combine(tempDir, "Portrait Repository", "FE08 Mugs");
+            Directory.CreateDirectory(catDir);
+            File.WriteAllText(Path.Combine(catDir, "Eirika.png"), "mock");
+            try
+            {
+                var files = FERepoResourceBrowser.GetResourceFiles(tempDir, "Portrait Repository", "FE08 Mugs");
+                Assert.Single(files);
+                // For a directly-contained image, RelativePath == FileName.
+                Assert.Equal(files[0].FileName, files[0].RelativePath);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ResolveBattleAnimeImportFile_PrefersTxt_ThenBin_ElseNull()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-test-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string gif = Path.Combine(tempDir, "Sword.gif");
+                File.WriteAllText(gif, "mock");
+
+                // Neither sibling exists → null (stray non-animation gif).
+                Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(gif));
+
+                // Only .bin exists → resolves .bin.
+                string bin = Path.Combine(tempDir, "Sword.bin");
+                File.WriteAllText(bin, "mock");
+                Assert.Equal(bin, FERepoResourceBrowser.ResolveBattleAnimeImportFile(gif));
+
+                // .txt present → preferred over .bin.
+                string txt = Path.Combine(tempDir, "Sword.txt");
+                File.WriteAllText(txt, "mock");
+                Assert.Equal(txt, FERepoResourceBrowser.ResolveBattleAnimeImportFile(gif));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ResolveBattleAnimeImportFile_NullOrEmpty_ReturnsNull()
+        {
+            Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(null));
+            Assert.Null(FERepoResourceBrowser.ResolveBattleAnimeImportFile(""));
+        }
     }
 }
