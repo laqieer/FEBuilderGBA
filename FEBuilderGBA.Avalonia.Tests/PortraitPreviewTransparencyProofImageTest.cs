@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 try
                 {
-                    string outDir = Path.Combine(FindRepoRoot(), "pr-screenshots");
+                    string outDir = ResolveScreenshotOutputDir();
                     Directory.CreateDirectory(outDir);
                     string outPath = Path.Combine(outDir, "pr-portrait-preview-1847.png");
                     File.WriteAllBytes(outPath, pngBytes);
@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         static IDisposable EnsureImageService()
         {
-            var prev = CoreState.ImageService;
+            IImageService? prev = CoreState.ImageService;
             if (prev == null)
                 CoreState.ImageService = new SkiaImageService();
             return new RestoreImageService(prev);
@@ -72,8 +72,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         sealed class RestoreImageService : IDisposable
         {
-            readonly IImageService _prev;
-            public RestoreImageService(IImageService prev) { _prev = prev; }
+            readonly IImageService? _prev;
+            public RestoreImageService(IImageService? prev) { _prev = prev; }
             public void Dispose() { CoreState.ImageService = _prev; }
         }
 
@@ -174,17 +174,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
-        static string FindRepoRoot()
+        static string ResolveScreenshotOutputDir()
         {
-            string dir = AppContext.BaseDirectory;
-            while (!string.IsNullOrEmpty(dir))
-            {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln"))) return dir;
-                string? parent = Directory.GetParent(dir)?.FullName;
-                if (parent == dir) break;
-                dir = parent ?? "";
-            }
-            return Directory.GetCurrentDirectory();
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (!string.IsNullOrEmpty(overrideDir)) return overrideDir;
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
     }
 }
