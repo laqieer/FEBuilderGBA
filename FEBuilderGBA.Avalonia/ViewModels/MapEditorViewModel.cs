@@ -518,7 +518,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Single-source-of-truth ROM write path for both the manual editor and the
         /// paint flow. Stages a CLONED map-data buffer with the new MAR value,
-        /// compresses it, writes it to ROM free space, and updates the pointer.
+        /// compresses it, then reuses the current compressed ROM blob in-place
+        /// when it fits or relocates/frees the old private blob when it grows.
         ///
         /// <para>Order of operations is deliberate: the cache <c>_cachedMapData</c>
         /// only becomes the staged buffer AFTER the compressed write + pointer
@@ -571,7 +572,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                writeAddr = ImageImportCore.WriteCompressedInPlaceOrRelocate(
+                    rom, _cachedMapPointerEntryAddr, compressed);
             }
             catch (Exception ex)
             {
@@ -581,16 +583,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (writeAddr == U.NOT_FOUND)
             {
                 error = "No free space in ROM for compressed map data";
-                return false;
-            }
-
-            try
-            {
-                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
-            }
-            catch (Exception ex)
-            {
-                error = "Pointer write threw: " + ex.Message;
                 return false;
             }
 
@@ -673,7 +665,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                writeAddr = ImageImportCore.WriteCompressedInPlaceOrRelocate(
+                    rom, _cachedMapPointerEntryAddr, compressed);
             }
             catch (Exception ex)
             {
@@ -683,16 +676,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (writeAddr == U.NOT_FOUND)
             {
                 error = "No free space in ROM for compressed map data";
-                return false;
-            }
-
-            try
-            {
-                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
-            }
-            catch (Exception ex)
-            {
-                error = "Pointer write threw: " + ex.Message;
                 return false;
             }
 
@@ -706,10 +689,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// crops), writing the recompressed result to ROM. Reuses the exact fault-safe
         /// write pipeline of <see cref="ApplyMapGrid"/>: build the resized buffer via
         /// <see cref="MapEditorTilesetCore.BuildResizedMapData"/>, <c>LZ77.compress</c>,
-        /// <see cref="ImageImportCore.FindAndWriteData"/> (which finds fresh free space
-        /// sized to the compressed bytes, so a larger map is relocated rather than
-        /// overwriting the data after the original region), then repoint the map's
-        /// pointer-table entry. The in-memory cache and <see cref="MapWidth"/>/
+        /// <see cref="ImageImportCore.WriteCompressedInPlaceOrRelocate"/> (which
+        /// reuses the current compressed blob when it fits and relocates/frees the
+        /// old private blob when it grows). The in-memory cache and <see cref="MapWidth"/>/
         /// <see cref="MapHeight"/> are updated only after every ROM write succeeds.
         /// Returns false with <paramref name="error"/> on invalid dimensions (see
         /// BuildResizedMapData's FE main-map limits), no ROM/map, or no free space,
@@ -760,7 +742,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             try
             {
-                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+                writeAddr = ImageImportCore.WriteCompressedInPlaceOrRelocate(
+                    rom, _cachedMapPointerEntryAddr, compressed);
             }
             catch (Exception ex)
             {
@@ -770,16 +753,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (writeAddr == U.NOT_FOUND)
             {
                 error = "No free space in ROM for compressed map data";
-                return false;
-            }
-
-            try
-            {
-                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
-            }
-            catch (Exception ex)
-            {
-                error = "Pointer write threw: " + ex.Message;
                 return false;
             }
 

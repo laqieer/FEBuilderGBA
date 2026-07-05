@@ -454,6 +454,67 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Write compressed data through a pointer entry without leaking the old
+        /// allocation: reuse the current blob in-place when the new payload fits
+        /// and is not shared, otherwise relocate and free the old private blob.
+        /// </summary>
+        public static uint WriteCompressedInPlaceOrRelocate(ROM rom, uint pointerEntryAddr, byte[] compressed)
+        {
+            if (rom == null || rom.Data == null || compressed == null || compressed.Length == 0)
+                return U.NOT_FOUND;
+            if (rom.Data.Length < 4 || pointerEntryAddr > (uint)rom.Data.Length - 4)
+                return U.NOT_FOUND;
+
+            uint oldAddr = rom.p32(pointerEntryAddr);
+            uint oldSize = 0;
+            bool hasSafeOldAddr = U.isSafetyOffset(oldAddr, rom);
+            if (hasSafeOldAddr)
+            {
+                uint compressedSize = LZ77.getCompressedSize(rom.Data, oldAddr);
+                if (compressedSize > 0 && compressedSize <= (uint)rom.Data.Length - oldAddr)
+                {
+                    uint padded = U.Padding4(compressedSize);
+                    if (padded <= (uint)rom.Data.Length - oldAddr)
+                        oldSize = padded;
+                }
+            }
+
+            uint newSize = (uint)U.Padding4((uint)compressed.Length);
+            bool isShared = hasSafeOldAddr && IsPointerTargetSharedExcluding(rom, oldAddr, pointerEntryAddr);
+
+            if (oldSize > 0 && newSize <= oldSize && !isShared)
+            {
+                rom.write_range(oldAddr, compressed);
+                if (oldSize > (uint)compressed.Length)
+                    rom.write_fill(oldAddr + (uint)compressed.Length, oldSize - (uint)compressed.Length, 0x00);
+                return oldAddr;
+            }
+
+            uint newAddr = FindAndWriteData(rom, compressed);
+            if (newAddr == U.NOT_FOUND) return U.NOT_FOUND;
+
+            rom.write_p32(pointerEntryAddr, newAddr);
+            if (oldSize > 0 && !isShared)
+                rom.write_fill(oldAddr, oldSize, 0x00);
+
+            return newAddr;
+        }
+
+        static bool IsPointerTargetSharedExcluding(ROM rom, uint targetAddr, uint pointerEntryAddr)
+        {
+            if (rom == null || rom.Data == null || targetAddr == 0 || targetAddr == U.NOT_FOUND)
+                return false;
+
+            var refs = U.GrepPointerAll(rom.Data, targetAddr);
+            foreach (uint refAddr in refs)
+            {
+                if (refAddr != pointerEntryAddr)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Append data to the end of the ROM, expanding the ROM data array if needed.
         /// Matches WinForms AppendEndOfFile + write_resize_data pattern.
         /// Max ROM size: 32MB (0x02000000).
