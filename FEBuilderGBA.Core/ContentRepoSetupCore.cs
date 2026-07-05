@@ -95,11 +95,11 @@ namespace FEBuilderGBA
             }
         }
 
-        public static bool NeedsSetup(string baseDir, Config cfg)
+        public static bool NeedsSetup(string baseDir)
             => Repos.Any(d => !IsRepoReady(d, baseDir));
 
         public static bool ShouldAutoShow(string baseDir, Config cfg)
-            => NeedsSetup(baseDir, cfg) && (cfg?.at(OptOutConfigKey, "0") ?? "0") != "1";
+            => NeedsSetup(baseDir) && (cfg?.at(OptOutConfigKey, "0") ?? "0") != "1";
 
         public static void SetOptOut(Config cfg)
         {

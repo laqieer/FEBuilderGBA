@@ -92,10 +92,10 @@ namespace FEBuilderGBA.Core.Tests
         {
             CreateReadyPatch2();
             CreateReadyFile(Repo("fe-repo"));
-            Assert.True(ContentRepoSetupCore.NeedsSetup(_baseDir, _cfg));
+            Assert.True(ContentRepoSetupCore.NeedsSetup(_baseDir));
 
             CreateReadyFile(Repo("fe-repo-music"));
-            Assert.False(ContentRepoSetupCore.NeedsSetup(_baseDir, _cfg));
+            Assert.False(ContentRepoSetupCore.NeedsSetup(_baseDir));
         }
 
         [Fact]
@@ -118,7 +118,7 @@ namespace FEBuilderGBA.Core.Tests
             string badBase = Path.Combine(_baseDir, "file-as-base");
             File.WriteAllText(badBase, "not a directory");
             Assert.False(ContentRepoSetupCore.IsRepoReady(Repo("fe-repo"), badBase));
-            Assert.True(ContentRepoSetupCore.NeedsSetup(badBase, _cfg));
+            Assert.True(ContentRepoSetupCore.NeedsSetup(badBase));
         }
 
         [Fact]
