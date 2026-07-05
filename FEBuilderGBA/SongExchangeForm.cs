@@ -29,16 +29,18 @@ namespace FEBuilderGBA
             // music file into the currently-selected song, reusing the SAME
             // music-import dispatcher as the Song Track Editor
             // (SongTrackForm.ImportMusicFileToSong). Placed inside panel2 (the
-            // content host) in the clear gap between the sound-table label
-            // (ends x~601) and the "Open other ROM" button (starts x=733) so it
-            // is visible rather than hidden behind the panel at the old form
+            // content host) in the clear gap just right of the sound-table label
+            // and left of the "Open other ROM" button, positioned RELATIVE to
+            // label3 (not hard-coded) so it stays correct across DPI/designer
+            // changes — rather than hidden behind the panel at the old form
             // origin (0,0).
             {
                 var feRepoMusicButton = new Button
                 {
                     Text = R._("FE-Repo-Music"),
+                    Name = "FERepoMusicButton",
                     Size = new System.Drawing.Size(120, 25),
-                    Location = new System.Drawing.Point(607, 13)
+                    Location = new System.Drawing.Point(this.label3.Right + 6, this.label3.Top)
                 };
                 feRepoMusicButton.Click += FERepoMusicButton_Click;
                 this.panel2.Controls.Add(feRepoMusicButton);
