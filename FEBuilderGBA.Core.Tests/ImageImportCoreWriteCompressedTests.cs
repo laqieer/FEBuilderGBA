@@ -191,5 +191,29 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(oldAddr, rom.p32(ptr));
             Assert.Equal(beforeRom, rom.Data);
         }
+
+        [Fact]
+        public void WriteCompressedInPlaceOrRelocate_OldPointerThreeBytesFromEof_DoesNotThrowAndRelocatesCleanly()
+        {
+            var rom = CreateRom();
+            const uint ptr = 0x218;
+            uint oldAddr = (uint)rom.Data.Length - 3;
+            rom.write_p32(ptr, oldAddr);
+            rom.write_u8(oldAddr, 0x10);
+            byte[] tailBefore = rom.getBinaryData(oldAddr, 3);
+            byte[] newBlob = LiteralLz77(0x90, 32);
+
+            var ex = Record.Exception(() =>
+            {
+                uint written = ImageImportCore.WriteCompressedInPlaceOrRelocate(rom, ptr, newBlob);
+                Assert.NotEqual(U.NOT_FOUND, written);
+                Assert.NotEqual(oldAddr, written);
+                Assert.Equal(written, rom.p32(ptr));
+                Assert.Equal(newBlob, rom.getBinaryData(written, (uint)newBlob.Length));
+            });
+
+            Assert.Null(ex);
+            Assert.Equal(tailBefore, rom.getBinaryData(oldAddr, 3));
+        }
     }
 }

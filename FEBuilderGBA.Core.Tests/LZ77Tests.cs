@@ -41,5 +41,24 @@ namespace FEBuilderGBA.Core.Tests
             byte[] decompressed = LZ77.decompress(compressed, 0);
             Assert.Equal(original, decompressed);
         }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        public void GetCompressedSize_ShortHeaderAtEnd_ReturnsZeroWithoutThrow(int remaining)
+        {
+            byte[] data = new byte[8];
+            uint offset = (uint)(data.Length - remaining);
+            data[offset] = 0x10;
+
+            var ex = Record.Exception(() =>
+            {
+                uint size = LZ77.getCompressedSize(data, offset);
+                Assert.Equal(0u, size);
+            });
+
+            Assert.Null(ex);
+        }
     }
 }

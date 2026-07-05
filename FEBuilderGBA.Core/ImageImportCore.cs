@@ -467,7 +467,7 @@ namespace FEBuilderGBA
 
             uint oldAddr = rom.p32(pointerEntryAddr);
             uint oldSize = 0;
-            bool hasSafeOldAddr = U.isSafetyOffset(oldAddr, rom);
+            bool hasSafeOldAddr = U.isSafetyOffset(oldAddr, rom) && oldAddr <= (uint)rom.Data.Length - 4;
             if (hasSafeOldAddr)
             {
                 uint compressedSize = LZ77.getCompressedSize(rom.Data, oldAddr);
@@ -480,6 +480,9 @@ namespace FEBuilderGBA
             }
 
             uint newSize = (uint)U.Padding4((uint)compressed.Length);
+            // Always scan current ROM pointers instead of caching: this is a
+            // single-digit-ms, click-driven path, and fresh data avoids stale
+            // cache risks before deciding whether an old blob may be freed.
             bool isShared = hasSafeOldAddr && IsPointerTargetSharedExcluding(rom, oldAddr, pointerEntryAddr);
 
             if (oldSize > 0 && newSize <= oldSize && !isShared)

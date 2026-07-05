@@ -31,7 +31,7 @@ namespace FEBuilderGBA
             {
                 return 0;
             }
-            if (input.Length - offset < 3)
+            if (input.Length - offset < 4)
             {
                 return 0;
             }
@@ -61,7 +61,7 @@ namespace FEBuilderGBA
             {
                 return 0;
             }
-            if (input.Length - offset < 3)
+            if (input.Length - offset < 4)
             {
                 return 0;
             }
