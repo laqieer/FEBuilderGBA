@@ -11,6 +11,10 @@ using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
+    // Serialized with ContentRepoGitServiceTests: both exercise the shared static single-flight guard in
+    // ContentRepoGitService, so running them in parallel races (a TryEnter in one class makes a TryEnter
+    // in the other unexpectedly return false). #1839 review-board finding.
+    [Collection("ContentRepoGitGuard")]
     public class Patch2GitServiceTests
     {
         static string NewBaseDir()
