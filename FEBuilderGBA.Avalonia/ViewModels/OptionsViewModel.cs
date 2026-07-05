@@ -13,6 +13,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         List<string> _availableLanguages = new();
         string _gitPath = "git";
         bool _autoBackup = true;
+        bool _autoUpdateEnabled = true;
         bool _autoSaveEnabled = false;
         int _autoSaveIntervalMinutes = 5;
 
@@ -69,6 +70,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => _autoBackup;
             set => SetField(ref _autoBackup, value);
+        }
+
+        /// <summary>Whether Avalonia should periodically check GitHub releases for app updates.</summary>
+        public bool AutoUpdateEnabled
+        {
+            get => _autoUpdateEnabled;
+            set => SetField(ref _autoUpdateEnabled, value);
         }
 
         /// <summary>Whether auto-save to sidecar file is enabled.</summary>
@@ -136,6 +144,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     int backupVal = 2;
                     int.TryParse(cfg.at("func_auto_backup", "2"), out backupVal);
                     AutoBackup = backupVal > 0;
+                    AutoUpdateEnabled = cfg.at("func_auto_update", "3") != "0";
 
                     // Auto-save settings
                     AutoSaveEnabled = cfg.at("autosave_enabled", "false") == "true";
@@ -217,6 +226,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 cfg["git_path"] = GitPath ?? "git";
                 cfg["func_auto_backup"] = AutoBackup ? "2" : "0";
+                cfg["func_auto_update"] = AutoUpdateEnabled ? "3" : "0";
                 cfg["Language"] = langCode;
                 cfg["func_lang"] = langCode; // backward compat with WinForms
 

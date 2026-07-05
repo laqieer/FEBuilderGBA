@@ -27998,3 +27998,18 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 
 :Initialize / Update FE-Repo-Music Now
 立即初始化/更新 FE-Repo-Music
+
+:Check for _Updates…
+检查更新(_U)…
+
+:Could not check for updates (offline?).
+无法检查更新（可能处于离线状态）。
+
+:You are running the latest version (current {0}).
+你正在使用最新版本（当前 {0}）。
+
+:A new version is available: {0} (you have {1}). Open the releases page to download and install it?
+有新版本可用：{0}（当前 {1}）。是否打开发布页面下载并安装？
+
+:Automatically check for updates
+自动检查更新

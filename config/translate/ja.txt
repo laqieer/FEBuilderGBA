@@ -14177,3 +14177,18 @@ FE-Repoを今すぐ初期化／更新
 
 :Initialize / Update FE-Repo-Music Now
 FE-Repo-Musicを今すぐ初期化／更新
+
+:Check for _Updates…
+更新を確認(_U)…
+
+:Could not check for updates (offline?).
+更新を確認できませんでした（オフラインの可能性があります）。
+
+:You are running the latest version (current {0}).
+最新バージョンを使用しています（現在 {0}）。
+
+:A new version is available: {0} (you have {1}). Open the releases page to download and install it?
+新しいバージョン {0} が利用可能です（現在 {1}）。ダウンロードしてインストールするためにリリースページを開きますか？
+
+:Automatically check for updates
+更新を自動的に確認する
