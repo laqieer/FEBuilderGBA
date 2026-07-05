@@ -13,3 +13,6 @@
 [submodule "resources/FE-Repo-Music-No-Preview"]
 	path = resources/FE-Repo-Music-No-Preview
 	url = https://github.com/laqieer/FE-Repo-Music-No-Preview
+[submodule "resources/fe-info"]
+	path = resources/fe-info
+	url = https://github.com/laqieer/fe-info

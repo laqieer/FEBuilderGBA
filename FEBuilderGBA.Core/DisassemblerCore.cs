@@ -12,6 +12,9 @@ namespace FEBuilderGBA
     /// </summary>
     public class DisassemblerCore
     {
+        static readonly Dictionary<string, Dictionary<uint, AsmMapSt>> _feInfoCache = new Dictionary<string, Dictionary<uint, AsmMapSt>>();
+        static readonly object _feInfoCacheLock = new object();
+
         /// <summary>
         /// Disassemble the loaded ROM to a file.
         /// Returns the number of instructions disassembled.
@@ -82,16 +85,12 @@ namespace FEBuilderGBA
         /// <summary>
         /// Load symbol map from config/data/asmmap_*.txt files.
         /// </summary>
-        Dictionary<uint, AsmMapSt> LoadSymbolMap(ROM rom)
+        internal Dictionary<uint, AsmMapSt> LoadSymbolMap(ROM rom)
         {
             var result = new Dictionary<uint, AsmMapSt>();
 
             string baseDir = CoreState.BaseDirectory;
             if (string.IsNullOrEmpty(baseDir))
-                return result;
-
-            string dataDir = Path.Combine(baseDir, "config", "data");
-            if (!Directory.Exists(dataDir))
                 return result;
 
             if (rom.RomInfo == null) return result;
@@ -105,23 +104,61 @@ namespace FEBuilderGBA
                 _ => null
             };
 
-            if (versionStr == null) return result;
-
-            // Load version-specific map first, then language-specific
-            string[] filesToTry = new[]
+            if (versionStr != null)
             {
-                Path.Combine(dataDir, $"asmmap_{versionStr}.{CoreState.Language}.txt"),
-                Path.Combine(dataDir, $"asmmap_{versionStr}.txt"),
-                Path.Combine(dataDir, "asmmap_gba_ALL.txt"),
-            };
+                string dataDir = Path.Combine(baseDir, "config", "data");
+                if (Directory.Exists(dataDir))
+                {
+                    // Load version-specific map first, then language-specific
+                    string[] filesToTry = new[]
+                    {
+                        Path.Combine(dataDir, $"asmmap_{versionStr}.{CoreState.Language}.txt"),
+                        Path.Combine(dataDir, $"asmmap_{versionStr}.txt"),
+                        Path.Combine(dataDir, "asmmap_gba_ALL.txt"),
+                    };
 
-            foreach (string file in filesToTry)
-            {
-                if (File.Exists(file))
-                    LoadAsmMapFile(file, rom, result);
+                    foreach (string file in filesToTry)
+                    {
+                        if (File.Exists(file))
+                            LoadAsmMapFile(file, rom, result);
+                    }
+                }
             }
 
+            MergeFeInfo(rom, result);
             return result;
+        }
+
+        void MergeFeInfo(ROM rom, Dictionary<uint, AsmMapSt> result)
+        {
+            try
+            {
+                string path = FeInfoCodeMap.ResolveCodeJsonPath(rom, CoreState.BaseDirectory, out string region);
+                if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(region))
+                    return;
+
+                string game = new DirectoryInfo(Path.GetDirectoryName(path)).Name;
+                string cacheKey = $"{game}:{region}";
+                Dictionary<uint, AsmMapSt> feInfoMap;
+                lock (_feInfoCacheLock)
+                {
+                    if (!_feInfoCache.TryGetValue(cacheKey, out feInfoMap))
+                    {
+                        feInfoMap = FeInfoCodeMap.Parse(File.ReadAllText(path), region);
+                        _feInfoCache[cacheKey] = feInfoMap;
+                    }
+                }
+
+                foreach (var kv in feInfoMap)
+                {
+                    if (!result.ContainsKey(kv.Key))
+                        result[kv.Key] = kv.Value;
+                }
+            }
+            catch
+            {
+                // fe-info symbols are additive. Keep disassembly unchanged if absent or malformed.
+            }
         }
 
         void LoadAsmMapFile(string path, ROM rom, Dictionary<uint, AsmMapSt> result)

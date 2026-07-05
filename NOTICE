@@ -1,0 +1,3 @@
+FEBuilderGBA uses function metadata from fe-info
+(https://github.com/laqieer/fe-info) to enrich disassembler symbol names.
+fe-info is licensed under the BSD 3-Clause License.

@@ -78,7 +78,7 @@ jobs:
         # excluded, in FEBuilderGBA.Android.csproj — but the submodule dir still
         # needs to resolve); the Avalonia -> Core chain expects the tool
         # submodules present like the desktop builds.
-        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore
+        run: git submodule update --init config/patch2 tools/Event-Assembler tools/ColorzCore resources/fe-info
 
       - name: Setup .NET 9.0
         uses: actions/setup-dotnet@v4
