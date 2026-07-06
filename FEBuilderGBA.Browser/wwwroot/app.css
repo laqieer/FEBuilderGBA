@@ -1,0 +1,60 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #1e1e1e;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#out {
+    height: 100vh;
+    width: 100vw;
+}
+
+.app-splash {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: #e6e6e6;
+    text-align: center;
+}
+
+.app-splash-inner {
+    max-width: 30rem;
+    padding: 1.5rem;
+}
+
+.app-splash h1 {
+    margin: 0 0 0.5rem;
+    font-size: 2rem;
+    letter-spacing: 0.02em;
+}
+
+.app-splash p {
+    margin: 0.35rem 0;
+    color: #b0b0b0;
+}
+
+.app-splash-note {
+    font-size: 0.85rem;
+    margin-top: 1rem !important;
+}
+
+.app-splash a {
+    color: #4ea1ff;
+}
+
+.app-splash-spinner {
+    margin: 1.5rem auto 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid #3a3a3a;
+    border-top-color: #4ea1ff;
+    border-radius: 50%;
+    animation: app-splash-spin 0.9s linear infinite;
+}
+
+@keyframes app-splash-spin {
+    to { transform: rotate(360deg); }
+}

@@ -15,6 +15,7 @@ README
 [![Android](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android.yml)
 [![Android Emulator Parity](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml)
 [![iOS](https://github.com/laqieer/FEBuilderGBA/actions/workflows/ios.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/ios.yml)
+[![Web (WebAssembly)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/pages.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/pages.yml)
 [![Release](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml/badge.svg)](https://github.com/laqieer/FEBuilderGBA/actions/workflows/release.yml)
 
 ## 🚀 Getting Started
@@ -295,6 +296,14 @@ A separate native port of the Avalonia GUI, tracked as [#1859](https://github.co
 - **Install the preview build** — the CI/release `.ipa` is **unsigned** (no Apple Developer secret on this fork), so it is **not directly installable**. Re-sign it with your own Apple ID via a sideloading tool (**AltStore**, **Sideloadly**) or **Apple Configurator** to run it on a device. When the maintainer adds the `APPLE_*` GitHub Actions secrets, `ios.yml` switches to a release-signed build (see [docs/IOS.md §6](docs/IOS.md#6-build--ci)).
 - **`config/` bundling** — `config/**` (excluding `patch2`) ships as `<BundleResource>` (structure preserved via `LogicalName`) and is extracted once on first run into an app-private writable dir via the pure `FEBuilderGBA.Core/AndroidConfigExtractorCore` + the new `FEBuilderGBA.Core/DirectoryAssetSource`, then `App.BaseDirectoryOverride` points Core there. Desktop resolution is unchanged.
 - **Known iOS limitation — patch2 / FE-Repo are not bundled** — the same accepted, documented limitation as Android ([#1641](https://github.com/laqieer/FEBuilderGBA/issues/1641)): they are large git-delivered payloads, and iOS has no in-process git. On-demand on-device delivery is a follow-up.
+
+### Running in the browser — WebAssembly (experimental)
+
+FEBuilderGBA runs in a **browser** with no install, via **WebAssembly** — tracked as [#1864](https://github.com/laqieer/FEBuilderGBA/issues/1864). **Experimental / preview.**
+
+> 🌐 **Try it: <https://laqieer.github.io/FEBuilderGBA/>** (deployed by [`.github/workflows/pages.yml`](.github/workflows/pages.yml) to GitHub Pages).
+
+The `FEBuilderGBA.Browser` head builds the shared Avalonia GUI into a `net9.0-browser` wasm AppBundle, reusing the *same* single-view shell + `App.BaseDirectoryOverride` config seam as the mobile heads. It links `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both wasm natives) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP headers → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). The milestone is **builds + deploys + loads/renders the shell**; full in-browser ROM-editing parity (threading-dependent caches, every file-flow) is a follow-up. See [docs/WEBASSEMBLY.md](docs/WEBASSEMBLY.md) and the head at [`FEBuilderGBA.Browser/`](FEBuilderGBA.Browser/README.md).
 
 ### Architecture Diagram
 

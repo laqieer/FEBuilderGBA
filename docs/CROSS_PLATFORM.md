@@ -86,20 +86,20 @@ FEBuilderGBA.E2ETests (net9.0-windows)
 
 ## Platform Support Matrix
 
-| Feature | Windows | Linux | macOS | Android | iOS |
-|---------|---------|-------|-------|---------|-----|
-| Core library | Yes | Yes | Yes | Yes | Yes |
-| CLI (67 commands) | Yes | Yes | Yes | — | — |
-| SkiaSharp image backend | Yes | Yes | Yes | Yes | Yes |
-| Avalonia GUI (full editor) | Yes | Yes | Yes | Preview | Preview |
-| WinForms GUI (full editor) | Yes | No | No | No | No |
-| Unit tests (Core.Tests) | Yes | Yes | Yes | — | — |
-| Unit tests (Avalonia.Tests) | Yes | Yes | Yes | — | — |
-| Unit tests (FEBuilderGBA.Tests) | Yes | No | No | — | — |
-| E2E tests | Yes | No | No | — | — |
-| Emulator integration (RAM.cs) | Yes | No | No | No | No |
+| Feature | Windows | Linux | macOS | Android | iOS | Web (wasm) |
+|---------|---------|-------|-------|---------|-----|-----|
+| Core library | Yes | Yes | Yes | Yes | Yes | Yes |
+| CLI (67 commands) | Yes | Yes | Yes | — | — | — |
+| SkiaSharp image backend | Yes | Yes | Yes | Yes | Yes | Yes |
+| Avalonia GUI (full editor) | Yes | Yes | Yes | Preview | Preview | Preview |
+| WinForms GUI (full editor) | Yes | No | No | No | No | No |
+| Unit tests (Core.Tests) | Yes | Yes | Yes | — | — | — |
+| Unit tests (Avalonia.Tests) | Yes | Yes | Yes | — | — | — |
+| Unit tests (FEBuilderGBA.Tests) | Yes | No | No | — | — | — |
+| E2E tests | Yes | No | No | — | — | — |
+| Emulator integration (RAM.cs) | Yes | No | No | No | No | No |
 
-> **Android / iOS = Preview:** native heads (`FEBuilderGBA.Android` / `FEBuilderGBA.iOS`) build the shared Avalonia GUI into an APK / `.ipa`; the on-device runtime is unvalidated. See [docs/ANDROID.md](ANDROID.md) / [docs/IOS.md](IOS.md).
+> **Android / iOS / Web = Preview:** native heads (`FEBuilderGBA.Android` / `FEBuilderGBA.iOS` / `FEBuilderGBA.Browser`) build the shared Avalonia GUI into an APK / `.ipa` / wasm bundle; the runtime is maturing. See [docs/ANDROID.md](ANDROID.md) / [docs/IOS.md](IOS.md) / [docs/WEBASSEMBLY.md](WEBASSEMBLY.md). Try the web build: <https://laqieer.github.io/FEBuilderGBA/>.
 
 ## Migration Roadmap
 
@@ -260,3 +260,15 @@ dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTar
 ```
 
 `-p:EnableIosTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as Android's `EnableAndroidTarget`). `config/**` (excluding `patch2`) ships as `<BundleResource>` (structure preserved via `LogicalName`) and is extracted on first run into an app-private writable dir. iOS is a **PREVIEW**: it builds, but the on-device runtime (touch UX, file pickers, AOT/trim — mitigated with the Mono interpreter + `MtouchLink=SdkOnly`) is unvalidated. The CI-produced `.ipa` is **unsigned** (no Apple secret on this fork) — install it via re-signing with AltStore / Sideloadly / Apple Configurator. The head is intentionally **not** in `FEBuilderGBA.sln` (iOS needs macOS + Xcode and the `ios` workload). Full assessment: **[docs/IOS.md](IOS.md)**.
+
+## Running in the browser (WebAssembly)
+
+FEBuilderGBA runs in a **browser** via WebAssembly, added in [#1864](https://github.com/laqieer/FEBuilderGBA/issues/1864) — the 4th Avalonia head. It reuses the *same* platform-agnostic seams the mobile ports introduced (single-view lifetime, `App.BaseDirectoryOverride`, `AndroidConfigExtractorCore`). `FEBuilderGBA.Avalonia` conditionally multi-targets `net9.0;net9.0-browser` via the opt-in `EnableBrowserTarget` property (default **OFF**), and the head at [`FEBuilderGBA.Browser/`](../FEBuilderGBA.Browser/README.md) builds a `net9.0-browser` AppBundle:
+
+```bash
+dotnet workload install wasm-tools
+dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release \
+  -p:EnableBrowserTarget=true -p:WasmEnableThreads=false -p:PublishTrimmed=false -p:CompressionEnabled=false
+```
+
+`-p:EnableBrowserTarget=true` is required as a **global** property (the same NuGet-restore static-graph reason as android/iOS). The head links `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (both wasm natives emcc-relinked into `dotnet.wasm`) + `Avalonia.Fonts.Inter` (wasm has no system fonts). `config/**` (excl. `patch2`) is zipped into `wwwroot/config.zip`, fetched over HTTP and extracted into the browser's in-memory filesystem on first run via the pure `FEBuilderGBA.Core/ZipAssetSource`. Runs **single-threaded** (GitHub Pages sends no COOP/COEP → no `SharedArrayBuffer`) and **untrimmed** (reflection-heavy Core). It is a **PREVIEW**: the milestone is builds + deploys + loads/renders the shell. `.github/workflows/pages.yml` deploys it to **<https://laqieer.github.io/FEBuilderGBA/>**. The head is intentionally **not** in `FEBuilderGBA.sln` (the required desktop `build` check has no `wasm-tools`). Full assessment: **[docs/WEBASSEMBLY.md](WEBASSEMBLY.md)**.
