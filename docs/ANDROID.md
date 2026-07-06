@@ -100,8 +100,11 @@ the `INavigationService` abstraction (#1122):
 > legacy editor `Window`s, so converted editors are `TranslatedUserControl` + `IEmbeddableEditor`.
 > `AndroidNavigationService` pushes those controls directly as pages (no `Window`, no reflective
 > `Opened`/`Closed` lifecycle); desktop wraps the same content in `EditorHostWindow` and preserves
-> multi-window behavior. `MoveCostEditorView` is the first converted proof editor. The remaining legacy
-> editors still need follow-up conversions before full on-device editor parity is available.
+> multi-window behavior. `MoveCostEditorView` was the first converted proof editor; Slice 2 also
+> converts the simple AI editors (`AIASMCALLTALKView`, `AIASMCoordinateView`, `AIASMRangeView`,
+> `AIMapSettingView`, `AIPerformItemView`, `AIPerformStaffView`, `AIStealItemView`, `AITargetView`,
+> `AITilesView`, and `AIUnitsView`). The remaining legacy editors still need follow-up conversions
+> before full on-device editor parity is available.
 
 The repository's `FEBuilderGBA.Android/MainActivity.cs` is the Android-equivalent
 of `Program.Main` — it subclasses `AvaloniaMainActivity<App>` and reuses the

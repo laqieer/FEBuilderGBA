@@ -264,9 +264,11 @@ public class AIScriptParityTests
         foreach (var t in targets)
         {
             Assert.NotNull(t.TargetViewType);
-            // Sanity: TargetViewType must be a Window subtype.
-            Assert.True(typeof(global::Avalonia.Controls.Window).IsAssignableFrom(t.TargetViewType),
-                $"{t.CommandName}: TargetViewType {t.TargetViewType} must be a Window");
+            // Sanity: TargetViewType must be an Avalonia Control. Legacy editors
+            // are Window subtypes; converted single-view-safe editors are
+            // UserControls implementing IEmbeddableEditor (#1873).
+            Assert.True(typeof(global::Avalonia.Controls.Control).IsAssignableFrom(t.TargetViewType),
+                $"{t.CommandName}: TargetViewType {t.TargetViewType} must be a Control");
         }
     }
 
