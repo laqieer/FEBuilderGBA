@@ -1,0 +1,4 @@
+# Smoke-test tooling (Node/Playwright) — never commit installed deps or run output.
+node_modules/
+package-lock.json
+*.png

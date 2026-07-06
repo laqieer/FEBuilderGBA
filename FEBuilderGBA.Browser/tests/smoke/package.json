@@ -1,0 +1,13 @@
+{
+  "name": "febuildergba-web-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless-browser boot smoke test for the FEBuilderGBA WebAssembly app (issue #1867). Serves the published AppBundle under the GitHub Pages sub-path and asserts the Avalonia app actually renders (not just that assets return HTTP 200).",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}

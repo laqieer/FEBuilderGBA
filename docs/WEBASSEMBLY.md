@@ -87,6 +87,28 @@ ignores the per-reference `AdditionalProperties`, else `NETSDK1005` (same mechan
   the `config.zip`/`_framework` are present, then `upload-pages-artifact` + `deploy-pages`. The **build**
   job runs on PRs (validates the wasm build); the **deploy** job runs only on `master`/dispatch.
 - GitHub Pages source is set to **GitHub Actions** (`build_type: workflow`).
+- **Boot smoke test** (`FEBuilderGBA.Browser/tests/smoke/`) — the build job runs a headless-Chromium
+  (Playwright) test that serves the AppBundle under `/FEBuilderGBA/` and asserts the app actually
+  *renders* (Avalonia canvas mounts; no `avalonia.js` response `>= 400`). It runs on PRs (a boot
+  regression fails the PR) and gates the deploy on `master`. Added after #1867, where every asset
+  returned `200` but the app never booted — an HTTP-200 check could not catch that.
+
+### `avalonia.js` module resolution (#1867)
+
+Avalonia loads its browser JS modules via `JSHost.ImportAsync(name, resolver(file))`; the default
+resolver is `file => "./" + file`, which the .NET wasm runtime resolves **relative to `_framework/`**
+(where `dotnet.js` lives) → `_framework/avalonia.js`. But Avalonia's static web assets publish with
+`RelativePath = $(WasmRuntimeAssetsLocation)/<file>`, and `WasmRuntimeAssetsLocation` is **empty** in
+this AppBundle, so `avalonia.js` / `storage.js` land at the wwwroot **root**, not `_framework/`. The
+mismatch 404s `avalonia.js` and the app hangs on the splash forever. Fix: `FEBuilderGBA.Browser/Program.cs`
+overrides `BrowserPlatformOptions.FrameworkAssetPathResolver` to `file => "../" + file` — climb one
+segment out of `_framework/` to app-root, where the modules actually are; stays relative, so correct at
+both `/FEBuilderGBA/` and a local `/`. This also repairs `storage.js` (file dialogs), which 404s the
+same way. It is valid **only** for the two `import()`-loaded modules; `sw.js` (opt-in, off by default)
+registers against the document base, not `_framework/`. **Canonical follow-up:** set
+`<WasmRuntimeAssetsLocation>_framework</WasmRuntimeAssetsLocation>` so the modules land next to
+`dotnet.js` and Avalonia's default resolver works unmodified — deferred because it couldn't be
+validated without a local wasm workload.
 
 ## 7. Known preview limitations / follow-ups
 

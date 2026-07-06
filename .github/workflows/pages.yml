@@ -106,6 +106,42 @@ jobs:
           echo "AppBundle OK ($OUT):"
           ls -la "$OUT" | head -40
           test -d "$OUT/_framework" || { echo "::error::_framework/ missing (wasm runtime not published?)"; exit 1; }
+          # #1867: Avalonia's JS modules (avalonia.js/storage.js) publish to the AppBundle ROOT
+          # (WasmRuntimeAssetsLocation is empty), and the app's FrameworkAssetPathResolver override
+          # loads them from there (../avalonia.js, relative to _framework/). Fast-fail if the asset the
+          # runtime will actually fetch is missing — before the headless boot smoke test below.
+          test -f "$OUT/avalonia.js" || { echo "::error::avalonia.js missing from AppBundle root (Avalonia static web asset not published where the app expects it — see #1867)"; ls -la "$OUT"; exit 1; }
+
+      - name: Set up Node.js (web boot smoke test)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Web boot smoke test (headless Chromium)
+        # #1867 regression guard: a real browser boots the wasm app and asserts it RENDERS (Avalonia
+        # canvas mounted) with no avalonia.js >= 400 — the class of failure HTTP-200 checks cannot
+        # catch (that is exactly how #1867 shipped). Runs on PRs too (this build job runs on
+        # pull_request), so a boot regression fails the PR; on push it gates deploy (deploy needs build).
+        run: |
+          set -euo pipefail
+          OUT="$GITHUB_WORKSPACE/FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot"
+          cd FEBuilderGBA.Browser/tests/smoke
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          SMOKE_WWWROOT="$OUT" \
+          SMOKE_BASE_PATH="${{ env.PAGES_BASE_PATH }}" \
+          SMOKE_SCREENSHOT="$GITHUB_WORKSPACE/web-boot-smoke.png" \
+          node smoke.mjs
+
+      - name: Upload web boot screenshot
+        # Always upload (even on smoke failure) so the rendered/blank screenshot is available as proof
+        # / debugging evidence on the workflow run.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-boot-smoke
+          path: web-boot-smoke.png
+          if-no-files-found: warn
 
       - name: Configure Pages
         # Idempotent; asserts the Actions build type. enablement:true turns Pages on if it isn't.
