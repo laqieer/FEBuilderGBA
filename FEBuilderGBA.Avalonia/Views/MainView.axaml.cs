@@ -270,6 +270,7 @@ namespace FEBuilderGBA.Avalonia.Views
             yield return ("Map Settings", () => WindowManager.Instance.Open<MapSettingView>());
             yield return ("Song Table", () => WindowManager.Instance.Open<SongTableView>());
             yield return ("Image Viewer", () => WindowManager.Instance.Open<ImageViewerView>());
+            yield return ("Move Cost Editor", () => WindowManager.Instance.Open<MoveCostEditorView>());
         }
     }
 }

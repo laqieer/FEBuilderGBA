@@ -9,17 +9,21 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
-    public partial class MoveCostEditorView : TranslatedWindow, IEditorView, IDataVerifiableView
+    public partial class MoveCostEditorView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
         readonly MoveCostEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
         readonly NumericUpDown[] _nudFields = new NumericUpDown[MoveCostEditorViewModel.TerrainCount];
         readonly TextBlock[] _labelFields = new TextBlock[MoveCostEditorViewModel.TerrainCount];
         bool _suppressEvents;
+        bool _hasLoadedList;
 
         public string ViewTitle => "Move Cost Editor";
-        public bool IsLoaded => _vm.CanWrite;
+        public new bool IsLoaded => _vm.CanWrite;
+        public EditorDescriptor Descriptor => new("Move Cost Editor", 1601, 800, SizeToContent: true);
+        public event EventHandler? CloseRequested;
         public ViewModelBase? DataViewModel => _vm;
+        public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
 
         public MoveCostEditorView()
         {
@@ -28,7 +32,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassList.SelectedAddressChanged += OnClassSelected;
             WriteButton.Click += OnWriteClick;
             CostTypeCombo.SelectionChanged += OnCostTypeChanged;
-            Opened += (_, _) => LoadList();
+        }
+
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnAttachedToVisualTree(e);
+            if (!_hasLoadedList)
+            {
+                _hasLoadedList = true;
+                LoadList();
+            }
         }
 
         void BuildTerrainGrid()

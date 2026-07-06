@@ -96,14 +96,12 @@ the `INavigationService` abstraction (#1122):
   follow-up. The `MainView` ships an editor-launcher root + the nav host so
   the editor launcher is reachable.
 
-> ⚠️ **Known limitation (#1873) — editor `Window`s can't actually be constructed on a real
-> single-view backend.** The `AndroidNavigationService.Open<T>` "instantiate the view `Window` as a
-> content factory" step above calls `new T()`, whose `Window` base ctor requires an
-> `IWindowingPlatform.CreateWindow()`. Browser/Android/iOS provide none, so it throws
-> `NotSupportedException` **before** the content can be detached — it is only "green" in unit tests
-> because `Avalonia.Headless` supplies an internal `HeadlessWindowImpl`. A custom windowing platform
-> can't be written (`IWindowImpl`/`ITopLevelImpl` are `[NotClientImplementable]` → `CS0535`). Making
-> editor content embeddable without a `Window` is the real fix, tracked by **#1873**.
+> ✅ **Embeddable-editor path (#1873, slice 1).** Real single-view backends still cannot construct
+> legacy editor `Window`s, so converted editors are `TranslatedUserControl` + `IEmbeddableEditor`.
+> `AndroidNavigationService` pushes those controls directly as pages (no `Window`, no reflective
+> `Opened`/`Closed` lifecycle); desktop wraps the same content in `EditorHostWindow` and preserves
+> multi-window behavior. `MoveCostEditorView` is the first converted proof editor. The remaining legacy
+> editors still need follow-up conversions before full on-device editor parity is available.
 
 The repository's `FEBuilderGBA.Android/MainActivity.cs` is the Android-equivalent
 of `Program.Main` — it subclasses `AvaloniaMainActivity<App>` and reuses the

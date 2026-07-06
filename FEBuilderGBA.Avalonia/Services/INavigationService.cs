@@ -3,13 +3,18 @@
 //
 // The navigation abstraction that WindowManager delegates to. Two impls:
 //   - DesktopNavigationService : the current multi-window WindowManager body,
-//     verbatim — behavior-identical to today (.Show()/.ShowDialog()/window cache).
+//     behavior-identical for legacy Window editors (.Show()/.ShowDialog()/
+//     window cache), with an additive dual-mode wrapper for IEmbeddableEditor
+//     UserControls.
 //   - AndroidNavigationService : a single-view page/view-stack nav host with a
-//     back stack (modal-as-page + pick result-await).
+//     back stack (modal-as-page + pick result-await). Converted embeddable
+//     editors are pushed directly as pages; legacy Window editors still use the
+//     content-factory bridge until they are converted.
 //
-// The interface mirrors the public WindowManager surface EXACTLY (same generic
-// constraints + return types), so WindowManager becomes a thin facade and the
-// ~356 `WindowManager.Instance.*` call sites are untouched.
+// #1873 relaxes the generic constraint from Window to Control so the public
+// WindowManager surface can host both unconverted Window editors and converted
+// embeddable UserControl editors during rollout. Return types and call-site
+// contracts remain source-compatible for the ~356 WindowManager call sites.
 using System;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
@@ -18,9 +23,10 @@ namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>
     /// Platform navigation abstraction behind <see cref="WindowManager"/>.
-    /// Method surface is intentionally identical to the original WindowManager
-    /// so call sites don't change. The desktop impl is window-based (unchanged
-    /// behavior); the Android impl is a single-view view-stack host.
+    /// Method surface intentionally mirrors the original WindowManager surface;
+    /// the generic editor type is now <see cref="Control"/> so legacy
+    /// <see cref="Window"/> editors and converted <see cref="IEmbeddableEditor"/>
+    /// UserControls can coexist on the same facade.
     /// </summary>
     public interface INavigationService
     {
@@ -29,30 +35,34 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// The editor window the user is currently working in — the most-recently-activated
-        /// managed <see cref="IEditorView"/> window that is still visible — or null when none
+        /// managed <see cref="IEditorView"/> top-level that is still visible — or null when none
         /// is open. Used by the in-app bug reporter (#1747) to screenshot/label the actual
         /// editor rather than the main window. Always null on the Android single-view host.
         /// </summary>
         Window? ActiveEditorWindow { get; }
 
-        /// <summary>Open or activate a view of the specified type.</summary>
-        T Open<T>() where T : Window, new();
+        /// <summary>
+        /// Open or activate a view of the specified type. <typeparamref name="T"/>
+        /// may be a legacy <see cref="Window"/> editor or a converted embeddable
+        /// <see cref="Control"/>.
+        /// </summary>
+        T Open<T>() where T : Control, new();
 
         /// <summary>Open a view and navigate it to a specific address.</summary>
-        T Navigate<T>(uint address) where T : Window, IEditorView, new();
+        T Navigate<T>(uint address) where T : Control, IEditorView, new();
 
         /// <summary>Open a view as a modal dialog (desktop) or modal overlay page (Android).</summary>
-        Task<T> OpenModal<T>(Window? owner = null) where T : Window, new();
+        Task<T> OpenModal<T>(Window? owner = null) where T : Control, new();
 
         /// <summary>
         /// Open an editor in pick mode and await the user's selection. Returns
         /// null when dismissed without a selection.
         /// </summary>
         Task<PickResult?> PickFromEditor<T>(uint navigateAddress = 0, Window? owner = null)
-            where T : Window, IPickableEditor, new();
+            where T : Control, IPickableEditor, new();
 
         /// <summary>Find an already-open view of the given type, or null.</summary>
-        T? FindOpen<T>() where T : Window;
+        T? FindOpen<T>() where T : Control;
 
         /// <summary>Close all managed views.</summary>
         void CloseAll();
@@ -75,9 +85,10 @@ namespace FEBuilderGBA.Avalonia.Services
         Control? CurrentContent { get; }
 
         /// <summary>
-        /// The title of the currently shown page, taken from the owning view's
-        /// <see cref="IEditorView.ViewTitle"/> when it has one, else null (root /
-        /// untitled page). The shell shows this in its app bar.
+        /// The title of the currently shown page, taken from the current content's
+        /// <see cref="IEditorView.ViewTitle"/> for embeddable editors, or from the
+        /// owning legacy Window's title metadata via the page→Window map. Null for
+        /// the root / untitled page.
         /// </summary>
         string? CurrentTitle { get; }
 

@@ -7,17 +7,19 @@ namespace FEBuilderGBA.Avalonia.Services
     /// <summary>
     /// Form navigation system replacing WinForms InputFormRef.JumpForm.
     ///
-    /// #1122: WindowManager is now a thin FACADE over <see cref="INavigationService"/>.
+    /// #1122: WindowManager is a thin FACADE over <see cref="INavigationService"/>.
     /// The public API (Open/Navigate/OpenModal/PickFromEditor/FindOpen/CloseAll/
-    /// MainWindow) is UNCHANGED — its ~356 call sites are untouched — but the
-    /// behavior is supplied by a platform service:
+    /// MainWindow) remains the call-site contract — its ~356 call sites are
+    /// untouched — but behavior is supplied by a platform service:
     ///   - desktop : <see cref="DesktopNavigationService"/> (multi-window,
-    ///     behavior-identical to the pre-#1122 WindowManager — .Show()/.ShowDialog());
-    ///   - Android : <see cref="AndroidNavigationService"/> (single-view page/
-    ///     view-stack host with a back stack).
-    /// The service is selected once at construction via <see cref="OperatingSystem.IsAndroid"/>
-    /// / <see cref="OperatingSystem.IsIOS"/> (both single-view mobile hosts),
-    /// and can be overridden (tests / the Android shell) via <see cref="SetService"/>.
+    ///     behavior-identical for legacy Window editors and, as of #1873,
+    ///     wraps embeddable editor content in <see cref="EditorHostWindow"/>);
+    ///   - Android/iOS : <see cref="AndroidNavigationService"/> (single-view
+    ///     page/view-stack host with a back stack; converted embeddable editors
+    ///     are pushed directly as controls).
+    /// #1873 relaxes the generic constraint from Window to Control so converted
+    /// <see cref="IEmbeddableEditor"/> UserControls and legacy Window editors
+    /// can coexist during rollout.
     /// </summary>
     public class WindowManager
     {
@@ -66,33 +68,50 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// The editor window the user is currently working in (desktop), or null when none is
         /// open / on Android. Used by the in-app bug reporter (#1747) to target the real editor.
+        /// For embeddable editors this is the hosting <see cref="EditorHostWindow"/>.
         /// </summary>
         public Window? ActiveEditorWindow => _service.ActiveEditorWindow;
 
-        /// <summary>Open or activate a window of the specified type.</summary>
-        public T Open<T>() where T : Window, new() => _service.Open<T>();
+        /// <summary>
+        /// Open or activate a view of the specified type. The generic constraint is
+        /// <see cref="Control"/> so legacy Window editors and converted embeddable
+        /// UserControls share the same facade.
+        /// </summary>
+        public T Open<T>() where T : Control, new() => _service.Open<T>();
 
-        /// <summary>Open a window and navigate to a specific address.</summary>
-        public T Navigate<T>(uint address) where T : Window, IEditorView, new()
+        /// <summary>Open a view and navigate to a specific address.</summary>
+        public T Navigate<T>(uint address) where T : Control, IEditorView, new()
             => _service.Navigate<T>(address);
 
-        /// <summary>Open a window as a modal dialog.</summary>
-        public Task<T> OpenModal<T>(Window? owner = null) where T : Window, new()
+        /// <summary>Open a view as a modal dialog or modal page.</summary>
+        public Task<T> OpenModal<T>(Window? owner = null) where T : Control, new()
             => _service.OpenModal<T>(owner);
 
-        /// <summary>Find an already-open window of the given type, or null.</summary>
-        public T? FindOpen<T>() where T : Window => _service.FindOpen<T>();
+        /// <summary>Find an already-open view of the given type, or null.</summary>
+        public T? FindOpen<T>() where T : Control => _service.FindOpen<T>();
 
         /// <summary>
-        /// Open an editor as a modal pick dialog. The user selects an item via
+        /// Open an editor as a modal pick dialog/page. The user selects an item via
         /// double-click or Enter, and the result is returned. Returns null if the
-        /// user closes the window without selecting.
+        /// user closes the editor without selecting.
         /// </summary>
         public Task<PickResult?> PickFromEditor<T>(uint navigateAddress = 0, Window? owner = null)
-            where T : Window, IPickableEditor, new()
+            where T : Control, IPickableEditor, new()
             => _service.PickFromEditor<T>(navigateAddress, owner);
 
-        /// <summary>Close all managed windows.</summary>
+        /// <summary>
+        /// Open an editor and return the desktop top-level that hosts it. Legacy
+        /// Window editors return themselves; embeddable editors return their
+        /// generic <see cref="EditorHostWindow"/> wrapper.
+        /// </summary>
+        public Window OpenAsTopLevel<T>() where T : Control, new()
+        {
+            if (_service is DesktopNavigationService desktop)
+                return desktop.OpenAsTopLevel<T>();
+            throw new NotSupportedException("OpenAsTopLevel is only supported by the desktop navigation service.");
+        }
+
+        /// <summary>Close all managed views.</summary>
         public void CloseAll() => _service.CloseAll();
     }
 }

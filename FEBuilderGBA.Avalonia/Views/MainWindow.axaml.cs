@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -1019,11 +1019,13 @@ namespace FEBuilderGBA.Avalonia.Views
                             }
                         }
 
+                        Control editor = UnwrapEditorContent(window);
+
                         // Try to select first item for richer screenshots
                         try
                         {
-                            var method = window.GetType().GetMethod("SelectFirstItem");
-                            method?.Invoke(window, null);
+                            var method = editor.GetType().GetMethod("SelectFirstItem");
+                            method?.Invoke(editor, null);
                             if (method != null)
                                 await Task.Delay(100); // Let selection handler run
                         }
@@ -1490,14 +1492,16 @@ namespace FEBuilderGBA.Avalonia.Views
                         window = factory();
                         await Task.Delay(100); // Let it initialize
 
+                        Control editor = UnwrapEditorContent(window);
+
                         // Check if this view implements IDataVerifiableView
-                        if (window is IDataVerifiableView verifiableView)
+                        if (editor is IDataVerifiableView verifiableView)
                         {
                             var vm = verifiableView.DataViewModel;
                             if (vm is IDataVerifiable verifiable)
                             {
                                 // Select first item if possible
-                                SelectFirstItemOnView(window);
+                                SelectFirstItemOnView(editor);
                                 await Task.Delay(100); // Let selection handler run
 
                                 int listCount = verifiable.GetListCount();
@@ -1516,7 +1520,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                                 // Resolve the AddressListControl once for the loop (avoids
                                 // repeated visual-tree scans in --data-verify-full).
-                                var (alcControl, alcMethod) = ResolveAddressListControl(window);
+                                var (alcControl, alcMethod) = ResolveAddressListControl(editor);
 
                                 for (int itemIdx = 0; itemIdx < maxItem; itemIdx++)
                                 {
@@ -1591,10 +1595,10 @@ namespace FEBuilderGBA.Avalonia.Views
                                 else
                                 {
                                 // UI check (only on first item)
-                                SelectFirstItemOnView(window);
+                                SelectFirstItemOnView(editor);
                                 await Task.Delay(50);
                                 bool uiOk = editorOk && listCount > 0
-                                    ? CheckNumericUpDownsDisplayValues(name, window)
+                                    ? CheckNumericUpDownsDisplayValues(name, editor)
                                     : true;
 
                                 if (!editorOk || !uiOk)
@@ -1700,13 +1704,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         window = factory();
                         await Task.Delay(200); // Let it initialize and load list
+                        Control editor = UnwrapEditorContent(window);
 
                         // Select first item to trigger full load
-                        SelectFirstItemOnView(window);
+                        SelectFirstItemOnView(editor);
                         await Task.Delay(100);
 
                         // Extract the Avalonia list from the AddressListControl
-                        var avaloniaList = ExtractListFromView(window);
+                        var avaloniaList = ExtractListFromView(editor);
                         if (avaloniaList == null)
                         {
                             skipped++;
@@ -1758,12 +1763,17 @@ namespace FEBuilderGBA.Avalonia.Views
             }, DispatcherPriority.Background);
         }
 
+        static Control UnwrapEditorContent(Window window)
+        {
+            return window is EditorHostWindow { Content: Control content } ? content : window;
+        }
+
         /// <summary>
         /// Extract the list items from the AddressListControl in a view window.
         /// Searches by known control names via FindControl, then falls back to
         /// a visual-tree scan for any AddressListControl descendant.
         /// </summary>
-        static IReadOnlyList<AddrResult> ExtractListFromView(Window window)
+        static IReadOnlyList<AddrResult> ExtractListFromView(Control window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
@@ -1787,7 +1797,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Select the first item on a view using the known method or reflection.
         /// </summary>
-        static void SelectFirstItemOnView(Window window)
+        static void SelectFirstItemOnView(Control window)
         {
             if (window is UnitEditorView uev) uev.SelectFirstItem();
             else if (window is ItemEditorView iev) iev.SelectFirstItem();
@@ -1804,7 +1814,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Returns (control, method) or (null, null) if not found.
         /// Cache the result to avoid repeated visual tree scans in loops.
         /// </summary>
-        static (object? control, System.Reflection.MethodInfo? method) ResolveAddressListControl(Window window)
+        static (object? control, System.Reflection.MethodInfo? method) ResolveAddressListControl(Control window)
         {
             // Try known named controls first
             string[] knownNames = { "UnitList", "ItemList", "ClassList", "BranchList", "EntryList" };
@@ -1851,7 +1861,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Note: For repeated calls (e.g., full sweep), prefer ResolveAddressListControl()
         /// + the cached overload to avoid repeated visual tree scans.
         /// </summary>
-        static bool SelectItemByIndex(Window window, int index)
+        static bool SelectItemByIndex(Control window, int index)
         {
             var (control, method) = ResolveAddressListControl(window);
             if (control == null || method == null) return false;
@@ -1977,7 +1987,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Returns true if no NumericUpDown has empty/null Value after data loading.
         /// This catches rendering bugs like FormatString="X" on decimal-typed NumericUpDown.
         /// </summary>
-        static bool CheckNumericUpDownsDisplayValues(string viewName, Window window)
+        static bool CheckNumericUpDownsDisplayValues(string viewName, Control window)
         {
             var nuds = new List<NumericUpDown>();
             foreach (var descendant in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(window))
@@ -2092,7 +2102,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("ClassEditorView", () => wm.Open<ClassEditorView>()),
                 ("ClassFE6View", () => wm.Open<ClassFE6View>()),
                 ("CCBranchEditorView", () => wm.Open<CCBranchEditorView>()),
-                ("MoveCostEditorView", () => wm.Open<MoveCostEditorView>()),
+                ("MoveCostEditorView", () => wm.OpenAsTopLevel<MoveCostEditorView>()),
                 ("TerrainNameEditorView", () => wm.Open<TerrainNameEditorView>()),
                 ("SupportUnitEditorView", () => wm.Open<SupportUnitEditorView>()),
                 ("SupportAttributeView", () => wm.Open<SupportAttributeView>()),

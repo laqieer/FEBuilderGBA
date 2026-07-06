@@ -15,6 +15,18 @@ namespace FEBuilderGBA.Avalonia.Services
         void SelectFirstItem() { }
     }
 
+    /// <summary>
+    /// Marker for editors whose root content is safe to instantiate without an
+    /// Avalonia <see cref="global::Avalonia.Controls.Window"/>. Desktop wraps
+    /// these controls in <see cref="EditorHostWindow"/> to preserve multi-window
+    /// behavior; Android/browser/iOS push the control itself as a page.
+    /// </summary>
+    public interface IEmbeddableEditor : IEditorView
+    {
+        EditorDescriptor Descriptor { get; }
+        event EventHandler? CloseRequested;
+    }
+
     /// <summary>Result returned from a pick-and-return operation.</summary>
     public record PickResult(int Index, uint Address, string Name);
 
