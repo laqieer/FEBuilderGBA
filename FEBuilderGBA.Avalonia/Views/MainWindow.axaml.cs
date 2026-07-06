@@ -767,98 +767,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             string path = displayName;
 
-            CoreState.ROM = rom;
-
-            // #1035: wire the patch-scan hardcode cache per ROM load, replacing
-            // the no-op HeadlessAsmMapCache wired as the pre-ROM default in
-            // App.axaml.cs. Created fresh each load so a previous ROM's hardcode
-            // flags never leak; lazy — it only scans config/patch2 on the first
-            // IsHardCode* read from the Unit/Class/Item editor warning hyperlink.
-            CoreState.AsmMapFileAsmCache = new CoreAsmMapCache(rom);
-
-            // Wire headless caches so Core code doesn't NullRef
-            CoreState.CommentCache ??= new HeadlessEtcCache();
-            CoreState.LintCache ??= new HeadlessEtcCache();
-            CoreState.WorkSupportCache ??= new HeadlessEtcCache();
-            CoreState.ResourceCache ??= new FEBuilderGBA.EtcCacheResource();
-
-            // Wire text encoder — with HeadlessSystemTextEncoder fallback
-            if (CoreState.SystemTextEncoder == null || CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
-            {
-                try
-                {
-                    CoreState.SystemTextEncoder = new SystemTextEncoder(CoreState.TextEncoding, CoreState.ROM);
-                }
-                catch (Exception ex)
-                {
-                    Log.ErrorF("Failed to init SystemTextEncoder, using headless fallback: {0}", ex.Message);
-                    // Use ROM-aware fallback so JP ROMs get Shift_JIS, not ISO-8859-1
-                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(CoreState.ROM);
-                }
-            }
-
-            // Init Huffman text encoder
-            if (CoreState.FETextEncoder == null)
-            {
-                try { CoreState.FETextEncoder = new FETextEncode(); }
-                catch (Exception ex) { Log.ErrorF("Failed to init FETextEncode: {0}", ex.Message); }
-            }
-
-            // Init text escape
-            CoreState.TextEscape ??= new TextEscape();
-
-            // Text-ID reference cache (#1028 Slice A) — used by the Text Editor's
-            // References-tab "Add Reference" flow. The ctor reads the per-ROM user
-            // TSV (config/etc/<rom>/textid_.txt) + shipped system names, so it is
-            // ROM/path/language-sensitive and MUST be (re)created on EVERY ROM load
-            // (replace, not ??=) — never at app boot.
-            CoreState.UseTextIDCache = new TextIDCacheCore();
-
-            // Init flag cache
-            if (CoreState.FlagCache == null)
-            {
-                try { CoreState.FlagCache = new EtcCacheFLag(); }
-                catch (Exception ex) { Log.ErrorF("Failed to init FlagCache: {0}", ex.Message); }
-            }
-
-            // Init export function + undo
-            CoreState.ExportFunction ??= new ExportFunction();
-            CoreState.Undo ??= new Undo();
-
-            // Init event scripts
-            try
-            {
-                if (CoreState.EventScript == null)
-                {
-                    CoreState.EventScript = new EventScript();
-                    CoreState.EventScript.Load(EventScript.EventScriptType.Event);
-                }
-                if (CoreState.ProcsScript == null)
-                {
-                    CoreState.ProcsScript = new EventScript();
-                    CoreState.ProcsScript.Load(EventScript.EventScriptType.Procs);
-                }
-                if (CoreState.AIScript == null)
-                {
-                    // AI scripts use a FIXED 16-byte instruction grid, so the
-                    // unknown-opcode width must be 16 (mirrors WinForms
-                    // Program.cs `new EventScript(16)`). With the default width
-                    // of 4, an unrecognized opcode would wrongly decode as four
-                    // 4-byte rows instead of one 16-byte WORD row (#757).
-                    CoreState.AIScript = new EventScript(16);
-                    CoreState.AIScript.Load(EventScript.EventScriptType.AI);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("Failed to init EventScripts: {0}", ex.Message);
-            }
-
-            // Detect installed patches (SkillSystem, MagicSplit, etc.)
-            PatchDetectionService.Instance.Refresh();
-
-            // Wire skill name resolution callback for NameResolver
-            CoreState.SkillNameResolver = id => PatchDetectionService.Instance.ResolveSkillName(id);
+            // Shared CORE post-load init (CoreState, hardcode/asm-map cache, the
+            // headless caches, text encoders, text-id/flag caches, export + undo,
+            // event/procs/AI scripts, patch detection, skill resolver). Extracted
+            // to RomFileService (#1870) so the single-view web/Android shell
+            // (MainView) initializes a ROM identically and the two never drift.
+            // The shell-only UI wiring below (labels, recent files, editor-panel
+            // visibility, autosave) stays local to this desktop window.
+            RomFileService.InitializeLoadedRom(rom);
 
             // Update UI
             _vm.UpdateFromRom();

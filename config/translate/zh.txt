@@ -28089,3 +28089,21 @@ Git 操作失败，退出代码 {0}。
 
 :Automatically check for updates
 自动检查更新
+
+:Loaded:
+已加载:
+
+:Open a ROM first.
+请先打开ROM。
+
+:Failed to save ROM.
+保存ROM失败。
+
+:No ROM loaded. Tap "Open ROM" above to begin.
+未加载ROM。点击上方“打开 ROM”开始。
+
+:Editors aren't available in this browser build yet.
+此浏览器版本暂不支持编辑器。
+
+:Couldn't open editor:
+无法打开编辑器:

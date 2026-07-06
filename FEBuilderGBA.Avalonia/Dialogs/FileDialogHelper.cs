@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
 
@@ -297,9 +298,20 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// local path, so callers must read it via the stream API (#1124). Desktop
         /// callers can still call TryGetLocalPath() on the returned handle.
         /// </summary>
-        public static async Task<IStorageFile?> OpenRomFilePick(Window owner)
+        public static Task<IStorageFile?> OpenRomFilePick(Window owner)
+            => OpenRomFilePick((Visual)owner);
+
+        /// <summary>
+        /// Visual/TopLevel-owner overload (#1870): resolves the StorageProvider via
+        /// <see cref="TopLevel.GetTopLevel"/> so it works from the single-view
+        /// (WebAssembly / Android) shell, whose owner Visual is NOT a Window. Returns
+        /// null when the owner is not yet attached to a TopLevel or the user cancels.
+        /// </summary>
+        public static async Task<IStorageFile?> OpenRomFilePick(Visual owner)
         {
-            var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            var provider = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            if (provider == null) return null;
+            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = R._("Open ROM"),
                 AllowMultiple = false,
@@ -309,9 +321,19 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>Save a GBA ROM and return the picked IStorageFile (#1124).</summary>
-        public static async Task<IStorageFile?> SaveRomFilePick(Window owner, string? suggestedName = null)
+        public static Task<IStorageFile?> SaveRomFilePick(Window owner, string? suggestedName = null)
+            => SaveRomFilePick((Visual)owner, suggestedName);
+
+        /// <summary>
+        /// Visual/TopLevel-owner overload (#1870): resolves the StorageProvider via
+        /// <see cref="TopLevel.GetTopLevel"/> for the single-view shell. Returns null
+        /// when the owner is not yet attached to a TopLevel or the user cancels.
+        /// </summary>
+        public static async Task<IStorageFile?> SaveRomFilePick(Visual owner, string? suggestedName = null)
         {
-            return await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            var provider = TopLevel.GetTopLevel(owner)?.StorageProvider;
+            if (provider == null) return null;
+            return await provider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = R._("Save ROM"),
                 SuggestedFileName = suggestedName ?? "rom.gba",

@@ -28,6 +28,30 @@ installs the single-view nav service itself. **No browser-specific UI code was n
 `FEBuilderGBA.Browser/Program.cs` (`BuildAvaloniaApp().StartBrowserAppAsync("out")`) is the browser
 entry point.
 
+### ROM open/save + editor navigation (#1870)
+
+The single-view `MainView` shell provides its own **Open ROM** / **Save ROM** top-bar buttons and a
+status strip, since the desktop `MainWindow` File menu does not exist here. Both go through
+`Services/RomFileService` (`OpenRomAsync(Visual)` / `SaveRomAsync(Visual)`), which resolves the
+`StorageProvider` from `TopLevel.GetTopLevel(owner)` — the shell owner is a `Visual`, **not** a
+`Window` — via the new `Visual`-owner overloads of `Dialogs/FileDialogHelper` (the `Window` overloads
+still delegate to them, so desktop is unchanged). Open reads through the **stream** API
+(`IStorageFile.OpenReadAsync` → `ROM.LoadFromStreamAsync`) because a browser pick is a read-only
+`Blob` with no local path; Save uses a **Save-As** picker + a fresh writable stream (File System
+Access `showSaveFilePicker` on Chromium, a download elsewhere) — never a retained read-handle, which
+is not writable off-Chromium. The shared post-load init (`RomFileService.InitializeLoadedRom`) is the
+SAME method the desktop `MainWindow.FinishLoadedRom` calls, so desktop and web wire CoreState
+identically and never drift.
+
+**Editors do not open in the browser yet (tracked by #1070).** Every editor view is a `Window`
+subclass (`UnitEditorView : TranslatedWindow : Window`) and the single-view nav service opens one by
+`new T()`. On the browser there is no windowing platform, so `Window..ctor()` throws
+`System.NotSupportedException: "Browser doesn't support windowing platform"` **before** any content can
+be extracted — the launcher buttons therefore can't host an editor. Until the editor-hosting rewrite
+(#1070) makes editor content instantiable without a `Window`, the launcher disables its editor buttons
+until a ROM is loaded and surfaces a friendly "Editors aren't available in this browser build yet"
+status instead of failing silently.
+
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
 Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and the
@@ -122,6 +146,10 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 
 ## 7. Known preview limitations / follow-ups
 
+- **Editors don't open yet (#1070)** — editor views are `Window` subclasses, and `new Window()` throws
+  `NotSupportedException` on the browser (no windowing platform). ROM **open/save** works (#1870); the
+  single-view launcher disables editor buttons until a ROM loads and shows a friendly status when an
+  editor can't open. Hosting editor content without a `Window` is the remaining architectural work.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.
