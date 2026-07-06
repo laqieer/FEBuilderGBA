@@ -162,13 +162,20 @@ namespace FEBuilderGBA.Avalonia.Services
             var editor = (T)contentControl;
             editor.EnablePickMode();
 
-            editor.SelectionConfirmed += result =>
+            void OnSelectionConfirmed(PickResult result)
             {
+                editor.SelectionConfirmed -= OnSelectionConfirmed;
                 tcs.TrySetResult(result);
                 host.Close();
-            };
+            }
 
-            host.Closed += (_, _) => tcs.TrySetResult(null);
+            editor.SelectionConfirmed += OnSelectionConfirmed;
+
+            host.Closed += (_, _) =>
+            {
+                editor.SelectionConfirmed -= OnSelectionConfirmed;
+                tcs.TrySetResult(null);
+            };
             WireCloseRequested(editor, host);
 
             var parent = owner ?? MainWindow;
@@ -214,8 +221,24 @@ namespace FEBuilderGBA.Avalonia.Services
         // the generic host.
         static void WireCloseRequested(Control content, Window host)
         {
-            if (content is IEmbeddableEditor embeddable)
-                embeddable.CloseRequested += (_, _) => host.Close();
+            if (content is not IEmbeddableEditor embeddable)
+                return;
+
+            void OnCloseRequested(object? s, EventArgs e)
+            {
+                embeddable.CloseRequested -= OnCloseRequested;
+                host.Closed -= OnHostClosed;
+                host.Close();
+            }
+
+            void OnHostClosed(object? s, EventArgs e)
+            {
+                embeddable.CloseRequested -= OnCloseRequested;
+                host.Closed -= OnHostClosed;
+            }
+
+            embeddable.CloseRequested += OnCloseRequested;
+            host.Closed += OnHostClosed;
         }
 
         // #1747 tracking predicate. In the legacy path the host is the editor

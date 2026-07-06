@@ -72,6 +72,11 @@ namespace FEBuilderGBA.Avalonia.Services
         // pages uniformly when entries leave the stack.
         readonly Dictionary<Control, Control> _pageViews = new();
 
+        // Per-page CloseRequested cleanup for embeddable editors. Handlers must
+        // be removable because retained UserControls can otherwise keep stale
+        // NavigationEntry/completer state alive after the page is closed.
+        readonly Dictionary<Control, Action> _pageCloseRequestedUnsubscribers = new();
+
         /// <summary>
         /// Test seam (#1122): raised with each freshly instantiated legacy view
         /// Window right after its content is detached and pushed. Tests use it to
@@ -163,11 +168,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 // A modal embeddable editor signals completion through
                 // CloseRequested; the page is popped and the awaited result
                 // completes with null.
-                embeddable.CloseRequested += (_, _) =>
+                void OnCloseRequested(object? s, EventArgs e)
                 {
+                    UnwirePageCloseRequested(page.Content);
                     _stack.CompleteEntry(entry, (object?)null);
                     PopIfTop(page.Content);
-                };
+                }
+                WirePageCloseRequested(page.Content, embeddable, OnCloseRequested);
             }
             else if (page.Window != null)
             {
@@ -207,31 +214,41 @@ namespace FEBuilderGBA.Avalonia.Services
             var (entry, result) = _stack.PushForResult<PickResult>(page.Content, asModal: true);
             OpenPageLifecycle(page);
 
-            editor.SelectionConfirmed += picked =>
+            void OnSelectionConfirmed(PickResult picked)
             {
+                editor.SelectionConfirmed -= OnSelectionConfirmed;
+                UnwirePageCloseRequested(page.Content);
                 _stack.CompleteEntry(entry, picked);
                 PopIfTop(page.Content);
-            };
+            }
+
+            editor.SelectionConfirmed += OnSelectionConfirmed;
 
             if (page.View is IEmbeddableEditor embeddable)
             {
                 // If the embeddable view requests close without confirming a
                 // selection, cancel to null.
-                embeddable.CloseRequested += (_, _) =>
+                void OnCloseRequested(object? s, EventArgs e)
                 {
+                    editor.SelectionConfirmed -= OnSelectionConfirmed;
+                    UnwirePageCloseRequested(page.Content);
                     _stack.CompleteEntry(entry, (PickResult?)null);
                     PopIfTop(page.Content);
-                };
+                }
+                WirePageCloseRequested(page.Content, embeddable, OnCloseRequested);
             }
             else if (page.Window != null)
             {
                 // If the legacy Window closes itself without a selection, cancel
                 // to null.
-                page.Window.Closed += (_, _) =>
+                void OnClosed(object? s, EventArgs e)
                 {
+                    page.Window.Closed -= OnClosed;
+                    editor.SelectionConfirmed -= OnSelectionConfirmed;
                     _stack.CompleteEntry(entry, (PickResult?)null);
                     PopIfTop(page.Content);
-                };
+                }
+                page.Window.Closed += OnClosed;
             }
 
             // Match desktop ordering: page is up, THEN navigate.
@@ -305,7 +322,14 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             TrackPage(page);
             if (page.View is IEmbeddableEditor embeddable)
-                embeddable.CloseRequested += (_, _) => PopIfTop(page.Content);
+            {
+                void OnCloseRequested(object? s, EventArgs e)
+                {
+                    UnwirePageCloseRequested(page.Content);
+                    PopIfTop(page.Content);
+                }
+                WirePageCloseRequested(page.Content, embeddable, OnCloseRequested);
+            }
             _stack.Push(page.Content);
             OpenPageLifecycle(page);
         }
@@ -351,6 +375,7 @@ namespace FEBuilderGBA.Avalonia.Services
             var removed = _pageViews.Keys.Where(c => !present.Contains(c)).ToList();
             foreach (var content in removed)
             {
+                UnwirePageCloseRequested(content);
                 _pageViews.Remove(content);
 
                 var keys = _open.Where(kv => ReferenceEquals(kv.Value.Content, content))
@@ -365,6 +390,19 @@ namespace FEBuilderGBA.Avalonia.Services
             }
 
             StackChanged?.Invoke();
+        }
+
+        void WirePageCloseRequested(Control content, IEmbeddableEditor embeddable, EventHandler handler)
+        {
+            UnwirePageCloseRequested(content);
+            embeddable.CloseRequested += handler;
+            _pageCloseRequestedUnsubscribers[content] = () => embeddable.CloseRequested -= handler;
+        }
+
+        void UnwirePageCloseRequested(Control content)
+        {
+            if (_pageCloseRequestedUnsubscribers.Remove(content, out var unsubscribe))
+                unsubscribe();
         }
 
         /// <summary>

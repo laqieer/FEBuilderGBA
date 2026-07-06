@@ -43,6 +43,21 @@ public class DesktopNavigationServiceEmbeddableTests
         editor.RequestClose();
 
         Assert.Null(svc.FindOpen<TestEmbeddableEditor>());
+        Assert.Equal(0, editor.CloseRequestedSubscriberCount);
+    }
+
+    [AvaloniaFact]
+    public void Closing_embeddable_host_unsubscribes_CloseRequested_handler()
+    {
+        var svc = new DesktopNavigationService();
+        var editor = svc.Open<TestEmbeddableEditor>();
+        var host = Assert.IsType<EditorHostWindow>(svc.OpenAsTopLevel<TestEmbeddableEditor>());
+
+        Assert.Equal(1, editor.CloseRequestedSubscriberCount);
+        host.Close();
+
+        Assert.Equal(0, editor.CloseRequestedSubscriberCount);
+        Assert.Null(svc.FindOpen<TestEmbeddableEditor>());
     }
 
     [AvaloniaFact]
@@ -124,6 +139,7 @@ public class DesktopNavigationServiceEmbeddableTests
             Assert.Equal(1, editor.CloseRequestedSubscriberCount);
 
             host.Close();
+            Assert.Equal(0, editor.CloseRequestedSubscriberCount);
             Assert.Null(svc.FindOpen<TestEmbeddableEditor>());
         }
 

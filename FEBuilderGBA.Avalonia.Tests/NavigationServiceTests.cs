@@ -218,6 +218,18 @@ public class NavigationServiceDelegationTests
     }
 
     [AvaloniaFact]
+    public void OpenAsTopLevel_throws_for_non_desktop_service()
+    {
+        WithFakeService(fake =>
+        {
+            var ex = Assert.Throws<NotSupportedException>(
+                () => WindowManager.Instance.OpenAsTopLevel<FakeEditorWindow>());
+            Assert.Equal("OpenAsTopLevel is only supported by the desktop navigation service.", ex.Message);
+            Assert.Null(fake.LastCall);
+        });
+    }
+
+    [AvaloniaFact]
     public void SetService_carries_MainWindow_across_swap()
     {
         var original = WindowManager.Instance.Service;

@@ -108,9 +108,7 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             if (_service is DesktopNavigationService desktop)
                 return desktop.OpenAsTopLevel<T>();
-            var opened = _service.Open<T>();
-            return opened as Window
-                   ?? throw new NotSupportedException("OpenAsTopLevel is only supported by the desktop navigation service.");
+            throw new NotSupportedException("OpenAsTopLevel is only supported by the desktop navigation service.");
         }
 
         /// <summary>Close all managed views.</summary>
