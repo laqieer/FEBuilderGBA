@@ -21,6 +21,7 @@ Every bug issue filed via the structured [Issue Forms](https://github.com/laqiee
 | **Platform** = Linux x64 | `os:linux` |
 | **Platform** = macOS (any) | `os:macos` |
 | **Platform** = Android | `os:android` |
+| **Platform** = iOS / iPadOS | `os:ios` |
 | always | `needs-triage` |
 
 ### Maintainer triage workflow

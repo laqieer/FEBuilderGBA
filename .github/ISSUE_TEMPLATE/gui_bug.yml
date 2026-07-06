@@ -28,6 +28,7 @@ body:
         - "macOS Apple Silicon (arm64)"
         - "macOS Intel (x64)"
         - "Android"
+        - "iOS / iPadOS"
         - "Other"
     validations:
       required: true

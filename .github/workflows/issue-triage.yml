@@ -126,7 +126,7 @@ jobs:
             // removed to prevent stale label accumulation.
             // ----------------------------------------------------------------
             const COMPONENT_LABELS = ['avalonia', 'winforms', 'cli', 'core'];
-            const PLATFORM_LABELS  = ['os:windows', 'os:linux', 'os:macos', 'os:android'];
+            const PLATFORM_LABELS  = ['os:windows', 'os:linux', 'os:macos', 'os:android', 'os:ios'];
 
             // Label definitions for labels this workflow may need to create.
             // Every label that can appear in labelsToAdd must be listed here
@@ -144,6 +144,7 @@ jobs:
               { name: 'os:linux',     color: 'cfd3d7', description: 'Reported on Linux' },
               { name: 'os:macos',     color: 'cfd3d7', description: 'Reported on macOS' },
               { name: 'os:android',   color: 'cfd3d7', description: 'Reported on Android' },
+              { name: 'os:ios',       color: 'cfd3d7', description: 'Reported on iOS' },
             ];
 
             // ----------------------------------------------------------------
@@ -216,6 +217,8 @@ jobs:
                   labelsToAdd.push('os:macos');
                 } else if (/android/i.test(platform)) {
                   labelsToAdd.push('os:android');
+                } else if (/ios|ipados|iphone|ipad/i.test(platform)) {
+                  labelsToAdd.push('os:ios');
                 }
                 // "Other" → no OS label applied.
               }

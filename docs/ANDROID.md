@@ -689,6 +689,7 @@ device) is still on-device-unvalidated, so it is not yet a full ROM-editing app.
 
 ## See also
 
+- iOS sibling head: [docs/IOS.md](IOS.md)
 - [docs/CROSS_PLATFORM.md → Running on Android](CROSS_PLATFORM.md#running-on-android)
 - Epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070) (this exploration)
 - Emulation/Winlator route: [#1069](https://github.com/laqieer/FEBuilderGBA/issues/1069)
