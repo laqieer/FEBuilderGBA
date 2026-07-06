@@ -8,7 +8,7 @@
 // desktop Skia platform — the Avalonia.Headless test platform's
 // UseHeadlessDrawing does not rasterize, so a PNG saved here would be blank.
 // This test therefore validates the shell WIRING headlessly; the pixels come
-// from the desktop render. Neither proves on-device runtime UX (tracked #1070).
+// from the desktop render. Neither proves on-device runtime UX (tracked #1873).
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
 using global::Avalonia.Controls;

@@ -10,11 +10,11 @@
 //   3. renders the nav host's current top page into NavHost, and wires Back /
 //      Home + a back-button title.
 //
-// SCOPE (#1122; rest carved to #1070): this ships the navigation model + a
-// reachable editor launcher. The full desktop MainWindow shell (ROM open/save
-// actions, recent files, undo UI, menu commands) is NOT reproduced here — that
-// is a separate shell-controller extraction tracked under #1070. The desktop
-// MainWindow is unchanged.
+// SCOPE (#1122): this ships the single-view navigation model + a reachable
+// editor launcher. ROM open/save was added here for #1870 (PR #1872). The rest
+// of the desktop MainWindow shell parity (recent files, undo UI, menu commands)
+// and single-view editor hosting are not reproduced here yet — both tracked
+// under the #1873 single-view-parity umbrella. The desktop MainWindow is unchanged.
 using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
@@ -194,7 +194,8 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Build the root launcher page: a scrollable column of buttons that
         /// open the common editors via WindowManager (which now routes to the
         /// single-view host). Kept deliberately small — the full editor catalog
-        /// + ROM actions live in the carved-out shell controller (#1070).
+        /// lives in the carved-out shell controller (#1873); ROM open/save is on
+        /// the top app bar (added for #1870 in PR #1872).
         /// </summary>
         Control BuildLauncher()
         {
@@ -235,7 +236,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         // NotSupportedException ("Browser doesn't support
                         // windowing platform"). Hosting editor Windows in the
                         // single-view shell is the architectural rewrite tracked
-                        // by #1070. Log the full stack AND surface a friendly
+                        // by #1873. Log the full stack AND surface a friendly
                         // message — Log.Error alone is not visible on wasm.
                         Log.Error("MainView launcher open failed: ", ex.ToString());
                         var baseEx = ex.GetBaseException();
@@ -257,7 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// The launcher entries: (label, open-action). Each open-action goes
         /// through WindowManager so it routes to the single-view host. We open
         /// FE8U-shaped editors by default (the most common); version-specific
-        /// variants are a shell-controller concern carved to #1070.
+        /// variants are a shell-controller concern carved to #1873.
         /// </summary>
         static IEnumerable<(string Label, Action Open)> LauncherEntries()
         {

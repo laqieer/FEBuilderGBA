@@ -26,14 +26,14 @@
 // The page-leave reconciliation runs off `NavigationStack.StackChanged`, so it
 // covers every removal path uniformly.
 //
-// HONEST SCOPE (#1122 / carved to #1070): this covers the COMMON navigation
+// HONEST SCOPE (#1122 / carved to #1873): this covers the COMMON navigation
 // paths — Open/Navigate/back, modal-as-overlay-page, and PickFromEditor
 // result-await, with the Opened/Closed lifecycle + DataContext + FindOpen
 // parity above. It does NOT yet make every per-editor attached-Window service
 // work on Android: views that call StorageProvider / MessageBoxWindow.Show(this)
 // / ShowDialog(this) / Close() directly still assume an attached top-level
 // Window owner. A detached, never-shown Window is not a reliable top-level, so
-// those flows are carved out (TODO(#1070)) — route them through
+// those flows are carved out (TODO(#1873)) — route them through
 // TopLevel.GetTopLevel(content) / a dialog service in a follow-up. The desktop
 // path is unaffected (DesktopNavigationService).
 using System;

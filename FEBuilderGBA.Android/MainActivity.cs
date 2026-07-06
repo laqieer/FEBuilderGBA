@@ -31,7 +31,7 @@ namespace FEBuilderGBA.Android
     /// <c>INavigationService</c> abstraction: desktop keeps multi-window
     /// behavior, Android uses a single-view page/view-stack nav host (back stack,
     /// modal-as-page, pick-await). Build-only validated — the on-device runtime
-    /// UX (touch + per-editor attached-Window dialogs) is tracked under #1070.
+    /// UX (touch + per-editor attached-Window dialogs) is tracked under #1873.
     /// SAF ROM I/O landed in #1124. See docs/ANDROID.md §2.
     /// </para>
     ///

@@ -43,14 +43,18 @@ is not writable off-Chromium. The shared post-load init (`RomFileService.Initial
 SAME method the desktop `MainWindow.FinishLoadedRom` calls, so desktop and web wire CoreState
 identically and never drift.
 
-**Editors do not open in the browser yet (tracked by #1070).** Every editor view is a `Window`
+**Editors do not open in the browser yet (tracked by #1873).** Every editor view is a `Window`
 subclass (`UnitEditorView : TranslatedWindow : Window`) and the single-view nav service opens one by
 `new T()`. On the browser there is no windowing platform, so `Window..ctor()` throws
 `System.NotSupportedException: "Browser doesn't support windowing platform"` **before** any content can
-be extracted — the launcher buttons therefore can't host an editor. Until the editor-hosting rewrite
-(#1070) makes editor content instantiable without a `Window`, the launcher disables its editor buttons
-until a ROM is loaded and surfaces a friendly "Editors aren't available in this browser build yet"
-status instead of failing silently.
+be extracted — the launcher buttons therefore can't host an editor. This is **not** patchable with a
+custom windowing platform: Avalonia's `IWindowImpl`/`ITopLevelImpl` are `[NotClientImplementable]`, so a
+user-supplied window impl fails at compile time (`CS0535`). The **Android and iOS** single-view heads
+share the exact same block (same `new T()` path, no windowing platform) — it is only "green" in unit
+tests because `Avalonia.Headless` supplies an internal `HeadlessWindowImpl`. Until the editor-hosting
+rewrite (#1873) makes editor content instantiable without a `Window`, the launcher disables its editor
+buttons until a ROM is loaded and surfaces a friendly "Editors aren't available in this browser build
+yet" status instead of failing silently.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
@@ -146,10 +150,11 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 
 ## 7. Known preview limitations / follow-ups
 
-- **Editors don't open yet (#1070)** — editor views are `Window` subclasses, and `new Window()` throws
-  `NotSupportedException` on the browser (no windowing platform). ROM **open/save** works (#1870); the
-  single-view launcher disables editor buttons until a ROM loads and shows a friendly status when an
-  editor can't open. Hosting editor content without a `Window` is the remaining architectural work.
+- **Editors don't open yet (#1873)** — editor views are `Window` subclasses, and `new Window()` throws
+  `NotSupportedException` on the browser (no windowing platform); Android/iOS share the same block. ROM
+  **open/save** works (#1870); the single-view launcher disables editor buttons until a ROM loads and
+  shows a friendly status when an editor can't open. Hosting editor content without a `Window` is the
+  remaining architectural work.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.

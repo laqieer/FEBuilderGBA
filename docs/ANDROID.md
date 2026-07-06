@@ -86,14 +86,24 @@ the `INavigationService` abstraction (#1122):
     to null). The service implements `INavigationHost` (`Back`/`CanGoBack`/
     `CurrentContent`/`StackChanged`), which `Views/MainView` binds to.
   - The service is selected once via `OperatingSystem.IsAndroid()`.
-- **Carved to #1070 (honest):** per-editor attached-`Window` flows (file pickers
+- **Carved to #1873 (honest):** per-editor attached-`Window` flows (file pickers
   via `StorageProvider`, `MessageBoxWindow.Show(this)`, in-page `Close()`),
-  page-transition/touch-UX polish, and the full desktop `MainWindow` shell
-  controller (ROM open/save actions, recent files, undo UI). A detached
+  page-transition/touch-UX polish, and the rest of the desktop `MainWindow` shell
+  controller (recent files, undo UI, menu commands — ROM open/save already landed
+  via #1870). A detached
   never-shown `Window` is not a reliable top-level owner, so those dialog flows
   need routing through `TopLevel.GetTopLevel(content)` — a device-validatable
   follow-up. The `MainView` ships an editor-launcher root + the nav host so
-  editors are reachable.
+  the editor launcher is reachable.
+
+> ⚠️ **Known limitation (#1873) — editor `Window`s can't actually be constructed on a real
+> single-view backend.** The `AndroidNavigationService.Open<T>` "instantiate the view `Window` as a
+> content factory" step above calls `new T()`, whose `Window` base ctor requires an
+> `IWindowingPlatform.CreateWindow()`. Browser/Android/iOS provide none, so it throws
+> `NotSupportedException` **before** the content can be detached — it is only "green" in unit tests
+> because `Avalonia.Headless` supplies an internal `HeadlessWindowImpl`. A custom windowing platform
+> can't be written (`IWindowImpl`/`ITopLevelImpl` are `[NotClientImplementable]` → `CS0535`). Making
+> editor content embeddable without a `Window` is the real fix, tracked by **#1873**.
 
 The repository's `FEBuilderGBA.Android/MainActivity.cs` is the Android-equivalent
 of `Program.Main` — it subclasses `AvaloniaMainActivity<App>` and reuses the
@@ -459,7 +469,7 @@ is emulator-validated, but the *interactive* ROM-editing path is not.
   up on-device (not merely build-only). The nav-stack core is also unit-tested and
   the desktop nav is regression-verified behavior-identical; the on-device
   *interactive* runtime UX (touch, per-editor attached-`Window` dialogs) is carved
-  to #1070 (see §2).
+  to #1873 (see §2).
 - `config/**` ships as an extracted `AndroidAsset` with version-stamped first-run
   extraction to `Context.FilesDir` (#1123). This extraction now runs inside the
   emulator boot-smoke (#1640) — `MainActivity.OnCreate` rethrows on extraction
@@ -610,7 +620,7 @@ linked under #1070 as its checklist:
    single-view nav host over the pure `NavigationStack`), `WindowManager` kept as
    a stable facade (~356 call sites untouched), `App` single-view branch +
    `Views/MainView` shell. Single-view boot emulator-validated via #1640 (no device for interactive UX); per-editor
-   attached-`Window` dialog flows + touch-UX polish carved to #1070. *(was the
+   attached-`Window` dialog flows + touch-UX polish carved to #1873. *(was the
    largest item; see §2.)*
 3. ~~**Android: bundle `config/` as `AndroidAsset` + extract to `FilesDir` at
    first run** (version-stamped); decide `patch2` delivery.~~ **DONE (#1123)** —
