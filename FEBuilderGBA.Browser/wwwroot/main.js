@@ -11,11 +11,11 @@ if (!is_browser) throw new Error(`Expected to be running in a browser`);
 const _out = document.getElementById('out');
 if (_out) {
     const _removeSplash = () => { for (const s of _out.querySelectorAll('.app-splash')) s.remove(); };
-    if (_out.querySelector('canvas.avalonia-canvas')) {
+    if (_out.querySelector('canvas')) {
         _removeSplash();
     } else {
         const _obs = new MutationObserver(() => {
-            if (_out.querySelector('canvas.avalonia-canvas')) { _removeSplash(); _obs.disconnect(); }
+            if (_out.querySelector('canvas')) { _removeSplash(); _obs.disconnect(); }
         });
         _obs.observe(_out, { childList: true, subtree: true });
     }
