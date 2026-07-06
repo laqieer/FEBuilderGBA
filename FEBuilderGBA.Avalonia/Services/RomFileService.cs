@@ -189,6 +189,13 @@ namespace FEBuilderGBA.Avalonia.Services
         {
             if (CoreState.ROM == null) return null;
 
+            // Parity with desktop SaveRom_Click / SaveAsRom_Click: a decomp preview
+            // ROM is source-backed and read-only — never overwrite it. Currently
+            // unreachable from MainView (the single-view shell has no decomp-open
+            // entry point) but guards any future decomp-capable shell that reuses
+            // this shared service (#1870).
+            if (CoreState.IsDecompMode) return null;
+
             string suggestedName = Path.GetFileName(CoreState.ROM.Filename ?? "rom.gba");
             var file = await FileDialogHelper.SaveRomFilePick(owner, suggestedName);
             if (file == null) return null;

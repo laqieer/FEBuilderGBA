@@ -68,6 +68,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             var prevEnc = CoreState.SystemTextEncoder;
             var prevTid = CoreState.UseTextIDCache;
             var prevSkill = CoreState.SkillNameResolver;
+            var prevExport = CoreState.ExportFunction;
+            var prevUndo = CoreState.Undo;
+            var prevEvent = CoreState.EventScript;
             try
             {
                 // Load through the STREAM API — this is exactly the web Open ROM
@@ -81,10 +84,20 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.False(string.IsNullOrEmpty(version), "a version should be detected");
                 }
 
-                // Null the two replace-semantics fields first so the asserts below
-                // prove InitializeLoadedRom actually wires them (not the fixture).
+                // Null EVERY field the asserts below check so a green assert proves
+                // THIS InitializeLoadedRom call wired it — not residual state left
+                // by a sibling test in the shared collection. Replace-semantics
+                // fields (ROM/Asm/TextIdCache/SkillResolver) and the conditionally
+                // wired fields (Encoder/Export/Undo/EventScript) are all cleared
+                // here and restored in finally.
                 CoreState.ROM = null;
                 CoreState.AsmMapFileAsmCache = null;
+                CoreState.SystemTextEncoder = null;
+                CoreState.UseTextIDCache = null;
+                CoreState.ExportFunction = null;
+                CoreState.Undo = null;
+                CoreState.EventScript = null;
+                CoreState.SkillNameResolver = null;
 
                 RomFileService.InitializeLoadedRom(rom);
 
@@ -108,6 +121,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.SystemTextEncoder = prevEnc;
                 CoreState.UseTextIDCache = prevTid;
                 CoreState.SkillNameResolver = prevSkill;
+                CoreState.ExportFunction = prevExport;
+                CoreState.Undo = prevUndo;
+                CoreState.EventScript = prevEvent;
             }
         }
     }
