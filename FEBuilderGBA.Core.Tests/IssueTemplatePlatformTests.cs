@@ -54,7 +54,27 @@ namespace FEBuilderGBA.Core.Tests
                     continue;
                 }
                 if (trimmed.StartsWith("- "))
-                    options.Add(trimmed.Substring(2).Trim().Trim('"'));
+                {
+                    string v = trimmed.Substring(2).Trim();
+                    // Accept "double", 'single', or unquoted values, and drop any inline `# comment`.
+                    if (v.StartsWith("\""))
+                    {
+                        int e = v.IndexOf('"', 1);
+                        v = e > 0 ? v.Substring(1, e - 1) : v.Trim('"');
+                    }
+                    else if (v.StartsWith("'"))
+                    {
+                        int e = v.IndexOf('\'', 1);
+                        v = e > 0 ? v.Substring(1, e - 1) : v.Trim('\'');
+                    }
+                    else
+                    {
+                        int h = v.IndexOf(" #", StringComparison.Ordinal);
+                        if (h >= 0) v = v.Substring(0, h);
+                        v = v.Trim();
+                    }
+                    options.Add(v);
+                }
                 else if (trimmed.Length > 0)
                     break; // left the options list (e.g. "validations:")
             }

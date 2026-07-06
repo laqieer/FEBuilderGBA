@@ -110,11 +110,14 @@ page.on('requestfailed', (req) => {
     badAvaloniaResponses.push(`FAILED ${req.url()} (${req.failure()?.errorText ?? 'unknown'})`);
   }
 });
-// Log — but do NOT fail on — page errors: Skia/WebGL emit benign console.errors during startup.
-page.on('pageerror', (err) => console.log(`[smoke] pageerror: ${err.message}`));
+// Log — but do NOT fail on — page errors and console.errors (Skia/WebGL emit benign ones during
+// startup). The stack + console.error lines are the fastest way to diagnose a boot crash — e.g. a
+// missing SkiaSharp native throwing SKImageInfo's type initializer (#1867).
+page.on('pageerror', (err) => console.log(`[smoke] pageerror: ${err.message}${err.stack ? '\n' + err.stack : ''}`));
 page.on('console', (msg) => {
   const t = msg.text();
   if (t.includes('[FEBuilderGBA]')) console.log(`[smoke] app-console: ${t}`);
+  else if (msg.type() === 'error') console.log(`[smoke] console.error: ${t}`);
 });
 
 try {

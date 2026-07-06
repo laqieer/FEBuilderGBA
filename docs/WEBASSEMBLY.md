@@ -30,12 +30,17 @@ entry point.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
-Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and
-its targets emcc-relink **both** static native archives (`libSkiaSharp.a` + `libHarfBuzzSharp.a`)
-into `dotnet.wasm` (via the `wasm-tools`/Emscripten toolchain). The head therefore pins **both**
-native packages — `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 + `HarfBuzzSharp.NativeAssets.WebAssembly`
-7.3.0.3 (HarfBuzz shapes text; the shell renders text buttons on first paint) — plus
-`Avalonia.Fonts.Inter` (wasm has **no system fonts**, so an embedded font is required).
+Avalonia.Browser 11.2.3 depends on managed `SkiaSharp 2.88.9` **and** `HarfBuzzSharp 7.3.0.3`, and the
+head adds their static native archives (`libSkiaSharp.a` + `libHarfBuzzSharp.a`) as
+`@(NativeFileReference)` via the `*.NativeAssets.WebAssembly` packages. **Those natives are only
+emcc-relinked into `dotnet.native.wasm` when `WasmBuildNative=true`** (set in the head csproj) —
+otherwise the .NET wasm SDK merely *warns* ("native references won't be linked in") and ships a runtime
+with **no Skia**, so the first Skia call (`SKImageInfo`'s static ctor) throws a `TypeInitialization`
+exception and the app renders nothing but the splash (#1867). The head therefore sets
+`WasmBuildNative=true` and pins **both** native packages — `SkiaSharp.NativeAssets.WebAssembly` 2.88.9 +
+`HarfBuzzSharp.NativeAssets.WebAssembly` 7.3.0.3 (HarfBuzz shapes text) — plus `Avalonia.Fonts.Inter`
+(wasm has **no system fonts**, so an embedded font is required). We do **not** enable AOT
+(`RunAOTCompilation`); `WasmBuildNative` relinks the natives without AOT-compiling managed code.
 
 ## 4. `config/` in the browser (no filesystem)
 

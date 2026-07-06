@@ -111,6 +111,9 @@ jobs:
           # loads them from there (../avalonia.js, relative to _framework/). Fast-fail if the asset the
           # runtime will actually fetch is missing — before the headless boot smoke test below.
           test -f "$OUT/avalonia.js" || { echo "::error::avalonia.js missing from AppBundle root (Avalonia static web asset not published where the app expects it — see #1867)"; ls -la "$OUT"; exit 1; }
+          # storage.js is loaded via the same resolver (file dialogs) and 404'd the same way pre-#1867;
+          # assert it too since the fix claims to repair it (the boot smoke test does not exercise dialogs).
+          test -f "$OUT/storage.js" || { echo "::error::storage.js missing from AppBundle root (see #1867)"; ls -la "$OUT"; exit 1; }
 
       - name: Set up Node.js (web boot smoke test)
         uses: actions/setup-node@v4

@@ -40,6 +40,15 @@
     <!-- GitHub Pages does no Brotli/gzip content-negotiation, so emit PLAIN .wasm/.dll (a
          precompressed .br/.gz would be served with the wrong Content-Encoding). -->
     <CompressionEnabled>false</CompressionEnabled>
+    <!-- REQUIRED so the SkiaSharp + HarfBuzz wasm NATIVE archives (libSkiaSharp.a / libHarfBuzzSharp.a,
+         added as @(NativeFileReference) by the *.NativeAssets.WebAssembly packages below) are actually
+         emcc-relinked INTO dotnet.native.wasm. Without it — and without RunAOTCompilation — the .NET
+         wasm SDK emits only a warning ("native references won't be linked in") and ships a runtime with
+         NO Skia, so the very first Skia call (SKImageInfo's static ctor) throws a TypeInitialization
+         exception at runtime and the app never renders a canvas (#1867). We do NOT enable AOT (heavier,
+         and the Core pipeline is reflection-heavy) — WasmBuildNative alone relinks the natives without
+         AOT-compiling managed code. Needs the wasm-tools workload's emscripten (present in CI). -->
+    <WasmBuildNative>true</WasmBuildNative>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,11 +56,12 @@
     <!-- Avalonia's browser text stack needs an embedded font (wasm has NO system fonts) — Inter
          is the standard Avalonia bundle; HarfBuzz shapes it. -->
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
-    <!-- Avalonia.Browser 11.2.3 emcc-relinks BOTH libSkiaSharp.a AND libHarfBuzzSharp.a into
-         dotnet.wasm. The MANAGED deps (SkiaSharp 2.88.9 + HarfBuzzSharp 7.3.0.3) come from
-         Avalonia, but the wasm NATIVE archives must be added explicitly, and BOTH are required
-         (missing HarfBuzz fails the native link / text shaping). Pinned to Avalonia 11.2.3's
-         managed deps + FEBuilderGBA.SkiaSharp's 2.88.9. -->
+    <!-- Avalonia.Browser 11.2.3 ships the MANAGED SkiaSharp 2.88.9 + HarfBuzzSharp 7.3.0.3 deps, but
+         the wasm NATIVE archives (libSkiaSharp.a / libHarfBuzzSharp.a) must be added explicitly here,
+         and BOTH are required (missing HarfBuzz fails the native link / text shaping). They are only
+         actually linked into dotnet.native.wasm when WasmBuildNative=true (set above) — otherwise the
+         SDK just warns and Skia is absent at runtime (#1867). Pinned to Avalonia 11.2.3's managed
+         deps + FEBuilderGBA.SkiaSharp's 2.88.9. -->
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="2.88.9" />
     <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="7.3.0.3" />
   </ItemGroup>
