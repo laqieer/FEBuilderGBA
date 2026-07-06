@@ -111,10 +111,13 @@ namespace FEBuilderGBA.iOS
         }
 
         /// <summary>
-        /// App version string used as the extraction stamp. A bump forces a clean re-extract.
-        /// Reads <c>CFBundleVersion</c> from the bundle Info dictionary (populated by the
-        /// csproj <c>ApplicationVersion</c>); falls back to <c>"unknown"</c> if absent — the
-        /// same defensive contract as android's <c>MainActivity.GetAppVersionString</c>.
+        /// App version string (<c>"&lt;CFBundleShortVersionString&gt;-&lt;CFBundleVersion&gt;"</c>)
+        /// used as the extraction stamp. A bump forces a clean re-extract. Both keys are read
+        /// from the bundle Info dictionary (populated by the csproj
+        /// <c>ApplicationDisplayVersion</c> / <c>ApplicationVersion</c>); a missing
+        /// <c>CFBundleShortVersionString</c> falls back to <c>"0"</c> and a missing
+        /// <c>CFBundleVersion</c> to <c>"unknown"</c> — the same defensive contract as android's
+        /// <c>MainActivity.GetAppVersionString</c>.
         /// </summary>
         static string GetAppVersionString()
         {

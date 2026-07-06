@@ -14,12 +14,20 @@
        during the OTHER head's build (e.g. EnableIosTarget is unset during the android
        build), and MSBuild lets the singular TargetFramework win over TargetFrameworks —
        silently collapsing the project to single-target net9.0, dropping the mobile TFM and
-       failing the head with NETSDK1005. -->
-  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true'">
+       failing the head with NETSDK1005.
+
+       The four cases are MUTUALLY EXCLUSIVE (#1860 review): the android-only and ios-only
+       conditions each also require the OTHER flag to be off, and a both-true case is handled
+       explicitly (net9.0;net9.0-android;net9.0-ios) — so setting both flags globally no longer
+       silently drops one mobile TFM (the previous parallel blocks let the later ios group win). -->
+  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true' AND '$(EnableIosTarget)' != 'true'">
     <TargetFrameworks>net9.0;net9.0-android</TargetFrameworks>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(EnableIosTarget)' == 'true'">
+  <PropertyGroup Condition="'$(EnableIosTarget)' == 'true' AND '$(EnableAndroidTarget)' != 'true'">
     <TargetFrameworks>net9.0;net9.0-ios</TargetFrameworks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(EnableAndroidTarget)' == 'true' AND '$(EnableIosTarget)' == 'true'">
+    <TargetFrameworks>net9.0;net9.0-android;net9.0-ios</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(EnableAndroidTarget)' != 'true' AND '$(EnableIosTarget)' != 'true'">
     <TargetFramework>net9.0</TargetFramework>

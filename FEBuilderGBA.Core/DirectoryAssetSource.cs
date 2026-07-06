@@ -70,8 +70,29 @@ namespace FEBuilderGBA
 
         public Stream OpenAsset(string relativePath)
         {
-            string p = Path.Combine(_rootDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
-            return new FileStream(p, FileMode.Open, FileAccess.Read, FileShare.Read);
+            if (string.IsNullOrEmpty(relativePath))
+                throw new ArgumentException("relativePath must be non-empty", nameof(relativePath));
+
+            // Defensive path-traversal guard (#1860 review): this is a REUSABLE IAssetSource,
+            // so validate here rather than trust the caller (the AndroidConfigExtractorCore
+            // manifest filter is only one of its possible consumers). Reject rooted paths and
+            // any entry that resolves outside _rootDir (e.g. "../secret").
+            string normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
+            if (Path.IsPathRooted(normalized))
+                throw new ArgumentException("relativePath must be relative (not rooted)", nameof(relativePath));
+
+            string rootFull = Path.GetFullPath(_rootDir);
+            string full = Path.GetFullPath(Path.Combine(rootFull, normalized));
+            string rootWithSep = rootFull.EndsWith(Path.DirectorySeparatorChar)
+                ? rootFull
+                : rootFull + Path.DirectorySeparatorChar;
+            if (!string.Equals(full, rootFull, StringComparison.Ordinal) &&
+                !full.StartsWith(rootWithSep, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("relativePath escapes the asset root", nameof(relativePath));
+            }
+
+            return new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.Read);
         }
     }
 }

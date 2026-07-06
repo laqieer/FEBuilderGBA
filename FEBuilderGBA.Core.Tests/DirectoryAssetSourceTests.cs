@@ -70,10 +70,31 @@ namespace FEBuilderGBA.Core.Tests
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        public void Ctor_RejectsEmptyArgs(string bad)
+        public void Ctor_RejectsEmptyArgs(string? bad)
         {
-            Assert.Throws<ArgumentException>(() => new DirectoryAssetSource(bad, "config"));
-            Assert.Throws<ArgumentException>(() => new DirectoryAssetSource("root", bad));
+            Assert.Throws<ArgumentException>(() => new DirectoryAssetSource(bad!, "config"));
+            Assert.Throws<ArgumentException>(() => new DirectoryAssetSource("root", bad!));
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("../escape.txt")]
+        [InlineData("config/../../escape.txt")]
+        [InlineData("config/../../../etc/passwd")]
+        public void OpenAsset_RejectsEmptyOrTraversal(string evil)
+        {
+            string root = NewTempDir();
+            var src = new DirectoryAssetSource(root, "config");
+            Assert.Throws<ArgumentException>(() => src.OpenAsset(evil));
+        }
+
+        [Fact]
+        public void OpenAsset_RejectsRootedPath()
+        {
+            string root = NewTempDir();
+            var src = new DirectoryAssetSource(root, "config");
+            string rooted = Path.Combine(Path.GetTempPath(), "outside.txt");
+            Assert.Throws<ArgumentException>(() => src.OpenAsset(rooted));
         }
 
         [Fact]
