@@ -1,0 +1,12 @@
+-Oz
+-sUSE_WEBGL2=1 -sMAX_WEBGL_VERSION=2 -lGL
+-v
+-fwasm-exceptions
+-DDISABLE_PERFTRACING_LISTEN_PORTS=1
+-DLINK_ICALLS=1
+-DGEN_PINVOKE=1
+-emit-llvm
+"-IC:\Users\zhiwenzhu\source\repos\laqieer\wt-1867-web\FEBuilderGBA.Browser\obj\Release\net9.0-browser\wasm\for-publish"
+"-IC:\Program Files\dotnet\packs\Microsoft.NETCore.App.Runtime.Mono.browser-wasm\9.0.17\runtimes\browser-wasm\native\include\mono-2.0"
+"-IC:\Program Files\dotnet\packs\Microsoft.NETCore.App.Runtime.Mono.browser-wasm\9.0.17\runtimes\browser-wasm\native\include\wasm"
+-g

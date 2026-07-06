@@ -1,0 +1,23 @@
+// AI Target struct definition (all versions)
+// 20 bytes per entry
+@AITarget 14
+0x00	B	Field00	Target priority 0
+0x01	B	Field01	Target priority 1
+0x02	B	Field02	Target priority 2
+0x03	B	Field03	Target priority 3
+0x04	B	Field04	Target priority 4
+0x05	B	Field05	Target priority 5
+0x06	B	Field06	Target priority 6
+0x07	B	Field07	Target priority 7
+0x08	B	Field08	Target priority 8
+0x09	B	Field09	Target priority 9
+0x0A	B	Field0A	Target priority 10
+0x0B	B	Field0B	Target priority 11
+0x0C	B	Field0C	Target priority 12
+0x0D	B	Field0D	Target priority 13
+0x0E	B	Field0E	Target priority 14
+0x0F	B	Field0F	Target priority 15
+0x10	B	Field10	Target priority 16
+0x11	B	Field11	Target priority 17
+0x12	B	Field12	Target priority 18
+0x13	B	Field13	Target priority 19

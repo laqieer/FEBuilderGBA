@@ -1,0 +1,7 @@
+// Sound Room struct definition for FE7/FE8
+// 16 bytes per entry
+@SoundRoom_FE78 10
+0x00	D	BGMID	BGM song ID
+0x04	D	SongDuration	Song duration
+0x08	P	ASMPtr	ASM pointer
+0x0C	D	SongNameTextID	Song name text ID

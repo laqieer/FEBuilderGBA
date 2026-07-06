@@ -1,0 +1,5 @@
+// AI Steal Item struct definition (all versions)
+// 2 bytes per entry
+@AIStealItem 02
+0x00	B	ItemID	Item ID
+0x01	B	Field01	Unknown byte

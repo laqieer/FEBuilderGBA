@@ -1,0 +1,10 @@
+// Portrait struct definition for FE6
+// 16 bytes per entry
+@Portrait_FE6 10
+0x00	P	PortraitImagePtr	Portrait image pointer
+0x04	P	MapSpritePtr	Map sprite pointer
+0x08	P	PalettePtr	Palette pointer
+0x0C	B	MouthX	Mouth X coordinate
+0x0D	B	MouthY	Mouth Y coordinate
+0x0E	B	Reserved0E	Reserved
+0x0F	B	Reserved0F	Reserved

@@ -1,0 +1,6 @@
+// Sound Room struct definition for FE6
+// 12 bytes per entry
+@SoundRoom_FE6 0C
+0x00	D	BGMID	BGM song ID
+0x04	D	SongNameTextID	Song name text ID
+0x08	D	DescriptionTextID	Description text ID

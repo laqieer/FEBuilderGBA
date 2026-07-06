@@ -1,0 +1,393 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Browser\\FEBuilderGBA.Browser.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\FEBuilderGBA.Avalonia.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\FEBuilderGBA.Avalonia.csproj",
+        "projectName": "FEBuilderGBA.Avalonia",
+        "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\FEBuilderGBA.Avalonia.csproj",
+        "packagesPath": "C:\\.nuget\\packages",
+        "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\obj\\",
+        "projectStyle": "PackageReference",
+        "crossTargeting": true,
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\zhiwenzhu\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0",
+          "net9.0-browser"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj"
+              },
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj"
+              }
+            }
+          },
+          "net9.0-browser1.0": {
+            "targetAlias": "net9.0-browser",
+            "projectReferences": {
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj"
+              },
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Avalonia": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "Avalonia.Desktop": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "Avalonia.Themes.Fluent": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "Microsoft.CodeAnalysis.CSharp": {
+              "target": "Package",
+              "version": "[4.8.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
+        },
+        "net9.0-browser1.0": {
+          "targetAlias": "net9.0-browser",
+          "dependencies": {
+            "Avalonia": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "Avalonia.Themes.Fluent": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Browser\\FEBuilderGBA.Browser.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Browser\\FEBuilderGBA.Browser.csproj",
+        "projectName": "FEBuilderGBA.Browser",
+        "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Browser\\FEBuilderGBA.Browser.csproj",
+        "packagesPath": "C:\\.nuget\\packages",
+        "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Browser\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\zhiwenzhu\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0-browser"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0-browser1.0": {
+            "targetAlias": "net9.0-browser",
+            "projectReferences": {
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\FEBuilderGBA.Avalonia.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Avalonia\\FEBuilderGBA.Avalonia.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0-browser1.0": {
+          "targetAlias": "net9.0-browser",
+          "dependencies": {
+            "Avalonia.Browser": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "Avalonia.Fonts.Inter": {
+              "target": "Package",
+              "version": "[11.2.3, )"
+            },
+            "HarfBuzzSharp.NativeAssets.WebAssembly": {
+              "target": "Package",
+              "version": "[7.3.0.3, )"
+            },
+            "Microsoft.NET.Sdk.WebAssembly.Pack": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.17, )",
+              "autoReferenced": true
+            },
+            "SkiaSharp.NativeAssets.WebAssembly": {
+              "target": "Package",
+              "version": "[2.88.9, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "browser-wasm": {
+          "#import": []
+        }
+      }
+    },
+    "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj",
+        "projectName": "FEBuilderGBA.Core",
+        "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj",
+        "packagesPath": "C:\\.nuget\\packages",
+        "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\zhiwenzhu\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "SharpCompress": {
+              "target": "Package",
+              "version": "[0.38.0, )"
+            },
+            "System.Text.Encoding.CodePages": {
+              "target": "Package",
+              "version": "[9.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj",
+        "projectName": "FEBuilderGBA.SkiaSharp",
+        "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\FEBuilderGBA.SkiaSharp.csproj",
+        "packagesPath": "C:\\.nuget\\packages",
+        "outputPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.SkiaSharp\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\zhiwenzhu\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj": {
+                "projectPath": "C:\\Users\\zhiwenzhu\\source\\repos\\laqieer\\wt-1867-web\\FEBuilderGBA.Core\\FEBuilderGBA.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "SkiaSharp": {
+              "target": "Package",
+              "version": "[2.88.9, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.315/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

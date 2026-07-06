@@ -1,0 +1,13 @@
+// Support Talk struct definition for FE7/FE8
+// 16 bytes per entry
+@SupportTalk_FE78 10
+0x00	B	UnitID1	Unit 1 ID
+0x01	B	Field01	Reserved
+0x02	B	UnitID2	Unit 2 ID
+0x03	B	Field03	Reserved
+0x04	W	TextID	Talk text ID
+0x06	W	Field06	Field 0x06
+0x08	W	Field08	Field 0x08
+0x0A	W	Field0A	Field 0x0A
+0x0C	W	Field0C	Field 0x0C
+0x0E	W	Field0E	Field 0x0E

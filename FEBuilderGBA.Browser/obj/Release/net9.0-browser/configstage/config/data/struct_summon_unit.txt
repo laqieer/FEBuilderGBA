@@ -1,0 +1,5 @@
+// Summon Unit struct definition (FE8 only)
+// 2 bytes per entry
+@SummonUnit 02
+0x00	B	ClassID	Summoned class ID
+0x01	B	Field01	Field 0x01

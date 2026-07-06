@@ -1,0 +1,6 @@
+// Force Sortie struct definition (all versions)
+// 4 bytes per entry
+@EventForceSortie 04
+0x00	W	UnitID	Unit ID
+0x02	B	MapID	Map chapter ID
+0x03	B	Field03	Field 0x03

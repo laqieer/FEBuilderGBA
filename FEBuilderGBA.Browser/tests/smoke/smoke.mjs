@@ -94,7 +94,7 @@ const server = http.createServer((req, res) => {
 });
 
 const failures = [];
-const badAvaloniaResponses = [];
+const badModuleResponses = [];
 
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const port = server.address().port;
@@ -105,15 +105,16 @@ const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
 const page = await context.newPage();
 
-// The #1867 tripwire: any avalonia.js response >= 400, or a hard request failure.
+// The #1867 tripwire: any Avalonia JS module (avalonia.js OR storage.js) that responds >= 400 or
+// hard-fails to load — both are boot-critical modules published to _framework/ (Copilot review, #1868).
 page.on('response', (resp) => {
-  if (/avalonia\.js(\?|$)/.test(resp.url()) && resp.status() >= 400) {
-    badAvaloniaResponses.push(`${resp.status()} ${resp.url()}`);
+  if (/(avalonia|storage)\.js(\?|$)/.test(resp.url()) && resp.status() >= 400) {
+    badModuleResponses.push(`${resp.status()} ${resp.url()}`);
   }
 });
 page.on('requestfailed', (req) => {
-  if (/avalonia\.js(\?|$)/.test(req.url())) {
-    badAvaloniaResponses.push(`FAILED ${req.url()} (${req.failure()?.errorText ?? 'unknown'})`);
+  if (/(avalonia|storage)\.js(\?|$)/.test(req.url())) {
+    badModuleResponses.push(`FAILED ${req.url()} (${req.failure()?.errorText ?? 'unknown'})`);
   }
 });
 // Log — but do NOT fail on — page errors and console.errors (Skia/WebGL emit benign ones during
@@ -143,8 +144,8 @@ try {
   console.log(`[smoke] screenshot failed (non-fatal): ${e.message}`);
 }
 
-if (badAvaloniaResponses.length) {
-  failures.push(`avalonia.js was not served OK: ${badAvaloniaResponses.join('; ')}`);
+if (badModuleResponses.length) {
+  failures.push(`Avalonia JS module(s) not served OK: ${badModuleResponses.join('; ')}`);
 }
 
 await browser.close();

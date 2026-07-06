@@ -1,0 +1,13 @@
+// Battle Talk struct definition for FE6
+// 12 bytes per entry
+@EventBattleTalk_FE6 0C
+0x00	B	UnitID1	Unit 1 ID
+0x01	B	UnitID2	Unit 2 ID
+0x02	B	Field02	Field 0x02
+0x03	B	Field03	Field 0x03
+0x04	W	TextID	Battle talk text ID
+0x06	B	Field06	Field 0x06
+0x07	B	Field07	Field 0x07
+0x08	W	Field08	Field 0x08
+0x0A	B	Field0A	Field 0x0A
+0x0B	B	Field0B	Field 0x0B

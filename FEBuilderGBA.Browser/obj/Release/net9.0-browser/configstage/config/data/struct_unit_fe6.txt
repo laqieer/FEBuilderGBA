@@ -1,0 +1,42 @@
+// Unit struct layout for FE6 (Binding Blade)
+// Size: 48 bytes (0x30)
+@Unit_FE6 30
+0x00	W	NameTextID	Name text ID
+0x02	W	DescTextID	Description text ID
+0x04	B	UnitNumber	Unit ID / portrait
+0x05	B	ClassID	Default class
+0x06	W	PortraitID	Portrait ID
+0x08	B	Level	Starting level
+0x09	B	BaseHP	Base HP
+0x0A	B	BasePow	Base Str/Mag
+0x0B	B	BaseSkl	Base Skill
+0x0C	B	BaseSpd	Base Speed
+0x0D	B	BaseDef	Base Defense
+0x0E	B	BaseRes	Base Resistance
+0x0F	B	BaseLck	Base Luck
+0x10	B	BaseCon	Base Constitution
+0x11	B	SwordRank	Sword weapon rank
+0x12	B	LanceRank	Lance weapon rank
+0x13	B	AxeRank	Axe weapon rank
+0x14	B	BowRank	Bow weapon rank
+0x15	B	StaffRank	Staff weapon rank
+0x16	B	AnimaRank	Anima magic rank
+0x17	B	LightRank	Light magic rank
+0x18	B	DarkRank	Dark magic rank
+0x19	B	GrowthHP	HP growth
+0x1A	B	GrowthPow	Str/Mag growth
+0x1B	B	GrowthSkl	Skill growth
+0x1C	B	GrowthSpd	Speed growth
+0x1D	B	GrowthDef	Defense growth
+0x1E	B	GrowthRes	Resistance growth
+0x1F	B	GrowthLck	Luck growth
+0x20	B	Ability1	Ability byte 1
+0x21	B	Ability2	Ability byte 2
+0x22	B	Ability3	Ability byte 3
+0x23	B	Ability4	Ability byte 4
+0x24	P	SupportPointer	Support compatibility pointer
+0x28	B	SupportBaseRank	Support base rank
+0x29	B	StatusFlag	Status flags
+0x2A	B	DeployByte1	Deploy data byte 1
+0x2B	B	DeployByte2	Deploy data byte 2
+0x2C	D	Padding	Padding/unused

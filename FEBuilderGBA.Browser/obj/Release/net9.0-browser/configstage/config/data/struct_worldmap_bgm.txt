@@ -1,0 +1,5 @@
+// World Map BGM struct definition (FE8 only)
+// 4 bytes per entry
+@WorldMapBGM 04
+0x00	W	BGMID	BGM song ID
+0x02	W	BGMID2	Alternate BGM song ID

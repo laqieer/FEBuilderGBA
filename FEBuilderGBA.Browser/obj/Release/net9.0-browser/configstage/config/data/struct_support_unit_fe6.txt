@@ -1,0 +1,35 @@
+// Support Unit struct definition for FE6
+// 32 bytes per entry - each byte is a supported unit ID
+@SupportUnit_FE6 20
+0x00	B	SupportUnit00	Support unit 0
+0x01	B	SupportUnit01	Support unit 1
+0x02	B	SupportUnit02	Support unit 2
+0x03	B	SupportUnit03	Support unit 3
+0x04	B	SupportUnit04	Support unit 4
+0x05	B	SupportUnit05	Support unit 5
+0x06	B	SupportUnit06	Support unit 6
+0x07	B	SupportUnit07	Support unit 7
+0x08	B	SupportUnit08	Support unit 8
+0x09	B	SupportUnit09	Support unit 9
+0x0A	B	SupportUnit0A	Support unit 10
+0x0B	B	SupportUnit0B	Support unit 11
+0x0C	B	SupportUnit0C	Support unit 12
+0x0D	B	SupportUnit0D	Support unit 13
+0x0E	B	SupportUnit0E	Support unit 14
+0x0F	B	SupportUnit0F	Support unit 15
+0x10	B	SupportUnit10	Support unit 16
+0x11	B	SupportUnit11	Support unit 17
+0x12	B	SupportUnit12	Support unit 18
+0x13	B	SupportUnit13	Support unit 19
+0x14	B	SupportUnit14	Support unit 20
+0x15	B	SupportUnit15	Support unit 21
+0x16	B	SupportUnit16	Support unit 22
+0x17	B	SupportUnit17	Support unit 23
+0x18	B	SupportUnit18	Support unit 24
+0x19	B	SupportUnit19	Support unit 25
+0x1A	B	SupportUnit1A	Support unit 26
+0x1B	B	SupportUnit1B	Support unit 27
+0x1C	B	SupportUnit1C	Support unit 28
+0x1D	B	SupportUnit1D	Support unit 29
+0x1E	B	SupportUnit1E	Support unit 30
+0x1F	B	SupportUnit1F	Support unit 31
