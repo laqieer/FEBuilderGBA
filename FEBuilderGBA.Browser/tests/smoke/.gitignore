@@ -1,4 +1,4 @@
 # Smoke-test tooling (Node/Playwright) — never commit installed deps or run output.
+# package-lock.json IS committed (deterministic `npm ci` in CI — #1868 review).
 node_modules/
-package-lock.json
 *.png

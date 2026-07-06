@@ -138,7 +138,7 @@ jobs:
           set -euo pipefail
           OUT="$GITHUB_WORKSPACE/FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot"
           cd FEBuilderGBA.Browser/tests/smoke
-          npm install --no-audit --no-fund
+          npm ci
           npx playwright install --with-deps chromium
           SMOKE_WWWROOT="$OUT" \
           SMOKE_BASE_PATH="${{ env.PAGES_BASE_PATH }}" \

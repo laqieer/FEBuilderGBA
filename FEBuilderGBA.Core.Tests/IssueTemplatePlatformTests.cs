@@ -23,13 +23,12 @@ namespace FEBuilderGBA.Core.Tests
 
         static string FindRepoRoot()
         {
-            var dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 12; i++)
+            // Walk parents until the solution file is found or we reach the filesystem root — more
+            // robust than a fixed depth cap for nested worktrees / deeper build output (#1868 review).
+            for (var dir = AppContext.BaseDirectory; dir != null; dir = Path.GetDirectoryName(dir))
             {
                 if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
                     return dir;
-                dir = Path.GetDirectoryName(dir);
-                if (dir == null) break;
             }
             return null;
         }
