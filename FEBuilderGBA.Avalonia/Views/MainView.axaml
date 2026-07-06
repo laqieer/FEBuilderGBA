@@ -58,6 +58,7 @@
       <TextBlock Name="RomStatusText"
                  AutomationProperties.AutomationId="Main_AndroidRomStatus_Label"
                  VerticalAlignment="Center"
+                 ToolTip.Tip="{Binding #RomStatusText.Text}"
                  TextTrimming="CharacterEllipsis" />
     </Border>
 

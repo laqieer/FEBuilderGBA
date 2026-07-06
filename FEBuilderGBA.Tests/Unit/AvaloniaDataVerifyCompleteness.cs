@@ -166,12 +166,14 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         /// <summary>
-        /// MainWindow.LoadRomFile must use ROM-aware HeadlessSystemTextEncoder as fallback.
+        /// The shared post-load init must use ROM-aware HeadlessSystemTextEncoder as
+        /// fallback. #1870: this moved from MainWindow.FinishLoadedRom into
+        /// RomFileService.InitializeLoadedRom (shared by desktop + single-view shell).
         /// </summary>
         [Fact]
         public void MainWindow_LoadRomFile_UsesRomAwareFallback()
         {
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "RomFileService.cs"));
             Assert.Contains("new HeadlessSystemTextEncoder(CoreState.ROM)", src);
         }
 

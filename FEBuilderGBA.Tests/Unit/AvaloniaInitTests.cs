@@ -1,8 +1,9 @@
 namespace FEBuilderGBA.Tests.Unit
 {
     /// <summary>
-    /// Tests that verify MainWindow.LoadRomFile() has per-subsystem init
-    /// with fallbacks matching CLI RomLoader.InitFull() pattern.
+    /// Tests that verify the shared post-load init (RomFileService.InitializeLoadedRom,
+    /// #1870) has per-subsystem init with fallbacks matching the CLI
+    /// RomLoader.InitFull() pattern, and that MainWindow delegates to it.
     /// Source-code verification tests.
     /// </summary>
     public class AvaloniaInitTests
@@ -21,53 +22,68 @@ namespace FEBuilderGBA.Tests.Unit
         private string MainWindowSource => File.ReadAllText(
             Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
 
+        // #1870: the runtime half of the post-load init moved out of
+        // MainWindow.FinishLoadedRom into the shared RomFileService.InitializeLoadedRom
+        // (so desktop + the single-view web/Android shell never drift). The
+        // per-subsystem try/catch + fallback guards below now live there.
+        private string InitSource => File.ReadAllText(
+            Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Services", "RomFileService.cs"));
+
+        [Fact]
+        public void FinishLoadedRom_DelegatesToSharedInit()
+        {
+            // MainWindow must route its post-load init through the shared service
+            // so the desktop and single-view shells stay in lockstep (#1870).
+            Assert.Contains("RomFileService.InitializeLoadedRom", MainWindowSource);
+        }
+
         [Fact]
         public void LoadRomFile_HasSystemTextEncoderFallback()
         {
-            Assert.Contains("HeadlessSystemTextEncoder", MainWindowSource);
-            Assert.Contains("Failed to init SystemTextEncoder, using headless fallback", MainWindowSource);
+            Assert.Contains("HeadlessSystemTextEncoder", InitSource);
+            Assert.Contains("Failed to init SystemTextEncoder, using headless fallback", InitSource);
         }
 
         [Fact]
         public void LoadRomFile_HasPerSubsystemTryCatch_FETextEncode()
         {
-            Assert.Contains("Failed to init FETextEncode", MainWindowSource);
+            Assert.Contains("Failed to init FETextEncode", InitSource);
         }
 
         [Fact]
         public void LoadRomFile_HasPerSubsystemTryCatch_FlagCache()
         {
-            Assert.Contains("Failed to init FlagCache", MainWindowSource);
+            Assert.Contains("Failed to init FlagCache", InitSource);
         }
 
         [Fact]
         public void LoadRomFile_HasPerSubsystemTryCatch_EventScripts()
         {
-            Assert.Contains("Failed to init EventScripts", MainWindowSource);
+            Assert.Contains("Failed to init EventScripts", InitSource);
         }
 
         [Fact]
         public void LoadRomFile_WiresHeadlessCaches()
         {
-            Assert.Contains("CommentCache ??= new HeadlessEtcCache()", MainWindowSource);
-            Assert.Contains("LintCache ??= new HeadlessEtcCache()", MainWindowSource);
-            Assert.Contains("WorkSupportCache ??= new HeadlessEtcCache()", MainWindowSource);
+            Assert.Contains("CommentCache ??= new HeadlessEtcCache()", InitSource);
+            Assert.Contains("LintCache ??= new HeadlessEtcCache()", InitSource);
+            Assert.Contains("WorkSupportCache ??= new HeadlessEtcCache()", InitSource);
         }
 
         [Fact]
         public void LoadRomFile_MatchesCLIInitPattern()
         {
-            // Verify the Avalonia init has the same structure as CLI RomLoader.InitFull()
+            // Verify the shared Avalonia init has the same structure as CLI RomLoader.InitFull()
             var cliSource = File.ReadAllText(
                 Path.Combine(SolutionDir, "FEBuilderGBA.CLI", "RomLoader.cs"));
 
             // Both should have HeadlessSystemTextEncoder fallback
             Assert.Contains("HeadlessSystemTextEncoder", cliSource);
-            Assert.Contains("HeadlessSystemTextEncoder", MainWindowSource);
+            Assert.Contains("HeadlessSystemTextEncoder", InitSource);
 
             // Both should have per-subsystem error logging
             Assert.Contains("Failed to init SystemTextEncoder", cliSource);
-            Assert.Contains("Failed to init SystemTextEncoder", MainWindowSource);
+            Assert.Contains("Failed to init SystemTextEncoder", InitSource);
         }
 
         [Fact]

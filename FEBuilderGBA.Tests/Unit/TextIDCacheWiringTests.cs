@@ -70,12 +70,19 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // The Avalonia ROM-load path must (re)create the Core cache after each
             // load (replace, not ??=), since the ctor is ROM/path/language-sensitive.
-            var mainWindow = Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs");
-            Assert.True(File.Exists(mainWindow), $"MainWindow.axaml.cs should exist at {mainWindow}");
-            var src = File.ReadAllText(mainWindow);
+            // #1870: this init moved from MainWindow.FinishLoadedRom into the shared
+            // RomFileService.InitializeLoadedRom (used by desktop + single-view shell).
+            var initSource = Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Services", "RomFileService.cs");
+            Assert.True(File.Exists(initSource), $"RomFileService.cs should exist at {initSource}");
+            var src = File.ReadAllText(initSource);
             Assert.Contains("CoreState.UseTextIDCache = new TextIDCacheCore();", src);
             // Guard against an accidental boot-time / null-coalescing assignment.
             Assert.DoesNotContain("CoreState.UseTextIDCache ??= ", src);
+
+            // And MainWindow must delegate to that shared init so desktop stays wired.
+            var mainWindow = Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs");
+            Assert.True(File.Exists(mainWindow), $"MainWindow.axaml.cs should exist at {mainWindow}");
+            Assert.Contains("RomFileService.InitializeLoadedRom", File.ReadAllText(mainWindow));
         }
     }
 }
