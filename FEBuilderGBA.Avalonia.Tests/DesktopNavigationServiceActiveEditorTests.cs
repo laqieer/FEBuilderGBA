@@ -126,4 +126,18 @@ public class DesktopNavigationServiceActiveEditorTests
 
         Assert.Null(svc.ActiveEditorWindow);
     }
+
+    [AvaloniaFact]
+    public void ActiveEditorWindow_TracksEmbeddableEditorHost()
+    {
+        var svc = new DesktopNavigationService();
+        var editor = svc.Open<TestEmbeddableEditor>();
+        var host = svc.OpenAsTopLevel<TestEmbeddableEditor>();
+
+        Assert.IsType<EditorHostWindow>(host);
+        Assert.Same(editor, ((EditorHostWindow)host).Content);
+        Assert.Same(host, svc.ActiveEditorWindow);
+
+        host.Close();
+    }
 }

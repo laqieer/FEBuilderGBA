@@ -32,32 +32,32 @@ sealed class RecordingNavigationService : INavigationService
     public Window? MainWindow { get; set; }
     public Window? ActiveEditorWindow => null;
 
-    public T Open<T>() where T : Window, new()
+    public T Open<T>() where T : Control, new()
     {
         LastCall = "Open"; LastType = typeof(T);
         return new T();
     }
 
-    public T Navigate<T>(uint address) where T : Window, IEditorView, new()
+    public T Navigate<T>(uint address) where T : Control, IEditorView, new()
     {
         LastCall = "Navigate"; LastType = typeof(T); LastAddress = address;
         return new T();
     }
 
-    public Task<T> OpenModal<T>(Window? owner = null) where T : Window, new()
+    public Task<T> OpenModal<T>(Window? owner = null) where T : Control, new()
     {
         LastCall = "OpenModal"; LastType = typeof(T);
         return Task.FromResult(new T());
     }
 
     public Task<PickResult?> PickFromEditor<T>(uint navigateAddress = 0, Window? owner = null)
-        where T : Window, IPickableEditor, new()
+        where T : Control, IPickableEditor, new()
     {
         LastCall = "PickFromEditor"; LastType = typeof(T); LastAddress = navigateAddress;
         return Task.FromResult<PickResult?>(new PickResult(1, 0x100, "x"));
     }
 
-    public T? FindOpen<T>() where T : Window
+    public T? FindOpen<T>() where T : Control
     {
         LastCall = "FindOpen"; LastType = typeof(T);
         return null;
@@ -105,7 +105,7 @@ public class NavigationServiceReflectionTests
     {
         Type wm = typeof(WindowManager);
 
-        // Navigate<T> : T must be IEditorView; PickFromEditor<T> : T must be IPickableEditor.
+        // Navigate<T> : T must be IEditorView; PickFromEditor<T> : T must be IPickableEditor; Control enables single-view embeddable editors.
         AssertConstraint(wm, "Navigate", typeof(IEditorView));
         AssertConstraint(wm, "PickFromEditor", typeof(IPickableEditor));
     }
@@ -115,7 +115,7 @@ public class NavigationServiceReflectionTests
         MethodInfo m = t.GetMethods(BindingFlags.Public | BindingFlags.Instance).First(x => x.Name == name);
         Type tArg = m.GetGenericArguments()[0];
         Type[] constraints = tArg.GetGenericParameterConstraints();
-        Assert.Contains(typeof(Window), constraints);
+        Assert.Contains(typeof(Control), constraints);
         Assert.Contains(expectedInterface, constraints);
     }
 

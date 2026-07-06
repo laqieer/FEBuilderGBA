@@ -15,6 +15,16 @@ namespace FEBuilderGBA.Avalonia.Services
         void SelectFirstItem() { }
     }
 
+    /// <summary>
+    /// Marker for editors whose content can be hosted directly by single-view
+    /// backends and wrapped by a generic host window on desktop.
+    /// </summary>
+    public interface IEmbeddableEditor : IEditorView
+    {
+        EditorDescriptor Descriptor { get; }
+        event EventHandler? CloseRequested;
+    }
+
     /// <summary>Result returned from a pick-and-return operation.</summary>
     public record PickResult(int Index, uint Address, string Name);
 
