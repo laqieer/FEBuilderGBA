@@ -141,8 +141,8 @@ try {
   try {
     await page.waitForFunction(() => document.querySelectorAll('#out .app-splash').length === 0, undefined, { timeout: 15000 });
     console.log('[smoke] .app-splash removed after boot (#1869).');
-  } catch {
-    failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app)`);
+  } catch (e) {
+    failures.push(`.app-splash was NOT removed after the canvas mounted (#1869 — the loading spinner overlays the app): ${e.message}`);
   }
 } catch (e) {
   failures.push(`app did not render a canvas within ${BOOT_TIMEOUT_MS} ms: ${e.message}`);
