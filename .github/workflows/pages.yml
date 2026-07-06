@@ -1,0 +1,133 @@
+# Build the Avalonia WebAssembly head and deploy it to GitHub Pages (#1864).
+#
+# The FEBuilderGBA.Browser head (net9.0-browser) is INTENTIONALLY excluded from FEBuilderGBA.sln
+# because the required desktop `build` check builds the whole solution on windows-latest with NO
+# wasm-tools workload. This dedicated workflow builds the wasm AppBundle on a workload-capable
+# ubuntu-latest runner and deploys it to GitHub Pages.
+#
+# - The `build` job runs on PRs too (so the wasm build is validated before merge) but does NOT
+#   deploy. Its check is a separate context ("build") from the required desktop `build` check in
+#   check.yml only by workflow name; it can't block PR merges (this workflow is not a required
+#   status check).
+# - The `deploy` job runs ONLY on push to master / manual dispatch (never from a PR).
+#
+# GitHub Pages must have its source set to "GitHub Actions" (build_type=workflow) — enabled once
+# out-of-band (gh api) and re-asserted idempotently by actions/configure-pages below.
+
+name: Deploy Web (WebAssembly) to GitHub Pages
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; do NOT cancel an in-progress deploy (Pages deploys are atomic).
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  BUILD_CONFIGURATION: Release
+  # GitHub Pages project site is served under https://<owner>.github.io/<repo>/ — the app's
+  # <base href> must match or every relative asset (config.zip, _framework/*) 404s.
+  PAGES_BASE_PATH: /FEBuilderGBA/
+
+jobs:
+  build:
+    name: Build wasm AppBundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # config/** are regular tracked files (present); patch2 is excluded from the bundle and
+        # gated off the browser TFM, so NO submodule init is needed.
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-wasm-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            nuget-wasm-${{ runner.os }}-
+
+      - name: Install wasm-tools workload
+        # Provides the net9.0-browser toolchain + Emscripten used to emcc-relink the SkiaSharp +
+        # HarfBuzz wasm native archives into dotnet.wasm. On Linux this is a clean NuGet-pack
+        # install (no MSI / elevation).
+        run: dotnet workload install wasm-tools
+
+      - name: Publish Browser head
+        # EnableBrowserTarget=true as a GLOBAL property (restore static-graph / NETSDK1005 fix,
+        # same as android/iOS). Threads OFF (Pages has no COOP/COEP), no trim (reflection-heavy
+        # Core), no compression (Pages does no content-negotiation).
+        run: |
+          dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -p:EnableBrowserTarget=true \
+            -p:WasmEnableThreads=false \
+            -p:PublishTrimmed=false \
+            -p:CompressionEnabled=false
+
+      - name: Prepare Pages artifact (base href + .nojekyll + verify)
+        run: |
+          set -euo pipefail
+          OUT="FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot"
+          if [ ! -d "$OUT" ]; then
+            echo "::error::publish wwwroot not found at $OUT"
+            echo "--- tree of bin/Release/net9.0-browser ---"
+            find "FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser" -maxdepth 3 -type d | head -50
+            exit 1
+          fi
+          # Rewrite the <base href> to the GitHub Pages project path.
+          sed -i "s|<base href=\"/\" />|<base href=\"${{ env.PAGES_BASE_PATH }}\" />|" "$OUT/index.html"
+          grep -q "<base href=\"${{ env.PAGES_BASE_PATH }}\"" "$OUT/index.html" \
+            || { echo "::error::base href rewrite to ${{ env.PAGES_BASE_PATH }} failed"; grep -n '<base' "$OUT/index.html" || true; exit 1; }
+          # .nojekyll so Pages' Jekyll doesn't strip the _framework/ dir (leading underscore).
+          touch "$OUT/.nojekyll"
+          # Verify the config.zip bundled AND retained the config/ prefix (not flattened) — the
+          # app extracts + resolves {BaseDirectory}/config/config.xml from it.
+          test -f "$OUT/config.zip" || { echo "::error::config.zip missing from AppBundle"; ls -la "$OUT"; exit 1; }
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -l "$OUT/config.zip" | grep -q 'config/data/6c_name_FE8.txt' \
+              || { echo "::error::config.zip missing config/ content (flattened or empty?)"; unzip -l "$OUT/config.zip" | head; exit 1; }
+          fi
+          echo "AppBundle OK ($OUT):"
+          ls -la "$OUT" | head -40
+          test -d "$OUT/_framework" || { echo "::error::_framework/ missing (wasm runtime not published?)"; exit 1; }
+
+      - name: Configure Pages
+        # Idempotent; asserts the Actions build type. enablement:true turns Pages on if it isn't.
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: FEBuilderGBA.Browser/bin/${{ env.BUILD_CONFIGURATION }}/net9.0-browser/publish/wwwroot
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Only deploy from master / manual dispatch — never from a pull request.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

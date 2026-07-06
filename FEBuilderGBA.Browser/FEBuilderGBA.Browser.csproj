@@ -1,0 +1,105 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!--
+    Avalonia.Browser (WebAssembly) head for FEBuilderGBA (issue #1864) — the 4th Avalonia head
+    after desktop, Android (#1070) and iOS (#1859). Builds the shared FEBuilderGBA.Avalonia UI
+    into a wasm AppBundle that runs in a browser and is deployed to GitHub Pages by
+    .github/workflows/pages.yml.
+
+    NOT part of FEBuilderGBA.sln: the required desktop `build` check builds the whole solution on
+    a windows-latest runner with NO wasm-tools workload, so including this net9.0-browser head in
+    the .sln would break unrelated PRs. Build it standalone:
+
+        dotnet workload install wasm-tools
+        dotnet publish FEBuilderGBA.Browser/FEBuilderGBA.Browser.csproj -c Release -p:EnableBrowserTarget=true
+
+    -p:EnableBrowserTarget=true is REQUIRED as a GLOBAL property (mirrors android/iOS): NuGet
+    restore's static graph ignores the per-reference AdditionalProperties below, so without it
+    restore writes a net9.0-only assets file for FEBuilderGBA.Avalonia and the build fails with
+    NETSDK1005 ("doesn't have a target for 'net9.0-browser'").
+
+    PREVIEW: build-validated + deploys + loads/renders the shell; full in-browser ROM-editing
+    parity (threading-dependent caches, every file-flow) is a follow-up. See docs/WEBASSEMBLY.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-browser</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>FEBuilderGBA.Browser</RootNamespace>
+    <AssemblyName>FEBuilderGBA.Browser</AssemblyName>
+
+    <!-- PREVIEW runtime viability: the Core/ROM pipeline is reflection-heavy, so DON'T trim
+         (aggressive wasm trimming would drop reflected types and crash at runtime). Larger
+         download, acceptable for a preview — mirrors the iOS head's rationale. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- GitHub Pages sends no COOP/COEP headers, so SharedArrayBuffer is unavailable and wasm
+         THREADS MUST be off. This also makes Avalonia link the single-threaded (st) Skia +
+         HarfBuzz native archives. The shell boot path has no `new Thread(` (verified), so a
+         single-threaded runtime renders the launcher fine. -->
+    <WasmEnableThreads>false</WasmEnableThreads>
+    <!-- GitHub Pages does no Brotli/gzip content-negotiation, so emit PLAIN .wasm/.dll (a
+         precompressed .br/.gz would be served with the wrong Content-Encoding). -->
+    <CompressionEnabled>false</CompressionEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Browser" Version="11.2.3" />
+    <!-- Avalonia's browser text stack needs an embedded font (wasm has NO system fonts) — Inter
+         is the standard Avalonia bundle; HarfBuzz shapes it. -->
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+    <!-- Avalonia.Browser 11.2.3 emcc-relinks BOTH libSkiaSharp.a AND libHarfBuzzSharp.a into
+         dotnet.wasm. The MANAGED deps (SkiaSharp 2.88.9 + HarfBuzzSharp 7.3.0.3) come from
+         Avalonia, but the wasm NATIVE archives must be added explicitly, and BOTH are required
+         (missing HarfBuzz fails the native link / text shaping). Pinned to Avalonia 11.2.3's
+         managed deps + FEBuilderGBA.SkiaSharp's 2.88.9. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="2.88.9" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="7.3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The shared Avalonia UI. AdditionalProperties activates its net9.0-browser TFM for the
+         BUILD phase; restore ALSO needs the global -p:EnableBrowserTarget=true (see header). -->
+    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" AdditionalProperties="EnableBrowserTarget=true" />
+  </ItemGroup>
+
+  <!-- GPLv3 (sections 4-6) requires the license text to accompany every binary distribution.
+       A wasm site conveys the compiled assemblies to the user, so ship LICENSE +
+       THIRD-PARTY-NOTICES.md as static web assets (mirrors the android/iOS heads, #1633). -->
+  <ItemGroup>
+    <Content Include="..\LICENSE" Link="wwwroot\LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\THIRD-PARTY-NOTICES.md" Link="wwwroot\THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    config.zip generation (#1864). config/** (excl. patch2) is zipped into wwwroot/config.zip so
+    Program.Main can fetch it over HTTP and extract it into a writable MEMFS dir on first run
+    (there is no real filesystem / app bundle on wasm). The archive is ROOTED so entries retain
+    the `config/` prefix (config/data/...), which ZipAssetSource + AndroidConfigExtractorCore
+    require (the app resolves {BaseDirectory}/config/config.xml). It is staged (config/** copied
+    under an intermediate `config/` dir) then ZipDirectory'd so the entry prefix is correct.
+
+    Runs BEFORE the static-web-asset scan so the generated zip is picked up as a wwwroot asset.
+    Incremental via Inputs/Outputs (skips when config.zip is newer than every config source).
+    config.zip is .gitignored (generated, ~6.8 MB). config/patch2 is NOT bundled (deferred).
+  -->
+  <ItemGroup>
+    <_BrowserConfigFiles Include="..\config\**\*" Exclude="..\config\patch2\**" />
+  </ItemGroup>
+  <Target Name="ZipConfigForBrowser"
+          BeforeTargets="ResolveStaticWebAssetsInputs;BeforeBuild"
+          Inputs="@(_BrowserConfigFiles)"
+          Outputs="$(MSBuildProjectDirectory)\wwwroot\config.zip">
+    <PropertyGroup>
+      <_ConfigZip>$(MSBuildProjectDirectory)\wwwroot\config.zip</_ConfigZip>
+      <_ConfigStage>$(IntermediateOutputPath)configstage</_ConfigStage>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_ConfigStage)" />
+    <Copy SourceFiles="@(_BrowserConfigFiles)"
+          DestinationFiles="@(_BrowserConfigFiles->'$(_ConfigStage)\config\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot" />
+    <Delete Files="$(_ConfigZip)" />
+    <ZipDirectory SourceDirectory="$(_ConfigStage)" DestinationFile="$(_ConfigZip)" />
+    <Message Importance="high" Text="ZipConfigForBrowser: wrote $(_ConfigZip) (config/ tree, patch2 excluded)" />
+  </Target>
+</Project>

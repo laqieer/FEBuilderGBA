@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>FEBuilderGBA — Web (preview)</title>
+    <meta name="description" content="FEBuilderGBA — a Fire Emblem GBA ROM-hacking suite (Avalonia GUI) running in the browser via WebAssembly. Experimental preview." />
+    <base href="/" />
+    <link rel="stylesheet" href="./app.css" />
+</head>
+
+<body style="margin: 0; overflow: hidden">
+    <div id="out">
+        <div class="app-splash">
+            <div class="app-splash-inner">
+                <h1>FEBuilderGBA</h1>
+                <p>Loading the WebAssembly build…</p>
+                <p class="app-splash-note">
+                    First load downloads the app + game data and can take a while.
+                    <br />Experimental <strong>preview</strong> — see the
+                    <a href="https://github.com/laqieer/FEBuilderGBA" target="_blank" rel="noopener">project on GitHub</a>.
+                </p>
+                <div class="app-splash-spinner" aria-hidden="true"></div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="./main.js"></script>
+</body>
+
+</html>
