@@ -413,9 +413,9 @@ namespace FEBuilderGBA.Tests.Unit
         public void View_ImplementsIEditorView(string viewFile)
         {
             var src = ReadView(viewFile);
-            // Views implement either IEditorView directly or IPickableEditor (which extends IEditorView)
-            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor"),
-                $"View {viewFile} should implement IEditorView or IPickableEditor");
+            // Views implement IEditorView directly, IPickableEditor, or IEmbeddableEditor.
+            Assert.True(src.Contains("IEditorView") || src.Contains("IPickableEditor") || src.Contains("IEmbeddableEditor"),
+                $"View {viewFile} should implement IEditorView, IPickableEditor, or IEmbeddableEditor");
             Assert.Contains("SelectFirstItem", src);
         }
 

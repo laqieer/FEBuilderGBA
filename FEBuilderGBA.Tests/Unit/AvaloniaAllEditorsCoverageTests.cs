@@ -38,7 +38,7 @@ namespace FEBuilderGBA.Tests.Unit
 
             // Extract all editor names from GetAllEditorFactories()
             var factoryPattern = new System.Text.RegularExpressions.Regex(
-                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
+                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open(?:AsTopLevel)?<\w+>\(\)\)");
             var factoryEditors = factoryPattern.Matches(mainWindowSrc)
                 .Select(m => m.Groups[1].Value)
                 .ToHashSet();
@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Tests.Unit
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
 
             var factoryPattern = new System.Text.RegularExpressions.Regex(
-                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
+                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open(?:AsTopLevel)?<\w+>\(\)\)");
             var factoryEditors = factoryPattern.Matches(mainWindowSrc)
                 .Select(m => m.Groups[1].Value)
                 .ToHashSet();
@@ -110,7 +110,7 @@ namespace FEBuilderGBA.Tests.Unit
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
 
             var factoryPattern = new System.Text.RegularExpressions.Regex(
-                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
+                @"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open(?:AsTopLevel)?<\w+>\(\)\)");
             int count = factoryPattern.Matches(mainWindowSrc).Count;
 
             Assert.Equal(324, count);

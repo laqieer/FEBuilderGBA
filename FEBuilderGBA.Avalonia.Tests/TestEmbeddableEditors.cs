@@ -26,7 +26,13 @@ public class TestEmbeddableEditor : TranslatedUserControl, IEmbeddableEditor
     public virtual EditorDescriptor Descriptor => new("Test Embeddable", 321, 123, MinWidth: 111, MinHeight: 99);
     public string ViewTitle => Descriptor.Title;
     public new bool IsLoaded => _loadedOnce;
-    public event EventHandler? CloseRequested;
+    EventHandler? _closeRequested;
+    public int CloseRequestedSubscriberCount => _closeRequested?.GetInvocationList().Length ?? 0;
+    public event EventHandler? CloseRequested
+    {
+        add => _closeRequested += value;
+        remove => _closeRequested -= value;
+    }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
@@ -45,7 +51,7 @@ public class TestEmbeddableEditor : TranslatedUserControl, IEmbeddableEditor
     }
 
     public void SelectFirstItem() => SelectFirstItemCalls++;
-    public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+    public void RequestClose() => _closeRequested?.Invoke(this, EventArgs.Empty);
 
     public static void Reset()
     {

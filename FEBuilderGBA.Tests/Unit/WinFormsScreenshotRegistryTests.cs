@@ -140,7 +140,7 @@ namespace FEBuilderGBA.Tests.Unit
                 Path.Combine(SolutionDir, "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
 
             // Extract Avalonia editor names
-            var avaloniaPattern = new Regex(@"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open<\w+>\(\)\)");
+            var avaloniaPattern = new Regex(@"\(""(\w+)"",\s*\(\)\s*=>\s*wm\.Open(?:AsTopLevel)?<\w+>\(\)\)");
             var avaloniaNames = avaloniaPattern.Matches(avaloniaMainWindow)
                 .Select(m => m.Groups[1].Value)
                 .ToHashSet();

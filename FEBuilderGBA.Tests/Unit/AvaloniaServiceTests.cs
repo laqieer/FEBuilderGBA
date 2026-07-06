@@ -186,7 +186,7 @@ namespace FEBuilderGBA.Tests.Unit
             // Verify the Closed event handler provides the fallback null result
             // #1122: body lives in DesktopNavigationService.cs now (verbatim).
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "DesktopNavigationService.cs"));
-            int closedPos = src.IndexOf("window.Closed +=");
+            int closedPos = src.IndexOf(".Closed +=");
             Assert.True(closedPos > 0, "Closed event handler not found");
             Assert.Contains("tcs.TrySetResult(null)", src);
         }
