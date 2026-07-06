@@ -49,8 +49,11 @@ editors (`new Window()` still throws before content exists), so converted editor
 size, min size, modal capability) plus `CloseRequested`. Desktop keeps true multi-window behavior by
 wrapping those controls in the generic `EditorHostWindow`; browser/Android/iOS push the same
 `UserControl` directly as a page with no `Window` construction. Legacy `Window` editors still use the
-old desktop path while rollout continues. `MoveCostEditorView` is the first converted proof editor and
-is exposed in the single-view launcher once a ROM is loaded.
+old desktop path while rollout continues. `MoveCostEditorView` was the first converted proof editor;
+the first rollout batch also converts the simple AI editors (`AIASMCALLTALKView`,
+`AIASMCoordinateView`, `AIASMRangeView`, `AIMapSettingView`, `AIPerformItemView`,
+`AIPerformStaffView`, `AIStealItemView`, `AITargetView`, `AITilesView`, and `AIUnitsView`). Converted
+editors are exposed in the single-view launcher once a ROM is loaded.
 
 ## 3. Rendering (SkiaSharp + HarfBuzz native relink)
 
@@ -147,9 +150,9 @@ failure a "returns HTTP 200" check can't catch, which is exactly how #1867 shipp
 ## 7. Known preview limitations / follow-ups
 
 - **Editor rollout is partial (#1873)** — embeddable editors now work without constructing a `Window`.
-  `MoveCostEditorView` is the first converted proof editor; the remaining legacy `Window` editors still
-  need follow-up conversions before the browser can host the full catalog. ROM **open/save** works
-  (#1870), and the launcher remains ROM-gated.
+  `MoveCostEditorView` plus the first simple-AI rollout batch are converted; the remaining legacy
+  `Window` editors still need follow-up conversions before the browser can host the full catalog. ROM
+  **open/save** works (#1870), and the launcher remains ROM-gated.
 - **On-device parity maturing** — threading-dependent caches + some file-flows aren't browser-ported
   (single-threaded on Pages). Milestone = builds + deploys + loads/renders the shell (config-loaded).
 - **`config/patch2` / FE-Repo not bundled** — same as the mobile heads.

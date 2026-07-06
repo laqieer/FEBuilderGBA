@@ -2178,16 +2178,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // AI Script Editors
                 ("AIScriptView", () => wm.Open<AIScriptView>()),
-                ("AIASMCALLTALKView", () => wm.Open<AIASMCALLTALKView>()),
-                ("AIASMCoordinateView", () => wm.Open<AIASMCoordinateView>()),
-                ("AIASMRangeView", () => wm.Open<AIASMRangeView>()),
-                ("AIMapSettingView", () => wm.Open<AIMapSettingView>()),
-                ("AIPerformItemView", () => wm.Open<AIPerformItemView>()),
-                ("AIPerformStaffView", () => wm.Open<AIPerformStaffView>()),
-                ("AIStealItemView", () => wm.Open<AIStealItemView>()),
-                ("AITargetView", () => wm.Open<AITargetView>()),
-                ("AITilesView", () => wm.Open<AITilesView>()),
-                ("AIUnitsView", () => wm.Open<AIUnitsView>()),
+                ("AIASMCALLTALKView", () => wm.OpenAsTopLevel<AIASMCALLTALKView>()),
+                ("AIASMCoordinateView", () => wm.OpenAsTopLevel<AIASMCoordinateView>()),
+                ("AIASMRangeView", () => wm.OpenAsTopLevel<AIASMRangeView>()),
+                ("AIMapSettingView", () => wm.OpenAsTopLevel<AIMapSettingView>()),
+                ("AIPerformItemView", () => wm.OpenAsTopLevel<AIPerformItemView>()),
+                ("AIPerformStaffView", () => wm.OpenAsTopLevel<AIPerformStaffView>()),
+                ("AIStealItemView", () => wm.OpenAsTopLevel<AIStealItemView>()),
+                ("AITargetView", () => wm.OpenAsTopLevel<AITargetView>()),
+                ("AITilesView", () => wm.OpenAsTopLevel<AITilesView>()),
+                ("AIUnitsView", () => wm.OpenAsTopLevel<AIUnitsView>()),
                 ("AOERANGEView", () => wm.Open<AOERANGEView>()),
 
                 // Image Editors

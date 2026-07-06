@@ -15,7 +15,7 @@
 //   - NavigateTo(0) keeps the standalone placeholder/no-op (CurrentAddr stays 0);
 //   - clicking Write after NavigateTo(realAddr) mutates ONLY the supplied address.
 //
-// Uses [AvaloniaFact] (headless) because it constructs real Window views.
+// Uses [AvaloniaFact] (headless) because it constructs real controls/views.
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -38,14 +38,14 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         interface IViewProbe
         {
-            Window MakeView();
+            Control MakeView();
         }
 
-        sealed class TilesProbe : IViewProbe { public Window MakeView() => new AITilesView(); }
-        sealed class UnitsProbe : IViewProbe { public Window MakeView() => new AIUnitsView(); }
-        sealed class CoordProbe : IViewProbe { public Window MakeView() => new AIASMCoordinateView(); }
-        sealed class RangeProbe : IViewProbe { public Window MakeView() => new AIASMRangeView(); }
-        sealed class CallTalkProbe : IViewProbe { public Window MakeView() => new AIASMCALLTALKView(); }
+        sealed class TilesProbe : IViewProbe { public Control MakeView() => new AITilesView(); }
+        sealed class UnitsProbe : IViewProbe { public Control MakeView() => new AIUnitsView(); }
+        sealed class CoordProbe : IViewProbe { public Control MakeView() => new AIASMCoordinateView(); }
+        sealed class RangeProbe : IViewProbe { public Control MakeView() => new AIASMRangeView(); }
+        sealed class CallTalkProbe : IViewProbe { public Control MakeView() => new AIASMCALLTALKView(); }
 
         static IEnumerable<IViewProbe> Probes()
         {
@@ -56,14 +56,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             yield return new CallTalkProbe();
         }
 
-        static uint CurrentAddrOf(Window view)
+        static uint CurrentAddrOf(Control view)
         {
             var vm = (object?)((dynamic)view).DataViewModel;
             Assert.NotNull(vm);
             return (uint)vm!.GetType().GetProperty("CurrentAddr")!.GetValue(vm)!;
         }
 
-        static bool IsLoadedOf(Window view) => ((IEditorView)view).IsLoaded;
+        static bool IsLoadedOf(Control view) => ((IEditorView)view).IsLoaded;
 
         [AvaloniaFact]
         public void NavigateTo_RealParentPointer_LoadsSuppliedAddress()
@@ -75,7 +75,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 foreach (IViewProbe probe in Probes())
                 {
-                    Window view = probe.MakeView();
+                    Control view = probe.MakeView();
                     // The view's Opened handler runs LoadList() in real use; here we
                     // call NavigateTo directly as the parent dispatch would after open.
                     ((IEditorView)view).NavigateTo(Target);
@@ -94,7 +94,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 foreach (IViewProbe probe in Probes())
                 {
-                    Window view = probe.MakeView();
+                    Control view = probe.MakeView();
                     ((IEditorView)view).NavigateTo(0);
                     // addr 0 stays the guarded no-op placeholder — never a loaded
                     // non-zero heuristic target.
@@ -116,7 +116,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 foreach (IViewProbe probe in Probes())
                 {
-                    Window view = probe.MakeView();
+                    Control view = probe.MakeView();
                     ((IEditorView)view).NavigateTo(unsafeAddr);
                     Assert.Equal(0u, CurrentAddrOf(view));
                     Assert.False(IsLoadedOf(view),
@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 foreach (IViewProbe probe in Probes())
                 {
-                    Window view = probe.MakeView();
+                    Control view = probe.MakeView();
                     ((IEditorView)view).NavigateTo(Target);
                     Assert.Equal(Target, CurrentAddrOf(view));
 
@@ -160,7 +160,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         // Click the WriteButton via its registered handler (the views wire
         // WriteButton.Click += OnWrite in the constructor).
-        static void InvokeWriteClick(Window view)
+        static void InvokeWriteClick(Control view)
         {
             var writeButton = view.FindControl<Button>("WriteButton");
             Assert.NotNull(writeButton);
